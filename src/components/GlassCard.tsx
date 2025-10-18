@@ -7,9 +7,10 @@ interface GlassCardProps {
   hover?: boolean;
   ticket?: boolean;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export const GlassCard = ({ children, className, hover = false, ticket = false, onClick }: GlassCardProps) => {
+export const GlassCard = ({ children, className, hover = false, ticket = false, onClick, style }: GlassCardProps) => {
   return (
     <div
       className={cn(
@@ -19,6 +20,7 @@ export const GlassCard = ({ children, className, hover = false, ticket = false, 
         className
       )}
       onClick={onClick}
+      style={style}
     >
       {children}
     </div>
