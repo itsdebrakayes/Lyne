@@ -2,6 +2,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { StatusChip } from "@/components/StatusChip";
 import { ServiceTile } from "@/components/ServiceTile";
 import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
 import {
   DollarSign,
@@ -71,8 +72,9 @@ const PublicTraffic = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
+      <Navbar />
+      <div className="max-w-7xl mx-auto space-y-8 pt-20 p-4 md:p-8">
         {/* Header */}
         <div className="text-center space-y-4 animate-slide-up">
           <h1 className="text-4xl md:text-5xl font-bold">
