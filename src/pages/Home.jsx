@@ -21,32 +21,32 @@ const Home = () => {
         <div className="w-full px-4 md:px-8 lg:px-12 xl:px-16 relative">
           <div className="relative w-full min-h-[calc(100vh-5rem)]">
             {/* Left Content */}
-            <div className="space-y-6 md:space-y-8 lg:space-y-10 animate-fade-in z-10 max-w-3xl">
-              <div className="space-y-4 md:space-y-6">
-                <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold text-foreground leading-tight">
+            <div className="space-y-8 md:space-y-10 lg:space-y-12 animate-fade-in z-10 max-w-4xl">
+              <div className="space-y-4 md:space-y-6 lg:space-y-8">
+                <h1 className="text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold text-foreground leading-tight">
                   QueMe Now
                 </h1>
-                <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-primary font-semibold">
+                <p className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl text-primary font-semibold">
                   Smart Queue Management
                 </p>
-                <p className="text-lg md:text-xl lg:text-2xl xl:text-3xl text-muted-foreground max-w-2xl">
+                <p className="text-xl md:text-2xl lg:text-3xl text-muted-foreground max-w-3xl leading-relaxed">
                   Experience the future of queue management. Check live traffic, join queues remotely, and track your position in real-time at Tax Administration Jamaica.
                 </p>
               </div>
 
-              <div className="flex flex-row flex-wrap gap-4 md:gap-5 lg:gap-6">
+              <div className="flex flex-row flex-wrap gap-5 md:gap-6 lg:gap-7">
                 <Button
                   size="lg"
-                  className="text-lg md:text-xl lg:text-2xl xl:text-3xl px-8 md:px-10 lg:px-14 xl:px-16 py-6 md:py-7 lg:py-8 xl:py-10 rounded-full bg-primary hover:bg-primary-dark shadow-lg hover:shadow-xl transition-all"
+                  className="text-xl md:text-2xl lg:text-3xl px-10 md:px-12 lg:px-16 py-7 md:py-8 lg:py-10 rounded-full bg-primary hover:bg-primary-dark shadow-lg hover:shadow-xl transition-all"
                   onClick={() => navigate("/about")}
                 >
                   Learn More
-                  <ArrowRight className="ml-2 h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7" />
+                  <ArrowRight className="ml-2 h-6 w-6 md:h-7 md:w-7 lg:h-8 lg:w-8" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg md:text-xl lg:text-2xl xl:text-3xl px-8 md:px-10 lg:px-14 xl:px-16 py-6 md:py-7 lg:py-8 xl:py-10 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl transition-all"
+                  className="text-xl md:text-2xl lg:text-3xl px-10 md:px-12 lg:px-16 py-7 md:py-8 lg:py-10 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl transition-all"
                   onClick={() => navigate("/taj")}
                 >
                   Go to TAJ
@@ -54,24 +54,24 @@ const Home = () => {
               </div>
 
               {/* Stats */}
-              <div className="flex gap-8 md:gap-10 lg:gap-16 xl:gap-20 pt-8 md:pt-10 lg:pt-12 justify-start">
+              <div className="flex gap-10 md:gap-12 lg:gap-20 xl:gap-24 pt-10 md:pt-12 lg:pt-14 justify-start">
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary">1000+</div>
-                  <div className="text-sm md:text-base lg:text-lg xl:text-xl text-muted-foreground">Daily Users</div>
+                  <div className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary">1000+</div>
+                  <div className="text-base md:text-lg lg:text-xl xl:text-2xl text-muted-foreground">Daily Users</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary">5</div>
-                  <div className="text-sm md:text-base lg:text-lg xl:text-xl text-muted-foreground">Services</div>
+                  <div className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary">5</div>
+                  <div className="text-base md:text-lg lg:text-xl xl:text-2xl text-muted-foreground">Services</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-primary">24/7</div>
-                  <div className="text-sm md:text-base lg:text-lg xl:text-xl text-muted-foreground">Live Updates</div>
+                  <div className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary">24/7</div>
+                  <div className="text-base md:text-lg lg:text-xl xl:text-2xl text-muted-foreground">Live Updates</div>
                 </div>
               </div>
             </div>
 
             {/* Hero Image - Desktop - Bottom Right Anchored */}
-            <div className="hidden md:block fixed bottom-0 right-0 w-[45vw] lg:w-[50vw] xl:w-[55vw] 2xl:w-[60vw] max-w-[1200px] z-0 animate-fade-in pointer-events-none" style={{ animationDelay: '0.2s' }}>
+            <div className="hidden md:block fixed bottom-0 right-0 w-[50vw] lg:w-[55vw] xl:w-[58vw] 2xl:w-[60vw] max-w-[1400px] z-0 animate-fade-in pointer-events-none" style={{ animationDelay: '0.2s' }}>
               <img 
                 src={heroImage} 
                 alt="QueMe Now Queue Management" 
