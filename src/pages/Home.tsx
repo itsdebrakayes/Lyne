@@ -17,11 +17,11 @@ const Home = () => {
       <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
 
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center pt-20">
+      <section className="min-h-screen flex items-center pt-20 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 md:px-8 w-full">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-12 items-center relative">
             {/* Left Content */}
-            <div className="space-y-8 animate-fade-in">
+            <div className="space-y-8 animate-fade-in z-10">
               <div className="space-y-4">
                 <h1 className="text-5xl md:text-7xl font-bold text-foreground leading-tight">
                   QueMe Now
@@ -72,16 +72,11 @@ const Home = () => {
 
             {/* Right Content - Hero Image */}
             <div className="relative animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="relative aspect-square max-w-3xl mx-auto">
-                <img 
-                  src={heroImage} 
-                  alt="QueMe Now Queue Management" 
-                  className="w-full h-full object-contain"
-                />
-                {/* Decorative elements */}
-                <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary rounded-2xl blur-xl opacity-50" />
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-secondary rounded-2xl blur-xl opacity-50" />
-              </div>
+              <img 
+                src={heroImage} 
+                alt="QueMe Now Queue Management" 
+                className="fixed bottom-0 right-0 w-[900px] h-auto object-contain z-0"
+              />
             </div>
           </div>
         </div>
