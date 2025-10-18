@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import heroImage from "@/assets/hero-image.png";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -69,18 +70,14 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Right Content - Image Placeholder */}
+            {/* Right Content - Hero Image */}
             <div className="relative animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <div className="relative aspect-square max-w-lg mx-auto">
-                {/* Placeholder for hero image */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl backdrop-blur-sm flex items-center justify-center border-2 border-primary/20">
-                  <div className="text-center space-y-4">
-                    <div className="w-32 h-32 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-4xl">🎯</span>
-                    </div>
-                    <p className="text-muted-foreground text-sm">Queue Management System</p>
-                  </div>
-                </div>
+                <img 
+                  src={heroImage} 
+                  alt="QueMe Now Queue Management" 
+                  className="w-full h-full object-contain"
+                />
                 {/* Decorative elements */}
                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary rounded-2xl blur-xl opacity-50" />
                 <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-secondary rounded-2xl blur-xl opacity-50" />
