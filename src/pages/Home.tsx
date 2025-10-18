@@ -72,7 +72,7 @@ const Home = () => {
 
             {/* Right Content - Hero Image */}
             <div className="relative animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="relative aspect-square max-w-lg mx-auto">
+              <div className="relative aspect-square max-w-3xl mx-auto">
                 <img 
                   src={heroImage} 
                   alt="QueMe Now Queue Management" 
