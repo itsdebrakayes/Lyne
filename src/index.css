@@ -8,30 +8,30 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Background gradients - Light blue theme */
-    --background: 210 100% 98%;
-    --background-gradient: linear-gradient(135deg, hsl(210, 100%, 98%) 0%, hsl(200, 100%, 99%) 100%);
-    --foreground: 210 20% 15%;
+    /* Modern gradient backgrounds */
+    --background: 220 25% 97%;
+    --background-gradient: linear-gradient(135deg, hsl(220, 30%, 98%) 0%, hsl(210, 35%, 96%) 50%, hsl(200, 40%, 95%) 100%);
+    --foreground: 220 25% 10%;
 
     /* Glass effect variables */
-    --glass-background: 0 0% 100% / 0.7;
-    --glass-border: 220 20% 90% / 0.5;
-    --glass-shadow: 220 20% 60% / 0.1;
+    --glass-background: 0 0% 100% / 0.65;
+    --glass-border: 220 20% 90% / 0.4;
+    --glass-shadow: 220 30% 50% / 0.08;
     
-    /* Primary - Vibrant Blue */
-    --primary: 200 100% 50%;
-    --primary-light: 200 90% 60%;
-    --primary-dark: 200 100% 40%;
+    /* Primary - Modern Blue with depth */
+    --primary: 210 100% 56%;
+    --primary-light: 210 95% 65%;
+    --primary-dark: 210 100% 45%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light Blue accent */
-    --secondary: 210 100% 60%;
-    --secondary-light: 210 90% 70%;
+    /* Secondary - Sophisticated purple-blue */
+    --secondary: 240 60% 65%;
+    --secondary-light: 240 55% 75%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Accent - Bright blue */
-    --accent: 200 90% 50%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent - Vibrant cyan */
+    --accent: 190 85% 55%;
+    --accent-foreground: 220 25% 10%;
 
     /* Status colors */
     --status-busy: 0 70% 55%;
@@ -62,14 +62,16 @@ All colors MUST be HSL.
     --radius: 1rem;
     --radius-lg: 1.5rem;
 
-    /* Shadows */
-    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-    --shadow-glass-hover: 0 12px 40px 0 rgba(31, 38, 135, 0.2);
-    --shadow-ticket: 0 20px 60px 0 rgba(31, 38, 135, 0.25);
+    /* Modern layered shadows */
+    --shadow-glass: 0 10px 40px -5px rgba(31, 38, 135, 0.12), 0 4px 12px -2px rgba(31, 38, 135, 0.06);
+    --shadow-glass-hover: 0 20px 50px -8px rgba(31, 38, 135, 0.18), 0 8px 20px -4px rgba(31, 38, 135, 0.1);
+    --shadow-ticket: 0 25px 70px -10px rgba(31, 38, 135, 0.22), 0 10px 30px -5px rgba(31, 38, 135, 0.15);
+    --shadow-elevated: 0 30px 90px -15px rgba(31, 38, 135, 0.25), 0 12px 35px -6px rgba(31, 38, 135, 0.18);
 
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Smooth transitions */
+    --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-spring: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     /* Sidebar */
     --sidebar-background: 0 0% 98%;
@@ -96,12 +98,12 @@ All colors MUST be HSL.
   }
 }
 
-/* Glass morphism utilities */
+/* Modern glass morphism utilities */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: var(--shadow-glass);
 }
 
@@ -110,17 +112,18 @@ All colors MUST be HSL.
 }
 
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   box-shadow: var(--shadow-glass-hover);
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
-/* Ticket card special glass */
+/* Premium ticket card glass */
 .glass-ticket {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
   box-shadow: var(--shadow-ticket);
 }
 
