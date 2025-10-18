@@ -2,8 +2,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { StatusChip } from "@/components/StatusChip";
 import { ServiceTile } from "@/components/ServiceTile";
 import { Button } from "@/components/ui/button";
-import { Navbar } from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
+import { Home } from "lucide-react";
 import {
   DollarSign,
   FileText,
@@ -73,7 +73,15 @@ const PublicTraffic = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
-      <Navbar />
+      {/* Logo/Home Button */}
+      <button
+        onClick={() => navigate("/")}
+        className="fixed top-6 left-6 z-50 glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-2 hover:bg-primary/10 transition-all"
+      >
+        <Home className="h-5 w-5 text-primary" />
+        <span className="font-bold text-primary">QueMe Now</span>
+      </button>
+      
       <div className="max-w-7xl mx-auto space-y-8 pt-20 p-4 md:p-8">
         {/* Header */}
         <div className="text-center space-y-4 animate-slide-up">

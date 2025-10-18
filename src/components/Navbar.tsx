@@ -1,10 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useTheme } from "next-themes";
 
 export const Navbar = () => {
   const location = useLocation();
-  const [isDark, setIsDark] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -40,11 +40,11 @@ export const Navbar = () => {
       </nav>
       
       <button
-        onClick={() => setIsDark(!isDark)}
-        className="glass bg-white/80 backdrop-blur-md p-3 rounded-full hover:bg-primary/10 transition-colors shadow-xl"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-3 rounded-full hover:bg-primary/10 transition-colors shadow-xl"
         aria-label="Toggle theme"
       >
-        {isDark ? (
+        {theme === "dark" ? (
           <Sun className="h-5 w-5 text-foreground/70" />
         ) : (
           <Moon className="h-5 w-5 text-foreground/70" />
