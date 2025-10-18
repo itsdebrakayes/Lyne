@@ -72,40 +72,40 @@ const PublicTraffic = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10 pb-8">
       {/* Logo/Home Button */}
       <button
         onClick={() => navigate("/")}
-        className="fixed top-6 left-6 z-50 glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-2 hover:bg-primary/10 transition-all"
+        className="fixed top-4 left-4 md:top-6 md:left-6 z-50 glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md px-4 md:px-6 py-2 md:py-3 rounded-full shadow-xl flex items-center gap-2 hover:bg-primary/10 transition-all"
       >
-        <Home className="h-5 w-5 text-primary" />
-        <span className="font-bold text-primary">QueMe Now</span>
+        <Home className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+        <span className="text-sm md:text-base font-bold text-primary">QueMe Now</span>
       </button>
       
       <div className="max-w-7xl mx-auto space-y-8 pt-20 p-4 md:p-8">
         {/* Header */}
-        <div className="text-center space-y-4 animate-slide-up">
-          <h1 className="text-4xl md:text-5xl font-bold">
+        <div className="text-center space-y-2 md:space-y-4 animate-slide-up">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
             Live Traffic at TAJ
           </h1>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-base md:text-lg text-muted-foreground">
             facilitated by QueMeNow
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-xs md:text-sm text-muted-foreground">
             Updated just now • {mockTrafficData.activeCounters} counters active
           </p>
         </div>
 
-        {/* Mind Map Layout */}
-        <div className="relative min-h-[800px] flex items-center justify-center">
+        {/* Mind Map Layout - Desktop */}
+        <div className="hidden md:block relative min-h-[800px]">
           {/* SVG for connecting lines */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
             {mockTrafficData.services.map((service, index) => {
               const angle = (index / mockTrafficData.services.length) * 2 * Math.PI - Math.PI / 2;
               const radius = 280;
-              const x1 = 50; // center percentage
+              const x1 = 50;
               const y1 = 50;
-              const x2 = 50 + Math.cos(angle) * (radius / 8); // approximate percentage
+              const x2 = 50 + Math.cos(angle) * (radius / 8);
               const y2 = 50 + Math.sin(angle) * (radius / 8);
               
               return (
@@ -168,20 +168,50 @@ const PublicTraffic = () => {
           })}
         </div>
 
+        {/* Mobile Layout - Stacked */}
+        <div className="md:hidden space-y-6">
+          {/* Center Status Card */}
+          <GlassCard className="p-6 flex flex-col items-center justify-center space-y-4 animate-slide-up mx-auto max-w-sm">
+            <StatusChip status={mockTrafficData.status} />
+            <div className="text-center space-y-2">
+              <div className="text-3xl font-bold">
+                {mockTrafficData.estWaitMin}–{mockTrafficData.estWaitMax}
+              </div>
+              <p className="text-xs text-muted-foreground">minutes estimated wait</p>
+            </div>
+          </GlassCard>
+
+          {/* Services List */}
+          <div className="space-y-4">
+            {mockTrafficData.services.map((service, index) => (
+              <div
+                key={service.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <ServiceTile
+                  {...service}
+                  onClick={() => navigate("/signup")}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Action Area */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up">
           <Button
             size="lg"
-            className="text-lg px-8 py-6 rounded-full bg-primary hover:bg-primary-dark"
+            className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full bg-primary hover:bg-primary-dark w-full sm:w-auto"
             onClick={() => navigate("/signup")}
           >
             Join Queue
-            <ArrowRight className="ml-2 h-5 w-5" />
+            <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
           </Button>
           <Button
             variant="outline"
             size="lg"
-            className="text-lg px-8 py-6 rounded-full glass"
+            className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full glass w-full sm:w-auto"
             onClick={() => navigate("/login")}
           >
             Already have a ticket?
@@ -189,7 +219,7 @@ const PublicTraffic = () => {
         </div>
 
         {/* Live Ticker - Placeholder for future */}
-        <GlassCard className="p-4 text-center text-sm text-muted-foreground">
+        <GlassCard className="p-3 md:p-4 text-center text-xs md:text-sm text-muted-foreground">
           <div className="animate-pulse-glow">
             🔴 Live • System operational • All services available
           </div>
