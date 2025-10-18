@@ -10,10 +10,13 @@ const Home = () => {
   return (
     <div className="min-h-screen relative overflow-hidden">
       <Navbar />
-      
+
       {/* Animated gradient orbs */}
       <div className="absolute top-20 right-1/4 w-96 h-96 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-full blur-3xl animate-pulse-glow" />
-      <div className="absolute bottom-40 left-1/3 w-80 h-80 bg-gradient-to-br from-accent/25 to-primary/25 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1.5s' }} />
+      <div
+        className="absolute bottom-40 left-1/3 w-80 h-80 bg-gradient-to-br from-accent/25 to-primary/25 rounded-full blur-3xl animate-pulse-glow"
+        style={{ animationDelay: "1.5s" }}
+      />
       <div className="absolute top-1/3 left-10 w-64 h-64 bg-gradient-to-br from-secondary/20 to-accent/20 rounded-full blur-3xl animate-float" />
 
       {/* Hero Section */}
@@ -30,7 +33,7 @@ const Home = () => {
 
               <div className="space-y-6">
                 <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold leading-[1.1]">
-                  <span className="text-foreground">QueMe</span>
+                  <span className="text-foreground">QMe</span>
                   <br />
                   <span className="gradient-text">Now</span>
                 </h1>
@@ -38,7 +41,8 @@ const Home = () => {
                   Join the Line — Without Standing In It
                 </p>
                 <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                  Smart digital queue management for Tax Administration Jamaica. Check live traffic, join remotely, and track your position in real-time.
+                  Smart digital queue management for Tax Administration Jamaica. Check live traffic, join remotely, and
+                  track your position in real-time.
                 </p>
               </div>
 
@@ -88,18 +92,18 @@ const Home = () => {
             {/* Right Content - Hero Image */}
             <div className="relative hidden lg:block animate-slide-up">
               <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 rounded-3xl blur-3xl opacity-50 animate-pulse-glow" />
-              <img 
-                src={heroImage} 
-                alt="QmeNow digital queue management interface showing real-time queue status" 
+              <img
+                src={heroImage}
+                alt="QmeNow digital queue management interface showing real-time queue status"
                 className="relative w-full h-auto max-w-2xl xl:max-w-3xl ml-auto object-contain drop-shadow-2xl"
               />
             </div>
 
             {/* Mobile Hero Image - Bottom Right Corner */}
             <div className="lg:hidden fixed bottom-0 right-0 w-[60%] sm:w-[50%] max-w-md pointer-events-none z-0">
-              <img 
-                src={heroImage} 
-                alt="QmeNow digital queue management" 
+              <img
+                src={heroImage}
+                alt="QmeNow digital queue management"
                 className="w-full h-auto object-contain opacity-30"
               />
             </div>
