@@ -86,10 +86,13 @@ const PublicTraffic = () => {
         {/* Header */}
         <div className="text-center space-y-4 animate-slide-up">
           <h1 className="text-4xl md:text-5xl font-bold">
-            QueMe Now
+            Live Traffic at TAJ
           </h1>
           <p className="text-muted-foreground text-lg">
-            Live Traffic at TAJ • Updated just now • {mockTrafficData.activeCounters} counters active
+            facilitated by QueMeNow
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Updated just now • {mockTrafficData.activeCounters} counters active
           </p>
         </div>
 
