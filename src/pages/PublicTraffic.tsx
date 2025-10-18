@@ -76,42 +76,83 @@ const PublicTraffic = () => {
         {/* Header */}
         <div className="text-center space-y-4 animate-slide-up">
           <h1 className="text-4xl md:text-5xl font-bold">
-            Live Traffic at Tax Administration
+            QueMe Now
           </h1>
           <p className="text-muted-foreground text-lg">
-            Updated just now • {mockTrafficData.activeCounters} counters active
+            Live Traffic at TAJ • Updated just now • {mockTrafficData.activeCounters} counters active
           </p>
         </div>
 
-        {/* Hero Status Card */}
-        <GlassCard className="p-8 md:p-12 text-center space-y-6 animate-slide-up">
-          <StatusChip status={mockTrafficData.status} />
-          <div className="space-y-2">
-            <div className="text-5xl md:text-6xl font-bold">
-              {mockTrafficData.estWaitMin}–{mockTrafficData.estWaitMax}
-              <span className="text-3xl md:text-4xl text-muted-foreground ml-2">min</span>
-            </div>
-            <p className="text-muted-foreground text-lg">Estimated wait time</p>
-          </div>
-        </GlassCard>
+        {/* Mind Map Layout */}
+        <div className="relative min-h-[800px] flex items-center justify-center">
+          {/* SVG for connecting lines */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+            {mockTrafficData.services.map((service, index) => {
+              const angle = (index / mockTrafficData.services.length) * 2 * Math.PI - Math.PI / 2;
+              const radius = 280;
+              const x1 = 50; // center percentage
+              const y1 = 50;
+              const x2 = 50 + Math.cos(angle) * (radius / 8); // approximate percentage
+              const y2 = 50 + Math.sin(angle) * (radius / 8);
+              
+              return (
+                <line
+                  key={service.id}
+                  x1={`${x1}%`}
+                  y1={`${y1}%`}
+                  x2={`${x2}%`}
+                  y2={`${y2}%`}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="2"
+                  strokeOpacity="0.3"
+                  strokeDasharray="5,5"
+                  className="animate-pulse"
+                />
+              );
+            })}
+          </svg>
 
-        {/* Services Grid */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">Service Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockTrafficData.services.map((service, index) => (
+          {/* Center Circle - Status */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            <GlassCard className="w-64 h-64 rounded-full flex flex-col items-center justify-center space-y-4 animate-slide-up">
+              <StatusChip status={mockTrafficData.status} />
+              <div className="text-center space-y-2">
+                <div className="text-4xl font-bold">
+                  {mockTrafficData.estWaitMin}–{mockTrafficData.estWaitMax}
+                </div>
+                <p className="text-xs text-muted-foreground">minutes</p>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* Services around the circle */}
+          {mockTrafficData.services.map((service, index) => {
+            const angle = (index / mockTrafficData.services.length) * 2 * Math.PI - Math.PI / 2;
+            const radius = 280;
+            const x = 50 + Math.cos(angle) * (radius / 8);
+            const y = 50 + Math.sin(angle) * (radius / 8);
+            
+            return (
               <div
                 key={service.id}
-                className="animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s` }}
+                className="absolute animate-slide-up"
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  animationDelay: `${index * 0.1}s`,
+                  zIndex: 1,
+                }}
               >
-                <ServiceTile
-                  {...service}
-                  onClick={() => navigate("/signup")}
-                />
+                <div className="w-48">
+                  <ServiceTile
+                    {...service}
+                    onClick={() => navigate("/signup")}
+                  />
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Action Area */}
