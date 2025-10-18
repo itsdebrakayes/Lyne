@@ -1,11 +1,6 @@
 import { GlassCard } from "./GlassCard";
 
-interface TicketDisplayProps {
-  ticketNumber: string;
-  service: string;
-}
-
-export const TicketDisplay = ({ ticketNumber, service }: TicketDisplayProps) => {
+export const TicketDisplay = ({ ticketNumber, service }) => {
   return (
     <GlassCard ticket className="p-8 text-center space-y-4 animate-bounce-in">
       <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider">

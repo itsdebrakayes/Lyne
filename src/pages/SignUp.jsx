@@ -16,12 +16,12 @@ const SignUp = () => {
     fullName: "",
     idNumber: "",
     age: "",
-    dob: undefined as Date | undefined,
+    dob: undefined,
     email: "",
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     // Store user data (in real app, this would be sent to backend)
     localStorage.setItem("userData", JSON.stringify(formData));

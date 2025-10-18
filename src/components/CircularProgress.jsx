@@ -1,15 +1,5 @@
 import { cn } from "@/lib/utils";
 
-interface CircularProgressProps {
-  value: number;
-  max: number;
-  size?: number;
-  strokeWidth?: number;
-  className?: string;
-  children?: React.ReactNode;
-  color?: "primary" | "secondary" | "accent";
-}
-
 const colorClasses = {
   primary: "stroke-primary",
   secondary: "stroke-secondary",
@@ -24,7 +14,7 @@ export const CircularProgress = ({
   className,
   children,
   color = "primary",
-}: CircularProgressProps) => {
+}) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const percentage = Math.min(100, (value / max) * 100);

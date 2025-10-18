@@ -1,18 +1,12 @@
 import { cn } from "@/lib/utils";
 
-interface LoadBarProps {
-  percentage: number;
-  className?: string;
-  color?: "primary" | "secondary" | "accent";
-}
-
 const colorClasses = {
   primary: "bg-primary",
   secondary: "bg-secondary",
   accent: "bg-accent",
 };
 
-export const LoadBar = ({ percentage, className, color = "primary" }: LoadBarProps) => {
+export const LoadBar = ({ percentage, className, color = "primary" }) => {
   return (
     <div className={cn("h-2 bg-muted rounded-full overflow-hidden", className)}>
       <div

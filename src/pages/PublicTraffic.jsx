@@ -15,7 +15,7 @@ import {
 
 // Mock data - will be replaced with real-time data later
 const mockTrafficData = {
-  status: "moderate" as const,
+  status: "moderate",
   estWaitMin: 24,
   estWaitMax: 35,
   activeCounters: 4,

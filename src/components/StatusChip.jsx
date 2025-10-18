@@ -1,12 +1,5 @@
 import { cn } from "@/lib/utils";
 
-type Status = "busy" | "moderate" | "light";
-
-interface StatusChipProps {
-  status: Status;
-  className?: string;
-}
-
 const statusConfig = {
   busy: {
     label: "Busy",
@@ -22,7 +15,7 @@ const statusConfig = {
   },
 };
 
-export const StatusChip = ({ status, className }: StatusChipProps) => {
+export const StatusChip = ({ status, className }) => {
   const config = statusConfig[status];
 
   return (

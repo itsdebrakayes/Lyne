@@ -13,7 +13,7 @@ const Login = () => {
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     // In real app, this would authenticate the user
     navigate("/ticket");
