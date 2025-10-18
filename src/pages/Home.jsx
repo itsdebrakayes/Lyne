@@ -23,30 +23,30 @@ const Home = () => {
             {/* Left Content */}
             <div className="space-y-6 md:space-y-8 animate-fade-in z-10">
               <div className="space-y-3 md:space-y-4">
-                <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold text-foreground leading-tight">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight">
                   QueMe Now
                 </h1>
-                <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-primary font-semibold">
+                <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-primary font-semibold">
                   Smart Queue Management
                 </p>
-                <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-lg">
+                <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-lg">
                   Experience the future of queue management. Check live traffic, join queues remotely, and track your position in real-time at Tax Administration Jamaica.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4">
+              <div className="flex flex-row flex-wrap gap-3 md:gap-4">
                 <Button
                   size="lg"
-                  className="text-lg md:text-xl lg:text-2xl px-8 md:px-10 lg:px-12 py-6 md:py-7 lg:py-8 rounded-full bg-primary hover:bg-primary-dark shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
+                  className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full bg-primary hover:bg-primary-dark shadow-lg hover:shadow-xl transition-all"
                   onClick={() => navigate("/about")}
                 >
                   Learn More
-                  <ArrowRight className="ml-2 h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7" />
+                  <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg md:text-xl lg:text-2xl px-8 md:px-10 lg:px-12 py-6 md:py-7 lg:py-8 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
+                  className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 rounded-full border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-lg hover:shadow-xl transition-all"
                   onClick={() => navigate("/taj")}
                 >
                   Go to TAJ
@@ -54,18 +54,18 @@ const Home = () => {
               </div>
 
               {/* Stats */}
-              <div className="flex gap-6 md:gap-8 pt-6 md:pt-8 justify-center sm:justify-start">
+              <div className="flex gap-6 md:gap-8 lg:gap-12 pt-6 md:pt-8 justify-start">
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary">1000+</div>
-                  <div className="text-sm md:text-base lg:text-lg text-muted-foreground">Daily Users</div>
+                  <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary">1000+</div>
+                  <div className="text-xs md:text-sm lg:text-base text-muted-foreground">Daily Users</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary">5</div>
-                  <div className="text-sm md:text-base lg:text-lg text-muted-foreground">Services</div>
+                  <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary">5</div>
+                  <div className="text-xs md:text-sm lg:text-base text-muted-foreground">Services</div>
                 </div>
                 <div>
-                  <div className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary">24/7</div>
-                  <div className="text-sm md:text-base lg:text-lg text-muted-foreground">Live Updates</div>
+                  <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary">24/7</div>
+                  <div className="text-xs md:text-sm lg:text-base text-muted-foreground">Live Updates</div>
                 </div>
               </div>
             </div>
@@ -75,7 +75,7 @@ const Home = () => {
               <img 
                 src={heroImage} 
                 alt="QueMe Now Queue Management" 
-                className="w-full h-auto max-w-5xl xl:max-w-6xl 2xl:max-w-7xl ml-auto object-contain"
+                className="w-full h-auto max-w-md lg:max-w-lg xl:max-w-xl ml-auto object-contain"
               />
             </div>
 
@@ -83,7 +83,7 @@ const Home = () => {
             <img 
               src={heroImage} 
               alt="QueMe Now Queue Management" 
-              className="md:hidden fixed bottom-0 right-0 w-96 sm:w-[450px] h-auto object-contain opacity-40 z-0 pointer-events-none"
+              className="md:hidden fixed bottom-0 right-0 w-64 sm:w-80 h-auto object-contain opacity-30 z-0 pointer-events-none"
             />
           </div>
         </div>
