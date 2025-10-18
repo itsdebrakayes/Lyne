@@ -75,7 +75,7 @@ const Home = () => {
               <img 
                 src={heroImage} 
                 alt="QueMe Now Queue Management" 
-                className="w-full h-auto max-w-2xl ml-auto object-contain"
+                className="w-full h-auto max-w-4xl xl:max-w-5xl ml-auto object-contain"
               />
             </div>
 
@@ -83,7 +83,7 @@ const Home = () => {
             <img 
               src={heroImage} 
               alt="QueMe Now Queue Management" 
-              className="md:hidden fixed bottom-0 right-0 w-64 h-auto object-contain opacity-30 z-0 pointer-events-none"
+              className="md:hidden fixed bottom-0 right-0 w-80 sm:w-96 h-auto object-contain opacity-40 z-0 pointer-events-none"
             />
           </div>
         </div>
