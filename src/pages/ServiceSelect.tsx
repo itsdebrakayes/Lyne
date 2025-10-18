@@ -62,7 +62,7 @@ const services = [
 const ServiceSelect = () => {
   const navigate = useNavigate();
 
-  const handleServiceSelect = (serviceId) => {
+  const handleServiceSelect = (serviceId: string) => {
     // Store selected service
     localStorage.setItem("selectedService", serviceId);
     navigate("/ticket");

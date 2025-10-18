@@ -13,7 +13,7 @@ export const Navbar = () => {
     { name: "TAJ", path: "/taj" },
   ];
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 flex items-center gap-4 max-w-full">

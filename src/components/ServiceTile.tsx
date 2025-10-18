@@ -1,6 +1,18 @@
 import { GlassCard } from "./GlassCard";
 import { LoadBar } from "./LoadBar";
+import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface ServiceTileProps {
+  title: string;
+  icon: LucideIcon;
+  queueLength: number;
+  eta: string;
+  activeCounters: number;
+  loadPercentage: number;
+  onClick?: () => void;
+  className?: string;
+}
 
 export const ServiceTile = ({
   title,
@@ -11,7 +23,7 @@ export const ServiceTile = ({
   loadPercentage,
   onClick,
   className,
-}) => {
+}: ServiceTileProps) => {
   return (
     <GlassCard hover onClick={onClick} className={cn("p-6 space-y-4", className)}>
       <div className="flex items-start justify-between">

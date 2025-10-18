@@ -14,8 +14,8 @@ const mockTicketData = {
   totalInQueue: 24,
   estimatedWaitMinutes: 12,
   estimatedWaitSeconds: 40,
-  status: "waiting",
-  counter: null,
+  status: "waiting" as const,
+  counter: null as number | null,
 };
 
 const Ticket = () => {
