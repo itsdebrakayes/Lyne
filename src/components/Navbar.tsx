@@ -16,8 +16,8 @@ export const Navbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4">
-      <div className="glass bg-white/80 backdrop-blur-md rounded-full px-8 py-4 shadow-xl flex items-center gap-8">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 flex items-center gap-4">
+      <nav className="glass bg-white/80 backdrop-blur-md rounded-full px-8 py-4 shadow-xl flex items-center gap-8">
         {navItems.map((item) => (
           <Link
             key={item.path}
@@ -37,18 +37,19 @@ export const Navbar = () => {
             )}
           </Link>
         ))}
-        <button
-          onClick={() => setIsDark(!isDark)}
-          className="ml-4 p-2 rounded-full hover:bg-primary/10 transition-colors"
-          aria-label="Toggle theme"
-        >
-          {isDark ? (
-            <Sun className="h-5 w-5 text-foreground/70" />
-          ) : (
-            <Moon className="h-5 w-5 text-foreground/70" />
-          )}
-        </button>
-      </div>
-    </nav>
+      </nav>
+      
+      <button
+        onClick={() => setIsDark(!isDark)}
+        className="glass bg-white/80 backdrop-blur-md p-3 rounded-full hover:bg-primary/10 transition-colors shadow-xl"
+        aria-label="Toggle theme"
+      >
+        {isDark ? (
+          <Sun className="h-5 w-5 text-foreground/70" />
+        ) : (
+          <Moon className="h-5 w-5 text-foreground/70" />
+        )}
+      </button>
+    </div>
   );
 };
