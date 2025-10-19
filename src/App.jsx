@@ -15,7 +15,11 @@ import ServiceSelect from "./pages/ServiceSelect";
 import Ticket from "./pages/Ticket";
 import NotFound from "./pages/NotFound";
 import { AdminLayout } from "./components/admin/AdminLayout";
-import { Dashboard, Customers, Services, Analytics, Settings } from "./pages/admin";
+import Dashboard from "./pages/admin/Dashboard";
+import Customers from "./pages/admin/Customers";
+import Services from "./pages/admin/Services";
+import Analytics from "./pages/admin/Analytics";
+import Settings from "./pages/admin/Settings";
 import AdminLogin from "./pages/admin/Login";
 import { ProtectedAdminRoute } from "./components/admin/ProtectedAdminRoute";
 
