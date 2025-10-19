@@ -1,6 +1,5 @@
-const _jsxFileName = "";import React from 'react';
 import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Home, Info, Users, Building2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export const Navbar = () => {
@@ -8,49 +7,109 @@ export const Navbar = () => {
   const { theme, setTheme } = useTheme();
 
   const navItems = [
-    { name: "Home", path: "/" },
-    { name: "About", path: "/about" },
-    { name: "Join Us", path: "/join-us" },
-    { name: "TAJ", path: "/taj" },
+    { name: "Home", path: "/", icon: Home },
+    { name: "About", path: "/about", icon: Info },
+    { name: "Join Us", path: "/join-us", icon: Users },
+    { name: "TAJ", path: "/taj", icon: Building2 },
   ];
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    React.createElement('div', { className: "fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 flex items-center gap-4 max-w-full"         , __self: this, __source: {fileName: _jsxFileName, lineNumber: 19}}
-      , React.createElement('nav', { className: "glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-full px-4 md:px-8 py-3 md:py-4 shadow-xl flex items-center gap-4 md:gap-8 overflow-x-auto"              , __self: this, __source: {fileName: _jsxFileName, lineNumber: 20}}
-        , navItems.map((item) => (
-          React.createElement(Link, {
-            key: item.path,
-            to: item.path,
-            className: `
-              text-sm md:text-base font-medium transition-all duration-300 relative whitespace-nowrap
-              ${
-                isActive(item.path)
-                  ? "text-primary"
-                  : "text-foreground/70 hover:text-primary"
-              }
-            `, __self: this, __source: {fileName: _jsxFileName, lineNumber: 22}}
+    <>
+      {/* Desktop: Vertical left sidebar */}
+      <nav className="hidden lg:flex fixed left-6 top-1/2 -translate-y-1/2 z-50">
+        <div className="glass rounded-2xl p-4 shadow-xl flex flex-col gap-6">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="group relative"
+                title={item.name}
+              >
+                <div
+                  className={`
+                    p-3 rounded-xl transition-all duration-300
+                    ${
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground shadow-lg"
+                        : "text-foreground/60 hover:text-primary hover:bg-primary/10"
+                    }
+                  `}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="absolute left-full ml-4 px-3 py-1.5 bg-foreground text-background text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
 
-            , item.name
-            , isActive(item.path) && (
-              React.createElement('span', { className: "absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 36}} )
-            )
-          )
-        ))
-      )
+          <div className="h-px bg-border my-2" />
 
-      , React.createElement('button', {
-        onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
-        className: "glass bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-2 md:p-3 rounded-full hover:bg-primary/10 transition-colors shadow-xl flex-shrink-0"          ,
-        'aria-label': "Toggle theme" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 42}}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="p-3 rounded-xl text-foreground/60 hover:text-primary hover:bg-primary/10 transition-all duration-300"
+            aria-label="Toggle theme"
+            title={theme === "dark" ? "Light mode" : "Dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+      </nav>
 
-        , theme === "dark" ? (
-          React.createElement(Sun, { className: "h-4 w-4 md:h-5 md:w-5 text-foreground/70"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 48}} )
-        ) : (
-          React.createElement(Moon, { className: "h-4 w-4 md:h-5 md:w-5 text-foreground/70"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 50}} )
-        )
-      )
-    )
+      {/* Mobile & Tablet: Bottom bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe">
+        <div className="glass border-t border-white/20 px-4 py-3">
+          <div className="flex items-center justify-around max-w-md mx-auto">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`
+                    flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 min-w-[70px]
+                    ${
+                      isActive(item.path)
+                        ? "text-primary bg-primary/10"
+                        : "text-foreground/60 active:bg-primary/5"
+                    }
+                  `}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
+
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-foreground/60 active:bg-primary/5 transition-all duration-300 min-w-[70px]"
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? (
+                <>
+                  <Sun className="w-5 h-5" />
+                  <span className="text-xs font-medium">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-5 h-5" />
+                  <span className="text-xs font-medium">Dark</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
+    </>
   );
 };
