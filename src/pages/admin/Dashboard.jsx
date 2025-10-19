@@ -40,14 +40,44 @@ export default function Dashboard() {
         )
       )
 
+      /* Currently Serving Section */
+      , React.createElement('div', { className: "space-y-4"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 43}}
+        , React.createElement('div', { className: "flex items-center justify-between"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 44}}
+          , React.createElement('h2', { className: "text-2xl font-semibold text-foreground"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 45}}, "Currently Serving")
+          , React.createElement('div', { className: "flex items-center gap-2 text-sm text-muted-foreground"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 46}}
+            , React.createElement(TrendingUp, { className: "w-4 h-4" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 47}} )
+            , React.createElement('span', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 48}}, activeSessions.length, " active sessions")
+          )
+        )
+
+        , React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 51}}
+          , activeSessions.length === 0 ? (
+            React.createElement('div', { className: "glass rounded-xl p-8 text-center col-span-full"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 53}}
+              , React.createElement('p', { className: "text-muted-foreground"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 54}}, "No active service sessions")
+            )
+          ) : (
+            activeSessions.map(session => {
+              const queueEntry = servingQueue.find(q => q.id === session.queueEntryId);
+              return queueEntry ? (
+                React.createElement(ActiveSessionCard, {
+                  key: session.id,
+                  session: session,
+                  queueEntry: queueEntry, __self: this, __source: {fileName: _jsxFileName, lineNumber: 59}}
+                )
+              ) : null;
+            })
+          )
+        )
+      )
+
       /* Top Stats Section */
-      , React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 44}}
+      , React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 71}}
         , services.map((service) => (
           React.createElement(ServiceStatBox, {
             key: service.id,
             count: stats.serviceStats[service.id]?.waiting || 0,
             label: service.name,
-            icon: service.icon, __self: this, __source: {fileName: _jsxFileName, lineNumber: 46}}
+            icon: service.icon, __self: this, __source: {fileName: _jsxFileName, lineNumber: 73}}
           )
         ))
         
@@ -56,7 +86,7 @@ export default function Dashboard() {
           value: `${stats.averageWaitTime}m`,
           subtitle: "Across all services",
           icon: Clock,
-          gradient: true, __self: this, __source: {fileName: _jsxFileName, lineNumber: 54}}
+          gradient: true, __self: this, __source: {fileName: _jsxFileName, lineNumber: 81}}
         )
       )
 
@@ -108,36 +138,6 @@ export default function Dashboard() {
                 ) : null;
               })
             )
-          )
-        )
-      )
-
-      /* Currently Serving Section */
-      , React.createElement('div', { className: "space-y-4"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 115}}
-        , React.createElement('div', { className: "flex items-center justify-between"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 116}}
-          , React.createElement('h2', { className: "text-2xl font-semibold text-foreground"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 117}}, "Currently Serving")
-          , React.createElement('div', { className: "flex items-center gap-2 text-sm text-muted-foreground"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 118}}
-            , React.createElement(TrendingUp, { className: "w-4 h-4" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 119}} )
-            , React.createElement('span', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 120}}, activeSessions.length, " active sessions")
-          )
-        )
-
-        , React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 124}}
-          , activeSessions.length === 0 ? (
-            React.createElement('div', { className: "glass rounded-xl p-8 text-center col-span-full"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 126}}
-              , React.createElement('p', { className: "text-muted-foreground"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 127}}, "No active service sessions")
-            )
-          ) : (
-            activeSessions.map(session => {
-              const queueEntry = servingQueue.find(q => q.id === session.queueEntryId);
-              return queueEntry ? (
-                React.createElement(ActiveSessionCard, {
-                  key: session.id,
-                  session: session,
-                  queueEntry: queueEntry, __self: this, __source: {fileName: _jsxFileName, lineNumber: 132}}
-                )
-              ) : null;
-            })
           )
         )
       )
