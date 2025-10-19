@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Home, Info, Users, Building2 } from "lucide-react";
+import { Moon, Sun, Home, Info, Users, Building2, Shield } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export const Navbar = () => {
@@ -11,9 +11,15 @@ export const Navbar = () => {
     { name: "About", path: "/about", icon: Info },
     { name: "Join Us", path: "/join-us", icon: Users },
     { name: "TAJ", path: "/taj", icon: Building2 },
+    { name: "Admin", path: "/admin", icon: Shield },
   ];
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    if (path === '/admin') {
+      return location.pathname.startsWith('/admin');
+    }
+    return location.pathname === path;
+  };
 
   return (
     <>

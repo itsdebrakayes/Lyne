@@ -14,6 +14,8 @@ import Login from "./pages/Login";
 import ServiceSelect from "./pages/ServiceSelect";
 import Ticket from "./pages/Ticket";
 import NotFound from "./pages/NotFound";
+import { AdminLayout } from "./components/admin/AdminLayout";
+import { Dashboard, Customers, Services, Analytics, Settings } from "./pages/admin";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,12 @@ const App = () => (
             , React.createElement(Route, { path: "/login", element: React.createElement(Login, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 32}} ), __self: this, __source: {fileName: _jsxFileName, lineNumber: 32}} )
             , React.createElement(Route, { path: "/service-select", element: React.createElement(ServiceSelect, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 33}} ), __self: this, __source: {fileName: _jsxFileName, lineNumber: 33}} )
             , React.createElement(Route, { path: "/ticket", element: React.createElement(Ticket, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 34}} ), __self: this, __source: {fileName: _jsxFileName, lineNumber: 34}} )
+            /* Admin Routes */
+            , React.createElement(Route, { path: "/admin", element: React.createElement(AdminLayout, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 36}}, React.createElement(Dashboard, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 36}} )), __self: this, __source: {fileName: _jsxFileName, lineNumber: 36}} )
+            , React.createElement(Route, { path: "/admin/customers", element: React.createElement(AdminLayout, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 37}}, React.createElement(Customers, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 37}} )), __self: this, __source: {fileName: _jsxFileName, lineNumber: 37}} )
+            , React.createElement(Route, { path: "/admin/services", element: React.createElement(AdminLayout, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 38}}, React.createElement(Services, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 38}} )), __self: this, __source: {fileName: _jsxFileName, lineNumber: 38}} )
+            , React.createElement(Route, { path: "/admin/analytics", element: React.createElement(AdminLayout, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 39}}, React.createElement(Analytics, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 39}} )), __self: this, __source: {fileName: _jsxFileName, lineNumber: 39}} )
+            , React.createElement(Route, { path: "/admin/settings", element: React.createElement(AdminLayout, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 40}}, React.createElement(Settings, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 40}} )), __self: this, __source: {fileName: _jsxFileName, lineNumber: 40}} )
             /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
             , React.createElement(Route, { path: "*", element: React.createElement(NotFound, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 36}} ), __self: this, __source: {fileName: _jsxFileName, lineNumber: 36}} )
           )

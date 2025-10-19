@@ -89,6 +89,11 @@ All colors MUST be HSL.
     /* Sidebar/Nav */
     --nav-background: 0 0% 100% / 0.6;
     --nav-border: 215 20% 90% / 0.5;
+
+    /* Admin sidebar */
+    --admin-sidebar-bg: 222 47% 11%;
+    --admin-sidebar-hover: 217 91% 60%;
+    --admin-sidebar-active: 217 91% 60%;
   }
 }
 
@@ -237,4 +242,19 @@ All colors MUST be HSL.
 
 .animate-glow {
   animation: glow 2s ease-in-out infinite;
+}
+
+/* Admin Sidebar Styles */
+.admin-sidebar {
+  background: linear-gradient(180deg, 
+    hsl(var(--admin-sidebar-bg)) 0%, 
+    hsl(222 40% 8%) 100%);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+}
+
+.admin-nav-item-active {
+  background: linear-gradient(90deg, 
+    hsl(var(--admin-sidebar-hover)) 0%, 
+    hsl(217 91% 50%) 100%);
+  box-shadow: 0 0 20px hsl(var(--admin-sidebar-hover) / 0.4);
 }

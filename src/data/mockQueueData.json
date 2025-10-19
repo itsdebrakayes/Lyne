@@ -1,0 +1,133 @@
+{
+  "queueEntries": [
+    {
+      "id": "q1",
+      "customerId": "c1",
+      "serviceId": "1",
+      "ticketNumber": "CASH-A001",
+      "position": 1,
+      "status": "waiting",
+      "estimatedWaitMinutes": 8,
+      "joinedAt": "2025-10-19T09:15:00Z"
+    },
+    {
+      "id": "q2",
+      "customerId": "c2",
+      "serviceId": "1",
+      "ticketNumber": "CASH-A002",
+      "position": 2,
+      "status": "waiting",
+      "estimatedWaitMinutes": 16,
+      "joinedAt": "2025-10-19T09:20:00Z"
+    },
+    {
+      "id": "q3",
+      "customerId": "c3",
+      "serviceId": "2",
+      "ticketNumber": "TITL-A001",
+      "position": 1,
+      "status": "waiting",
+      "estimatedWaitMinutes": 12,
+      "joinedAt": "2025-10-19T09:18:00Z"
+    },
+    {
+      "id": "q4",
+      "customerId": "c4",
+      "serviceId": "3",
+      "ticketNumber": "LIC-A001",
+      "position": 1,
+      "status": "waiting",
+      "estimatedWaitMinutes": 15,
+      "joinedAt": "2025-10-19T09:22:00Z"
+    },
+    {
+      "id": "q5",
+      "customerId": "c5",
+      "serviceId": "1",
+      "ticketNumber": "CASH-A003",
+      "position": 0,
+      "status": "serving",
+      "estimatedWaitMinutes": 0,
+      "joinedAt": "2025-10-19T09:10:00Z",
+      "calledAt": "2025-10-19T09:20:00Z"
+    },
+    {
+      "id": "q6",
+      "customerId": "c6",
+      "serviceId": "4",
+      "ticketNumber": "TRN-A001",
+      "position": 1,
+      "status": "waiting",
+      "estimatedWaitMinutes": 10,
+      "joinedAt": "2025-10-19T09:25:00Z"
+    },
+    {
+      "id": "q7",
+      "customerId": "c7",
+      "serviceId": "2",
+      "ticketNumber": "TITL-A002",
+      "position": 0,
+      "status": "serving",
+      "estimatedWaitMinutes": 0,
+      "joinedAt": "2025-10-19T09:08:00Z",
+      "calledAt": "2025-10-19T09:18:00Z"
+    },
+    {
+      "id": "q8",
+      "customerId": "c8",
+      "serviceId": "5",
+      "ticketNumber": "OTH-A001",
+      "position": 1,
+      "status": "waiting",
+      "estimatedWaitMinutes": 5,
+      "joinedAt": "2025-10-19T09:28:00Z"
+    },
+    {
+      "id": "q9",
+      "customerId": "c9",
+      "serviceId": "1",
+      "ticketNumber": "CASH-A004",
+      "position": 3,
+      "status": "waiting",
+      "estimatedWaitMinutes": 24,
+      "joinedAt": "2025-10-19T09:30:00Z"
+    },
+    {
+      "id": "q10",
+      "customerId": "c10",
+      "serviceId": "3",
+      "ticketNumber": "LIC-A002",
+      "position": 0,
+      "status": "serving",
+      "estimatedWaitMinutes": 0,
+      "joinedAt": "2025-10-19T09:05:00Z",
+      "calledAt": "2025-10-19T09:15:00Z"
+    }
+  ],
+  "activeSessions": [
+    {
+      "id": "s1",
+      "queueEntryId": "q5",
+      "counterNumber": 1,
+      "startedAt": "2025-10-19T09:20:00Z",
+      "timeLimitMinutes": 10,
+      "timeElapsedMinutes": 3
+    },
+    {
+      "id": "s2",
+      "queueEntryId": "q7",
+      "counterNumber": 2,
+      "startedAt": "2025-10-19T09:18:00Z",
+      "timeLimitMinutes": 10,
+      "timeElapsedMinutes": 5
+    },
+    {
+      "id": "s3",
+      "queueEntryId": "q10",
+      "counterNumber": 3,
+      "startedAt": "2025-10-19T09:15:00Z",
+      "timeLimitMinutes": 10,
+      "timeElapsedMinutes": 8
+    }
+  ]
+}
