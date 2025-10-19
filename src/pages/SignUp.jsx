@@ -3,7 +3,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
+import { CustomCalendar } from "@/components/ui/custom-calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -104,15 +104,12 @@ const SignUp = () => {
                       , formData.dob ? format(formData.dob, "PPP") : "Pick date"
                     )
                   )
-                  , React.createElement(PopoverContent, { className: "w-auto p-0" , align: "start", __self: this, __source: {fileName: _jsxFileName, lineNumber: 106}}
-                    , React.createElement(Calendar, {
-                      mode: "single",
+                  , React.createElement(PopoverContent, { className: "w-auto p-0 bg-transparent border-0 shadow-none" , align: "start", __self: this, __source: {fileName: _jsxFileName, lineNumber: 106}}
+                    , React.createElement(CustomCalendar, {
                       selected: formData.dob,
                       onSelect: (date) =>
                         setFormData({ ...formData, dob: date })
-                      ,
-                      initialFocus: true,
-                      className: "pointer-events-auto", __self: this, __source: {fileName: _jsxFileName, lineNumber: 107}}
+                      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 107}}
                     )
                   )
                 )
