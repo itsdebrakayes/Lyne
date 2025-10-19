@@ -1,6 +1,5 @@
-const _jsxFileName = "";import React from 'react';
 import { Button } from "@/components/ui/button";
-import { VerticalSidebar } from "@/components/VerticalSidebar";
+import { Navbar } from "@/components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Zap, Clock, Shield } from "lucide-react";
 import heroImage from "@/assets/hero-image.png";
@@ -9,106 +8,105 @@ const Home = () => {
   const navigate = useNavigate();
 
   return (
-    React.createElement('div', { className: "min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-blue-50/30"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 11}}
-      , React.createElement(VerticalSidebar, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 12}} )
-      
-      /* Live Queue Updates Badge */
-      , React.createElement('div', { className: "fixed top-8 left-1/2 -translate-x-1/2 z-40"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 15}}
-        , React.createElement('div', { className: "glass bg-white/90 backdrop-blur-md rounded-full px-4 py-2 shadow-lg flex items-center gap-2"        , __self: this, __source: {fileName: _jsxFileName, lineNumber: 16}}
-          , React.createElement('span', { className: "w-2 h-2 bg-green-500 rounded-full animate-pulse"     , __self: this, __source: {fileName: _jsxFileName, lineNumber: 17}} )
-          , React.createElement('span', { className: "text-sm font-medium text-foreground/70"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 18}}, "Live Queue Updates"  )
-        )
-      )
+    <div className="min-h-screen relative overflow-hidden">
+      <Navbar />
 
-      /* Decorative blue circles */
-      , React.createElement('div', { className: "absolute top-20 left-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl animate-pulse"        , __self: this, __source: {fileName: _jsxFileName, lineNumber: 15}} )
-      , React.createElement('div', { className: "absolute bottom-20 right-10 w-48 h-48 bg-secondary/20 rounded-full blur-3xl animate-pulse"        , style: { animationDelay: '1s' }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 16}} )
-      , React.createElement('div', { className: "absolute top-1/2 left-1/4 w-24 h-24 bg-primary/10 rounded-full blur-2xl"       , __self: this, __source: {fileName: _jsxFileName, lineNumber: 17}} )
+      {/* Animated gradient orbs */}
+      <div className="absolute top-20 right-1/4 w-96 h-96 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-full blur-3xl animate-pulse-glow" />
+      <div className="absolute bottom-40 left-1/3 w-80 h-80 bg-gradient-to-br from-accent/25 to-primary/25 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1.5s' }} />
+      <div className="absolute top-1/3 left-10 w-64 h-64 bg-gradient-to-br from-secondary/20 to-accent/20 rounded-full blur-3xl animate-float" />
 
-      /* Hero Section */
-      , React.createElement('section', { className: "min-h-screen flex items-center pt-24 pb-12 relative overflow-hidden"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 22}}
-        , React.createElement('div', { className: "max-w-7xl mx-auto px-8 md:px-16 w-full relative"     , __self: this, __source: {fileName: _jsxFileName, lineNumber: 23}}
-          , React.createElement('div', { className: "grid md:grid-cols-2 gap-12 lg:gap-16 items-center relative"     , __self: this, __source: {fileName: _jsxFileName, lineNumber: 24}}
-            /* Left Content */
-            , React.createElement('div', { className: "space-y-8 md:space-y-10 animate-fade-in z-10 pl-16"     , __self: this, __source: {fileName: _jsxFileName, lineNumber: 26}}
-              , React.createElement('div', { className: "space-y-4 md:space-y-5" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 27}}
-                , React.createElement('h1', { className: "text-6xl sm:text-7xl md:text-8xl font-bold leading-tight"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 28}}
-                  , React.createElement('span', { className: "text-gray-900", __self: this, __source: {fileName: _jsxFileName, lineNumber: 29}}, "QMe")
-                  , React.createElement('br', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 30}} )
-                  , React.createElement('span', { className: "text-primary", __self: this, __source: {fileName: _jsxFileName, lineNumber: 31}}, "Now")
-                )
-                , React.createElement('p', { className: "text-2xl sm:text-3xl md:text-4xl text-gray-700 font-medium max-w-xl"      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 33}}, "Join the Line ", React.createElement('span', { className: "text-gray-500", __self: this, __source: {fileName: _jsxFileName, lineNumber: 33}}, "— Without Standing In It"  )
+      {/* Hero Section */}
+      <section className="min-h-screen flex items-center lg:pl-24 pb-24 lg:pb-0">
+        <div className="max-w-7xl mx-auto px-6 md:px-8 lg:px-12 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left Content */}
+            <div className="space-y-8 lg:space-y-10 animate-slide-in-left z-10">
+              {/* Live badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20">
+                <div className="w-2 h-2 bg-status-light rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-foreground/80">Live Queue Updates</span>
+              </div>
 
-                )
-                , React.createElement('p', { className: "text-lg md:text-xl text-gray-600 max-w-lg leading-relaxed"     , __self: this, __source: {fileName: _jsxFileName, lineNumber: 36}}, "Smart digital queue management for Tax Administration Jamaica. Check live traffic, join remotely, and track your position in real-time."
+              <div className="space-y-6">
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold leading-[1.1]">
+                  <span className="text-foreground">QueMe</span>
+                  <br />
+                  <span className="gradient-text">Now</span>
+                </h1>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-semibold text-foreground/70">
+                  Join the Line — Without Standing In It
+                </p>
+                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed">
+                  Smart digital queue management for Tax Administration Jamaica. Check live traffic, join remotely, and track your position in real-time.
+                </p>
+              </div>
 
-                )
-              )
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  size="lg"
+                  className="text-base sm:text-lg px-8 py-6 sm:py-7 rounded-2xl bg-primary hover:bg-primary-dark shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 group relative overflow-hidden"
+                  onClick={() => navigate("/taj")}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Join Queue (TAJ)
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-base sm:text-lg px-8 py-6 sm:py-7 rounded-2xl border-2 glass hover:bg-primary/5 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                  onClick={() => navigate("/about")}
+                >
+                  Learn More
+                </Button>
+              </div>
 
-              , React.createElement('div', { className: "flex flex-col sm:flex-row gap-4 md:gap-5"    , __self: this, __source: {fileName: _jsxFileName, lineNumber: 41}}
-                , React.createElement(Button, {
-                  size: "lg",
-                  className: "text-base md:text-lg px-8 py-6 rounded-2xl bg-primary hover:bg-primary/90 text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto font-semibold"              ,
-                  onClick: () => navigate("/taj"), __self: this, __source: {fileName: _jsxFileName, lineNumber: 42}}
-, "Join Queue (TAJ)"
+              {/* Feature highlights */}
+              <div className="grid grid-cols-3 gap-4 pt-4">
+                <div className="glass p-4 rounded-xl hover:scale-105 transition-transform duration-300">
+                  <Zap className="w-6 h-6 text-primary mb-2" />
+                  <div className="text-2xl sm:text-3xl font-bold text-foreground">1000+</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Daily Users</div>
+                </div>
+                <div className="glass p-4 rounded-xl hover:scale-105 transition-transform duration-300">
+                  <Clock className="w-6 h-6 text-secondary mb-2" />
+                  <div className="text-2xl sm:text-3xl font-bold text-foreground">24/7</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Live Updates</div>
+                </div>
+                <div className="glass p-4 rounded-xl hover:scale-105 transition-transform duration-300">
+                  <Shield className="w-6 h-6 text-accent mb-2" />
+                  <div className="text-2xl sm:text-3xl font-bold text-foreground">100%</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Secure</div>
+                </div>
+              </div>
+            </div>
 
-                  , React.createElement(ArrowRight, { className: "ml-2 h-5 w-5"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 47}} )
-                )
-                , React.createElement(Button, {
-                  size: "lg",
-                  variant: "outline",
-                  className: "text-base md:text-lg px-8 py-6 rounded-2xl bg-white border-0 text-gray-700 hover:bg-gray-50 shadow-md hover:shadow-lg transition-all w-full sm:w-auto font-semibold"              ,
-                  onClick: () => navigate("/about"), __self: this, __source: {fileName: _jsxFileName, lineNumber: 49}}
-, "Learn More"
+            {/* Right Content - Hero Image */}
+            <div className="relative hidden lg:block animate-slide-up">
+              <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 rounded-3xl blur-3xl opacity-50 animate-pulse-glow" />
+              <img 
+                src={heroImage} 
+                alt="QmeNow digital queue management interface showing real-time queue status" 
+                className="relative w-full h-auto max-w-2xl xl:max-w-3xl ml-auto object-contain drop-shadow-2xl"
+              />
+            </div>
 
-                )
-              )
-
-              /* Stats */
-              , React.createElement('div', { className: "flex flex-wrap gap-4 md:gap-6 pt-8 md:pt-10"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 59}}
-                , React.createElement('div', { className: "glass bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md hover:shadow-lg transition-all min-w-[140px]"        , __self: this, __source: {fileName: _jsxFileName, lineNumber: 60}}
-                  , React.createElement('div', { className: "flex items-center gap-2 mb-2"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 61}}
-                    , React.createElement(Zap, { className: "h-5 w-5 text-yellow-500" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 62}} )
-                  )
-                  , React.createElement('div', { className: "text-3xl md:text-4xl font-bold text-gray-900"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 64}}, "1000+")
-                  , React.createElement('div', { className: "text-sm text-gray-600 mt-1"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 65}}, "Daily Users" )
-                )
-                , React.createElement('div', { className: "glass bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md hover:shadow-lg transition-all min-w-[140px]"        , __self: this, __source: {fileName: _jsxFileName, lineNumber: 67}}
-                  , React.createElement('div', { className: "flex items-center gap-2 mb-2"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 68}}
-                    , React.createElement(Clock, { className: "h-5 w-5 text-cyan-500" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 69}} )
-                  )
-                  , React.createElement('div', { className: "text-3xl md:text-4xl font-bold text-gray-900"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 71}}, "24/7")
-                  , React.createElement('div', { className: "text-sm text-gray-600 mt-1"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 72}}, "Live Updates" )
-                )
-                , React.createElement('div', { className: "glass bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md hover:shadow-lg transition-all min-w-[140px]"        , __self: this, __source: {fileName: _jsxFileName, lineNumber: 74}}
-                  , React.createElement('div', { className: "flex items-center gap-2 mb-2"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 75}}
-                    , React.createElement(Shield, { className: "h-5 w-5 text-purple-500" , __self: this, __source: {fileName: _jsxFileName, lineNumber: 76}} )
-                  )
-                  , React.createElement('div', { className: "text-3xl md:text-4xl font-bold text-gray-900"   , __self: this, __source: {fileName: _jsxFileName, lineNumber: 78}}, "100%")
-                  , React.createElement('div', { className: "text-sm text-gray-600 mt-1"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 79}}, "Secure")
-                )
-              )
-            )
-
-            /* Right Content - Hero Image */
-            , React.createElement('div', { className: "relative animate-fade-in md:block hidden"   , style: { animationDelay: '0.2s' }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 83}}
-              , React.createElement('img', { 
-                src: heroImage, 
-                alt: "QueMe Now Queue Management"   , 
-                className: "w-full h-auto max-w-4xl xl:max-w-5xl ml-auto object-contain drop-shadow-2xl"       , __self: this, __source: {fileName: _jsxFileName, lineNumber: 84}}
-              )
-            )
-
-            /* Mobile Hero Image - Bottom Right */
-            , React.createElement('img', { 
-              src: heroImage, 
-              alt: "QueMe Now Queue Management"   , 
-              className: "md:hidden fixed bottom-0 right-0 w-96 sm:w-[450px] h-auto object-contain opacity-30 z-0 pointer-events-none"          , __self: this, __source: {fileName: _jsxFileName, lineNumber: 92}}
-            )
-          )
-        )
-      )
-    )
+            {/* Mobile Hero Image - Bottom Right Corner */}
+            <div className="lg:hidden fixed bottom-0 right-0 w-[60%] sm:w-[50%] max-w-md pointer-events-none z-0">
+              <img 
+                src={heroImage} 
+                alt="QmeNow digital queue management" 
+                className="w-full h-auto object-contain opacity-30"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 };
 
