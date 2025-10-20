@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const [dobOpen, setDobOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     idNumber: "",
@@ -91,7 +92,7 @@ const SignUp = () => {
 
               , React.createElement('div', { className: "space-y-2", __self: this, __source: {fileName: _jsxFileName, lineNumber: 91}}
                 , React.createElement(Label, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 92}}, "Date of Birth"  )
-                , React.createElement(Popover, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 93}}
+                , React.createElement(Popover, { open: dobOpen, onOpenChange: setDobOpen, __self: this, __source: {fileName: _jsxFileName, lineNumber: 93}}
                   , React.createElement(PopoverTrigger, { asChild: true, __self: this, __source: {fileName: _jsxFileName, lineNumber: 94}}
                     , React.createElement(Button, {
                       variant: "outline",
@@ -107,9 +108,10 @@ const SignUp = () => {
                   , React.createElement(PopoverContent, { className: "w-auto p-0 bg-transparent border-0 shadow-none" , align: "start", __self: this, __source: {fileName: _jsxFileName, lineNumber: 106}}
                     , React.createElement(CustomCalendar, {
                       selected: formData.dob,
-                      onSelect: (date) =>
-                        setFormData({ ...formData, dob: date })
-                      , __self: this, __source: {fileName: _jsxFileName, lineNumber: 107}}
+                      onSelect: (date) => {
+                        setFormData({ ...formData, dob: date });
+                        setDobOpen(false);
+                      }, __self: this, __source: {fileName: _jsxFileName, lineNumber: 107}}
                     )
                   )
                 )
