@@ -6,8 +6,20 @@ import { Button } from '@/components/ui/button';
 import { useBranches } from '@/hooks/useBranches';
 import type { Tables } from '@/integrations/supabase/types';
 
+// Import logos as ES6 modules
+import picaLogo from '@/assets/logos/pica-logo.png';
+import nhtLogo from '@/assets/logos/nht-logo.png';
+import tajLogo from '@/assets/logos/taj-logo.png';
+
 type Organization = Tables<'organizations'>;
 type Branch = Tables<'branches'>;
+
+// Map slug to imported logo
+const logoMap: Record<string, string> = {
+  'pica': picaLogo,
+  'nht': nhtLogo,
+  'taj': tajLogo,
+};
 
 interface FlipCardProps {
   organization: Organization;
@@ -37,6 +49,9 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   const primaryColor = organization.primary_color || '#3B82F6';
   const hasSingleBranch = branches?.length === 1;
   const hasMultipleBranches = (branches?.length || 0) > 1;
+
+  // Get logo from logoMap using slug, fallback to logo_url or initial
+  const logoSrc = logoMap[organization.slug] || organization.logo_url;
 
   // Get a consistent gradient based on org id
   const gradientIndex = organization.id.charCodeAt(0) % gradientPresets.length;
@@ -192,9 +207,9 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
                 filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.4))',
               }}
             >
-              {organization.logo_url ? (
+              {logoSrc ? (
                 <img
-                  src={organization.logo_url}
+                  src={logoSrc}
                   alt={organization.name}
                   className="w-32 h-32 object-contain"
                 />
@@ -242,9 +257,9 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
           <div className="w-full h-full glass rounded-2xl p-5 flex flex-col border border-white/20 dark:border-white/10">
             {/* Header with logo and name */}
             <div className="flex items-center gap-3 mb-4 pb-3 border-b border-border/50">
-              {organization.logo_url ? (
+              {logoSrc ? (
                 <img
-                  src={organization.logo_url}
+                  src={logoSrc}
                   alt={organization.name}
                   className="w-10 h-10 object-contain"
                 />

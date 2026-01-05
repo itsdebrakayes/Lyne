@@ -18,16 +18,19 @@ export const AdminSidebar = () => {
   const { admin, logout } = useAdminAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/admin/login');
   };
+
+  const orgName = admin?.staffRole?.organizations?.name || 'QmeNow';
+  const roleName = admin?.staffRole?.role?.replace('_', ' ') || 'Admin';
 
   return (
     <aside className="admin-sidebar fixed left-0 top-0 h-screen w-64 flex flex-col border-r border-white/10">
       {/* Logo */}
       <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-bold text-white">TAJ Queues</h1>
+        <h1 className="text-2xl font-bold text-white">{orgName}</h1>
         <p className="text-xs text-white/60 mt-1">
           Facilitated by <span className="text-primary font-medium">QmeNow</span>
         </p>
@@ -64,7 +67,7 @@ export const AdminSidebar = () => {
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium text-white truncate">{admin?.name || "Admin User"}</p>
-                <p className="text-xs text-white/60 truncate">Administrator</p>
+                <p className="text-xs text-white/60 truncate capitalize">{roleName}</p>
               </div>
             </button>
           </PopoverTrigger>

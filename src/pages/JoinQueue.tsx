@@ -206,6 +206,7 @@ const JoinQueue = () => {
           email: signupForm.email,
           phone: signupForm.phone,
           id_number: signupForm.idNumber,
+          trn_number: signupForm.trnNumber.replace(/-/g, ''),
           date_of_birth: format(signupForm.dateOfBirth, 'yyyy-MM-dd'),
         })
         .select('id')
