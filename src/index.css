@@ -193,6 +193,11 @@ All colors MUST be HSL.
   box-shadow: var(--shadow-glass);
 }
 
+.dark .glass {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .glass-hover {
   transition: var(--transition-smooth);
 }
@@ -203,6 +208,10 @@ All colors MUST be HSL.
   transform: translateY(-2px) scale(1.01);
 }
 
+.dark .glass-hover:hover {
+  background: rgba(30, 41, 59, 0.85);
+}
+
 /* Premium ticket card */
 .glass-ticket {
   background: rgba(255, 255, 255, 0.8);
@@ -210,6 +219,11 @@ All colors MUST be HSL.
   -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1.5px solid rgba(255, 255, 255, 0.4);
   box-shadow: var(--shadow-ticket);
+}
+
+.dark .glass-ticket {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Gradient utilities */

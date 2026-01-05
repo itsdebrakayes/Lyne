@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { FlipCard } from '@/components/FlipCard';
@@ -22,7 +22,7 @@ const ClientDirectory = () => {
 
   const scroll = (direction) => {
     if (scrollContainerRef.current) {
-      const scrollAmount = 320; // Card width + gap
+      const scrollAmount = 320;
       scrollContainerRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -32,32 +32,36 @@ const ClientDirectory = () => {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold gradient-text">QmeNow</h1>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/about')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              About
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="rounded-full"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </Button>
-          </div>
-        </div>
+      {/* Glassmorphic Pill Header */}
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+        <nav className="glass rounded-full px-2 py-2 flex items-center gap-1 border border-white/20 dark:border-white/10 shadow-lg">
+          <Link
+            to="/"
+            className="px-5 py-2 rounded-full text-foreground font-medium transition-all hover:bg-card/80"
+          >
+            QmeNow
+          </Link>
+          
+          <div className="w-px h-6 bg-border/50 mx-1" />
+          
+          <Link
+            to="/about"
+            className="px-4 py-2 rounded-full text-muted-foreground transition-all hover:text-foreground hover:bg-card/60 hover:shadow-md"
+          >
+            About
+          </Link>
+          
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2 rounded-full text-muted-foreground transition-all hover:text-foreground hover:bg-card/60"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+        </nav>
       </header>
 
       {/* Main Content */}
