@@ -47,7 +47,6 @@ const App = () => (
             
             {/* Client Routes */}
             <Route path="/client/:slug" element={<ClientLanding />} />
-            <Route path="/client/:slug/join" element={<ServiceSelect />} />
             <Route path="/client/:slug/ticket" element={<Ticket />} />
             
             {/* Legacy Routes (keep for backward compatibility) */}

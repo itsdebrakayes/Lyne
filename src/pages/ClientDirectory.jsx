@@ -85,10 +85,10 @@ const ClientDirectory = () => {
           </div>
         </div>
 
-        {/* Glowing Card Section Title */}
+        {/* Section Title */}
         <div className="container mx-auto px-4 mb-8">
           <h3 className="text-2xl md:text-3xl font-bold text-center gradient-text">
-            Glowing Cards
+            Clients and Organizations
           </h3>
         </div>
 
