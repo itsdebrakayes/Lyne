@@ -151,16 +151,13 @@ const ClientDirectory = () => {
                 msOverflowStyle: 'none',
               }}
             >
-              {/* Spacer for centering */}
-              <div className="flex-shrink-0 w-[calc(50vw-160px)] hidden lg:block" />
-              
               {filteredOrgs.map((org) => (
-                <div key={org.id} className="snap-center">
+                <div key={org.id} className="snap-center flex-shrink-0">
                   <FlipCard organization={org} />
                 </div>
               ))}
               
-              {/* Spacer for centering */}
+              {/* Right spacer to allow last card to be scrolled into view */}
               <div className="flex-shrink-0 w-[calc(50vw-160px)] hidden lg:block" />
             </div>
           )}

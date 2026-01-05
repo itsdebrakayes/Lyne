@@ -18,6 +18,7 @@ import NotFound from './pages/NotFound';
 // New Client Pages
 import ClientDirectory from './pages/ClientDirectory';
 import ClientLanding from './pages/ClientLanding';
+import JoinQueue from './pages/JoinQueue';
 
 // Protected Route
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -59,7 +60,8 @@ function App() {
               
               {/* Client Routes */}
               <Route path="/client/:slug" element={<ClientLanding />} />
-              <Route path="/client/:slug/ticket" element={<ProtectedRoute><Ticket /></ProtectedRoute>} />
+              <Route path="/client/:slug/join" element={<JoinQueue />} />
+              <Route path="/client/:slug/ticket" element={<Ticket />} />
               
               {/* Auth Routes */}
               <Route path="/join-us" element={<JoinUs />} />

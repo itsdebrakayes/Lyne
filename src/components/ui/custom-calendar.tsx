@@ -17,12 +17,13 @@ import {
 } from "date-fns";
 
 interface CustomCalendarProps {
-  selected: Date | null;
-  onSelect: (date: Date | null) => void;
+  selected: Date | undefined;
+  onSelect: (date: Date | undefined) => void;
   className?: string;
+  disabled?: (date: Date) => boolean;
 }
 
-export function CustomCalendar({ selected, onSelect, className }: CustomCalendarProps) {
+export function CustomCalendar({ selected, onSelect, className, disabled }: CustomCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(selected || new Date());
   
   const days = eachDayOfInterval({
@@ -95,19 +96,22 @@ export function CustomCalendar({ selected, onSelect, className }: CustomCalendar
           const isSelected = selected && isSameDay(day, selected);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isToday = isSameDay(day, new Date());
+          const isDisabled = disabled ? disabled(day) : false;
 
           return (
             <Button
               key={day.toISOString()}
               variant="ghost"
               size="sm"
+              disabled={isDisabled}
               className={cn(
                 "h-8 w-8 p-0 font-normal",
                 isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
                 !isSelected && isToday && "bg-accent text-accent-foreground",
-                !isCurrentMonth && "text-muted-foreground opacity-50"
+                !isCurrentMonth && "text-muted-foreground opacity-50",
+                isDisabled && "opacity-30 cursor-not-allowed"
               )}
-              onClick={() => onSelect(day)}
+              onClick={() => !isDisabled && onSelect(day)}
             >
               {format(day, "d")}
             </Button>
