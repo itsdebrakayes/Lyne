@@ -189,6 +189,7 @@ export type Database = {
       lines: {
         Row: {
           actual_wait_minutes: number | null
+          branch_id: string | null
           called_at: string | null
           client_id: string
           completed_at: string | null
@@ -206,6 +207,7 @@ export type Database = {
         }
         Insert: {
           actual_wait_minutes?: number | null
+          branch_id?: string | null
           called_at?: string | null
           client_id: string
           completed_at?: string | null
@@ -223,6 +225,7 @@ export type Database = {
         }
         Update: {
           actual_wait_minutes?: number | null
+          branch_id?: string | null
           called_at?: string | null
           client_id?: string
           completed_at?: string | null
@@ -239,6 +242,13 @@ export type Database = {
           ticket_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lines_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lines_client_id_fkey"
             columns: ["client_id"]
@@ -594,6 +604,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      client_in_org_queue: {
+        Args: { p_client_id: string; p_org_id: string }
+        Returns: boolean
+      }
+      get_client_user_id: { Args: { p_client_id: string }; Returns: string }
       get_user_role: {
         Args: { _org_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
