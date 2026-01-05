@@ -1,5 +1,5 @@
 import React from 'react';
-import { GlassmorphicSidebar } from './GlassmorphicSidebar';
+import { GlassmorphicSidebar } from '@/components/GlassmorphicSidebar';
 import { useStaffRole } from '@/hooks/useStaffRole';
 import { supabase } from '@/integrations/supabase/client';
 
