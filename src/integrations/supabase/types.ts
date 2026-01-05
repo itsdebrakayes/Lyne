@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          address: string
+          closing_time: string | null
+          created_at: string | null
+          friday_closing_time: string | null
+          id: string
+          is_main_branch: boolean | null
+          is_open: boolean | null
+          name: string
+          opening_time: string | null
+          organization_id: string
+          phone: string | null
+        }
+        Insert: {
+          address: string
+          closing_time?: string | null
+          created_at?: string | null
+          friday_closing_time?: string | null
+          id?: string
+          is_main_branch?: boolean | null
+          is_open?: boolean | null
+          name: string
+          opening_time?: string | null
+          organization_id: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string
+          closing_time?: string | null
+          created_at?: string | null
+          friday_closing_time?: string | null
+          id?: string
+          is_main_branch?: boolean | null
+          is_open?: boolean | null
+          name?: string
+          opening_time?: string | null
+          organization_id?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           client_type: string | null

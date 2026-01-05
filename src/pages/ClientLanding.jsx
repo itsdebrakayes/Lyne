@@ -1,10 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { ArrowLeft, Sun, Moon, Ticket } from 'lucide-react';
+import { ArrowLeft, Sun, Moon, Ticket, ChevronDown } from 'lucide-react';
 import { TrafficStatusBanner } from '@/components/TrafficStatusBanner';
 import { ServiceCard } from '@/components/ServiceCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOrganization } from '@/hooks/useOrganizations';
 import { useServices } from '@/hooks/useServices';
 import { useQueueData } from '@/hooks/useQueueData';
@@ -14,6 +18,10 @@ const ClientLanding = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const authSectionRef = useRef(null);
+  
+  const [selectedService, setSelectedService] = useState(null);
+  const [showAuthSection, setShowAuthSection] = useState(false);
   
   const { data: organization, isLoading: orgLoading } = useOrganization(slug);
   const { data: services, isLoading: servicesLoading } = useServices(organization?.id);
@@ -43,8 +51,19 @@ const ClientLanding = () => {
     };
   }, [queueData, services]);
 
-  const handleJoinQueue = (serviceId) => {
-    navigate(`/client/${slug}/join?service=${serviceId}`);
+  const handleServiceSelect = (serviceId) => {
+    setSelectedService(serviceId);
+    setShowAuthSection(true);
+    setTimeout(() => {
+      authSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleJoinQueue = () => {
+    setShowAuthSection(true);
+    setTimeout(() => {
+      authSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const isLoading = orgLoading || servicesLoading;
@@ -125,18 +144,32 @@ const ClientLanding = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 pt-24 pb-32">
+      <main className="container mx-auto px-4 pt-24 pb-32 relative">
+        {/* Large background text */}
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none select-none overflow-hidden w-full">
+          <h1 
+            className="text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[12rem] font-black text-center whitespace-nowrap"
+            style={{ 
+              color: 'transparent',
+              WebkitTextStroke: '1px hsl(var(--foreground) / 0.05)',
+              opacity: 0.5,
+            }}
+          >
+            SERVICES
+          </h1>
+        </div>
+
         {/* Traffic Status Banner */}
         <TrafficStatusBanner
           status={trafficStatus.status}
           avgWaitMin={trafficStatus.avgWaitMin}
           avgWaitMax={trafficStatus.avgWaitMax}
           totalInQueue={trafficStatus.totalInQueue}
-          className="mb-8"
+          className="mb-8 relative z-10"
         />
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Services Grid - 3 columns on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
           {services?.map((service) => {
             const queueInfo = queueData?.find(q => q.service_id === service.id);
             const queueLength = queueInfo?.count || 0;
@@ -148,10 +181,132 @@ const ClientLanding = () => {
                 service={service}
                 queueLength={queueLength}
                 estimatedWait={estimatedWait}
-                onJoin={() => handleJoinQueue(service.id)}
+                isSelected={selectedService === service.id}
+                onJoin={() => handleServiceSelect(service.id)}
               />
             );
           })}
+        </div>
+
+        {/* Auth Section - appears when service is selected */}
+        <div ref={authSectionRef}>
+          {showAuthSection && (
+            <div className="mt-12 relative z-10">
+              {/* Scroll indicator */}
+              <div className="flex justify-center mb-6">
+                <ChevronDown className="w-6 h-6 text-muted-foreground animate-bounce" />
+              </div>
+              
+              <div 
+                className="max-w-md mx-auto rounded-3xl p-6 backdrop-blur-xl border border-white/10"
+                style={{
+                  background: 'hsl(var(--card) / 0.6)',
+                  boxShadow: 'inset 0 0 30px rgba(255,255,255,0.03), 0 8px 32px rgba(0,0,0,0.2)',
+                }}
+              >
+                <h2 className="text-xl font-semibold text-center mb-6">Join the Queue</h2>
+                
+                {/* Service Selection Dropdown */}
+                <div className="mb-6">
+                  <Label htmlFor="service-select" className="text-sm text-muted-foreground mb-2 block">
+                    Select Service
+                  </Label>
+                  <Select value={selectedService || ''} onValueChange={setSelectedService}>
+                    <SelectTrigger id="service-select" className="w-full bg-muted/30 border-white/10">
+                      <SelectValue placeholder="Choose a service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services?.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Login/Signup Tabs */}
+                <Tabs defaultValue="login" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/30">
+                    <TabsTrigger value="login">Login</TabsTrigger>
+                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="login" className="space-y-4">
+                    <div>
+                      <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="your@email.com"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
+                      <Input 
+                        id="password" 
+                        type="password" 
+                        placeholder="••••••••"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full bg-foreground text-background hover:bg-foreground/90 py-5"
+                      disabled={!selectedService}
+                    >
+                      Login & Join Queue
+                    </Button>
+                  </TabsContent>
+                  
+                  <TabsContent value="signup" className="space-y-4">
+                    <div>
+                      <Label htmlFor="fullname" className="text-sm text-muted-foreground">Full Name</Label>
+                      <Input 
+                        id="fullname" 
+                        type="text" 
+                        placeholder="John Doe"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="signup-email" className="text-sm text-muted-foreground">Email</Label>
+                      <Input 
+                        id="signup-email" 
+                        type="email" 
+                        placeholder="your@email.com"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone" className="text-sm text-muted-foreground">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="(876) 555-1234"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="signup-password" className="text-sm text-muted-foreground">Password</Label>
+                      <Input 
+                        id="signup-password" 
+                        type="password" 
+                        placeholder="••••••••"
+                        className="mt-1 bg-muted/30 border-white/10"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full bg-foreground text-background hover:bg-foreground/90 py-5"
+                      disabled={!selectedService}
+                    >
+                      Sign Up & Join Queue
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -159,7 +314,7 @@ const ClientLanding = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border/50 p-4">
         <div className="container mx-auto flex gap-4">
           <Button
-            onClick={() => navigate(`/client/${slug}/join`)}
+            onClick={handleJoinQueue}
             className="flex-1 bg-foreground text-background hover:bg-foreground/90"
             size="lg"
           >
