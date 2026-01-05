@@ -14,6 +14,17 @@ interface FlipCardProps {
   onFlipChange?: (isFlipped: boolean) => void;
 }
 
+// Gradient presets for cards (like the Disney characters reference)
+const gradientPresets = [
+  'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)', // Red
+  'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)', // Blue
+  'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)', // Green
+  'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)', // Orange
+  'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)', // Purple
+  'linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0e7490 100%)', // Cyan
+  'linear-gradient(135deg, #ec4899 0%, #db2777 50%, #be185d 100%)', // Pink
+];
+
 export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -26,6 +37,10 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   const primaryColor = organization.primary_color || '#3B82F6';
   const hasSingleBranch = branches?.length === 1;
   const hasMultipleBranches = (branches?.length || 0) > 1;
+
+  // Get a consistent gradient based on org id
+  const gradientIndex = organization.id.charCodeAt(0) % gradientPresets.length;
+  const cardGradient = gradientPresets[gradientIndex];
 
   // Notify parent when flip state changes
   useEffect(() => {
@@ -43,7 +58,6 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
       }
     };
 
-    // Delay adding listener to prevent immediate trigger
     const timer = setTimeout(() => {
       document.addEventListener('click', handleClickOutside);
     }, 100);
@@ -55,7 +69,7 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   }, [isFlipped]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!cardRef.current || isFlipped) return;
+    if (!cardRef.current) return;
     
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -63,8 +77,9 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    const rotateX = (y - centerY) / 20;
-    const rotateY = (centerX - x) / 20;
+    // Stronger tilt for more 3D effect
+    const rotateX = ((y - centerY) / centerY) * 15;
+    const rotateY = ((centerX - x) / centerX) * 15;
     
     setTilt({ x: rotateX, y: rotateY });
   };
@@ -79,12 +94,10 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Only flip from front to back
     if (!isFlipped) {
       e.stopPropagation();
       setIsFlipped(true);
     }
-    // When on back side, don't flip - let buttons and scroll work
   };
 
   const handleNavigate = (e: React.MouseEvent) => {
@@ -112,20 +125,32 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
     <div
       ref={cardRef}
       className="relative w-[280px] h-[380px] cursor-pointer flex-shrink-0"
-      style={{ perspective: '1000px' }}
+      style={{ perspective: '1200px' }}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Static glow behind the card */}
+      {/* Backlit Glow - always visible, intensifies on hover */}
       <div 
-        className="absolute inset-0 rounded-3xl pointer-events-none transition-opacity duration-500"
+        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-500"
         style={{
-          background: `radial-gradient(ellipse 80% 80% at 50% 50%, ${primaryColor}30 0%, ${primaryColor}15 40%, transparent 70%)`,
-          filter: 'blur(30px)',
-          transform: 'scale(1.2)',
+          background: `radial-gradient(ellipse 100% 100% at 50% 100%, ${primaryColor}50 0%, ${primaryColor}25 30%, transparent 70%)`,
+          filter: 'blur(40px)',
+          transform: 'scale(1.3) translateY(20%)',
           zIndex: 0,
-          opacity: isHovering || isFlipped ? 1 : 0.6,
+          opacity: isHovering ? 1 : 0.7,
+        }}
+      />
+      
+      {/* Secondary glow for more dramatic effect */}
+      <div 
+        className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-500"
+        style={{
+          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${primaryColor}40 0%, transparent 60%)`,
+          filter: 'blur(25px)',
+          transform: 'scale(1.1)',
+          zIndex: 0,
+          opacity: isHovering ? 0.8 : 0.4,
         }}
       />
 
@@ -140,46 +165,66 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
         }}
         onClick={handleCardClick}
       >
-        {/* Front Face */}
+        {/* Front Face - Full gradient card like Disney reference */}
         <div
-          className="absolute inset-0 rounded-2xl overflow-hidden"
+          className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl"
           style={{
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
           }}
         >
-          <div className="w-full h-full glass rounded-2xl p-6 flex flex-col items-center justify-between border border-white/20 dark:border-white/10">
-            {/* Logo */}
-            <div className="flex-1 flex items-center justify-center">
+          {/* Gradient background covering the whole card */}
+          <div 
+            className="absolute inset-0"
+            style={{ background: cardGradient }}
+          />
+          
+          {/* Subtle overlay for depth */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10" />
+          
+          {/* Content container */}
+          <div className="relative w-full h-full p-6 flex flex-col items-center justify-end">
+            {/* Logo - positioned to "pop" above the card like 3D characters */}
+            <div 
+              className="absolute top-6 left-1/2 -translate-x-1/2 transition-transform duration-300"
+              style={{
+                transform: `translateX(-50%) translateZ(60px) scale(${isHovering ? 1.1 : 1})`,
+                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.4))',
+              }}
+            >
               {organization.logo_url ? (
                 <img
                   src={organization.logo_url}
                   alt={organization.name}
-                  className="w-28 h-28 object-contain drop-shadow-lg"
+                  className="w-32 h-32 object-contain"
                 />
               ) : (
                 <div
-                  className="w-28 h-28 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg"
-                  style={{ backgroundColor: primaryColor }}
+                  className="w-28 h-28 rounded-2xl flex items-center justify-center text-5xl font-bold text-white shadow-2xl"
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                  }}
                 >
                   {organization.name.charAt(0)}
                 </div>
               )}
             </div>
 
-            {/* Name and description */}
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-foreground">
+            {/* Name and description at the bottom */}
+            <div className="text-center space-y-2 mt-auto pb-4">
+              <h3 className="text-2xl font-bold text-white drop-shadow-lg">
                 {organization.name}
               </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">
+              <p className="text-sm text-white/80 line-clamp-2 drop-shadow">
                 {organization.description}
               </p>
             </div>
 
             {/* Tap indicator */}
-            <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               Tap for more info
             </div>
           </div>
@@ -187,7 +232,7 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
 
         {/* Back Face */}
         <div
-          className="absolute inset-0 rounded-2xl overflow-hidden"
+          className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl"
           style={{
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
@@ -219,7 +264,6 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
             {/* Location info */}
             <div className="flex-1 overflow-hidden flex flex-col">
               {hasSingleBranch && branch ? (
-                // Single branch - show details directly
                 <div className="space-y-3">
                   <div className="flex items-start gap-2">
                     <MapPin className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -241,7 +285,6 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
                   )}
                 </div>
               ) : hasMultipleBranches ? (
-                // Multiple branches - show list
                 <div className="flex-1 overflow-hidden flex flex-col">
                   <p className="text-xs text-muted-foreground mb-2">Select a location:</p>
                   <div 
@@ -271,7 +314,6 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
                     ))}
                   </div>
 
-                  {/* Selected branch details */}
                   {selectedBranch && (
                     <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                       {(selectedBranch.opening_time || selectedBranch.closing_time) && (
