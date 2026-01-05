@@ -1,9 +1,14 @@
 import * as React from 'react';
-import { Navbar } from "@/components/Navbar";
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { GlassCard } from "@/components/GlassCard";
+import { Button } from '@/components/ui/button';
 import { Clock, Users, Shield, Zap } from "lucide-react";
 
 const About = () => {
+  const { theme, setTheme } = useTheme();
+
   const features = [
     {
       icon: Clock,
@@ -29,9 +34,35 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
-      <Navbar />
+      {/* Simple top navbar with back button */}
+      <header className="fixed top-0 left-0 right-0 z-50">
+        <nav className="glass border-b border-white/10 dark:border-white/5">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+            {/* Back button on the left */}
+            <Link to="/">
+              <Button variant="ghost" className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+            </Link>
+            
+            {/* Theme Toggle on the right */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 rounded-full text-muted-foreground transition-all hover:text-foreground hover:bg-card/60"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </nav>
+      </header>
 
-      <div className="pt-32 pb-16 px-4 md:px-8">
+      <div className="pt-24 pb-16 px-4 md:px-8">
         <div className="max-w-6xl mx-auto space-y-16">
           {/* Header */}
           <div className="text-center space-y-4 animate-fade-in">
