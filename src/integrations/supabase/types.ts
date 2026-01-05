@@ -74,6 +74,7 @@ export type Database = {
           id: string
           id_number: string | null
           phone: string | null
+          trn_number: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -86,6 +87,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           phone?: string | null
+          trn_number?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -98,6 +100,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           phone?: string | null
+          trn_number?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
