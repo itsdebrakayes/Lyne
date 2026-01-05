@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,9 +32,18 @@ import Settings from './pages/admin/Settings';
 import AdminLogin from './pages/admin/Login';
 import { ProtectedAdminRoute } from './components/admin/ProtectedAdminRoute';
 
-const queryClient = new QueryClient();
+// Create QueryClient outside component to prevent recreation
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    },
+  },
+});
 
-const App = () => (
+function App() {
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <TooltipProvider>
@@ -76,6 +85,7 @@ const App = () => (
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+}
 
 export default App;
