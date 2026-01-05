@@ -8,7 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Modern gradient background */
+    /* Modern gradient background - Light Mode */
     --background: 215 25% 97%;
     --background-gradient: linear-gradient(135deg, hsl(215, 25%, 97%) 0%, hsl(210, 30%, 98%) 50%, hsl(200, 25%, 97%) 100%);
     --foreground: 215 20% 12%;
@@ -47,7 +47,7 @@ All colors MUST be HSL.
     --status-light: 145 65% 52%;
 
     /* Card & surfaces */
-    --card: 0 0% 100% / 0.7;
+    --card: 0 0% 100%;
     --card-foreground: 215 20% 12%;
     
     --popover: 0 0% 100%;
@@ -92,6 +92,80 @@ All colors MUST be HSL.
 
     /* Admin sidebar */
     --admin-sidebar-bg: 222 47% 11%;
+    --admin-sidebar-hover: 217 91% 60%;
+    --admin-sidebar-active: 217 91% 60%;
+  }
+
+  .dark {
+    /* Dark Mode - Deep dark with rich colors */
+    --background: 222 47% 6%;
+    --background-gradient: linear-gradient(135deg, hsl(222, 47%, 6%) 0%, hsl(225, 40%, 8%) 50%, hsl(220, 45%, 5%) 100%);
+    --foreground: 210 20% 95%;
+
+    /* Enhanced glass effect - Dark */
+    --glass-background: 222 30% 12% / 0.7;
+    --glass-border: 222 20% 25% / 0.4;
+    --glass-shadow: 0 0% 0% / 0.3;
+    
+    /* Primary - Vibrant Blue */
+    --primary: 215 85% 60%;
+    --primary-light: 215 75% 70%;
+    --primary-dark: 215 90% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 215 85% 60% / 0.4;
+
+    /* Secondary - Teal accent */
+    --secondary: 180 75% 45%;
+    --secondary-light: 180 70% 55%;
+    --secondary-dark: 180 80% 35%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Accent - Purple for contrast */
+    --accent: 270 70% 55%;
+    --accent-light: 270 65% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Tertiary */
+    --tertiary: 215 15% 50%;
+    --tertiary-light: 215 12% 60%;
+    --tertiary-foreground: 210 20% 95%;
+
+    /* Card & surfaces - Dark glass */
+    --card: 222 30% 12%;
+    --card-foreground: 210 20% 95%;
+    
+    --popover: 222 35% 10%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Muted */
+    --muted: 222 25% 18%;
+    --muted-foreground: 215 15% 60%;
+
+    /* Destructive */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & inputs */
+    --border: 222 20% 20%;
+    --input: 222 25% 15%;
+    --ring: 215 85% 60%;
+
+    /* Dark mode shadows with glow */
+    --shadow-sm: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 16px -4px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 24px -6px hsl(0 0% 0% / 0.5);
+    --shadow-xl: 0 12px 32px -8px hsl(0 0% 0% / 0.6);
+    --shadow-glass: 0 8px 32px 0 hsl(0 0% 0% / 0.4);
+    --shadow-glass-hover: 0 12px 40px 0 hsl(0 0% 0% / 0.5);
+    --shadow-ticket: 0 20px 60px 0 hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow));
+
+    /* Sidebar/Nav - Dark */
+    --nav-background: 222 30% 10% / 0.8;
+    --nav-border: 222 20% 25% / 0.5;
+
+    /* Admin sidebar */
+    --admin-sidebar-bg: 222 47% 8%;
     --admin-sidebar-hover: 217 91% 60%;
     --admin-sidebar-active: 217 91% 60%;
   }
