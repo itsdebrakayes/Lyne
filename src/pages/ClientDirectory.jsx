@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import * as React from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
