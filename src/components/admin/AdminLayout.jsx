@@ -1,16 +1,26 @@
-const _jsxFileName = "";import React from 'react';
-import { AdminSidebar } from './AdminSidebar';
+import React from 'react';
+import { GlassmorphicSidebar } from './GlassmorphicSidebar';
+import { useStaffRole } from '@/hooks/useStaffRole';
+import { supabase } from '@/integrations/supabase/client';
 
 export const AdminLayout = ({ children }) => {
+  const { role } = useStaffRole();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('adminAuth');
+  };
+
   return (
-    React.createElement('div', { className: "min-h-screen bg-background"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 6}}
-      , React.createElement(AdminSidebar, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 7}} )
+    <div className="min-h-screen bg-background">
+      <GlassmorphicSidebar userRole={role || 'staff'} onLogout={handleLogout} />
       
-      , React.createElement('div', { className: "ml-64"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 9}}
-        , React.createElement('main', { className: "p-8"  , __self: this, __source: {fileName: _jsxFileName, lineNumber: 10}}
-          , children
-        )
-      )
-    )
+      {/* Main content with left padding for sidebar */}
+      <div className="pl-20">
+        <main className="p-8">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 };
