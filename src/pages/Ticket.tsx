@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { CircularProgress } from '@/components/CircularProgress';
 import { Button } from '@/components/ui/button';
+import { LeaveQueueModal } from '@/components/LeaveQueueModal';
 import { useLiveQueuePosition } from '@/hooks/useLiveQueuePosition';
 import { toast } from 'sonner';
 
@@ -20,6 +21,7 @@ const Ticket = () => {
   const { lineData, isLoading, error, leaveQueue } = useLiveQueuePosition(lineId);
   const [userData, setUserData] = useState({ fullName: 'Guest' });
   const [isLeaving, setIsLeaving] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('userData');
@@ -29,6 +31,7 @@ const Ticket = () => {
   }, []);
 
   const handleLeaveQueue = async () => {
+    setShowLeaveModal(false);
     setIsLeaving(true);
     const success = await leaveQueue();
     if (success) {
@@ -235,7 +238,7 @@ const Ticket = () => {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleLeaveQueue}
+              onClick={() => setShowLeaveModal(true)}
               disabled={isLeaving || isBeingCalled}
               className="bg-destructive hover:bg-destructive/90"
             >
@@ -243,6 +246,13 @@ const Ticket = () => {
               Leave Queue
             </Button>
           </div>
+
+          {/* Leave Queue Confirmation Modal */}
+          <LeaveQueueModal
+            open={showLeaveModal}
+            onOpenChange={setShowLeaveModal}
+            onConfirm={handleLeaveQueue}
+          />
         </div>
       </main>
     </div>
