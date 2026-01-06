@@ -28,10 +28,15 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import Customers from './pages/admin/Customers';
 import Services from './pages/admin/Services';
+import Staff from './pages/admin/Staff';
+import StaffDetail from './pages/admin/StaffDetail';
 import Analytics from './pages/admin/Analytics';
 import Settings from './pages/admin/Settings';
 import AdminLogin from './pages/admin/Login';
 import { ProtectedAdminRoute } from './components/admin/ProtectedAdminRoute';
+
+// Client Pages
+import BestTime from './pages/BestTime';
 
 // Create QueryClient outside component to prevent recreation
 const queryClient = new QueryClient({
@@ -62,6 +67,7 @@ function App() {
               <Route path="/client/:slug" element={<ClientLanding />} />
               <Route path="/client/:slug/join" element={<JoinQueue />} />
               <Route path="/client/:slug/ticket" element={<Ticket />} />
+              <Route path="/client/:slug/best-time" element={<BestTime />} />
               
               {/* Auth Routes */}
               <Route path="/join-us" element={<JoinUs />} />
@@ -77,6 +83,8 @@ function App() {
               <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout><Dashboard /></AdminLayout></ProtectedAdminRoute>} />
               <Route path="/admin/customers" element={<ProtectedAdminRoute><AdminLayout><Customers /></AdminLayout></ProtectedAdminRoute>} />
               <Route path="/admin/services" element={<ProtectedAdminRoute><AdminLayout><Services /></AdminLayout></ProtectedAdminRoute>} />
+              <Route path="/admin/staff" element={<ProtectedAdminRoute><AdminLayout><Staff /></AdminLayout></ProtectedAdminRoute>} />
+              <Route path="/admin/staff/:userId" element={<ProtectedAdminRoute><AdminLayout><StaffDetail /></AdminLayout></ProtectedAdminRoute>} />
               <Route path="/admin/analytics" element={<ProtectedAdminRoute><AdminLayout><Analytics /></AdminLayout></ProtectedAdminRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><AdminLayout><Settings /></AdminLayout></ProtectedAdminRoute>} />
               

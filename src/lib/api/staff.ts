@@ -178,3 +178,195 @@ export async function assignStaffToCounter(
     if (error) throw error;
   }
 }
+
+export interface StaffListMember {
+  id: string;
+  user_id: string;
+  email?: string;
+  full_name?: string;
+  role: string;
+  assigned_service_id?: string;
+  assigned_section?: string;
+  is_active: boolean;
+  organization_id: string;
+  service_name?: string;
+  counter_number?: number;
+  customers_served_today?: number;
+  avg_service_time?: number;
+  created_at?: string;
+}
+
+export interface StaffStats {
+  activeToday: number;
+  avgServiceTime: number;
+  topPerformers: number;
+}
+
+export async function fetchAllStaff(organizationId: string): Promise<StaffListMember[]> {
+  // Fetch staff roles with their details
+  const { data: staffRoles, error } = await supabase
+    .from('staff_roles')
+    .select(`
+      id,
+      user_id,
+      role,
+      assigned_service_id,
+      assigned_section,
+      is_active,
+      organization_id,
+      created_at,
+      service:services(name)
+    `)
+    .eq('organization_id', organizationId)
+    .order('role', { ascending: true });
+
+  if (error) throw error;
+
+  const staffList: StaffListMember[] = [];
+  
+  for (const role of staffRoles || []) {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: assignment } = await supabase
+      .from('counter_assignments')
+      .select('counter:counters(counter_number)')
+      .eq('staff_user_id', role.user_id)
+      .eq('assignment_date', today)
+      .single();
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const { count: servedToday } = await supabase
+      .from('service_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('staff_user_id', role.user_id)
+      .gte('started_at', todayStart.toISOString());
+
+    staffList.push({
+      id: role.id,
+      user_id: role.user_id,
+      role: role.role,
+      assigned_service_id: role.assigned_service_id || undefined,
+      assigned_section: role.assigned_section || undefined,
+      is_active: role.is_active || false,
+      organization_id: role.organization_id,
+      created_at: role.created_at || undefined,
+      service_name: (role.service as any)?.name || undefined,
+      counter_number: (assignment?.counter as any)?.counter_number || undefined,
+      customers_served_today: servedToday || 0,
+    });
+  }
+
+  return staffList;
+}
+
+export async function fetchStaffStats(organizationId: string): Promise<StaffStats> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { count: activeToday } = await supabase
+    .from('counter_assignments')
+    .select('staff_user_id', { count: 'exact', head: true })
+    .eq('assignment_date', today);
+
+  const { data: recentSessions } = await supabase
+    .from('service_sessions')
+    .select('duration_minutes, lines!inner(organization_id)')
+    .eq('lines.organization_id', organizationId)
+    .not('duration_minutes', 'is', null)
+    .order('completed_at', { ascending: false })
+    .limit(100);
+
+  let avgServiceTime = 0;
+  if (recentSessions && recentSessions.length > 0) {
+    const total = recentSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    avgServiceTime = Math.round(total / recentSessions.length);
+  }
+
+  const { count: topPerformers } = await supabase
+    .from('staff_performance')
+    .select('*', { count: 'exact', head: true })
+    .eq('organization_id', organizationId)
+    .eq('period_date', today)
+    .gte('efficiency_score', 80);
+
+  return {
+    activeToday: activeToday || 0,
+    avgServiceTime,
+    topPerformers: topPerformers || 0,
+  };
+}
+
+export async function fetchStaffDetail(userId: string, organizationId: string) {
+  const { data: staffRole, error } = await supabase
+    .from('staff_roles')
+    .select(`
+      id,
+      user_id,
+      role,
+      assigned_service_id,
+      assigned_section,
+      is_active,
+      created_at,
+      service:services(name)
+    `)
+    .eq('user_id', userId)
+    .eq('organization_id', organizationId)
+    .single();
+
+  if (error) throw error;
+  if (!staffRole) return null;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data: assignment } = await supabase
+    .from('counter_assignments')
+    .select('counter:counters(counter_number)')
+    .eq('staff_user_id', userId)
+    .eq('assignment_date', today)
+    .single();
+
+  return {
+    ...staffRole,
+    service_name: (staffRole.service as any)?.name || undefined,
+    counter_number: (assignment?.counter as any)?.counter_number || undefined,
+  };
+}
+
+export async function fetchStaffPerformance(userId: string, organizationId: string) {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data: perf } = await supabase
+    .from('staff_performance')
+    .select('*')
+    .eq('staff_user_id', userId)
+    .eq('organization_id', organizationId)
+    .eq('period_date', today)
+    .single();
+
+  const { data: recentSessions } = await supabase
+    .from('service_sessions')
+    .select(`
+      id,
+      started_at,
+      completed_at,
+      duration_minutes,
+      outcome,
+      lines!inner(service:services(name))
+    `)
+    .eq('staff_user_id', userId)
+    .not('completed_at', 'is', null)
+    .order('completed_at', { ascending: false })
+    .limit(10);
+
+  const formattedSessions = (recentSessions || []).map(s => ({
+    ...s,
+    service_name: (s.lines as any)?.service?.name || 'Unknown',
+  }));
+
+  return {
+    customers_served: perf?.customers_served || 0,
+    avg_service_time: perf?.avg_service_time_minutes || 0,
+    efficiency_score: perf?.efficiency_score || 0,
+    rank_in_org: perf?.rank_in_org || 0,
+    recent_sessions: formattedSessions,
+  };
+}
