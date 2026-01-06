@@ -145,7 +145,7 @@ const ClientDirectory = () => {
           ) : (
             <div
               ref={scrollContainerRef}
-              className="flex gap-8 px-8 overflow-x-auto scrollbar-hide py-8 snap-x snap-mandatory"
+              className={`flex gap-8 px-8 overflow-x-auto scrollbar-hide py-8 snap-x snap-mandatory ${filteredOrgs.length < 5 ? 'justify-center' : ''}`}
               style={{
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
@@ -158,7 +158,9 @@ const ClientDirectory = () => {
               ))}
               
               {/* Right spacer to allow last card to be scrolled into view */}
-              <div className="flex-shrink-0 w-[calc(50vw-160px)] hidden lg:block" />
+              {filteredOrgs.length >= 5 && (
+                <div className="flex-shrink-0 w-[calc(50vw-160px)] hidden lg:block" />
+              )}
             </div>
           )}
         </div>

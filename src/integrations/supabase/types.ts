@@ -776,6 +776,14 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      shift_queue_positions: {
+        Args: {
+          p_from_position: number
+          p_org_id: string
+          p_service_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "staff" | "section_manager" | "manager" | "executive"

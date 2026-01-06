@@ -146,11 +146,28 @@ export async function fetchMyQueue(
 export async function callCustomer(lineId: string, staffUserId: string, counterId?: string) {
   const now = new Date().toISOString();
   
-  // Update line status
+  // First, get the current entry details
+  const { data: currentEntry, error: fetchError } = await supabase
+    .from('lines')
+    .select('organization_id, service_id, position')
+    .eq('id', lineId)
+    .single();
+  
+  if (fetchError || !currentEntry) throw fetchError || new Error('Entry not found');
+  
+  // Shift all waiting entries up by 1 position (those with higher position)
+  await supabase.rpc('shift_queue_positions', {
+    p_org_id: currentEntry.organization_id,
+    p_service_id: currentEntry.service_id,
+    p_from_position: currentEntry.position
+  });
+  
+  // Update line status and set position to 0 (serving)
   const { error: lineError } = await supabase
     .from('lines')
     .update({
       status: 'serving',
+      position: 0,
       called_at: now,
       started_serving_at: now
     })

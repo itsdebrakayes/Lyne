@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { ArrowLeft, Sun, Moon, Ticket } from 'lucide-react';
+import { ArrowLeft, Sun, Moon, Ticket, Clock } from 'lucide-react';
 import { TrafficStatusBanner } from '@/components/TrafficStatusBanner';
 import { ServiceCard } from '@/components/ServiceCard';
 import { Button } from '@/components/ui/button';
@@ -183,6 +183,15 @@ const ClientLanding = () => {
             size="lg"
           >
             Join the Queue
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/client/${slug}/best-time`)}
+            size="lg"
+            className="flex items-center justify-center gap-2"
+          >
+            <Clock className="w-4 h-4" />
+            Best Time to Visit
           </Button>
           <Button
             variant="outline"

@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Users, Clock, Monitor, Grid3X3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Clock, Monitor, Grid3X3, ChevronDown, ChevronUp, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { StatCard } from '@/components/admin/StatCard';
 import { QueueCard } from '@/components/admin/QueueCard';
 import { FilterBar } from '@/components/admin/FilterBar';
+import { StaffAssignmentPanel } from '@/components/admin/StaffAssignmentPanel';
 import { useStaffRole } from '@/hooks/useStaffRole';
 import { useAdminQueueRealtime } from '@/hooks/useAdminQueueRealtime';
 import { fetchQueueEntries, fetchQueueStats, callCustomer, completeService, cancelCustomer } from '@/lib/api/queue';
@@ -15,6 +16,7 @@ import { fetchCountersWithStaff } from '@/lib/api/staff';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { QueueEntry } from '@/types/queue';
 
 const ManagerDashboard = () => {
@@ -202,88 +204,108 @@ const ManagerDashboard = () => {
         />
       </div>
 
-      {/* Filter Bar */}
-      <FilterBar
-        services={serviceOptions}
-        counters={counterOptions}
-        selectedService={selectedService}
-        selectedCounter={selectedCounter}
-        selectedStatus={selectedStatus}
-        searchQuery={searchQuery}
-        onServiceChange={setSelectedService}
-        onCounterChange={setSelectedCounter}
-        onStatusChange={setSelectedStatus}
-        onSearchChange={setSearchQuery}
-      />
+      {/* Tabs for Queue Management and Staff Assignment */}
+      <Tabs defaultValue="queue" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="queue" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Queue
+          </TabsTrigger>
+          <TabsTrigger value="staff" className="flex items-center gap-2">
+            <UserCog className="w-4 h-4" />
+            Staff Assignment
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Queue Sections by Service */}
-      <div className="space-y-4">
-        {Object.entries(entriesByService).map(([serviceId, { service, entries }]) => {
-          if (selectedService !== 'all' && selectedService !== serviceId) return null;
-          
-          const isExpanded = expandedSections.has(serviceId) || expandedSections.has('all');
-          const waitingCount = entries.filter(e => e.status === 'waiting').length;
-          const servingCount = entries.filter(e => e.status === 'serving').length;
+        <TabsContent value="queue" className="mt-6 space-y-6">
+          {/* Filter Bar */}
+          <FilterBar
+            services={serviceOptions}
+            counters={counterOptions}
+            selectedService={selectedService}
+            selectedCounter={selectedCounter}
+            selectedStatus={selectedStatus}
+            searchQuery={searchQuery}
+            onServiceChange={setSelectedService}
+            onCounterChange={setSelectedCounter}
+            onStatusChange={setSelectedStatus}
+            onSearchChange={setSearchQuery}
+          />
 
-          return (
-            <Collapsible
-              key={serviceId}
-              open={isExpanded}
-              onOpenChange={() => toggleSection(serviceId)}
-            >
-              <div className="glass rounded-xl overflow-hidden">
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="w-full flex items-center justify-between p-4 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: service.color || 'hsl(var(--primary))' }}
-                      />
-                      <span className="font-semibold text-foreground">{service.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {waitingCount} waiting • {servingCount} serving
-                      </span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
+          {/* Queue Sections by Service */}
+          <div className="space-y-4">
+            {Object.entries(entriesByService).map(([serviceId, { service, entries }]) => {
+              if (selectedService !== 'all' && selectedService !== serviceId) return null;
+              
+              const isExpanded = expandedSections.has(serviceId) || expandedSections.has('all');
+              const waitingCount = entries.filter(e => e.status === 'waiting').length;
+              const servingCount = entries.filter(e => e.status === 'serving').length;
 
-                <CollapsibleContent>
-                  <div className="p-4 pt-0 border-t border-border">
-                    {entries.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        No customers in this queue
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                        {entries.map((entry, index) => (
-                          <QueueCard
-                            key={entry.id}
-                            entry={entry}
-                            onCall={() => callMutation.mutate(entry.id)}
-                            onComplete={() => completeMutation.mutate(entry.id)}
-                            onRemove={() => cancelMutation.mutate(entry.id)}
-                            isFirst={index === 0}
-                            isLast={index === entries.length - 1}
-                            isServing={entry.status === 'serving'}
+              return (
+                <Collapsible
+                  key={serviceId}
+                  open={isExpanded}
+                  onOpenChange={() => toggleSection(serviceId)}
+                >
+                  <div className="glass rounded-xl overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full flex items-center justify-between p-4 hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: service.color || 'hsl(var(--primary))' }}
                           />
-                        ))}
+                          <span className="font-semibold text-foreground">{service.name}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {waitingCount} waiting • {servingCount} serving
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <div className="p-4 pt-0 border-t border-border">
+                        {entries.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-4">
+                            No customers in this queue
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                            {entries.map((entry, index) => (
+                              <QueueCard
+                                key={entry.id}
+                                entry={entry}
+                                onCall={() => callMutation.mutate(entry.id)}
+                                onComplete={() => completeMutation.mutate(entry.id)}
+                                onRemove={() => cancelMutation.mutate(entry.id)}
+                                isFirst={index === 0}
+                                isLast={index === entries.length - 1}
+                                isServing={entry.status === 'serving'}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </CollapsibleContent>
                   </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          );
-        })}
-      </div>
+                </Collapsible>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="staff" className="mt-6">
+          {organizationId && <StaffAssignmentPanel organizationId={organizationId} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
