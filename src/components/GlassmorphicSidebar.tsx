@@ -65,7 +65,7 @@ export const GlassmorphicSidebar = ({ userRole = 'staff', onLogout }: Glassmorph
                   "p-3 rounded-full transition-all duration-200",
                   isActive 
                     ? "bg-primary text-primary-foreground shadow-lg" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    : "text-foreground/70 hover:text-foreground hover:bg-muted/50"
                 )}
               >
                 <item.icon className="w-5 h-5" />
@@ -85,7 +85,7 @@ export const GlassmorphicSidebar = ({ userRole = 'staff', onLogout }: Glassmorph
           <TooltipTrigger asChild>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-3 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
+              className="p-3 rounded-full text-foreground/70 hover:text-foreground hover:bg-muted/50 transition-all duration-200"
             >
               {theme === 'dark' ? (
                 <Sun className="w-5 h-5" />
@@ -104,7 +104,7 @@ export const GlassmorphicSidebar = ({ userRole = 'staff', onLogout }: Glassmorph
           <TooltipTrigger asChild>
             <button
               onClick={handleLogout}
-              className="p-3 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+              className="p-3 rounded-full text-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
             >
               <LogOut className="w-5 h-5" />
             </button>
