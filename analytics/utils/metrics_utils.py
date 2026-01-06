@@ -7,167 +7,128 @@ from typing import List, Dict, Any, Tuple
 
 
 def calculate_z_scores(series: pd.Series) -> pd.Series:
-    """Calculate z-scores for a series."""
-    mean = series.mean()
-    std = series.std()
-    if std == 0:
+    """Calculate z-scores for a series (ddof=0 for stability)."""
+    s = pd.to_numeric(series, errors="coerce")
+    mean = s.mean()
+    std = s.std(ddof=0)
+    if std == 0 or np.isnan(std):
         return pd.Series([0] * len(series), index=series.index)
-    return (series - mean) / std
+    return (s - mean) / std
 
 
-def detect_anomalies(df: pd.DataFrame, value_col: str, date_col: str = 'date', threshold: float = 2.0) -> List[Dict[str, Any]]:
+def detect_anomalies(
+    df: pd.DataFrame,
+    value_col: str,
+    date_col: str = "date",
+    threshold: float = 2.0
+) -> List[Dict[str, Any]]:
     """
-    Detect anomalies based on z-score threshold.
-    
-    Returns list of anomaly records with date, value, expected, z_score, severity.
+    Detect anomalies based on absolute z-score threshold.
+
+    Output matches your ops_insights.json schema:
+      {date, metric, value, expected, z_score, severity}
     """
-    df = df.copy()
-    df['z_score'] = calculate_z_scores(df[value_col])
-    
-    # Filter anomalies
-    anomalies = df[abs(df['z_score']) >= threshold]
-    
-    mean_val = df[value_col].mean()
-    
-    results = []
+    d = df.copy()
+    d[value_col] = pd.to_numeric(d[value_col], errors="coerce")
+    d["z_score"] = calculate_z_scores(d[value_col])
+
+    mean_val = float(d[value_col].mean()) if len(d) else 0.0
+    anomalies = d[d["z_score"].abs() >= threshold]
+
+    def severity(z: float) -> str:
+        if abs(z) >= 3.0:
+            return "critical"
+        if abs(z) >= 2.0:
+            return "warning"
+        return "info"
+
+    results: List[Dict[str, Any]] = []
     for _, row in anomalies.iterrows():
-        z = row['z_score']
-        severity = 'critical' if abs(z) >= 3 else 'warning' if abs(z) >= 2.5 else 'info'
-        
+        z = float(row["z_score"])
         results.append({
-            'date': str(row[date_col]),
-            'metric': value_col,
-            'value': round(row[value_col], 1),
-            'expected': round(mean_val, 1),
-            'z_score': round(z, 2),
-            'severity': severity
+            "date": str(row[date_col]),
+            "metric": value_col,
+            "value": float(row[value_col]),
+            "expected": round(mean_val, 1),
+            "z_score": round(z, 2),
+            "severity": severity(z)
         })
-    
     return results
 
 
-def calculate_efficiency_score(
-    customers_served: float,
-    avg_service_time: float,
-    avg_wait_time: float,
-    dropoff_rate: float = 0.0,
-    weights: Dict[str, float] = None
-) -> float:
-    """
-    Calculate staff efficiency score (0-100).
-    
-    Default weights:
-    - 40% customers served (higher is better)
-    - 25% service time (lower is better)
-    - 25% wait time (lower is better)
-    - 10% dropoff rate (lower is better)
-    """
-    if weights is None:
-        weights = {
-            'served': 0.40,
-            'service_time': 0.25,
-            'wait_time': 0.25,
-            'dropoff': 0.10
-        }
-    
-    # Normalize each metric (we'll need context for proper normalization)
-    # For now, use simple scaling
-    served_score = min(customers_served / 20, 1.0)  # Assume 20/day is max
-    service_score = max(0, 1 - (avg_service_time / 30))  # 30 min is bad
-    wait_score = max(0, 1 - (avg_wait_time / 60))  # 60 min is bad
-    dropoff_score = max(0, 1 - dropoff_rate)
-    
-    score = (
-        served_score * weights['served'] +
-        service_score * weights['service_time'] +
-        wait_score * weights['wait_time'] +
-        dropoff_score * weights['dropoff']
-    )
-    
-    return round(score * 100, 1)
-
-
 def calculate_utilization(busy_time_minutes: float, available_time_minutes: float) -> float:
-    """Calculate utilization ratio."""
+    """Utilization ratio (0..1+)."""
     if available_time_minutes <= 0:
         return 0.0
-    return round(busy_time_minutes / available_time_minutes, 3)
+    return round(float(busy_time_minutes) / float(available_time_minutes), 3)
 
 
 def get_utilization_status(utilization: float) -> str:
-    """Categorize utilization level."""
-    if utilization < 0.4:
-        return 'over_resourced'
-    elif utilization > 0.85:
-        return 'under_resourced'
-    else:
-        return 'optimal'
+    """
+    Map utilization to your schema labels.
+    Your ops schema uses: 'optimal' plus useful statuses.
+    """
+    if utilization < 0.40:
+        return "over_resourced"
+    if utilization > 0.85:
+        return "under_resourced"
+    return "optimal"
 
 
-def rank_staff(staff_df: pd.DataFrame, score_col: str = 'efficiency_score') -> pd.DataFrame:
+def rank_staff(staff_df: pd.DataFrame, score_col: str = "efficiency_score") -> pd.DataFrame:
     """Add ranking to staff DataFrame."""
     df = staff_df.copy()
-    df['rank'] = df[score_col].rank(ascending=False, method='min').astype(int)
-    return df.sort_values('rank')
-
-
-def calculate_trend(
-    df: pd.DataFrame,
-    value_col: str,
-    date_col: str = 'date',
-    compare_periods: int = 2
-) -> Tuple[str, float]:
-    """
-    Calculate trend direction and percentage change.
-    
-    Returns: (trend: 'up'|'down'|'stable', change_percent: float)
-    """
-    df = df.sort_values(date_col)
-    
-    if len(df) < compare_periods:
-        return 'stable', 0.0
-    
-    # Split into periods
-    mid = len(df) // 2
-    prev_avg = df.iloc[:mid][value_col].mean()
-    curr_avg = df.iloc[mid:][value_col].mean()
-    
-    if prev_avg == 0:
-        return 'stable', 0.0
-    
-    change = ((curr_avg - prev_avg) / prev_avg) * 100
-    
-    if abs(change) < 5:
-        trend = 'stable'
-    elif change > 0:
-        trend = 'up'
-    else:
-        trend = 'down'
-    
-    return trend, round(change, 1)
-
-
-def generate_weekly_trend(
-    df: pd.DataFrame,
-    value_col: str,
-    date_col: str = 'date',
-    staff_col: str = None
-) -> List[Dict[str, Any]]:
-    """Generate weekly aggregated trend data."""
-    df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-    df['week'] = df[date_col].dt.strftime('%Y-W%V')
-    
-    if staff_col:
-        agg = df.groupby(['week', staff_col])[value_col].mean().reset_index()
-    else:
-        agg = df.groupby('week')[value_col].mean().reset_index()
-    
-    return agg.to_dict('records')
+    df["rank"] = df[score_col].rank(ascending=False, method="min").astype(int)
+    return df.sort_values("rank")
 
 
 def calculate_completion_rate(completed: int, total: int) -> float:
-    """Calculate completion rate."""
     if total <= 0:
         return 0.0
     return round(completed / total, 3)
+
+
+def normalize_0_100(series: pd.Series, higher_is_better: bool = True) -> pd.Series:
+    """
+    Robust normalization to 0..100 using 5th..95th percentiles.
+    Avoids hard-coded max assumptions (more stable across organizations).
+    """
+    s = pd.to_numeric(series, errors="coerce").fillna(0)
+    lo = s.quantile(0.05)
+    hi = s.quantile(0.95)
+    if hi == lo:
+        out = pd.Series([50] * len(s), index=s.index)
+    else:
+        out = (s.clip(lo, hi) - lo) / (hi - lo) * 100
+    if not higher_is_better:
+        out = 100 - out
+    return out
+
+
+def calculate_efficiency_score_vectorized(
+    df: pd.DataFrame,
+    served_col: str,
+    avg_service_time_col: str,
+    avg_wait_time_col: str,
+    completion_rate_col: str,
+    weights: Dict[str, float] = None
+) -> pd.Series:
+    """
+    Vectorized staff efficiency score 0..100.
+    Uses robust normalization instead of fixed daily caps.
+    """
+    if weights is None:
+        weights = {"served": 0.40, "service_time": 0.25, "wait_time": 0.25, "completion": 0.10}
+
+    served_score = normalize_0_100(df[served_col], higher_is_better=True)
+    service_score = normalize_0_100(df[avg_service_time_col], higher_is_better=False)
+    wait_score = normalize_0_100(df[avg_wait_time_col], higher_is_better=False)
+    completion_score = normalize_0_100(df[completion_rate_col], higher_is_better=True)
+
+    score = (
+        weights["served"] * served_score +
+        weights["service_time"] * service_score +
+        weights["wait_time"] * wait_score +
+        weights["completion"] * completion_score
+    )
+    return score.round(1)
