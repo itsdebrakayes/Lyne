@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   Grid3X3, 
   Users, 
+  UserCog,
   BarChart3, 
   Settings, 
   LogOut,
@@ -18,7 +19,8 @@ const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { name: 'Services', path: '/admin/services', icon: Grid3X3 },
   { name: 'Customers', path: '/admin/customers', icon: Users },
-  { name: 'Analytics', path: '/admin/analytics', icon: BarChart3, requiresExecutive: true },
+  { name: 'Staff', path: '/admin/staff', icon: UserCog, requiresManager: true },
+  { name: 'Analytics', path: '/admin/analytics', icon: BarChart3, requiresManager: true },
   { name: 'Settings', path: '/admin/settings', icon: Settings },
 ];
 
@@ -32,8 +34,8 @@ export const GlassmorphicSidebar = ({ userRole = 'staff', onLogout }: Glassmorph
   const navigate = useNavigate();
 
   const filteredNavItems = navItems.filter(item => {
-    if (item.requiresExecutive) {
-      return userRole === 'executive';
+    if (item.requiresManager) {
+      return userRole === 'manager' || userRole === 'executive';
     }
     return true;
   });
