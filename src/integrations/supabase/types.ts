@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_insights: {
+        Row: {
+          created_at: string | null
+          data: Json
+          expires_at: string | null
+          generated_at: string | null
+          id: string
+          insight_type: string
+          notebook_version: string | null
+          organization_id: string
+          period_end: string
+          period_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          data: Json
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          insight_type: string
+          notebook_version?: string | null
+          organization_id: string
+          period_end: string
+          period_start: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          insight_type?: string
+          notebook_version?: string | null
+          organization_id?: string
+          period_end?: string
+          period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_insights_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           address: string
@@ -74,6 +121,7 @@ export type Database = {
           id: string
           id_number: string | null
           phone: string | null
+          subscription_tier: string | null
           trn_number: string | null
           updated_at: string | null
           user_id: string | null
@@ -87,6 +135,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           phone?: string | null
+          subscription_tier?: string | null
           trn_number?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -100,6 +149,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           phone?: string | null
+          subscription_tier?: string | null
           trn_number?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -182,6 +232,50 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      export_logs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          export_type: string
+          file_hash: string | null
+          id: string
+          organization_id: string | null
+          row_count: number | null
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          export_type: string
+          file_hash?: string | null
+          id?: string
+          organization_id?: string | null
+          row_count?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          export_type?: string
+          file_hash?: string | null
+          id?: string
+          organization_id?: string | null
+          row_count?: number | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -420,6 +514,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_performance: {
+        Row: {
+          avg_service_time_minutes: number | null
+          avg_wait_time_minutes: number | null
+          completion_rate: number | null
+          created_at: string | null
+          customers_served: number | null
+          efficiency_score: number | null
+          id: string
+          organization_id: string
+          period_date: string
+          rank_in_org: number | null
+          staff_user_id: string
+        }
+        Insert: {
+          avg_service_time_minutes?: number | null
+          avg_wait_time_minutes?: number | null
+          completion_rate?: number | null
+          created_at?: string | null
+          customers_served?: number | null
+          efficiency_score?: number | null
+          id?: string
+          organization_id: string
+          period_date: string
+          rank_in_org?: number | null
+          staff_user_id: string
+        }
+        Update: {
+          avg_service_time_minutes?: number | null
+          avg_wait_time_minutes?: number | null
+          completion_rate?: number | null
+          created_at?: string | null
+          customers_served?: number | null
+          efficiency_score?: number | null
+          id?: string
+          organization_id?: string
+          period_date?: string
+          rank_in_org?: number | null
+          staff_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_performance_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
