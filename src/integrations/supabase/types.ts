@@ -74,6 +74,7 @@ export type Database = {
           opening_time: string | null
           organization_id: string
           phone: string | null
+          photo_url: string | null
         }
         Insert: {
           address: string
@@ -87,6 +88,7 @@ export type Database = {
           opening_time?: string | null
           organization_id: string
           phone?: string | null
+          photo_url?: string | null
         }
         Update: {
           address?: string
@@ -100,6 +102,7 @@ export type Database = {
           opening_time?: string | null
           organization_id?: string
           phone?: string | null
+          photo_url?: string | null
         }
         Relationships: [
           {

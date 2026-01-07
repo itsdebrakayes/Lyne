@@ -1,11 +1,20 @@
 import * as React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, TrendingDown, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Clock, TrendingDown, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useBranches } from '@/hooks/useBranches';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const HOURS = Array.from({ length: 9 }, (_, i) => i + 8); // 8 AM to 4 PM
@@ -19,6 +28,9 @@ interface CongestionData {
 
 export default function BestTime() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const preSelectedBranch = searchParams.get('branch');
+  const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(preSelectedBranch || undefined);
 
   // Fetch organization
   const { data: org, isLoading: loadingOrg } = useQuery({
@@ -36,9 +48,22 @@ export default function BestTime() {
     enabled: !!slug,
   });
 
-  // Fetch congestion insights
+  // Fetch branches
+  const { data: branches } = useBranches(org?.id);
+
+  // Set default branch when branches load
+  React.useEffect(() => {
+    if (branches && branches.length > 0 && !selectedBranchId) {
+      const mainBranch = branches.find(b => b.is_main_branch) || branches[0];
+      setSelectedBranchId(mainBranch.id);
+    }
+  }, [branches, selectedBranchId]);
+
+  const selectedBranch = branches?.find(b => b.id === selectedBranchId);
+
+  // Fetch congestion insights (filtered by branch)
   const { data: congestionData, isLoading: loadingData } = useQuery({
-    queryKey: ['best-time', org?.id],
+    queryKey: ['best-time', org?.id, selectedBranchId],
     queryFn: async () => {
       // Try to get from analytics_insights first
       const { data: insights } = await supabase
@@ -55,12 +80,18 @@ export default function BestTime() {
         return insightData;
       }
 
-      // Fallback: calculate from visit_history
-      const { data: visits } = await supabase
+      // Fallback: calculate from visit_history (filtered by branch)
+      let visitQuery = supabase
         .from('visit_history')
         .select('day_of_week, hour_of_day, wait_time_minutes')
         .eq('organization_id', org!.id)
         .gte('visit_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+      if (selectedBranchId) {
+        visitQuery = visitQuery.eq('branch_id', selectedBranchId);
+      }
+
+      const { data: visits } = await visitQuery;
 
       // Aggregate by day/hour
       const aggregated = new Map<string, { total: number; count: number }>();
@@ -130,11 +161,64 @@ export default function BestTime() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Branch Selector with Photo */}
+        {branches && branches.length > 0 && (
+          <div className="glass rounded-xl p-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Branch Photo */}
+              {selectedBranch?.photo_url && (
+                <div className="w-full md:w-64 h-48 rounded-lg overflow-hidden flex-shrink-0">
+                  <img
+                    src={selectedBranch.photo_url}
+                    alt={selectedBranch.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-foreground">Select Branch</span>
+                </div>
+                
+                {branches.length > 1 ? (
+                  <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                    <SelectTrigger className="w-full md:w-80 bg-card border-border">
+                      <SelectValue placeholder="Select a branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          <div className="flex flex-col items-start">
+                            <span>{branch.name}</span>
+                            <span className="text-xs text-muted-foreground">{branch.address}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-muted-foreground">{branches[0].name}</p>
+                )}
+
+                {selectedBranch && (
+                  <div className="mt-4 text-sm text-muted-foreground space-y-1">
+                    <p>{selectedBranch.address}</p>
+                    {selectedBranch.phone && <p>📞 {selectedBranch.phone}</p>}
+                    <p>🕐 {selectedBranch.opening_time?.slice(0, 5)} - {selectedBranch.closing_time?.slice(0, 5)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Title */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-foreground mb-2">Best Time to Visit</h1>
           <p className="text-muted-foreground text-lg">
-            Find the optimal time to visit {org.name} with shorter wait times
+            Find the optimal time to visit {selectedBranch?.name || org.name} with shorter wait times
           </p>
         </div>
 
