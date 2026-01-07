@@ -67,9 +67,8 @@ function generateDateOfBirth(role: string): string {
   return dob.toISOString().split('T')[0];
 }
 
-function generateEmail(firstName: string, lastName: string, orgSlug: string): string {
-  const rand = Math.floor(Math.random() * 100);
-  return `${firstName.toLowerCase()}.${lastName.toLowerCase()}${rand}@${orgSlug}.gov.jm`;
+function generateEmail(firstName: string, lastName: string, orgSlug: string, index: number): string {
+  return `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}@${orgSlug}.gov.jm`;
 }
 
 Deno.serve(async (req) => {
@@ -86,117 +85,144 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
-    const targetOrg = body.organization_slug; // Optional: 'taj', 'nht', 'pica', or null for all
+    const targetOrg = body.organization_slug; // Required: 'taj', 'nht', or 'pica'
+    const targetBranchName = body.branch_name; // Optional: specific branch name
+    const staffCount = body.staff_count || 20; // Default 20 staff
+    const managerCount = body.manager_count || 10; // Default 10 managers
+    const execCount = body.exec_count || 3; // Default 3 executives
 
-    // Fetch organizations
-    const { data: organizations, error: orgError } = await supabaseAdmin
+    if (!targetOrg) {
+      return new Response(
+        JSON.stringify({ error: 'organization_slug is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Fetch organization
+    const { data: org, error: orgError } = await supabaseAdmin
       .from('organizations')
-      .select('id, name, slug');
+      .select('id, name, slug')
+      .eq('slug', targetOrg)
+      .single();
     
-    if (orgError) throw orgError;
+    if (orgError || !org) {
+      return new Response(
+        JSON.stringify({ error: `Organization '${targetOrg}' not found` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
 
-    // Fetch branches
-    const { data: branches, error: branchError } = await supabaseAdmin
+    // Fetch branches for this org
+    let branchQuery = supabaseAdmin
       .from('branches')
-      .select('id, name, organization_id');
+      .select('id, name, organization_id')
+      .eq('organization_id', org.id);
     
-    if (branchError) throw branchError;
+    if (targetBranchName) {
+      branchQuery = branchQuery.eq('name', targetBranchName);
+    }
 
-    // Fetch services
-    const { data: services, error: serviceError } = await supabaseAdmin
+    const { data: branches, error: branchError } = await branchQuery;
+    
+    if (branchError || !branches || branches.length === 0) {
+      return new Response(
+        JSON.stringify({ error: `No branches found for organization '${targetOrg}'` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    // Fetch services for this org
+    const { data: services } = await supabaseAdmin
       .from('services')
-      .select('id, name, organization_id');
-    
-    if (serviceError) throw serviceError;
+      .select('id, name')
+      .eq('organization_id', org.id);
 
-    const results: { organization: string; branch: string; created: number; errors: number }[] = [];
+    const results: { branch: string; created: number; errors: number; details: string[] }[] = [];
+    let globalIndex = Date.now(); // Use timestamp for unique emails
 
-    for (const org of organizations!) {
-      if (targetOrg && org.slug !== targetOrg) continue;
+    for (const branch of branches) {
+      let createdCount = 0;
+      let errorCount = 0;
+      const details: string[] = [];
 
-      const orgBranches = branches!.filter(b => b.organization_id === org.id);
-      const orgServices = services!.filter(s => s.organization_id === org.id);
+      // Generate staff for this branch
+      const staffToCreate = [
+        ...Array(staffCount).fill('staff'),
+        ...Array(managerCount).fill('manager'),
+        ...Array(execCount).fill('executive'),
+      ];
 
-      console.log(`Processing ${org.name}: ${orgBranches.length} branches, ${orgServices.length} services`);
+      console.log(`Processing branch: ${branch.name} - ${staffToCreate.length} staff to create`);
 
-      for (const branch of orgBranches) {
-        let createdCount = 0;
-        let errorCount = 0;
+      for (let i = 0; i < staffToCreate.length; i++) {
+        const role = staffToCreate[i];
+        const firstName = randomFrom(firstNames);
+        const lastName = randomFrom(lastNames);
+        const fullName = `${firstName} ${lastName}`;
+        const email = generateEmail(firstName, lastName, org.slug, globalIndex++);
+        const dob = generateDateOfBirth(role);
+        const address = randomFrom(addresses);
+        const assignedService = role === 'staff' && services && services.length > 0 
+          ? randomFrom(services).id 
+          : null;
 
-        // Generate 20 staff, 10 managers, 3 executives per branch
-        const staffToCreate = [
-          ...Array(20).fill('staff'),
-          ...Array(10).fill('manager'),
-          ...Array(3).fill('executive'),
-        ];
+        const password = `${firstName.toLowerCase()}@Staff2025!`;
 
-        for (let i = 0; i < staffToCreate.length; i++) {
-          const role = staffToCreate[i];
-          const firstName = randomFrom(firstNames);
-          const lastName = randomFrom(lastNames);
-          const fullName = `${firstName} ${lastName}`;
-          const email = generateEmail(firstName, lastName, org.slug);
-          const dob = generateDateOfBirth(role);
-          const address = randomFrom(addresses);
-          const assignedService = role === 'staff' && orgServices.length > 0 
-            ? randomFrom(orgServices).id 
-            : null;
+        try {
+          // Create auth user
+          const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: fullName, role },
+          });
 
-          const password = `${firstName.toLowerCase()}@Staff2025!`;
+          if (authError) {
+            console.error(`Auth error for ${email}:`, authError.message);
+            errorCount++;
+            details.push(`Auth error: ${email} - ${authError.message}`);
+            continue;
+          }
 
-          try {
-            // Create auth user
-            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          // Create staff role
+          const { error: roleError } = await supabaseAdmin
+            .from('staff_roles')
+            .insert({
+              user_id: authData.user.id,
               email,
-              password,
-              email_confirm: true,
-              user_metadata: { full_name: fullName, role },
+              full_name: fullName,
+              organization_id: org.id,
+              branch_id: branch.id,
+              role,
+              date_of_birth: dob,
+              address,
+              assigned_service_id: assignedService,
+              is_active: true,
             });
 
-            if (authError) {
-              console.error(`Auth error for ${email}:`, authError.message);
-              errorCount++;
-              continue;
-            }
-
-            // Create staff role
-            const { error: roleError } = await supabaseAdmin
-              .from('staff_roles')
-              .insert({
-                user_id: authData.user.id,
-                email,
-                full_name: fullName,
-                organization_id: org.id,
-                branch_id: branch.id,
-                role,
-                date_of_birth: dob,
-                address,
-                assigned_service_id: assignedService,
-                is_active: true,
-              });
-
-            if (roleError) {
-              console.error(`Role error for ${email}:`, roleError.message);
-              errorCount++;
-              continue;
-            }
-
-            createdCount++;
-            console.log(`Created ${role}: ${fullName} (${email}) for ${branch.name}`);
-
-          } catch (err) {
-            console.error(`Error creating staff ${email}:`, err);
+          if (roleError) {
+            console.error(`Role error for ${email}:`, roleError.message);
             errorCount++;
+            details.push(`Role error: ${email} - ${roleError.message}`);
+            continue;
           }
-        }
 
-        results.push({
-          organization: org.name,
-          branch: branch.name,
-          created: createdCount,
-          errors: errorCount,
-        });
+          createdCount++;
+          console.log(`Created ${role}: ${fullName} (${email})`);
+
+        } catch (err) {
+          console.error(`Error creating staff ${email}:`, err);
+          errorCount++;
+          details.push(`Error: ${email} - ${String(err)}`);
+        }
       }
+
+      results.push({
+        branch: branch.name,
+        created: createdCount,
+        errors: errorCount,
+        details,
+      });
     }
 
     const totalCreated = results.reduce((sum, r) => sum + r.created, 0);
@@ -207,6 +233,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        organization: org.name,
         totalCreated,
         totalErrors,
         results,
