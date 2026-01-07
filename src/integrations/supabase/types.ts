@@ -587,6 +587,8 @@ export type Database = {
           assigned_service_id: string | null
           branch_id: string | null
           created_at: string | null
+          email: string | null
+          full_name: string | null
           id: string
           is_active: boolean | null
           organization_id: string
@@ -598,6 +600,8 @@ export type Database = {
           assigned_service_id?: string | null
           branch_id?: string | null
           created_at?: string | null
+          email?: string | null
+          full_name?: string | null
           id?: string
           is_active?: boolean | null
           organization_id: string
@@ -609,6 +613,8 @@ export type Database = {
           assigned_service_id?: string | null
           branch_id?: string | null
           created_at?: string | null
+          email?: string | null
+          full_name?: string | null
           id?: string
           is_active?: boolean | null
           organization_id?: string
