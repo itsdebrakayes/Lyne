@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { ArrowLeft, Sun, Moon, Loader2 } from 'lucide-react';
@@ -27,7 +28,9 @@ const JoinQueue = () => {
   const { signIn, signUp } = useAuth();
   
   const preSelectedService = searchParams.get('service');
+  const preSelectedBranch = searchParams.get('branch');
   const [selectedService, setSelectedService] = useState<string>(preSelectedService || '');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(preSelectedBranch || '');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('signup');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -46,6 +49,30 @@ const JoinQueue = () => {
   
   const { data: organization } = useOrganization(slug);
   const { data: services } = useServices(organization?.id);
+  
+  // Fetch branches for the organization
+  const { data: branches } = useQuery({
+    queryKey: ['branches', organization?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('*')
+        .eq('organization_id', organization!.id)
+        .eq('is_open', true)
+        .order('is_main_branch', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organization?.id,
+  });
+
+  // Set default branch when branches load
+  React.useEffect(() => {
+    if (branches && branches.length > 0 && !selectedBranchId) {
+      const mainBranch = branches.find(b => b.is_main_branch) || branches[0];
+      setSelectedBranchId(mainBranch.id);
+    }
+  }, [branches, selectedBranchId]);
 
   // Format TRN with dashes (XXX-XXX-XXX)
   const formatTRN = (value: string) => {
@@ -73,18 +100,24 @@ const JoinQueue = () => {
       return null;
     }
 
+    if (!selectedBranchId) {
+      toast.error('Please select a branch');
+      return null;
+    }
+
     const service = services?.find(s => s.id === selectedService);
     if (!service) {
       toast.error('Invalid service selected');
       return null;
     }
 
-    // Get current position count
+    // Get current position count for this branch and service
     const { count } = await supabase
       .from('lines')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organization.id)
       .eq('service_id', selectedService)
+      .eq('branch_id', selectedBranchId)
       .eq('status', 'waiting');
 
     const position = (count || 0) + 1;
@@ -97,6 +130,7 @@ const JoinQueue = () => {
         organization_id: organization.id,
         client_id: clientId,
         service_id: selectedService,
+        branch_id: selectedBranchId,
         ticket_number: ticketNumber,
         position,
         estimated_wait_minutes: estimatedWait,
@@ -293,6 +327,30 @@ const JoinQueue = () => {
         >
           <h2 className="text-xl font-semibold text-center mb-6">Join the Queue</h2>
           
+          {/* Branch Selection Dropdown */}
+          {branches && branches.length > 0 && (
+            <div className="mb-4">
+              <Label htmlFor="branch-select" className="text-sm text-muted-foreground mb-2 block">
+                Select Branch
+              </Label>
+              <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                <SelectTrigger id="branch-select" className="w-full bg-muted/30 border-white/10">
+                  <SelectValue placeholder="Choose a branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      <div className="flex flex-col items-start">
+                        <span>{branch.name}</span>
+                        <span className="text-xs text-muted-foreground">{branch.address}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Service Selection Dropdown */}
           <div className="mb-6">
             <Label htmlFor="service-select" className="text-sm text-muted-foreground mb-2 block">
@@ -344,7 +402,7 @@ const JoinQueue = () => {
               </div>
               <Button 
                 className="w-full bg-foreground text-background hover:bg-foreground/90 py-5"
-                disabled={!selectedService || isLoading}
+                disabled={!selectedService || !selectedBranchId || isLoading}
                 onClick={handleLogin}
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -461,7 +519,7 @@ const JoinQueue = () => {
 
               <Button 
                 className="w-full bg-foreground text-background hover:bg-foreground/90 py-5"
-                disabled={!selectedService || isLoading}
+                disabled={!selectedService || !selectedBranchId || isLoading}
                 onClick={handleSignup}
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
