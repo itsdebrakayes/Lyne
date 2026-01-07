@@ -21,3 +21,9 @@ verify_jwt = false
 
 [functions.sync-analytics]
 verify_jwt = false
+
+[functions.create-staff-auth]
+verify_jwt = false
+
+[functions.populate-staff]
+verify_jwt = false

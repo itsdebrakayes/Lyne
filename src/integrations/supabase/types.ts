@@ -583,42 +583,54 @@ export type Database = {
       }
       staff_roles: {
         Row: {
+          address: string | null
           assigned_section: string | null
           assigned_service_id: string | null
           branch_id: string | null
+          counter_id: string | null
           created_at: string | null
+          date_of_birth: string | null
           email: string | null
           full_name: string | null
           id: string
           is_active: boolean | null
           organization_id: string
           role: Database["public"]["Enums"]["app_role"]
+          staff_id: string | null
           user_id: string
         }
         Insert: {
+          address?: string | null
           assigned_section?: string | null
           assigned_service_id?: string | null
           branch_id?: string | null
+          counter_id?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           organization_id: string
           role: Database["public"]["Enums"]["app_role"]
+          staff_id?: string | null
           user_id: string
         }
         Update: {
+          address?: string | null
           assigned_section?: string | null
           assigned_service_id?: string | null
           branch_id?: string | null
+          counter_id?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           organization_id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          staff_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -634,6 +646,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_roles_counter_id_fkey"
+            columns: ["counter_id"]
+            isOneToOne: false
+            referencedRelation: "counters"
             referencedColumns: ["id"]
           },
           {
