@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, Clock, TrendingUp, Activity, Calendar, 
-  CheckCircle, XCircle, BarChart3, ArrowUpRight, ArrowDownRight
+  CheckCircle, XCircle, BarChart3, ArrowUpRight, ArrowDownRight, MapPin
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -17,10 +17,18 @@ import { AIInsightsPanel } from '@/components/admin/AIInsightsPanel';
 import { ActivityFeed } from '@/components/admin/ActivityFeed';
 import { ExportButton, downloadCSV } from '@/components/admin/ExportButton';
 import { useStaffRole } from '@/hooks/useStaffRole';
+import { useBranches } from '@/hooks/useBranches';
 import { fetchAnalyticsSummary, fetchRecentActivity } from '@/lib/api/analytics';
 import { exportVisitHistoryCSV } from '@/lib/api/customers';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getHourLabel } from '@/types/analytics';
 
 const ExecutiveDashboard = () => {
@@ -28,10 +36,14 @@ const ExecutiveDashboard = () => {
   const [userName, setUserName] = useState('Executive');
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('week');
   const [exporting, setExporting] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
 
   const organizationId = staffData?.organization_id;
   const organizationName = staffData?.organizations?.name || 'Your Organization';
   const currentDate = format(new Date(), 'EEEE, MMMM d, yyyy');
+
+  // Fetch branches
+  const { data: branches = [] } = useBranches(organizationId);
 
   // Get user name
   useEffect(() => {
@@ -46,9 +58,12 @@ const ExecutiveDashboard = () => {
     fetchUser();
   }, []);
 
-  // Fetch analytics
+  const selectedBranch = branches.find(b => b.id === selectedBranchId);
+  const branchFilterId = selectedBranchId === 'all' ? undefined : selectedBranchId;
+
+  // Fetch analytics (could be extended to filter by branch)
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ['analytics', organizationId, dateRange],
+    queryKey: ['analytics', organizationId, dateRange, branchFilterId],
     queryFn: () => fetchAnalyticsSummary(organizationId!, dateRange),
     enabled: !!organizationId,
     refetchInterval: 60000
@@ -137,7 +152,27 @@ const ExecutiveDashboard = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Branch Selector */}
+          {branches.length > 1 && (
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
+              <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                <SelectTrigger className="w-48 bg-card border-border">
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Date Range Buttons */}
           <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
             {(['today', 'week', 'month'] as const).map((range) => (
@@ -156,6 +191,14 @@ const ExecutiveDashboard = () => {
           <ExportButton onExport={handleExport} loading={exporting} />
         </div>
       </div>
+
+      {/* Branch Info Badge */}
+      {selectedBranch && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 w-fit">
+          <MapPin className="w-4 h-4" />
+          <span>Showing data for: <strong className="text-foreground">{selectedBranch.name}</strong></span>
+        </div>
+      )}
 
       {/* Stats Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

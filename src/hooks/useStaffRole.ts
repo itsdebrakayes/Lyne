@@ -7,6 +7,7 @@ interface StaffData {
   id: string;
   user_id: string;
   organization_id: string;
+  branch_id: string | null;
   role: AppRole;
   assigned_service_id: string | null;
   assigned_section: string | null;
@@ -15,6 +16,11 @@ interface StaffData {
   organizations: {
     name: string;
     slug: string;
+  } | null;
+  branches: {
+    id: string;
+    name: string;
+    address: string;
   } | null;
 }
 
@@ -36,7 +42,7 @@ export const useStaffRole = () => {
 
         const { data, error: roleError } = await supabase
           .from('staff_roles')
-          .select('*, organizations(name, slug)')
+          .select('*, organizations(name, slug), branches(id, name, address)')
           .eq('user_id', session.user.id)
           .eq('is_active', true)
           .single();

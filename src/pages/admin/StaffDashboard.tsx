@@ -31,10 +31,12 @@ const StaffDashboard = () => {
 
   const organizationId = staffData?.organization_id;
   const assignedServiceId = staffData?.assigned_service_id;
+  const branchId = staffData?.branch_id;
 
-  // Real-time updates
+  // Real-time updates (filtered by branch)
   useAdminQueueRealtime({
     organizationId,
+    branchId: branchId || undefined,
     showNotifications: true
   });
 
@@ -52,10 +54,10 @@ const StaffDashboard = () => {
     enabled: !!assignedServiceId
   });
 
-  // Fetch queue entries for assigned service
+  // Fetch queue entries for assigned service and branch
   const { data: queueEntries = [], refetch: refetchQueue } = useQuery({
-    queryKey: ['queueEntries', organizationId, assignedServiceId],
-    queryFn: () => fetchMyQueue(organizationId!, staffData!.user_id, assignedServiceId!),
+    queryKey: ['queueEntries', organizationId, assignedServiceId, branchId],
+    queryFn: () => fetchMyQueue(organizationId!, staffData!.user_id, assignedServiceId!, branchId || undefined),
     enabled: !!organizationId && !!assignedServiceId,
     refetchInterval: 30000
   });
@@ -153,6 +155,7 @@ const StaffDashboard = () => {
         </h1>
         <p className="text-muted-foreground mt-1">
           {serviceInfo?.name || 'No service assigned'} • Counter {stats.counterNumber}
+          {staffData?.branches?.name && ` • ${staffData.branches.name}`}
         </p>
       </div>
 
