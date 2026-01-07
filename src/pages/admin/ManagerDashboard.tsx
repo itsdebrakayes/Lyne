@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Users, Clock, Monitor, Grid3X3, ChevronDown, ChevronUp, UserCog } from 'lucide-react';
+import { Users, Clock, Monitor, Grid3X3, ChevronDown, ChevronUp, UserCog, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { StatCard } from '@/components/admin/StatCard';
@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/admin/FilterBar';
 import { StaffAssignmentPanel } from '@/components/admin/StaffAssignmentPanel';
 import { useStaffRole } from '@/hooks/useStaffRole';
 import { useAdminQueueRealtime } from '@/hooks/useAdminQueueRealtime';
+import { useBranches } from '@/hooks/useBranches';
 import { fetchQueueEntries, fetchQueueStats, callCustomer, completeService, cancelCustomer, moveCustomerUp, moveCustomerDown } from '@/lib/api/queue';
 import { fetchServicesWithStats } from '@/lib/api/services';
 import { fetchCountersWithStaff } from '@/lib/api/staff';
@@ -17,6 +18,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { QueueEntry } from '@/types/queue';
 
 const ManagerDashboard = () => {
@@ -27,8 +35,24 @@ const ManagerDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['all']));
+  const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(staffData?.branch_id || undefined);
 
   const organizationId = staffData?.organization_id;
+
+  // Fetch branches
+  const { data: branches = [] } = useBranches(organizationId);
+
+  // Set default branch from staff assignment or first branch
+  useEffect(() => {
+    if (!selectedBranchId && branches.length > 0) {
+      if (staffData?.branch_id) {
+        setSelectedBranchId(staffData.branch_id);
+      } else {
+        const mainBranch = branches.find(b => b.is_main_branch) || branches[0];
+        setSelectedBranchId(mainBranch.id);
+      }
+    }
+  }, [branches, staffData?.branch_id, selectedBranchId]);
 
   // Get user name
   useEffect(() => {
@@ -41,24 +65,27 @@ const ManagerDashboard = () => {
     fetchUser();
   }, []);
 
-  // Real-time updates
+  const selectedBranch = branches.find(b => b.id === selectedBranchId);
+
+  // Real-time updates (filtered by branch)
   useAdminQueueRealtime({
     organizationId,
+    branchId: selectedBranchId,
     showNotifications: true
   });
 
-  // Fetch queue stats
+  // Fetch queue stats (filtered by branch)
   const { data: queueStats } = useQuery({
-    queryKey: ['queueStats', organizationId],
-    queryFn: () => fetchQueueStats(organizationId!),
+    queryKey: ['queueStats', organizationId, selectedBranchId],
+    queryFn: () => fetchQueueStats(organizationId!, selectedBranchId),
     enabled: !!organizationId,
     refetchInterval: 30000
   });
 
-  // Fetch all queue entries
+  // Fetch all queue entries (filtered by branch)
   const { data: allQueueEntries = [], refetch: refetchQueue } = useQuery({
-    queryKey: ['queueEntries', organizationId],
-    queryFn: () => fetchQueueEntries(organizationId!, { status: ['waiting', 'serving'] }),
+    queryKey: ['queueEntries', organizationId, selectedBranchId],
+    queryFn: () => fetchQueueEntries(organizationId!, { status: ['waiting', 'serving'], branchId: selectedBranchId }),
     enabled: !!organizationId,
     refetchInterval: 30000
   });
@@ -193,14 +220,43 @@ const ManagerDashboard = () => {
   return (
     <div className="space-y-6 animate-slide-up">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome, {userName}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {staffData?.organizations?.name || 'Organization'} • Manager Dashboard
-        </p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Welcome, {userName}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {staffData?.organizations?.name || 'Organization'} • Manager Dashboard
+          </p>
+        </div>
+
+        {/* Branch Selector */}
+        {branches.length > 1 && (
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+              <SelectTrigger className="w-64 bg-card border-border">
+                <SelectValue placeholder="Select branch" />
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
+
+      {/* Branch Info Badge */}
+      {selectedBranch && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="w-4 h-4" />
+          <span>{selectedBranch.name} • {selectedBranch.address}</span>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
