@@ -195,6 +195,11 @@ export interface StaffListMember {
   avg_service_time?: number;
   created_at?: string;
   branch_name?: string;
+  branch_id?: string;
+  staff_id?: string;
+  date_of_birth?: string;
+  address?: string;
+  counter_id?: string;
 }
 
 export interface StaffStats {
@@ -219,6 +224,10 @@ export async function fetchAllStaff(organizationId: string): Promise<StaffListMe
       full_name,
       email,
       branch_id,
+      staff_id,
+      date_of_birth,
+      address,
+      counter_id,
       service:services(name),
       branch:branches(name)
     `)
@@ -267,6 +276,11 @@ export async function fetchAllStaff(organizationId: string): Promise<StaffListMe
       full_name: role.full_name || undefined,
       email: role.email || undefined,
       branch_name: (role.branch as any)?.name || undefined,
+      branch_id: role.branch_id || undefined,
+      staff_id: role.staff_id || undefined,
+      date_of_birth: role.date_of_birth || undefined,
+      address: role.address || undefined,
+      counter_id: role.counter_id || undefined,
       service_name: (assignment as any)?.service?.name || (role.service as any)?.name || undefined,
       counter_number: (assignment as any)?.counter_number || undefined,
       customers_served_today: servedCountMap.get(role.user_id) || 0,

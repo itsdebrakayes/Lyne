@@ -4,7 +4,7 @@ import { Search, UserCog, Users, Clock, Award } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StaffCard } from '@/components/admin/StaffCard';
+import { StaffAssignmentEditor } from '@/components/admin/StaffAssignmentEditor';
 import { StatCard } from '@/components/admin/StatCard';
 import { useStaffRole } from '@/hooks/useStaffRole';
 import { fetchAllStaff, fetchStaffStats } from '@/lib/api/staff';
@@ -131,7 +131,7 @@ export default function Staff() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStaff.map((staff) => (
-            <StaffCard key={staff.id} staff={staff} />
+            <StaffAssignmentEditor key={staff.id} staff={staff} organizationId={organizationId!} />
           ))}
         </div>
       )}
