@@ -10,7 +10,7 @@ import { FilterBar } from '@/components/admin/FilterBar';
 import { StaffAssignmentPanel } from '@/components/admin/StaffAssignmentPanel';
 import { useStaffRole } from '@/hooks/useStaffRole';
 import { useAdminQueueRealtime } from '@/hooks/useAdminQueueRealtime';
-import { fetchQueueEntries, fetchQueueStats, callCustomer, completeService, cancelCustomer } from '@/lib/api/queue';
+import { fetchQueueEntries, fetchQueueStats, callCustomer, completeService, cancelCustomer, moveCustomerUp, moveCustomerDown } from '@/lib/api/queue';
 import { fetchServicesWithStats } from '@/lib/api/services';
 import { fetchCountersWithStaff } from '@/lib/api/staff';
 import { supabase } from '@/integrations/supabase/client';
@@ -148,6 +148,32 @@ const ManagerDashboard = () => {
     }
   });
 
+  const moveUpMutation = useMutation({
+    mutationFn: async (entry: QueueEntry) => {
+      await moveCustomerUp(entry.id, organizationId!, entry.service_id);
+    },
+    onSuccess: () => {
+      toast.success('Customer moved up');
+      refetchQueue();
+    },
+    onError: (error: any) => {
+      toast.error('Failed to move customer', { description: error.message });
+    }
+  });
+
+  const moveDownMutation = useMutation({
+    mutationFn: async (entry: QueueEntry) => {
+      await moveCustomerDown(entry.id, organizationId!, entry.service_id);
+    },
+    onSuccess: () => {
+      toast.success('Customer moved down');
+      refetchQueue();
+    },
+    onError: (error: any) => {
+      toast.error('Failed to move customer', { description: error.message });
+    }
+  });
+
   const toggleSection = (serviceId: string) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(serviceId)) {
@@ -279,18 +305,24 @@ const ManagerDashboard = () => {
                           </p>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                            {entries.map((entry, index) => (
-                              <QueueCard
-                                key={entry.id}
-                                entry={entry}
-                                onCall={() => callMutation.mutate(entry.id)}
-                                onComplete={() => completeMutation.mutate(entry.id)}
-                                onRemove={() => cancelMutation.mutate(entry.id)}
-                                isFirst={index === 0}
-                                isLast={index === entries.length - 1}
-                                isServing={entry.status === 'serving'}
-                              />
-                            ))}
+                            {entries.map((entry, index) => {
+                              const waitingEntries = entries.filter(e => e.status === 'waiting');
+                              const waitingIndex = waitingEntries.findIndex(e => e.id === entry.id);
+                              return (
+                                <QueueCard
+                                  key={entry.id}
+                                  entry={entry}
+                                  onCall={() => callMutation.mutate(entry.id)}
+                                  onComplete={() => completeMutation.mutate(entry.id)}
+                                  onMoveUp={() => moveUpMutation.mutate(entry)}
+                                  onMoveDown={() => moveDownMutation.mutate(entry)}
+                                  onRemove={() => cancelMutation.mutate(entry.id)}
+                                  isFirst={waitingIndex === 0}
+                                  isLast={waitingIndex === waitingEntries.length - 1}
+                                  isServing={entry.status === 'serving'}
+                                />
+                              );
+                            })}
                           </div>
                         )}
                       </div>
