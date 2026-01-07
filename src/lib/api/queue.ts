@@ -7,6 +7,7 @@ export async function fetchQueueEntries(
   organizationId: string,
   options?: {
     serviceId?: string;
+    branchId?: string;
     status?: QueueStatus | QueueStatus[];
     limit?: number;
   }
@@ -20,6 +21,10 @@ export async function fetchQueueEntries(
     `)
     .eq('organization_id', organizationId)
     .order('position', { ascending: true });
+
+  if (options?.branchId) {
+    query = query.eq('branch_id', options.branchId);
+  }
 
   if (options?.serviceId) {
     query = query.eq('service_id', options.serviceId);
@@ -43,45 +48,57 @@ export async function fetchQueueEntries(
   return (data || []) as QueueEntry[];
 }
 
-export async function fetchQueueStats(organizationId: string): Promise<QueueStats> {
+export async function fetchQueueStats(
+  organizationId: string,
+  branchId?: string
+): Promise<QueueStats> {
   const today = new Date().toISOString().split('T')[0];
 
+  // Build base query helper
+  const buildQuery = (status: string) => {
+    let query = supabase
+      .from('lines')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .eq('status', status);
+    if (branchId) query = query.eq('branch_id', branchId);
+    return query;
+  };
+
   // Get waiting count
-  const { count: waitingCount } = await supabase
-    .from('lines')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('status', 'waiting');
+  const { count: waitingCount } = await buildQuery('waiting');
 
   // Get serving count
-  const { count: servingCount } = await supabase
-    .from('lines')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('status', 'serving');
+  const { count: servingCount } = await buildQuery('serving');
 
   // Get completed today
-  const { count: completedCount } = await supabase
+  let completedQuery = supabase
     .from('lines')
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', organizationId)
     .eq('status', 'completed')
     .gte('completed_at', today);
+  if (branchId) completedQuery = completedQuery.eq('branch_id', branchId);
+  const { count: completedCount } = await completedQuery;
 
   // Get cancelled today
-  const { count: cancelledCount } = await supabase
+  let cancelledQuery = supabase
     .from('lines')
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', organizationId)
     .eq('status', 'cancelled')
     .gte('completed_at', today);
+  if (branchId) cancelledQuery = cancelledQuery.eq('branch_id', branchId);
+  const { count: cancelledCount } = await cancelledQuery;
 
   // Get waiting entries for avg wait time calculation
-  const { data: waitingEntries } = await supabase
+  let waitQuery = supabase
     .from('lines')
     .select('joined_at')
     .eq('organization_id', organizationId)
     .eq('status', 'waiting');
+  if (branchId) waitQuery = waitQuery.eq('branch_id', branchId);
+  const { data: waitingEntries } = await waitQuery;
 
   let avgWaitTime = 0;
   if (waitingEntries && waitingEntries.length > 0) {
@@ -97,13 +114,15 @@ export async function fetchQueueStats(organizationId: string): Promise<QueueStat
   }
 
   // Get active counters
-  const { count: activeCounters } = await supabase
+  let counterQuery = supabase
     .from('counters')
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', organizationId)
     .eq('is_active', true);
+  if (branchId) counterQuery = counterQuery.eq('branch_id', branchId);
+  const { count: activeCounters } = await counterQuery;
 
-  // Get active services
+  // Get active services (services are org-level, not branch-specific)
   const { count: activeServices } = await supabase
     .from('services')
     .select('*', { count: 'exact', head: true })
@@ -122,10 +141,12 @@ export async function fetchQueueStats(organizationId: string): Promise<QueueStat
 
 export async function fetchQueueByService(
   organizationId: string,
-  serviceId: string
+  serviceId: string,
+  branchId?: string
 ): Promise<QueueEntry[]> {
   return fetchQueueEntries(organizationId, {
     serviceId,
+    branchId,
     status: ['waiting', 'serving']
   });
 }
@@ -133,12 +154,14 @@ export async function fetchQueueByService(
 export async function fetchMyQueue(
   organizationId: string,
   staffUserId: string,
-  assignedServiceId: string | null
+  assignedServiceId: string | null,
+  branchId?: string
 ): Promise<QueueEntry[]> {
   if (!assignedServiceId) return [];
   
   return fetchQueueEntries(organizationId, {
     serviceId: assignedServiceId,
+    branchId,
     status: ['waiting', 'serving']
   });
 }
@@ -223,6 +246,7 @@ export async function completeService(lineId: string, notes?: string) {
       client_id: lineData.client_id,
       organization_id: lineData.organization_id,
       service_id: lineData.service_id,
+      branch_id: lineData.branch_id,
       visit_date: now.split('T')[0],
       day_of_week: new Date().getDay(),
       hour_of_day: new Date().getHours(),
