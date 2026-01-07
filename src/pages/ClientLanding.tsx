@@ -1,15 +1,23 @@
 import * as React from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { ArrowLeft, Sun, Moon, Ticket, Clock } from 'lucide-react';
+import { ArrowLeft, Sun, Moon, Ticket, Clock, MapPin } from 'lucide-react';
 import { TrafficStatusBanner } from '@/components/TrafficStatusBanner';
 import { ServiceCard } from '@/components/ServiceCard';
 import { Button } from '@/components/ui/button';
 import { useOrganization } from '@/hooks/useOrganizations';
 import { useServices } from '@/hooks/useServices';
 import { useQueueData } from '@/hooks/useQueueData';
+import { useBranches } from '@/hooks/useBranches';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const ClientLanding = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -18,7 +26,23 @@ const ClientLanding = () => {
   
   const { data: organization, isLoading: orgLoading } = useOrganization(slug);
   const { data: services, isLoading: servicesLoading } = useServices(organization?.id);
-  const { data: queueData } = useQueueData(organization?.id);
+  const { data: branches, isLoading: branchesLoading } = useBranches(organization?.id);
+  
+  // Default to main branch or first branch
+  const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
+  
+  // Set default branch when branches load
+  React.useEffect(() => {
+    if (branches && branches.length > 0 && !selectedBranchId) {
+      const mainBranch = branches.find(b => b.is_main_branch) || branches[0];
+      setSelectedBranchId(mainBranch.id);
+    }
+  }, [branches, selectedBranchId]);
+  
+  // Pass selected branch to queue data
+  const { data: queueData } = useQueueData(organization?.id, selectedBranchId);
+  
+  const selectedBranch = branches?.find(b => b.id === selectedBranchId);
 
   // Calculate overall traffic status
   const trafficStatus = useMemo(() => {
@@ -45,14 +69,14 @@ const ClientLanding = () => {
   }, [queueData, services]);
 
   const handleServiceSelect = (serviceId: string) => {
-    navigate(`/client/${slug}/join?service=${serviceId}`);
+    navigate(`/client/${slug}/join?service=${serviceId}${selectedBranchId ? `&branch=${selectedBranchId}` : ''}`);
   };
 
   const handleJoinQueue = () => {
-    navigate(`/client/${slug}/join`);
+    navigate(`/client/${slug}/join${selectedBranchId ? `?branch=${selectedBranchId}` : ''}`);
   };
 
-  const isLoading = orgLoading || servicesLoading;
+  const isLoading = orgLoading || servicesLoading || branchesLoading;
 
   if (isLoading) {
     return (
@@ -144,6 +168,39 @@ const ClientLanding = () => {
             SERVICES
           </h1>
         </div>
+
+        {/* Branch Selector */}
+        {branches && branches.length > 1 && (
+          <div className="mb-6 relative z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Select Branch</span>
+            </div>
+            <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+              <SelectTrigger className="w-full md:w-80 bg-card border-border">
+                <SelectValue placeholder="Select a branch" />
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    <div className="flex flex-col items-start">
+                      <span>{branch.name}</span>
+                      <span className="text-xs text-muted-foreground">{branch.address}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Single branch display */}
+        {branches && branches.length === 1 && (
+          <div className="mb-6 relative z-10 flex items-center gap-2 text-muted-foreground">
+            <MapPin className="w-4 h-4" />
+            <span className="text-sm">{branches[0].name} • {branches[0].address}</span>
+          </div>
+        )}
 
         {/* Traffic Status Banner */}
         <TrafficStatusBanner
