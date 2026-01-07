@@ -666,6 +666,7 @@ export type Database = {
       }
       visit_history: {
         Row: {
+          branch_id: string | null
           client_id: string | null
           created_at: string | null
           day_of_week: number
@@ -680,6 +681,7 @@ export type Database = {
           was_no_show: boolean | null
         }
         Insert: {
+          branch_id?: string | null
           client_id?: string | null
           created_at?: string | null
           day_of_week: number
@@ -694,6 +696,7 @@ export type Database = {
           was_no_show?: boolean | null
         }
         Update: {
+          branch_id?: string | null
           client_id?: string | null
           created_at?: string | null
           day_of_week?: number
@@ -708,6 +711,13 @@ export type Database = {
           was_no_show?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "visit_history_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "visit_history_client_id_fkey"
             columns: ["client_id"]
@@ -798,6 +808,14 @@ export type Database = {
         Returns: boolean
       }
       get_client_user_id: { Args: { p_client_id: string }; Returns: string }
+      get_queue_count: {
+        Args: {
+          p_branch_id: string
+          p_organization_id: string
+          p_service_id: string
+        }
+        Returns: number
+      }
       get_user_role: {
         Args: { _org_id: string; _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -819,6 +837,15 @@ export type Database = {
       }
       is_org_staff: {
         Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_queue_available: {
+        Args: {
+          p_branch_id: string
+          p_max_size?: number
+          p_organization_id: string
+          p_service_id: string
+        }
         Returns: boolean
       }
       is_same_branch: {

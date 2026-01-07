@@ -51,7 +51,8 @@ export async function fetchVisitHistory(
     .select(`
       *,
       client:clients(id, full_name, email, phone, trn_number),
-      service:services(id, name, icon, color)
+      service:services(id, name, icon, color),
+      branch:branches(id, name)
     `, { count: 'exact' })
     .eq('organization_id', organizationId)
     .order('visit_date', { ascending: false });
@@ -145,6 +146,7 @@ export async function exportVisitHistoryCSV(
     'Hour',
     'Customer Name',
     'TRN',
+    'Branch',
     'Service',
     'Wait Time (min)',
     'Service Time (min)',
@@ -159,6 +161,7 @@ export async function exportVisitHistoryCSV(
     record.hour_of_day,
     record.client?.full_name || 'Unknown',
     record.client?.trn_number || '',
+    record.branch?.name || 'Unknown',
     record.service?.name || 'Unknown',
     record.wait_time_minutes || 0,
     record.service_time_minutes || 0,
