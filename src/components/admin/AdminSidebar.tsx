@@ -46,7 +46,7 @@ export const AdminSidebar = () => {
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-                "text-white/70 hover:text-white hover:bg-white/5",
+                "text-white hover:bg-white/10",
                 isActive && "admin-nav-item-active text-white"
               )
             }
