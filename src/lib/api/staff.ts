@@ -194,6 +194,7 @@ export interface StaffListMember {
   customers_served_today?: number;
   avg_service_time?: number;
   created_at?: string;
+  branch_name?: string;
 }
 
 export interface StaffStats {
@@ -203,7 +204,7 @@ export interface StaffStats {
 }
 
 export async function fetchAllStaff(organizationId: string): Promise<StaffListMember[]> {
-  // Fetch staff roles with their details
+  // Fetch staff roles with their details including full_name and email
   const { data: staffRoles, error } = await supabase
     .from('staff_roles')
     .select(`
@@ -215,34 +216,46 @@ export async function fetchAllStaff(organizationId: string): Promise<StaffListMe
       is_active,
       organization_id,
       created_at,
-      service:services(name)
+      full_name,
+      email,
+      branch_id,
+      service:services(name),
+      branch:branches(name)
     `)
     .eq('organization_id', organizationId)
     .order('role', { ascending: true });
 
   if (error) throw error;
 
-  const staffList: StaffListMember[] = [];
+  const today = new Date().toISOString().split('T')[0];
   
-  for (const role of staffRoles || []) {
-    const today = new Date().toISOString().split('T')[0];
-    const { data: assignment } = await supabase
-      .from('counter_assignments')
-      .select('counter:counters(counter_number)')
-      .eq('staff_user_id', role.user_id)
-      .eq('assignment_date', today)
-      .single();
+  // Batch fetch all counter assignments for today
+  const { data: assignments } = await supabase
+    .from('counter_assignments')
+    .select('staff_user_id, counter:counters(counter_number, service:services(name))')
+    .eq('assignment_date', today);
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    
-    const { count: servedToday } = await supabase
-      .from('service_sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('staff_user_id', role.user_id)
-      .gte('started_at', todayStart.toISOString());
+  const assignmentMap = new Map(
+    (assignments || []).map(a => [a.staff_user_id, a.counter])
+  );
 
-    staffList.push({
+  // Batch fetch service session counts
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  
+  const { data: sessionCounts } = await supabase
+    .from('service_sessions')
+    .select('staff_user_id')
+    .gte('started_at', todayStart.toISOString());
+
+  const servedCountMap = new Map<string, number>();
+  (sessionCounts || []).forEach(s => {
+    servedCountMap.set(s.staff_user_id, (servedCountMap.get(s.staff_user_id) || 0) + 1);
+  });
+
+  return (staffRoles || []).map(role => {
+    const assignment = assignmentMap.get(role.user_id);
+    return {
       id: role.id,
       user_id: role.user_id,
       role: role.role,
@@ -251,13 +264,14 @@ export async function fetchAllStaff(organizationId: string): Promise<StaffListMe
       is_active: role.is_active || false,
       organization_id: role.organization_id,
       created_at: role.created_at || undefined,
-      service_name: (role.service as any)?.name || undefined,
-      counter_number: (assignment?.counter as any)?.counter_number || undefined,
-      customers_served_today: servedToday || 0,
-    });
-  }
-
-  return staffList;
+      full_name: role.full_name || undefined,
+      email: role.email || undefined,
+      branch_name: (role.branch as any)?.name || undefined,
+      service_name: (assignment as any)?.service?.name || (role.service as any)?.name || undefined,
+      counter_number: (assignment as any)?.counter_number || undefined,
+      customers_served_today: servedCountMap.get(role.user_id) || 0,
+    };
+  });
 }
 
 export async function fetchStaffStats(organizationId: string): Promise<StaffStats> {

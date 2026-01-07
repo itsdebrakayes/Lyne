@@ -18,6 +18,7 @@ interface StaffMember {
   counter_number?: number;
   customers_served_today?: number;
   avg_service_time?: number;
+  branch_name?: string;
 }
 
 interface StaffCardProps {
@@ -85,6 +86,12 @@ export function StaffCard({ staff }: StaffCardProps) {
 
       {/* Assignment Info */}
       <div className="mt-4 pt-4 border-t border-border/50">
+        {staff.branch_name && (
+          <div className="mb-2">
+            <p className="text-xs text-muted-foreground">Branch</p>
+            <p className="text-sm font-medium text-foreground">{staff.branch_name}</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p className="text-muted-foreground">Service</p>
