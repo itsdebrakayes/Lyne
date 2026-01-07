@@ -196,6 +196,7 @@ export type Database = {
       }
       counters: {
         Row: {
+          branch_id: string | null
           counter_number: number
           created_at: string | null
           id: string
@@ -204,6 +205,7 @@ export type Database = {
           service_id: string
         }
         Insert: {
+          branch_id?: string | null
           counter_number: number
           created_at?: string | null
           id?: string
@@ -212,6 +214,7 @@ export type Database = {
           service_id: string
         }
         Update: {
+          branch_id?: string | null
           counter_number?: number
           created_at?: string | null
           id?: string
@@ -220,6 +223,13 @@ export type Database = {
           service_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "counters_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "counters_organization_id_fkey"
             columns: ["organization_id"]
@@ -575,6 +585,7 @@ export type Database = {
         Row: {
           assigned_section: string | null
           assigned_service_id: string | null
+          branch_id: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
@@ -585,6 +596,7 @@ export type Database = {
         Insert: {
           assigned_section?: string | null
           assigned_service_id?: string | null
+          branch_id?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -595,6 +607,7 @@ export type Database = {
         Update: {
           assigned_section?: string | null
           assigned_service_id?: string | null
+          branch_id?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -608,6 +621,13 @@ export type Database = {
             columns: ["assigned_service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_roles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
@@ -774,6 +794,10 @@ export type Database = {
       }
       is_org_staff: {
         Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_same_branch: {
+        Args: { _branch_id: string; _user_id: string }
         Returns: boolean
       }
       shift_queue_positions: {
