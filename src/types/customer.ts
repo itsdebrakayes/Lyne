@@ -19,6 +19,7 @@ export interface VisitRecord {
   client_id: string | null;
   organization_id: string;
   service_id: string | null;
+  branch_id: string | null;
   visit_date: string;
   day_of_week: number;
   hour_of_day: number;
@@ -27,12 +28,22 @@ export interface VisitRecord {
   was_cancelled: boolean | null;
   was_no_show: boolean | null;
   created_at: string | null;
-  client?: Customer;
+  client?: {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    trn_number: string | null;
+  };
   service?: {
     id: string;
     name: string;
     icon: string | null;
     color: string | null;
+  };
+  branch?: {
+    id: string;
+    name: string;
   };
 }
 
