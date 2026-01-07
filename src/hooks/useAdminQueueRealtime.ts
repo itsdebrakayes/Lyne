@@ -6,12 +6,14 @@ import { toast } from 'sonner';
 
 interface UseAdminQueueRealtimeOptions {
   organizationId: string | undefined;
+  branchId?: string;
   onQueueChange?: () => void;
   showNotifications?: boolean;
 }
 
 export function useAdminQueueRealtime({
   organizationId,
+  branchId,
   onQueueChange,
   showNotifications = true
 }: UseAdminQueueRealtimeOptions) {
@@ -19,29 +21,29 @@ export function useAdminQueueRealtime({
 
   const handleChange = useCallback((payload: any) => {
     // Invalidate relevant queries
-    queryClient.invalidateQueries({ queryKey: ['queueEntries', organizationId] });
-    queryClient.invalidateQueries({ queryKey: ['queueStats', organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['queueEntries', organizationId, branchId] });
+    queryClient.invalidateQueries({ queryKey: ['queueStats', organizationId, branchId] });
     queryClient.invalidateQueries({ queryKey: ['servicesWithStats', organizationId] });
 
     // Call optional callback
     onQueueChange?.();
 
-    // Show notifications for new queue joins
+    // Show notifications for new queue joins (only for matching branch)
     if (showNotifications && payload.eventType === 'INSERT') {
       const newEntry = payload.new;
-      if (newEntry.status === 'waiting') {
+      if (newEntry.status === 'waiting' && (!branchId || newEntry.branch_id === branchId)) {
         toast.info('New customer joined the queue', {
           description: `Ticket #${newEntry.ticket_number}`
         });
       }
     }
-  }, [organizationId, queryClient, onQueueChange, showNotifications]);
+  }, [organizationId, branchId, queryClient, onQueueChange, showNotifications]);
 
   useEffect(() => {
     if (!organizationId) return;
 
     const channel = supabase
-      .channel(`admin-queue-${organizationId}`)
+      .channel(`admin-queue-${organizationId}-${branchId || 'all'}`)
       .on(
         'postgres_changes',
         {
@@ -57,5 +59,5 @@ export function useAdminQueueRealtime({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [organizationId, handleChange]);
+  }, [organizationId, branchId, handleChange]);
 }

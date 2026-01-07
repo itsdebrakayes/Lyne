@@ -7,17 +7,23 @@ interface QueueCount {
   count: number;
 }
 
-export const useQueueData = (organizationId: string | undefined) => {
+export const useQueueData = (organizationId: string | undefined, branchId?: string) => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['queueData', organizationId],
+    queryKey: ['queueData', organizationId, branchId],
     queryFn: async (): Promise<QueueCount[]> => {
-      const { data, error } = await supabase
+      let queryBuilder = supabase
         .from('lines')
         .select('service_id')
         .eq('organization_id', organizationId!)
         .eq('status', 'waiting');
+      
+      if (branchId) {
+        queryBuilder = queryBuilder.eq('branch_id', branchId);
+      }
+      
+      const { data, error } = await queryBuilder;
       
       if (error) throw error;
       
@@ -43,7 +49,7 @@ export const useQueueData = (organizationId: string | undefined) => {
     if (!organizationId) return;
 
     const channel = supabase
-      .channel(`queue-${organizationId}`)
+      .channel(`queue-${organizationId}-${branchId || 'all'}`)
       .on(
         'postgres_changes',
         {
@@ -54,7 +60,7 @@ export const useQueueData = (organizationId: string | undefined) => {
         },
         () => {
           // Invalidate and refetch queue data on any change
-          queryClient.invalidateQueries({ queryKey: ['queueData', organizationId] });
+          queryClient.invalidateQueries({ queryKey: ['queueData', organizationId, branchId] });
         }
       )
       .subscribe();
@@ -62,7 +68,7 @@ export const useQueueData = (organizationId: string | undefined) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [organizationId, queryClient]);
+  }, [organizationId, branchId, queryClient]);
 
   return query;
 };
