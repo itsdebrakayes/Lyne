@@ -1,6 +1,12 @@
+// Auth hook - SKELETON (implement your own backend)
+
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://vdyyxxjkragvauevjocy.supabase.co';
+const supabaseKey = 'sb_publishable_RclXKSXhjvcp0QDVSXAlNg_-VXU0Jng';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);

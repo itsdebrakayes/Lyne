@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+// Admin auth hook - SKELETON (implement your own backend)
+
+import { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 
 type AppRole = 'staff' | 'section_manager' | 'manager' | 'executive';
@@ -27,79 +28,18 @@ interface AdminData {
 
 export const useAdminAuth = () => {
   const [admin, setAdmin] = useState<AdminData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const checkAuth = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        setAdmin(null);
-        setLoading(false);
-        return;
-      }
-
-      // Check if user has a staff role
-      const { data: roleData, error: roleError } = await supabase
-        .from('staff_roles')
-        .select('*, organizations(id, name, slug)')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true)
-        .single();
-
-      if (roleError || !roleData) {
-        setError('No staff role found for this account');
-        setAdmin(null);
-        setLoading(false);
-        return;
-      }
-
-      setAdmin({
-        user: session.user,
-        staffRole: roleData as StaffRoleData,
-        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Admin',
-      });
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication error');
-      setAdmin(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAuth();
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>('Not implemented - connect your backend');
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-    
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
-      return { error: signInError };
-    }
-
-    await checkAuth();
-    return { error: null };
+    // TODO: Implement with your backend
+    console.log('admin login called', { email });
+    return { error: new Error('Not implemented - connect your backend') };
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    // TODO: Implement with your backend
+    console.log('admin logout called');
     setAdmin(null);
   };
 
