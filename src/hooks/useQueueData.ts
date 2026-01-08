@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+// Queue data hooks - SKELETON (implement your own backend)
+
+import { useQuery } from '@tanstack/react-query';
 
 interface QueueCount {
   service_id: string;
@@ -8,113 +8,37 @@ interface QueueCount {
 }
 
 export const useQueueData = (organizationId: string | undefined, branchId?: string) => {
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
+  return useQuery({
     queryKey: ['queueData', organizationId, branchId],
     queryFn: async (): Promise<QueueCount[]> => {
-      let queryBuilder = supabase
-        .from('lines')
-        .select('service_id')
-        .eq('organization_id', organizationId!)
-        .eq('status', 'waiting');
-      
-      if (branchId) {
-        queryBuilder = queryBuilder.eq('branch_id', branchId);
-      }
-      
-      const { data, error } = await queryBuilder;
-      
-      if (error) throw error;
-      
-      // Group by service_id and count
-      const counts = data.reduce<QueueCount[]>((acc, line) => {
-        const existing = acc.find(a => a.service_id === line.service_id);
-        if (existing) {
-          existing.count++;
-        } else {
-          acc.push({ service_id: line.service_id, count: 1 });
-        }
-        return acc;
-      }, []);
-      
-      return counts;
+      // TODO: Implement with your backend
+      console.log('useQueueData fetching', { organizationId, branchId });
+      return [];
     },
     enabled: !!organizationId,
-    refetchInterval: 30000, // Refetch every 30 seconds
   });
-
-  // Set up realtime subscription
-  useEffect(() => {
-    if (!organizationId) return;
-
-    const channel = supabase
-      .channel(`queue-${organizationId}-${branchId || 'all'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'lines',
-          filter: `organization_id=eq.${organizationId}`,
-        },
-        () => {
-          // Invalidate and refetch queue data on any change
-          queryClient.invalidateQueries({ queryKey: ['queueData', organizationId, branchId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [organizationId, branchId, queryClient]);
-
-  return query;
 };
 
-export const useQueuePosition = (lineId: string | undefined) => {
-  const queryClient = useQueryClient();
+interface Line {
+  id: string;
+  position: number;
+  status: string;
+  ticket_number: string;
+  services?: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  };
+}
 
-  const query = useQuery({
+export const useQueuePosition = (lineId: string | undefined) => {
+  return useQuery({
     queryKey: ['queuePosition', lineId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('lines')
-        .select('*, services(name, icon, color)')
-        .eq('id', lineId!)
-        .single();
-      
-      if (error) throw error;
-      return data;
+    queryFn: async (): Promise<Line | null> => {
+      // TODO: Implement with your backend
+      console.log('useQueuePosition fetching', { lineId });
+      return null;
     },
     enabled: !!lineId,
   });
-
-  // Set up realtime subscription for this specific line
-  useEffect(() => {
-    if (!lineId) return;
-
-    const channel = supabase
-      .channel(`line-${lineId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'lines',
-          filter: `id=eq.${lineId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['queuePosition', lineId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [lineId, queryClient]);
-
-  return query;
 };

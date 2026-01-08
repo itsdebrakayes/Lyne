@@ -1,6 +1,5 @@
-// Queue-related API calls
+// Queue-related API calls - SKELETON (implement your own backend)
 
-import { supabase } from '@/integrations/supabase/client';
 import type { QueueEntry, QueueStats, QueueStatus } from '@/types/queue';
 
 export async function fetchQueueEntries(
@@ -12,130 +11,24 @@ export async function fetchQueueEntries(
     limit?: number;
   }
 ): Promise<QueueEntry[]> {
-  let query = supabase
-    .from('lines')
-    .select(`
-      *,
-      client:clients(id, full_name, email, phone, trn_number),
-      service:services(id, name, icon, color, base_avg_time_minutes)
-    `)
-    .eq('organization_id', organizationId)
-    .order('position', { ascending: true });
-
-  if (options?.branchId) {
-    query = query.eq('branch_id', options.branchId);
-  }
-
-  if (options?.serviceId) {
-    query = query.eq('service_id', options.serviceId);
-  }
-
-  if (options?.status) {
-    if (Array.isArray(options.status)) {
-      query = query.in('status', options.status);
-    } else {
-      query = query.eq('status', options.status);
-    }
-  }
-
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
-
-  const { data, error } = await query;
-
-  if (error) throw error;
-  return (data || []) as QueueEntry[];
+  // TODO: Implement with your backend
+  console.log('fetchQueueEntries called', { organizationId, options });
+  return [];
 }
 
 export async function fetchQueueStats(
   organizationId: string,
   branchId?: string
 ): Promise<QueueStats> {
-  const today = new Date().toISOString().split('T')[0];
-
-  // Build base query helper
-  const buildQuery = (status: string) => {
-    let query = supabase
-      .from('lines')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId)
-      .eq('status', status);
-    if (branchId) query = query.eq('branch_id', branchId);
-    return query;
-  };
-
-  // Get waiting count
-  const { count: waitingCount } = await buildQuery('waiting');
-
-  // Get serving count
-  const { count: servingCount } = await buildQuery('serving');
-
-  // Get completed today
-  let completedQuery = supabase
-    .from('lines')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('status', 'completed')
-    .gte('completed_at', today);
-  if (branchId) completedQuery = completedQuery.eq('branch_id', branchId);
-  const { count: completedCount } = await completedQuery;
-
-  // Get cancelled today
-  let cancelledQuery = supabase
-    .from('lines')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('status', 'cancelled')
-    .gte('completed_at', today);
-  if (branchId) cancelledQuery = cancelledQuery.eq('branch_id', branchId);
-  const { count: cancelledCount } = await cancelledQuery;
-
-  // Get waiting entries for avg wait time calculation
-  let waitQuery = supabase
-    .from('lines')
-    .select('joined_at')
-    .eq('organization_id', organizationId)
-    .eq('status', 'waiting');
-  if (branchId) waitQuery = waitQuery.eq('branch_id', branchId);
-  const { data: waitingEntries } = await waitQuery;
-
-  let avgWaitTime = 0;
-  if (waitingEntries && waitingEntries.length > 0) {
-    const now = new Date();
-    const totalWait = waitingEntries.reduce((sum, entry) => {
-      if (entry.joined_at) {
-        const joinedAt = new Date(entry.joined_at);
-        return sum + (now.getTime() - joinedAt.getTime()) / 60000;
-      }
-      return sum;
-    }, 0);
-    avgWaitTime = Math.round(totalWait / waitingEntries.length);
-  }
-
-  // Get active counters
-  let counterQuery = supabase
-    .from('counters')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('is_active', true);
-  if (branchId) counterQuery = counterQuery.eq('branch_id', branchId);
-  const { count: activeCounters } = await counterQuery;
-
-  // Get active services (services are org-level, not branch-specific)
-  const { count: activeServices } = await supabase
-    .from('services')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
-    .eq('is_active', true);
-
+  // TODO: Implement with your backend
+  console.log('fetchQueueStats called', { organizationId, branchId });
   return {
-    totalInQueue: (waitingCount || 0) + (servingCount || 0),
-    avgWaitTime,
-    activeCounters: activeCounters || 0,
-    servicesActive: activeServices || 0,
-    completedToday: completedCount || 0,
-    cancelledToday: cancelledCount || 0
+    totalInQueue: 0,
+    avgWaitTime: 0,
+    activeCounters: 0,
+    servicesActive: 0,
+    completedToday: 0,
+    cancelledToday: 0
   };
 }
 
@@ -144,11 +37,9 @@ export async function fetchQueueByService(
   serviceId: string,
   branchId?: string
 ): Promise<QueueEntry[]> {
-  return fetchQueueEntries(organizationId, {
-    serviceId,
-    branchId,
-    status: ['waiting', 'serving']
-  });
+  // TODO: Implement with your backend
+  console.log('fetchQueueByService called', { organizationId, serviceId, branchId });
+  return [];
 }
 
 export async function fetchMyQueue(
@@ -157,210 +48,37 @@ export async function fetchMyQueue(
   assignedServiceId: string | null,
   branchId?: string
 ): Promise<QueueEntry[]> {
-  if (!assignedServiceId) return [];
-  
-  return fetchQueueEntries(organizationId, {
-    serviceId: assignedServiceId,
-    branchId,
-    status: ['waiting', 'serving']
-  });
+  // TODO: Implement with your backend
+  console.log('fetchMyQueue called', { organizationId, staffUserId, assignedServiceId, branchId });
+  return [];
 }
 
 export async function callCustomer(lineId: string, staffUserId: string, counterId?: string) {
-  const now = new Date().toISOString();
-  
-  // First, get the current entry details
-  const { data: currentEntry, error: fetchError } = await supabase
-    .from('lines')
-    .select('organization_id, service_id, position')
-    .eq('id', lineId)
-    .single();
-  
-  if (fetchError || !currentEntry) throw fetchError || new Error('Entry not found');
-  
-  // Shift all waiting entries up by 1 position (those with higher position)
-  await supabase.rpc('shift_queue_positions', {
-    p_org_id: currentEntry.organization_id,
-    p_service_id: currentEntry.service_id,
-    p_from_position: currentEntry.position
-  });
-  
-  // Update line status and set position to 0 (serving)
-  const { error: lineError } = await supabase
-    .from('lines')
-    .update({
-      status: 'serving',
-      position: 0,
-      called_at: now,
-      started_serving_at: now
-    })
-    .eq('id', lineId);
-
-  if (lineError) throw lineError;
-
-  // Create service session
-  const { error: sessionError } = await supabase
-    .from('service_sessions')
-    .insert({
-      line_id: lineId,
-      staff_user_id: staffUserId,
-      counter_id: counterId,
-      started_at: now
-    });
-
-  if (sessionError) throw sessionError;
+  // TODO: Implement with your backend
+  console.log('callCustomer called', { lineId, staffUserId, counterId });
 }
 
 export async function completeService(lineId: string, notes?: string) {
-  const now = new Date().toISOString();
-  
-  // Update line status
-  const { error: lineError } = await supabase
-    .from('lines')
-    .update({
-      status: 'completed',
-      completed_at: now,
-      notes
-    })
-    .eq('id', lineId);
-
-  if (lineError) throw lineError;
-
-  // Get the line data for visit history
-  const { data: lineData } = await supabase
-    .from('lines')
-    .select('*')
-    .eq('id', lineId)
-    .single();
-
-  if (lineData) {
-    const joinedAt = new Date(lineData.joined_at || lineData.created_at);
-    const startedAt = lineData.started_serving_at ? new Date(lineData.started_serving_at) : new Date();
-    const completedAt = new Date(now);
-    
-    const waitTime = Math.round((startedAt.getTime() - joinedAt.getTime()) / 60000);
-    const serviceTime = Math.round((completedAt.getTime() - startedAt.getTime()) / 60000);
-
-    // Create visit history entry
-    await supabase.from('visit_history').insert({
-      client_id: lineData.client_id,
-      organization_id: lineData.organization_id,
-      service_id: lineData.service_id,
-      branch_id: lineData.branch_id,
-      visit_date: now.split('T')[0],
-      day_of_week: new Date().getDay(),
-      hour_of_day: new Date().getHours(),
-      wait_time_minutes: waitTime,
-      service_time_minutes: serviceTime,
-      was_cancelled: false,
-      was_no_show: false
-    });
-  }
-
-  // Update service session
-  await supabase
-    .from('service_sessions')
-    .update({
-      completed_at: now,
-      notes
-    })
-    .eq('line_id', lineId)
-    .is('completed_at', null);
+  // TODO: Implement with your backend
+  console.log('completeService called', { lineId, notes });
 }
 
 export async function cancelCustomer(lineId: string, notes?: string) {
-  const now = new Date().toISOString();
-  
-  const { error } = await supabase
-    .from('lines')
-    .update({
-      status: 'cancelled',
-      completed_at: now,
-      notes
-    })
-    .eq('id', lineId);
-
-  if (error) throw error;
+  // TODO: Implement with your backend
+  console.log('cancelCustomer called', { lineId, notes });
 }
 
 export async function markNoShow(lineId: string) {
-  const now = new Date().toISOString();
-  
-  const { error } = await supabase
-    .from('lines')
-    .update({
-      status: 'no_show',
-      completed_at: now
-    })
-    .eq('id', lineId);
-
-  if (error) throw error;
+  // TODO: Implement with your backend
+  console.log('markNoShow called', { lineId });
 }
 
 export async function moveCustomerUp(lineId: string, organizationId: string, serviceId: string) {
-  // Get current position
-  const { data: current } = await supabase
-    .from('lines')
-    .select('position')
-    .eq('id', lineId)
-    .single();
-
-  if (!current || current.position <= 1) return;
-
-  const targetPosition = current.position - 1;
-
-  // Find the entry at target position
-  const { data: target } = await supabase
-    .from('lines')
-    .select('id')
-    .eq('organization_id', organizationId)
-    .eq('service_id', serviceId)
-    .eq('position', targetPosition)
-    .eq('status', 'waiting')
-    .single();
-
-  if (target) {
-    // Swap positions
-    await supabase.from('lines').update({ position: current.position }).eq('id', target.id);
-    await supabase.from('lines').update({ position: targetPosition }).eq('id', lineId);
-  }
+  // TODO: Implement with your backend
+  console.log('moveCustomerUp called', { lineId, organizationId, serviceId });
 }
 
 export async function moveCustomerDown(lineId: string, organizationId: string, serviceId: string) {
-  // Get current position and max position
-  const { data: current } = await supabase
-    .from('lines')
-    .select('position')
-    .eq('id', lineId)
-    .single();
-
-  const { data: maxEntry } = await supabase
-    .from('lines')
-    .select('position')
-    .eq('organization_id', organizationId)
-    .eq('service_id', serviceId)
-    .eq('status', 'waiting')
-    .order('position', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (!current || !maxEntry || current.position >= maxEntry.position) return;
-
-  const targetPosition = current.position + 1;
-
-  // Find the entry at target position
-  const { data: target } = await supabase
-    .from('lines')
-    .select('id')
-    .eq('organization_id', organizationId)
-    .eq('service_id', serviceId)
-    .eq('position', targetPosition)
-    .eq('status', 'waiting')
-    .single();
-
-  if (target) {
-    // Swap positions
-    await supabase.from('lines').update({ position: current.position }).eq('id', target.id);
-    await supabase.from('lines').update({ position: targetPosition }).eq('id', lineId);
-  }
+  // TODO: Implement with your backend
+  console.log('moveCustomerDown called', { lineId, organizationId, serviceId });
 }
