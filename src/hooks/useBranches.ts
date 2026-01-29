@@ -9,7 +9,7 @@ export interface Branch {
   photo_url: string | null;
   organization_id: string;
   is_main_branch: boolean | null;
-  is_open: boolean | null;
+  is_open?: boolean | null;  // Optional - may not exist in external DB
   opening_time: string | null;
   closing_time: string | null;
   friday_closing_time: string | null;
@@ -26,7 +26,6 @@ export const useBranches = (organizationId: string | undefined) => {
         .from('branches')
         .select('*')
         .eq('organization_id', organizationId)
-        .eq('is_open', true)
         .order('is_main_branch', { ascending: false });
       
       if (error) throw error;
@@ -42,11 +41,11 @@ export const useBranchesBySlug = (slug: string | undefined) => {
     queryFn: async (): Promise<Branch[]> => {
       if (!slug) return [];
       
-      // First get the organization
+      // First get the organization by slug or code (external DB may use 'code')
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('id')
-        .eq('slug', slug)
+        .or(`slug.eq.${slug},code.eq.${slug.toUpperCase()}`)
         .single();
       
       if (orgError) throw orgError;
@@ -56,7 +55,6 @@ export const useBranchesBySlug = (slug: string | undefined) => {
         .from('branches')
         .select('*')
         .eq('organization_id', org.id)
-        .eq('is_open', true)
         .order('is_main_branch', { ascending: false });
       
       if (error) throw error;
