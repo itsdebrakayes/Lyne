@@ -7,6 +7,7 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  code?: string;  // External DB may use 'code' instead of 'slug'
   logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
@@ -44,10 +45,11 @@ export const useOrganization = (slug: string | undefined) => {
     queryFn: async (): Promise<Organization | null> => {
       if (!slug) return null;
       
+      // Support both slug and code fields from external DB
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
-        .eq('slug', slug)
+        .or(`slug.eq.${slug},code.eq.${slug.toUpperCase()}`)
         .single();
       
       if (error) {

@@ -3,22 +3,22 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Clock, Phone, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBranches } from '@/hooks/useBranches';
-import type { Tables } from '@/integrations/supabase/types';
+import { useBranches, Branch } from '@/hooks/useBranches';
+import { Organization } from '@/hooks/useOrganizations';
 
 // Import logos as ES6 modules
 import picaLogo from '@/assets/logos/pica-logo.png';
 import nhtLogo from '@/assets/logos/nht-logo.png';
 import tajLogo from '@/assets/logos/taj-logo.png';
 
-type Organization = Tables<'organizations'>;
-type Branch = Tables<'branches'>;
-
-// Map slug to imported logo
+// Map slug/code to imported logo (supports both slug and code fields from external DB)
 const logoMap: Record<string, string> = {
   'pica': picaLogo,
+  'PICA': picaLogo,
   'nht': nhtLogo,
+  'NHT': nhtLogo,
   'taj': tajLogo,
+  'TAJ': tajLogo,
 };
 
 interface FlipCardProps {
@@ -37,6 +37,11 @@ const gradientPresets = [
   'linear-gradient(135deg, #ec4899 0%, #db2777 50%, #be185d 100%)', // Pink
 ];
 
+// Helper to get org identifier (slug or code)
+const getOrgIdentifier = (org: Organization): string => {
+  return org.slug || (org as any).code || '';
+};
+
 export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -50,8 +55,9 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
   const hasSingleBranch = branches?.length === 1;
   const hasMultipleBranches = (branches?.length || 0) > 1;
 
-  // Get logo from logoMap using slug, fallback to logo_url or initial
-  const logoSrc = logoMap[organization.slug] || organization.logo_url;
+  const orgIdentifier = getOrgIdentifier(organization);
+  // Get logo from logoMap using slug or code, fallback to logo_url
+  const logoSrc = logoMap[orgIdentifier] || logoMap[orgIdentifier.toUpperCase()] || organization.logo_url;
 
   // Get a consistent gradient based on org id
   const gradientIndex = organization.id.charCodeAt(0) % gradientPresets.length;
@@ -117,7 +123,8 @@ export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {
 
   const handleNavigate = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/client/${organization.slug}`);
+    // Use slug or code for navigation
+    navigate(`/client/${orgIdentifier.toLowerCase()}`);
   };
 
   const handleBranchSelect = (e: React.MouseEvent, branch: Branch) => {
