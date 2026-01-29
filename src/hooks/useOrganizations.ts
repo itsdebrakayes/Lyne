@@ -1,10 +1,9 @@
-// Organizations hook - SKELETON (implement your own backend)
-
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 
 type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-interface Organization {
+export interface Organization {
   id: string;
   name: string;
   slug: string;
@@ -27,9 +26,14 @@ export const useOrganizations = () => {
   return useQuery({
     queryKey: ['organizations'],
     queryFn: async (): Promise<Organization[]> => {
-      // TODO: Implement with your backend
-      console.log('useOrganizations fetching');
-      return [];
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 };
@@ -38,9 +42,19 @@ export const useOrganization = (slug: string | undefined) => {
   return useQuery({
     queryKey: ['organization', slug],
     queryFn: async (): Promise<Organization | null> => {
-      // TODO: Implement with your backend
-      console.log('useOrganization fetching', { slug });
-      return null;
+      if (!slug) return null;
+      
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        throw error;
+      }
+      return data;
     },
     enabled: !!slug,
   });
