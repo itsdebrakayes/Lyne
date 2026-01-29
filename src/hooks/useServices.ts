@@ -1,8 +1,7 @@
-// Services hook - SKELETON (implement your own backend)
-
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 
-interface Service {
+export interface Service {
   id: string;
   name: string;
   icon: string | null;
@@ -18,10 +17,48 @@ export const useServices = (organizationId: string | undefined) => {
   return useQuery({
     queryKey: ['services', organizationId],
     queryFn: async (): Promise<Service[]> => {
-      // TODO: Implement with your backend
-      console.log('useServices fetching', { organizationId });
-      return [];
+      if (!organizationId) return [];
+      
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!organizationId,
+  });
+};
+
+export const useServicesBySlug = (slug: string | undefined) => {
+  return useQuery({
+    queryKey: ['services-by-slug', slug],
+    queryFn: async (): Promise<Service[]> => {
+      if (!slug) return [];
+      
+      // First get the organization
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      
+      if (orgError) throw orgError;
+      
+      // Then get services
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('organization_id', org.id)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!slug,
   });
 };

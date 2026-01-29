@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -21,7 +21,8 @@ export function useAdminQueueRealtime({
 
   const handleChange = useCallback((payload: any) => {
     // Invalidate relevant queries
-    queryClient.invalidateQueries({ queryKey: ['queueEntries', organizationId, branchId] });
+    queryClient.invalidateQueries({ queryKey: ['queueData', organizationId, branchId] });
+    queryClient.invalidateQueries({ queryKey: ['queueLines', organizationId] });
     queryClient.invalidateQueries({ queryKey: ['queueStats', organizationId, branchId] });
     queryClient.invalidateQueries({ queryKey: ['servicesWithStats', organizationId] });
 
