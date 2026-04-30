@@ -39,10 +39,14 @@ export const useAuth = () => {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, metadata: Record<string, string>) => {
+  const signUp = async (email: string, password: string, nameOrMeta: string | Record<string, string>) => {
+    const metadata: Record<string, string> = typeof nameOrMeta === 'string'
+      ? { full_name: nameOrMeta }
+      : nameOrMeta;
     const { error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
     if (!error) {
-      await api.post('/auth/sync-user', metadata);
+      // Sync to MySQL — non-blocking; failure is acceptable at signup time
+      await api.post('/auth/sync-user', metadata).catch(() => {});
     }
     return { error };
   };

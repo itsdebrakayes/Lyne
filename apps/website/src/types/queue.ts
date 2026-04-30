@@ -1,9 +1,14 @@
-// Queue-related type definitions
+/**
+ * Queue-related type definitions aligned with the MySQL backend schema.
+ * Field names match the Express API response shapes.
+ * Legacy Supabase field names are kept as optional aliases for backward compatibility.
+ */
 
 export type QueueStatus = 'waiting' | 'serving' | 'completed' | 'cancelled' | 'no_show';
 
 export interface QueueEntry {
   id: string;
+  queue_id?: string;
   ticket_number: string;
   position: number;
   status: QueueStatus;
@@ -14,10 +19,23 @@ export interface QueueEntry {
   estimated_wait_minutes: number | null;
   actual_wait_minutes: number | null;
   notes: string | null;
-  client_id: string;
-  service_id: string;
-  organization_id: string;
+  // MySQL field names
+  user_id?: string | null;
+  service_id?: string;
+  business_id?: string;
   branch_id: string | null;
+  served_by_staff_id?: string | null;
+  served_at_counter_id?: string | null;
+  intake_form_id?: string | null;
+  // Joined / computed fields from backend
+  user_name?: string | null;
+  user_phone?: string | null;
+  branch_name?: string | null;
+  service_name?: string | null;
+  people_ahead?: number;
+  // Legacy Supabase aliases (backward compatibility)
+  client_id?: string;
+  organization_id?: string;
   client?: {
     id: string;
     full_name: string | null;

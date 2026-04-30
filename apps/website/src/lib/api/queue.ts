@@ -159,3 +159,43 @@ export async function fetchQueueStats(
 
 // Legacy alias used by older components
 export const fetchQueueEntries = fetchTicketsByQueue;
+
+/**
+ * fetchMyQueue — returns all active tickets for a staff member's assigned queue.
+ * Used by StaffDashboard to show the current queue for the logged-in staff.
+ */
+export async function fetchMyQueue(
+  businessId: string,
+  staffId: string,
+  serviceId?: string,
+  branchId?: string
+): Promise<QueueEntry[]> {
+  // Find today's active queue for this service/branch, then get its tickets
+  const qs = new URLSearchParams({
+    business_id: businessId,
+    ...(branchId   ? { branch_id:   branchId   } : {}),
+    ...(serviceId  ? { service_id:  serviceId  } : {}),
+  }).toString();
+  const queues = await api.get<Queue[]>(`/queues?${qs}`);
+  if (!queues.length) return [];
+  // Return tickets from the first active queue found
+  const activeQueue = queues.find(q => q.is_active) || queues[0];
+  return fetchTicketsByQueue(activeQueue.id);
+}
+
+/**
+ * moveCustomerUp / moveCustomerDown — reorder a ticket in the queue.
+ * The backend does not yet have a dedicated reorder endpoint, so we
+ * approximate by cancelling and re-inserting. For now, these are
+ * no-ops that resolve immediately to avoid breaking the UI.
+ * TODO: add PUT /api/tickets/:id/position to the backend.
+ */
+export async function moveCustomerUp(ticketId: string): Promise<void> {
+  // Placeholder — backend reorder endpoint not yet implemented
+  console.warn('moveCustomerUp: reorder endpoint not yet implemented for ticket', ticketId);
+}
+
+export async function moveCustomerDown(ticketId: string): Promise<void> {
+  // Placeholder — backend reorder endpoint not yet implemented
+  console.warn('moveCustomerDown: reorder endpoint not yet implemented for ticket', ticketId);
+}

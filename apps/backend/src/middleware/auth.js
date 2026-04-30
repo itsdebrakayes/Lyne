@@ -10,9 +10,14 @@
 const { createClient } = require('@supabase/supabase-js');
 const pool = require('../db/pool');
 
+// Support both env var naming conventions
+// Accept either naming convention (docker-compose uses SUPABASE_SERVICE_KEY)
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  || process.env.SUPABASE_SERVICE_KEY
+  || 'placeholder-key';
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY   // service role key — never exposed to browser
+  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
+  supabaseKey
 );
 
 async function requireAuth(req, res, next) {

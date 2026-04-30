@@ -122,3 +122,63 @@ export async function fetchStaffStats(businessId: string): Promise<StaffStats> {
     topPerformers: 0,
   };
 }
+
+/**
+ * fetchMyCounterAssignment — returns today's counter assignment for a given staff member.
+ * Used by StaffDashboard to know which counter/service the logged-in staff is assigned to.
+ */
+export async function fetchMyCounterAssignment(
+  staffId: string
+): Promise<CounterAssignment | null> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const me = await api.get<{ type: string; record: StaffMember }>('/auth/me');
+    if (me.type !== 'staff' || !me.record.branch_id) return null;
+    const assignments = await fetchCounterAssignments(me.record.branch_id, today);
+    return assignments.find(a => a.staff_id === staffId) || null;
+  } catch {
+    return null;
+  }
+}
+
+export interface CounterWithStaff {
+  id: string;
+  counter_number: number;
+  counter_label: string;
+  branch_id: string;
+  is_active: boolean;
+  assigned_staff?: StaffMember | null;
+}
+
+/**
+ * fetchCountersWithStaff — returns all counters for a branch with their assigned staff.
+ * Used by ManagerDashboard to show counter status.
+ */
+export async function fetchCountersWithStaff(
+  branchId: string
+): Promise<CounterWithStaff[]> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const assignments = await fetchCounterAssignments(branchId, today);
+    // Build a map of counter_id -> staff
+    const staffByCounter: Record<string, CounterAssignment> = {};
+    assignments.forEach(a => { staffByCounter[a.counter_id] = a; });
+    // Return a synthetic list of counters from the assignments
+    const counters: CounterWithStaff[] = assignments.map(a => ({
+      id:             a.counter_id,
+      counter_number: a.counter_number,
+      counter_label:  a.counter_label,
+      branch_id:      a.branch_id,
+      is_active:      true,
+      assigned_staff: {
+        id:         a.staff_id,
+        staff_code: a.staff_code,
+        full_name:  a.staff_name,
+        role_name:  a.role_name,
+      } as StaffMember,
+    }));
+    return counters;
+  } catch {
+    return [];
+  }
+}

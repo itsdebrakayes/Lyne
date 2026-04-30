@@ -138,4 +138,87 @@ router.get('/staff', requireAuth, requireRole('manager', 'executive'), async (re
   }
 });
 
+// Branch performance trends — daily aggregates for line charts
+router.get('/branch-trends', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+  try {
+    const { business_id, branch_id, days = 90 } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const safeDays = Math.min(Math.max(parseInt(days) || 90, 7), 365);
+    const conditions = ['w.business_id = ?', `w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ${safeDays} DAY)`];
+    const params = [business_id];
+    if (branch_id) { conditions.push('w.branch_id = ?'); params.push(branch_id); }
+    const [rows] = await pool.query(
+      `SELECT b.id AS branch_id, b.name AS branch_name, biz.name AS business_name,
+              w.visit_date,
+              COUNT(*)                              AS total_visits,
+              ROUND(AVG(w.wait_time_minutes), 1)   AS avg_wait_minutes,
+              SUM(w.status = 'completed')           AS completed,
+              SUM(w.status = 'no_show')             AS no_shows,
+              ROUND(SUM(w.status = 'completed') / COUNT(*) * 100, 1) AS completion_rate
+       FROM wait_time_records w
+       JOIN branches b     ON w.branch_id   = b.id
+       JOIN businesses biz ON w.business_id = biz.id
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY b.id, b.name, biz.name, w.visit_date
+       ORDER BY w.visit_date ASC, b.name ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch branch trends.' });
+  }
+});
+
+// CSV export — returns wait_time_records as CSV for the Jupyter model
+router.get('/export-csv', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+  try {
+    const { business_id, from, to } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const conditions = ['w.business_id = ?'];
+    const params = [business_id];
+    if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
+    if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
+    const [rows] = await pool.query(
+      `SELECT w.id AS visit_id, w.ticket_id, t.ticket_number,
+              w.business_id, biz.name AS business_name,
+              w.branch_id,  b.name   AS branch_name, b.parish,
+              w.service_id, s.name   AS service_name,
+              w.visit_date, w.day_of_week AS dow, w.hour_of_day AS hour,
+              w.month_of_year AS month,
+              WEEKOFYEAR(w.visit_date) AS week_of_year,
+              CASE WHEN DAYOFWEEK(w.visit_date) IN (1,7) THEN 1 ELSE 0 END AS is_weekend,
+              0 AS is_holiday,
+              w.wait_time_minutes, w.service_time_minutes, w.status,
+              w.queue_length_at_time AS queue_length_at_join,
+              w.staff_count_at_time, 1 AS active_counters
+       FROM wait_time_records w
+       JOIN businesses biz ON w.business_id = biz.id
+       JOIN branches b     ON w.branch_id   = b.id
+       JOIN services s     ON w.service_id  = s.id
+       LEFT JOIN queue_tickets t ON w.ticket_id = t.id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY w.visit_date, w.hour_of_day`,
+      params
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No data found for the given filters.' });
+    const headers = Object.keys(rows[0]);
+    const csvLines = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => {
+        const v = r[h];
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(','))
+    ];
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="queue_history_${business_id}.csv"`);
+    res.send(csvLines.join('\n'));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to export CSV.' });
+  }
+});
+
 module.exports = router;

@@ -2,9 +2,12 @@
  * tickets.js — Core queue ticket operations
  *
  * POST /api/tickets                    — join a queue (authenticated user)
+ * GET  /api/tickets/queue/:queue_id    — get all tickets for a queue (staff)
  * GET  /api/tickets/:id                — get ticket status (public, by ticket id)
  * PUT  /api/tickets/:id/status         — update ticket status (staff only)
- * GET  /api/tickets/queue/:queue_id    — get all tickets for a queue (staff)
+ *
+ * NOTE: /queue/:queue_id MUST be declared before /:id to prevent Express
+ *       from matching the literal string "queue" as a UUID parameter.
  */
 
 const router = require('express').Router();
@@ -98,6 +101,25 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/tickets/queue/:queue_id — All tickets for a queue ─
+// IMPORTANT: Declared BEFORE /:id to prevent Express matching "queue" as a UUID.
+router.get('/queue/:queue_id', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.*, u.full_name AS user_name, u.phone AS user_phone
+       FROM queue_tickets t
+       LEFT JOIN users u ON t.user_id = u.id
+       WHERE t.queue_id = ?
+       ORDER BY t.position`,
+      [req.params.queue_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch tickets.' });
+  }
+});
+
 // ── GET /api/tickets/:id — Get ticket status ─────────────────
 router.get('/:id', async (req, res) => {
   try {
@@ -121,24 +143,6 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch ticket.' });
-  }
-});
-
-// ── GET /api/tickets/queue/:queue_id — All tickets for a queue ─
-router.get('/queue/:queue_id', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT t.*, u.full_name AS user_name, u.phone AS user_phone
-       FROM queue_tickets t
-       LEFT JOIN users u ON t.user_id = u.id
-       WHERE t.queue_id = ?
-       ORDER BY t.position`,
-      [req.params.queue_id]
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch tickets.' });
   }
 });
 
@@ -170,7 +174,7 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
 
     if (new_status === 'serving') {
       extraFields = ', called_at = ?, started_serving_at = ?, served_by_staff_id = ?';
-      extraParams.push(now, now, req.dbStaff.id);
+      extraParams.push(now, now, req.dbStaff?.id || null);
     } else if (new_status === 'completed') {
       extraFields = ', completed_at = ?';
       extraParams.push(now);
@@ -178,12 +182,10 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
       // Write wait-time record for analytics
       const [queueRows] = await conn.query('SELECT * FROM queues WHERE id = ?', [ticket.queue_id]);
       const queue = queueRows[0];
-      const waitMin = ticket.started_serving_at
-        ? (ticket.started_serving_at - ticket.joined_at) / 60000
-        : null;
-      const svcMin = ticket.started_serving_at
-        ? (now - ticket.started_serving_at) / 60000
-        : null;
+      const joinedAt = ticket.joined_at ? new Date(ticket.joined_at) : null;
+      const startedAt = ticket.started_serving_at ? new Date(ticket.started_serving_at) : null;
+      const waitMin = joinedAt && startedAt ? (startedAt - joinedAt) / 60000 : null;
+      const svcMin  = startedAt ? (now - startedAt) / 60000 : null;
 
       const [qLen] = await conn.query(
         "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status IN ('waiting','serving')",
