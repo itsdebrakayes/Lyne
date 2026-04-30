@@ -1,0 +1,89 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────
+#  Q ME NOW — Docker Compose
+#  Starts: MySQL 8 database + Node.js/Express backend API
+#
+#  Usage:
+#    docker compose up -d          # start in background
+#    docker compose logs -f api    # tail API logs
+#    docker compose down -v        # stop and remove volumes
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MySQL 8 ─────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: qmenow_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-qmenow}
+      MYSQL_USER:          ${MYSQL_USER:-qmenow}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-qmenow_secret}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Auto-run schema + seed on first start
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - qmenow_net
+
+  # ── Node.js / Express API ────────────────────────────────────
+  api:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: qmenow_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV:             production
+      PORT:                 4000
+      MYSQL_HOST:           db
+      MYSQL_PORT:           3306
+      MYSQL_USER:           ${MYSQL_USER:-qmenow}
+      MYSQL_PASSWORD:       ${MYSQL_PASSWORD:-qmenow_secret}
+      MYSQL_DATABASE:       ${MYSQL_DATABASE:-qmenow}
+      SUPABASE_URL:         ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "4000:4000"
+    networks:
+      - qmenow_net
+
+  # ── Adminer (optional DB GUI) ────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: qmenow_adminer
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    networks:
+      - qmenow_net
+    profiles:
+      - tools   # Only starts with: docker compose --profile tools up
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────
+networks:
+  qmenow_net:
+    driver: bridge
