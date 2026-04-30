@@ -12,6 +12,9 @@ import { fetchMyQueue, callCustomer, completeService, cancelCustomer, moveCustom
 import { fetchMyCounterAssignment } from '@/lib/api/staff';
 import { fetchServiceById } from '@/lib/api/services';
 import { supabase } from '@/integrations/supabase/client';
+import { QueueItemSkeleton, StatCardSkeleton } from '@/components/SkeletonLoaders';
+import { NoQueuesEmpty, ApiErrorState } from '@/components/EmptyState';
+import { QueueStatusBadge } from '@/components/QueueStatusBadge';
 import type { QueueEntry } from '@/types/queue';
 
 const StaffDashboard = () => {
@@ -55,11 +58,12 @@ const StaffDashboard = () => {
   });
 
   // Fetch queue entries for assigned service and branch
-  const { data: queueEntries = [], refetch: refetchQueue } = useQuery({
+  const { data: queueEntries = [], refetch: refetchQueue, isLoading: queueLoading, isError: queueError } = useQuery({
     queryKey: ['queueEntries', organizationId, assignedServiceId, branchId],
     queryFn: () => fetchMyQueue(organizationId!, staffData!.user_id, assignedServiceId!, branchId || undefined),
     enabled: !!organizationId && !!assignedServiceId,
-    refetchInterval: 30000
+    refetchInterval: 10000,
+    retry: 2,
   });
 
   // Calculate stats
@@ -196,13 +200,27 @@ const StaffDashboard = () => {
 
       {/* Queue */}
       <div>
-        <h2 className="text-lg font-semibold mb-3 text-foreground">
-          Queue ({waitingEntries.length})
-        </h2>
-        {waitingEntries.length === 0 ? (
-          <div className="glass rounded-xl p-8 text-center">
-            <p className="text-muted-foreground">No customers waiting in queue</p>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-foreground">
+            Queue {!queueLoading && `(${waitingEntries.length})`}
+          </h2>
+          {!queueLoading && (
+            <button
+              onClick={() => refetchQueue()}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 rounded-lg border border-border/50 hover:border-border"
+            >
+              Refresh
+            </button>
+          )}
+        </div>
+        {queueLoading ? (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <QueueItemSkeleton key={i} />)}
           </div>
+        ) : queueError ? (
+          <ApiErrorState onRetry={() => refetchQueue()} />
+        ) : waitingEntries.length === 0 ? (
+          <NoQueuesEmpty />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {waitingEntries.map((entry, index) => (

@@ -247,6 +247,42 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
       [uuidv4(), ticket.id, prevStatus, new_status, req.dbStaff?.id || null, notes || null]
     );
 
+    // ── Dynamic wait-time recalculation ─────────────────────────────────────
+    // After any terminal status change (completed, cancelled, no_show),
+    // recalculate estimated_wait_minutes for all remaining 'waiting' tickets
+    // in this queue. This ensures users always see an accurate estimate.
+    if (['completed', 'cancelled', 'no_show'].includes(new_status)) {
+      // Get the real-time average service duration from the last 20 completions
+      const [avgRows] = await conn.query(
+        `SELECT AVG(service_time_minutes) AS avg_svc
+         FROM wait_time_records
+         WHERE queue_id = ? AND status = 'completed'
+         ORDER BY created_at DESC LIMIT 20`,
+        [ticket.queue_id]
+      );
+      // Fall back to the service's base average if no history yet
+      const [svcBase] = await conn.query(
+        `SELECT s.base_avg_time_minutes
+         FROM queues q JOIN services s ON q.service_id = s.id
+         WHERE q.id = ?`,
+        [ticket.queue_id]
+      );
+      const dynamicAvg = avgRows[0]?.avg_svc || svcBase[0]?.base_avg_time_minutes || 15;
+
+      // Recalculate position-based waits for all remaining waiting tickets
+      await conn.query(
+        `UPDATE queue_tickets t
+         JOIN (
+           SELECT id,
+                  (ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY position) - 1) * ? AS new_wait
+           FROM queue_tickets
+           WHERE queue_id = ? AND status = 'waiting'
+         ) ranked ON t.id = ranked.id
+         SET t.estimated_wait_minutes = ranked.new_wait`,
+        [dynamicAvg, ticket.queue_id]
+      );
+    }
+
     await conn.commit();
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);

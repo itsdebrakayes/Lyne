@@ -7,7 +7,8 @@ import { FlipCard } from '@/components/FlipCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useOrganizations } from '@/hooks/useOrganizations';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BusinessCardSkeleton } from '@/components/SkeletonLoaders';
+import { ApiErrorState } from '@/components/EmptyState';
 
 const ClientDirectory = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,18 +129,19 @@ const ClientDirectory = () => {
           {/* Scrollable Container */}
           {isLoading ? (
             <div className="flex gap-8 px-8 overflow-x-auto scrollbar-hide py-8 justify-center">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="w-[280px] h-[380px] rounded-2xl flex-shrink-0" />
-              ))}
+              {[...Array(4)].map((_, i) => <BusinessCardSkeleton key={i} />)}
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Failed to load organizations. Please try again.</p>
+            <div className="py-12">
+              <ApiErrorState
+                message="Could not load organizations. Please check your connection."
+                onRetry={() => window.location.reload()}
+              />
             </div>
           ) : filteredOrgs.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                {searchQuery ? 'No organizations found matching your search.' : 'No organizations available.'}
+                {searchQuery ? `No results for "${searchQuery}" — try a different search.` : 'No organizations available.'}
               </p>
             </div>
           ) : (
