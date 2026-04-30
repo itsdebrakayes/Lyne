@@ -1,0 +1,16 @@
+service_id,service_name,business_id,business_name,total_visits,completed,cancelled,no_show,completion_rate,avg_wait_minutes,avg_service_minutes,p50_wait_minutes,p90_wait_minutes,speed_rank,reliability_rank
+svc-taj-tin,TIN Registration,biz-taj-001,Tax Administration Jamaica,11468,9457,1156,551,0.8246,12.22,11.97,11.6,18.8,6,6
+svc-taj-filing,Tax Filing,biz-taj-001,Tax Administration Jamaica,7852,6484,741,404,0.8258,14.67,18.01,14.1,21.8,9,5
+svc-taj-payment,Tax Payment,biz-taj-001,Tax Administration Jamaica,17406,14302,1714,833,0.8217,10.64,8.01,10.05,17.0,4,11
+svc-taj-compliance,Compliance Certificate,biz-taj-001,Tax Administration Jamaica,6311,5100,668,365,0.8081,16.33,22.08,15.9,23.9,12,15
+svc-taj-refund,Refund Processing,biz-taj-001,Tax Administration Jamaica,5583,4618,549,262,0.8272,17.36,25.09,17.0,25.1,13,4
+svc-taj-general,General Enquiry,biz-taj-001,Tax Administration Jamaica,23361,19220,2300,1146,0.8227,9.86,6.0,9.3,16.2,1,8
+svc-nht-benefit,Benefit Application,biz-nht-001,National Housing Trust,5683,4645,561,297,0.8173,15.35,19.98,14.9,22.3,10,13
+svc-nht-loan,Mortgage Loan,biz-nht-001,National Housing Trust,3804,3149,365,178,0.8278,19.61,29.99,19.3,28.0,14,3
+svc-nht-contrib,Contribution Enquiry,biz-nht-001,National Housing Trust,11366,9355,1112,567,0.8231,11.41,10.0,10.9,17.8,5,7
+svc-nht-general,General Enquiry,biz-nht-001,National Housing Trust,16319,13420,1569,798,0.8224,10.2,7.01,9.6,16.41,3,10
+svc-pica-passport,Passport Application,biz-pica-001,PICA,3379,2763,329,182,0.8177,13.61,15.17,13.1,20.8,8,12
+svc-pica-renew,Passport Renewal,biz-pica-001,PICA,4096,3369,402,189,0.8225,12.65,12.08,12.0,19.7,7,9
+svc-pica-citizen,Citizenship,biz-pica-001,PICA,1388,1171,132,47,0.8437,21.81,34.79,21.6,31.15,15,1
+svc-pica-visa,Visa Endorsement,biz-pica-001,PICA,2550,2120,250,113,0.8314,15.7,20.05,15.2,23.2,11,2
+svc-pica-general,General Enquiry,biz-pica-001,PICA,8075,6541,839,419,0.81,10.03,6.02,9.3,16.8,2,14

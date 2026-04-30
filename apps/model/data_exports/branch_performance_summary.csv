@@ -1,0 +1,10 @@
+branch_id,branch_name,business_name,total_visits,total_completed,total_no_shows,avg_wait,avg_queue_len,completion_rate,no_show_rate
+br-nht-kingston,NHT Kingston,National Housing Trust,15325,12570,760,12.14,13.719354838709677,0.8202,0.0496
+br-nht-montego,NHT Montego Bay,National Housing Trust,10800,8830,549,12.3,13.639999999999999,0.8176,0.0508
+br-nht-spanish,NHT Spanish Town,National Housing Trust,11047,9169,531,12.47,13.605806451612905,0.83,0.0481
+br-pica-kingston,PICA Kingston,PICA,11319,9322,508,12.73,13.714838709677421,0.8236,0.0449
+br-pica-montego,PICA Montego Bay,PICA,8169,6642,442,12.71,13.571612903225805,0.8131,0.0541
+br-taj-kingston,TAJ Kingston,Tax Administration Jamaica,22593,18607,1119,12.14,13.681290322580644,0.8236,0.0495
+br-taj-mandeville,TAJ Mandeville,Tax Administration Jamaica,16418,13497,800,12.14,13.772258064516128,0.8221,0.0487
+br-taj-montego,TAJ Montego Bay,Tax Administration Jamaica,16671,13636,830,12.01,13.658064516129032,0.8179,0.0498
+br-taj-portmore,TAJ Portmore,Tax Administration Jamaica,16299,13441,812,12.2,13.75290322580645,0.8247,0.0498
