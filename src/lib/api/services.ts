@@ -1,15 +1,23 @@
-import { supabase } from '@/lib/supabase';
+/**
+ * services.ts — Services API (MySQL backend)
+ *
+ * Replaces the previous Supabase/PostgreSQL implementation.
+ * All data is now fetched from the Q ME NOW Express backend API.
+ */
+
+import api from '@/lib/apiClient';
 
 export interface Service {
   id: string;
+  business_id: string;
+  business_name: string;
   name: string;
-  icon: string | null;
-  color: string | null;
-  is_active: boolean | null;
-  display_order: number | null;
-  base_avg_time_minutes: number | null;
-  organization_id: string;
-  created_at: string | null;
+  description?: string;
+  ticket_prefix?: string;
+  base_avg_time_minutes: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ServiceWithStats extends Service {
@@ -18,117 +26,51 @@ export interface ServiceWithStats extends Service {
   activeCounters: number;
 }
 
-export async function fetchServices(organizationId: string): Promise<Service[]> {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+export async function fetchServices(businessId?: string): Promise<Service[]> {
+  const query = businessId ? `?business_id=${businessId}` : '';
+  return api.get<Service[]>(`/services${query}`, false);
 }
 
 export async function fetchServicesWithStats(
-  organizationId: string,
-  branchId?: string
+  businessId: string,
+  _branchId?: string
 ): Promise<ServiceWithStats[]> {
-  const services = await fetchServices(organizationId);
-  
-  // Get queue counts for all services
-  let queueQuery = supabase
-    .from('lines')
-    .select('service_id')
-    .eq('organization_id', organizationId)
-    .eq('status', 'waiting');
-
-  if (branchId) {
-    queueQuery = queueQuery.eq('branch_id', branchId);
-  }
-
-  const { data: queueData } = await queueQuery;
-  
-  // Count per service
-  const queueCounts = new Map<string, number>();
-  (queueData || []).forEach(q => {
-    const count = queueCounts.get(q.service_id) || 0;
-    queueCounts.set(q.service_id, count + 1);
-  });
-
-  // Get active counters per service
-  let counterQuery = supabase
-    .from('counters')
-    .select('service_id')
-    .eq('organization_id', organizationId)
-    .eq('is_active', true);
-
-  if (branchId) {
-    counterQuery = counterQuery.eq('branch_id', branchId);
-  }
-
-  const { data: counterData } = await counterQuery;
-  
-  const counterCounts = new Map<string, number>();
-  (counterData || []).forEach(c => {
-    const count = counterCounts.get(c.service_id) || 0;
-    counterCounts.set(c.service_id, count + 1);
-  });
+  // Fetch services and today's queues in parallel
+  const [services, queues] = await Promise.all([
+    fetchServices(businessId),
+    api.get<{ service_id: string; waiting_count: number; avg_wait_minutes: number }[]>(
+      `/queues?business_id=${businessId}`,
+      false
+    ).catch(() => []),
+  ]);
 
   return services.map(service => {
-    const queueCount = queueCounts.get(service.id) || 0;
-    const activeCounters = counterCounts.get(service.id) || 1;
-    const avgWaitTime = (service.base_avg_time_minutes || 15) * Math.ceil(queueCount / activeCounters);
-
+    const queue = (queues as any[]).find((q: any) => q.service_id === service.id);
     return {
       ...service,
-      queueCount,
-      avgWaitTime,
-      activeCounters
+      queueCount:     queue?.waiting_count    ?? 0,
+      avgWaitTime:    queue?.avg_wait_minutes  ?? service.base_avg_time_minutes,
+      activeCounters: 1,
     };
   });
 }
 
-export async function fetchServiceById(serviceId: string): Promise<Service | null> {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('id', serviceId)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') return null;
-    throw error;
+export async function fetchServiceById(id: string): Promise<Service | null> {
+  try {
+    return await api.get<Service>(`/services/${id}`, false);
+  } catch {
+    return null;
   }
-  return data;
 }
 
-export async function updateService(serviceId: string, updates: Partial<Service>): Promise<void> {
-  const { error } = await supabase
-    .from('services')
-    .update(updates)
-    .eq('id', serviceId);
-
-  if (error) throw error;
+export async function createService(data: Partial<Service>): Promise<Service> {
+  return api.post<Service>('/services', data);
 }
 
-export async function createService(service: Omit<Service, 'id' | 'created_at'>): Promise<string> {
-  const { data, error } = await supabase
-    .from('services')
-    .insert(service)
-    .select('id')
-    .single();
-
-  if (error) throw error;
-  return data.id;
+export async function updateService(id: string, data: Partial<Service>): Promise<Service> {
+  return api.put<Service>(`/services/${id}`, data);
 }
 
-export async function deleteService(serviceId: string): Promise<void> {
-  // Soft delete by setting is_active to false
-  const { error } = await supabase
-    .from('services')
-    .update({ is_active: false })
-    .eq('id', serviceId);
-
-  if (error) throw error;
+export async function deleteService(id: string): Promise<void> {
+  await api.put(`/services/${id}`, { is_active: false });
 }
