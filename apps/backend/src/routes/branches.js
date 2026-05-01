@@ -49,6 +49,32 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// ── GET /api/branches/:id/stats ───────────────────────────
+// Returns live stats for the mobile BranchScreen header row.
+router.get('/:id/stats', async (req, res) => {
+  try {
+    const branchId = req.params.id;
+    const [rows] = await pool.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN qt.status = 'waiting' THEN 1 ELSE 0 END), 0)  AS total_waiting,
+         COALESCE(AVG(CASE WHEN qt.status = 'waiting' THEN qt.estimated_wait_minutes END), 0) AS avg_wait_minutes,
+         COUNT(DISTINCT q.id) AS open_queues
+       FROM queues q
+       LEFT JOIN queue_tickets qt ON qt.queue_id = q.id
+       WHERE q.branch_id = ? AND q.is_active = TRUE AND q.queue_date = CURDATE()`,
+      [branchId]
+    );
+    res.json({
+      total_waiting:    rows[0].total_waiting    || 0,
+      avg_wait_minutes: Math.round(rows[0].avg_wait_minutes || 0),
+      open_queues:      rows[0].open_queues      || 0,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch branch stats.' });
+  }
+});
+
 router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
   try {
     const { business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch } = req.body;

@@ -47,6 +47,42 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── GET /api/queues/live?branch_id=&service_id= ─────────────
+// Returns live queue stats for the pre-join screen on mobile.
+// MUST be declared before /:id to prevent Express matching 'live' as a UUID.
+router.get('/live', async (req, res) => {
+  try {
+    const { branch_id, service_id } = req.query;
+    if (!branch_id || !service_id) {
+      return res.status(400).json({ error: 'branch_id and service_id are required.' });
+    }
+    const [rows] = await pool.query(
+      `SELECT q.id,
+              (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS waiting_count,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.completed_at))
+                FROM queue_tickets t
+                WHERE t.queue_id = q.id AND t.status = 'completed'
+                ORDER BY t.completed_at DESC LIMIT 20
+              ), s.base_avg_time_minutes) AS avg_service_minutes
+       FROM queues q
+       JOIN services s ON q.service_id = s.id
+       WHERE q.branch_id = ? AND q.service_id = ? AND q.is_active = TRUE AND q.queue_date = CURDATE()
+       LIMIT 1`,
+      [branch_id, service_id]
+    );
+    if (!rows.length) {
+      return res.json({ id: null, waiting_count: 0, estimated_wait_minutes: 0 });
+    }
+    const row = rows[0];
+    const estimated_wait_minutes = Math.round(row.waiting_count * (row.avg_service_minutes || 15));
+    res.json({ id: row.id, waiting_count: row.waiting_count, estimated_wait_minutes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch live queue info.' });
+  }
+});
+
 // Get single queue with full ticket list
 router.get('/:id', async (req, res) => {
   try {

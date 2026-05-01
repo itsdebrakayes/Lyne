@@ -78,4 +78,44 @@ router.get('/me', requireAuth, async (req, res) => {
   res.status(404).json({ error: 'No MySQL record found for this account.' });
 });
 
+// ── PATCH /api/auth/profile ──────────────────────────────────
+// Called by the mobile ProfileScreen when the user saves their profile.
+// Updates all standard intake fields in the MySQL users table.
+router.patch('/profile', requireAuth, async (req, res) => {
+  if (!req.dbUser) {
+    return res.status(404).json({ error: 'No user record found. Please sync first.' });
+  }
+  try {
+    const {
+      full_name, phone, date_of_birth, address,
+      national_id, trn, employer, occupation,
+    } = req.body;
+
+    await pool.query(
+      `UPDATE users SET
+         full_name     = COALESCE(?, full_name),
+         phone         = COALESCE(?, phone),
+         date_of_birth = COALESCE(?, date_of_birth),
+         address       = COALESCE(?, address),
+         national_id   = COALESCE(?, national_id),
+         trn           = COALESCE(?, trn),
+         employer      = COALESCE(?, employer),
+         occupation    = COALESCE(?, occupation),
+         updated_at    = NOW()
+       WHERE id = ?`,
+      [
+        full_name || null, phone || null, date_of_birth || null, address || null,
+        national_id || null, trn || null, employer || null, occupation || null,
+        req.dbUser.id,
+      ]
+    );
+
+    const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
+    res.json({ user: updated[0] });
+  } catch (err) {
+    console.error('profile update error:', err);
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
 module.exports = router;
