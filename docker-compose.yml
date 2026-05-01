@@ -22,7 +22,7 @@ services:
       MYSQL_USER:          ${MYSQL_USER:-qmenow}
       MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-qmenow_secret}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       # Auto-run schema + seed on first start
