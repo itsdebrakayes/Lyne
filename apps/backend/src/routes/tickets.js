@@ -3,28 +3,57 @@
  *
  * POST /api/tickets                    — join a queue (authenticated user)
  * GET  /api/tickets/queue/:queue_id    — get all tickets for a queue (staff)
- * GET  /api/tickets/:id                — get ticket status (public, by ticket id)
+ * GET  /api/tickets/:id                — get ticket + position (public, by ticket id)
  * PUT  /api/tickets/:id/status         — update ticket status (staff only)
+ * PUT  /api/tickets/:id/move-up        — move waiting ticket up one position (staff)
+ * PUT  /api/tickets/:id/move-down      — move waiting ticket down one position (staff)
+ * GET  /api/tickets/:id/position       — get customer position among WAITING only
  *
- * NOTE: /queue/:queue_id MUST be declared before /:id to prevent Express
- *       from matching the literal string "queue" as a UUID parameter.
+ * STATUS VALUES:
+ *   waiting    — customer is in line
+ *   in_service — customer is currently being served at the counter
+ *   served     — service completed
+ *   left       — customer joined but abandoned the queue
+ *   cancelled  — ticket invalidated intentionally
+ *
+ * NOTE: CALLED is not a separate state. Calling the customer moves the ticket
+ *       directly from 'waiting' to 'in_service'.
+ *
+ * QUEUE COUNT RULE: Visible queue length counts WAITING tickets only.
+ *   in_service tickets are being served and must NOT be included in the
+ *   visible queue count shown to users.
  */
-
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
+const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
-// ── POST /api/tickets — Join a queue ─────────────────────────
+// Validation schemas
+const joinQueueSchema = z.object({
+  queue_id:  z.string().uuid('queue_id must be a valid UUID'),
+  form_data: z.record(z.unknown()).optional(),
+});
+
+const updateStatusSchema = z.object({
+  new_status: z.enum(['in_service', 'served', 'left', 'cancelled'], {
+    errorMap: () => ({ message: 'new_status must be one of: in_service, served, left, cancelled' }),
+  }),
+  notes: z.string().max(1000).optional(),
+});
+
+// POST /api/tickets — Join a queue
 router.post('/', requireAuth, async (req, res) => {
+  const parsed = joinQueueSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0].message });
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    const { queue_id, form_data } = parsed.data;
 
-    const { queue_id, form_data } = req.body;
-    if (!queue_id) return res.status(400).json({ error: 'queue_id is required.' });
-
-    // Verify queue exists and is open
     const [queues] = await conn.query(
       'SELECT * FROM queues WHERE id = ? AND is_active = TRUE FOR UPDATE',
       [queue_id]
@@ -35,9 +64,9 @@ router.post('/', requireAuth, async (req, res) => {
     }
     const queue = queues[0];
 
-    // Check capacity
+    // Count WAITING only — in_service are being served and should not block capacity
     const [countRows] = await conn.query(
-      "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status IN ('waiting','serving')",
+      "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
       [queue_id]
     );
     if (countRows[0].cnt >= queue.max_capacity) {
@@ -45,24 +74,21 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'Queue is at full capacity.' });
     }
 
-    // Get next position
     const [posRows] = await conn.query(
       'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM queue_tickets WHERE queue_id = ?',
       [queue_id]
     );
     const position = posRows[0].next_pos;
 
-    // Get service ticket prefix
     const [svcRows] = await conn.query(
       'SELECT ticket_prefix, base_avg_time_minutes FROM services WHERE id = ?',
       [queue.service_id]
     );
-    const prefix = svcRows[0]?.ticket_prefix || 'Q';
+    const prefix  = svcRows[0]?.ticket_prefix || 'Q';
     const avgTime = svcRows[0]?.base_avg_time_minutes || 15;
-    const ticketNumber = `${prefix}-${String(position).padStart(3, '0')}`;
+    const ticketNumber  = `${prefix}-${String(position).padStart(3, '0')}`;
     const estimatedWait = (position - 1) * avgTime;
 
-    // Save intake form if provided
     let intakeFormId = null;
     if (form_data) {
       intakeFormId = uuidv4();
@@ -72,7 +98,6 @@ router.post('/', requireAuth, async (req, res) => {
       );
     }
 
-    // Create ticket
     const ticketId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
@@ -81,7 +106,6 @@ router.post('/', requireAuth, async (req, res) => {
       [ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber, position, estimatedWait]
     );
 
-    // Log event
     await conn.query(
       `INSERT INTO queue_events (id, ticket_id, previous_status, new_status)
        VALUES (?, ?, NULL, 'waiting')`,
@@ -89,7 +113,6 @@ router.post('/', requireAuth, async (req, res) => {
     );
 
     await conn.commit();
-
     const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
     res.status(201).json(ticket[0]);
   } catch (err) {
@@ -101,11 +124,11 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /api/tickets/queue/:queue_id — All tickets for a queue ─
-// IMPORTANT: Declared BEFORE /:id to prevent Express matching "queue" as a UUID.
+// GET /api/tickets/queue/:queue_id — All tickets for a queue (staff)
+// MUST be declared before /:id
 router.get('/queue/:queue_id', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
   try {
-    const [rows] = await pool.query(
+    const [tickets] = await pool.query(
       `SELECT t.*, u.full_name AS user_name, u.phone AS user_phone
        FROM queue_tickets t
        LEFT JOIN users u ON t.user_id = u.id
@@ -113,24 +136,68 @@ router.get('/queue/:queue_id', requireAuth, requireRole('line_staff', 'manager',
        ORDER BY t.position`,
       [req.params.queue_id]
     );
-    res.json(rows);
+    res.json(tickets);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch tickets.' });
   }
 });
 
-// ── GET /api/tickets/:id — Get ticket status ─────────────────
+// GET /api/tickets/:id/position — Customer position among WAITING only
+// MUST be declared before /:id
+router.get('/:id/position', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.id, t.status, t.queue_id,
+              (SELECT COUNT(*) + 1
+               FROM queue_tickets t2
+               WHERE t2.queue_id = t.queue_id
+                 AND t2.status = 'waiting'
+                 AND t2.position < t.position) AS waiting_position,
+              (SELECT COUNT(*)
+               FROM queue_tickets t3
+               WHERE t3.queue_id = t.queue_id
+                 AND t3.status = 'waiting') AS total_waiting
+       FROM queue_tickets t
+       WHERE t.id = ?`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+
+    const row = rows[0];
+    const isNext = row.status === 'waiting' && row.waiting_position === 1;
+
+    res.json({
+      ticket_id:        row.id,
+      status:           row.status,
+      waiting_position: row.status === 'waiting' ? row.waiting_position : null,
+      total_waiting:    row.total_waiting,
+      is_next:          isNext,
+      status_message:   isNext ? "You're next!" : null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch position.' });
+  }
+});
+
+// GET /api/tickets/:id — Get ticket status
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT t.*,
               q.branch_id, q.service_id, q.queue_date,
-              b.name  AS branch_name,
-              s.name  AS service_name,
-              (SELECT COUNT(*) FROM queue_tickets t2
-               WHERE t2.queue_id = t.queue_id AND t2.status = 'waiting' AND t2.position < t.position)
-                      AS people_ahead
+              b.name AS branch_name,
+              s.name AS service_name,
+              (SELECT COUNT(*) + 1
+               FROM queue_tickets t2
+               WHERE t2.queue_id = t.queue_id
+                 AND t2.status = 'waiting'
+                 AND t2.position < t.position) AS waiting_position,
+              (SELECT COUNT(*)
+               FROM queue_tickets t3
+               WHERE t3.queue_id = t.queue_id
+                 AND t3.status = 'waiting') AS total_waiting
        FROM queue_tickets t
        JOIN queues   q ON t.queue_id   = q.id
        JOIN branches b ON q.branch_id  = b.id
@@ -139,61 +206,82 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
-    res.json(rows[0]);
+
+    const ticket = rows[0];
+    const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
+
+    res.json({
+      ...ticket,
+      is_next:       isNext,
+      status_message: isNext ? "You're next!" : null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch ticket.' });
   }
 });
 
-// ── PUT /api/tickets/:id/status — Update ticket status ───────
-// Valid transitions: waiting→serving, serving→completed, *→cancelled, *→no_show
+// PUT /api/tickets/:id/status — Update ticket status
+// Transitions: waiting->in_service, in_service->served, *->left, *->cancelled
 router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  const parsed = updateStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0].message });
+  }
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
-    const { new_status, notes } = req.body;
-    const validStatuses = ['serving', 'completed', 'cancelled', 'no_show'];
-    if (!validStatuses.includes(new_status)) {
-      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
-    }
+    const { new_status, notes } = parsed.data;
 
-    const [tickets] = await conn.query('SELECT * FROM queue_tickets WHERE id = ? FOR UPDATE', [req.params.id]);
+    const [tickets] = await conn.query(
+      'SELECT t.*, q.branch_id FROM queue_tickets t JOIN queues q ON t.queue_id = q.id WHERE t.id = ? FOR UPDATE',
+      [req.params.id]
+    );
     if (!tickets.length) {
       await conn.rollback();
       return res.status(404).json({ error: 'Ticket not found.' });
     }
-    const ticket = tickets[0];
+    const ticket     = tickets[0];
     const prevStatus = ticket.status;
 
-    // Build timestamp updates
+    if (new_status === 'in_service' && prevStatus !== 'waiting') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Only waiting tickets can be moved to in_service.' });
+    }
+    if (new_status === 'served' && prevStatus !== 'in_service') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Only in_service tickets can be marked served.' });
+    }
+
     const now = new Date();
     let extraFields = '';
-    const extraParams = [];
+    let extraParams = [];
 
-    if (new_status === 'serving') {
+    if (new_status === 'in_service') {
+      // Calling the customer is the start of service — no separate CALLED state
       extraFields = ', called_at = ?, started_serving_at = ?, served_by_staff_id = ?';
-      extraParams.push(now, now, req.dbStaff?.id || null);
-    } else if (new_status === 'completed') {
+      extraParams = [now, now, req.dbStaff?.id || null];
+    } else if (new_status === 'served') {
       extraFields = ', completed_at = ?';
-      extraParams.push(now);
+      extraParams = [now];
+    }
 
-      // Write wait-time record for analytics
-      const [queueRows] = await conn.query('SELECT * FROM queues WHERE id = ?', [ticket.queue_id]);
-      const queue = queueRows[0];
-      const joinedAt = ticket.joined_at ? new Date(ticket.joined_at) : null;
+    // Record analytics for terminal statuses
+    if (['served', 'left', 'cancelled'].includes(new_status)) {
+      const joinedAt  = ticket.joined_at ? new Date(ticket.joined_at) : null;
       const startedAt = ticket.started_serving_at ? new Date(ticket.started_serving_at) : null;
-      const waitMin = joinedAt && startedAt ? (startedAt - joinedAt) / 60000 : null;
-      const svcMin  = startedAt ? (now - startedAt) / 60000 : null;
+      const waitMin   = joinedAt && startedAt ? (startedAt - joinedAt) / 60000 : null;
+      const svcMin    = startedAt ? (now - startedAt) / 60000 : null;
 
       const [qLen] = await conn.query(
-        "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status IN ('waiting','serving')",
+        "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
         [ticket.queue_id]
       );
       const [staffCnt] = await conn.query(
         'SELECT COUNT(*) AS cnt FROM staff_assignments WHERE counter_id IN (SELECT id FROM counters WHERE branch_id = ?) AND assignment_date = CURDATE()',
-        [queue.branch_id]
+        [ticket.branch_id]
       );
 
       await conn.query(
@@ -207,7 +295,6 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
         [uuidv4(), ticket.id, waitMin, svcMin, new_status, staffCnt[0].cnt, qLen[0].cnt, ticket.queue_id]
       );
 
-      // Write visit history for the user
       if (ticket.user_id) {
         const [qInfo] = await conn.query(
           `SELECT br.name AS branch_name, biz.name AS business_name, biz.id AS business_id,
@@ -240,27 +327,21 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
       [new_status, ...extraParams, ticket.id]
     );
 
-    // Log event
     await conn.query(
       `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [uuidv4(), ticket.id, prevStatus, new_status, req.dbStaff?.id || null, notes || null]
     );
 
-    // ── Dynamic wait-time recalculation ─────────────────────────────────────
-    // After any terminal status change (completed, cancelled, no_show),
-    // recalculate estimated_wait_minutes for all remaining 'waiting' tickets
-    // in this queue. This ensures users always see an accurate estimate.
-    if (['completed', 'cancelled', 'no_show'].includes(new_status)) {
-      // Get the real-time average service duration from the last 20 completions
+    // Recalculate wait times for remaining WAITING tickets after terminal events
+    if (['served', 'left', 'cancelled'].includes(new_status)) {
       const [avgRows] = await conn.query(
         `SELECT AVG(service_time_minutes) AS avg_svc
          FROM wait_time_records
-         WHERE queue_id = ? AND status = 'completed'
+         WHERE queue_id = ? AND status = 'served'
          ORDER BY created_at DESC LIMIT 20`,
         [ticket.queue_id]
       );
-      // Fall back to the service's base average if no history yet
       const [svcBase] = await conn.query(
         `SELECT s.base_avg_time_minutes
          FROM queues q JOIN services s ON q.service_id = s.id
@@ -269,7 +350,6 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
       );
       const dynamicAvg = avgRows[0]?.avg_svc || svcBase[0]?.base_avg_time_minutes || 15;
 
-      // Recalculate position-based waits for all remaining waiting tickets
       await conn.query(
         `UPDATE queue_tickets t
          JOIN (
@@ -284,13 +364,92 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
     }
 
     await conn.commit();
-
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
     console.error(err);
     res.status(500).json({ error: 'Failed to update ticket status.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// PUT /api/tickets/:id/move-up — Move waiting ticket up one position
+router.put('/:id/move-up', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [tickets] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE id = ? AND status = 'waiting' FOR UPDATE",
+      [req.params.id]
+    );
+    if (!tickets.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Waiting ticket not found.' });
+    }
+    const ticket = tickets[0];
+
+    const [above] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE queue_id = ? AND status = 'waiting' AND position < ? ORDER BY position DESC LIMIT 1 FOR UPDATE",
+      [ticket.queue_id, ticket.position]
+    );
+    if (!above.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Ticket is already at the front of the queue.' });
+    }
+
+    await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [above[0].position, ticket.id]);
+    await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [ticket.position, above[0].id]);
+
+    await conn.commit();
+    const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    res.json(updated[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to move ticket up.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// PUT /api/tickets/:id/move-down — Move waiting ticket down one position
+router.put('/:id/move-down', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [tickets] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE id = ? AND status = 'waiting' FOR UPDATE",
+      [req.params.id]
+    );
+    if (!tickets.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Waiting ticket not found.' });
+    }
+    const ticket = tickets[0];
+
+    const [below] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE queue_id = ? AND status = 'waiting' AND position > ? ORDER BY position ASC LIMIT 1 FOR UPDATE",
+      [ticket.queue_id, ticket.position]
+    );
+    if (!below.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Ticket is already at the back of the queue.' });
+    }
+
+    await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [below[0].position, ticket.id]);
+    await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [ticket.position, below[0].id]);
+
+    await conn.commit();
+    const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    res.json(updated[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to move ticket down.' });
   } finally {
     conn.release();
   }

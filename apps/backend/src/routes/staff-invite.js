@@ -1,0 +1,262 @@
+/**
+ * staff-invite.js — Staff invite-code flow for Q ME NOW
+ *
+ * Staff accounts are NEVER self-registered. They must be created by a manager
+ * or executive, who generates an invite code. The invited staff member uses
+ * the invite code to complete their account setup.
+ *
+ * POST /api/staff-invite/create       — Manager/exec creates an invite (generates code)
+ * POST /api/staff-invite/redeem       — Invited staff redeems the code to activate account
+ * GET  /api/staff-invite/pending      — List pending invites for a business (manager/exec)
+ * DELETE /api/staff-invite/:id        — Revoke a pending invite (manager/exec)
+ */
+const router  = require('express').Router();
+const { z }   = require('zod');
+const { v4: uuidv4 } = require('uuid');
+const crypto  = require('crypto');
+const pool    = require('../db/pool');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { auditLog } = require('../middleware/auditLog');
+
+// ── Validation schemas ────────────────────────────────────────
+const createInviteSchema = z.object({
+  email:       z.string().email('A valid email is required'),
+  full_name:   z.string().min(1).max(255),
+  role:        z.enum(['line_staff', 'manager'], {
+    errorMap: () => ({ message: 'role must be line_staff or manager' }),
+  }),
+  business_id: z.string().uuid('business_id must be a valid UUID'),
+  branch_id:   z.string().uuid('branch_id must be a valid UUID').optional(),
+  expires_hours: z.number().int().min(1).max(168).optional().default(48),
+});
+
+const redeemInviteSchema = z.object({
+  invite_code: z.string().min(8).max(64),
+  full_name:   z.string().min(1).max(255).optional(),
+  phone:       z.string().max(50).optional(),
+  password:    z.string().min(8).max(128, 'Password must be between 8 and 128 characters'),
+});
+
+// ── POST /api/staff-invite/create ─────────────────────────────
+router.post('/create',
+  requireAuth,
+  requireRole('manager', 'executive'),
+  auditLog('create_staff_invite', 'staff_invite'),
+  async (req, res) => {
+    const parsed = createInviteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0].message });
+    }
+
+    const { email, full_name, role, business_id, branch_id, expires_hours } = parsed.data;
+
+    try {
+      // Verify the inviting staff belongs to this business
+      const [staffRows] = await pool.query(
+        'SELECT id, role FROM staff WHERE id = ? AND business_id = ? AND is_active = TRUE',
+        [req.dbStaff?.id, business_id]
+      );
+      if (!staffRows.length) {
+        return res.status(403).json({ error: 'You do not have permission to invite staff for this business.' });
+      }
+
+      // Managers can only invite line_staff; executives can invite managers and line_staff
+      const inviterRole = staffRows[0].role;
+      if (inviterRole === 'manager' && role !== 'line_staff') {
+        return res.status(403).json({ error: 'Managers can only invite line staff.' });
+      }
+
+      // Check for existing pending invite for this email+business
+      const [existing] = await pool.query(
+        "SELECT id FROM staff_invites WHERE email = ? AND business_id = ? AND status = 'pending' AND expires_at > NOW()",
+        [email, business_id]
+      );
+      if (existing.length) {
+        return res.status(409).json({ error: 'A pending invite already exists for this email.' });
+      }
+
+      // Generate a secure, URL-safe invite code
+      const inviteCode = crypto.randomBytes(24).toString('base64url');
+      const expiresAt  = new Date(Date.now() + expires_hours * 60 * 60 * 1000);
+      const inviteId   = uuidv4();
+
+      await pool.query(
+        `INSERT INTO staff_invites
+           (id, business_id, branch_id, email, full_name, role, invite_code,
+            invited_by_staff_id, expires_at, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [inviteId, business_id, branch_id || null, email, full_name, role,
+         inviteCode, req.dbStaff?.id, expiresAt]
+      );
+
+      res.status(201).json({
+        invite_id:    inviteId,
+        invite_code:  inviteCode,
+        email,
+        full_name,
+        role,
+        expires_at:   expiresAt.toISOString(),
+        // In production, this code would be emailed to the invitee.
+        // The invite_code is returned here for the admin to share manually
+        // or for the email service to pick up.
+        message: `Invite created. Share the invite code with ${full_name} (${email}).`,
+      });
+    } catch (err) {
+      console.error('[StaffInvite] Create error:', err.message);
+      res.status(500).json({ error: 'Failed to create staff invite.' });
+    }
+  }
+);
+
+// ── POST /api/staff-invite/redeem ─────────────────────────────
+router.post('/redeem', async (req, res) => {
+  const parsed = redeemInviteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors[0].message });
+  }
+
+  const { invite_code, full_name, phone, password } = parsed.data;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [invites] = await conn.query(
+      `SELECT * FROM staff_invites
+       WHERE invite_code = ? AND status = 'pending' AND expires_at > NOW()
+       FOR UPDATE`,
+      [invite_code]
+    );
+    if (!invites.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Invalid or expired invite code.' });
+    }
+
+    const invite = invites[0];
+
+    // Check if a staff account already exists for this email
+    const [existing] = await conn.query(
+      'SELECT id FROM staff WHERE email = ? AND business_id = ?',
+      [invite.email, invite.business_id]
+    );
+    if (existing.length) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'A staff account already exists for this email.' });
+    }
+
+    // Hash password
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Get the role_id for the invited role
+    const [roleRows] = await conn.query(
+      'SELECT id FROM staff_roles WHERE role_name = ?',
+      [invite.role]
+    );
+    const roleId = roleRows[0]?.id || null;
+
+    // Create the staff account
+    const staffId   = uuidv4();
+    const staffCode = `STF-${Date.now().toString(36).toUpperCase()}`;
+
+    await conn.query(
+      `INSERT INTO staff
+         (id, business_id, branch_id, role_id, full_name, email, phone,
+          staff_code, password_hash, is_active, invited_by_staff_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
+      [
+        staffId,
+        invite.business_id,
+        invite.branch_id || null,
+        roleId,
+        full_name || invite.full_name,
+        invite.email,
+        phone || null,
+        staffCode,
+        passwordHash,
+        invite.invited_by_staff_id,
+      ]
+    );
+
+    // Mark invite as redeemed
+    await conn.query(
+      "UPDATE staff_invites SET status = 'redeemed', redeemed_at = NOW(), redeemed_by_staff_id = ? WHERE id = ?",
+      [staffId, invite.id]
+    );
+
+    await conn.commit();
+
+    res.status(201).json({
+      success:    true,
+      staff_id:   staffId,
+      staff_code: staffCode,
+      email:      invite.email,
+      role:       invite.role,
+      message:    'Staff account created successfully. You can now log in.',
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('[StaffInvite] Redeem error:', err.message);
+    res.status(500).json({ error: 'Failed to redeem invite.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ── GET /api/staff-invite/pending ─────────────────────────────
+router.get('/pending',
+  requireAuth,
+  requireRole('manager', 'executive'),
+  async (req, res) => {
+    const { business_id } = req.query;
+    if (!business_id) {
+      return res.status(400).json({ error: 'business_id query parameter is required.' });
+    }
+
+    try {
+      const [rows] = await pool.query(
+        `SELECT si.id, si.email, si.full_name, si.role, si.expires_at,
+                si.created_at, s.full_name AS invited_by_name
+         FROM staff_invites si
+         LEFT JOIN staff s ON si.invited_by_staff_id = s.id
+         WHERE si.business_id = ? AND si.status = 'pending' AND si.expires_at > NOW()
+         ORDER BY si.created_at DESC`,
+        [business_id]
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch pending invites.' });
+    }
+  }
+);
+
+// ── DELETE /api/staff-invite/:id ──────────────────────────────
+router.delete('/:id',
+  requireAuth,
+  requireRole('manager', 'executive'),
+  auditLog('revoke_staff_invite', 'staff_invite'),
+  async (req, res) => {
+    try {
+      const [rows] = await pool.query(
+        "SELECT id, business_id FROM staff_invites WHERE id = ? AND status = 'pending'",
+        [req.params.id]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Pending invite not found.' });
+      }
+
+      await pool.query(
+        "UPDATE staff_invites SET status = 'revoked', revoked_at = NOW() WHERE id = ?",
+        [req.params.id]
+      );
+
+      res.json({ success: true, message: 'Invite revoked.' });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to revoke invite.' });
+    }
+  }
+);
+
+module.exports = router;
