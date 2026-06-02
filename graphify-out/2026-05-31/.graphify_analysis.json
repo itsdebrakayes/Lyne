@@ -1,0 +1,3374 @@
+{
+  "communities": {
+    "0": [
+      "package_dependencies",
+      "package_dependencies_class_variance_authority",
+      "package_dependencies_clsx",
+      "package_dependencies_cmdk",
+      "package_dependencies_date_fns",
+      "package_dependencies_embla_carousel_react",
+      "package_dependencies_hookform_resolvers",
+      "package_dependencies_input_otp",
+      "package_dependencies_lucide_react",
+      "package_dependencies_next_themes",
+      "package_dependencies_radix_ui_react_accordion",
+      "package_dependencies_radix_ui_react_alert_dialog",
+      "package_dependencies_radix_ui_react_aspect_ratio",
+      "package_dependencies_radix_ui_react_avatar",
+      "package_dependencies_radix_ui_react_checkbox",
+      "package_dependencies_radix_ui_react_collapsible",
+      "package_dependencies_radix_ui_react_context_menu",
+      "package_dependencies_radix_ui_react_dialog",
+      "package_dependencies_radix_ui_react_dropdown_menu",
+      "package_dependencies_radix_ui_react_hover_card",
+      "package_dependencies_radix_ui_react_label",
+      "package_dependencies_radix_ui_react_menubar",
+      "package_dependencies_radix_ui_react_navigation_menu",
+      "package_dependencies_radix_ui_react_popover",
+      "package_dependencies_radix_ui_react_progress",
+      "package_dependencies_radix_ui_react_radio_group",
+      "package_dependencies_radix_ui_react_scroll_area",
+      "package_dependencies_radix_ui_react_select",
+      "package_dependencies_radix_ui_react_separator",
+      "package_dependencies_radix_ui_react_slider",
+      "package_dependencies_radix_ui_react_slot",
+      "package_dependencies_radix_ui_react_switch",
+      "package_dependencies_radix_ui_react_tabs",
+      "package_dependencies_radix_ui_react_toast",
+      "package_dependencies_radix_ui_react_toggle_group",
+      "package_dependencies_radix_ui_react_tooltip",
+      "package_dependencies_react",
+      "package_dependencies_react_day_picker",
+      "package_dependencies_react_dom",
+      "package_dependencies_react_hook_form",
+      "package_dependencies_react_resizable_panels",
+      "package_dependencies_react_router_dom",
+      "package_dependencies_recharts",
+      "package_dependencies_sonner",
+      "package_dependencies_supabase_supabase_js",
+      "package_dependencies_tailwind_merge",
+      "package_dependencies_tailwindcss_animate",
+      "package_dependencies_tanstack_react_query",
+      "package_dependencies_vaul",
+      "package_dependencies_zod"
+    ],
+    "1": [
+      "website_package_dependencies",
+      "website_package_dependencies_class_variance_authority",
+      "website_package_dependencies_clsx",
+      "website_package_dependencies_cmdk",
+      "website_package_dependencies_date_fns",
+      "website_package_dependencies_embla_carousel_react",
+      "website_package_dependencies_framer_motion",
+      "website_package_dependencies_hookform_resolvers",
+      "website_package_dependencies_input_otp",
+      "website_package_dependencies_lucide_react",
+      "website_package_dependencies_next_themes",
+      "website_package_dependencies_radix_ui_react_accordion",
+      "website_package_dependencies_radix_ui_react_alert_dialog",
+      "website_package_dependencies_radix_ui_react_aspect_ratio",
+      "website_package_dependencies_radix_ui_react_avatar",
+      "website_package_dependencies_radix_ui_react_checkbox",
+      "website_package_dependencies_radix_ui_react_collapsible",
+      "website_package_dependencies_radix_ui_react_context_menu",
+      "website_package_dependencies_radix_ui_react_dialog",
+      "website_package_dependencies_radix_ui_react_dropdown_menu",
+      "website_package_dependencies_radix_ui_react_hover_card",
+      "website_package_dependencies_radix_ui_react_label",
+      "website_package_dependencies_radix_ui_react_menubar",
+      "website_package_dependencies_radix_ui_react_navigation_menu",
+      "website_package_dependencies_radix_ui_react_popover",
+      "website_package_dependencies_radix_ui_react_progress",
+      "website_package_dependencies_radix_ui_react_radio_group",
+      "website_package_dependencies_radix_ui_react_scroll_area",
+      "website_package_dependencies_radix_ui_react_select",
+      "website_package_dependencies_radix_ui_react_separator",
+      "website_package_dependencies_radix_ui_react_slider",
+      "website_package_dependencies_radix_ui_react_slot",
+      "website_package_dependencies_radix_ui_react_switch",
+      "website_package_dependencies_radix_ui_react_tabs",
+      "website_package_dependencies_radix_ui_react_tooltip",
+      "website_package_dependencies_react",
+      "website_package_dependencies_react_day_picker",
+      "website_package_dependencies_react_dom",
+      "website_package_dependencies_react_hook_form",
+      "website_package_dependencies_react_resizable_panels",
+      "website_package_dependencies_react_router_dom",
+      "website_package_dependencies_recharts",
+      "website_package_dependencies_sonner",
+      "website_package_dependencies_supabase_supabase_js",
+      "website_package_dependencies_tailwind_merge",
+      "website_package_dependencies_tailwindcss_animate",
+      "website_package_dependencies_tanstack_react_query",
+      "website_package_dependencies_vaul",
+      "website_package_dependencies_zod"
+    ],
+    "2": [
+      "apps_model_scripts_generate_sample_data_py_float",
+      "apps_model_scripts_generate_sample_data_py_int",
+      "apps_model_scripts_generate_sample_data_py_str",
+      "apps_website_src_pages_admin_staffdashboard_tsx_admin_staffdashboard",
+      "apps_website_src_pages_ticket_tsx_pages_ticket",
+      "apps_website_src_pages_ticket_tsx_pages_ticket_ticket",
+      "components_emptystate",
+      "components_emptystate_apierrorstate",
+      "components_emptystate_noanalyticsempty",
+      "components_emptystate_nohistoryempty",
+      "components_emptystate_nonotificationsempty",
+      "components_emptystate_noqueuesempty",
+      "components_emptystate_nostaffempty",
+      "components_queuestatusbadge",
+      "components_queuestatusbadge_config",
+      "components_queuestatusbadge_dot_size",
+      "components_queuestatusbadge_size",
+      "components_queuestatusbadge_ticketstatus",
+      "components_skeletonloaders",
+      "components_skeletonloaders_businesscardskeleton",
+      "components_skeletonloaders_chartskeleton",
+      "components_skeletonloaders_dashboardheaderskeleton",
+      "components_skeletonloaders_dashboardskeleton",
+      "components_skeletonloaders_glassskeleton",
+      "components_skeletonloaders_queueitemskeleton",
+      "components_skeletonloaders_statcardskeleton",
+      "components_skeletonloaders_tablerowskeleton",
+      "components_skeletonloaders_ticketpageskeleton",
+      "date",
+      "scripts_generate_sample_data",
+      "scripts_generate_sample_data_daily_volume",
+      "scripts_generate_sample_data_rationale_1",
+      "scripts_generate_sample_data_rationale_104",
+      "scripts_generate_sample_data_rationale_129",
+      "scripts_generate_sample_data_sample_hour",
+      "scripts_generate_sample_data_service_minutes",
+      "scripts_generate_sample_data_wait_minutes",
+      "src_pages_clientdirectory_tsx_pages_clientdirectory",
+      "ui_livequeuedisplay",
+      "ui_livequeuedisplay_animatednumber",
+      "ui_livequeuedisplay_animatednumberprops",
+      "ui_livequeuedisplay_countdowntimer",
+      "ui_livequeuedisplay_countdowntimerprops",
+      "ui_livequeuedisplay_flipdigit",
+      "ui_livequeuedisplay_flipdigitprops",
+      "ui_livequeuedisplay_livedot",
+      "ui_livequeuedisplay_queueposition",
+      "ui_livequeuedisplay_queuepositionprops"
+    ],
+    "3": [
+      "admin_desktop_package",
+      "admin_desktop_package_author",
+      "admin_desktop_package_build",
+      "admin_desktop_package_build_appid",
+      "admin_desktop_package_build_directories",
+      "admin_desktop_package_build_nsis",
+      "admin_desktop_package_build_productname",
+      "admin_desktop_package_build_win",
+      "admin_desktop_package_dependencies",
+      "admin_desktop_package_dependencies_axios",
+      "admin_desktop_package_dependencies_class_variance_authority",
+      "admin_desktop_package_dependencies_clsx",
+      "admin_desktop_package_dependencies_date_fns",
+      "admin_desktop_package_dependencies_lucide_react",
+      "admin_desktop_package_dependencies_next_themes",
+      "admin_desktop_package_dependencies_react",
+      "admin_desktop_package_dependencies_react_dom",
+      "admin_desktop_package_dependencies_react_router_dom",
+      "admin_desktop_package_dependencies_recharts",
+      "admin_desktop_package_dependencies_sonner",
+      "admin_desktop_package_dependencies_supabase_supabase_js",
+      "admin_desktop_package_dependencies_tailwind_merge",
+      "admin_desktop_package_dependencies_tanstack_react_query",
+      "admin_desktop_package_description",
+      "admin_desktop_package_directories_output",
+      "admin_desktop_package_license",
+      "admin_desktop_package_main",
+      "admin_desktop_package_name",
+      "admin_desktop_package_nsis_allowtochangeinstallationdirectory",
+      "admin_desktop_package_nsis_createdesktopshortcut",
+      "admin_desktop_package_nsis_createstartmenushortcut",
+      "admin_desktop_package_nsis_installerheadericon",
+      "admin_desktop_package_nsis_installericon",
+      "admin_desktop_package_nsis_oneclick",
+      "admin_desktop_package_scripts",
+      "admin_desktop_package_scripts_build_win",
+      "admin_desktop_package_scripts_dev",
+      "admin_desktop_package_scripts_preview",
+      "admin_desktop_package_version",
+      "admin_desktop_package_win_icon",
+      "admin_desktop_package_win_target"
+    ],
+    "4": [
+      "analytics_api_main_py_int",
+      "analytics_api_main_py_str",
+      "api_main",
+      "api_main_best_time",
+      "api_main_besttimeresponse",
+      "api_main_besttimeslot",
+      "api_main_branch_trends",
+      "api_main_branchtrendentry",
+      "api_main_get_db_connection",
+      "api_main_health",
+      "api_main_hour_label",
+      "api_main_load_csv_fallback",
+      "api_main_peak_hours",
+      "api_main_peakhourentry",
+      "api_main_peakhoursresponse",
+      "api_main_rationale_1",
+      "api_main_rationale_135",
+      "api_main_rationale_159",
+      "api_main_rationale_236",
+      "api_main_rationale_309",
+      "api_main_rationale_355",
+      "api_main_rationale_419",
+      "api_main_rationale_479",
+      "api_main_rationale_59",
+      "api_main_run_model",
+      "api_main_service_ranking",
+      "api_main_servicerankentry",
+      "api_main_verify_api_key",
+      "api_main_waitprediction",
+      "apps_website_src_pages_besttime_tsx_pages_besttime",
+      "apps_website_src_pages_besttime_tsx_pages_besttime_congestiondata",
+      "apps_website_src_pages_besttime_tsx_pages_besttime_days",
+      "apps_website_src_pages_besttime_tsx_pages_besttime_hours",
+      "basemodel",
+      "src_pages_besttime_tsx_pages_besttime",
+      "src_pages_besttime_tsx_pages_besttime_congestiondata",
+      "src_pages_besttime_tsx_pages_besttime_days",
+      "src_pages_besttime_tsx_pages_besttime_hours"
+    ],
+    "5": [
+      "apps_backend_src_routes_predictions_js_routes_predictions_pool",
+      "apps_backend_src_routes_predictions_js_routes_predictions_requireauth_requirerole",
+      "apps_backend_src_routes_predictions_js_routes_predictions_router",
+      "apps_backend_src_routes_predictions_js_routes_predictions_v4_uuidv4",
+      "apps_website_src_types_insights_ts_types_insights_gethourrange",
+      "backend_src_routes_predictions_js_routes_predictions_pool",
+      "backend_src_routes_predictions_js_routes_predictions_requireauth_requirerole",
+      "backend_src_routes_predictions_js_routes_predictions_router",
+      "backend_src_routes_predictions_js_routes_predictions_v4_uuidv4",
+      "components_besttimecard",
+      "components_besttimecard_formathour",
+      "components_besttimecard_props",
+      "components_besttimecard_styles",
+      "pages_executivedashboard_prediction",
+      "src_types_insights_ts_types_insights",
+      "src_types_insights_ts_types_insights_analyticsinsight",
+      "src_types_insights_ts_types_insights_anomalyalert",
+      "src_types_insights_ts_types_insights_besttimesdata",
+      "src_types_insights_ts_types_insights_besttimeslot",
+      "src_types_insights_ts_types_insights_clientprediction",
+      "src_types_insights_ts_types_insights_clientpredictionsoutput",
+      "src_types_insights_ts_types_insights_dropoffbyservice",
+      "src_types_insights_ts_types_insights_dropoffdata",
+      "src_types_insights_ts_types_insights_dropoffperiod",
+      "src_types_insights_ts_types_insights_getefficiencystatuscolor",
+      "src_types_insights_ts_types_insights_getheatmaplevel",
+      "src_types_insights_ts_types_insights_gethourrange",
+      "src_types_insights_ts_types_insights_getseveritycolor",
+      "src_types_insights_ts_types_insights_heatmapcell",
+      "src_types_insights_ts_types_insights_insighttype",
+      "src_types_insights_ts_types_insights_opsinsightsoutput",
+      "src_types_insights_ts_types_insights_peakhoursdata",
+      "src_types_insights_ts_types_insights_serviceefficiency",
+      "src_types_insights_ts_types_insights_serviceusagedata",
+      "src_types_insights_ts_types_insights_staffmetricdata",
+      "src_types_insights_ts_types_insights_staffmetricsoutput",
+      "src_types_insights_ts_types_insights_weeklypattern"
+    ],
+    "6": [
+      "middleware_auditlog",
+      "middleware_auditlog_auditlog",
+      "middleware_auditlog_pool",
+      "middleware_auditlog_v4_uuidv4",
+      "routes_ocr",
+      "routes_ocr_auditlog",
+      "routes_ocr_masktrn_masknationalid",
+      "routes_ocr_parseocrtext",
+      "routes_ocr_pool",
+      "routes_ocr_requireauth",
+      "routes_ocr_router",
+      "routes_ocr_saveschema",
+      "routes_ocr_scanschema",
+      "routes_ocr_v4_uuidv4",
+      "routes_ocr_z",
+      "routes_staff_invite",
+      "routes_staff_invite_auditlog",
+      "routes_staff_invite_createinviteschema",
+      "routes_staff_invite_crypto",
+      "routes_staff_invite_pool",
+      "routes_staff_invite_redeeminviteschema",
+      "routes_staff_invite_requireauth_requirerole",
+      "routes_staff_invite_router",
+      "routes_staff_invite_v4_uuidv4",
+      "routes_staff_invite_z",
+      "utils_maskdata",
+      "utils_maskdata_maskemail",
+      "utils_maskdata_masknationalid",
+      "utils_maskdata_maskpassport",
+      "utils_maskdata_maskphone",
+      "utils_maskdata_maskstaff",
+      "utils_maskdata_masktrn",
+      "utils_maskdata_maskuser",
+      "utils_maskdata_topublicticket"
+    ],
+    "7": [
+      "mobile_package",
+      "mobile_package_dependencies",
+      "mobile_package_dependencies_expo",
+      "mobile_package_dependencies_expo_constants",
+      "mobile_package_dependencies_expo_font",
+      "mobile_package_dependencies_expo_linking",
+      "mobile_package_dependencies_expo_notifications",
+      "mobile_package_dependencies_expo_router",
+      "mobile_package_dependencies_expo_splash_screen",
+      "mobile_package_dependencies_expo_status_bar",
+      "mobile_package_dependencies_expo_vector_icons",
+      "mobile_package_dependencies_react",
+      "mobile_package_dependencies_react_native",
+      "mobile_package_dependencies_react_native_async_storage_async_storage",
+      "mobile_package_dependencies_react_native_safe_area_context",
+      "mobile_package_dependencies_react_native_screens",
+      "mobile_package_dependencies_react_navigation_bottom_tabs",
+      "mobile_package_dependencies_react_navigation_native",
+      "mobile_package_dependencies_supabase_supabase_js",
+      "mobile_package_dependencies_tanstack_react_query",
+      "mobile_package_description",
+      "mobile_package_main",
+      "mobile_package_name",
+      "mobile_package_scripts",
+      "mobile_package_scripts_android",
+      "mobile_package_scripts_build_android",
+      "mobile_package_scripts_build_ios",
+      "mobile_package_scripts_ios",
+      "mobile_package_scripts_start",
+      "mobile_package_scripts_web",
+      "mobile_package_version"
+    ],
+    "8": [
+      "apps_admin_desktop_src_lib_apiclient_ts_lib_apiclient",
+      "apps_admin_desktop_src_lib_apiclient_ts_lib_apiclient_api",
+      "apps_admin_desktop_src_lib_apiclient_ts_lib_apiclient_gettoken",
+      "apps_admin_desktop_src_lib_apiclient_ts_lib_apiclient_request",
+      "apps_mobile_app_json_mobile_app",
+      "lib_apiclient_supabase_anon_key",
+      "lib_apiclient_supabase_url",
+      "mobile_app_adaptiveicon_foregroundimage",
+      "mobile_app_android_adaptiveicon",
+      "mobile_app_android_package",
+      "mobile_app_eas_projectid",
+      "mobile_app_expo",
+      "mobile_app_expo_android",
+      "mobile_app_expo_extra",
+      "mobile_app_expo_icon",
+      "mobile_app_expo_ios",
+      "mobile_app_expo_name",
+      "mobile_app_expo_orientation",
+      "mobile_app_expo_plugins",
+      "mobile_app_expo_slug",
+      "mobile_app_expo_splash",
+      "mobile_app_expo_userinterfacestyle",
+      "mobile_app_expo_version",
+      "mobile_app_extra_apiurl",
+      "mobile_app_extra_eas",
+      "mobile_app_ios_bundleidentifier",
+      "mobile_app_ios_supportstablet",
+      "mobile_app_splash_backgroundcolor",
+      "mobile_app_splash_image",
+      "mobile_app_splash_resizemode"
+    ],
+    "9": [
+      "admin_desktop_app_tsx",
+      "admin_desktop_index_html",
+      "admin_desktop_login",
+      "admin_desktop_main_js",
+      "admin_desktop_preload_js",
+      "admin_desktop_readme",
+      "apps_admin_desktop_src_app_tsx_src_app",
+      "apps_admin_desktop_src_app_tsx_src_app_app",
+      "apps_website_src_components_protectedroute_tsx_components_protectedroute_protectedroute",
+      "apps_website_src_pages_admin_executivedashboard_tsx_admin_executivedashboard",
+      "components_loadingscreen",
+      "concept_role_executive",
+      "concept_role_line_staff",
+      "concept_role_manager",
+      "pages_executivedashboard",
+      "pages_executivedashboard_analyticssummary",
+      "pages_executivedashboard_branch",
+      "pages_executivedashboard_daterange",
+      "pages_executivedashboard_serviceperf",
+      "pages_managerdashboard",
+      "pages_managerdashboard_analyticssummary",
+      "pages_managerdashboard_queue",
+      "pages_managerdashboard_staffmember",
+      "pages_staffdashboard",
+      "pages_staffdashboard_queue",
+      "pages_staffdashboard_ticket",
+      "src_app_protectedroute",
+      "src_app_rolerouter",
+      "src_components_protectedroute_tsx_components_protectedroute_protectedroute"
+    ],
+    "10": [
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_action",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_actiontype",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_actiontypes",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_addtoremovequeue",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_dispatch",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_genid",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_listeners",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_memorystate",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_reducer",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_state",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_toast",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_toastertoast",
+      "apps_website_src_hooks_use_toast_ts_hooks_use_toast_toasttimeouts",
+      "src_hooks_use_toast_ts_hooks_use_toast",
+      "src_hooks_use_toast_ts_hooks_use_toast_action",
+      "src_hooks_use_toast_ts_hooks_use_toast_actiontype",
+      "src_hooks_use_toast_ts_hooks_use_toast_actiontypes",
+      "src_hooks_use_toast_ts_hooks_use_toast_addtoremovequeue",
+      "src_hooks_use_toast_ts_hooks_use_toast_dispatch",
+      "src_hooks_use_toast_ts_hooks_use_toast_genid",
+      "src_hooks_use_toast_ts_hooks_use_toast_listeners",
+      "src_hooks_use_toast_ts_hooks_use_toast_memorystate",
+      "src_hooks_use_toast_ts_hooks_use_toast_reducer",
+      "src_hooks_use_toast_ts_hooks_use_toast_state",
+      "src_hooks_use_toast_ts_hooks_use_toast_toast",
+      "src_hooks_use_toast_ts_hooks_use_toast_toastertoast",
+      "src_hooks_use_toast_ts_hooks_use_toast_toasttimeouts"
+    ],
+    "11": [
+      "analytics_utils_metrics_utils_py_any",
+      "analytics_utils_metrics_utils_py_bool",
+      "analytics_utils_metrics_utils_py_dataframe",
+      "analytics_utils_metrics_utils_py_float",
+      "analytics_utils_metrics_utils_py_int",
+      "analytics_utils_metrics_utils_py_series",
+      "analytics_utils_metrics_utils_py_str",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_calculate_completion_rate",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_calculate_efficiency_score_vectorized",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_calculate_utilization",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_calculate_z_scores",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_detect_anomalies",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_get_utilization_status",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_normalize_0_100",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rank_staff",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_1",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_10",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_116",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_25",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_60",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_67",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_79",
+      "analytics_utils_metrics_utils_py_utils_metrics_utils_rationale_92"
+    ],
+    "12": [
+      "apps_backend_package_json_backend_package",
+      "apps_backend_package_json_backend_package_dependencies",
+      "apps_backend_package_json_backend_package_dependencies_cors",
+      "apps_backend_package_json_backend_package_dependencies_dotenv",
+      "apps_backend_package_json_backend_package_dependencies_express",
+      "apps_backend_package_json_backend_package_dependencies_mysql2",
+      "apps_backend_package_json_backend_package_dependencies_supabase_supabase_js",
+      "apps_backend_package_json_backend_package_dependencies_uuid",
+      "apps_backend_package_json_backend_package_description",
+      "apps_backend_package_json_backend_package_devdependencies",
+      "apps_backend_package_json_backend_package_devdependencies_nodemon",
+      "apps_backend_package_json_backend_package_main",
+      "apps_backend_package_json_backend_package_name",
+      "apps_backend_package_json_backend_package_scripts",
+      "apps_backend_package_json_backend_package_scripts_dev",
+      "apps_backend_package_json_backend_package_scripts_start",
+      "apps_backend_package_json_backend_package_version",
+      "backend_package_dependencies_bcryptjs",
+      "backend_package_dependencies_compression",
+      "backend_package_dependencies_express_rate_limit",
+      "backend_package_dependencies_express_validator",
+      "backend_package_dependencies_helmet",
+      "backend_package_dependencies_morgan",
+      "backend_package_dependencies_zod"
+    ],
+    "13": [
+      "apps_model_utils_metrics_utils_py_any",
+      "apps_model_utils_metrics_utils_py_bool",
+      "apps_model_utils_metrics_utils_py_dataframe",
+      "apps_model_utils_metrics_utils_py_float",
+      "apps_model_utils_metrics_utils_py_int",
+      "apps_model_utils_metrics_utils_py_series",
+      "apps_model_utils_metrics_utils_py_str",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_calculate_completion_rate",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_calculate_efficiency_score_vectorized",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_calculate_utilization",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_calculate_z_scores",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_detect_anomalies",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_get_utilization_status",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_normalize_0_100",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rank_staff",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_1",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_10",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_116",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_25",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_60",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_67",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_79",
+      "apps_model_utils_metrics_utils_py_utils_metrics_utils_rationale_92"
+    ],
+    "14": [
+      "analytics_api_requirements",
+      "analytics_export_table_data_fn",
+      "analytics_import_insights_fn",
+      "analytics_nb01_data_health",
+      "analytics_nb02_admin_ops",
+      "analytics_nb03_staff_performance",
+      "analytics_nb04_client_best_time",
+      "analytics_readme",
+      "analytics_table_counters",
+      "analytics_table_lines",
+      "analytics_table_service_sessions",
+      "analytics_table_services",
+      "analytics_table_staff_roles",
+      "analytics_table_visit_history",
+      "backend_endpoint_predictions",
+      "model_output_best_time",
+      "model_output_ops_insights",
+      "model_output_staff_metrics",
+      "model_plot_best_time_taj",
+      "model_plot_heatmap_weekly",
+      "model_plot_service_speed",
+      "model_readme",
+      "model_script_export_csv",
+      "model_script_import_predictions"
+    ],
+    "15": [
+      "api_analytics_backendheatmaprow",
+      "api_analytics_backendservicerow",
+      "api_analytics_backendsummaryrow",
+      "api_analytics_backendticketrow",
+      "api_analytics_buildqs",
+      "apps_backend_src_routes_analytics_js_routes_analytics_pool",
+      "apps_backend_src_routes_analytics_js_routes_analytics_requireauth_requirerole",
+      "apps_backend_src_routes_analytics_js_routes_analytics_router",
+      "apps_website_src_lib_api_analytics_ts_api_analytics_fetchanalyticssummary",
+      "apps_website_src_lib_api_analytics_ts_api_analytics_fetchrecentactivity",
+      "apps_website_src_types_analytics_ts_types_analytics_activityevent",
+      "apps_website_src_types_analytics_ts_types_analytics_analyticssummary",
+      "apps_website_src_types_analytics_ts_types_analytics_dailystats",
+      "apps_website_src_types_analytics_ts_types_analytics_formattrendpercent",
+      "apps_website_src_types_analytics_ts_types_analytics_gethourlabel",
+      "apps_website_src_types_analytics_ts_types_analytics_gettrendicon",
+      "apps_website_src_types_analytics_ts_types_analytics_hourlydistribution",
+      "apps_website_src_types_analytics_ts_types_analytics_trenddata",
+      "backend_src_routes_analytics_js_routes_analytics_pool",
+      "backend_src_routes_analytics_js_routes_analytics_requireauth_requirerole",
+      "backend_src_routes_analytics_js_routes_analytics_router",
+      "src_lib_api_analytics_ts_api_analytics",
+      "src_lib_api_analytics_ts_api_analytics_fetchanalyticssummary",
+      "src_lib_api_analytics_ts_api_analytics_fetchrecentactivity"
+    ],
+    "16": [
+      "analytics_utils_feature_utils_py_any",
+      "analytics_utils_feature_utils_py_dataframe",
+      "analytics_utils_feature_utils_py_int",
+      "analytics_utils_feature_utils_py_str",
+      "analytics_utils_feature_utils_py_utils_feature_utils",
+      "analytics_utils_feature_utils_py_utils_feature_utils_add_date_col",
+      "analytics_utils_feature_utils_py_utils_feature_utils_calculate_traffic_by_slot",
+      "analytics_utils_feature_utils_py_utils_feature_utils_ensure_timestamp",
+      "analytics_utils_feature_utils_py_utils_feature_utils_identify_peak_slots",
+      "analytics_utils_feature_utils_py_utils_feature_utils_rationale_1",
+      "analytics_utils_feature_utils_py_utils_feature_utils_rationale_34",
+      "apps_model_utils_feature_utils_py_any",
+      "apps_model_utils_feature_utils_py_dataframe",
+      "apps_model_utils_feature_utils_py_int",
+      "apps_model_utils_feature_utils_py_str",
+      "apps_model_utils_feature_utils_py_utils_feature_utils",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_add_date_col",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_calculate_traffic_by_slot",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_ensure_timestamp",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_identify_peak_slots",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_rationale_1",
+      "apps_model_utils_feature_utils_py_utils_feature_utils_rationale_34",
+      "src_types_insights_ts_types_insights_getdayname"
+    ],
+    "17": [
+      "tsconfig_app",
+      "tsconfig_app_compileroptions",
+      "tsconfig_app_compileroptions_allowimportingtsextensions",
+      "tsconfig_app_compileroptions_baseurl",
+      "tsconfig_app_compileroptions_ignoredeprecations",
+      "tsconfig_app_compileroptions_isolatedmodules",
+      "tsconfig_app_compileroptions_jsx",
+      "tsconfig_app_compileroptions_lib",
+      "tsconfig_app_compileroptions_module",
+      "tsconfig_app_compileroptions_moduledetection",
+      "tsconfig_app_compileroptions_moduleresolution",
+      "tsconfig_app_compileroptions_noemit",
+      "tsconfig_app_compileroptions_nofallthroughcasesinswitch",
+      "tsconfig_app_compileroptions_noimplicitany",
+      "tsconfig_app_compileroptions_nounusedlocals",
+      "tsconfig_app_compileroptions_nounusedparameters",
+      "tsconfig_app_compileroptions_paths",
+      "tsconfig_app_compileroptions_skiplibcheck",
+      "tsconfig_app_compileroptions_strict",
+      "tsconfig_app_compileroptions_target",
+      "tsconfig_app_compileroptions_usedefineforclassfields",
+      "tsconfig_app_include",
+      "tsconfig_app_paths"
+    ],
+    "18": [
+      "website_tsconfig_app",
+      "website_tsconfig_app_compileroptions",
+      "website_tsconfig_app_compileroptions_allowimportingtsextensions",
+      "website_tsconfig_app_compileroptions_baseurl",
+      "website_tsconfig_app_compileroptions_ignoredeprecations",
+      "website_tsconfig_app_compileroptions_isolatedmodules",
+      "website_tsconfig_app_compileroptions_jsx",
+      "website_tsconfig_app_compileroptions_lib",
+      "website_tsconfig_app_compileroptions_module",
+      "website_tsconfig_app_compileroptions_moduledetection",
+      "website_tsconfig_app_compileroptions_moduleresolution",
+      "website_tsconfig_app_compileroptions_noemit",
+      "website_tsconfig_app_compileroptions_nofallthroughcasesinswitch",
+      "website_tsconfig_app_compileroptions_noimplicitany",
+      "website_tsconfig_app_compileroptions_nounusedlocals",
+      "website_tsconfig_app_compileroptions_nounusedparameters",
+      "website_tsconfig_app_compileroptions_paths",
+      "website_tsconfig_app_compileroptions_skiplibcheck",
+      "website_tsconfig_app_compileroptions_strict",
+      "website_tsconfig_app_compileroptions_target",
+      "website_tsconfig_app_compileroptions_usedefineforclassfields",
+      "website_tsconfig_app_include",
+      "website_tsconfig_app_paths"
+    ],
+    "19": [
+      "apps_website_src_components_admin_servicestatbox_tsx_admin_servicestatbox_servicestatboxprops",
+      "apps_website_src_lib_api_services_ts_api_services_createservice",
+      "apps_website_src_lib_api_services_ts_api_services_deleteservice",
+      "apps_website_src_lib_api_services_ts_api_services_fetchservicebyid",
+      "apps_website_src_lib_api_services_ts_api_services_fetchservices",
+      "apps_website_src_lib_api_services_ts_api_services_fetchserviceswithstats",
+      "apps_website_src_lib_api_services_ts_api_services_service",
+      "apps_website_src_lib_api_services_ts_api_services_servicewithstats",
+      "apps_website_src_lib_api_services_ts_api_services_updateservice",
+      "apps_website_src_pages_serviceselect_tsx_pages_serviceselect_service",
+      "src_components_admin_servicestatbox_tsx_admin_servicestatbox_servicestatboxprops",
+      "src_lib_api_services_ts_api_services",
+      "src_lib_api_services_ts_api_services_createservice",
+      "src_lib_api_services_ts_api_services_deleteservice",
+      "src_lib_api_services_ts_api_services_fetchservicebyid",
+      "src_lib_api_services_ts_api_services_fetchservices",
+      "src_lib_api_services_ts_api_services_fetchserviceswithstats",
+      "src_lib_api_services_ts_api_services_service",
+      "src_lib_api_services_ts_api_services_servicewithstats",
+      "src_lib_api_services_ts_api_services_updateservice",
+      "src_pages_serviceselect_tsx_pages_serviceselect_service",
+      "src_pages_serviceselect_tsx_pages_serviceselect_services"
+    ],
+    "20": [
+      "concept_admin_desktop",
+      "concept_analytics_exports_sql",
+      "concept_backend_api",
+      "concept_best_time_engine",
+      "concept_docker_compose",
+      "concept_mobile_app",
+      "concept_mysql_database",
+      "concept_nht_business",
+      "concept_pica_business",
+      "concept_predictive_model",
+      "concept_queue_engine",
+      "concept_schema_sql",
+      "concept_seed_sql",
+      "concept_taj_business",
+      "concept_user_website",
+      "database_readme",
+      "docs_demo_summary",
+      "docs_system_walkthrough",
+      "nht_logo",
+      "pica_logo",
+      "taj_logo",
+      "taj_logo_website"
+    ],
+    "21": [
+      "analytics_utils_io_utils_py_any",
+      "analytics_utils_io_utils_py_bool",
+      "analytics_utils_io_utils_py_dataframe",
+      "analytics_utils_io_utils_py_str",
+      "analytics_utils_io_utils_py_utils_io_utils",
+      "analytics_utils_io_utils_py_utils_io_utils_file_fingerprint",
+      "analytics_utils_io_utils_py_utils_io_utils_load_state",
+      "analytics_utils_io_utils_py_utils_io_utils_mark_state_ran",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_1",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_17",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_26",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_34",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_41",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_59",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_66",
+      "analytics_utils_io_utils_py_utils_io_utils_rationale_73",
+      "analytics_utils_io_utils_py_utils_io_utils_read_csv_to_df",
+      "analytics_utils_io_utils_py_utils_io_utils_save_state",
+      "analytics_utils_io_utils_py_utils_io_utils_should_run",
+      "analytics_utils_io_utils_py_utils_io_utils_utc_now_iso",
+      "analytics_utils_io_utils_py_utils_io_utils_write_output_json"
+    ],
+    "22": [
+      "apps_model_utils_io_utils_py_any",
+      "apps_model_utils_io_utils_py_bool",
+      "apps_model_utils_io_utils_py_dataframe",
+      "apps_model_utils_io_utils_py_str",
+      "apps_model_utils_io_utils_py_utils_io_utils",
+      "apps_model_utils_io_utils_py_utils_io_utils_file_fingerprint",
+      "apps_model_utils_io_utils_py_utils_io_utils_load_state",
+      "apps_model_utils_io_utils_py_utils_io_utils_mark_state_ran",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_1",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_17",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_26",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_34",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_41",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_59",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_66",
+      "apps_model_utils_io_utils_py_utils_io_utils_rationale_73",
+      "apps_model_utils_io_utils_py_utils_io_utils_read_csv_to_df",
+      "apps_model_utils_io_utils_py_utils_io_utils_save_state",
+      "apps_model_utils_io_utils_py_utils_io_utils_should_run",
+      "apps_model_utils_io_utils_py_utils_io_utils_utc_now_iso",
+      "apps_model_utils_io_utils_py_utils_io_utils_write_output_json"
+    ],
+    "23": [
+      "apps_website_src_components_ui_form_tsx_ui_form",
+      "apps_website_src_components_ui_form_tsx_ui_form_formcontrol",
+      "apps_website_src_components_ui_form_tsx_ui_form_formdescription",
+      "apps_website_src_components_ui_form_tsx_ui_form_formfield",
+      "apps_website_src_components_ui_form_tsx_ui_form_formfieldcontext",
+      "apps_website_src_components_ui_form_tsx_ui_form_formfieldcontextvalue",
+      "apps_website_src_components_ui_form_tsx_ui_form_formitem",
+      "apps_website_src_components_ui_form_tsx_ui_form_formlabel",
+      "apps_website_src_components_ui_form_tsx_ui_form_formmessage",
+      "apps_website_src_components_ui_form_tsx_ui_form_useformfield",
+      "src_components_ui_form_tsx_ui_form",
+      "src_components_ui_form_tsx_ui_form_formcontrol",
+      "src_components_ui_form_tsx_ui_form_formdescription",
+      "src_components_ui_form_tsx_ui_form_formfield",
+      "src_components_ui_form_tsx_ui_form_formfieldcontext",
+      "src_components_ui_form_tsx_ui_form_formfieldcontextvalue",
+      "src_components_ui_form_tsx_ui_form_formitem",
+      "src_components_ui_form_tsx_ui_form_formitemcontext",
+      "src_components_ui_form_tsx_ui_form_formlabel",
+      "src_components_ui_form_tsx_ui_form_formmessage",
+      "src_components_ui_form_tsx_ui_form_useformfield"
+    ],
+    "24": [
+      "apps_website_src_types_insights_ts_types_insights",
+      "apps_website_src_types_insights_ts_types_insights_analyticsinsight",
+      "apps_website_src_types_insights_ts_types_insights_besttimesdata",
+      "apps_website_src_types_insights_ts_types_insights_besttimeslot",
+      "apps_website_src_types_insights_ts_types_insights_clientprediction",
+      "apps_website_src_types_insights_ts_types_insights_clientpredictionsoutput",
+      "apps_website_src_types_insights_ts_types_insights_dropoffbyservice",
+      "apps_website_src_types_insights_ts_types_insights_dropoffdata",
+      "apps_website_src_types_insights_ts_types_insights_dropoffperiod",
+      "apps_website_src_types_insights_ts_types_insights_getefficiencystatuscolor",
+      "apps_website_src_types_insights_ts_types_insights_getheatmaplevel",
+      "apps_website_src_types_insights_ts_types_insights_getseveritycolor",
+      "apps_website_src_types_insights_ts_types_insights_heatmapcell",
+      "apps_website_src_types_insights_ts_types_insights_insighttype",
+      "apps_website_src_types_insights_ts_types_insights_opsinsightsoutput",
+      "apps_website_src_types_insights_ts_types_insights_peakhoursdata",
+      "apps_website_src_types_insights_ts_types_insights_serviceefficiency",
+      "apps_website_src_types_insights_ts_types_insights_serviceusagedata",
+      "apps_website_src_types_insights_ts_types_insights_staffmetricdata",
+      "apps_website_src_types_insights_ts_types_insights_staffmetricsoutput",
+      "apps_website_src_types_insights_ts_types_insights_weeklypattern"
+    ],
+    "25": [
+      "apps_website_src_components_admin_queuelistitem_tsx_admin_queuelistitem_service",
+      "apps_website_src_lib_api_customers_ts_api_customers_customer",
+      "apps_website_src_lib_api_customers_ts_api_customers_customersearchfilters",
+      "apps_website_src_lib_api_customers_ts_api_customers_exportvisithistorycsv",
+      "apps_website_src_lib_api_customers_ts_api_customers_fetchcustomerbyid",
+      "apps_website_src_lib_api_customers_ts_api_customers_fetchvisithistory",
+      "apps_website_src_lib_api_customers_ts_api_customers_visitrecord",
+      "src_components_admin_customertable_tsx_admin_customertable",
+      "src_components_admin_customertable_tsx_admin_customertable_customer",
+      "src_components_admin_customertable_tsx_admin_customertable_customertableprops",
+      "src_components_admin_queuelistitem_tsx_admin_queuelistitem",
+      "src_components_admin_queuelistitem_tsx_admin_queuelistitem_customer",
+      "src_components_admin_queuelistitem_tsx_admin_queuelistitem_queuelistitemprops",
+      "src_components_admin_queuelistitem_tsx_admin_queuelistitem_service",
+      "src_lib_api_customers_ts_api_customers",
+      "src_lib_api_customers_ts_api_customers_customer",
+      "src_lib_api_customers_ts_api_customers_customersearchfilters",
+      "src_lib_api_customers_ts_api_customers_exportvisithistorycsv",
+      "src_lib_api_customers_ts_api_customers_fetchcustomerbyid",
+      "src_lib_api_customers_ts_api_customers_fetchvisithistory",
+      "src_lib_api_customers_ts_api_customers_visitrecord"
+    ],
+    "26": [
+      "src_lib_api_insights_ts_api_insights",
+      "src_lib_api_insights_ts_api_insights_analyticsinsight",
+      "src_lib_api_insights_ts_api_insights_clientpredictionsoutput",
+      "src_lib_api_insights_ts_api_insights_fetchallinsights",
+      "src_lib_api_insights_ts_api_insights_fetchanomalies",
+      "src_lib_api_insights_ts_api_insights_fetchbesttimestovisit",
+      "src_lib_api_insights_ts_api_insights_fetchlatestinsight",
+      "src_lib_api_insights_ts_api_insights_fetchopsinsights",
+      "src_lib_api_insights_ts_api_insights_fetchpeakhoursheatmap",
+      "src_lib_api_insights_ts_api_insights_fetchrecommendations",
+      "src_lib_api_insights_ts_api_insights_fetchstaffmetricsinsight",
+      "src_lib_api_insights_ts_api_insights_getinsightfreshness",
+      "src_lib_api_insights_ts_api_insights_hasinsights",
+      "src_lib_api_insights_ts_api_insights_heatmapcell",
+      "src_lib_api_insights_ts_api_insights_insighttype",
+      "src_lib_api_insights_ts_api_insights_opsinsightsoutput",
+      "src_lib_api_insights_ts_api_insights_peakhoursdata",
+      "src_lib_api_insights_ts_api_insights_serviceperformance",
+      "src_lib_api_insights_ts_api_insights_staffmetric",
+      "src_lib_api_insights_ts_api_insights_staffmetricsoutput"
+    ],
+    "27": [
+      "apps_website_src_lib_api_insights_ts_api_insights",
+      "apps_website_src_lib_api_insights_ts_api_insights_analyticsinsight",
+      "apps_website_src_lib_api_insights_ts_api_insights_clientpredictionsoutput",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchallinsights",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchanomalies",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchbesttimestovisit",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchlatestinsight",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchopsinsights",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchpeakhoursheatmap",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchrecommendations",
+      "apps_website_src_lib_api_insights_ts_api_insights_fetchstaffmetricsinsight",
+      "apps_website_src_lib_api_insights_ts_api_insights_getinsightfreshness",
+      "apps_website_src_lib_api_insights_ts_api_insights_hasinsights",
+      "apps_website_src_lib_api_insights_ts_api_insights_heatmapcell",
+      "apps_website_src_lib_api_insights_ts_api_insights_insighttype",
+      "apps_website_src_lib_api_insights_ts_api_insights_opsinsightsoutput",
+      "apps_website_src_lib_api_insights_ts_api_insights_peakhoursdata",
+      "apps_website_src_lib_api_insights_ts_api_insights_serviceperformance",
+      "apps_website_src_lib_api_insights_ts_api_insights_staffmetric"
+    ],
+    "28": [
+      "concept_jwt_auth_flow",
+      "concept_predictive_analytics",
+      "concept_queue_management",
+      "dockercompose_adminer_service",
+      "dockercompose_api_service",
+      "dockercompose_mysql_service",
+      "index_html_root",
+      "model_plot_actual_vs_predicted",
+      "model_plot_branch_performance",
+      "model_plot_feature_importance",
+      "model_plot_monthly_patterns",
+      "readme_admin_desktop",
+      "readme_backend_api",
+      "readme_mysql_database",
+      "readme_predictive_model",
+      "readme_qmenow_platform",
+      "readme_website_app",
+      "website_index_html"
+    ],
+    "29": [
+      "apps_website_src_pages_home_tsx_pages_home",
+      "apps_website_src_pages_home_tsx_pages_home_home",
+      "components_herosection",
+      "components_herosection_fadeupvariants",
+      "components_herosection_herosection",
+      "components_herosection_herosectionprops",
+      "pages_home_cardvariant",
+      "pages_home_fadeup",
+      "pages_home_featurecard",
+      "pages_home_step",
+      "ui_animatedstats",
+      "ui_animatedstats_animatedstatsprops",
+      "ui_animatedstats_statitem",
+      "ui_animatedstats_statitemprops",
+      "ui_animatedstats_usecountup",
+      "ui_floatingshapes",
+      "ui_floatingshapes_elegantshape",
+      "ui_floatingshapes_shapeprops"
+    ],
+    "30": [
+      "api_queue_fetchmyqueue",
+      "apps_website_src_lib_api_queue_ts_api_queue",
+      "apps_website_src_lib_api_queue_ts_api_queue_callcustomer",
+      "apps_website_src_lib_api_queue_ts_api_queue_cancelcustomer",
+      "apps_website_src_lib_api_queue_ts_api_queue_closequeue",
+      "apps_website_src_lib_api_queue_ts_api_queue_completeservice",
+      "apps_website_src_lib_api_queue_ts_api_queue_fetchticket",
+      "apps_website_src_lib_api_queue_ts_api_queue_fetchticketsbyqueue",
+      "apps_website_src_lib_api_queue_ts_api_queue_marknoshow",
+      "apps_website_src_lib_api_queue_ts_api_queue_openqueue",
+      "apps_website_src_lib_api_queue_ts_api_queue_queue",
+      "apps_website_src_lib_api_queue_ts_api_queue_queueentry",
+      "apps_website_src_lib_api_queue_ts_api_queue_queuestats",
+      "apps_website_src_lib_api_queue_ts_api_queue_queuestatus",
+      "apps_website_src_lib_api_queue_ts_api_queue_updateticketstatus",
+      "src_pages_joinqueue_tsx_pages_joinqueue",
+      "src_pages_joinqueue_tsx_pages_joinqueue_joinqueue"
+    ],
+    "31": [
+      "backend_package_json_backend_package",
+      "backend_package_json_backend_package_dependencies",
+      "backend_package_json_backend_package_dependencies_cors",
+      "backend_package_json_backend_package_dependencies_dotenv",
+      "backend_package_json_backend_package_dependencies_express",
+      "backend_package_json_backend_package_dependencies_mysql2",
+      "backend_package_json_backend_package_dependencies_supabase_supabase_js",
+      "backend_package_json_backend_package_dependencies_uuid",
+      "backend_package_json_backend_package_description",
+      "backend_package_json_backend_package_devdependencies",
+      "backend_package_json_backend_package_devdependencies_nodemon",
+      "backend_package_json_backend_package_main",
+      "backend_package_json_backend_package_name",
+      "backend_package_json_backend_package_scripts",
+      "backend_package_json_backend_package_scripts_dev",
+      "backend_package_json_backend_package_scripts_start",
+      "backend_package_json_backend_package_version"
+    ],
+    "32": [
+      "components",
+      "components_aliases",
+      "components_aliases_components",
+      "components_aliases_hooks",
+      "components_aliases_lib",
+      "components_aliases_ui",
+      "components_aliases_utils",
+      "components_rsc",
+      "components_schema",
+      "components_style",
+      "components_tailwind",
+      "components_tailwind_basecolor",
+      "components_tailwind_config",
+      "components_tailwind_css",
+      "components_tailwind_cssvariables",
+      "components_tailwind_prefix",
+      "components_tsx"
+    ],
+    "33": [
+      "package_devdependencies",
+      "package_devdependencies_autoprefixer",
+      "package_devdependencies_eslint",
+      "package_devdependencies_eslint_js",
+      "package_devdependencies_eslint_plugin_react_hooks",
+      "package_devdependencies_eslint_plugin_react_refresh",
+      "package_devdependencies_globals",
+      "package_devdependencies_postcss",
+      "package_devdependencies_sucrase",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_typography",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_react_dom",
+      "package_devdependencies_typescript",
+      "package_devdependencies_typescript_eslint",
+      "package_devdependencies_vite",
+      "package_devdependencies_vitejs_plugin_react_swc"
+    ],
+    "34": [
+      "website_package_devdependencies",
+      "website_package_devdependencies_autoprefixer",
+      "website_package_devdependencies_eslint",
+      "website_package_devdependencies_eslint_js",
+      "website_package_devdependencies_eslint_plugin_react_hooks",
+      "website_package_devdependencies_eslint_plugin_react_refresh",
+      "website_package_devdependencies_globals",
+      "website_package_devdependencies_postcss",
+      "website_package_devdependencies_sucrase",
+      "website_package_devdependencies_tailwindcss",
+      "website_package_devdependencies_tailwindcss_typography",
+      "website_package_devdependencies_types_node",
+      "website_package_devdependencies_types_react",
+      "website_package_devdependencies_typescript",
+      "website_package_devdependencies_typescript_eslint",
+      "website_package_devdependencies_vite",
+      "website_package_devdependencies_vitejs_plugin_react_swc"
+    ],
+    "35": [
+      "src_lib_api_queue_ts_api_queue",
+      "src_lib_api_queue_ts_api_queue_callcustomer",
+      "src_lib_api_queue_ts_api_queue_cancelcustomer",
+      "src_lib_api_queue_ts_api_queue_closequeue",
+      "src_lib_api_queue_ts_api_queue_completeservice",
+      "src_lib_api_queue_ts_api_queue_fetchqueuebyid",
+      "src_lib_api_queue_ts_api_queue_fetchqueuestats",
+      "src_lib_api_queue_ts_api_queue_fetchticket",
+      "src_lib_api_queue_ts_api_queue_fetchticketsbyqueue",
+      "src_lib_api_queue_ts_api_queue_joinqueue",
+      "src_lib_api_queue_ts_api_queue_marknoshow",
+      "src_lib_api_queue_ts_api_queue_openqueue",
+      "src_lib_api_queue_ts_api_queue_queue",
+      "src_lib_api_queue_ts_api_queue_queueentry",
+      "src_lib_api_queue_ts_api_queue_queuestats",
+      "src_lib_api_queue_ts_api_queue_queuestatus",
+      "src_lib_api_queue_ts_api_queue_updateticketstatus"
+    ],
+    "36": [
+      "website_components",
+      "website_components_aliases",
+      "website_components_aliases_components",
+      "website_components_aliases_hooks",
+      "website_components_aliases_lib",
+      "website_components_aliases_ui",
+      "website_components_aliases_utils",
+      "website_components_rsc",
+      "website_components_schema",
+      "website_components_style",
+      "website_components_tailwind",
+      "website_components_tailwind_basecolor",
+      "website_components_tailwind_config",
+      "website_components_tailwind_css",
+      "website_components_tailwind_cssvariables",
+      "website_components_tailwind_prefix",
+      "website_components_tsx"
+    ],
+    "37": [
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_calculatetimeremaining",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_customer",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_filtercustomers",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_formatwaittime",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getactivequeuebyservice",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getallactivequeue",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getcustomerbyid",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getcustomers",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getinitials",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getqueuedata",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getservicebyid",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getservices",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getservingqueue",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_getstats",
+      "apps_website_src_lib_mockdatautils_ts_lib_mockdatautils_service"
+    ],
+    "38": [
+      "admin_desktop_apiclient",
+      "admin_desktop_useadminauth",
+      "backend_endpoint_analytics",
+      "backend_endpoint_auth_me",
+      "backend_endpoint_auth_sync",
+      "backend_endpoint_businesses",
+      "backend_endpoint_queues",
+      "backend_endpoint_tickets",
+      "backend_readme",
+      "concept_rbac",
+      "mobile_readme",
+      "mobile_screen_home",
+      "mobile_screen_joinqueue",
+      "mobile_screen_login",
+      "readme_mobile_app",
+      "readme_supabase_auth"
+    ],
+    "39": [
+      "src_lib_mockdatautils_ts_lib_mockdatautils",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_calculatetimeremaining",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_customer",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_filtercustomers",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_formatwaittime",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getactivequeuebyservice",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getallactivequeue",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getcustomerbyid",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getcustomers",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getinitials",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getqueuedata",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getservicebyid",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getservices",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getservingqueue",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_getstats",
+      "src_lib_mockdatautils_ts_lib_mockdatautils_service"
+    ],
+    "40": [
+      "tsconfig_node",
+      "tsconfig_node_compileroptions",
+      "tsconfig_node_compileroptions_allowimportingtsextensions",
+      "tsconfig_node_compileroptions_isolatedmodules",
+      "tsconfig_node_compileroptions_lib",
+      "tsconfig_node_compileroptions_module",
+      "tsconfig_node_compileroptions_moduledetection",
+      "tsconfig_node_compileroptions_moduleresolution",
+      "tsconfig_node_compileroptions_noemit",
+      "tsconfig_node_compileroptions_nofallthroughcasesinswitch",
+      "tsconfig_node_compileroptions_nounusedlocals",
+      "tsconfig_node_compileroptions_nounusedparameters",
+      "tsconfig_node_compileroptions_skiplibcheck",
+      "tsconfig_node_compileroptions_strict",
+      "tsconfig_node_compileroptions_target",
+      "tsconfig_node_include"
+    ],
+    "41": [
+      "website_tsconfig_node",
+      "website_tsconfig_node_compileroptions",
+      "website_tsconfig_node_compileroptions_allowimportingtsextensions",
+      "website_tsconfig_node_compileroptions_isolatedmodules",
+      "website_tsconfig_node_compileroptions_lib",
+      "website_tsconfig_node_compileroptions_module",
+      "website_tsconfig_node_compileroptions_moduledetection",
+      "website_tsconfig_node_compileroptions_moduleresolution",
+      "website_tsconfig_node_compileroptions_noemit",
+      "website_tsconfig_node_compileroptions_nofallthroughcasesinswitch",
+      "website_tsconfig_node_compileroptions_nounusedlocals",
+      "website_tsconfig_node_compileroptions_nounusedparameters",
+      "website_tsconfig_node_compileroptions_skiplibcheck",
+      "website_tsconfig_node_compileroptions_strict",
+      "website_tsconfig_node_compileroptions_target",
+      "website_tsconfig_node_include"
+    ],
+    "42": [
+      "apps_backend_src_index_js_src_index",
+      "apps_backend_src_index_js_src_index_app",
+      "apps_backend_src_index_js_src_index_cors",
+      "apps_backend_src_index_js_src_index_express",
+      "middleware_ratelimiter",
+      "middleware_ratelimiter_authlimiter",
+      "middleware_ratelimiter_generallimiter",
+      "middleware_ratelimiter_ocrlimiter",
+      "middleware_ratelimiter_publicqueuelimiter",
+      "middleware_ratelimiter_queuejoinlimiter",
+      "middleware_ratelimiter_ratelimit",
+      "src_index_authlimiter_queuejoinlimiter_ocrlimiter_publicqueuelimiter_generallimiter",
+      "src_index_compression",
+      "src_index_helmet",
+      "src_index_morgan"
+    ],
+    "43": [
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_counter",
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_getinitials",
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_rolecolors",
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_rolelabels",
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_service",
+      "apps_website_src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_staffmember",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_counter",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_getinitials",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_rolecolors",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_rolelabels",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_service",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_staffassignmenteditorprops",
+      "src_components_admin_staffassignmenteditor_tsx_admin_staffassignmenteditor_staffmember"
+    ],
+    "44": [
+      "api_staff_counterwithstaff",
+      "apps_website_src_lib_api_staff_ts_api_staff",
+      "apps_website_src_lib_api_staff_ts_api_staff_assignstafftocounter",
+      "apps_website_src_lib_api_staff_ts_api_staff_counterassignment",
+      "apps_website_src_lib_api_staff_ts_api_staff_createstaffmember",
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchcurrentstaffmember",
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchstaffbyid",
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchstaffmembers",
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchstaffstats",
+      "apps_website_src_lib_api_staff_ts_api_staff_stafflistmember",
+      "apps_website_src_lib_api_staff_ts_api_staff_staffmember",
+      "apps_website_src_lib_api_staff_ts_api_staff_staffstats",
+      "apps_website_src_lib_api_staff_ts_api_staff_updatestaffmember"
+    ],
+    "45": [
+      "src_lib_api_staff_ts_api_staff",
+      "src_lib_api_staff_ts_api_staff_assignstafftocounter",
+      "src_lib_api_staff_ts_api_staff_counterassignment",
+      "src_lib_api_staff_ts_api_staff_createstaffmember",
+      "src_lib_api_staff_ts_api_staff_fetchcounterassignments",
+      "src_lib_api_staff_ts_api_staff_fetchcurrentstaffmember",
+      "src_lib_api_staff_ts_api_staff_fetchstaffbyid",
+      "src_lib_api_staff_ts_api_staff_fetchstaffmembers",
+      "src_lib_api_staff_ts_api_staff_fetchstaffstats",
+      "src_lib_api_staff_ts_api_staff_stafflistmember",
+      "src_lib_api_staff_ts_api_staff_staffmember",
+      "src_lib_api_staff_ts_api_staff_staffstats",
+      "src_lib_api_staff_ts_api_staff_updatestaffmember"
+    ],
+    "46": [
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowjs",
+      "tsconfig_compileroptions_baseurl",
+      "tsconfig_compileroptions_noimplicitany",
+      "tsconfig_compileroptions_nounusedlocals",
+      "tsconfig_compileroptions_nounusedparameters",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strictnullchecks",
+      "tsconfig_files",
+      "tsconfig_paths",
+      "tsconfig_references"
+    ],
+    "47": [
+      "website_tsconfig",
+      "website_tsconfig_compileroptions",
+      "website_tsconfig_compileroptions_allowjs",
+      "website_tsconfig_compileroptions_baseurl",
+      "website_tsconfig_compileroptions_noimplicitany",
+      "website_tsconfig_compileroptions_nounusedlocals",
+      "website_tsconfig_compileroptions_nounusedparameters",
+      "website_tsconfig_compileroptions_paths",
+      "website_tsconfig_compileroptions_skiplibcheck",
+      "website_tsconfig_compileroptions_strictnullchecks",
+      "website_tsconfig_files",
+      "website_tsconfig_paths",
+      "website_tsconfig_references"
+    ],
+    "48": [
+      "apps_website_src_components_admin_activesessioncard_tsx_admin_activesessioncard_queueentry",
+      "apps_website_src_components_admin_activesessioncard_tsx_admin_activesessioncard_session",
+      "apps_website_src_data_mockqueuedata_json_data_mockqueuedata",
+      "apps_website_src_data_mockqueuedata_json_data_mockqueuedata_queueentries",
+      "src_components_admin_activesessioncard_tsx_admin_activesessioncard_activesessioncardprops",
+      "src_components_admin_activesessioncard_tsx_admin_activesessioncard_queueentry",
+      "src_components_admin_activesessioncard_tsx_admin_activesessioncard_session",
+      "src_data_mockstats_json_data_mockstats",
+      "src_data_mockstats_json_data_mockstats_activesessions",
+      "src_data_mockstats_json_data_mockstats_averagewaittime",
+      "src_data_mockstats_json_data_mockstats_completedtoday",
+      "src_data_mockstats_json_data_mockstats_totalcustomerstoday"
+    ],
+    "49": [
+      "main_historyscreen",
+      "main_historyscreen_styles",
+      "main_historyscreen_visitrecord",
+      "main_homescreen",
+      "main_homescreen_animatedcard",
+      "main_homescreen_businesscard",
+      "main_homescreen_historycard",
+      "main_homescreen_homescreen",
+      "main_homescreen_livedot",
+      "main_homescreen_status_color",
+      "main_homescreen_styles",
+      "main_homescreen_width_screen_width"
+    ],
+    "50": [
+      "apps_mobile_app_tsx_mobile_app",
+      "auth_signupscreen",
+      "auth_signupscreen_styles",
+      "mobile_app_app",
+      "mobile_app_queryclient",
+      "navigation_appnavigator",
+      "navigation_appnavigator_appnavigator",
+      "navigation_appnavigator_authstack",
+      "navigation_appnavigator_maintabs",
+      "navigation_appnavigator_stack",
+      "navigation_appnavigator_tab",
+      "navigation_appnavigator_tabparamlist"
+    ],
+    "51": [
+      "apps_admin_desktop_src_hooks_useadminauth_ts_hooks_useadminauth_admindata",
+      "apps_admin_desktop_src_hooks_useadminauth_ts_hooks_useadminauth_approle",
+      "apps_admin_desktop_src_hooks_useadminauth_ts_hooks_useadminauth_staffrecord",
+      "apps_website_src_hooks_useadminauth_ts_hooks_useadminauth_admindata",
+      "apps_website_src_hooks_useadminauth_ts_hooks_useadminauth_approle",
+      "apps_website_src_hooks_useadminauth_ts_hooks_useadminauth_staffrecord",
+      "hooks_useadminauth_staffroledata",
+      "src_hooks_useadminauth_ts_hooks_useadminauth",
+      "src_hooks_useadminauth_ts_hooks_useadminauth_admindata",
+      "src_hooks_useadminauth_ts_hooks_useadminauth_approle",
+      "src_hooks_useadminauth_ts_hooks_useadminauth_useadminauth"
+    ],
+    "52": [
+      "apps_website_src_integrations_supabase_types_ts_supabase_types",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_compositetypes",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_constants",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_database",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_databasewithoutinternals",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_defaultschema",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_enums",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_json",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_tables",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_tablesinsert",
+      "apps_website_src_integrations_supabase_types_ts_supabase_types_tablesupdate"
+    ],
+    "53": [
+      "apps_website_src_types_staff_ts_types_staff",
+      "apps_website_src_types_staff_ts_types_staff_approle",
+      "apps_website_src_types_staff_ts_types_staff_canmanagequeue",
+      "apps_website_src_types_staff_ts_types_staff_canmanagestaff",
+      "apps_website_src_types_staff_ts_types_staff_canviewallqueues",
+      "apps_website_src_types_staff_ts_types_staff_canviewanalytics",
+      "apps_website_src_types_staff_ts_types_staff_counterassignment",
+      "apps_website_src_types_staff_ts_types_staff_getroledisplayname",
+      "apps_website_src_types_staff_ts_types_staff_getrolelevel",
+      "apps_website_src_types_staff_ts_types_staff_staffmember",
+      "apps_website_src_types_staff_ts_types_staff_staffperformance"
+    ],
+    "54": [
+      "docs_qmenow_api_postman_collection",
+      "docs_qmenow_api_postman_collection_auth",
+      "docs_qmenow_api_postman_collection_auth_bearer",
+      "docs_qmenow_api_postman_collection_auth_type",
+      "docs_qmenow_api_postman_collection_info",
+      "docs_qmenow_api_postman_collection_info_description",
+      "docs_qmenow_api_postman_collection_info_name",
+      "docs_qmenow_api_postman_collection_info_postman_id",
+      "docs_qmenow_api_postman_collection_info_schema",
+      "docs_qmenow_api_postman_collection_item",
+      "docs_qmenow_api_postman_collection_variable"
+    ],
+    "55": [
+      "admin_desktop_package_devdependencies",
+      "admin_desktop_package_devdependencies_autoprefixer",
+      "admin_desktop_package_devdependencies_concurrently",
+      "admin_desktop_package_devdependencies_electron",
+      "admin_desktop_package_devdependencies_electron_builder",
+      "admin_desktop_package_devdependencies_postcss",
+      "admin_desktop_package_devdependencies_tailwindcss",
+      "admin_desktop_package_devdependencies_typescript",
+      "admin_desktop_package_devdependencies_vite",
+      "admin_desktop_package_devdependencies_vite_plugin_electron",
+      "admin_desktop_package_devdependencies_vitejs_plugin_react_swc"
+    ],
+    "56": [
+      "package",
+      "package_name",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_build_dev",
+      "package_scripts_dev",
+      "package_scripts_lint",
+      "package_scripts_preview",
+      "package_type",
+      "package_version"
+    ],
+    "57": [
+      "apps_website_src_components_admin_staffcard_tsx_admin_staffcard_getinitials",
+      "apps_website_src_components_admin_staffcard_tsx_admin_staffcard_rolecolors",
+      "apps_website_src_components_admin_staffcard_tsx_admin_staffcard_rolelabels",
+      "apps_website_src_components_admin_staffcard_tsx_admin_staffcard_staffmember",
+      "src_components_admin_staffcard_tsx_admin_staffcard",
+      "src_components_admin_staffcard_tsx_admin_staffcard_getinitials",
+      "src_components_admin_staffcard_tsx_admin_staffcard_rolecolors",
+      "src_components_admin_staffcard_tsx_admin_staffcard_rolelabels",
+      "src_components_admin_staffcard_tsx_admin_staffcard_staffmember",
+      "src_components_admin_statcard_tsx_admin_statcard",
+      "src_components_admin_statcard_tsx_admin_statcard_statcardprops"
+    ],
+    "58": [
+      "src_integrations_supabase_types_ts_supabase_types",
+      "src_integrations_supabase_types_ts_supabase_types_compositetypes",
+      "src_integrations_supabase_types_ts_supabase_types_constants",
+      "src_integrations_supabase_types_ts_supabase_types_database",
+      "src_integrations_supabase_types_ts_supabase_types_databasewithoutinternals",
+      "src_integrations_supabase_types_ts_supabase_types_defaultschema",
+      "src_integrations_supabase_types_ts_supabase_types_enums",
+      "src_integrations_supabase_types_ts_supabase_types_json",
+      "src_integrations_supabase_types_ts_supabase_types_tables",
+      "src_integrations_supabase_types_ts_supabase_types_tablesinsert",
+      "src_integrations_supabase_types_ts_supabase_types_tablesupdate"
+    ],
+    "59": [
+      "src_types_staff_ts_types_staff",
+      "src_types_staff_ts_types_staff_approle",
+      "src_types_staff_ts_types_staff_canmanagequeue",
+      "src_types_staff_ts_types_staff_canmanagestaff",
+      "src_types_staff_ts_types_staff_canviewallqueues",
+      "src_types_staff_ts_types_staff_canviewanalytics",
+      "src_types_staff_ts_types_staff_counterassignment",
+      "src_types_staff_ts_types_staff_getroledisplayname",
+      "src_types_staff_ts_types_staff_getrolelevel",
+      "src_types_staff_ts_types_staff_staffmember",
+      "src_types_staff_ts_types_staff_staffperformance"
+    ],
+    "60": [
+      "website_package",
+      "website_package_name",
+      "website_package_private",
+      "website_package_scripts",
+      "website_package_scripts_build",
+      "website_package_scripts_build_dev",
+      "website_package_scripts_dev",
+      "website_package_scripts_lint",
+      "website_package_scripts_preview",
+      "website_package_type",
+      "website_package_version"
+    ],
+    "61": [
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenucheckboxitem",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenucontent",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuitem",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenulabel",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuradioitem",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuseparator",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenushortcut",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenusubcontent",
+      "apps_website_src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenusubtrigger"
+    ],
+    "62": [
+      "apps_website_src_components_ui_toast_tsx_ui_toast",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toast",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastaction",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastactionelement",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastclose",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastdescription",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastprops",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toasttitle",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastvariants",
+      "apps_website_src_components_ui_toast_tsx_ui_toast_toastviewport"
+    ],
+    "63": [
+      "api_queue_movecustomerdown",
+      "api_queue_movecustomerup",
+      "api_staff_fetchcounterswithstaff",
+      "api_staff_fetchmycounterassignment",
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchcounterassignments",
+      "apps_website_src_pages_admin_managerdashboard_tsx_admin_managerdashboard",
+      "src_pages_admin_managerdashboard_tsx_admin_managerdashboard",
+      "src_pages_admin_managerdashboard_tsx_admin_managerdashboard_managerdashboard",
+      "src_pages_admin_staffdashboard_tsx_admin_staffdashboard",
+      "src_pages_admin_staffdashboard_tsx_admin_staffdashboard_staffdashboard"
+    ],
+    "64": [
+      "export_table_data_index",
+      "export_table_data_index_corsheaders",
+      "export_table_data_index_exportcounters",
+      "export_table_data_index_exportqueueevents",
+      "export_table_data_index_exportrequest",
+      "export_table_data_index_exportservices",
+      "export_table_data_index_exportstaffservicelog",
+      "export_table_data_index_exportvisits",
+      "export_table_data_index_safestr",
+      "export_table_data_index_uploadcsv"
+    ],
+    "65": [
+      "queue_joinqueuescreen",
+      "queue_joinqueuescreen_extrafield",
+      "queue_joinqueuescreen_formatfieldlabel",
+      "queue_joinqueuescreen_getfieldplaceholder",
+      "queue_joinqueuescreen_joinqueuescreen",
+      "queue_joinqueuescreen_params",
+      "queue_joinqueuescreen_profile_keys",
+      "queue_joinqueuescreen_queueinfo",
+      "queue_joinqueuescreen_serviceinfo",
+      "queue_joinqueuescreen_styles"
+    ],
+    "66": [
+      "queue_ticketscreen",
+      "queue_ticketscreen_animateddigit",
+      "queue_ticketscreen_animatedticketnumber",
+      "queue_ticketscreen_countdowntimer",
+      "queue_ticketscreen_progressbar",
+      "queue_ticketscreen_pulsering",
+      "queue_ticketscreen_status_color",
+      "queue_ticketscreen_status_labels",
+      "queue_ticketscreen_styles",
+      "queue_ticketscreen_width_screen_width"
+    ],
+    "67": [
+      "apps_website_src_components_ui_calendar_tsx_ui_calendar",
+      "apps_website_src_components_ui_calendar_tsx_ui_calendar_calendarprops",
+      "apps_website_src_components_ui_custom_calendar_tsx_ui_custom_calendar_customcalendarprops",
+      "apps_website_src_components_ui_custom_calendar_tsx_ui_custom_calendar_months",
+      "src_components_ui_calendar_tsx_ui_calendar",
+      "src_components_ui_calendar_tsx_ui_calendar_calendar",
+      "src_components_ui_calendar_tsx_ui_calendar_calendarprops",
+      "src_components_ui_custom_calendar_tsx_ui_custom_calendar",
+      "src_components_ui_custom_calendar_tsx_ui_custom_calendar_customcalendarprops",
+      "src_components_ui_custom_calendar_tsx_ui_custom_calendar_months"
+    ],
+    "68": [
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenucheckboxitem",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenucontent",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuitem",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenulabel",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuradioitem",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenuseparator",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenushortcut",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenusubcontent",
+      "src_components_ui_dropdown_menu_tsx_ui_dropdown_menu_dropdownmenusubtrigger"
+    ],
+    "69": [
+      "src_components_ui_toast_tsx_ui_toast",
+      "src_components_ui_toast_tsx_ui_toast_toast",
+      "src_components_ui_toast_tsx_ui_toast_toastaction",
+      "src_components_ui_toast_tsx_ui_toast_toastactionelement",
+      "src_components_ui_toast_tsx_ui_toast_toastclose",
+      "src_components_ui_toast_tsx_ui_toast_toastdescription",
+      "src_components_ui_toast_tsx_ui_toast_toastprops",
+      "src_components_ui_toast_tsx_ui_toast_toasttitle",
+      "src_components_ui_toast_tsx_ui_toast_toastvariants",
+      "src_components_ui_toast_tsx_ui_toast_toastviewport"
+    ],
+    "70": [
+      "apps_website_src_hooks_usequeuedata_ts_hooks_usequeuedata_linewithdetails",
+      "apps_website_src_hooks_usequeuedata_ts_hooks_usequeuedata_queuecount",
+      "apps_website_src_hooks_usequeuedata_ts_hooks_usequeuedata_usequeuelines",
+      "apps_website_src_hooks_usequeuedata_ts_hooks_usequeuedata_usequeueposition",
+      "hooks_usequeuedata_usebranchqueues",
+      "src_hooks_usequeuedata_ts_hooks_usequeuedata",
+      "src_hooks_usequeuedata_ts_hooks_usequeuedata_linewithdetails",
+      "src_hooks_usequeuedata_ts_hooks_usequeuedata_queuecount",
+      "src_hooks_usequeuedata_ts_hooks_usequeuedata_usequeuelines",
+      "src_hooks_usequeuedata_ts_hooks_usequeuedata_usequeueposition"
+    ],
+    "71": [
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogaction",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogcancel",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogcontent",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogdescription",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogfooter",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogheader",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogoverlay",
+      "apps_website_src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogtitle"
+    ],
+    "72": [
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetcontent",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetcontentprops",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetdescription",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetfooter",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetheader",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetoverlay",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheettitle",
+      "apps_website_src_components_ui_sheet_tsx_ui_sheet_sheetvariants"
+    ],
+    "73": [
+      "apps_website_src_components_ui_table_tsx_ui_table",
+      "apps_website_src_components_ui_table_tsx_ui_table_table",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablebody",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablecaption",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablecell",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablefooter",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablehead",
+      "apps_website_src_components_ui_table_tsx_ui_table_tableheader",
+      "apps_website_src_components_ui_table_tsx_ui_table_tablerow"
+    ],
+    "74": [
+      "src_types_analytics_ts_types_analytics",
+      "src_types_analytics_ts_types_analytics_activityevent",
+      "src_types_analytics_ts_types_analytics_analyticssummary",
+      "src_types_analytics_ts_types_analytics_dailystats",
+      "src_types_analytics_ts_types_analytics_formattrendpercent",
+      "src_types_analytics_ts_types_analytics_gethourlabel",
+      "src_types_analytics_ts_types_analytics_gettrendicon",
+      "src_types_analytics_ts_types_analytics_hourlydistribution",
+      "src_types_analytics_ts_types_analytics_trenddata"
+    ],
+    "75": [
+      "apps_website_src_components_admin_statusbadge_tsx_admin_statusbadge_sizeclasses",
+      "apps_website_src_components_admin_statusbadge_tsx_admin_statusbadge_statusbadgeprops",
+      "apps_website_src_components_admin_statusbadge_tsx_admin_statusbadge_statusconfig",
+      "apps_website_src_components_admin_statusbadge_tsx_admin_statusbadge_statustype",
+      "src_components_admin_statusbadge_tsx_admin_statusbadge",
+      "src_components_admin_statusbadge_tsx_admin_statusbadge_sizeclasses",
+      "src_components_admin_statusbadge_tsx_admin_statusbadge_statusbadgeprops",
+      "src_components_admin_statusbadge_tsx_admin_statusbadge_statusconfig",
+      "src_components_admin_statusbadge_tsx_admin_statusbadge_statustype"
+    ],
+    "76": [
+      "apps_website_src_components_exportmodal_tsx_components_exportmodal_exportmodalprops",
+      "apps_website_src_components_exportmodal_tsx_components_exportmodal_formaticons",
+      "apps_website_src_components_exportmodal_tsx_components_exportmodal_formattype",
+      "apps_website_src_components_exportmodal_tsx_components_exportmodal_statustype",
+      "src_components_exportmodal_tsx_components_exportmodal",
+      "src_components_exportmodal_tsx_components_exportmodal_exportmodalprops",
+      "src_components_exportmodal_tsx_components_exportmodal_formaticons",
+      "src_components_exportmodal_tsx_components_exportmodal_formattype",
+      "src_components_exportmodal_tsx_components_exportmodal_statustype"
+    ],
+    "77": [
+      "apps_website_src_components_flipcard_tsx_components_flipcard_flipcardprops",
+      "apps_website_src_components_flipcard_tsx_components_flipcard_getorgidentifier",
+      "apps_website_src_components_flipcard_tsx_components_flipcard_gradientpresets",
+      "apps_website_src_components_flipcard_tsx_components_flipcard_logomap",
+      "src_components_flipcard_tsx_components_flipcard",
+      "src_components_flipcard_tsx_components_flipcard_flipcardprops",
+      "src_components_flipcard_tsx_components_flipcard_getorgidentifier",
+      "src_components_flipcard_tsx_components_flipcard_gradientpresets",
+      "src_components_flipcard_tsx_components_flipcard_logomap"
+    ],
+    "78": [
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogaction",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogcancel",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogcontent",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogdescription",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogfooter",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogheader",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogoverlay",
+      "src_components_ui_alert_dialog_tsx_ui_alert_dialog_alertdialogtitle"
+    ],
+    "79": [
+      "src_components_ui_sheet_tsx_ui_sheet",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetcontent",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetcontentprops",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetdescription",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetfooter",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetheader",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetoverlay",
+      "src_components_ui_sheet_tsx_ui_sheet_sheettitle",
+      "src_components_ui_sheet_tsx_ui_sheet_sheetvariants"
+    ],
+    "80": [
+      "src_components_ui_table_tsx_ui_table",
+      "src_components_ui_table_tsx_ui_table_table",
+      "src_components_ui_table_tsx_ui_table_tablebody",
+      "src_components_ui_table_tsx_ui_table_tablecaption",
+      "src_components_ui_table_tsx_ui_table_tablecell",
+      "src_components_ui_table_tsx_ui_table_tablefooter",
+      "src_components_ui_table_tsx_ui_table_tablehead",
+      "src_components_ui_table_tsx_ui_table_tableheader",
+      "src_components_ui_table_tsx_ui_table_tablerow"
+    ],
+    "81": [
+      "apps_backend_src_routes_tickets_js_routes_tickets",
+      "apps_backend_src_routes_tickets_js_routes_tickets_pool",
+      "apps_backend_src_routes_tickets_js_routes_tickets_requireauth_requirerole",
+      "apps_backend_src_routes_tickets_js_routes_tickets_router",
+      "apps_backend_src_routes_tickets_js_routes_tickets_v4_uuidv4",
+      "routes_tickets_joinqueueschema",
+      "routes_tickets_updatestatusschema",
+      "routes_tickets_z"
+    ],
+    "82": [
+      "apps_website_src_components_ui_select_tsx_ui_select",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectcontent",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectitem",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectlabel",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectscrolldownbutton",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectscrollupbutton",
+      "apps_website_src_components_ui_select_tsx_ui_select_selectseparator",
+      "apps_website_src_components_ui_select_tsx_ui_select_selecttrigger"
+    ],
+    "83": [
+      "apps_website_src_data_mockstats_json_data_mockstats_1_avgtime",
+      "apps_website_src_data_mockstats_json_data_mockstats_1_served",
+      "apps_website_src_data_mockstats_json_data_mockstats_1_waiting",
+      "apps_website_src_data_mockstats_json_data_mockstats_servicestats_1",
+      "apps_website_src_data_mockstats_json_data_mockstats_servicestats_2",
+      "apps_website_src_data_mockstats_json_data_mockstats_servicestats_3",
+      "apps_website_src_data_mockstats_json_data_mockstats_servicestats_4",
+      "apps_website_src_data_mockstats_json_data_mockstats_servicestats_5"
+    ],
+    "84": [
+      "src_data_mockstats_json_data_mockstats_1_avgtime",
+      "src_data_mockstats_json_data_mockstats_1_served",
+      "src_data_mockstats_json_data_mockstats_1_waiting",
+      "src_data_mockstats_json_data_mockstats_servicestats_1",
+      "src_data_mockstats_json_data_mockstats_servicestats_2",
+      "src_data_mockstats_json_data_mockstats_servicestats_3",
+      "src_data_mockstats_json_data_mockstats_servicestats_4",
+      "src_data_mockstats_json_data_mockstats_servicestats_5"
+    ],
+    "85": [
+      "concept_org_nht",
+      "concept_org_pica",
+      "concept_org_taj",
+      "lovable_flipcard_component",
+      "lovable_plan_fix_supabase",
+      "lovable_usebranches_hook",
+      "lovable_useorganizations_hook",
+      "website_nht_logo"
+    ],
+    "86": [
+      "populate_staff_index",
+      "populate_staff_index_addresses",
+      "populate_staff_index_corsheaders",
+      "populate_staff_index_firstnames",
+      "populate_staff_index_generatedateofbirth",
+      "populate_staff_index_generateemail",
+      "populate_staff_index_lastnames",
+      "populate_staff_index_randomfrom"
+    ],
+    "87": [
+      "src_components_ui_select_tsx_ui_select",
+      "src_components_ui_select_tsx_ui_select_selectcontent",
+      "src_components_ui_select_tsx_ui_select_selectitem",
+      "src_components_ui_select_tsx_ui_select_selectlabel",
+      "src_components_ui_select_tsx_ui_select_selectscrolldownbutton",
+      "src_components_ui_select_tsx_ui_select_selectscrollupbutton",
+      "src_components_ui_select_tsx_ui_select_selectseparator",
+      "src_components_ui_select_tsx_ui_select_selecttrigger"
+    ],
+    "88": [
+      "apps_website_src_components_servicecard_tsx_components_servicecard_iconmap",
+      "apps_website_src_components_servicecard_tsx_components_servicecard_service",
+      "apps_website_src_components_servicecard_tsx_components_servicecard_servicecardprops",
+      "src_components_servicecard_tsx_components_servicecard",
+      "src_components_servicecard_tsx_components_servicecard_iconmap",
+      "src_components_servicecard_tsx_components_servicecard_service",
+      "src_components_servicecard_tsx_components_servicecard_servicecardprops"
+    ],
+    "89": [
+      "apps_website_src_components_ui_card_tsx_ui_card",
+      "apps_website_src_components_ui_card_tsx_ui_card_card",
+      "apps_website_src_components_ui_card_tsx_ui_card_cardcontent",
+      "apps_website_src_components_ui_card_tsx_ui_card_carddescription",
+      "apps_website_src_components_ui_card_tsx_ui_card_cardfooter",
+      "apps_website_src_components_ui_card_tsx_ui_card_cardheader",
+      "apps_website_src_components_ui_card_tsx_ui_card_cardtitle"
+    ],
+    "90": [
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogcontent",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogdescription",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogfooter",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogheader",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogoverlay",
+      "apps_website_src_components_ui_dialog_tsx_ui_dialog_dialogtitle"
+    ],
+    "91": [
+      "apps_website_src_types_customer_ts_types_customer",
+      "apps_website_src_types_customer_ts_types_customer_customer",
+      "apps_website_src_types_customer_ts_types_customer_customerhistoryentry",
+      "apps_website_src_types_customer_ts_types_customer_customersearchfilters",
+      "apps_website_src_types_customer_ts_types_customer_formattrn",
+      "apps_website_src_types_customer_ts_types_customer_getcustomerinitials",
+      "apps_website_src_types_customer_ts_types_customer_visitrecord"
+    ],
+    "92": [
+      "apps_website_src_types_queue_ts_types_queue",
+      "apps_website_src_types_queue_ts_types_queue_counterinfo",
+      "apps_website_src_types_queue_ts_types_queue_queueaction",
+      "apps_website_src_types_queue_ts_types_queue_queueentry",
+      "apps_website_src_types_queue_ts_types_queue_queuestats",
+      "apps_website_src_types_queue_ts_types_queue_queuestatus",
+      "apps_website_src_types_queue_ts_types_queue_servicesession"
+    ],
+    "93": [
+      "apps_website_src_components_statuschip_tsx_components_statuschip_statuschipprops",
+      "apps_website_src_components_statuschip_tsx_components_statuschip_statusconfig",
+      "apps_website_src_components_statuschip_tsx_components_statuschip_statustype",
+      "src_components_statuschip_tsx_components_statuschip",
+      "src_components_statuschip_tsx_components_statuschip_statuschipprops",
+      "src_components_statuschip_tsx_components_statuschip_statusconfig",
+      "src_components_statuschip_tsx_components_statuschip_statustype"
+    ],
+    "94": [
+      "src_components_ui_card_tsx_ui_card",
+      "src_components_ui_card_tsx_ui_card_card",
+      "src_components_ui_card_tsx_ui_card_cardcontent",
+      "src_components_ui_card_tsx_ui_card_carddescription",
+      "src_components_ui_card_tsx_ui_card_cardfooter",
+      "src_components_ui_card_tsx_ui_card_cardheader",
+      "src_components_ui_card_tsx_ui_card_cardtitle"
+    ],
+    "95": [
+      "src_components_ui_dialog_tsx_ui_dialog",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogcontent",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogdescription",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogfooter",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogheader",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogoverlay",
+      "src_components_ui_dialog_tsx_ui_dialog_dialogtitle"
+    ],
+    "96": [
+      "src_types_customer_ts_types_customer",
+      "src_types_customer_ts_types_customer_customer",
+      "src_types_customer_ts_types_customer_customerhistoryentry",
+      "src_types_customer_ts_types_customer_customersearchfilters",
+      "src_types_customer_ts_types_customer_formattrn",
+      "src_types_customer_ts_types_customer_getcustomerinitials",
+      "src_types_customer_ts_types_customer_visitrecord"
+    ],
+    "97": [
+      "src_types_queue_ts_types_queue",
+      "src_types_queue_ts_types_queue_counterinfo",
+      "src_types_queue_ts_types_queue_queueaction",
+      "src_types_queue_ts_types_queue_queueentry",
+      "src_types_queue_ts_types_queue_queuestats",
+      "src_types_queue_ts_types_queue_queuestatus",
+      "src_types_queue_ts_types_queue_servicesession"
+    ],
+    "98": [
+      "analytics_scripts_sync_storage_py_path",
+      "analytics_scripts_sync_storage_py_scripts_sync_storage",
+      "analytics_scripts_sync_storage_py_scripts_sync_storage_env",
+      "analytics_scripts_sync_storage_py_scripts_sync_storage_rationale_32",
+      "analytics_scripts_sync_storage_py_scripts_sync_storage_sync_org_exports",
+      "analytics_scripts_sync_storage_py_str"
+    ],
+    "99": [
+      "apps_model_scripts_sync_storage_py_path",
+      "apps_model_scripts_sync_storage_py_scripts_sync_storage",
+      "apps_model_scripts_sync_storage_py_scripts_sync_storage_env",
+      "apps_model_scripts_sync_storage_py_scripts_sync_storage_rationale_32",
+      "apps_model_scripts_sync_storage_py_scripts_sync_storage_sync_org_exports",
+      "apps_model_scripts_sync_storage_py_str"
+    ],
+    "100": [
+      "apps_website_src_lib_api_businesses_ts_api_businesses",
+      "apps_website_src_lib_api_businesses_ts_api_businesses_business",
+      "apps_website_src_lib_api_businesses_ts_api_businesses_createbusiness",
+      "apps_website_src_lib_api_businesses_ts_api_businesses_fetchbusinessbyslug",
+      "apps_website_src_lib_api_businesses_ts_api_businesses_fetchbusinesses",
+      "apps_website_src_lib_api_businesses_ts_api_businesses_updatebusiness"
+    ],
+    "101": [
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice",
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice_calculatewaittime",
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice_executequeueaction",
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice_formatwaittime",
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice_getstatuscolor",
+      "apps_website_src_lib_services_queueservice_ts_services_queueservice_getstatuslabel"
+    ],
+    "102": [
+      "src_lib_services_queueservice_ts_services_queueservice",
+      "src_lib_services_queueservice_ts_services_queueservice_calculatewaittime",
+      "src_lib_services_queueservice_ts_services_queueservice_executequeueaction",
+      "src_lib_services_queueservice_ts_services_queueservice_formatwaittime",
+      "src_lib_services_queueservice_ts_services_queueservice_getstatuscolor",
+      "src_lib_services_queueservice_ts_services_queueservice_getstatuslabel"
+    ],
+    "103": [
+      "backend_src_middleware_auth_js_middleware_auth",
+      "backend_src_middleware_auth_js_middleware_auth_createclient",
+      "backend_src_middleware_auth_js_middleware_auth_pool",
+      "backend_src_middleware_auth_js_middleware_auth_requireauth",
+      "backend_src_middleware_auth_js_middleware_auth_requirerole",
+      "backend_src_middleware_auth_js_middleware_auth_supabase"
+    ],
+    "104": [
+      "import_insights_index",
+      "import_insights_index_corsheaders",
+      "import_insights_index_insightimport",
+      "import_insights_index_requireauth",
+      "import_insights_index_requireenv",
+      "import_insights_index_valid_insight_types"
+    ],
+    "105": [
+      "queue_branchscreen",
+      "queue_branchscreen_branchstats",
+      "queue_branchscreen_params",
+      "queue_branchscreen_service",
+      "queue_branchscreen_styles",
+      "queue_servicescreen"
+    ],
+    "106": [
+      "apps_website_src_components_admin_moderndonutchart_tsx_admin_moderndonutchart_datapoint",
+      "apps_website_src_components_admin_moderndonutchart_tsx_admin_moderndonutchart_default_colors",
+      "src_components_admin_moderndonutchart_tsx_admin_moderndonutchart",
+      "src_components_admin_moderndonutchart_tsx_admin_moderndonutchart_datapoint",
+      "src_components_admin_moderndonutchart_tsx_admin_moderndonutchart_default_colors",
+      "src_components_admin_moderndonutchart_tsx_admin_moderndonutchart_moderndonutchartprops"
+    ],
+    "107": [
+      "apps_website_src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap_days",
+      "apps_website_src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap_hours",
+      "src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap",
+      "src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap_days",
+      "src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap_hours",
+      "src_components_admin_peakhoursheatmap_tsx_admin_peakhoursheatmap_peakhoursheatmapprops"
+    ],
+    "108": [
+      "apps_website_src_hooks_usebranches_ts_hooks_usebranches_branch",
+      "apps_website_src_hooks_usebranches_ts_hooks_usebranches_usebranchesbyslug",
+      "hooks_usebranches_usebranchbyid",
+      "src_hooks_usebranches_ts_hooks_usebranches",
+      "src_hooks_usebranches_ts_hooks_usebranches_branch",
+      "src_hooks_usebranches_ts_hooks_usebranches_usebranchesbyslug"
+    ],
+    "109": [
+      "apps_website_src_hooks_useservices_ts_hooks_useservices_service",
+      "apps_website_src_hooks_useservices_ts_hooks_useservices_useservicesbyslug",
+      "hooks_useservices_useservicebyid",
+      "src_hooks_useservices_ts_hooks_useservices",
+      "src_hooks_useservices_ts_hooks_useservices_service",
+      "src_hooks_useservices_ts_hooks_useservices_useservicesbyslug"
+    ],
+    "110": [
+      "src_lib_api_businesses_ts_api_businesses",
+      "src_lib_api_businesses_ts_api_businesses_business",
+      "src_lib_api_businesses_ts_api_businesses_createbusiness",
+      "src_lib_api_businesses_ts_api_businesses_fetchbusinessbyslug",
+      "src_lib_api_businesses_ts_api_businesses_fetchbusinesses",
+      "src_lib_api_businesses_ts_api_businesses_updatebusiness"
+    ],
+    "111": [
+      "sync_analytics_index",
+      "sync_analytics_index_corsheaders",
+      "sync_analytics_index_requireauth",
+      "sync_analytics_index_requireenv",
+      "sync_analytics_index_synctarget",
+      "sync_analytics_index_targets"
+    ],
+    "112": [
+      "apps_backend_src_routes_assignments_js_routes_assignments",
+      "apps_backend_src_routes_assignments_js_routes_assignments_pool",
+      "apps_backend_src_routes_assignments_js_routes_assignments_requireauth_requirerole",
+      "apps_backend_src_routes_assignments_js_routes_assignments_router",
+      "apps_backend_src_routes_assignments_js_routes_assignments_v4_uuidv4"
+    ],
+    "113": [
+      "apps_backend_src_routes_auth_js_routes_auth",
+      "apps_backend_src_routes_auth_js_routes_auth_pool",
+      "apps_backend_src_routes_auth_js_routes_auth_requireauth",
+      "apps_backend_src_routes_auth_js_routes_auth_router",
+      "apps_backend_src_routes_auth_js_routes_auth_v4_uuidv4"
+    ],
+    "114": [
+      "apps_backend_src_routes_branches_js_routes_branches",
+      "apps_backend_src_routes_branches_js_routes_branches_pool",
+      "apps_backend_src_routes_branches_js_routes_branches_requireauth_requirerole",
+      "apps_backend_src_routes_branches_js_routes_branches_router",
+      "apps_backend_src_routes_branches_js_routes_branches_v4_uuidv4"
+    ],
+    "115": [
+      "apps_backend_src_routes_businesses_js_routes_businesses",
+      "apps_backend_src_routes_businesses_js_routes_businesses_pool",
+      "apps_backend_src_routes_businesses_js_routes_businesses_requireauth_requirerole",
+      "apps_backend_src_routes_businesses_js_routes_businesses_router",
+      "apps_backend_src_routes_businesses_js_routes_businesses_v4_uuidv4"
+    ],
+    "116": [
+      "apps_backend_src_routes_notifications_js_routes_notifications",
+      "apps_backend_src_routes_notifications_js_routes_notifications_pool",
+      "apps_backend_src_routes_notifications_js_routes_notifications_requireauth",
+      "apps_backend_src_routes_notifications_js_routes_notifications_router",
+      "apps_backend_src_routes_notifications_js_routes_notifications_v4_uuidv4"
+    ],
+    "117": [
+      "apps_backend_src_routes_queues_js_routes_queues",
+      "apps_backend_src_routes_queues_js_routes_queues_pool",
+      "apps_backend_src_routes_queues_js_routes_queues_requireauth_requirerole",
+      "apps_backend_src_routes_queues_js_routes_queues_router",
+      "apps_backend_src_routes_queues_js_routes_queues_v4_uuidv4"
+    ],
+    "118": [
+      "apps_backend_src_routes_services_js_routes_services",
+      "apps_backend_src_routes_services_js_routes_services_pool",
+      "apps_backend_src_routes_services_js_routes_services_requireauth_requirerole",
+      "apps_backend_src_routes_services_js_routes_services_router",
+      "apps_backend_src_routes_services_js_routes_services_v4_uuidv4"
+    ],
+    "119": [
+      "apps_backend_src_routes_staff_js_routes_staff",
+      "apps_backend_src_routes_staff_js_routes_staff_pool",
+      "apps_backend_src_routes_staff_js_routes_staff_requireauth_requirerole",
+      "apps_backend_src_routes_staff_js_routes_staff_router",
+      "apps_backend_src_routes_staff_js_routes_staff_v4_uuidv4"
+    ],
+    "120": [
+      "apps_mobile_src_lib_apiclient_ts_lib_apiclient",
+      "apps_mobile_src_lib_apiclient_ts_lib_apiclient_api",
+      "apps_mobile_src_lib_apiclient_ts_lib_apiclient_gettoken",
+      "apps_mobile_src_lib_apiclient_ts_lib_apiclient_request",
+      "apps_mobile_src_lib_apiclient_ts_lib_apiclient_supabase"
+    ],
+    "121": [
+      "apps_website_src_components_admin_exportbutton_tsx_admin_exportbutton_downloadcsv",
+      "apps_website_src_components_admin_exportbutton_tsx_admin_exportbutton_exportbuttonprops",
+      "src_components_admin_exportbutton_tsx_admin_exportbutton",
+      "src_components_admin_exportbutton_tsx_admin_exportbutton_downloadcsv",
+      "src_components_admin_exportbutton_tsx_admin_exportbutton_exportbuttonprops"
+    ],
+    "122": [
+      "apps_website_src_components_admin_queuetable_tsx_admin_queuetable",
+      "apps_website_src_components_admin_queuetable_tsx_admin_queuetable_queueentry",
+      "apps_website_src_components_admin_queuetable_tsx_admin_queuetable_queuetable",
+      "apps_website_src_components_admin_queuetable_tsx_admin_queuetable_queuetableprops",
+      "apps_website_src_components_admin_queuetable_tsx_admin_queuetable_statusconfig"
+    ],
+    "123": [
+      "apps_website_src_components_admin_timedisplay_tsx_admin_timedisplay",
+      "apps_website_src_components_admin_timedisplay_tsx_admin_timedisplay_durationdisplay",
+      "apps_website_src_components_admin_timedisplay_tsx_admin_timedisplay_durationdisplayprops",
+      "apps_website_src_components_admin_timedisplay_tsx_admin_timedisplay_timedisplay",
+      "apps_website_src_components_admin_timedisplay_tsx_admin_timedisplay_timedisplayprops"
+    ],
+    "124": [
+      "apps_website_src_components_ui_alert_tsx_ui_alert",
+      "apps_website_src_components_ui_alert_tsx_ui_alert_alert",
+      "apps_website_src_components_ui_alert_tsx_ui_alert_alertdescription",
+      "apps_website_src_components_ui_alert_tsx_ui_alert_alerttitle",
+      "apps_website_src_components_ui_alert_tsx_ui_alert_alertvariants"
+    ],
+    "125": [
+      "apps_website_src_data_mockstats_json_data_mockstats",
+      "apps_website_src_data_mockstats_json_data_mockstats_activesessions",
+      "apps_website_src_data_mockstats_json_data_mockstats_averagewaittime",
+      "apps_website_src_data_mockstats_json_data_mockstats_completedtoday",
+      "apps_website_src_data_mockstats_json_data_mockstats_totalcustomerstoday"
+    ],
+    "126": [
+      "apps_website_src_hooks_useauth_ts_hooks_useauth",
+      "apps_website_src_hooks_useauth_ts_hooks_useauth_authme",
+      "apps_website_src_hooks_useauth_ts_hooks_useauth_dbstaff",
+      "apps_website_src_hooks_useauth_ts_hooks_useauth_dbuser",
+      "apps_website_src_hooks_useauth_ts_hooks_useauth_useauth"
+    ],
+    "127": [
+      "backend_src_routes_assignments_js_routes_assignments",
+      "backend_src_routes_assignments_js_routes_assignments_pool",
+      "backend_src_routes_assignments_js_routes_assignments_requireauth_requirerole",
+      "backend_src_routes_assignments_js_routes_assignments_router",
+      "backend_src_routes_assignments_js_routes_assignments_v4_uuidv4"
+    ],
+    "128": [
+      "backend_src_routes_auth_js_routes_auth",
+      "backend_src_routes_auth_js_routes_auth_pool",
+      "backend_src_routes_auth_js_routes_auth_requireauth",
+      "backend_src_routes_auth_js_routes_auth_router",
+      "backend_src_routes_auth_js_routes_auth_v4_uuidv4"
+    ],
+    "129": [
+      "backend_src_routes_branches_js_routes_branches",
+      "backend_src_routes_branches_js_routes_branches_pool",
+      "backend_src_routes_branches_js_routes_branches_requireauth_requirerole",
+      "backend_src_routes_branches_js_routes_branches_router",
+      "backend_src_routes_branches_js_routes_branches_v4_uuidv4"
+    ],
+    "130": [
+      "backend_src_routes_businesses_js_routes_businesses",
+      "backend_src_routes_businesses_js_routes_businesses_pool",
+      "backend_src_routes_businesses_js_routes_businesses_requireauth_requirerole",
+      "backend_src_routes_businesses_js_routes_businesses_router",
+      "backend_src_routes_businesses_js_routes_businesses_v4_uuidv4"
+    ],
+    "131": [
+      "backend_src_routes_notifications_js_routes_notifications",
+      "backend_src_routes_notifications_js_routes_notifications_pool",
+      "backend_src_routes_notifications_js_routes_notifications_requireauth",
+      "backend_src_routes_notifications_js_routes_notifications_router",
+      "backend_src_routes_notifications_js_routes_notifications_v4_uuidv4"
+    ],
+    "132": [
+      "backend_src_routes_queues_js_routes_queues",
+      "backend_src_routes_queues_js_routes_queues_pool",
+      "backend_src_routes_queues_js_routes_queues_requireauth_requirerole",
+      "backend_src_routes_queues_js_routes_queues_router",
+      "backend_src_routes_queues_js_routes_queues_v4_uuidv4"
+    ],
+    "133": [
+      "backend_src_routes_services_js_routes_services",
+      "backend_src_routes_services_js_routes_services_pool",
+      "backend_src_routes_services_js_routes_services_requireauth_requirerole",
+      "backend_src_routes_services_js_routes_services_router",
+      "backend_src_routes_services_js_routes_services_v4_uuidv4"
+    ],
+    "134": [
+      "backend_src_routes_staff_js_routes_staff",
+      "backend_src_routes_staff_js_routes_staff_pool",
+      "backend_src_routes_staff_js_routes_staff_requireauth_requirerole",
+      "backend_src_routes_staff_js_routes_staff_router",
+      "backend_src_routes_staff_js_routes_staff_v4_uuidv4"
+    ],
+    "135": [
+      "backend_src_routes_tickets_js_routes_tickets",
+      "backend_src_routes_tickets_js_routes_tickets_pool",
+      "backend_src_routes_tickets_js_routes_tickets_requireauth_requirerole",
+      "backend_src_routes_tickets_js_routes_tickets_router",
+      "backend_src_routes_tickets_js_routes_tickets_v4_uuidv4"
+    ],
+    "136": [
+      "apps_backend_src_middleware_auth_js_middleware_auth",
+      "apps_backend_src_middleware_auth_js_middleware_auth_createclient",
+      "apps_backend_src_middleware_auth_js_middleware_auth_pool",
+      "apps_backend_src_middleware_auth_js_middleware_auth_requireauth",
+      "apps_backend_src_middleware_auth_js_middleware_auth_requirerole"
+    ],
+    "137": [
+      "main_profilescreen",
+      "main_profilescreen_empty",
+      "main_profilescreen_profilefields",
+      "main_profilescreen_profilescreen",
+      "main_profilescreen_styles"
+    ],
+    "138": [
+      "navigation_appnavigator_rootstackparamlist",
+      "queue_businessscreen",
+      "queue_businessscreen_branch",
+      "queue_businessscreen_params",
+      "queue_businessscreen_styles"
+    ],
+    "139": [
+      "scheduled_export_index",
+      "scheduled_export_index_converttocsv",
+      "scheduled_export_index_corsheaders",
+      "scheduled_export_index_reconstructqueueevents",
+      "scheduled_export_index_uploadtostorage"
+    ],
+    "140": [
+      "apps_model_scripts_import_predictions_py_str",
+      "scripts_import_predictions",
+      "scripts_import_predictions_main",
+      "scripts_import_predictions_push_prediction",
+      "scripts_import_predictions_rationale_1"
+    ],
+    "141": [
+      "apps_website_src_components_admin_activityfeed_tsx_admin_activityfeed_activityfeedprops",
+      "apps_website_src_components_admin_activityfeed_tsx_admin_activityfeed_eventconfig",
+      "src_components_admin_activityfeed_tsx_admin_activityfeed",
+      "src_components_admin_activityfeed_tsx_admin_activityfeed_activityfeedprops",
+      "src_components_admin_activityfeed_tsx_admin_activityfeed_eventconfig"
+    ],
+    "142": [
+      "apps_website_src_components_admin_customeravatar_tsx_admin_customeravatar_customeravatarprops",
+      "apps_website_src_components_admin_customeravatar_tsx_admin_customeravatar_sizeclasses",
+      "src_components_admin_customeravatar_tsx_admin_customeravatar",
+      "src_components_admin_customeravatar_tsx_admin_customeravatar_customeravatarprops",
+      "src_components_admin_customeravatar_tsx_admin_customeravatar_sizeclasses"
+    ],
+    "143": [
+      "apps_website_src_components_admin_aiinsightspanel_tsx_admin_aiinsightspanel_insight",
+      "src_components_admin_aiinsightspanel_tsx_admin_aiinsightspanel_aiinsightspanel",
+      "src_components_admin_aiinsightspanel_tsx_admin_aiinsightspanel_insight",
+      "src_components_admin_insightspanel_tsx_admin_insightspanel",
+      "src_components_admin_insightspanel_tsx_admin_insightspanel_insightspanelprops"
+    ],
+    "144": [
+      "src_components_admin_queuetable_tsx_admin_queuetable",
+      "src_components_admin_queuetable_tsx_admin_queuetable_queueentry",
+      "src_components_admin_queuetable_tsx_admin_queuetable_queuetable",
+      "src_components_admin_queuetable_tsx_admin_queuetable_queuetableprops",
+      "src_components_admin_queuetable_tsx_admin_queuetable_statusconfig"
+    ],
+    "145": [
+      "src_components_admin_timedisplay_tsx_admin_timedisplay",
+      "src_components_admin_timedisplay_tsx_admin_timedisplay_durationdisplay",
+      "src_components_admin_timedisplay_tsx_admin_timedisplay_durationdisplayprops",
+      "src_components_admin_timedisplay_tsx_admin_timedisplay_timedisplay",
+      "src_components_admin_timedisplay_tsx_admin_timedisplay_timedisplayprops"
+    ],
+    "146": [
+      "src_components_ui_alert_tsx_ui_alert",
+      "src_components_ui_alert_tsx_ui_alert_alert",
+      "src_components_ui_alert_tsx_ui_alert_alertdescription",
+      "src_components_ui_alert_tsx_ui_alert_alerttitle",
+      "src_components_ui_alert_tsx_ui_alert_alertvariants"
+    ],
+    "147": [
+      "src_hooks_useauth_ts_hooks_useauth",
+      "src_hooks_useauth_ts_hooks_useauth_authme",
+      "src_hooks_useauth_ts_hooks_useauth_dbstaff",
+      "src_hooks_useauth_ts_hooks_useauth_dbuser",
+      "src_hooks_useauth_ts_hooks_useauth_useauth"
+    ],
+    "148": [
+      "apps_website_src_hooks_usestaffrole_ts_hooks_usestaffrole_approle",
+      "apps_website_src_hooks_usestaffrole_ts_hooks_usestaffrole_staffdata",
+      "src_hooks_usestaffrole_ts_hooks_usestaffrole",
+      "src_hooks_usestaffrole_ts_hooks_usestaffrole_approle",
+      "src_hooks_usestaffrole_ts_hooks_usestaffrole_staffdata"
+    ],
+    "149": [
+      "apps_website_src_pages_publictraffic_tsx_pages_publictraffic_mocktrafficdata",
+      "apps_website_src_pages_publictraffic_tsx_pages_publictraffic_servicedata",
+      "src_pages_publictraffic_tsx_pages_publictraffic",
+      "src_pages_publictraffic_tsx_pages_publictraffic_mocktrafficdata",
+      "src_pages_publictraffic_tsx_pages_publictraffic_servicedata"
+    ],
+    "150": [
+      "ui_waittimebadge",
+      "ui_waittimebadge_getlevel",
+      "ui_waittimebadge_level_config",
+      "ui_waittimebadge_waitlevel",
+      "ui_waittimebadge_waittimebadgeprops"
+    ],
+    "151": [
+      "apps_backend_src_routes_history_js_routes_history",
+      "apps_backend_src_routes_history_js_routes_history_pool",
+      "apps_backend_src_routes_history_js_routes_history_requireauth",
+      "apps_backend_src_routes_history_js_routes_history_router"
+    ],
+    "152": [
+      "apps_backend_src_routes_saved_js_routes_saved",
+      "apps_backend_src_routes_saved_js_routes_saved_pool",
+      "apps_backend_src_routes_saved_js_routes_saved_requireauth",
+      "apps_backend_src_routes_saved_js_routes_saved_router"
+    ],
+    "153": [
+      "apps_website_src_components_admin_filterbar_tsx_admin_filterbar",
+      "apps_website_src_components_admin_filterbar_tsx_admin_filterbar_filterbar",
+      "apps_website_src_components_admin_filterbar_tsx_admin_filterbar_filterbarprops",
+      "apps_website_src_components_admin_filterbar_tsx_admin_filterbar_filteroption"
+    ],
+    "154": [
+      "apps_website_src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar",
+      "apps_website_src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_glassmorphicsidebar",
+      "apps_website_src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_glassmorphicsidebarprops",
+      "apps_website_src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_navitems"
+    ],
+    "155": [
+      "apps_website_src_components_loadbar_tsx_components_loadbar",
+      "apps_website_src_components_loadbar_tsx_components_loadbar_colorclasses",
+      "apps_website_src_components_loadbar_tsx_components_loadbar_loadbar",
+      "apps_website_src_components_loadbar_tsx_components_loadbar_loadbarprops"
+    ],
+    "156": [
+      "apps_website_src_components_ui_accordion_tsx_ui_accordion",
+      "apps_website_src_components_ui_accordion_tsx_ui_accordion_accordioncontent",
+      "apps_website_src_components_ui_accordion_tsx_ui_accordion_accordionitem",
+      "apps_website_src_components_ui_accordion_tsx_ui_accordion_accordiontrigger"
+    ],
+    "157": [
+      "apps_website_src_components_ui_avatar_tsx_ui_avatar",
+      "apps_website_src_components_ui_avatar_tsx_ui_avatar_avatar",
+      "apps_website_src_components_ui_avatar_tsx_ui_avatar_avatarfallback",
+      "apps_website_src_components_ui_avatar_tsx_ui_avatar_avatarimage"
+    ],
+    "158": [
+      "apps_website_src_components_ui_badge_tsx_ui_badge",
+      "apps_website_src_components_ui_badge_tsx_ui_badge_badge",
+      "apps_website_src_components_ui_badge_tsx_ui_badge_badgeprops",
+      "apps_website_src_components_ui_badge_tsx_ui_badge_badgevariants"
+    ],
+    "159": [
+      "apps_website_src_components_ui_button_tsx_ui_button",
+      "apps_website_src_components_ui_button_tsx_ui_button_button",
+      "apps_website_src_components_ui_button_tsx_ui_button_buttonprops",
+      "apps_website_src_components_ui_button_tsx_ui_button_buttonvariants"
+    ],
+    "160": [
+      "apps_website_src_components_ui_tabs_tsx_ui_tabs",
+      "apps_website_src_components_ui_tabs_tsx_ui_tabs_tabscontent",
+      "apps_website_src_components_ui_tabs_tsx_ui_tabs_tabslist",
+      "apps_website_src_components_ui_tabs_tsx_ui_tabs_tabstrigger"
+    ],
+    "161": [
+      "apps_website_src_hooks_useorganizations_ts_hooks_useorganizations_organization",
+      "hooks_useorganizations_json",
+      "src_hooks_useorganizations_ts_hooks_useorganizations",
+      "src_hooks_useorganizations_ts_hooks_useorganizations_organization"
+    ],
+    "162": [
+      "apps_website_src_lib_apiclient_ts_lib_apiclient",
+      "apps_website_src_lib_apiclient_ts_lib_apiclient_api",
+      "apps_website_src_lib_apiclient_ts_lib_apiclient_getauthheaders",
+      "apps_website_src_lib_apiclient_ts_lib_apiclient_request"
+    ],
+    "163": [
+      "apps_website_src_pages_admin_staffdetail_tsx_admin_staffdetail",
+      "apps_website_src_pages_admin_staffdetail_tsx_admin_staffdetail_rolecolors",
+      "apps_website_src_pages_admin_staffdetail_tsx_admin_staffdetail_rolelabels",
+      "apps_website_src_pages_admin_staffdetail_tsx_admin_staffdetail_staffdetail"
+    ],
+    "164": [
+      "backend_src_index_js_src_index",
+      "backend_src_index_js_src_index_app",
+      "backend_src_index_js_src_index_cors",
+      "backend_src_index_js_src_index_express"
+    ],
+    "165": [
+      "backend_src_routes_history_js_routes_history",
+      "backend_src_routes_history_js_routes_history_pool",
+      "backend_src_routes_history_js_routes_history_requireauth",
+      "backend_src_routes_history_js_routes_history_router"
+    ],
+    "166": [
+      "backend_src_routes_saved_js_routes_saved",
+      "backend_src_routes_saved_js_routes_saved_pool",
+      "backend_src_routes_saved_js_routes_saved_requireauth",
+      "backend_src_routes_saved_js_routes_saved_router"
+    ],
+    "167": [
+      "create_staff_auth_index",
+      "create_staff_auth_index_bulkstaffrequest",
+      "create_staff_auth_index_corsheaders",
+      "create_staff_auth_index_staffauthrequest"
+    ],
+    "168": [
+      "dist_electron_main",
+      "dist_electron_main_app_browserwindow_ipcmain_shell",
+      "dist_electron_main_createwindow",
+      "dist_electron_main_path"
+    ],
+    "169": [
+      "download_analytics_file_index",
+      "download_analytics_file_index_corsheaders",
+      "download_analytics_file_index_requireauth",
+      "download_analytics_file_index_requireenv"
+    ],
+    "170": [
+      "electron_main",
+      "electron_main_app_browserwindow_ipcmain_shell",
+      "electron_main_createwindow",
+      "electron_main_path"
+    ],
+    "171": [
+      "middleware_validate",
+      "middleware_validate_schemas",
+      "middleware_validate_validate",
+      "middleware_validate_z"
+    ],
+    "172": [
+      "mobile_package_devdependencies",
+      "mobile_package_devdependencies_babel_core",
+      "mobile_package_devdependencies_typescript",
+      "package_devdependencies_types_react"
+    ],
+    "173": [
+      "routes_audit",
+      "routes_audit_pool",
+      "routes_audit_requireauth_requirerole",
+      "routes_audit_router"
+    ],
+    "174": [
+      "scripts_create_notebook",
+      "scripts_create_notebook_code",
+      "scripts_create_notebook_md",
+      "scripts_create_notebook_rationale_1"
+    ],
+    "175": [
+      "scripts_export_csv",
+      "scripts_export_csv_export_query",
+      "scripts_export_csv_main",
+      "scripts_export_csv_rationale_1"
+    ],
+    "176": [
+      "setup_test_users_index",
+      "setup_test_users_index_corsheaders",
+      "setup_test_users_index_testuser",
+      "setup_test_users_index_testusers"
+    ],
+    "177": [
+      "src_components_admin_filterbar_tsx_admin_filterbar",
+      "src_components_admin_filterbar_tsx_admin_filterbar_filterbar",
+      "src_components_admin_filterbar_tsx_admin_filterbar_filterbarprops",
+      "src_components_admin_filterbar_tsx_admin_filterbar_filteroption"
+    ],
+    "178": [
+      "src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar",
+      "src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_glassmorphicsidebar",
+      "src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_glassmorphicsidebarprops",
+      "src_components_glassmorphicsidebar_tsx_components_glassmorphicsidebar_navitems"
+    ],
+    "179": [
+      "src_components_loadbar_tsx_components_loadbar",
+      "src_components_loadbar_tsx_components_loadbar_colorclasses",
+      "src_components_loadbar_tsx_components_loadbar_loadbar",
+      "src_components_loadbar_tsx_components_loadbar_loadbarprops"
+    ],
+    "180": [
+      "src_components_ui_accordion_tsx_ui_accordion",
+      "src_components_ui_accordion_tsx_ui_accordion_accordioncontent",
+      "src_components_ui_accordion_tsx_ui_accordion_accordionitem",
+      "src_components_ui_accordion_tsx_ui_accordion_accordiontrigger"
+    ],
+    "181": [
+      "src_components_ui_avatar_tsx_ui_avatar",
+      "src_components_ui_avatar_tsx_ui_avatar_avatar",
+      "src_components_ui_avatar_tsx_ui_avatar_avatarfallback",
+      "src_components_ui_avatar_tsx_ui_avatar_avatarimage"
+    ],
+    "182": [
+      "src_components_ui_badge_tsx_ui_badge",
+      "src_components_ui_badge_tsx_ui_badge_badge",
+      "src_components_ui_badge_tsx_ui_badge_badgeprops",
+      "src_components_ui_badge_tsx_ui_badge_badgevariants"
+    ],
+    "183": [
+      "src_components_ui_button_tsx_ui_button",
+      "src_components_ui_button_tsx_ui_button_button",
+      "src_components_ui_button_tsx_ui_button_buttonprops",
+      "src_components_ui_button_tsx_ui_button_buttonvariants"
+    ],
+    "184": [
+      "src_components_ui_tabs_tsx_ui_tabs",
+      "src_components_ui_tabs_tsx_ui_tabs_tabscontent",
+      "src_components_ui_tabs_tsx_ui_tabs_tabslist",
+      "src_components_ui_tabs_tsx_ui_tabs_tabstrigger"
+    ],
+    "185": [
+      "src_lib_apiclient_ts_lib_apiclient",
+      "src_lib_apiclient_ts_lib_apiclient_api",
+      "src_lib_apiclient_ts_lib_apiclient_getauthheaders",
+      "src_lib_apiclient_ts_lib_apiclient_request"
+    ],
+    "186": [
+      "src_pages_admin_staffdetail_tsx_admin_staffdetail",
+      "src_pages_admin_staffdetail_tsx_admin_staffdetail_rolecolors",
+      "src_pages_admin_staffdetail_tsx_admin_staffdetail_rolelabels",
+      "src_pages_admin_staffdetail_tsx_admin_staffdetail_staffdetail"
+    ],
+    "187": [
+      "upload_analytics_file_index",
+      "upload_analytics_file_index_corsheaders",
+      "upload_analytics_file_index_requireauth",
+      "upload_analytics_file_index_requireenv"
+    ],
+    "188": [
+      "apps_backend_src_db_pool_js_db_pool",
+      "apps_backend_src_db_pool_js_db_pool_mysql",
+      "apps_backend_src_db_pool_js_db_pool_pool"
+    ],
+    "189": [
+      "apps_mobile_src_hooks_useauth_ts_hooks_useauth",
+      "apps_mobile_src_hooks_useauth_ts_hooks_useauth_useauth",
+      "hooks_useauth_userprofile"
+    ],
+    "190": [
+      "apps_website_src_app_tsx_src_app",
+      "apps_website_src_app_tsx_src_app_app",
+      "apps_website_src_app_tsx_src_app_queryclient"
+    ],
+    "191": [
+      "apps_website_src_components_admin_adminsidebar_tsx_admin_adminsidebar",
+      "apps_website_src_components_admin_adminsidebar_tsx_admin_adminsidebar_adminsidebar",
+      "apps_website_src_components_admin_adminsidebar_tsx_admin_adminsidebar_navitems"
+    ],
+    "192": [
+      "apps_website_src_components_admin_queuecard_tsx_admin_queuecard_queuecardprops",
+      "src_components_admin_queuecard_tsx_admin_queuecard",
+      "src_components_admin_queuecard_tsx_admin_queuecard_queuecardprops"
+    ],
+    "193": [
+      "apps_website_src_components_glasscard_tsx_components_glasscard",
+      "apps_website_src_components_glasscard_tsx_components_glasscard_glasscard",
+      "apps_website_src_components_glasscard_tsx_components_glasscard_glasscardprops"
+    ],
+    "194": [
+      "apps_website_src_components_navbar_tsx_components_navbar",
+      "apps_website_src_components_navbar_tsx_components_navbar_navbar",
+      "components_navbar_navitems"
+    ],
+    "195": [
+      "apps_website_src_components_servicetile_tsx_components_servicetile_servicetileprops",
+      "src_components_servicetile_tsx_components_servicetile",
+      "src_components_servicetile_tsx_components_servicetile_servicetileprops"
+    ],
+    "196": [
+      "apps_website_src_components_ui_input_tsx_ui_input",
+      "apps_website_src_components_ui_input_tsx_ui_input_input",
+      "apps_website_src_components_ui_input_tsx_ui_input_inputprops"
+    ],
+    "197": [
+      "apps_website_src_components_ui_label_tsx_ui_label",
+      "apps_website_src_components_ui_label_tsx_ui_label_label",
+      "apps_website_src_components_ui_label_tsx_ui_label_labelvariants"
+    ],
+    "198": [
+      "apps_website_src_components_ui_scroll_area_tsx_ui_scroll_area",
+      "apps_website_src_components_ui_scroll_area_tsx_ui_scroll_area_scrollarea",
+      "apps_website_src_components_ui_scroll_area_tsx_ui_scroll_area_scrollbar"
+    ],
+    "199": [
+      "apps_website_src_components_ui_sonner_tsx_ui_sonner",
+      "apps_website_src_components_ui_sonner_tsx_ui_sonner_toaster",
+      "apps_website_src_components_ui_sonner_tsx_ui_sonner_toasterprops"
+    ],
+    "200": [
+      "apps_website_src_components_ui_textarea_tsx_ui_textarea",
+      "apps_website_src_components_ui_textarea_tsx_ui_textarea_textarea",
+      "apps_website_src_components_ui_textarea_tsx_ui_textarea_textareaprops"
+    ],
+    "201": [
+      "apps_website_src_hooks_useadminqueuerealtime_ts_hooks_useadminqueuerealtime_useadminqueuerealtimeoptions",
+      "src_hooks_useadminqueuerealtime_ts_hooks_useadminqueuerealtime",
+      "src_hooks_useadminqueuerealtime_ts_hooks_useadminqueuerealtime_useadminqueuerealtimeoptions"
+    ],
+    "202": [
+      "apps_website_src_hooks_uselivequeueposition_ts_hooks_uselivequeueposition_linedata",
+      "src_hooks_uselivequeueposition_ts_hooks_uselivequeueposition",
+      "src_hooks_uselivequeueposition_ts_hooks_uselivequeueposition_linedata"
+    ],
+    "203": [
+      "apps_website_src_components_admin_anomalyalerts_tsx_admin_anomalyalerts_anomalyalertsprops",
+      "src_components_admin_anomalyalerts_tsx_admin_anomalyalerts_anomalyalertsprops",
+      "src_lib_api_insights_ts_api_insights_anomalyalert"
+    ],
+    "204": [
+      "apps_website_src_components_admin_staffassignmentpanel_tsx_admin_staffassignmentpanel_staffassignmentpanelprops",
+      "src_components_admin_staffassignmentpanel_tsx_admin_staffassignmentpanel",
+      "src_components_admin_staffassignmentpanel_tsx_admin_staffassignmentpanel_staffassignmentpanelprops"
+    ],
+    "205": [
+      "apps_website_src_main_tsx_src_main",
+      "apps_website_src_main_tsx_src_main_container",
+      "apps_website_src_main_tsx_src_main_root"
+    ],
+    "206": [
+      "backend_src_db_pool_js_db_pool",
+      "backend_src_db_pool_js_db_pool_mysql",
+      "backend_src_db_pool_js_db_pool_pool"
+    ],
+    "207": [
+      "components_besttimehighlight",
+      "components_besttimehighlight_besttimehighlightprops",
+      "components_besttimehighlight_besttimehighlightskeleton"
+    ],
+    "208": [
+      "components_pagetransition",
+      "components_pagetransition_pagetransition",
+      "components_pagetransition_pagevariants"
+    ],
+    "209": [
+      "auth_loginscreen",
+      "auth_loginscreen_loginscreen",
+      "auth_loginscreen_styles"
+    ],
+    "210": [
+      "auth_onboardingscreen",
+      "auth_onboardingscreen_business",
+      "auth_onboardingscreen_styles"
+    ],
+    "211": [
+      "main_searchscreen",
+      "main_searchscreen_business",
+      "main_searchscreen_styles"
+    ],
+    "212": [
+      "scripts_build_model",
+      "scripts_build_model_norm",
+      "scripts_build_model_rationale_1"
+    ],
+    "213": [
+      "src_app_tsx_src_app",
+      "src_app_tsx_src_app_app",
+      "src_app_tsx_src_app_queryclient"
+    ],
+    "214": [
+      "src_components_admin_adminsidebar_tsx_admin_adminsidebar",
+      "src_components_admin_adminsidebar_tsx_admin_adminsidebar_adminsidebar",
+      "src_components_admin_adminsidebar_tsx_admin_adminsidebar_navitems"
+    ],
+    "215": [
+      "apps_website_src_components_admin_airecommendations_tsx_admin_airecommendations_airecommendationsprops",
+      "src_components_admin_airecommendations_tsx_admin_airecommendations",
+      "src_components_admin_airecommendations_tsx_admin_airecommendations_airecommendationsprops"
+    ],
+    "216": [
+      "apps_website_src_components_admin_modernareachart_tsx_admin_modernareachart_datapoint",
+      "src_components_admin_modernareachart_tsx_admin_modernareachart",
+      "src_components_admin_modernareachart_tsx_admin_modernareachart_datapoint"
+    ],
+    "217": [
+      "apps_website_src_components_admin_statscard_tsx_admin_statscard_statscardprops",
+      "src_components_admin_statscard_tsx_admin_statscard",
+      "src_components_admin_statscard_tsx_admin_statscard_statscardprops"
+    ],
+    "218": [
+      "apps_website_src_components_admin_trendstatcard_tsx_admin_trendstatcard_trendstatcardprops",
+      "src_components_admin_trendstatcard_tsx_admin_trendstatcard",
+      "src_components_admin_trendstatcard_tsx_admin_trendstatcard_trendstatcardprops"
+    ],
+    "219": [
+      "apps_website_src_components_circularprogress_tsx_components_circularprogress_colorclasses",
+      "src_components_circularprogress_tsx_components_circularprogress",
+      "src_components_circularprogress_tsx_components_circularprogress_colorclasses"
+    ],
+    "220": [
+      "src_components_glasscard_tsx_components_glasscard",
+      "src_components_glasscard_tsx_components_glasscard_glasscard",
+      "src_components_glasscard_tsx_components_glasscard_glasscardprops"
+    ],
+    "221": [
+      "src_components_ui_input_tsx_ui_input",
+      "src_components_ui_input_tsx_ui_input_input",
+      "src_components_ui_input_tsx_ui_input_inputprops"
+    ],
+    "222": [
+      "src_components_ui_label_tsx_ui_label",
+      "src_components_ui_label_tsx_ui_label_label",
+      "src_components_ui_label_tsx_ui_label_labelvariants"
+    ],
+    "223": [
+      "apps_website_src_components_ui_radio_group_tsx_ui_radio_group",
+      "src_components_ui_radio_group_tsx_ui_radio_group",
+      "src_components_ui_radio_group_tsx_ui_radio_group_radiogroup"
+    ],
+    "224": [
+      "src_components_ui_scroll_area_tsx_ui_scroll_area",
+      "src_components_ui_scroll_area_tsx_ui_scroll_area_scrollarea",
+      "src_components_ui_scroll_area_tsx_ui_scroll_area_scrollbar"
+    ],
+    "225": [
+      "src_components_ui_sonner_tsx_ui_sonner",
+      "src_components_ui_sonner_tsx_ui_sonner_toaster",
+      "src_components_ui_sonner_tsx_ui_sonner_toasterprops"
+    ],
+    "226": [
+      "src_components_ui_textarea_tsx_ui_textarea",
+      "src_components_ui_textarea_tsx_ui_textarea_textarea",
+      "src_components_ui_textarea_tsx_ui_textarea_textareaprops"
+    ],
+    "227": [
+      "src_data_mockqueuedata_json_data_mockqueuedata",
+      "src_data_mockqueuedata_json_data_mockqueuedata_activesessions",
+      "src_data_mockqueuedata_json_data_mockqueuedata_queueentries"
+    ],
+    "228": [
+      "apps_website_src_hooks_usequeuenotifications_ts_hooks_usequeuenotifications_queuestate",
+      "src_hooks_usequeuenotifications_ts_hooks_usequeuenotifications",
+      "src_hooks_usequeuenotifications_ts_hooks_usequeuenotifications_queuestate"
+    ],
+    "229": [
+      "src_main_tsx_src_main",
+      "src_main_tsx_src_main_container",
+      "src_main_tsx_src_main_root"
+    ],
+    "230": [
+      "admin_desktop_vite_config",
+      "admin_desktop_vite_config_onstart"
+    ],
+    "231": [
+      "apps_admin_desktop_src_lib_routes_ts_lib_routes",
+      "lib_routes_admin_routes"
+    ],
+    "232": [
+      "apps_admin_desktop_src_pages_login_tsx_pages_login",
+      "pages_login_loginpage"
+    ],
+    "233": [
+      "apps_mobile_src_lib_routes_ts_lib_routes",
+      "lib_routes_mobile_routes"
+    ],
+    "234": [
+      "apps_website_src_components_ui_popover_tsx_ui_popover",
+      "apps_website_src_components_ui_popover_tsx_ui_popover_popovercontent"
+    ],
+    "235": [
+      "apps_website_src_components_ui_progress_tsx_ui_progress",
+      "apps_website_src_components_ui_progress_tsx_ui_progress_progress"
+    ],
+    "236": [
+      "apps_website_src_components_ui_separator_tsx_ui_separator",
+      "apps_website_src_components_ui_separator_tsx_ui_separator_separator"
+    ],
+    "237": [
+      "apps_website_src_components_ui_slider_tsx_ui_slider",
+      "apps_website_src_components_ui_slider_tsx_ui_slider_slider"
+    ],
+    "238": [
+      "apps_website_src_components_ui_switch_tsx_ui_switch",
+      "apps_website_src_components_ui_switch_tsx_ui_switch_switch"
+    ],
+    "239": [
+      "apps_website_src_components_ui_toaster_tsx_ui_toaster",
+      "apps_website_src_components_ui_toaster_tsx_ui_toaster_toaster"
+    ],
+    "240": [
+      "apps_website_src_components_ui_tooltip_tsx_ui_tooltip",
+      "apps_website_src_components_ui_tooltip_tsx_ui_tooltip_tooltipcontent"
+    ],
+    "241": [
+      "apps_website_src_components_verticalsidebar_tsx_components_verticalsidebar",
+      "apps_website_src_components_verticalsidebar_tsx_components_verticalsidebar_verticalsidebar"
+    ],
+    "242": [
+      "apps_website_src_hooks_use_mobile_tsx_hooks_use_mobile",
+      "apps_website_src_hooks_use_mobile_tsx_hooks_use_mobile_useismobile"
+    ],
+    "243": [
+      "apps_website_src_integrations_supabase_client_ts_supabase_client",
+      "apps_website_src_integrations_supabase_client_ts_supabase_client_supabase"
+    ],
+    "244": [
+      "apps_website_src_lib_routes_ts_lib_routes",
+      "lib_routes_routes"
+    ],
+    "245": [
+      "apps_website_src_lib_supabase_ts_lib_supabase",
+      "apps_website_src_lib_supabase_ts_lib_supabase_supabase"
+    ],
+    "246": [
+      "apps_website_src_lib_utils_ts_lib_utils",
+      "apps_website_src_lib_utils_ts_lib_utils_cn"
+    ],
+    "247": [
+      "apps_website_src_pages_about_tsx_pages_about",
+      "apps_website_src_pages_about_tsx_pages_about_about"
+    ],
+    "248": [
+      "apps_website_src_pages_admin_dashboard_tsx_admin_dashboard",
+      "apps_website_src_pages_admin_dashboard_tsx_admin_dashboard_dashboard"
+    ],
+    "249": [
+      "apps_website_src_pages_admin_login_tsx_admin_login",
+      "apps_website_src_pages_admin_login_tsx_admin_login_adminlogin"
+    ],
+    "250": [
+      "apps_website_src_pages_admin_settings_tsx_admin_settings",
+      "apps_website_src_pages_admin_settings_tsx_admin_settings_settings"
+    ],
+    "251": [
+      "apps_website_src_pages_admin_staff_tsx_admin_staff",
+      "apps_website_src_pages_admin_staff_tsx_admin_staff_staff"
+    ],
+    "252": [
+      "apps_website_src_pages_joinus_tsx_pages_joinus",
+      "apps_website_src_pages_joinus_tsx_pages_joinus_joinus"
+    ],
+    "253": [
+      "apps_website_src_pages_login_tsx_pages_login",
+      "apps_website_src_pages_login_tsx_pages_login_login"
+    ],
+    "254": [
+      "apps_website_src_pages_notfound_tsx_pages_notfound",
+      "apps_website_src_pages_notfound_tsx_pages_notfound_notfound"
+    ],
+    "255": [
+      "apps_website_src_pages_signup_tsx_pages_signup",
+      "apps_website_src_pages_signup_tsx_pages_signup_signup"
+    ],
+    "256": [
+      "constants_routes",
+      "constants_routes_routes"
+    ],
+    "257": [
+      "dist_electron_preload",
+      "dist_electron_preload_contextbridge_ipcrenderer"
+    ],
+    "258": [
+      "electron_preload",
+      "electron_preload_contextbridge_ipcrenderer"
+    ],
+    "259": [
+      "src_components_admin_adminlayout_tsx_admin_adminlayout",
+      "src_components_admin_adminlayout_tsx_admin_adminlayout_adminlayoutprops"
+    ],
+    "260": [
+      "src_components_admin_logoutconfirmdialog_tsx_admin_logoutconfirmdialog",
+      "src_components_admin_logoutconfirmdialog_tsx_admin_logoutconfirmdialog_logoutconfirmdialogprops"
+    ],
+    "261": [
+      "src_components_leavequeuemodal_tsx_components_leavequeuemodal",
+      "src_components_leavequeuemodal_tsx_components_leavequeuemodal_leavequeuemodalprops"
+    ],
+    "262": [
+      "src_components_navbar_tsx_components_navbar",
+      "src_components_navbar_tsx_components_navbar_navbar"
+    ],
+    "263": [
+      "src_components_ticketdisplay_tsx_components_ticketdisplay",
+      "src_components_ticketdisplay_tsx_components_ticketdisplay_ticketdisplayprops"
+    ],
+    "264": [
+      "src_components_ui_popover_tsx_ui_popover",
+      "src_components_ui_popover_tsx_ui_popover_popovercontent"
+    ],
+    "265": [
+      "src_components_ui_progress_tsx_ui_progress",
+      "src_components_ui_progress_tsx_ui_progress_progress"
+    ],
+    "266": [
+      "src_components_ui_separator_tsx_ui_separator",
+      "src_components_ui_separator_tsx_ui_separator_separator"
+    ],
+    "267": [
+      "src_components_ui_slider_tsx_ui_slider",
+      "src_components_ui_slider_tsx_ui_slider_slider"
+    ],
+    "268": [
+      "src_components_ui_switch_tsx_ui_switch",
+      "src_components_ui_switch_tsx_ui_switch_switch"
+    ],
+    "269": [
+      "src_components_ui_toaster_tsx_ui_toaster",
+      "src_components_ui_toaster_tsx_ui_toaster_toaster"
+    ],
+    "270": [
+      "src_components_ui_tooltip_tsx_ui_tooltip",
+      "src_components_ui_tooltip_tsx_ui_tooltip_tooltipcontent"
+    ],
+    "271": [
+      "src_components_verticalsidebar_tsx_components_verticalsidebar",
+      "src_components_verticalsidebar_tsx_components_verticalsidebar_verticalsidebar"
+    ],
+    "272": [
+      "src_hooks_use_mobile_tsx_hooks_use_mobile",
+      "src_hooks_use_mobile_tsx_hooks_use_mobile_useismobile"
+    ],
+    "273": [
+      "src_integrations_supabase_client_ts_supabase_client",
+      "src_integrations_supabase_client_ts_supabase_client_supabase"
+    ],
+    "274": [
+      "src_lib_supabase_ts_lib_supabase",
+      "src_lib_supabase_ts_lib_supabase_supabase"
+    ],
+    "275": [
+      "src_lib_utils_ts_lib_utils",
+      "src_lib_utils_ts_lib_utils_cn"
+    ],
+    "276": [
+      "apps_admin_desktop_src_main_tsx_src_main",
+      "src_main_queryclient"
+    ],
+    "277": [
+      "src_pages_about_tsx_pages_about",
+      "src_pages_about_tsx_pages_about_about"
+    ],
+    "278": [
+      "src_pages_admin_dashboard_tsx_admin_dashboard",
+      "src_pages_admin_dashboard_tsx_admin_dashboard_dashboard"
+    ],
+    "279": [
+      "src_pages_admin_executivedashboard_tsx_admin_executivedashboard",
+      "src_pages_admin_executivedashboard_tsx_admin_executivedashboard_executivedashboard"
+    ],
+    "280": [
+      "src_pages_admin_login_tsx_admin_login",
+      "src_pages_admin_login_tsx_admin_login_adminlogin"
+    ],
+    "281": [
+      "src_pages_admin_settings_tsx_admin_settings",
+      "src_pages_admin_settings_tsx_admin_settings_settings"
+    ],
+    "282": [
+      "src_pages_admin_staff_tsx_admin_staff",
+      "src_pages_admin_staff_tsx_admin_staff_staff"
+    ],
+    "283": [
+      "src_pages_home_tsx_pages_home",
+      "src_pages_home_tsx_pages_home_home"
+    ],
+    "284": [
+      "src_pages_joinus_tsx_pages_joinus",
+      "src_pages_joinus_tsx_pages_joinus_joinus"
+    ],
+    "285": [
+      "src_pages_login_tsx_pages_login",
+      "src_pages_login_tsx_pages_login_login"
+    ],
+    "286": [
+      "src_pages_notfound_tsx_pages_notfound",
+      "src_pages_notfound_tsx_pages_notfound_notfound"
+    ],
+    "287": [
+      "src_pages_signup_tsx_pages_signup",
+      "src_pages_signup_tsx_pages_signup_signup"
+    ],
+    "288": [
+      "src_pages_ticket_tsx_pages_ticket",
+      "src_pages_ticket_tsx_pages_ticket_ticket"
+    ],
+    "289": [
+      "analytics_utils_init_py_utils_init"
+    ],
+    "290": [
+      "admin_desktop_postcss_config"
+    ],
+    "291": [
+      "admin_desktop_tailwind_config"
+    ],
+    "292": [
+      "apps_model_utils_init_py_utils_init"
+    ],
+    "293": [
+      "website_eslint_config"
+    ],
+    "294": [
+      "website_postcss_config"
+    ],
+    "295": [
+      "apps_website_src_components_ui_collapsible_tsx_ui_collapsible"
+    ],
+    "296": [
+      "apps_website_src_data_mockcustomers_json_data_mockcustomers"
+    ],
+    "297": [
+      "apps_website_src_data_mockservices_json_data_mockservices"
+    ],
+    "298": [
+      "apps_website_src_vite_env_d_ts_src_vite_env_d"
+    ],
+    "299": [
+      "website_tailwind_config"
+    ],
+    "300": [
+      "website_vite_config"
+    ],
+    "301": [
+      "eslint_config"
+    ],
+    "302": [
+      "postcss_config"
+    ],
+    "303": [
+      "src_components_trafficstatusbanner_tsx_components_trafficstatusbanner"
+    ],
+    "304": [
+      "src_components_admin_protectedadminroute_tsx_admin_protectedadminroute"
+    ],
+    "305": [
+      "src_components_ui_checkbox_tsx_ui_checkbox"
+    ],
+    "306": [
+      "src_components_ui_collapsible_tsx_ui_collapsible"
+    ],
+    "307": [
+      "src_components_ui_skeleton_tsx_ui_skeleton"
+    ],
+    "308": [
+      "src_components_ui_use_toast_ts_ui_use_toast"
+    ],
+    "309": [
+      "src_data_mockcustomers_json_data_mockcustomers"
+    ],
+    "310": [
+      "src_data_mockservices_json_data_mockservices"
+    ],
+    "311": [
+      "src_hooks_usecustomersearch_ts_hooks_usecustomersearch"
+    ],
+    "312": [
+      "src_hooks_usequeuemock_ts_hooks_usequeuemock"
+    ],
+    "313": [
+      "src_pages_clientlanding_tsx_pages_clientlanding"
+    ],
+    "314": [
+      "src_vite_env_d_ts_src_vite_env_d"
+    ],
+    "315": [
+      "tailwind_config"
+    ],
+    "316": [
+      "vite_config"
+    ],
+    "317": [
+      "apps_website_src_lib_api_queue_ts_api_queue_fetchqueueentries"
+    ],
+    "318": [
+      "apps_website_src_lib_api_staff_ts_api_staff_fetchallstaff"
+    ],
+    "319": [
+      "src_lib_api_queue_ts_api_queue_fetchqueueentries"
+    ],
+    "320": [
+      "src_lib_api_staff_ts_api_staff_fetchallstaff"
+    ],
+    "321": [
+      "public_robots_txt"
+    ],
+    "322": [
+      "public_placeholder_svg"
+    ],
+    "323": [
+      "hero_image"
+    ],
+    "324": [
+      "website_robots_txt"
+    ],
+    "325": [
+      "website_hero_image"
+    ]
+  },
+  "cohesion": {
+    "0": 0.04,
+    "1": 0.04081632653061224,
+    "2": 0.05851063829787234,
+    "3": 0.05,
+    "4": 0.0953058321479374,
+    "5": 0.05405405405405406,
+    "6": 0.07308377896613191,
+    "7": 0.06451612903225806,
+    "8": 0.0735632183908046,
+    "9": 0.08866995073891626,
+    "10": 0.09686609686609686,
+    "11": 0.13043478260869565,
+    "12": 0.08333333333333333,
+    "13": 0.13043478260869565,
+    "14": 0.14492753623188406,
+    "15": 0.09057971014492754,
+    "16": 0.16600790513833993,
+    "17": 0.08695652173913043,
+    "18": 0.08695652173913043,
+    "19": 0.1038961038961039,
+    "20": 0.19913419913419914,
+    "21": 0.16666666666666666,
+    "22": 0.16666666666666666,
+    "23": 0.09523809523809523,
+    "24": 0.09523809523809523,
+    "25": 0.10476190476190476,
+    "26": 0.12105263157894737,
+    "27": 0.1286549707602339,
+    "28": 0.13725490196078433,
+    "29": 0.13725490196078433,
+    "30": 0.15441176470588236,
+    "31": 0.11764705882352941,
+    "32": 0.11764705882352941,
+    "33": 0.11764705882352941,
+    "34": 0.11764705882352941,
+    "35": 0.14705882352941177,
+    "36": 0.11764705882352941,
+    "37": 0.125,
+    "38": 0.15,
+    "39": 0.125,
+    "40": 0.125,
+    "41": 0.125,
+    "42": 0.18095238095238095,
+    "43": 0.14285714285714285,
+    "44": 0.1794871794871795,
+    "45": 0.16666666666666666,
+    "46": 0.15384615384615385,
+    "47": 0.15384615384615385,
+    "48": 0.16666666666666666,
+    "49": 0.16666666666666666,
+    "50": 0.16666666666666666,
+    "51": 0.18181818181818182,
+    "52": 0.18181818181818182,
+    "53": 0.2545454545454545,
+    "54": 0.18181818181818182,
+    "55": 0.18181818181818182,
+    "56": 0.18181818181818182,
+    "57": 0.18181818181818182,
+    "58": 0.18181818181818182,
+    "59": 0.2545454545454545,
+    "60": 0.18181818181818182,
+    "61": 0.2,
+    "62": 0.2,
+    "63": 0.28888888888888886,
+    "64": 0.2,
+    "65": 0.2,
+    "66": 0.2,
+    "67": 0.2,
+    "68": 0.2,
+    "69": 0.2,
+    "70": 0.2,
+    "71": 0.2222222222222222,
+    "72": 0.2222222222222222,
+    "73": 0.2222222222222222,
+    "74": 0.2222222222222222,
+    "75": 0.2222222222222222,
+    "76": 0.2222222222222222,
+    "77": 0.2222222222222222,
+    "78": 0.2222222222222222,
+    "79": 0.2222222222222222,
+    "80": 0.2222222222222222,
+    "81": 0.25,
+    "82": 0.25,
+    "83": 0.5357142857142857,
+    "84": 0.5357142857142857,
+    "85": 0.32142857142857145,
+    "86": 0.25,
+    "87": 0.25,
+    "88": 0.2857142857142857,
+    "89": 0.2857142857142857,
+    "90": 0.2857142857142857,
+    "91": 0.2857142857142857,
+    "92": 0.2857142857142857,
+    "93": 0.2857142857142857,
+    "94": 0.2857142857142857,
+    "95": 0.2857142857142857,
+    "96": 0.2857142857142857,
+    "97": 0.2857142857142857,
+    "98": 0.4666666666666667,
+    "99": 0.4666666666666667,
+    "100": 0.3333333333333333,
+    "101": 0.3333333333333333,
+    "102": 0.3333333333333333,
+    "103": 0.3333333333333333,
+    "104": 0.4,
+    "105": 0.3333333333333333,
+    "106": 0.3333333333333333,
+    "107": 0.3333333333333333,
+    "108": 0.3333333333333333,
+    "109": 0.3333333333333333,
+    "110": 0.3333333333333333,
+    "111": 0.4,
+    "112": 0.4,
+    "113": 0.4,
+    "114": 0.4,
+    "115": 0.4,
+    "116": 0.4,
+    "117": 0.4,
+    "118": 0.4,
+    "119": 0.4,
+    "120": 0.5,
+    "121": 0.4,
+    "122": 0.4,
+    "123": 0.4,
+    "124": 0.4,
+    "125": 0.4,
+    "126": 0.4,
+    "127": 0.4,
+    "128": 0.4,
+    "129": 0.4,
+    "130": 0.4,
+    "131": 0.4,
+    "132": 0.4,
+    "133": 0.4,
+    "134": 0.4,
+    "135": 0.4,
+    "136": 0.4,
+    "137": 0.4,
+    "138": 0.4,
+    "139": 0.4,
+    "140": 0.5,
+    "141": 0.4,
+    "142": 0.4,
+    "143": 0.4,
+    "144": 0.4,
+    "145": 0.4,
+    "146": 0.4,
+    "147": 0.4,
+    "148": 0.4,
+    "149": 0.4,
+    "150": 0.4,
+    "151": 0.5,
+    "152": 0.5,
+    "153": 0.5,
+    "154": 0.5,
+    "155": 0.5,
+    "156": 0.5,
+    "157": 0.5,
+    "158": 0.6666666666666666,
+    "159": 0.5,
+    "160": 0.5,
+    "161": 0.5,
+    "162": 0.6666666666666666,
+    "163": 0.5,
+    "164": 0.5,
+    "165": 0.5,
+    "166": 0.5,
+    "167": 0.5,
+    "168": 0.5,
+    "169": 0.6666666666666666,
+    "170": 0.5,
+    "171": 0.5,
+    "172": 0.5,
+    "173": 0.5,
+    "174": 0.5,
+    "175": 0.6666666666666666,
+    "176": 0.5,
+    "177": 0.5,
+    "178": 0.5,
+    "179": 0.5,
+    "180": 0.5,
+    "181": 0.5,
+    "182": 0.6666666666666666,
+    "183": 0.5,
+    "184": 0.5,
+    "185": 0.6666666666666666,
+    "186": 0.5,
+    "187": 0.6666666666666666,
+    "188": 0.6666666666666666,
+    "189": 0.6666666666666666,
+    "190": 0.6666666666666666,
+    "191": 0.6666666666666666,
+    "192": 0.6666666666666666,
+    "193": 0.6666666666666666,
+    "194": 0.6666666666666666,
+    "195": 0.6666666666666666,
+    "196": 0.6666666666666666,
+    "197": 0.6666666666666666,
+    "198": 0.6666666666666666,
+    "199": 0.6666666666666666,
+    "200": 0.6666666666666666,
+    "201": 0.6666666666666666,
+    "202": 0.6666666666666666,
+    "203": 0.6666666666666666,
+    "204": 0.6666666666666666,
+    "205": 0.6666666666666666,
+    "206": 0.6666666666666666,
+    "207": 0.6666666666666666,
+    "208": 0.6666666666666666,
+    "209": 0.6666666666666666,
+    "210": 0.6666666666666666,
+    "211": 0.6666666666666666,
+    "212": 0.6666666666666666,
+    "213": 0.6666666666666666,
+    "214": 0.6666666666666666,
+    "215": 0.6666666666666666,
+    "216": 0.6666666666666666,
+    "217": 0.6666666666666666,
+    "218": 0.6666666666666666,
+    "219": 0.6666666666666666,
+    "220": 0.6666666666666666,
+    "221": 0.6666666666666666,
+    "222": 0.6666666666666666,
+    "223": 0.6666666666666666,
+    "224": 0.6666666666666666,
+    "225": 0.6666666666666666,
+    "226": 0.6666666666666666,
+    "227": 0.6666666666666666,
+    "228": 0.6666666666666666,
+    "229": 0.6666666666666666,
+    "230": 1.0,
+    "231": 1.0,
+    "232": 1.0,
+    "233": 1.0,
+    "234": 1.0,
+    "235": 1.0,
+    "236": 1.0,
+    "237": 1.0,
+    "238": 1.0,
+    "239": 1.0,
+    "240": 1.0,
+    "241": 1.0,
+    "242": 1.0,
+    "243": 1.0,
+    "244": 1.0,
+    "245": 1.0,
+    "246": 1.0,
+    "247": 1.0,
+    "248": 1.0,
+    "249": 1.0,
+    "250": 1.0,
+    "251": 1.0,
+    "252": 1.0,
+    "253": 1.0,
+    "254": 1.0,
+    "255": 1.0,
+    "256": 1.0,
+    "257": 1.0,
+    "258": 1.0,
+    "259": 1.0,
+    "260": 1.0,
+    "261": 1.0,
+    "262": 1.0,
+    "263": 1.0,
+    "264": 1.0,
+    "265": 1.0,
+    "266": 1.0,
+    "267": 1.0,
+    "268": 1.0,
+    "269": 1.0,
+    "270": 1.0,
+    "271": 1.0,
+    "272": 1.0,
+    "273": 1.0,
+    "274": 1.0,
+    "275": 1.0,
+    "276": 1.0,
+    "277": 1.0,
+    "278": 1.0,
+    "279": 1.0,
+    "280": 1.0,
+    "281": 1.0,
+    "282": 1.0,
+    "283": 1.0,
+    "284": 1.0,
+    "285": 1.0,
+    "286": 1.0,
+    "287": 1.0,
+    "288": 1.0,
+    "289": 1.0,
+    "290": 1.0,
+    "291": 1.0,
+    "292": 1.0,
+    "293": 1.0,
+    "294": 1.0,
+    "295": 1.0,
+    "296": 1.0,
+    "297": 1.0,
+    "298": 1.0,
+    "299": 1.0,
+    "300": 1.0,
+    "301": 1.0,
+    "302": 1.0,
+    "303": 1.0,
+    "304": 1.0,
+    "305": 1.0,
+    "306": 1.0,
+    "307": 1.0,
+    "308": 1.0,
+    "309": 1.0,
+    "310": 1.0,
+    "311": 1.0,
+    "312": 1.0,
+    "313": 1.0,
+    "314": 1.0,
+    "315": 1.0,
+    "316": 1.0,
+    "317": 1.0,
+    "318": 1.0,
+    "319": 1.0,
+    "320": 1.0,
+    "321": 1.0,
+    "322": 1.0,
+    "323": 1.0,
+    "324": 1.0,
+    "325": 1.0
+  },
+  "gods": [
+    {
+      "id": "website_tsconfig_app_compileroptions",
+      "label": "compilerOptions",
+      "degree": 20
+    },
+    {
+      "id": "tsconfig_app_compileroptions",
+      "label": "compilerOptions",
+      "degree": 20
+    },
+    {
+      "id": "backend_readme",
+      "label": "Backend API README",
+      "degree": 18
+    },
+    {
+      "id": "readme_qmenow_platform",
+      "label": "QMe Now Platform",
+      "degree": 16
+    },
+    {
+      "id": "readme_supabase_auth",
+      "label": "Supabase Auth",
+      "degree": 16
+    },
+    {
+      "id": "admin_desktop_readme",
+      "label": "Admin Desktop README",
+      "degree": 16
+    },
+    {
+      "id": "model_readme",
+      "label": "Predictive Model README",
+      "degree": 15
+    },
+    {
+      "id": "website_tsconfig_node_compileroptions",
+      "label": "compilerOptions",
+      "degree": 14
+    },
+    {
+      "id": "tsconfig_node_compileroptions",
+      "label": "compilerOptions",
+      "degree": 14
+    },
+    {
+      "id": "analytics_readme",
+      "label": "Analytics Notebooks README",
+      "degree": 13
+    }
+  ],
+  "surprises": [
+    {
+      "source": "PICA Logo",
+      "target": "PICA (Passport, Immigration and Citizenship Agency)",
+      "source_files": [
+        "src/assets/logos/pica-logo.png",
+        "docs/QMeNow_Demo_and_Summary.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (image \u2194 doc); connects across different repos/directories; peripheral node `PICA Logo` unexpectedly reaches hub `PICA (Passport, Immigration and Citizenship Agency)`"
+    },
+    {
+      "source": "TAJ Logo",
+      "target": "TAJ (Tax Administration Jamaica)",
+      "source_files": [
+        "src/assets/logos/taj-logo.png",
+        "docs/QMeNow_Demo_and_Summary.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (image \u2194 doc); connects across different repos/directories; peripheral node `TAJ Logo` unexpectedly reaches hub `TAJ (Tax Administration Jamaica)`"
+    },
+    {
+      "source": "Actual vs Predicted Plot",
+      "target": "Predictive Model",
+      "source_files": [
+        "apps/model/data_exports/plots/actual_vs_predicted.png",
+        "README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc \u2194 image); connects across different repos/directories; peripheral node `Actual vs Predicted Plot` unexpectedly reaches hub `Predictive Model`"
+    },
+    {
+      "source": "Feature Importance Plot",
+      "target": "Predictive Model",
+      "source_files": [
+        "apps/model/data_exports/plots/feature_importance.png",
+        "README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc \u2194 image); connects across different repos/directories; peripheral node `Feature Importance Plot` unexpectedly reaches hub `Predictive Model`"
+    },
+    {
+      "source": "Best Time TAJ Kingston Plot",
+      "target": "TAJ Organization",
+      "source_files": [
+        "apps/model/data_exports/plots/best_time_taj_kingston.png",
+        "README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (image \u2194 doc); connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 146792,
+    "output": 13299
+  }
+}

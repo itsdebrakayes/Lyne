@@ -1,0 +1,2207 @@
+{
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/api/main.py": {
+    "mtime": 1780281731.690322,
+    "ast_hash": "b2a8281651cf729bee3844e07e7e9a3e",
+    "semantic_hash": "b2a8281651cf729bee3844e07e7e9a3e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/scripts/sync_storage.py": {
+    "mtime": 1780281731.6927161,
+    "ast_hash": "a5d13cde102e52326f7ee546df8f67fb",
+    "semantic_hash": "a5d13cde102e52326f7ee546df8f67fb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/utils/__init__.py": {
+    "mtime": 1780281731.6931255,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/utils/feature_utils.py": {
+    "mtime": 1780281731.6937,
+    "ast_hash": "6e3462b87834e877cd4d2d35d2b0dc27",
+    "semantic_hash": "6e3462b87834e877cd4d2d35d2b0dc27"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/utils/io_utils.py": {
+    "mtime": 1780281731.6938508,
+    "ast_hash": "c9cf4c26ae054f46c688e437f2bcc74a",
+    "semantic_hash": "c9cf4c26ae054f46c688e437f2bcc74a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/analytics/utils/metrics_utils.py": {
+    "mtime": 1780281731.694007,
+    "ast_hash": "38b52deaafaae993cd86ee7cc80e1043",
+    "semantic_hash": "38b52deaafaae993cd86ee7cc80e1043"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/dist-electron/main.js": {
+    "mtime": 1780281731.695044,
+    "ast_hash": "02b785f7ef31d2595a46987d97e99b88",
+    "semantic_hash": "02b785f7ef31d2595a46987d97e99b88"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/dist-electron/preload.js": {
+    "mtime": 1780281731.695245,
+    "ast_hash": "438af3b81a0b48e7263a77cbe82c5bb9",
+    "semantic_hash": "438af3b81a0b48e7263a77cbe82c5bb9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/electron/main.js": {
+    "mtime": 1780281731.6954935,
+    "ast_hash": "e61d905bc11a9c8a30e7a274efed4152",
+    "semantic_hash": "e61d905bc11a9c8a30e7a274efed4152"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/electron/preload.js": {
+    "mtime": 1780281731.695648,
+    "ast_hash": "6d69daa2dc382c089fbef78fab850da2",
+    "semantic_hash": "6d69daa2dc382c089fbef78fab850da2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/package.json": {
+    "mtime": 1780281731.6968646,
+    "ast_hash": "1e48262510fdb95cd1cb86a41745cae4",
+    "semantic_hash": "1e48262510fdb95cd1cb86a41745cae4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/postcss.config.js": {
+    "mtime": 1780281731.6970494,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/App.tsx": {
+    "mtime": 1780281731.6972995,
+    "ast_hash": "2a3de0a7f68d4bbb4099c0ff06e654ac",
+    "semantic_hash": "2a3de0a7f68d4bbb4099c0ff06e654ac"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/components/LoadingScreen.tsx": {
+    "mtime": 1780281731.6977687,
+    "ast_hash": "76e8176c82ad843267d7620e21512ed4",
+    "semantic_hash": "76e8176c82ad843267d7620e21512ed4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/hooks/useAdminAuth.ts": {
+    "mtime": 1780281731.6980596,
+    "ast_hash": "0d2eacf7f3c0e407818cc0513b77ba1c",
+    "semantic_hash": "0d2eacf7f3c0e407818cc0513b77ba1c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/lib/apiClient.ts": {
+    "mtime": 1780281731.6984947,
+    "ast_hash": "9b62b2afca0e3b3a8d89322469ead797",
+    "semantic_hash": "9b62b2afca0e3b3a8d89322469ead797"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/lib/routes.ts": {
+    "mtime": 1780281731.6986532,
+    "ast_hash": "5de902c7fd6eb93a8dd9f473e3fc4281",
+    "semantic_hash": "5de902c7fd6eb93a8dd9f473e3fc4281"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/main.tsx": {
+    "mtime": 1780281731.698905,
+    "ast_hash": "5f23b20c343572b0bbbddd9dacc4f452",
+    "semantic_hash": "5f23b20c343572b0bbbddd9dacc4f452"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/pages/ExecutiveDashboard.tsx": {
+    "mtime": 1780281731.6992528,
+    "ast_hash": "fff3e49cb2ace9cb744f6d65661b8f1c",
+    "semantic_hash": "fff3e49cb2ace9cb744f6d65661b8f1c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/pages/Login.tsx": {
+    "mtime": 1780281731.699431,
+    "ast_hash": "0dc044cf67034b435159190deb0fe871",
+    "semantic_hash": "0dc044cf67034b435159190deb0fe871"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/pages/ManagerDashboard.tsx": {
+    "mtime": 1780281731.6995883,
+    "ast_hash": "293ea873390cbb205b3ee43480480786",
+    "semantic_hash": "293ea873390cbb205b3ee43480480786"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/src/pages/StaffDashboard.tsx": {
+    "mtime": 1780281731.6997619,
+    "ast_hash": "09cbf183e60c40747c0c9f01eb764b8b",
+    "semantic_hash": "09cbf183e60c40747c0c9f01eb764b8b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/tailwind.config.ts": {
+    "mtime": 1780281731.69992,
+    "ast_hash": "f9e30ea50efdc2a67f7486c4fff3ac91",
+    "semantic_hash": "f9e30ea50efdc2a67f7486c4fff3ac91"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/admin-desktop/vite.config.ts": {
+    "mtime": 1780281731.7000704,
+    "ast_hash": "34faa20052e1fb0090a9ee6954933640",
+    "semantic_hash": "34faa20052e1fb0090a9ee6954933640"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/package.json": {
+    "mtime": 1780281731.7018406,
+    "ast_hash": "f1879c2dc97ac4cc80d747b34d870863",
+    "semantic_hash": "f1879c2dc97ac4cc80d747b34d870863"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/constants/routes.js": {
+    "mtime": 1780281731.702194,
+    "ast_hash": "5bbc2ee9d2c418f382f06f0827a32655",
+    "semantic_hash": "5bbc2ee9d2c418f382f06f0827a32655"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/db/pool.js": {
+    "mtime": 1780281731.702638,
+    "ast_hash": "d96e01e79f28ff676a16bc7ff21c5186",
+    "semantic_hash": "d96e01e79f28ff676a16bc7ff21c5186"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/index.js": {
+    "mtime": 1780281731.70302,
+    "ast_hash": "7b245cc88c9a70ccf7113949845a5a9c",
+    "semantic_hash": "7b245cc88c9a70ccf7113949845a5a9c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/middleware/auditLog.js": {
+    "mtime": 1780281731.703418,
+    "ast_hash": "46e8456a95f7403c1487cd7d86ec59a9",
+    "semantic_hash": "46e8456a95f7403c1487cd7d86ec59a9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/middleware/auth.js": {
+    "mtime": 1780281731.7035987,
+    "ast_hash": "9afc0fac4eb9b0915ed2d89a12dd336f",
+    "semantic_hash": "9afc0fac4eb9b0915ed2d89a12dd336f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/middleware/rateLimiter.js": {
+    "mtime": 1780281731.7038646,
+    "ast_hash": "7cd76244762a2a964a8a35f6e5b5f928",
+    "semantic_hash": "7cd76244762a2a964a8a35f6e5b5f928"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/middleware/validate.js": {
+    "mtime": 1780281731.704135,
+    "ast_hash": "5394c598db704e78731600a1ea723ac9",
+    "semantic_hash": "5394c598db704e78731600a1ea723ac9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/analytics.js": {
+    "mtime": 1780281731.704586,
+    "ast_hash": "761ea7af59a1b1603e16465ed3cca4b6",
+    "semantic_hash": "761ea7af59a1b1603e16465ed3cca4b6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/assignments.js": {
+    "mtime": 1780281731.7048063,
+    "ast_hash": "efbb1859dc161ff5d82497fda45f478e",
+    "semantic_hash": "efbb1859dc161ff5d82497fda45f478e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/audit.js": {
+    "mtime": 1780281731.7050965,
+    "ast_hash": "9f2a07c8304a73da87dcdc0a1203bcb6",
+    "semantic_hash": "9f2a07c8304a73da87dcdc0a1203bcb6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/auth.js": {
+    "mtime": 1780281731.705415,
+    "ast_hash": "35a1bd75ba4831b407e2e0e3a9a8e8de",
+    "semantic_hash": "35a1bd75ba4831b407e2e0e3a9a8e8de"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/branches.js": {
+    "mtime": 1780281731.7057872,
+    "ast_hash": "3abbfeb78f529fe78a1d9d840bfe5cc1",
+    "semantic_hash": "3abbfeb78f529fe78a1d9d840bfe5cc1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/businesses.js": {
+    "mtime": 1780281731.7061656,
+    "ast_hash": "4b3ca41ca83ea7b822e2347be5d102c1",
+    "semantic_hash": "4b3ca41ca83ea7b822e2347be5d102c1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/history.js": {
+    "mtime": 1780281731.7064204,
+    "ast_hash": "381ac4e7a945839113954c7bbcc42d10",
+    "semantic_hash": "381ac4e7a945839113954c7bbcc42d10"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/notifications.js": {
+    "mtime": 1780281731.706638,
+    "ast_hash": "3612401571f6de686adc13bb5e59084f",
+    "semantic_hash": "3612401571f6de686adc13bb5e59084f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/ocr.js": {
+    "mtime": 1780281731.7068503,
+    "ast_hash": "b6bea1d8e9ffd2c7406d96fe03b5f1e8",
+    "semantic_hash": "b6bea1d8e9ffd2c7406d96fe03b5f1e8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/predictions.js": {
+    "mtime": 1780281731.707016,
+    "ast_hash": "390700fb9c4dcd1c20470d5834715e99",
+    "semantic_hash": "390700fb9c4dcd1c20470d5834715e99"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/queues.js": {
+    "mtime": 1780281731.7073011,
+    "ast_hash": "2c1ae7588744c31cf69baec74cffd9dc",
+    "semantic_hash": "2c1ae7588744c31cf69baec74cffd9dc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/saved.js": {
+    "mtime": 1780281731.7075741,
+    "ast_hash": "43390a9706d6da16f28afc96e5aba9c0",
+    "semantic_hash": "43390a9706d6da16f28afc96e5aba9c0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/services.js": {
+    "mtime": 1780281731.7078228,
+    "ast_hash": "1c9c70ca43fc6c4011ba35ed0aa001e5",
+    "semantic_hash": "1c9c70ca43fc6c4011ba35ed0aa001e5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/staff-invite.js": {
+    "mtime": 1780281731.7080383,
+    "ast_hash": "16cc3533570af2018c8ae701c528c257",
+    "semantic_hash": "16cc3533570af2018c8ae701c528c257"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/staff.js": {
+    "mtime": 1780281731.7083147,
+    "ast_hash": "ddea797915e9a571ae6bfd2def09f675",
+    "semantic_hash": "ddea797915e9a571ae6bfd2def09f675"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/routes/tickets.js": {
+    "mtime": 1780281731.708759,
+    "ast_hash": "712ebd5c7e94674c50a8c1ef4a52427e",
+    "semantic_hash": "712ebd5c7e94674c50a8c1ef4a52427e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/backend/src/utils/maskData.js": {
+    "mtime": 1780281731.7093668,
+    "ast_hash": "57e152ef4e8e06714ec67c96a44328e0",
+    "semantic_hash": "57e152ef4e8e06714ec67c96a44328e0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/App.tsx": {
+    "mtime": 1780281731.7098475,
+    "ast_hash": "1bb0811aaa92de98d64bb8d1f1ebd8f7",
+    "semantic_hash": "1bb0811aaa92de98d64bb8d1f1ebd8f7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/app.json": {
+    "mtime": 1780281731.7103577,
+    "ast_hash": "5168da1c3efe8427a5e5885fefe51712",
+    "semantic_hash": "5168da1c3efe8427a5e5885fefe51712"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/package.json": {
+    "mtime": 1780281731.7106116,
+    "ast_hash": "e742fc95d2f319592a5caa06ca1bc0e6",
+    "semantic_hash": "e742fc95d2f319592a5caa06ca1bc0e6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/components/BestTimeCard.tsx": {
+    "mtime": 1780281731.7112708,
+    "ast_hash": "c136c7b112e91faacf817ad0a0b6add6",
+    "semantic_hash": "c136c7b112e91faacf817ad0a0b6add6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/hooks/useAuth.ts": {
+    "mtime": 1780281731.711916,
+    "ast_hash": "2ebab8dd208f178caf4fbe92e046c71d",
+    "semantic_hash": "2ebab8dd208f178caf4fbe92e046c71d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/lib/apiClient.ts": {
+    "mtime": 1780281731.7123327,
+    "ast_hash": "61d7180f8f48a81a16e38e0b962b0124",
+    "semantic_hash": "61d7180f8f48a81a16e38e0b962b0124"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/lib/routes.ts": {
+    "mtime": 1780281731.7126164,
+    "ast_hash": "c466410b6f5555e87b8dc23925b798b1",
+    "semantic_hash": "c466410b6f5555e87b8dc23925b798b1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/navigation/AppNavigator.tsx": {
+    "mtime": 1780281731.713057,
+    "ast_hash": "f9496d452018e71c65dc66d19d2837dd",
+    "semantic_hash": "f9496d452018e71c65dc66d19d2837dd"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/auth/LoginScreen.tsx": {
+    "mtime": 1780281731.713872,
+    "ast_hash": "b8077b18e57814696844dbfceb42b1ac",
+    "semantic_hash": "b8077b18e57814696844dbfceb42b1ac"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/auth/OnboardingScreen.tsx": {
+    "mtime": 1780281731.714186,
+    "ast_hash": "86b5c39130bb27e38b640044c39915b9",
+    "semantic_hash": "86b5c39130bb27e38b640044c39915b9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/auth/SignupScreen.tsx": {
+    "mtime": 1780281731.7146018,
+    "ast_hash": "59784df9a8b28b5dfe900ea41d677032",
+    "semantic_hash": "59784df9a8b28b5dfe900ea41d677032"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/main/HistoryScreen.tsx": {
+    "mtime": 1780281731.71515,
+    "ast_hash": "743e91c25a468b23e734d64792269112",
+    "semantic_hash": "743e91c25a468b23e734d64792269112"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/main/HomeScreen.tsx": {
+    "mtime": 1780281731.7155411,
+    "ast_hash": "f26df0f327e4733ba5e8dc062ee50792",
+    "semantic_hash": "f26df0f327e4733ba5e8dc062ee50792"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/main/ProfileScreen.tsx": {
+    "mtime": 1780281731.7158372,
+    "ast_hash": "9471e2dfc5f01a8c68f4d87e64f11453",
+    "semantic_hash": "9471e2dfc5f01a8c68f4d87e64f11453"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/main/SearchScreen.tsx": {
+    "mtime": 1780281731.7161136,
+    "ast_hash": "0a45b3384a997e2e217846c9af5f9db3",
+    "semantic_hash": "0a45b3384a997e2e217846c9af5f9db3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/queue/BranchScreen.tsx": {
+    "mtime": 1780281731.7165756,
+    "ast_hash": "14703386609492bd974cf3f180fb6f8f",
+    "semantic_hash": "14703386609492bd974cf3f180fb6f8f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/queue/BusinessScreen.tsx": {
+    "mtime": 1780281731.716855,
+    "ast_hash": "d74a7fe2b438438f389a7b98f8018dfb",
+    "semantic_hash": "d74a7fe2b438438f389a7b98f8018dfb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/queue/JoinQueueScreen.tsx": {
+    "mtime": 1780281731.717171,
+    "ast_hash": "689d2f05a059c4b1deb574ea7b2edc1d",
+    "semantic_hash": "689d2f05a059c4b1deb574ea7b2edc1d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/queue/ServiceScreen.tsx": {
+    "mtime": 1780281731.7174296,
+    "ast_hash": "4562a20f48bf79bd188d6a7022c3914d",
+    "semantic_hash": "4562a20f48bf79bd188d6a7022c3914d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/mobile/src/screens/queue/TicketScreen.tsx": {
+    "mtime": 1780281731.7177634,
+    "ast_hash": "019241f2159f314404d166910589be40",
+    "semantic_hash": "019241f2159f314404d166910589be40"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/build_model.py": {
+    "mtime": 1780281731.7327623,
+    "ast_hash": "bff91f8cbb243fd0a5e8c7d8396effd4",
+    "semantic_hash": "bff91f8cbb243fd0a5e8c7d8396effd4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/create_notebook.py": {
+    "mtime": 1780281731.7331078,
+    "ast_hash": "cf4cd9fdd4173b6804b61ef96efe0c23",
+    "semantic_hash": "cf4cd9fdd4173b6804b61ef96efe0c23"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/export_csv.py": {
+    "mtime": 1780281731.7335048,
+    "ast_hash": "031d64b6cfd579b5049a02cd6ab9b7be",
+    "semantic_hash": "031d64b6cfd579b5049a02cd6ab9b7be"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/generate_sample_data.py": {
+    "mtime": 1780281731.733814,
+    "ast_hash": "b7e6afe939119f003ea019c903e0ad54",
+    "semantic_hash": "b7e6afe939119f003ea019c903e0ad54"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/import_predictions.py": {
+    "mtime": 1780281731.7341027,
+    "ast_hash": "eee2c848bb488805b7f6acddc6286f26",
+    "semantic_hash": "eee2c848bb488805b7f6acddc6286f26"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/scripts/sync_storage.py": {
+    "mtime": 1780281731.7343705,
+    "ast_hash": "a5d13cde102e52326f7ee546df8f67fb",
+    "semantic_hash": "a5d13cde102e52326f7ee546df8f67fb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/utils/__init__.py": {
+    "mtime": 1780281731.735033,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/utils/feature_utils.py": {
+    "mtime": 1780281731.7358427,
+    "ast_hash": "6e3462b87834e877cd4d2d35d2b0dc27",
+    "semantic_hash": "6e3462b87834e877cd4d2d35d2b0dc27"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/utils/io_utils.py": {
+    "mtime": 1780281731.7360477,
+    "ast_hash": "c9cf4c26ae054f46c688e437f2bcc74a",
+    "semantic_hash": "c9cf4c26ae054f46c688e437f2bcc74a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/model/utils/metrics_utils.py": {
+    "mtime": 1780281731.7362263,
+    "ast_hash": "38b52deaafaae993cd86ee7cc80e1043",
+    "semantic_hash": "38b52deaafaae993cd86ee7cc80e1043"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/components.json": {
+    "mtime": 1780281731.7366686,
+    "ast_hash": "a547944ace00dc5d5373aaca70a40bc4",
+    "semantic_hash": "a547944ace00dc5d5373aaca70a40bc4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/eslint.config.js": {
+    "mtime": 1780281731.7369096,
+    "ast_hash": "31c0881fdd8500aa4d0aa963079713ae",
+    "semantic_hash": "31c0881fdd8500aa4d0aa963079713ae"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/package.json": {
+    "mtime": 1780281731.7381752,
+    "ast_hash": "36d7bdd62d2bdc5da966a82ea6e71cd5",
+    "semantic_hash": "36d7bdd62d2bdc5da966a82ea6e71cd5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/postcss.config.js": {
+    "mtime": 1780281731.7383099,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/App.tsx": {
+    "mtime": 1780281731.7399652,
+    "ast_hash": "b4e2be3935072ea6e8ba22053c1c5b23",
+    "semantic_hash": "b4e2be3935072ea6e8ba22053c1c5b23"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/BestTimeHighlight.tsx": {
+    "mtime": 1780281731.763846,
+    "ast_hash": "a7c3f8ae36cd59631b00dfd3af87721a",
+    "semantic_hash": "a7c3f8ae36cd59631b00dfd3af87721a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/CircularProgress.tsx": {
+    "mtime": 1780281731.764106,
+    "ast_hash": "b02164f6db7c50e76fbe0ee94101fba8",
+    "semantic_hash": "b02164f6db7c50e76fbe0ee94101fba8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/EmptyState.tsx": {
+    "mtime": 1780281731.7643504,
+    "ast_hash": "5b3666bc2cc2ce9422b9f0718bcfb008",
+    "semantic_hash": "5b3666bc2cc2ce9422b9f0718bcfb008"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ExportModal.tsx": {
+    "mtime": 1780281731.7651026,
+    "ast_hash": "eab1fcbc3583ed5ce11ed2265e6c8cb6",
+    "semantic_hash": "eab1fcbc3583ed5ce11ed2265e6c8cb6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/FlipCard.tsx": {
+    "mtime": 1780281731.76969,
+    "ast_hash": "15a208b064cfa3a16a842d5880fdb259",
+    "semantic_hash": "15a208b064cfa3a16a842d5880fdb259"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/GlassCard.tsx": {
+    "mtime": 1780281731.7702785,
+    "ast_hash": "454530e712253610663065030578764e",
+    "semantic_hash": "454530e712253610663065030578764e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/GlassmorphicSidebar.tsx": {
+    "mtime": 1780281731.7706378,
+    "ast_hash": "e09edc64f194f2e727d706e2fc0fbdc7",
+    "semantic_hash": "e09edc64f194f2e727d706e2fc0fbdc7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/HeroSection.tsx": {
+    "mtime": 1780281731.773362,
+    "ast_hash": "9ced1399f2b871ef76eaa1a38a61433f",
+    "semantic_hash": "9ced1399f2b871ef76eaa1a38a61433f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/LeaveQueueModal.tsx": {
+    "mtime": 1780281731.774399,
+    "ast_hash": "ad6a065e7312747248975030247bc74b",
+    "semantic_hash": "ad6a065e7312747248975030247bc74b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/LoadBar.tsx": {
+    "mtime": 1780281731.774781,
+    "ast_hash": "efc78c7605b371d2c933f96a4c44ae9f",
+    "semantic_hash": "efc78c7605b371d2c933f96a4c44ae9f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/Navbar.tsx": {
+    "mtime": 1780281731.7751422,
+    "ast_hash": "e6b81d2d30f080ac55698c304cff2570",
+    "semantic_hash": "e6b81d2d30f080ac55698c304cff2570"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/PageTransition.tsx": {
+    "mtime": 1780281731.775526,
+    "ast_hash": "d0f8c5f93c7b0496a45e2d128d037891",
+    "semantic_hash": "d0f8c5f93c7b0496a45e2d128d037891"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ProtectedRoute.tsx": {
+    "mtime": 1780281731.7758472,
+    "ast_hash": "c51e521844d5c5033d433c1a9866b3d8",
+    "semantic_hash": "c51e521844d5c5033d433c1a9866b3d8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/QueueStatusBadge.tsx": {
+    "mtime": 1780281731.7761765,
+    "ast_hash": "975281a7b86e42efcfe9e0c8ba6fe905",
+    "semantic_hash": "975281a7b86e42efcfe9e0c8ba6fe905"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ServiceCard.tsx": {
+    "mtime": 1780281731.7764816,
+    "ast_hash": "17a3c9bf2c2ebef2808f9de9d502b95e",
+    "semantic_hash": "17a3c9bf2c2ebef2808f9de9d502b95e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ServiceTile.tsx": {
+    "mtime": 1780281731.7767649,
+    "ast_hash": "dbcd9431fdfa225da053b0c9f75ed6de",
+    "semantic_hash": "dbcd9431fdfa225da053b0c9f75ed6de"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/SkeletonLoaders.tsx": {
+    "mtime": 1780281731.7771103,
+    "ast_hash": "96cac131d143e83a25816ab26c308252",
+    "semantic_hash": "96cac131d143e83a25816ab26c308252"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/StatusChip.tsx": {
+    "mtime": 1780281731.777428,
+    "ast_hash": "73509a1b7815860137b972815367e632",
+    "semantic_hash": "73509a1b7815860137b972815367e632"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/TicketDisplay.tsx": {
+    "mtime": 1780281731.7777092,
+    "ast_hash": "439dd260c473f721ebf99831d79d25ab",
+    "semantic_hash": "439dd260c473f721ebf99831d79d25ab"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/TrafficStatusBanner.tsx": {
+    "mtime": 1780281731.7779984,
+    "ast_hash": "2faab16dfaf84b337e7d1c02532b30a1",
+    "semantic_hash": "2faab16dfaf84b337e7d1c02532b30a1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/VerticalSidebar.tsx": {
+    "mtime": 1780281731.7783332,
+    "ast_hash": "f35bc87c6f3d72a047aa8514c2170735",
+    "semantic_hash": "f35bc87c6f3d72a047aa8514c2170735"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/AIInsightsPanel.tsx": {
+    "mtime": 1780281731.7788603,
+    "ast_hash": "206603a9ef3c3e1b2ba54028e2878a77",
+    "semantic_hash": "206603a9ef3c3e1b2ba54028e2878a77"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/AIRecommendations.tsx": {
+    "mtime": 1780281731.779222,
+    "ast_hash": "9eb5208381de931e90e1c42b563ee1a8",
+    "semantic_hash": "9eb5208381de931e90e1c42b563ee1a8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ActiveSessionCard.tsx": {
+    "mtime": 1780281731.7795358,
+    "ast_hash": "2a6afb6795c7ffa1735e08f7f999ad0f",
+    "semantic_hash": "2a6afb6795c7ffa1735e08f7f999ad0f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ActivityFeed.tsx": {
+    "mtime": 1780281731.779837,
+    "ast_hash": "77f38b144ff5a64d2a8b1f8cf9b3bd4d",
+    "semantic_hash": "77f38b144ff5a64d2a8b1f8cf9b3bd4d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/AdminLayout.tsx": {
+    "mtime": 1780281731.780132,
+    "ast_hash": "8de512efa7b49dd06246d1a1e6f96fb3",
+    "semantic_hash": "8de512efa7b49dd06246d1a1e6f96fb3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/AdminSidebar.tsx": {
+    "mtime": 1780281731.780415,
+    "ast_hash": "af8e73d34099f2ada260e6a0b80ca9a2",
+    "semantic_hash": "af8e73d34099f2ada260e6a0b80ca9a2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/AnomalyAlerts.tsx": {
+    "mtime": 1780281731.7806976,
+    "ast_hash": "48b3e312012bf953dc92e64601ac70df",
+    "semantic_hash": "48b3e312012bf953dc92e64601ac70df"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/CustomerAvatar.tsx": {
+    "mtime": 1780281731.7810135,
+    "ast_hash": "5b6b20ffb3f5d8fbf2191efac62d8727",
+    "semantic_hash": "5b6b20ffb3f5d8fbf2191efac62d8727"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/CustomerTable.tsx": {
+    "mtime": 1780281731.781313,
+    "ast_hash": "433721ed4224ee2faae5f5d7e6cff557",
+    "semantic_hash": "433721ed4224ee2faae5f5d7e6cff557"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ExportButton.tsx": {
+    "mtime": 1780281731.781589,
+    "ast_hash": "48b5dcd06ac29a9cfdc9fa8b25d62e93",
+    "semantic_hash": "48b5dcd06ac29a9cfdc9fa8b25d62e93"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/FilterBar.tsx": {
+    "mtime": 1780281731.7818744,
+    "ast_hash": "c9ce816536fb1e1cd33569a06bf2f1a2",
+    "semantic_hash": "c9ce816536fb1e1cd33569a06bf2f1a2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/InsightsPanel.tsx": {
+    "mtime": 1780281731.7821941,
+    "ast_hash": "66068f28df5737be770025e670d839b3",
+    "semantic_hash": "66068f28df5737be770025e670d839b3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/LogoutConfirmDialog.tsx": {
+    "mtime": 1780281731.782504,
+    "ast_hash": "136a00c3cd2324da7de9d7ad5bfa5234",
+    "semantic_hash": "136a00c3cd2324da7de9d7ad5bfa5234"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ModernAreaChart.tsx": {
+    "mtime": 1780281731.7828064,
+    "ast_hash": "2a9ea66cf7535ad29726c803f5bbcf3a",
+    "semantic_hash": "2a9ea66cf7535ad29726c803f5bbcf3a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ModernDonutChart.tsx": {
+    "mtime": 1780281731.7831104,
+    "ast_hash": "64f92b6bcf98b90f5399813329b0cd9f",
+    "semantic_hash": "64f92b6bcf98b90f5399813329b0cd9f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/PeakHoursHeatmap.tsx": {
+    "mtime": 1780281731.7834682,
+    "ast_hash": "e8b23d9f4c6fbae85363a52522227143",
+    "semantic_hash": "e8b23d9f4c6fbae85363a52522227143"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ProtectedAdminRoute.tsx": {
+    "mtime": 1780281731.7840886,
+    "ast_hash": "ff22ba821b403961234dfc3775783285",
+    "semantic_hash": "ff22ba821b403961234dfc3775783285"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/QueueCard.tsx": {
+    "mtime": 1780281731.7844574,
+    "ast_hash": "2460469515abb77876cb6f1ec0535693",
+    "semantic_hash": "2460469515abb77876cb6f1ec0535693"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/QueueListItem.tsx": {
+    "mtime": 1780281731.784755,
+    "ast_hash": "157f18df38b376e48815d399db03d6a3",
+    "semantic_hash": "157f18df38b376e48815d399db03d6a3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/QueueTable.tsx": {
+    "mtime": 1780281731.7850454,
+    "ast_hash": "b88a8b6dc4868fdcf53456f007c80ba5",
+    "semantic_hash": "b88a8b6dc4868fdcf53456f007c80ba5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/ServiceStatBox.tsx": {
+    "mtime": 1780281731.7853177,
+    "ast_hash": "3da70368538131d2c27b220f81df5ff6",
+    "semantic_hash": "3da70368538131d2c27b220f81df5ff6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StaffAssignmentEditor.tsx": {
+    "mtime": 1780281731.7856889,
+    "ast_hash": "2734f8384c7ca1d263f52b3e1f1d040b",
+    "semantic_hash": "2734f8384c7ca1d263f52b3e1f1d040b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StaffAssignmentPanel.tsx": {
+    "mtime": 1780281731.7860367,
+    "ast_hash": "63dee7c426e743e28bcfeb8ea77f8c6d",
+    "semantic_hash": "63dee7c426e743e28bcfeb8ea77f8c6d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StaffCard.tsx": {
+    "mtime": 1780281731.786359,
+    "ast_hash": "2362e391d623b6db44999d7ea2d68c1c",
+    "semantic_hash": "2362e391d623b6db44999d7ea2d68c1c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StatCard.tsx": {
+    "mtime": 1780281731.7867038,
+    "ast_hash": "640d28f9a8afb402be587080ee88ecbb",
+    "semantic_hash": "640d28f9a8afb402be587080ee88ecbb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StatsCard.tsx": {
+    "mtime": 1780281731.786995,
+    "ast_hash": "ee8276bcdb62ee7e903f1b8cb106b2dc",
+    "semantic_hash": "ee8276bcdb62ee7e903f1b8cb106b2dc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/StatusBadge.tsx": {
+    "mtime": 1780281731.787307,
+    "ast_hash": "cff3c06f564b86010c87780520425118",
+    "semantic_hash": "cff3c06f564b86010c87780520425118"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/TimeDisplay.tsx": {
+    "mtime": 1780281731.7876298,
+    "ast_hash": "efef5a91586711f487dbd053b05bf05f",
+    "semantic_hash": "efef5a91586711f487dbd053b05bf05f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/admin/TrendStatCard.tsx": {
+    "mtime": 1780281731.7879434,
+    "ast_hash": "ddd1b925e02c49a94e1acf277ae3f2a1",
+    "semantic_hash": "ddd1b925e02c49a94e1acf277ae3f2a1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/AnimatedStats.tsx": {
+    "mtime": 1780281731.7886524,
+    "ast_hash": "3c4973e815546112c12d93658197c28b",
+    "semantic_hash": "3c4973e815546112c12d93658197c28b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/FloatingShapes.tsx": {
+    "mtime": 1780281731.7890565,
+    "ast_hash": "88665e92fbf4ff26b78689a7e2622f9f",
+    "semantic_hash": "88665e92fbf4ff26b78689a7e2622f9f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/LiveQueueDisplay.tsx": {
+    "mtime": 1780281731.7894514,
+    "ast_hash": "9cab4c88ce9d4891f43d8c58f7c678f1",
+    "semantic_hash": "9cab4c88ce9d4891f43d8c58f7c678f1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/WaitTimeBadge.tsx": {
+    "mtime": 1780281731.78981,
+    "ast_hash": "b94e786940ca806b691ab7d4f089fe42",
+    "semantic_hash": "b94e786940ca806b691ab7d4f089fe42"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/accordion.tsx": {
+    "mtime": 1780281731.7901282,
+    "ast_hash": "8e924764ed8a2114dd3f474bbf48ae1a",
+    "semantic_hash": "8e924764ed8a2114dd3f474bbf48ae1a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/alert-dialog.tsx": {
+    "mtime": 1780281731.7904587,
+    "ast_hash": "f48af1dec881e9cc7697fbcd378e5d25",
+    "semantic_hash": "f48af1dec881e9cc7697fbcd378e5d25"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/alert.tsx": {
+    "mtime": 1780281731.790782,
+    "ast_hash": "db1cb3e7047ffbc89171e66e3248585a",
+    "semantic_hash": "db1cb3e7047ffbc89171e66e3248585a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/avatar.tsx": {
+    "mtime": 1780281731.791161,
+    "ast_hash": "cf6d96b579e3694afe28ccd699a3e595",
+    "semantic_hash": "cf6d96b579e3694afe28ccd699a3e595"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/badge.tsx": {
+    "mtime": 1780281731.7914681,
+    "ast_hash": "a5337fd61b7a98f60b75a7d594b0d4eb",
+    "semantic_hash": "a5337fd61b7a98f60b75a7d594b0d4eb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/button.tsx": {
+    "mtime": 1780281731.7917976,
+    "ast_hash": "875f0da601a53079d439d28917613ea0",
+    "semantic_hash": "875f0da601a53079d439d28917613ea0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/calendar.tsx": {
+    "mtime": 1780281731.792112,
+    "ast_hash": "d306afd5e5846235963f82461013dc1b",
+    "semantic_hash": "d306afd5e5846235963f82461013dc1b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/card.tsx": {
+    "mtime": 1780281731.7924166,
+    "ast_hash": "3136e0b36d2e6ac378b00488d64dabfb",
+    "semantic_hash": "3136e0b36d2e6ac378b00488d64dabfb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/checkbox.tsx": {
+    "mtime": 1780281731.792748,
+    "ast_hash": "9a776c453c55633e4a02d0a17776680d",
+    "semantic_hash": "9a776c453c55633e4a02d0a17776680d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/collapsible.tsx": {
+    "mtime": 1780281731.7930691,
+    "ast_hash": "1a8cd59d5896a7dfaf14e1402b7a5da1",
+    "semantic_hash": "1a8cd59d5896a7dfaf14e1402b7a5da1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/custom-calendar.tsx": {
+    "mtime": 1780281731.7934864,
+    "ast_hash": "6f233cbbbcbd58e20c6f64802e01af63",
+    "semantic_hash": "6f233cbbbcbd58e20c6f64802e01af63"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/dialog.tsx": {
+    "mtime": 1780281731.7938912,
+    "ast_hash": "1c8b9fb2989af84b913f9e86fdb83039",
+    "semantic_hash": "1c8b9fb2989af84b913f9e86fdb83039"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/dropdown-menu.tsx": {
+    "mtime": 1780281731.7942348,
+    "ast_hash": "78f746dd10c79fb1131a92dc37061e8c",
+    "semantic_hash": "78f746dd10c79fb1131a92dc37061e8c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/form.tsx": {
+    "mtime": 1780281731.7945888,
+    "ast_hash": "438ba45c22db2a7b0bfd1939f87c75a5",
+    "semantic_hash": "438ba45c22db2a7b0bfd1939f87c75a5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/input.tsx": {
+    "mtime": 1780281731.7949138,
+    "ast_hash": "e5c915d07917fc97a64d4e46fb5121b6",
+    "semantic_hash": "e5c915d07917fc97a64d4e46fb5121b6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/label.tsx": {
+    "mtime": 1780281731.7952387,
+    "ast_hash": "872fc2edd576ee00b4d211861c513e39",
+    "semantic_hash": "872fc2edd576ee00b4d211861c513e39"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/popover.tsx": {
+    "mtime": 1780281731.7955773,
+    "ast_hash": "a1c7842cc4edab273624b426c46b6ef0",
+    "semantic_hash": "a1c7842cc4edab273624b426c46b6ef0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/progress.tsx": {
+    "mtime": 1780281731.7958744,
+    "ast_hash": "5fe48692e3344273e9b4b67608783a50",
+    "semantic_hash": "5fe48692e3344273e9b4b67608783a50"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/radio-group.tsx": {
+    "mtime": 1780281731.796202,
+    "ast_hash": "704b1698c63adb8aecfb6871dd27430c",
+    "semantic_hash": "704b1698c63adb8aecfb6871dd27430c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/scroll-area.tsx": {
+    "mtime": 1780281731.7965226,
+    "ast_hash": "e36edb657a53c9eeee9870c8d7a3c694",
+    "semantic_hash": "e36edb657a53c9eeee9870c8d7a3c694"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/select.tsx": {
+    "mtime": 1780281731.7968805,
+    "ast_hash": "c56d89ab4d5c3ac5a7c2e511a8e20271",
+    "semantic_hash": "c56d89ab4d5c3ac5a7c2e511a8e20271"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/separator.tsx": {
+    "mtime": 1780281731.7971847,
+    "ast_hash": "77a4a3ca62d201b88fdc89b792e1cad7",
+    "semantic_hash": "77a4a3ca62d201b88fdc89b792e1cad7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/sheet.tsx": {
+    "mtime": 1780281731.7975073,
+    "ast_hash": "51ee6b79e0edea3cb2b9def4b9ee4210",
+    "semantic_hash": "51ee6b79e0edea3cb2b9def4b9ee4210"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/skeleton.tsx": {
+    "mtime": 1780281731.7978199,
+    "ast_hash": "f0a3e9f04e9c2957b5d733bc0aad0a7f",
+    "semantic_hash": "f0a3e9f04e9c2957b5d733bc0aad0a7f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/slider.tsx": {
+    "mtime": 1780281731.7981446,
+    "ast_hash": "9cbac7699bf4ced706fedb87034e7724",
+    "semantic_hash": "9cbac7699bf4ced706fedb87034e7724"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/sonner.tsx": {
+    "mtime": 1780281731.7984946,
+    "ast_hash": "416aa95c93a5d017721058fbbb5bd91d",
+    "semantic_hash": "416aa95c93a5d017721058fbbb5bd91d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/switch.tsx": {
+    "mtime": 1780281731.798813,
+    "ast_hash": "48924855fca2ec63751f74e204ed42be",
+    "semantic_hash": "48924855fca2ec63751f74e204ed42be"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/table.tsx": {
+    "mtime": 1780281731.7990975,
+    "ast_hash": "6fc14ec93195e572730bb92ca15b2dea",
+    "semantic_hash": "6fc14ec93195e572730bb92ca15b2dea"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/tabs.tsx": {
+    "mtime": 1780281731.7993999,
+    "ast_hash": "163e0f47bb07c5f0f644782daebfc5a3",
+    "semantic_hash": "163e0f47bb07c5f0f644782daebfc5a3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/textarea.tsx": {
+    "mtime": 1780281731.7997131,
+    "ast_hash": "7d391ad86020ca61cce9a8f8a72d9693",
+    "semantic_hash": "7d391ad86020ca61cce9a8f8a72d9693"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/toast.tsx": {
+    "mtime": 1780281731.8000581,
+    "ast_hash": "e4a6b50bbd5830af387d928c638e39df",
+    "semantic_hash": "e4a6b50bbd5830af387d928c638e39df"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/toaster.tsx": {
+    "mtime": 1780281731.800371,
+    "ast_hash": "f9fbae84b6bbad868fc52154479d8366",
+    "semantic_hash": "f9fbae84b6bbad868fc52154479d8366"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/tooltip.tsx": {
+    "mtime": 1780281731.8006935,
+    "ast_hash": "b690cd5e20f23c36d2a273e37dfa10db",
+    "semantic_hash": "b690cd5e20f23c36d2a273e37dfa10db"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/components/ui/use-toast.ts": {
+    "mtime": 1780281731.800976,
+    "ast_hash": "4f094014a1315ca1081cbdc7f78d55cc",
+    "semantic_hash": "4f094014a1315ca1081cbdc7f78d55cc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/data/mockCustomers.json": {
+    "mtime": 1780281731.8015292,
+    "ast_hash": "f532250300f32a4d7ca6abf2452876f8",
+    "semantic_hash": "f532250300f32a4d7ca6abf2452876f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/data/mockQueueData.json": {
+    "mtime": 1780281731.8021557,
+    "ast_hash": "bfd8750bd30f015cdf297e663d674d63",
+    "semantic_hash": "bfd8750bd30f015cdf297e663d674d63"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/data/mockServices.json": {
+    "mtime": 1780281731.8024895,
+    "ast_hash": "aef865db242658c8eba6b0a7885ecab5",
+    "semantic_hash": "aef865db242658c8eba6b0a7885ecab5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/data/mockStats.json": {
+    "mtime": 1780281731.8027923,
+    "ast_hash": "ca011ec78a4419b47303e992325cd562",
+    "semantic_hash": "ca011ec78a4419b47303e992325cd562"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/use-mobile.tsx": {
+    "mtime": 1780281731.8033025,
+    "ast_hash": "c0a0bdd4638c391a1dd06ac82074e60b",
+    "semantic_hash": "c0a0bdd4638c391a1dd06ac82074e60b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/use-toast.ts": {
+    "mtime": 1780281731.8036358,
+    "ast_hash": "e706bc004c87e17db559a113637eddea",
+    "semantic_hash": "e706bc004c87e17db559a113637eddea"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useAdminAuth.ts": {
+    "mtime": 1780281731.8039358,
+    "ast_hash": "504f9ee7746c479fae2d07824f315c56",
+    "semantic_hash": "504f9ee7746c479fae2d07824f315c56"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useAdminQueueRealtime.ts": {
+    "mtime": 1780281731.8042214,
+    "ast_hash": "082ee9e0bd15ca8712cb286fa305dad7",
+    "semantic_hash": "082ee9e0bd15ca8712cb286fa305dad7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useAuth.ts": {
+    "mtime": 1780281731.8045557,
+    "ast_hash": "cc64983967cafe74342f2dd4e6874e5f",
+    "semantic_hash": "cc64983967cafe74342f2dd4e6874e5f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useBranches.ts": {
+    "mtime": 1780281731.8048387,
+    "ast_hash": "cf3629d5baa5ad44ca137522b42b2d88",
+    "semantic_hash": "cf3629d5baa5ad44ca137522b42b2d88"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useCustomerSearch.ts": {
+    "mtime": 1780281731.8051336,
+    "ast_hash": "c19c4a781b902d0139a62b664cec6c25",
+    "semantic_hash": "c19c4a781b902d0139a62b664cec6c25"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useLiveQueuePosition.ts": {
+    "mtime": 1780281731.8054307,
+    "ast_hash": "5e9170f3aa1b6b4166d3f89231987679",
+    "semantic_hash": "5e9170f3aa1b6b4166d3f89231987679"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useOrganizations.ts": {
+    "mtime": 1780281731.805746,
+    "ast_hash": "9cefd281a75cf3da5f551d3f68990531",
+    "semantic_hash": "9cefd281a75cf3da5f551d3f68990531"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useQueueData.ts": {
+    "mtime": 1780281731.8060572,
+    "ast_hash": "3c971f98b7b0ba961418be5d11bfef01",
+    "semantic_hash": "3c971f98b7b0ba961418be5d11bfef01"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useQueueMock.ts": {
+    "mtime": 1780281731.806346,
+    "ast_hash": "734a41abd24d7dd95433a5b30f1c2b0e",
+    "semantic_hash": "734a41abd24d7dd95433a5b30f1c2b0e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useQueueNotifications.ts": {
+    "mtime": 1780281731.8067164,
+    "ast_hash": "ef1306f328efaf703cb5b8908ff8598c",
+    "semantic_hash": "ef1306f328efaf703cb5b8908ff8598c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useServices.ts": {
+    "mtime": 1780281731.8073208,
+    "ast_hash": "025c07244ec84a1439be8b8b816607ed",
+    "semantic_hash": "025c07244ec84a1439be8b8b816607ed"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/hooks/useStaffRole.ts": {
+    "mtime": 1780281731.8080332,
+    "ast_hash": "0a1b353b84a3272dded4d4ee5dbde5cf",
+    "semantic_hash": "0a1b353b84a3272dded4d4ee5dbde5cf"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/integrations/supabase/client.ts": {
+    "mtime": 1780281731.8091319,
+    "ast_hash": "f699d6047d16b2838b95d1a496861f53",
+    "semantic_hash": "f699d6047d16b2838b95d1a496861f53"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/integrations/supabase/types.ts": {
+    "mtime": 1780281731.8095334,
+    "ast_hash": "a3e0b18f45c7e535ad7b0ff32bc95467",
+    "semantic_hash": "a3e0b18f45c7e535ad7b0ff32bc95467"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/analytics.ts": {
+    "mtime": 1780281731.8106022,
+    "ast_hash": "f6b254da3b2b2d429c30243a083b5976",
+    "semantic_hash": "f6b254da3b2b2d429c30243a083b5976"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/businesses.ts": {
+    "mtime": 1780281731.8109004,
+    "ast_hash": "5a61fcae5b203ac6ae301e281e0b6245",
+    "semantic_hash": "5a61fcae5b203ac6ae301e281e0b6245"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/customers.ts": {
+    "mtime": 1780281731.8111994,
+    "ast_hash": "0ac620672381eaecf5f7b1090d8e3d9c",
+    "semantic_hash": "0ac620672381eaecf5f7b1090d8e3d9c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/insights.ts": {
+    "mtime": 1780281731.8115184,
+    "ast_hash": "a793bf3692d54f6d0707f27cc2e772ad",
+    "semantic_hash": "a793bf3692d54f6d0707f27cc2e772ad"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/queue.ts": {
+    "mtime": 1780281731.8118856,
+    "ast_hash": "501ac821db6d21f82aaa3ebeb3e0d6f7",
+    "semantic_hash": "501ac821db6d21f82aaa3ebeb3e0d6f7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/services.ts": {
+    "mtime": 1780281731.812173,
+    "ast_hash": "47812653e2e9e7b45d58788d76b5ac42",
+    "semantic_hash": "47812653e2e9e7b45d58788d76b5ac42"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/api/staff.ts": {
+    "mtime": 1780281731.812523,
+    "ast_hash": "5416f251218e9624190706ba154ae25f",
+    "semantic_hash": "5416f251218e9624190706ba154ae25f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/apiClient.ts": {
+    "mtime": 1780281731.81281,
+    "ast_hash": "245cd5cca544d4bc260862b178a5d505",
+    "semantic_hash": "245cd5cca544d4bc260862b178a5d505"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/mockDataUtils.ts": {
+    "mtime": 1780281731.8131366,
+    "ast_hash": "19ab7257fa5db45fff96461da3f1da05",
+    "semantic_hash": "19ab7257fa5db45fff96461da3f1da05"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/routes.ts": {
+    "mtime": 1780281731.813431,
+    "ast_hash": "f7639240169f87c000e744d81a141353",
+    "semantic_hash": "f7639240169f87c000e744d81a141353"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/services/queueService.ts": {
+    "mtime": 1780281731.8139007,
+    "ast_hash": "e0e43093b920bf1d50514d6beb8bc260",
+    "semantic_hash": "e0e43093b920bf1d50514d6beb8bc260"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/supabase.ts": {
+    "mtime": 1780281731.814183,
+    "ast_hash": "b87ad24f96eef77c1c2d03c7a8c0d16b",
+    "semantic_hash": "b87ad24f96eef77c1c2d03c7a8c0d16b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/lib/utils.ts": {
+    "mtime": 1780281731.8144698,
+    "ast_hash": "d9837f38cc05303254571985e3164050",
+    "semantic_hash": "d9837f38cc05303254571985e3164050"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/main.tsx": {
+    "mtime": 1780281731.8147748,
+    "ast_hash": "f5d32073c6016edb15a1a93f3699e356",
+    "semantic_hash": "f5d32073c6016edb15a1a93f3699e356"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/About.tsx": {
+    "mtime": 1780281731.8152483,
+    "ast_hash": "5e4a8a57fd2fd6fe2071b930cfac29e4",
+    "semantic_hash": "5e4a8a57fd2fd6fe2071b930cfac29e4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/BestTime.tsx": {
+    "mtime": 1780281731.815598,
+    "ast_hash": "418088cb518957f1e02d3fbe246c34eb",
+    "semantic_hash": "418088cb518957f1e02d3fbe246c34eb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/ClientDirectory.tsx": {
+    "mtime": 1780281731.8159454,
+    "ast_hash": "85bf270da97d304f99b5365c292bd05e",
+    "semantic_hash": "85bf270da97d304f99b5365c292bd05e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/ClientLanding.tsx": {
+    "mtime": 1780281731.8162663,
+    "ast_hash": "eddf5f98b8d00a203d36630ec1a197f3",
+    "semantic_hash": "eddf5f98b8d00a203d36630ec1a197f3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/Home.tsx": {
+    "mtime": 1780281731.8167057,
+    "ast_hash": "0cb82a4c9eb7f20435fd36c614821201",
+    "semantic_hash": "0cb82a4c9eb7f20435fd36c614821201"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/JoinQueue.tsx": {
+    "mtime": 1780281731.8171468,
+    "ast_hash": "7bf328448aae343bca21415035b314e4",
+    "semantic_hash": "7bf328448aae343bca21415035b314e4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/JoinUs.tsx": {
+    "mtime": 1780281731.8175714,
+    "ast_hash": "df27a42de64fc151f7d18a928ad56c91",
+    "semantic_hash": "df27a42de64fc151f7d18a928ad56c91"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/Login.tsx": {
+    "mtime": 1780281731.817925,
+    "ast_hash": "2addf89db755cf12bfe30aac8955993d",
+    "semantic_hash": "2addf89db755cf12bfe30aac8955993d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/NotFound.tsx": {
+    "mtime": 1780281731.8182228,
+    "ast_hash": "1b7aae1b57341a6bae3d24f46f577bcb",
+    "semantic_hash": "1b7aae1b57341a6bae3d24f46f577bcb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/PublicTraffic.tsx": {
+    "mtime": 1780281731.8185923,
+    "ast_hash": "29a392841fdfbec5fa581d31ced11c51",
+    "semantic_hash": "29a392841fdfbec5fa581d31ced11c51"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/ServiceSelect.tsx": {
+    "mtime": 1780281731.8189132,
+    "ast_hash": "82d2e6660405f5afb201d9049cadf41b",
+    "semantic_hash": "82d2e6660405f5afb201d9049cadf41b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/SignUp.tsx": {
+    "mtime": 1780281731.8192036,
+    "ast_hash": "e28c49e28321d8a8c55cbe9bdd0cddcf",
+    "semantic_hash": "e28c49e28321d8a8c55cbe9bdd0cddcf"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/Ticket.tsx": {
+    "mtime": 1780281731.8196473,
+    "ast_hash": "651833a23dda1b05cc36e93e1a4caa29",
+    "semantic_hash": "651833a23dda1b05cc36e93e1a4caa29"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Analytics.tsx": {
+    "mtime": 1780281731.8201692,
+    "ast_hash": "7e69d1b0d263070562ad5ce942cb544b",
+    "semantic_hash": "7e69d1b0d263070562ad5ce942cb544b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Customers.tsx": {
+    "mtime": 1780281731.820488,
+    "ast_hash": "d8ea877f8a530d9c2dd4c6d5d600012a",
+    "semantic_hash": "d8ea877f8a530d9c2dd4c6d5d600012a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Dashboard.tsx": {
+    "mtime": 1780281731.8207784,
+    "ast_hash": "b8d9e7acfdb791bccc96fed117d70dfc",
+    "semantic_hash": "b8d9e7acfdb791bccc96fed117d70dfc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/ExecutiveDashboard.tsx": {
+    "mtime": 1780281731.8211114,
+    "ast_hash": "36cdf4b9bbcb1d9fc14db6ca0b3452d2",
+    "semantic_hash": "36cdf4b9bbcb1d9fc14db6ca0b3452d2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Login.tsx": {
+    "mtime": 1780281731.8214073,
+    "ast_hash": "ad540855c725e8a6d15028e954e4f748",
+    "semantic_hash": "ad540855c725e8a6d15028e954e4f748"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/ManagerDashboard.tsx": {
+    "mtime": 1780281731.8217528,
+    "ast_hash": "6cdd76de7af884f586cd8278ad298219",
+    "semantic_hash": "6cdd76de7af884f586cd8278ad298219"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Services.tsx": {
+    "mtime": 1780281731.8220909,
+    "ast_hash": "afb997fe1cb60ed775a5b3e418da3f2f",
+    "semantic_hash": "afb997fe1cb60ed775a5b3e418da3f2f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Settings.tsx": {
+    "mtime": 1780281731.8224182,
+    "ast_hash": "143af562e38de272cb22b5b607983fab",
+    "semantic_hash": "143af562e38de272cb22b5b607983fab"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/Staff.tsx": {
+    "mtime": 1780281731.8227353,
+    "ast_hash": "ed7885b3212c3e9a21ef945b5adda0e5",
+    "semantic_hash": "ed7885b3212c3e9a21ef945b5adda0e5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/StaffDashboard.tsx": {
+    "mtime": 1780281731.8231564,
+    "ast_hash": "4e3efd2df301dbd6d9c5cc546fd8d30f",
+    "semantic_hash": "4e3efd2df301dbd6d9c5cc546fd8d30f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/pages/admin/StaffDetail.tsx": {
+    "mtime": 1780281731.823474,
+    "ast_hash": "68023f4d88e8730546da6eac4ca5f18a",
+    "semantic_hash": "68023f4d88e8730546da6eac4ca5f18a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/types/analytics.ts": {
+    "mtime": 1780281731.8239539,
+    "ast_hash": "f2bfb2700bbc48d1bf2d76971754c6c8",
+    "semantic_hash": "f2bfb2700bbc48d1bf2d76971754c6c8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/types/customer.ts": {
+    "mtime": 1780281731.8242495,
+    "ast_hash": "34e784a7312898744a7b7764b04c51f8",
+    "semantic_hash": "34e784a7312898744a7b7764b04c51f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/types/insights.ts": {
+    "mtime": 1780281731.824549,
+    "ast_hash": "cbc0a5a622169b8fdaf3a2eb9294c2a8",
+    "semantic_hash": "cbc0a5a622169b8fdaf3a2eb9294c2a8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/types/queue.ts": {
+    "mtime": 1780281731.8248708,
+    "ast_hash": "e668f8396487faa2e85ec14eb10fb438",
+    "semantic_hash": "e668f8396487faa2e85ec14eb10fb438"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/types/staff.ts": {
+    "mtime": 1780281731.8251512,
+    "ast_hash": "43af38c4d55e4deabfbb01971654fdac",
+    "semantic_hash": "43af38c4d55e4deabfbb01971654fdac"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/src/vite-env.d.ts": {
+    "mtime": 1780281731.8254068,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/tailwind.config.ts": {
+    "mtime": 1780281731.825751,
+    "ast_hash": "22eb5c2a389809b61628ee85899bc0ae",
+    "semantic_hash": "22eb5c2a389809b61628ee85899bc0ae"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/tsconfig.app.json": {
+    "mtime": 1780281731.82602,
+    "ast_hash": "e2a88e10c9fd9e436d5434e10911381d",
+    "semantic_hash": "e2a88e10c9fd9e436d5434e10911381d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/tsconfig.json": {
+    "mtime": 1780281731.8263063,
+    "ast_hash": "3951bfe500c7b5ca84cceded3c114a24",
+    "semantic_hash": "3951bfe500c7b5ca84cceded3c114a24"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/tsconfig.node.json": {
+    "mtime": 1780281731.8266032,
+    "ast_hash": "1417fb05378a1d1102f085e60b20db0e",
+    "semantic_hash": "1417fb05378a1d1102f085e60b20db0e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/apps/website/vite.config.ts": {
+    "mtime": 1780281731.8269126,
+    "ast_hash": "b904970e1041b66c781db0d6507e8b16",
+    "semantic_hash": "b904970e1041b66c781db0d6507e8b16"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/package.json": {
+    "mtime": 1780281731.8283093,
+    "ast_hash": "2bd609145975b7bbe888feb7d3d6317e",
+    "semantic_hash": "2bd609145975b7bbe888feb7d3d6317e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/db/pool.js": {
+    "mtime": 1780281731.8289542,
+    "ast_hash": "d96e01e79f28ff676a16bc7ff21c5186",
+    "semantic_hash": "d96e01e79f28ff676a16bc7ff21c5186"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/index.js": {
+    "mtime": 1780281731.8292255,
+    "ast_hash": "fc4a4f5f9259745c2ff743ebcf3ebc92",
+    "semantic_hash": "fc4a4f5f9259745c2ff743ebcf3ebc92"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/middleware/auth.js": {
+    "mtime": 1780281731.8296432,
+    "ast_hash": "50620ded56cfe23f03d0feab626740e0",
+    "semantic_hash": "50620ded56cfe23f03d0feab626740e0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/analytics.js": {
+    "mtime": 1780281731.8300855,
+    "ast_hash": "8b7a2b1741d58d57935179c15df922c5",
+    "semantic_hash": "8b7a2b1741d58d57935179c15df922c5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/assignments.js": {
+    "mtime": 1780281731.8303854,
+    "ast_hash": "efbb1859dc161ff5d82497fda45f478e",
+    "semantic_hash": "efbb1859dc161ff5d82497fda45f478e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/auth.js": {
+    "mtime": 1780281731.8306336,
+    "ast_hash": "1bd94fde76baa44b13c6bddd32169077",
+    "semantic_hash": "1bd94fde76baa44b13c6bddd32169077"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/branches.js": {
+    "mtime": 1780281731.8308737,
+    "ast_hash": "4eab76e372302812e083441a94526fd9",
+    "semantic_hash": "4eab76e372302812e083441a94526fd9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/businesses.js": {
+    "mtime": 1780281731.8311286,
+    "ast_hash": "4b3ca41ca83ea7b822e2347be5d102c1",
+    "semantic_hash": "4b3ca41ca83ea7b822e2347be5d102c1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/history.js": {
+    "mtime": 1780281731.8314817,
+    "ast_hash": "381ac4e7a945839113954c7bbcc42d10",
+    "semantic_hash": "381ac4e7a945839113954c7bbcc42d10"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/notifications.js": {
+    "mtime": 1780281731.8317173,
+    "ast_hash": "3612401571f6de686adc13bb5e59084f",
+    "semantic_hash": "3612401571f6de686adc13bb5e59084f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/predictions.js": {
+    "mtime": 1780281731.8319006,
+    "ast_hash": "390700fb9c4dcd1c20470d5834715e99",
+    "semantic_hash": "390700fb9c4dcd1c20470d5834715e99"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/queues.js": {
+    "mtime": 1780281731.832063,
+    "ast_hash": "9e9a908e309666d8b4e323d79000e6af",
+    "semantic_hash": "9e9a908e309666d8b4e323d79000e6af"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/saved.js": {
+    "mtime": 1780281731.8322477,
+    "ast_hash": "43390a9706d6da16f28afc96e5aba9c0",
+    "semantic_hash": "43390a9706d6da16f28afc96e5aba9c0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/services.js": {
+    "mtime": 1780281731.832424,
+    "ast_hash": "013510079b4801ce880b559012ce0b27",
+    "semantic_hash": "013510079b4801ce880b559012ce0b27"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/staff.js": {
+    "mtime": 1780281731.8325994,
+    "ast_hash": "ddea797915e9a571ae6bfd2def09f675",
+    "semantic_hash": "ddea797915e9a571ae6bfd2def09f675"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/backend/src/routes/tickets.js": {
+    "mtime": 1780281731.8327765,
+    "ast_hash": "ad8f52ae532ffea8d8d747df7d7be470",
+    "semantic_hash": "ad8f52ae532ffea8d8d747df7d7be470"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/components.json": {
+    "mtime": 1780281731.8340392,
+    "ast_hash": "a547944ace00dc5d5373aaca70a40bc4",
+    "semantic_hash": "a547944ace00dc5d5373aaca70a40bc4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/analytics_exports.sql": {
+    "mtime": 1780281731.8345578,
+    "ast_hash": "1c3f432d29fd8e41fa19d4788054291e",
+    "semantic_hash": "1c3f432d29fd8e41fa19d4788054291e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/demo_data.sql": {
+    "mtime": 1780281731.834772,
+    "ast_hash": "4ee0030ac1167093c7f267dd303e5578",
+    "semantic_hash": "4ee0030ac1167093c7f267dd303e5578"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/migrations/001_performance_indexes.sql": {
+    "mtime": 1780281731.8350897,
+    "ast_hash": "561030cd813c49d24e97f8f8841f4af4",
+    "semantic_hash": "561030cd813c49d24e97f8f8841f4af4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/migrations/002_security_and_ocr.sql": {
+    "mtime": 1780281731.8352935,
+    "ast_hash": "86e321820ce10ce17d958c755a3de78e",
+    "semantic_hash": "86e321820ce10ce17d958c755a3de78e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/schema.sql": {
+    "mtime": 1780281731.8355143,
+    "ast_hash": "ac79d8acd1e8b5122095cae204320555",
+    "semantic_hash": "ac79d8acd1e8b5122095cae204320555"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/database/seed.sql": {
+    "mtime": 1780281731.8357983,
+    "ast_hash": "5e3ba0e42b76bc3b250cd57d21d570a9",
+    "semantic_hash": "5e3ba0e42b76bc3b250cd57d21d570a9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/docs/QMeNow_API.postman_collection.json": {
+    "mtime": 1780281731.8363078,
+    "ast_hash": "fb92f9521be8c32d33c567c68493d2eb",
+    "semantic_hash": "fb92f9521be8c32d33c567c68493d2eb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/eslint.config.js": {
+    "mtime": 1780281731.8368945,
+    "ast_hash": "31c0881fdd8500aa4d0aa963079713ae",
+    "semantic_hash": "31c0881fdd8500aa4d0aa963079713ae"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/package.json": {
+    "mtime": 1780281731.8377469,
+    "ast_hash": "b376dbd2e434ce845c39613ba6d6fb5c",
+    "semantic_hash": "b376dbd2e434ce845c39613ba6d6fb5c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/postcss.config.js": {
+    "mtime": 1780281731.837902,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/App.tsx": {
+    "mtime": 1780281731.838667,
+    "ast_hash": "b4e2be3935072ea6e8ba22053c1c5b23",
+    "semantic_hash": "b4e2be3935072ea6e8ba22053c1c5b23"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/CircularProgress.tsx": {
+    "mtime": 1780281731.8435855,
+    "ast_hash": "b02164f6db7c50e76fbe0ee94101fba8",
+    "semantic_hash": "b02164f6db7c50e76fbe0ee94101fba8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ExportModal.tsx": {
+    "mtime": 1780281731.8437576,
+    "ast_hash": "eab1fcbc3583ed5ce11ed2265e6c8cb6",
+    "semantic_hash": "eab1fcbc3583ed5ce11ed2265e6c8cb6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/FlipCard.tsx": {
+    "mtime": 1780281731.8439515,
+    "ast_hash": "15a208b064cfa3a16a842d5880fdb259",
+    "semantic_hash": "15a208b064cfa3a16a842d5880fdb259"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/GlassCard.tsx": {
+    "mtime": 1780281731.8441052,
+    "ast_hash": "454530e712253610663065030578764e",
+    "semantic_hash": "454530e712253610663065030578764e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/GlassmorphicSidebar.tsx": {
+    "mtime": 1780281731.844263,
+    "ast_hash": "e09edc64f194f2e727d706e2fc0fbdc7",
+    "semantic_hash": "e09edc64f194f2e727d706e2fc0fbdc7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/LeaveQueueModal.tsx": {
+    "mtime": 1780281731.8444207,
+    "ast_hash": "ad6a065e7312747248975030247bc74b",
+    "semantic_hash": "ad6a065e7312747248975030247bc74b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/LoadBar.tsx": {
+    "mtime": 1780281731.844571,
+    "ast_hash": "efc78c7605b371d2c933f96a4c44ae9f",
+    "semantic_hash": "efc78c7605b371d2c933f96a4c44ae9f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/Navbar.tsx": {
+    "mtime": 1780281731.8447113,
+    "ast_hash": "c087660a25e714a61d66241aef1ebb40",
+    "semantic_hash": "c087660a25e714a61d66241aef1ebb40"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ProtectedRoute.tsx": {
+    "mtime": 1780281731.8448591,
+    "ast_hash": "c51e521844d5c5033d433c1a9866b3d8",
+    "semantic_hash": "c51e521844d5c5033d433c1a9866b3d8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ServiceCard.tsx": {
+    "mtime": 1780281731.845011,
+    "ast_hash": "17a3c9bf2c2ebef2808f9de9d502b95e",
+    "semantic_hash": "17a3c9bf2c2ebef2808f9de9d502b95e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ServiceTile.tsx": {
+    "mtime": 1780281731.8453526,
+    "ast_hash": "dbcd9431fdfa225da053b0c9f75ed6de",
+    "semantic_hash": "dbcd9431fdfa225da053b0c9f75ed6de"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/StatusChip.tsx": {
+    "mtime": 1780281731.8455374,
+    "ast_hash": "73509a1b7815860137b972815367e632",
+    "semantic_hash": "73509a1b7815860137b972815367e632"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/TicketDisplay.tsx": {
+    "mtime": 1780281731.845712,
+    "ast_hash": "439dd260c473f721ebf99831d79d25ab",
+    "semantic_hash": "439dd260c473f721ebf99831d79d25ab"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/TrafficStatusBanner.tsx": {
+    "mtime": 1780281731.84587,
+    "ast_hash": "2faab16dfaf84b337e7d1c02532b30a1",
+    "semantic_hash": "2faab16dfaf84b337e7d1c02532b30a1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/VerticalSidebar.tsx": {
+    "mtime": 1780281731.846033,
+    "ast_hash": "f35bc87c6f3d72a047aa8514c2170735",
+    "semantic_hash": "f35bc87c6f3d72a047aa8514c2170735"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/AIInsightsPanel.tsx": {
+    "mtime": 1780281731.846282,
+    "ast_hash": "206603a9ef3c3e1b2ba54028e2878a77",
+    "semantic_hash": "206603a9ef3c3e1b2ba54028e2878a77"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/AIRecommendations.tsx": {
+    "mtime": 1780281731.8464432,
+    "ast_hash": "9eb5208381de931e90e1c42b563ee1a8",
+    "semantic_hash": "9eb5208381de931e90e1c42b563ee1a8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ActiveSessionCard.tsx": {
+    "mtime": 1780281731.8465948,
+    "ast_hash": "2a6afb6795c7ffa1735e08f7f999ad0f",
+    "semantic_hash": "2a6afb6795c7ffa1735e08f7f999ad0f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ActivityFeed.tsx": {
+    "mtime": 1780281731.8467436,
+    "ast_hash": "77f38b144ff5a64d2a8b1f8cf9b3bd4d",
+    "semantic_hash": "77f38b144ff5a64d2a8b1f8cf9b3bd4d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/AdminLayout.tsx": {
+    "mtime": 1780281731.846886,
+    "ast_hash": "8de512efa7b49dd06246d1a1e6f96fb3",
+    "semantic_hash": "8de512efa7b49dd06246d1a1e6f96fb3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/AdminSidebar.tsx": {
+    "mtime": 1780281731.8470378,
+    "ast_hash": "af8e73d34099f2ada260e6a0b80ca9a2",
+    "semantic_hash": "af8e73d34099f2ada260e6a0b80ca9a2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/AnomalyAlerts.tsx": {
+    "mtime": 1780281731.847174,
+    "ast_hash": "48b3e312012bf953dc92e64601ac70df",
+    "semantic_hash": "48b3e312012bf953dc92e64601ac70df"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/CustomerAvatar.tsx": {
+    "mtime": 1780281731.8473158,
+    "ast_hash": "5b6b20ffb3f5d8fbf2191efac62d8727",
+    "semantic_hash": "5b6b20ffb3f5d8fbf2191efac62d8727"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/CustomerTable.tsx": {
+    "mtime": 1780281731.847467,
+    "ast_hash": "433721ed4224ee2faae5f5d7e6cff557",
+    "semantic_hash": "433721ed4224ee2faae5f5d7e6cff557"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ExportButton.tsx": {
+    "mtime": 1780281731.84761,
+    "ast_hash": "48b5dcd06ac29a9cfdc9fa8b25d62e93",
+    "semantic_hash": "48b5dcd06ac29a9cfdc9fa8b25d62e93"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/FilterBar.tsx": {
+    "mtime": 1780281731.8477795,
+    "ast_hash": "c9ce816536fb1e1cd33569a06bf2f1a2",
+    "semantic_hash": "c9ce816536fb1e1cd33569a06bf2f1a2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/InsightsPanel.tsx": {
+    "mtime": 1780281731.8479443,
+    "ast_hash": "66068f28df5737be770025e670d839b3",
+    "semantic_hash": "66068f28df5737be770025e670d839b3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/LogoutConfirmDialog.tsx": {
+    "mtime": 1780281731.8481035,
+    "ast_hash": "136a00c3cd2324da7de9d7ad5bfa5234",
+    "semantic_hash": "136a00c3cd2324da7de9d7ad5bfa5234"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ModernAreaChart.tsx": {
+    "mtime": 1780281731.848255,
+    "ast_hash": "2a9ea66cf7535ad29726c803f5bbcf3a",
+    "semantic_hash": "2a9ea66cf7535ad29726c803f5bbcf3a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ModernDonutChart.tsx": {
+    "mtime": 1780281731.8484015,
+    "ast_hash": "64f92b6bcf98b90f5399813329b0cd9f",
+    "semantic_hash": "64f92b6bcf98b90f5399813329b0cd9f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/PeakHoursHeatmap.tsx": {
+    "mtime": 1780281731.8485684,
+    "ast_hash": "e8b23d9f4c6fbae85363a52522227143",
+    "semantic_hash": "e8b23d9f4c6fbae85363a52522227143"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ProtectedAdminRoute.tsx": {
+    "mtime": 1780281731.848729,
+    "ast_hash": "ff22ba821b403961234dfc3775783285",
+    "semantic_hash": "ff22ba821b403961234dfc3775783285"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/QueueCard.tsx": {
+    "mtime": 1780281731.8488781,
+    "ast_hash": "2460469515abb77876cb6f1ec0535693",
+    "semantic_hash": "2460469515abb77876cb6f1ec0535693"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/QueueListItem.tsx": {
+    "mtime": 1780281731.849021,
+    "ast_hash": "157f18df38b376e48815d399db03d6a3",
+    "semantic_hash": "157f18df38b376e48815d399db03d6a3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/QueueTable.tsx": {
+    "mtime": 1780281731.8491642,
+    "ast_hash": "b88a8b6dc4868fdcf53456f007c80ba5",
+    "semantic_hash": "b88a8b6dc4868fdcf53456f007c80ba5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/ServiceStatBox.tsx": {
+    "mtime": 1780281731.8493254,
+    "ast_hash": "3da70368538131d2c27b220f81df5ff6",
+    "semantic_hash": "3da70368538131d2c27b220f81df5ff6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StaffAssignmentEditor.tsx": {
+    "mtime": 1780281731.849499,
+    "ast_hash": "6448bbb081323edc91be952d46a17995",
+    "semantic_hash": "6448bbb081323edc91be952d46a17995"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StaffAssignmentPanel.tsx": {
+    "mtime": 1780281731.8496602,
+    "ast_hash": "63dee7c426e743e28bcfeb8ea77f8c6d",
+    "semantic_hash": "63dee7c426e743e28bcfeb8ea77f8c6d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StaffCard.tsx": {
+    "mtime": 1780281731.8498242,
+    "ast_hash": "2362e391d623b6db44999d7ea2d68c1c",
+    "semantic_hash": "2362e391d623b6db44999d7ea2d68c1c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StatCard.tsx": {
+    "mtime": 1780281731.8499746,
+    "ast_hash": "640d28f9a8afb402be587080ee88ecbb",
+    "semantic_hash": "640d28f9a8afb402be587080ee88ecbb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StatsCard.tsx": {
+    "mtime": 1780281731.8501294,
+    "ast_hash": "ee8276bcdb62ee7e903f1b8cb106b2dc",
+    "semantic_hash": "ee8276bcdb62ee7e903f1b8cb106b2dc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/StatusBadge.tsx": {
+    "mtime": 1780281731.850271,
+    "ast_hash": "cff3c06f564b86010c87780520425118",
+    "semantic_hash": "cff3c06f564b86010c87780520425118"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/TimeDisplay.tsx": {
+    "mtime": 1780281731.8504107,
+    "ast_hash": "efef5a91586711f487dbd053b05bf05f",
+    "semantic_hash": "efef5a91586711f487dbd053b05bf05f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/admin/TrendStatCard.tsx": {
+    "mtime": 1780281731.8505614,
+    "ast_hash": "ddd1b925e02c49a94e1acf277ae3f2a1",
+    "semantic_hash": "ddd1b925e02c49a94e1acf277ae3f2a1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/accordion.tsx": {
+    "mtime": 1780281731.8508017,
+    "ast_hash": "8e924764ed8a2114dd3f474bbf48ae1a",
+    "semantic_hash": "8e924764ed8a2114dd3f474bbf48ae1a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/alert-dialog.tsx": {
+    "mtime": 1780281731.8509407,
+    "ast_hash": "f48af1dec881e9cc7697fbcd378e5d25",
+    "semantic_hash": "f48af1dec881e9cc7697fbcd378e5d25"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/alert.tsx": {
+    "mtime": 1780281731.8510818,
+    "ast_hash": "db1cb3e7047ffbc89171e66e3248585a",
+    "semantic_hash": "db1cb3e7047ffbc89171e66e3248585a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/avatar.tsx": {
+    "mtime": 1780281731.8512197,
+    "ast_hash": "cf6d96b579e3694afe28ccd699a3e595",
+    "semantic_hash": "cf6d96b579e3694afe28ccd699a3e595"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/badge.tsx": {
+    "mtime": 1780281731.8513603,
+    "ast_hash": "a5337fd61b7a98f60b75a7d594b0d4eb",
+    "semantic_hash": "a5337fd61b7a98f60b75a7d594b0d4eb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/button.tsx": {
+    "mtime": 1780281731.8515012,
+    "ast_hash": "875f0da601a53079d439d28917613ea0",
+    "semantic_hash": "875f0da601a53079d439d28917613ea0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/calendar.tsx": {
+    "mtime": 1780281731.851668,
+    "ast_hash": "d306afd5e5846235963f82461013dc1b",
+    "semantic_hash": "d306afd5e5846235963f82461013dc1b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/card.tsx": {
+    "mtime": 1780281731.851806,
+    "ast_hash": "3136e0b36d2e6ac378b00488d64dabfb",
+    "semantic_hash": "3136e0b36d2e6ac378b00488d64dabfb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/checkbox.tsx": {
+    "mtime": 1780281731.8519778,
+    "ast_hash": "9a776c453c55633e4a02d0a17776680d",
+    "semantic_hash": "9a776c453c55633e4a02d0a17776680d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/collapsible.tsx": {
+    "mtime": 1780281731.8521273,
+    "ast_hash": "1a8cd59d5896a7dfaf14e1402b7a5da1",
+    "semantic_hash": "1a8cd59d5896a7dfaf14e1402b7a5da1"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/custom-calendar.tsx": {
+    "mtime": 1780281731.8523085,
+    "ast_hash": "6f233cbbbcbd58e20c6f64802e01af63",
+    "semantic_hash": "6f233cbbbcbd58e20c6f64802e01af63"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/dialog.tsx": {
+    "mtime": 1780281731.8527236,
+    "ast_hash": "1c8b9fb2989af84b913f9e86fdb83039",
+    "semantic_hash": "1c8b9fb2989af84b913f9e86fdb83039"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/dropdown-menu.tsx": {
+    "mtime": 1780281731.8529015,
+    "ast_hash": "78f746dd10c79fb1131a92dc37061e8c",
+    "semantic_hash": "78f746dd10c79fb1131a92dc37061e8c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/form.tsx": {
+    "mtime": 1780281731.853072,
+    "ast_hash": "438ba45c22db2a7b0bfd1939f87c75a5",
+    "semantic_hash": "438ba45c22db2a7b0bfd1939f87c75a5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/input.tsx": {
+    "mtime": 1780281731.8532403,
+    "ast_hash": "e5c915d07917fc97a64d4e46fb5121b6",
+    "semantic_hash": "e5c915d07917fc97a64d4e46fb5121b6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/label.tsx": {
+    "mtime": 1780281731.8534074,
+    "ast_hash": "872fc2edd576ee00b4d211861c513e39",
+    "semantic_hash": "872fc2edd576ee00b4d211861c513e39"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/popover.tsx": {
+    "mtime": 1780281731.8535676,
+    "ast_hash": "a1c7842cc4edab273624b426c46b6ef0",
+    "semantic_hash": "a1c7842cc4edab273624b426c46b6ef0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/progress.tsx": {
+    "mtime": 1780281731.8537185,
+    "ast_hash": "5fe48692e3344273e9b4b67608783a50",
+    "semantic_hash": "5fe48692e3344273e9b4b67608783a50"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/radio-group.tsx": {
+    "mtime": 1780281731.8538656,
+    "ast_hash": "704b1698c63adb8aecfb6871dd27430c",
+    "semantic_hash": "704b1698c63adb8aecfb6871dd27430c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/scroll-area.tsx": {
+    "mtime": 1780281731.85403,
+    "ast_hash": "e36edb657a53c9eeee9870c8d7a3c694",
+    "semantic_hash": "e36edb657a53c9eeee9870c8d7a3c694"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/select.tsx": {
+    "mtime": 1780281731.8542135,
+    "ast_hash": "c56d89ab4d5c3ac5a7c2e511a8e20271",
+    "semantic_hash": "c56d89ab4d5c3ac5a7c2e511a8e20271"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/separator.tsx": {
+    "mtime": 1780281731.8543727,
+    "ast_hash": "77a4a3ca62d201b88fdc89b792e1cad7",
+    "semantic_hash": "77a4a3ca62d201b88fdc89b792e1cad7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/sheet.tsx": {
+    "mtime": 1780281731.8545315,
+    "ast_hash": "51ee6b79e0edea3cb2b9def4b9ee4210",
+    "semantic_hash": "51ee6b79e0edea3cb2b9def4b9ee4210"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/skeleton.tsx": {
+    "mtime": 1780281731.854696,
+    "ast_hash": "f0a3e9f04e9c2957b5d733bc0aad0a7f",
+    "semantic_hash": "f0a3e9f04e9c2957b5d733bc0aad0a7f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/slider.tsx": {
+    "mtime": 1780281731.854847,
+    "ast_hash": "9cbac7699bf4ced706fedb87034e7724",
+    "semantic_hash": "9cbac7699bf4ced706fedb87034e7724"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/sonner.tsx": {
+    "mtime": 1780281731.8550026,
+    "ast_hash": "416aa95c93a5d017721058fbbb5bd91d",
+    "semantic_hash": "416aa95c93a5d017721058fbbb5bd91d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/switch.tsx": {
+    "mtime": 1780281731.8551464,
+    "ast_hash": "48924855fca2ec63751f74e204ed42be",
+    "semantic_hash": "48924855fca2ec63751f74e204ed42be"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/table.tsx": {
+    "mtime": 1780281731.8552904,
+    "ast_hash": "6fc14ec93195e572730bb92ca15b2dea",
+    "semantic_hash": "6fc14ec93195e572730bb92ca15b2dea"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/tabs.tsx": {
+    "mtime": 1780281731.855448,
+    "ast_hash": "163e0f47bb07c5f0f644782daebfc5a3",
+    "semantic_hash": "163e0f47bb07c5f0f644782daebfc5a3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/textarea.tsx": {
+    "mtime": 1780281731.8556044,
+    "ast_hash": "7d391ad86020ca61cce9a8f8a72d9693",
+    "semantic_hash": "7d391ad86020ca61cce9a8f8a72d9693"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/toast.tsx": {
+    "mtime": 1780281731.855757,
+    "ast_hash": "e4a6b50bbd5830af387d928c638e39df",
+    "semantic_hash": "e4a6b50bbd5830af387d928c638e39df"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/toaster.tsx": {
+    "mtime": 1780281731.8559067,
+    "ast_hash": "f9fbae84b6bbad868fc52154479d8366",
+    "semantic_hash": "f9fbae84b6bbad868fc52154479d8366"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/tooltip.tsx": {
+    "mtime": 1780281731.8570313,
+    "ast_hash": "b690cd5e20f23c36d2a273e37dfa10db",
+    "semantic_hash": "b690cd5e20f23c36d2a273e37dfa10db"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/components/ui/use-toast.ts": {
+    "mtime": 1780281731.8572242,
+    "ast_hash": "4f094014a1315ca1081cbdc7f78d55cc",
+    "semantic_hash": "4f094014a1315ca1081cbdc7f78d55cc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/data/mockCustomers.json": {
+    "mtime": 1780281731.857468,
+    "ast_hash": "f532250300f32a4d7ca6abf2452876f8",
+    "semantic_hash": "f532250300f32a4d7ca6abf2452876f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/data/mockQueueData.json": {
+    "mtime": 1780281731.8576202,
+    "ast_hash": "bfd8750bd30f015cdf297e663d674d63",
+    "semantic_hash": "bfd8750bd30f015cdf297e663d674d63"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/data/mockServices.json": {
+    "mtime": 1780281731.8577857,
+    "ast_hash": "aef865db242658c8eba6b0a7885ecab5",
+    "semantic_hash": "aef865db242658c8eba6b0a7885ecab5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/data/mockStats.json": {
+    "mtime": 1780281731.8579378,
+    "ast_hash": "ca011ec78a4419b47303e992325cd562",
+    "semantic_hash": "ca011ec78a4419b47303e992325cd562"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/use-mobile.tsx": {
+    "mtime": 1780281731.8581712,
+    "ast_hash": "c0a0bdd4638c391a1dd06ac82074e60b",
+    "semantic_hash": "c0a0bdd4638c391a1dd06ac82074e60b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/use-toast.ts": {
+    "mtime": 1780281731.8583255,
+    "ast_hash": "e706bc004c87e17db559a113637eddea",
+    "semantic_hash": "e706bc004c87e17db559a113637eddea"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useAdminAuth.ts": {
+    "mtime": 1780281731.8584623,
+    "ast_hash": "b83dc144f7989e7cc5463b66f7dde4f8",
+    "semantic_hash": "b83dc144f7989e7cc5463b66f7dde4f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useAdminQueueRealtime.ts": {
+    "mtime": 1780281731.8586214,
+    "ast_hash": "640908c8924cb842438b2c816ebe2d74",
+    "semantic_hash": "640908c8924cb842438b2c816ebe2d74"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useAuth.ts": {
+    "mtime": 1780281731.8587947,
+    "ast_hash": "cc64983967cafe74342f2dd4e6874e5f",
+    "semantic_hash": "cc64983967cafe74342f2dd4e6874e5f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useBranches.ts": {
+    "mtime": 1780281731.8589458,
+    "ast_hash": "979f3a2863cf3c69aeef76a8621a1ea4",
+    "semantic_hash": "979f3a2863cf3c69aeef76a8621a1ea4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useCustomerSearch.ts": {
+    "mtime": 1780281731.8590846,
+    "ast_hash": "c19c4a781b902d0139a62b664cec6c25",
+    "semantic_hash": "c19c4a781b902d0139a62b664cec6c25"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useLiveQueuePosition.ts": {
+    "mtime": 1780281731.859248,
+    "ast_hash": "9b98d7614ac3de441af6f2994757127c",
+    "semantic_hash": "9b98d7614ac3de441af6f2994757127c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useOrganizations.ts": {
+    "mtime": 1780281731.8594105,
+    "ast_hash": "52ceffbd9ac321a289f03c551edbd416",
+    "semantic_hash": "52ceffbd9ac321a289f03c551edbd416"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useQueueData.ts": {
+    "mtime": 1780281731.8595624,
+    "ast_hash": "f47741daecaa9a4b50d36a41c9dcc38e",
+    "semantic_hash": "f47741daecaa9a4b50d36a41c9dcc38e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useQueueMock.ts": {
+    "mtime": 1780281731.8597214,
+    "ast_hash": "734a41abd24d7dd95433a5b30f1c2b0e",
+    "semantic_hash": "734a41abd24d7dd95433a5b30f1c2b0e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useQueueNotifications.ts": {
+    "mtime": 1780281731.8598857,
+    "ast_hash": "ef1306f328efaf703cb5b8908ff8598c",
+    "semantic_hash": "ef1306f328efaf703cb5b8908ff8598c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useServices.ts": {
+    "mtime": 1780281731.8600264,
+    "ast_hash": "a244d12c86a18215dad5ac6799e4a15d",
+    "semantic_hash": "a244d12c86a18215dad5ac6799e4a15d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/hooks/useStaffRole.ts": {
+    "mtime": 1780281731.8601818,
+    "ast_hash": "a826e9a5079453e6f7bd5fc2f3ccb0d9",
+    "semantic_hash": "a826e9a5079453e6f7bd5fc2f3ccb0d9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/integrations/supabase/client.ts": {
+    "mtime": 1780281731.8606837,
+    "ast_hash": "f699d6047d16b2838b95d1a496861f53",
+    "semantic_hash": "f699d6047d16b2838b95d1a496861f53"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/integrations/supabase/types.ts": {
+    "mtime": 1780281731.86087,
+    "ast_hash": "a3e0b18f45c7e535ad7b0ff32bc95467",
+    "semantic_hash": "a3e0b18f45c7e535ad7b0ff32bc95467"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/analytics.ts": {
+    "mtime": 1780281731.8612099,
+    "ast_hash": "816a49aa4e7463a5ffe33b4fc3fc7f24",
+    "semantic_hash": "816a49aa4e7463a5ffe33b4fc3fc7f24"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/businesses.ts": {
+    "mtime": 1780281731.8613522,
+    "ast_hash": "5a61fcae5b203ac6ae301e281e0b6245",
+    "semantic_hash": "5a61fcae5b203ac6ae301e281e0b6245"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/customers.ts": {
+    "mtime": 1780281731.8614876,
+    "ast_hash": "0ac620672381eaecf5f7b1090d8e3d9c",
+    "semantic_hash": "0ac620672381eaecf5f7b1090d8e3d9c"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/insights.ts": {
+    "mtime": 1780281731.8616333,
+    "ast_hash": "a793bf3692d54f6d0707f27cc2e772ad",
+    "semantic_hash": "a793bf3692d54f6d0707f27cc2e772ad"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/queue.ts": {
+    "mtime": 1780281731.8617787,
+    "ast_hash": "d698cd54f245578a703a638c7913a698",
+    "semantic_hash": "d698cd54f245578a703a638c7913a698"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/services.ts": {
+    "mtime": 1780281731.8619177,
+    "ast_hash": "47812653e2e9e7b45d58788d76b5ac42",
+    "semantic_hash": "47812653e2e9e7b45d58788d76b5ac42"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/api/staff.ts": {
+    "mtime": 1780281731.862041,
+    "ast_hash": "668210e66c083b73a39217520568df67",
+    "semantic_hash": "668210e66c083b73a39217520568df67"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/apiClient.ts": {
+    "mtime": 1780281731.862189,
+    "ast_hash": "245cd5cca544d4bc260862b178a5d505",
+    "semantic_hash": "245cd5cca544d4bc260862b178a5d505"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/mockDataUtils.ts": {
+    "mtime": 1780281731.8623352,
+    "ast_hash": "19ab7257fa5db45fff96461da3f1da05",
+    "semantic_hash": "19ab7257fa5db45fff96461da3f1da05"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/services/queueService.ts": {
+    "mtime": 1780281731.8625474,
+    "ast_hash": "e0e43093b920bf1d50514d6beb8bc260",
+    "semantic_hash": "e0e43093b920bf1d50514d6beb8bc260"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/supabase.ts": {
+    "mtime": 1780281731.8626761,
+    "ast_hash": "b87ad24f96eef77c1c2d03c7a8c0d16b",
+    "semantic_hash": "b87ad24f96eef77c1c2d03c7a8c0d16b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/lib/utils.ts": {
+    "mtime": 1780281731.8628008,
+    "ast_hash": "d9837f38cc05303254571985e3164050",
+    "semantic_hash": "d9837f38cc05303254571985e3164050"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/main.tsx": {
+    "mtime": 1780281731.8629272,
+    "ast_hash": "f5d32073c6016edb15a1a93f3699e356",
+    "semantic_hash": "f5d32073c6016edb15a1a93f3699e356"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/About.tsx": {
+    "mtime": 1780281731.8631523,
+    "ast_hash": "5e4a8a57fd2fd6fe2071b930cfac29e4",
+    "semantic_hash": "5e4a8a57fd2fd6fe2071b930cfac29e4"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/BestTime.tsx": {
+    "mtime": 1780281731.863343,
+    "ast_hash": "6d74502ee7f918ed9ec2af4e99520d7f",
+    "semantic_hash": "6d74502ee7f918ed9ec2af4e99520d7f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/ClientDirectory.tsx": {
+    "mtime": 1780281731.8634796,
+    "ast_hash": "d291749c66b20645de96dc9855677ac2",
+    "semantic_hash": "d291749c66b20645de96dc9855677ac2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/ClientLanding.tsx": {
+    "mtime": 1780281731.863629,
+    "ast_hash": "eddf5f98b8d00a203d36630ec1a197f3",
+    "semantic_hash": "eddf5f98b8d00a203d36630ec1a197f3"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/Home.tsx": {
+    "mtime": 1780281731.8638408,
+    "ast_hash": "d652bb06d95abc97fd03f0eb67a484ff",
+    "semantic_hash": "d652bb06d95abc97fd03f0eb67a484ff"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/JoinQueue.tsx": {
+    "mtime": 1780281731.8640685,
+    "ast_hash": "f62ce92933d08e6e3339d7eb5be9cb2f",
+    "semantic_hash": "f62ce92933d08e6e3339d7eb5be9cb2f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/JoinUs.tsx": {
+    "mtime": 1780281731.864262,
+    "ast_hash": "df27a42de64fc151f7d18a928ad56c91",
+    "semantic_hash": "df27a42de64fc151f7d18a928ad56c91"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/Login.tsx": {
+    "mtime": 1780281731.8644075,
+    "ast_hash": "2addf89db755cf12bfe30aac8955993d",
+    "semantic_hash": "2addf89db755cf12bfe30aac8955993d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/NotFound.tsx": {
+    "mtime": 1780281731.864541,
+    "ast_hash": "1b7aae1b57341a6bae3d24f46f577bcb",
+    "semantic_hash": "1b7aae1b57341a6bae3d24f46f577bcb"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/PublicTraffic.tsx": {
+    "mtime": 1780281731.8646894,
+    "ast_hash": "29a392841fdfbec5fa581d31ced11c51",
+    "semantic_hash": "29a392841fdfbec5fa581d31ced11c51"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/ServiceSelect.tsx": {
+    "mtime": 1780281731.8648486,
+    "ast_hash": "82d2e6660405f5afb201d9049cadf41b",
+    "semantic_hash": "82d2e6660405f5afb201d9049cadf41b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/SignUp.tsx": {
+    "mtime": 1780281731.8649795,
+    "ast_hash": "e28c49e28321d8a8c55cbe9bdd0cddcf",
+    "semantic_hash": "e28c49e28321d8a8c55cbe9bdd0cddcf"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/Ticket.tsx": {
+    "mtime": 1780281731.8651059,
+    "ast_hash": "46f0f0d3e1ed51b5aeee8997a8ecf3c9",
+    "semantic_hash": "46f0f0d3e1ed51b5aeee8997a8ecf3c9"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Analytics.tsx": {
+    "mtime": 1780281731.8653288,
+    "ast_hash": "7e69d1b0d263070562ad5ce942cb544b",
+    "semantic_hash": "7e69d1b0d263070562ad5ce942cb544b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Customers.tsx": {
+    "mtime": 1780281731.8654757,
+    "ast_hash": "d8ea877f8a530d9c2dd4c6d5d600012a",
+    "semantic_hash": "d8ea877f8a530d9c2dd4c6d5d600012a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Dashboard.tsx": {
+    "mtime": 1780281731.8656,
+    "ast_hash": "b8d9e7acfdb791bccc96fed117d70dfc",
+    "semantic_hash": "b8d9e7acfdb791bccc96fed117d70dfc"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/ExecutiveDashboard.tsx": {
+    "mtime": 1780281731.8657691,
+    "ast_hash": "36cdf4b9bbcb1d9fc14db6ca0b3452d2",
+    "semantic_hash": "36cdf4b9bbcb1d9fc14db6ca0b3452d2"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Login.tsx": {
+    "mtime": 1780281731.8659108,
+    "ast_hash": "ad540855c725e8a6d15028e954e4f748",
+    "semantic_hash": "ad540855c725e8a6d15028e954e4f748"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/ManagerDashboard.tsx": {
+    "mtime": 1780281731.8660638,
+    "ast_hash": "6cdd76de7af884f586cd8278ad298219",
+    "semantic_hash": "6cdd76de7af884f586cd8278ad298219"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Services.tsx": {
+    "mtime": 1780281731.8662047,
+    "ast_hash": "afb997fe1cb60ed775a5b3e418da3f2f",
+    "semantic_hash": "afb997fe1cb60ed775a5b3e418da3f2f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Settings.tsx": {
+    "mtime": 1780281731.866333,
+    "ast_hash": "143af562e38de272cb22b5b607983fab",
+    "semantic_hash": "143af562e38de272cb22b5b607983fab"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/Staff.tsx": {
+    "mtime": 1780281731.866482,
+    "ast_hash": "ed7885b3212c3e9a21ef945b5adda0e5",
+    "semantic_hash": "ed7885b3212c3e9a21ef945b5adda0e5"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/StaffDashboard.tsx": {
+    "mtime": 1780281731.8666253,
+    "ast_hash": "8ed0c46493a63ff2cfc7dd691f23e6ce",
+    "semantic_hash": "8ed0c46493a63ff2cfc7dd691f23e6ce"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/pages/admin/StaffDetail.tsx": {
+    "mtime": 1780281731.8667645,
+    "ast_hash": "68023f4d88e8730546da6eac4ca5f18a",
+    "semantic_hash": "68023f4d88e8730546da6eac4ca5f18a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/types/analytics.ts": {
+    "mtime": 1780281731.8669844,
+    "ast_hash": "f2bfb2700bbc48d1bf2d76971754c6c8",
+    "semantic_hash": "f2bfb2700bbc48d1bf2d76971754c6c8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/types/customer.ts": {
+    "mtime": 1780281731.8671238,
+    "ast_hash": "34e784a7312898744a7b7764b04c51f8",
+    "semantic_hash": "34e784a7312898744a7b7764b04c51f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/types/insights.ts": {
+    "mtime": 1780281731.8672657,
+    "ast_hash": "cbc0a5a622169b8fdaf3a2eb9294c2a8",
+    "semantic_hash": "cbc0a5a622169b8fdaf3a2eb9294c2a8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/types/queue.ts": {
+    "mtime": 1780281731.8674345,
+    "ast_hash": "838e7b5fed8c58b8df74afdc762ab246",
+    "semantic_hash": "838e7b5fed8c58b8df74afdc762ab246"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/types/staff.ts": {
+    "mtime": 1780281731.867562,
+    "ast_hash": "43af38c4d55e4deabfbb01971654fdac",
+    "semantic_hash": "43af38c4d55e4deabfbb01971654fdac"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/src/vite-env.d.ts": {
+    "mtime": 1780281731.8676903,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/create-staff-auth/index.ts": {
+    "mtime": 1780281731.8682656,
+    "ast_hash": "e0998d2ebf2a00e2c831a89493e6cda0",
+    "semantic_hash": "e0998d2ebf2a00e2c831a89493e6cda0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/download-analytics-file/index.ts": {
+    "mtime": 1780281731.8684988,
+    "ast_hash": "a7e1c817ea2003ffb847e24bb6de251f",
+    "semantic_hash": "a7e1c817ea2003ffb847e24bb6de251f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/export-table-data/index.ts": {
+    "mtime": 1780281731.8687685,
+    "ast_hash": "4c1e0822785adf15b515d11d01c84845",
+    "semantic_hash": "4c1e0822785adf15b515d11d01c84845"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/import-insights/index.ts": {
+    "mtime": 1780281731.8689954,
+    "ast_hash": "23e89b1b3518106c3b3c0d887fd42476",
+    "semantic_hash": "23e89b1b3518106c3b3c0d887fd42476"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/populate-staff/index.ts": {
+    "mtime": 1780281731.8692417,
+    "ast_hash": "0065411cf8c6e4acb73aefbf2786c489",
+    "semantic_hash": "0065411cf8c6e4acb73aefbf2786c489"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/scheduled-export/index.ts": {
+    "mtime": 1780281731.8694735,
+    "ast_hash": "84926ac15a78cac5a0897d049ff3d25e",
+    "semantic_hash": "84926ac15a78cac5a0897d049ff3d25e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/setup-test-users/index.ts": {
+    "mtime": 1780281731.8697088,
+    "ast_hash": "2979bb8cbf4699d528585b57f9fcf0e0",
+    "semantic_hash": "2979bb8cbf4699d528585b57f9fcf0e0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/sync-analytics/index.ts": {
+    "mtime": 1780281731.8699262,
+    "ast_hash": "b4c6f3b8b2e758fb143950800d1d8107",
+    "semantic_hash": "b4c6f3b8b2e758fb143950800d1d8107"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/functions/upload-analytics-file/index.ts": {
+    "mtime": 1780281731.8701386,
+    "ast_hash": "9b629e9ff2cc4d6ac424f081cf4ea9f8",
+    "semantic_hash": "9b629e9ff2cc4d6ac424f081cf4ea9f8"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260105213701_cbe2389d-b230-4044-888b-c6b886af25d8.sql": {
+    "mtime": 1780281731.8707027,
+    "ast_hash": "4ba3ef6bc94d94622463d34441508d8f",
+    "semantic_hash": "4ba3ef6bc94d94622463d34441508d8f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260105213711_2cdc56de-364d-4a1f-b0dc-b34b6ec35925.sql": {
+    "mtime": 1780281731.87091,
+    "ast_hash": "557673fc037dfaaa56b72231b828c83b",
+    "semantic_hash": "557673fc037dfaaa56b72231b828c83b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260105220333_a2c27325-144b-46dc-aec4-2df6bf24a31b.sql": {
+    "mtime": 1780281731.871058,
+    "ast_hash": "59bde034f9928d435d118fc8aa9b35ab",
+    "semantic_hash": "59bde034f9928d435d118fc8aa9b35ab"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260105233605_73ab7dba-8aeb-4c1f-b988-ae3f0705ecf5.sql": {
+    "mtime": 1780281731.8711917,
+    "ast_hash": "68b70e02e367f7128984c65979f7b6e6",
+    "semantic_hash": "68b70e02e367f7128984c65979f7b6e6"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260105234852_bcc6cdf2-339f-4d0b-959e-e16cc83ee1e6.sql": {
+    "mtime": 1780281731.8713505,
+    "ast_hash": "2e8d7cba9131fc98aeb745648f18384f",
+    "semantic_hash": "2e8d7cba9131fc98aeb745648f18384f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260106004413_f61c80d0-a818-458f-92c0-df5980474e72.sql": {
+    "mtime": 1780281731.8714924,
+    "ast_hash": "ead6feef9373bf1be15a5d6168a23f2b",
+    "semantic_hash": "ead6feef9373bf1be15a5d6168a23f2b"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260106013047_99188b0a-1f00-4aa8-a498-868a4b1c3567.sql": {
+    "mtime": 1780281731.871636,
+    "ast_hash": "00770e6b14c945ff6fe7f32e612aafd0",
+    "semantic_hash": "00770e6b14c945ff6fe7f32e612aafd0"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260106014109_9cdf24b8-334b-4279-ac90-2217d369f4b7.sql": {
+    "mtime": 1780281731.8717797,
+    "ast_hash": "cdb11fb42ba51b3714312dc102c65b9a",
+    "semantic_hash": "cdb11fb42ba51b3714312dc102c65b9a"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107054416_bf8ca76e-fcfa-4f8f-8cfa-80f5e3a6c234.sql": {
+    "mtime": 1780281731.8719146,
+    "ast_hash": "7862134fe0fc0518aa8eb059774b2b2f",
+    "semantic_hash": "7862134fe0fc0518aa8eb059774b2b2f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107054609_fb97c067-3c29-4059-be29-36f3559c638c.sql": {
+    "mtime": 1780281731.8720596,
+    "ast_hash": "7fffde4dca8728c9bd6a2cc4f2e88641",
+    "semantic_hash": "7fffde4dca8728c9bd6a2cc4f2e88641"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107054917_a12c6d45-f7db-40d0-93e8-e0ca68ff0c79.sql": {
+    "mtime": 1780281731.8722,
+    "ast_hash": "2ce47ae908ec33be3333d08900f99e7f",
+    "semantic_hash": "2ce47ae908ec33be3333d08900f99e7f"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107055343_042c482b-9a2c-4708-816b-922a69f80ffc.sql": {
+    "mtime": 1780281731.8723333,
+    "ast_hash": "729fd9fed1dc75e9c7163e3e65760825",
+    "semantic_hash": "729fd9fed1dc75e9c7163e3e65760825"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107060518_a4e9fad3-14f3-4364-8b95-c53be1c9bd1d.sql": {
+    "mtime": 1780281731.87247,
+    "ast_hash": "34c0a723160b83a371061f762d7f6bbe",
+    "semantic_hash": "34c0a723160b83a371061f762d7f6bbe"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107061127_0f5740f6-5ebc-416a-9db0-43edd2df9b21.sql": {
+    "mtime": 1780281731.8726103,
+    "ast_hash": "d37cf6f7ed98fe27956f523580b985c7",
+    "semantic_hash": "d37cf6f7ed98fe27956f523580b985c7"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260107061717_13013956-9e80-4b05-bbfd-1c103cff1e45.sql": {
+    "mtime": 1780281731.8727381,
+    "ast_hash": "ac4b89bb8aa81259cd5b9de878787626",
+    "semantic_hash": "ac4b89bb8aa81259cd5b9de878787626"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/supabase/migrations/20260527000001_rls_security_hardening.sql": {
+    "mtime": 1780281731.872886,
+    "ast_hash": "d1791b4ca232f001a243e1bc88551d21",
+    "semantic_hash": "d1791b4ca232f001a243e1bc88551d21"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/tailwind.config.ts": {
+    "mtime": 1780281731.8730369,
+    "ast_hash": "22eb5c2a389809b61628ee85899bc0ae",
+    "semantic_hash": "22eb5c2a389809b61628ee85899bc0ae"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/tsconfig.app.json": {
+    "mtime": 1780281731.8731766,
+    "ast_hash": "e2a88e10c9fd9e436d5434e10911381d",
+    "semantic_hash": "e2a88e10c9fd9e436d5434e10911381d"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/tsconfig.json": {
+    "mtime": 1780281731.873303,
+    "ast_hash": "3951bfe500c7b5ca84cceded3c114a24",
+    "semantic_hash": "3951bfe500c7b5ca84cceded3c114a24"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/tsconfig.node.json": {
+    "mtime": 1780281731.8734388,
+    "ast_hash": "1417fb05378a1d1102f085e60b20db0e",
+    "semantic_hash": "1417fb05378a1d1102f085e60b20db0e"
+  },
+  "/Users/debra-kayesmith/Projects/QMe-Now/vite.config.ts": {
+    "mtime": 1780281731.8735642,
+    "ast_hash": "b904970e1041b66c781db0d6507e8b16",
+    "semantic_hash": "b904970e1041b66c781db0d6507e8b16"
+  }
+}

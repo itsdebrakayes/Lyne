@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mockups",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "5050", ".claude/mockups"],
+      "port": 5050
+    }
+  ]
+}
