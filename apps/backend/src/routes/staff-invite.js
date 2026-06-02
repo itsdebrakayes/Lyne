@@ -14,9 +14,16 @@ const router  = require('express').Router();
 const { z }   = require('zod');
 const { v4: uuidv4 } = require('uuid');
 const crypto  = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 const pool    = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
+
+// Admin Supabase client for creating staff auth accounts
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL        || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || 'placeholder-key'
+);
 
 // ── Validation schemas ────────────────────────────────────────
 const createInviteSchema = z.object({
@@ -144,9 +151,29 @@ router.post('/redeem', async (req, res) => {
       return res.status(409).json({ error: 'A staff account already exists for this email.' });
     }
 
-    // Hash password
-    const bcrypt = require('bcryptjs');
-    const passwordHash = await bcrypt.hash(password, 12);
+    // Create Supabase Auth account — staff log in via Supabase just like customers
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email:          invite.email,
+      password,
+      email_confirm:  true,
+      user_metadata:  {
+        full_name: full_name || invite.full_name,
+        role:      invite.role,
+        is_staff:  true,
+      },
+    });
+
+    if (authError) {
+      await conn.rollback();
+      // If account already exists in Supabase, surface a clear message
+      if (authError.message?.includes('already registered')) {
+        return res.status(409).json({ error: 'A Supabase account already exists for this email.' });
+      }
+      console.error('[StaffInvite] Supabase createUser error:', authError.message);
+      return res.status(500).json({ error: 'Failed to create authentication account.' });
+    }
+
+    const supabaseUid = authData.user.id;
 
     // Get the role_id for the invited role
     const [roleRows] = await conn.query(
@@ -155,14 +182,14 @@ router.post('/redeem', async (req, res) => {
     );
     const roleId = roleRows[0]?.id || null;
 
-    // Create the staff account
+    // Create the MySQL staff record, linked to the Supabase account
     const staffId   = uuidv4();
     const staffCode = `STF-${Date.now().toString(36).toUpperCase()}`;
 
     await conn.query(
       `INSERT INTO staff
          (id, business_id, branch_id, role_id, full_name, email, phone,
-          staff_code, password_hash, is_active, invited_by_staff_id)
+          staff_code, supabase_uid, is_active, invited_by_staff_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
       [
         staffId,
@@ -173,7 +200,7 @@ router.post('/redeem', async (req, res) => {
         invite.email,
         phone || null,
         staffCode,
-        passwordHash,
+        supabaseUid,
         invite.invited_by_staff_id,
       ]
     );
@@ -187,12 +214,13 @@ router.post('/redeem', async (req, res) => {
     await conn.commit();
 
     res.status(201).json({
-      success:    true,
-      staff_id:   staffId,
-      staff_code: staffCode,
-      email:      invite.email,
-      role:       invite.role,
-      message:    'Staff account created successfully. You can now log in.',
+      success:      true,
+      staff_id:     staffId,
+      staff_code:   staffCode,
+      email:        invite.email,
+      role:         invite.role,
+      supabase_uid: supabaseUid,
+      message:      'Staff account created. You can now log in with your email and password.',
     });
   } catch (err) {
     await conn.rollback();

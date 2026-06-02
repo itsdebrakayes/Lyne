@@ -19,7 +19,12 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['"Bodoni Moda"', 'Georgia', 'serif'],
+        sans: ['Jost', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        gold: { DEFAULT: '#CA8A04', light: '#D4AF37', dim: 'rgba(202,138,4,0.12)' },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

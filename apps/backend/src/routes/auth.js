@@ -18,6 +18,7 @@ const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { createRevocation } = require('../middleware/sessionLimiter');
 
 // ── POST /api/auth/sync-user ──────────────────────────────────
 // Called after every Supabase signup / first login.
@@ -115,6 +116,59 @@ router.patch('/profile', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('profile update error:', err);
     res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
+// ── POST /api/auth/logout ──────────────────────────────────────
+// Revokes the current token and destroys the session record.
+// Client should also call supabase.auth.signOut() to clear local storage.
+router.post('/logout', requireAuth, async (req, res) => {
+  try {
+    const token = (req.headers.authorization || '').split(' ')[1];
+    let jti = null;
+    try {
+      const payload = JSON.parse(
+        Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
+      );
+      jti = payload.jti || null;
+    } catch { /* non-fatal */ }
+
+    const uid      = req.supabaseUser.id;
+    // Expiry: use JWT exp if available, else 1h from now
+    let expiresAt  = new Date(Date.now() + 60 * 60 * 1000);
+    try {
+      const payload = JSON.parse(
+        Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
+      );
+      if (payload.exp) expiresAt = new Date(payload.exp * 1000);
+    } catch { /* non-fatal */ }
+
+    await createRevocation(uid, jti, 'logout', expiresAt);
+    res.json({ message: 'Logged out successfully.' });
+  } catch (err) {
+    console.error('logout error:', err);
+    res.status(500).json({ error: 'Failed to logout.' });
+  }
+});
+
+// ── POST /api/auth/force-signout ───────────────────────────────
+// Manager/executive can force-sign-out a specific user or staff member.
+// Revokes ALL active tokens for that supabase_uid.
+router.post('/force-signout', requireAuth, async (req, res) => {
+  if (!req.dbStaff || !['manager', 'executive'].includes(req.dbStaff.role_name)) {
+    return res.status(403).json({ error: 'Managers and executives only.' });
+  }
+  const { target_supabase_uid } = req.body;
+  if (!target_supabase_uid) {
+    return res.status(400).json({ error: 'target_supabase_uid is required.' });
+  }
+  try {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await createRevocation(target_supabase_uid, null, 'forced_signout', expiresAt, req.dbStaff.id);
+    res.json({ message: 'All sessions for that account have been revoked.' });
+  } catch (err) {
+    console.error('force-signout error:', err);
+    res.status(500).json({ error: 'Failed to force sign-out.' });
   }
 });
 

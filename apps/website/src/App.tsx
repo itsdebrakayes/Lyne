@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 
+// Marketing
+import MarketingHome from './pages/MarketingHome';
+
 // Public Pages
 import About from './pages/About';
 import JoinUs from './pages/JoinUs';
@@ -51,14 +54,16 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
-              {/* New Home - Client Directory */}
-              <Route path="/" element={<ClientDirectory />} />
+              {/* Marketing Home */}
+              <Route path="/" element={<MarketingHome />} />
+              {/* Client Directory */}
+              <Route path="/explore" element={<ClientDirectory />} />
               
               {/* About Page (former Home content) */}
               <Route path="/about" element={<About />} />

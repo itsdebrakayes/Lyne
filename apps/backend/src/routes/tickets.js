@@ -29,6 +29,14 @@ const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
+// Lazy-load to avoid circular dependency at startup
+function broadcast(queueId, ticket) {
+  try {
+    const { broadcastQueueUpdate } = require('./sse');
+    broadcastQueueUpdate(queueId, ticket).catch(() => {});
+  } catch { /* sse module not yet loaded */ }
+}
+
 // Validation schemas
 const joinQueueSchema = z.object({
   queue_id:  z.string().uuid('queue_id must be a valid UUID'),
@@ -114,6 +122,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     await conn.commit();
     const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
+    broadcast(queue_id, ticket[0]);
     res.status(201).json(ticket[0]);
   } catch (err) {
     await conn.rollback();
@@ -365,6 +374,7 @@ router.put('/:id/status', requireAuth, requireRole('line_staff', 'manager', 'exe
 
     await conn.commit();
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
@@ -450,6 +460,83 @@ router.put('/:id/move-down', requireAuth, requireRole('line_staff', 'manager', '
     await conn.rollback();
     console.error(err);
     res.status(500).json({ error: 'Failed to move ticket down.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// PUT /api/tickets/:id/skip — Staff skips a waiting ticket
+// disposition: 'remove' (cancel) | 'requeue' (place right after current in_service ticket)
+router.put('/:id/skip', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  const { disposition = 'requeue' } = req.body;
+  if (!['remove', 'requeue'].includes(disposition)) {
+    return res.status(400).json({ error: "disposition must be 'remove' or 'requeue'." });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [tickets] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE id = ? AND status = 'waiting' FOR UPDATE",
+      [req.params.id]
+    );
+    if (!tickets.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Waiting ticket not found.' });
+    }
+    const ticket = tickets[0];
+
+    if (disposition === 'remove') {
+      // Cancel the ticket outright
+      await conn.query(
+        "UPDATE queue_tickets SET status = 'cancelled' WHERE id = ?",
+        [ticket.id]
+      );
+      await conn.query(
+        `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
+         VALUES (?, ?, 'waiting', 'cancelled', ?, 'Skipped by staff — removed from queue')`,
+        [uuidv4(), ticket.id, req.dbStaff?.id || null]
+      );
+    } else {
+      // requeue: move to position immediately after the highest in_service ticket
+      // If no in_service ticket exists, move to position 1
+      const [inService] = await conn.query(
+        "SELECT MAX(position) AS max_pos FROM queue_tickets WHERE queue_id = ? AND status = 'in_service'",
+        [ticket.queue_id]
+      );
+      const insertAfter = inService[0]?.max_pos ?? 0;
+      const newPosition = insertAfter + 1;
+
+      // Shift all waiting tickets at or above the target position down by 1
+      await conn.query(
+        `UPDATE queue_tickets
+         SET position = position + 1
+         WHERE queue_id = ? AND status = 'waiting' AND position >= ? AND id != ?`,
+        [ticket.queue_id, newPosition, ticket.id]
+      );
+
+      await conn.query(
+        'UPDATE queue_tickets SET position = ? WHERE id = ?',
+        [newPosition, ticket.id]
+      );
+
+      await conn.query(
+        `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
+         VALUES (?, ?, 'waiting', 'waiting', ?, ?)`,
+        [uuidv4(), ticket.id, req.dbStaff?.id || null,
+          `Skipped by staff — moved to position ${newPosition}`]
+      );
+    }
+
+    await conn.commit();
+    const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    broadcast(ticket.queue_id, updated[0]);
+    res.json(updated[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to skip ticket.' });
   } finally {
     conn.release();
   }

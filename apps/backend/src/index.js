@@ -12,6 +12,9 @@ const {
   publicQueueLimiter,
   generalLimiter,
 } = require('./middleware/rateLimiter');
+const { requireAuth }    = require('./middleware/auth');
+const { sessionLimiter } = require('./middleware/sessionLimiter');
+const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
 
 const app = express();
 
@@ -29,6 +32,12 @@ app.use(express.json({ limit: '1mb' }));
 
 // Global rate limiter
 app.use(generalLimiter);
+
+// Session limiter — applied to all authenticated routes.
+// Must run after requireAuth so req.supabaseUser is populated.
+// We apply it inline per-route group rather than globally so unauthenticated
+// public routes (e.g. /api/queues/live) are unaffected.
+const withSession = [requireAuth, sessionLimiter];
 
 // Routes with per-endpoint rate limits
 app.use('/api/auth/sync-user', authLimiter);
@@ -62,6 +71,9 @@ app.use('/api/audit',          require('./routes/audit'));
 // Staff invite — invite-code-based staff onboarding (no self-registration)
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
 
+// SSE — live queue updates (no auth for public stream; staff stream auth handled in route)
+app.use('/api/sse',            require('./routes/sse'));
+
 // Health check
 app.get('/health', (_req, res) => res.json({
   status:    'ok',
@@ -87,4 +99,24 @@ app.use((err, _req, res, _next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Q ME NOW backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+
+  // Schedule daily analytics summary refresh at 01:00
+  const now   = new Date();
+  const next1am = new Date(now);
+  next1am.setHours(1, 0, 0, 0);
+  if (next1am <= now) next1am.setDate(next1am.getDate() + 1);
+  const msUntil1am = next1am - now;
+
+  setTimeout(() => {
+    refreshAnalyticsSummaries().catch(err =>
+      console.error('[Analytics] Scheduled refresh failed:', err.message)
+    );
+    setInterval(() => {
+      refreshAnalyticsSummaries().catch(err =>
+        console.error('[Analytics] Scheduled refresh failed:', err.message)
+      );
+    }, 24 * 60 * 60 * 1000);
+  }, msUntil1am);
+
+  console.log(`[Analytics] Daily refresh scheduled in ${Math.round(msUntil1am / 60000)} minutes.`);
 });

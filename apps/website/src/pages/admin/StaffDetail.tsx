@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/admin/StatCard';
 import { useStaffRole } from '@/hooks/useStaffRole';
-import { fetchStaffDetail, fetchStaffPerformance } from '@/lib/api/staff';
+import { fetchStaffById as fetchStaffDetail, fetchStaffStats as fetchStaffPerformance } from '@/lib/api/staff';
 import { cn } from '@/lib/utils';
 
 const roleColors: Record<string, string> = {

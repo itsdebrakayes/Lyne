@@ -1,14 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=Jost:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/**
+ * QMe Now Admin — Luxury Design System
+ * OLED Black · Gold #CA8A04 · Bodoni Moda × Jost · Liquid Glass
+ */
 
-* { box-sizing: border-box; }
-body { margin: 0; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+@layer base {
+  :root {
+    --background: 20 11% 4%;
+    --foreground: 40 20% 95%;
+    --card: 20 11% 6%;
+    --card-foreground: 40 20% 95%;
+    --popover: 20 11% 5%;
+    --popover-foreground: 40 20% 95%;
+    --primary: 43 96% 40%;
+    --primary-foreground: 20 11% 4%;
+    --secondary: 20 11% 10%;
+    --secondary-foreground: 40 20% 80%;
+    --muted: 20 11% 9%;
+    --muted-foreground: 40 15% 48%;
+    --accent: 43 96% 40%;
+    --accent-foreground: 20 11% 4%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 40 20% 95%;
+    --border: 43 30% 16%;
+    --input: 20 11% 9%;
+    --ring: 43 96% 40%;
+    --radius: 0.6rem;
+    --gold: #CA8A04;
+    --gold-light: #D4AF37;
+    --glass-bg: rgba(255,255,255,0.025);
+    --glass-border: rgba(212,175,55,0.12);
+  }
+}
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 6px; }
+@layer base {
+  * { @apply border-border; }
+  html { background-color: #080706; color: #F5F0E8; color-scheme: dark; }
+  body {
+    font-family: 'Jost', system-ui, sans-serif;
+    background-color: #080706;
+    @apply text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .display { font-family: 'Bodoni Moda', Georgia, serif; }
+}
+
+.glass {
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(212,175,55,0.12);
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.glass:hover { border-color: rgba(212,175,55,0.22); box-shadow: 0 0 32px rgba(202,138,4,0.07); }
+
+.nav-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.625rem 0.875rem; border-radius: 0.5rem;
+  font-size: 0.8rem; font-weight: 500; letter-spacing: 0.06em;
+  text-transform: uppercase; cursor: pointer;
+  color: rgba(245,240,232,0.32);
+  transition: color 0.3s, background 0.3s;
+  text-decoration: none;
+}
+.nav-item:hover { color: rgba(245,240,232,0.75); background: rgba(255,255,255,0.04); }
+.nav-item.active { color: #D4AF37; background: rgba(202,138,4,0.1); border-left: 2px solid #CA8A04; padding-left: calc(0.875rem - 2px); }
+
+.gold-text {
+  background: linear-gradient(135deg, #CA8A04, #D4AF37, #F5C518, #D4AF37, #CA8A04);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: goldShimmer 4s ease infinite;
+}
+
+.badge-low  { background:rgba(74,222,128,0.1);  color:#4ade80; border:1px solid rgba(74,222,128,0.2);  border-radius:9999px; padding:2px 10px; font-size:11px; font-weight:600; }
+.badge-med  { background:rgba(251,191,36,0.1);  color:#fbbf24; border:1px solid rgba(251,191,36,0.2);  border-radius:9999px; padding:2px 10px; font-size:11px; font-weight:600; }
+.badge-high { background:rgba(248,113,113,0.1); color:#f87171; border:1px solid rgba(248,113,113,0.2); border-radius:9999px; padding:2px 10px; font-size:11px; font-weight:600; }
+
+@keyframes luxuryPulse { 0%{transform:scale(1);opacity:0.7} 100%{transform:scale(2.4);opacity:0} }
+.pulse-ring   { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(212,175,55,0.5); animation:luxuryPulse 2.4s cubic-bezier(0.4,0,0.2,1) infinite; }
+.pulse-ring-2 { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(202,138,4,0.3); animation:luxuryPulse 2.4s cubic-bezier(0.4,0,0.2,1) 0.8s infinite; }
+.pulse-ring-3 { position:absolute; inset:0; border-radius:50%; border:1px solid rgba(212,175,55,0.15); animation:luxuryPulse 2.4s cubic-bezier(0.4,0,0.2,1) 1.6s infinite; }
+
+@keyframes goldShimmer { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes pageIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.page-in { animation: pageIn 0.45s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-thumb { background: rgba(202,138,4,0.2); border-radius: 2px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:0.01ms!important; transition-duration:0.01ms!important; } }

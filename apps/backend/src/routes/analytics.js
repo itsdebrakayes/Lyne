@@ -221,4 +221,18 @@ router.get('/export-csv', requireAuth, requireRole('manager', 'executive'), asyn
   }
 });
 
+// POST /api/analytics/refresh — manually trigger analytics summary rebuild (executive only)
+router.post('/refresh', requireAuth, requireRole('executive'), async (req, res) => {
+  try {
+    const { lookback_days = 7 } = req.body;
+    const safeDays = Math.min(Math.max(parseInt(lookback_days) || 7, 1), 365);
+    const { refreshAnalyticsSummaries } = require('../jobs/refreshAnalytics');
+    const rowsAffected = await refreshAnalyticsSummaries(safeDays);
+    res.json({ message: 'Analytics summaries refreshed.', rows_affected: rowsAffected, lookback_days: safeDays });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to refresh analytics.' });
+  }
+});
+
 module.exports = router;
