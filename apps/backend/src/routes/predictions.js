@@ -8,24 +8,38 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { auditLog } = require('../middleware/auditLog');
+const {
+  requireStaffRole,
+  requireBusinessAccess,
+  requireBranchAccess,
+  scopedBusinessId,
+} = require('../middleware/tenantAccess');
 
 // Get predictions — public (used by Best Time page and user website)
 router.get('/', async (req, res) => {
   try {
-    const { business_id, branch_id, type } = req.query;
+    const { business_id, branch_id, service_id, type, max_age_minutes = 60 } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['p.business_id = ?'];
     const params = [business_id];
     if (branch_id) { conditions.push('p.branch_id = ?'); params.push(branch_id); }
+    if (service_id) { conditions.push('p.service_id = ?'); params.push(service_id); }
     if (type)      { conditions.push('p.insight_type = ?'); params.push(type); }
 
     // Return only the latest record per insight_type
     const [rows] = await pool.query(
-      `SELECT p.*, b.name AS branch_name
+      `SELECT p.*, b.name AS branch_name, s.name AS service_name,
+              CASE
+                WHEN p.stale_after IS NOT NULL AND p.stale_after < NOW() THEN TRUE
+                WHEN TIMESTAMPDIFF(MINUTE, p.generated_at, NOW()) > ? THEN TRUE
+                ELSE FALSE
+              END AS is_stale
        FROM predictive_results p
        LEFT JOIN branches b ON p.branch_id = b.id
+       LEFT JOIN services s ON p.service_id = s.id
        WHERE ${conditions.join(' AND ')}
          AND p.generated_at = (
            SELECT MAX(p2.generated_at)
@@ -33,9 +47,10 @@ router.get('/', async (req, res) => {
            WHERE p2.business_id = p.business_id
              AND p2.insight_type = p.insight_type
              AND (p2.branch_id = p.branch_id OR (p2.branch_id IS NULL AND p.branch_id IS NULL))
+             AND (p2.service_id = p.service_id OR (p2.service_id IS NULL AND p.service_id IS NULL))
          )
        ORDER BY p.insight_type`,
-      params
+      [Math.min(Math.max(parseInt(max_age_minutes) || 60, 5), 1440), ...params]
     );
     res.json(rows);
   } catch (err) {
@@ -45,17 +60,51 @@ router.get('/', async (req, res) => {
 });
 
 // Upsert prediction result — called by the Jupyter pipeline import script
-router.post('/', requireAuth, requireRole('executive'), async (req, res) => {
+router.post(
+  '/',
+  requireAuth,
+  requireStaffRole('executive'),
+  requireBusinessAccess('body'),
+  requireBranchAccess,
+  auditLog('prediction_import', 'predictive_result'),
+  async (req, res) => {
   try {
-    const { business_id, branch_id, insight_type, insight_data, model_version } = req.body;
+    const {
+      business_id,
+      branch_id,
+      service_id,
+      insight_type,
+      insight_data,
+      model_version,
+      generated_at,
+      source_window_start,
+      source_window_end,
+      records_processed,
+      stale_after,
+    } = req.body;
     if (!business_id || !insight_type || !insight_data) {
       return res.status(400).json({ error: 'business_id, insight_type, and insight_data are required.' });
     }
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO predictive_results (id, business_id, branch_id, insight_type, insight_data, model_version)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, business_id, branch_id || null, insight_type, JSON.stringify(insight_data), model_version || null]
+      `INSERT INTO predictive_results
+         (id, business_id, branch_id, service_id, insight_type, insight_data, model_version,
+          source_window_start, source_window_end, records_processed, stale_after, generated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+      [
+        id,
+        scopedBusinessId(req, business_id),
+        branch_id || null,
+        service_id || null,
+        insight_type,
+        JSON.stringify(insight_data),
+        model_version || null,
+        source_window_start || null,
+        source_window_end || null,
+        records_processed || 0,
+        stale_after || null,
+        generated_at || null,
+      ]
     );
     const [created] = await pool.query('SELECT * FROM predictive_results WHERE id = ?', [id]);
     res.status(201).json(created[0]);

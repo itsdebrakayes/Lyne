@@ -19,6 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
+const { isPlatformAdmin } = require('../middleware/tenantAccess');
 
 // ── POST /api/auth/sync-user ──────────────────────────────────
 // Called after every Supabase signup / first login.
@@ -163,6 +164,19 @@ router.post('/force-signout', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'target_supabase_uid is required.' });
   }
   try {
+    if (!isPlatformAdmin(req)) {
+      const [targetRows] = await pool.query(
+        `SELECT business_id FROM staff WHERE supabase_uid = ?
+         UNION
+         SELECT NULL AS business_id FROM users WHERE supabase_uid = ?
+         LIMIT 1`,
+        [target_supabase_uid, target_supabase_uid]
+      );
+      if (!targetRows.length) return res.status(404).json({ error: 'Target account not found.' });
+      if (targetRows[0].business_id && targetRows[0].business_id !== req.dbStaff.business_id) {
+        return res.status(403).json({ error: 'You cannot force sign-out accounts outside your business.' });
+      }
+    }
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await createRevocation(target_supabase_uid, null, 'forced_signout', expiresAt, req.dbStaff.id);
     res.json({ message: 'All sessions for that account have been revoked.' });

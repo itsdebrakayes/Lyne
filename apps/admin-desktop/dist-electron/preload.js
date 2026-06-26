@@ -1,6 +1,1 @@
-"use strict";
-const { contextBridge, ipcRenderer } = require("electron");
-contextBridge.exposeInMainWorld("electronAPI", {
-  openExternal: (url) => ipcRenderer.invoke("open-external", url),
-  platform: process.platform
-});
+"use strict";const{contextBridge:r,ipcRenderer:n}=require("electron");r.exposeInMainWorld("electronAPI",{openExternal:e=>n.invoke("open-external",e),platform:process.platform});

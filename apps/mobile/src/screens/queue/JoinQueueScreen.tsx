@@ -1,302 +1,112 @@
-/**
- * JoinQueueScreen — Smart intake form for joining a queue.
- *
- * Flow:
- *  1. Fetch the service's required_fields list from the backend
- *  2. Load the user's saved profile (from useAuth)
- *  3. Pre-fill all fields that the profile already covers
- *  4. Only render input fields for values MISSING from the profile
- *     OR that are service-specific extras (e.g. "reason_for_visit")
- *  5. On submit: merge profile data + any extra answers → POST /api/tickets
- */
-import React, { useState, useMemo } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, v3 } from '../../lib/mobileV3Styles';
+import { getBranch, getService } from '../../lib/prototypeData';
 import api from '../../lib/apiClient';
-import { useAuth } from '../../hooks/useAuth';
-import { RootStackParamList } from '../../navigation/AppNavigator';
+import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
 
-type Params = RouteProp<RootStackParamList, 'JoinQueue'>;
-
-// Standard profile fields — pre-filled from profile, never re-asked if present
-const PROFILE_KEYS = [
-  'full_name', 'phone', 'date_of_birth', 'address',
-  'national_id', 'trn', 'employer', 'occupation',
-] as const;
-
-interface ExtraField {
-  key: string;
-  label: string;
-  placeholder?: string;
-  required: boolean;
-  type?: 'text' | 'number' | 'date';
-}
-
-interface ServiceInfo {
-  id: string;
-  name: string;
-  description?: string;
-  avg_wait_minutes?: number;
-  intake_schema?: ExtraField[];
-  required_profile_fields?: string[];
-}
-
-interface QueueInfo {
-  id: string;
+type LiveQueue = {
+  id: string | null;
   waiting_count: number;
   estimated_wait_minutes: number;
-}
+};
+
+type Ticket = {
+  id: string;
+  ticket_number: string;
+  verification_code?: string;
+  position: number;
+  estimated_wait_minutes: number;
+};
 
 export default function JoinQueueScreen() {
-  const route = useRoute<Params>();
-  const nav   = useNavigation<any>();
-  const { businessId, branchId, serviceId, serviceName } = route.params;
-  const { user } = useAuth();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const branch = getBranch(route.params?.branchId);
+  const service = getService(branch.id, route.params?.serviceId);
+  const queueId = route.params?.queueId;
+  const [liveQueue, setLiveQueue] = useState<LiveQueue | null>(queueId ? { id: queueId, waiting_count: service.people, estimated_wait_minutes: service.wait } : null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const { data: service, isLoading: loadingService } = useQuery({
-    queryKey: ['service', serviceId],
-    queryFn: () => api.get<ServiceInfo>(`/services/${serviceId}`),
-  });
+  useEffect(() => {
+    if (!route.params?.branchId || !route.params?.serviceId) return;
+    let cancelled = false;
+    api.get<LiveQueue>(`/queues/live?branch_id=${route.params.branchId}&service_id=${route.params.serviceId}`, false)
+      .then((data) => { if (!cancelled) setLiveQueue(data); })
+      .catch(() => { /* Keep the visual estimate when prototype ids are not backend UUIDs. */ });
+    return () => { cancelled = true; };
+  }, [route.params?.branchId, route.params?.serviceId]);
 
-  const { data: queueInfo } = useQuery({
-    queryKey: ['queue-info', branchId, serviceId],
-    queryFn: () => api.get<QueueInfo>(`/queues/live?branch_id=${branchId}&service_id=${serviceId}`),
-    refetchInterval: 15_000,
-  });
+  const waiting = liveQueue?.waiting_count ?? service.people;
+  const wait = liveQueue?.estimated_wait_minutes ?? service.wait;
 
-  // Service-specific fields NOT covered by the profile
-  const extraFields: ExtraField[] = useMemo(() => {
-    if (!service) return [];
-    return (service.intake_schema || []).filter(f => !PROFILE_KEYS.includes(f.key as any));
-  }, [service]);
-
-  // Profile fields this service requires but user hasn't filled yet
-  const missingProfileFields: string[] = useMemo(() => {
-    if (!service || !user) return [];
-    const required = service.required_profile_fields || [];
-    return required.filter(key => !(user as any)[key]);
-  }, [service, user]);
-
-  const [extraAnswers, setExtraAnswers]     = useState<Record<string, string>>({});
-  const [missingAnswers, setMissingAnswers] = useState<Record<string, string>>({});
-
-  const hasAnythingToFill = extraFields.length > 0 || missingProfileFields.length > 0;
-
-  const joinMutation = useMutation({
-    mutationFn: () => {
-      const profileData: Record<string, string> = {};
-      PROFILE_KEYS.forEach(k => {
-        const val = (user as any)?.[k];
-        if (val) profileData[k] = val;
-      });
-      const form_data = { ...profileData, ...missingAnswers, ...extraAnswers };
-      return api.post<{ id: string; ticket_number: string }>('/tickets', {
-        business_id: businessId,
-        branch_id:   branchId,
-        service_id:  serviceId,
-        form_data,
-      });
-    },
-    onSuccess: (ticket) => nav.navigate('Ticket', { ticketId: ticket.id }),
-    onError: (e: Error) => Alert.alert('Could not join queue', e.message),
-  });
-
-  const handleJoin = () => {
-    const missingRequired = extraFields
-      .filter(f => f.required && !extraAnswers[f.key]?.trim())
-      .map(f => f.label);
-    const missingProfileRequired = missingProfileFields.filter(k => !missingAnswers[k]?.trim());
-    if (missingRequired.length > 0 || missingProfileRequired.length > 0) {
-      Alert.alert('Required fields missing', 'Please fill in all required fields before joining.');
+  const joinQueue = async () => {
+    const targetQueueId = liveQueue?.id || queueId;
+    if (!targetQueueId) {
+      navigation.navigate('Ticket', { branchId: branch.id, serviceId: service.id });
       return;
     }
-    joinMutation.mutate();
+    try {
+      setLoading(true);
+      setError('');
+      const ticket = await api.post<Ticket>('/tickets', { queue_id: targetQueueId });
+      registerPushNotifications().catch(() => {});
+      scheduleDepartureReminder({
+        ticketId: ticket.id,
+        branchName: branch.branch,
+        branchLatitude: route.params?.latitude ?? branch.latitude,
+        branchLongitude: route.params?.longitude ?? branch.longitude,
+        estimatedWaitMinutes: ticket.estimated_wait_minutes || wait,
+        leadTimeMinutes: 10,
+      }).catch(() => {});
+      navigation.navigate('Ticket', { branchId: branch.id, serviceId: service.id, ticket });
+    } catch (err: any) {
+      setError(err?.message || 'Could not join this queue. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  if (loadingService) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator color="#fff" size="large" />
-        <Text style={styles.loadingText}>Loading service details…</Text>
-      </View>
-    );
-  }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity onPress={() => nav.goBack()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
+    <View style={v3.root}>
+      <ScrollView contentContainerStyle={v3.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[v3.secondaryButton, { width: 46, minHeight: 46, marginBottom: 18 }]}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
         </TouchableOpacity>
-
-        <Text style={styles.title}>Join Queue</Text>
-        <Text style={styles.serviceName}>{serviceName || service?.name}</Text>
-        {service?.description && <Text style={styles.serviceDesc}>{service.description}</Text>}
-
-        {/* Live queue stats */}
-        {queueInfo && (
-          <View style={styles.statsRow}>
-            <View style={styles.statPill}>
-              <Text style={styles.statVal}>{queueInfo.waiting_count}</Text>
-              <Text style={styles.statLbl}>Ahead of you</Text>
-            </View>
-            <View style={styles.statPill}>
-              <Text style={styles.statVal}>~{queueInfo.estimated_wait_minutes} min</Text>
-              <Text style={styles.statLbl}>Est. wait</Text>
-            </View>
+        <Text style={v3.label}>JOIN REMOTELY</Text>
+        <Text style={[v3.h1, { marginTop: 8, marginBottom: 10 }]}>Take your spot{'\n'}from anywhere.</Text>
+        <Text style={[v3.small, { lineHeight: 21, marginBottom: 20 }]}>
+          You are joining {service.name} at {branch.short} · {branch.branch}. Your saved profile will be used to pre-fill the visit.
+        </Text>
+        <View style={[v3.darkCard, { padding: 22, marginBottom: 16 }]}>
+          <Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700' }}>{branch.agency}</Text>
+          <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 4 }}>{service.name}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 20 }}>
+            <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{waiting}</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700' }}>ahead</Text></View>
+            <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{wait}m</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700' }}>est. wait</Text></View>
+            <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{service.lines}</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700' }}>lines</Text></View>
           </View>
-        )}
-
-        {/* Pre-fill confirmation */}
-        {user && !hasAnythingToFill && (
-          <View style={styles.prefillBanner}>
-            <Text style={styles.prefillIcon}>✓</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.prefillTitle}>Ready to join</Text>
-              <Text style={styles.prefillSub}>
-                Your profile details will be submitted automatically — no extra information needed.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Missing profile fields */}
-        {missingProfileFields.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>A few details needed</Text>
-            <Text style={styles.sectionNote}>
-              These will be saved to your profile for next time.
-            </Text>
-            {missingProfileFields.map(key => (
-              <View key={key}>
-                <Text style={styles.fieldLabel}>{formatFieldLabel(key)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={missingAnswers[key] || ''}
-                  onChangeText={v => setMissingAnswers(prev => ({ ...prev, [key]: v }))}
-                  placeholder={getFieldPlaceholder(key)}
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  keyboardType={key === 'trn' ? 'numeric' : 'default'}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Service-specific extra fields */}
-        {extraFields.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{serviceName} — Additional Information</Text>
-            {extraFields.map(f => (
-              <View key={f.key}>
-                <Text style={styles.fieldLabel}>{f.label}{f.required ? ' *' : ''}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={extraAnswers[f.key] || ''}
-                  onChangeText={v => setExtraAnswers(prev => ({ ...prev, [f.key]: v }))}
-                  placeholder={f.placeholder || ''}
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  keyboardType={f.type === 'number' ? 'numeric' : 'default'}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* What happens next */}
-        <View style={styles.nextCard}>
-          <Text style={styles.nextLabel}>What happens next</Text>
-          <Text style={styles.nextStep}>1. You'll receive a ticket number instantly</Text>
-          <Text style={styles.nextStep}>2. Watch your position update in real time</Text>
-          <Text style={styles.nextStep}>3. You'll be notified when it's your turn</Text>
         </View>
-
-        <TouchableOpacity
-          style={[styles.btn, joinMutation.isPending && styles.btnDisabled]}
-          onPress={handleJoin}
-          disabled={joinMutation.isPending}
-        >
-          {joinMutation.isPending
-            ? <ActivityIndicator color="#000" />
-            : <Text style={styles.btnText}>Confirm & Join Queue</Text>
-          }
-        </TouchableOpacity>
+        <View style={[v3.card, { padding: 18, gap: 12 }]}>
+          {['Receive your ticket instantly', 'Track your position live', "We'll notify you when it is your turn"].map((copy, index) => (
+            <View key={copy} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: colors.pill, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: colors.text, fontWeight: '800' }}>{index + 1}</Text>
+              </View>
+              <Text style={{ flex: 1, color: colors.text, fontWeight: '700' }}>{copy}</Text>
+            </View>
+          ))}
+        </View>
+        {!!error && <Text style={{ color: colors.danger, fontWeight: '700', marginTop: 14 }}>{error}</Text>}
       </ScrollView>
-    </KeyboardAvoidingView>
+      <View style={{ position: 'absolute', left: 20, right: 20, bottom: 26 }}>
+        <TouchableOpacity disabled={loading} style={v3.primaryButton} onPress={joinQueue}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={v3.primaryButtonText}>Confirm & join queue →</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
-
-function formatFieldLabel(key: string): string {
-  const map: Record<string, string> = {
-    full_name: 'Full Name', phone: 'Phone Number', date_of_birth: 'Date of Birth',
-    address: 'Address', national_id: 'National ID / Passport', trn: 'TRN',
-    employer: 'Employer', occupation: 'Occupation',
-  };
-  return map[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function getFieldPlaceholder(key: string): string {
-  const map: Record<string, string> = {
-    full_name: 'e.g. Marcus Thompson', phone: 'e.g. 876-555-0123',
-    date_of_birth: 'YYYY-MM-DD', address: 'e.g. 12 Hope Road, Kingston 6',
-    national_id: 'e.g. 123456789', trn: 'e.g. 123-456-789',
-    employer: 'e.g. Ministry of Finance', occupation: 'e.g. Accountant',
-  };
-  return map[key] ?? '';
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
-  content:   { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 60 },
-
-  loadingWrap: { flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingText: { color: 'rgba(255,255,255,0.4)', fontSize: 15 },
-
-  back:        { marginBottom: 24 },
-  backText:    { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
-  title:       { fontSize: 26, fontWeight: '700', color: '#fff' },
-  serviceName: { fontSize: 18, fontWeight: '600', color: '#60a5fa', marginTop: 4 },
-  serviceDesc: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 6, lineHeight: 20 },
-
-  statsRow: { flexDirection: 'row', gap: 12, marginTop: 20, marginBottom: 20 },
-  statPill: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, alignItems: 'center' },
-  statVal:  { color: '#60a5fa', fontSize: 20, fontWeight: '800' },
-  statLbl:  { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 },
-
-  prefillBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: 'rgba(16,185,129,0.10)',
-    borderWidth: 1, borderColor: 'rgba(16,185,129,0.25)',
-    borderRadius: 14, padding: 16, marginBottom: 24,
-  },
-  prefillIcon:  { fontSize: 20, color: '#6ee7b7' },
-  prefillTitle: { color: '#6ee7b7', fontWeight: '700', fontSize: 14 },
-  prefillSub:   { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 3, lineHeight: 18 },
-
-  section: { marginBottom: 24 },
-  sectionLabel: {
-    fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.4)',
-    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
-  },
-  sectionNote: { fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 12, lineHeight: 18 },
-
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: 6, marginTop: 14 },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13,
-    color: '#fff', fontSize: 15,
-  },
-
-  nextCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 20, marginBottom: 28, gap: 10 },
-  nextLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  nextStep:  { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
-
-  btn:         { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  btnDisabled: { opacity: 0.6 },
-  btnText:     { color: '#000', fontWeight: '700', fontSize: 16 },
-});

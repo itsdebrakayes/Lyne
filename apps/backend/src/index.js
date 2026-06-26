@@ -18,12 +18,22 @@ const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
 
 const app = express();
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
 // Security & performance middleware
 app.use(helmet());
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin(origin, callback) {
+    if (!origin && process.env.NODE_ENV !== 'production') return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) return callback(null, true);
+    return callback(new Error('Origin not allowed by CORS.'));
+  },
   credentials: true,
 }));
 
@@ -58,6 +68,7 @@ app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));
 app.use('/api/analytics',      require('./routes/analytics'));
 app.use('/api/predictions',    require('./routes/predictions'));
+app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));

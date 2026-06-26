@@ -16,17 +16,25 @@
 
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const {
+  requireStaffRole,
+  requireBusinessAccess,
+  requireBranchAccess,
+  scopedBusinessId,
+  scopedBranchId,
+} = require('../middleware/tenantAccess');
 
 // Daily summary
-router.get('/summary', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['a.business_id = ?'];
-    const params = [business_id];
-    if (branch_id) { conditions.push('a.branch_id = ?'); params.push(branch_id); }
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
     else           { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
@@ -47,21 +55,22 @@ router.get('/summary', requireAuth, requireRole('manager', 'executive'), async (
 });
 
 // Hourly heatmap
-router.get('/heatmap', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
-    const params = [business_id];
-    if (branch_id) { conditions.push('w.branch_id = ?'); params.push(branch_id); }
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
 
     const [rows] = await pool.query(
       `SELECT w.day_of_week AS dow,
               w.hour_of_day AS hour,
               COUNT(*)                              AS visit_count,
               ROUND(AVG(w.wait_time_minutes), 1)   AS avg_wait,
-              SUM(w.status = 'completed')           AS completed,
+              SUM(w.status = 'served')              AS completed,
               SUM(w.status = 'no_show')             AS no_shows
        FROM wait_time_records w
        WHERE ${conditions.join(' AND ')}
@@ -77,24 +86,25 @@ router.get('/heatmap', requireAuth, requireRole('manager', 'executive'), async (
 });
 
 // Service performance
-router.get('/services', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['w.business_id = ?'];
-    const params = [business_id];
-    if (branch_id) { conditions.push('w.branch_id = ?'); params.push(branch_id); }
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
 
     const [rows] = await pool.query(
       `SELECT s.id AS service_id, s.name AS service_name,
               COUNT(*)                              AS total_visits,
-              SUM(w.status = 'completed')           AS completed,
+              SUM(w.status = 'served')              AS completed,
               SUM(w.status = 'cancelled')           AS cancelled,
               SUM(w.status = 'no_show')             AS no_shows,
               ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_minutes,
               ROUND(AVG(w.service_time_minutes), 1) AS avg_service_minutes,
-              ROUND(SUM(w.status != 'completed') / COUNT(*) * 100, 1) AS dropoff_pct
+              ROUND(SUM(w.status != 'served') / COUNT(*) * 100, 1) AS dropoff_pct
        FROM wait_time_records w
        JOIN services s ON w.service_id = s.id
        WHERE ${conditions.join(' AND ')}
@@ -110,14 +120,15 @@ router.get('/services', requireAuth, requireRole('manager', 'executive'), async 
 });
 
 // Staff performance
-router.get('/staff', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
-    const conditions = ['st.business_id = ?', "t.status = 'completed'"];
-    const params = [business_id];
-    if (branch_id) { conditions.push('st.branch_id = ?'); params.push(branch_id); }
+    const conditions = ['st.business_id = ?', "t.status = 'served'"];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('st.branch_id = ?'); params.push(scopedBranch); }
 
     const [rows] = await pool.query(
       `SELECT st.id AS staff_id, st.full_name, st.staff_code,
@@ -139,22 +150,23 @@ router.get('/staff', requireAuth, requireRole('manager', 'executive'), async (re
 });
 
 // Branch performance trends — daily aggregates for line charts
-router.get('/branch-trends', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, days = 90 } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
     const safeDays = Math.min(Math.max(parseInt(days) || 90, 7), 365);
     const conditions = ['w.business_id = ?', `w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ${safeDays} DAY)`];
-    const params = [business_id];
-    if (branch_id) { conditions.push('w.branch_id = ?'); params.push(branch_id); }
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     const [rows] = await pool.query(
       `SELECT b.id AS branch_id, b.name AS branch_name, biz.name AS business_name,
               w.visit_date,
               COUNT(*)                              AS total_visits,
               ROUND(AVG(w.wait_time_minutes), 1)   AS avg_wait_minutes,
-              SUM(w.status = 'completed')           AS completed,
+              SUM(w.status = 'served')              AS completed,
               SUM(w.status = 'no_show')             AS no_shows,
-              ROUND(SUM(w.status = 'completed') / COUNT(*) * 100, 1) AS completion_rate
+              ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate
        FROM wait_time_records w
        JOIN branches b     ON w.branch_id   = b.id
        JOIN businesses biz ON w.business_id = biz.id
@@ -171,12 +183,12 @@ router.get('/branch-trends', requireAuth, requireRole('manager', 'executive'), a
 });
 
 // CSV export — returns wait_time_records as CSV for the Jupyter model
-router.get('/export-csv', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/export-csv', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const { business_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
     const conditions = ['w.business_id = ?'];
-    const params = [business_id];
+    const params = [scopedBusinessId(req, business_id)];
     if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
     if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
     const [rows] = await pool.query(
@@ -222,7 +234,7 @@ router.get('/export-csv', requireAuth, requireRole('manager', 'executive'), asyn
 });
 
 // POST /api/analytics/refresh — manually trigger analytics summary rebuild (executive only)
-router.post('/refresh', requireAuth, requireRole('executive'), async (req, res) => {
+router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, res) => {
   try {
     const { lookback_days = 7 } = req.body;
     const safeDays = Math.min(Math.max(parseInt(lookback_days) || 7, 1), 365);

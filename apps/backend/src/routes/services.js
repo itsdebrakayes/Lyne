@@ -10,7 +10,15 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const {
+  requireStaffRole,
+  requireBusinessAccess,
+  requireBranchAccess,
+  scopedBusinessId,
+  assertBusinessAccess,
+  assertBranchAccess,
+} = require('../middleware/tenantAccess');
 
 router.get('/', async (req, res) => {
   try {
@@ -39,7 +47,7 @@ router.get('/', async (req, res) => {
                 FROM queue_tickets qt
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
-                  AND qt.status = 'completed'
+                  AND qt.status = 'served'
                   AND qt.completed_at IS NOT NULL
                 ORDER BY qt.completed_at DESC
                 LIMIT 50
@@ -66,7 +74,7 @@ router.get('/:id', async (req, res) => {
                 FROM queue_tickets qt
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
-                  AND qt.status = 'completed'
+                  AND qt.status = 'served'
                   AND qt.completed_at IS NOT NULL
                 ORDER BY qt.completed_at DESC
                 LIMIT 50
@@ -92,7 +100,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, name, description, ticket_prefix, base_avg_time_minutes } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
@@ -100,7 +108,7 @@ router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, r
     await pool.query(
       `INSERT INTO services (id, business_id, name, description, ticket_prefix, base_avg_time_minutes)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, business_id, name, description || null, ticket_prefix || null, base_avg_time_minutes || 15]
+      [id, scopedBusinessId(req, business_id), name, description || null, ticket_prefix || null, base_avg_time_minutes || 15]
     );
     const [created] = await pool.query('SELECT * FROM services WHERE id = ?', [id]);
     res.status(201).json(created[0]);
@@ -110,9 +118,21 @@ router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, r
   }
 });
 
-router.put('/:id', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), async (req, res) => {
   try {
     const { name, description, ticket_prefix, base_avg_time_minutes, is_active } = req.body;
+    const [existing] = await pool.query(
+      `SELECT s.business_id, q.branch_id
+       FROM services s
+       LEFT JOIN queues q ON q.service_id = s.id AND q.queue_date = CURDATE()
+       WHERE s.id = ?
+       LIMIT 1`,
+      [req.params.id]
+    );
+    if (!existing.length) return res.status(404).json({ error: 'Service not found.' });
+    if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, existing[0].branch_id)) {
+      return res.status(403).json({ error: 'You do not have access to this service.' });
+    }
     await pool.query(
       `UPDATE services SET
          name                  = COALESCE(?, name),

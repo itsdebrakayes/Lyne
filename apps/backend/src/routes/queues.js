@@ -10,7 +10,12 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const {
+  requireStaffRole,
+  requireBranchAccess,
+  requireQueueAccess,
+} = require('../middleware/tenantAccess');
 
 // Get queues — public (used by user website to show live wait times)
 router.get('/', async (req, res) => {
@@ -30,7 +35,7 @@ router.get('/', async (req, res) => {
               s.name  AS service_name,
               s.ticket_prefix,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting')  AS waiting_count,
-              (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'serving')  AS serving_count,
+              (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'in_service') AS serving_count,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id)                           AS total_count,
               (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes
        FROM queues q
@@ -62,7 +67,7 @@ router.get('/live', async (req, res) => {
               COALESCE((
                 SELECT AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.completed_at))
                 FROM queue_tickets t
-                WHERE t.queue_id = q.id AND t.status = 'completed'
+                WHERE t.queue_id = q.id AND t.status = 'served'
                 ORDER BY t.completed_at DESC LIMIT 20
               ), s.base_avg_time_minutes) AS avg_service_minutes
        FROM queues q
@@ -116,10 +121,21 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create / open a queue for today
-router.post('/', requireAuth, requireRole('line_staff', 'manager', 'executive'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireBranchAccess, async (req, res) => {
   try {
     const { branch_id, service_id, queue_date, max_capacity } = req.body;
     if (!branch_id || !service_id) return res.status(400).json({ error: 'branch_id and service_id are required.' });
+    const [ownership] = await pool.query(
+      `SELECT b.business_id AS branch_business_id, s.business_id AS service_business_id
+       FROM branches b
+       JOIN services s ON s.id = ?
+       WHERE b.id = ?
+       LIMIT 1`,
+      [service_id, branch_id]
+    );
+    if (!ownership.length || ownership[0].branch_business_id !== ownership[0].service_business_id) {
+      return res.status(400).json({ error: 'Branch and service must belong to the same business.' });
+    }
 
     const date = queue_date || new Date().toISOString().slice(0, 10);
     const id = uuidv4();
@@ -143,7 +159,7 @@ router.post('/', requireAuth, requireRole('line_staff', 'manager', 'executive'),
 });
 
 // Close a queue
-router.put('/:id/close', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.put('/:id/close', requireAuth, requireStaffRole('manager', 'executive'), requireQueueAccess, async (req, res) => {
   try {
     await pool.query('UPDATE queues SET is_active = FALSE WHERE id = ?', [req.params.id]);
     res.json({ message: 'Queue closed.' });

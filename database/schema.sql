@@ -150,6 +150,9 @@ CREATE TABLE IF NOT EXISTS roles (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+INSERT IGNORE INTO roles (id, name, label, description) VALUES
+('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support');
+
 
 -- =============================================================
 -- SECTION 8: STAFF
@@ -246,8 +249,9 @@ CREATE TABLE IF NOT EXISTS queue_tickets (
     user_id               CHAR(36),
     intake_form_id        CHAR(36),
     ticket_number         VARCHAR(50) NOT NULL,
+    verification_code     VARCHAR(12) NOT NULL,
     position              INT         NOT NULL,
-    status                ENUM('waiting','serving','completed','cancelled','no_show') NOT NULL DEFAULT 'waiting',
+    status                ENUM('waiting','called','in_service','served','left','cancelled','no_show') NOT NULL DEFAULT 'waiting',
     estimated_wait_minutes INT,
     joined_at             TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     called_at             TIMESTAMP   NULL,
@@ -345,14 +349,46 @@ CREATE TABLE IF NOT EXISTS predictive_results (
     id            CHAR(36)     NOT NULL,
     business_id   CHAR(36)     NOT NULL,
     branch_id     CHAR(36),
+    service_id    CHAR(36),
     insight_type  VARCHAR(100) NOT NULL,
     insight_data  JSON         NOT NULL,
     model_version VARCHAR(50),
+    source_window_start DATETIME,
+    source_window_end   DATETIME,
+    records_processed   INT          DEFAULT 0,
+    stale_after         DATETIME,
     generated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
-    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_prediction_freshness
+    ON predictive_results(business_id, insight_type, generated_at, stale_after);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id                  CHAR(36)     NOT NULL,
+    business_id         CHAR(36)     NOT NULL,
+    run_type            ENUM('export','notebook','import','full','manual_trigger') NOT NULL DEFAULT 'full',
+    status              ENUM('queued','running','succeeded','failed') NOT NULL DEFAULT 'queued',
+    model_version       VARCHAR(50),
+    source_window_start DATETIME,
+    source_window_end   DATETIME,
+    records_exported    INT          DEFAULT 0,
+    records_imported    INT          DEFAULT 0,
+    error_message       TEXT,
+    requested_by_staff_id CHAR(36),
+    started_at          TIMESTAMP    NULL,
+    completed_at        TIMESTAMP    NULL,
+    created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+    FOREIGN KEY (requested_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_pipeline_runs_business
+    ON pipeline_runs(business_id, status, created_at);
 
 
 -- =============================================================
@@ -416,6 +452,20 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (ticket_id) REFERENCES queue_tickets(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS device_push_tokens (
+    id              CHAR(36)     NOT NULL,
+    user_id         CHAR(36)     NOT NULL,
+    expo_push_token VARCHAR(255) NOT NULL,
+    platform        VARCHAR(30),
+    device_name     VARCHAR(255),
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
+    last_seen_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_device_push_token (expo_push_token),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 -- =============================================================
 -- PERFORMANCE INDEXES
@@ -424,6 +474,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX idx_tickets_queue_status    ON queue_tickets(queue_id, status);
 CREATE INDEX idx_tickets_user            ON queue_tickets(user_id);
 CREATE INDEX idx_tickets_position        ON queue_tickets(queue_id, position);
+CREATE UNIQUE INDEX idx_tickets_verification_code ON queue_tickets(verification_code);
 CREATE INDEX idx_wtr_analytics           ON wait_time_records(business_id, visit_date, hour_of_day);
 CREATE INDEX idx_wtr_service             ON wait_time_records(service_id, visit_date);
 CREATE INDEX idx_summary_date            ON analytics_summaries(business_id, summary_date);
@@ -431,6 +482,7 @@ CREATE INDEX idx_prediction_type         ON predictive_results(business_id, insi
 CREATE INDEX idx_events_ticket           ON queue_events(ticket_id, event_timestamp);
 CREATE INDEX idx_visit_history_user      ON visit_history(user_id, visit_date DESC);
 CREATE INDEX idx_notifications_unread    ON notifications(user_id, is_read, sent_at);
+CREATE INDEX idx_device_push_tokens_user ON device_push_tokens(user_id, is_active);
 CREATE INDEX idx_staff_business          ON staff(business_id, is_active);
 CREATE INDEX idx_assignments_date        ON staff_assignments(assignment_date, counter_id);
 CREATE INDEX idx_branches_business       ON branches(business_id, is_active);

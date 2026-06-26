@@ -11,6 +11,7 @@ const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { requireStaffRole } = require('../middleware/tenantAccess');
 
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -33,7 +34,34 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/register-device', requireAuth, async (req, res) => {
+  try {
+    const userId = req.dbUser?.id;
+    if (!userId) return res.status(403).json({ error: 'User account required.' });
+    const { expo_push_token, platform, device_name } = req.body;
+    if (!expo_push_token) return res.status(400).json({ error: 'expo_push_token is required.' });
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO device_push_tokens
+         (id, user_id, expo_push_token, platform, device_name, is_active, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, TRUE, NOW())
+       ON DUPLICATE KEY UPDATE
+         user_id = VALUES(user_id),
+         platform = VALUES(platform),
+         device_name = VALUES(device_name),
+         is_active = TRUE,
+         last_seen_at = NOW()`,
+      [id, userId, expo_push_token, platform || null, device_name || null]
+    );
+    const [rows] = await pool.query('SELECT * FROM device_push_tokens WHERE expo_push_token = ?', [expo_push_token]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to register device.' });
+  }
+});
+
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive', 'platform_admin'), async (req, res) => {
   try {
     const { user_id, ticket_id, notification_type, channel, message } = req.body;
     if (!user_id || !notification_type || !message) {

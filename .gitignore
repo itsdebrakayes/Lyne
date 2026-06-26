@@ -9,8 +9,19 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-electron
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+.worktrees/
+worktrees/
+
+# Build and generated output
+build/
+release/
+coverage/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +33,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python/Jupyter/model artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+apps/model/outputs/**
+!apps/model/outputs/**/
+!apps/model/outputs/**/.gitkeep
+apps/model/data_exports/*.csv
+apps/model/data_exports/plots/**
+
+# Local app caches
+.expo/
+.turbo/
+.vite/

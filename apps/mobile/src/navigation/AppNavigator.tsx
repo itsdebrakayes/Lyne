@@ -27,18 +27,20 @@ import TicketScreen     from '../screens/queue/TicketScreen';
 
 export type RootStackParamList = {
   Auth:       undefined;
+  Signup:     undefined;
+  Onboarding: undefined;
   Main:       undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
-  JoinQueue:  { businessId: string; branchId: string; serviceId: string };
-  Ticket:     { ticketId: string };
+  JoinQueue:  { businessId: string; branchId: string; serviceId: string; serviceName?: string };
+  Ticket:     { ticketId?: string; businessId?: string; branchId?: string; serviceId?: string };
 };
 
 export type TabParamList = {
   Home:    undefined;
   Search:  undefined;
-  History: undefined;
+  Saved:   undefined;
   Profile: undefined;
 };
 
@@ -50,19 +52,14 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0a0a0a',
-          borderTopColor: 'rgba(255,255,255,0.08)',
-          paddingBottom: 4,
-          height: 60,
-        },
-        tabBarActiveTintColor:   '#ffffff',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.35)',
+        tabBarStyle: { display: 'none' },
+        tabBarActiveTintColor:   '#15151a',
+        tabBarInactiveTintColor: '#8b8b93',
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, [string, string]> = {
             Home:    ['home',           'home-outline'],
             Search:  ['search',         'search-outline'],
-            History: ['time',           'time-outline'],
+            Saved:   ['bookmark',       'bookmark-outline'],
             Profile: ['person-circle',  'person-circle-outline'],
           };
           const [active, inactive] = icons[route.name] || ['help', 'help-outline'];
@@ -72,7 +69,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Home"    component={HomeScreen}    />
       <Tab.Screen name="Search"  component={SearchScreen}  />
-      <Tab.Screen name="History" component={HistoryScreen} />
+      <Tab.Screen name="Saved"   component={HistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -103,6 +100,8 @@ export default function AppNavigator() {
         {!user ? (
           <>
             <Stack.Screen name="Auth" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           </>
         ) : (
           <>

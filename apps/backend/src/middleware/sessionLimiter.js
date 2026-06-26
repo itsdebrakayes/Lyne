@@ -22,7 +22,10 @@
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
 
-const MAX_SESSIONS = 5;
+const MAX_SESSIONS_BY_TYPE = {
+  user: 5,
+  staff: 2,
+};
 // Session TTL matches Supabase default JWT expiry (1 hour), extended by refresh activity
 const SESSION_TTL_HOURS = 1;
 
@@ -106,8 +109,9 @@ async function sessionLimiter(req, res, next) {
       [uid]
     );
 
-    if (sessions.length > MAX_SESSIONS) {
-      const toEvict = sessions.slice(MAX_SESSIONS).map(s => s.id);
+    const maxSessions = MAX_SESSIONS_BY_TYPE[sessionType] || 1;
+    if (sessions.length > maxSessions) {
+      const toEvict = sessions.slice(maxSessions).map(s => s.id);
       await pool.query(
         `DELETE FROM user_sessions WHERE id IN (${toEvict.map(() => '?').join(',')})`,
         toEvict
@@ -116,8 +120,10 @@ async function sessionLimiter(req, res, next) {
 
     next();
   } catch (err) {
-    // Never block a request due to a session bookkeeping failure
     console.error('[SessionLimiter] Error:', err.message);
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Session verification unavailable. Please try again.' });
+    }
     next();
   }
 }

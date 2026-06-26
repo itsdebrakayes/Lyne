@@ -10,7 +10,15 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const {
+  requireStaffRole,
+  requireBusinessAccess,
+  requireBranchAccess,
+  scopedBusinessId,
+  assertBusinessAccess,
+  assertBranchAccess,
+} = require('../middleware/tenantAccess');
 
 router.get('/', async (req, res) => {
   try {
@@ -75,7 +83,7 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), async (req, res) => {
   try {
     const { business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
@@ -83,7 +91,7 @@ router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, r
     await pool.query(
       `INSERT INTO branches (id, business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, business_id, name, address || null, city || null, parish || null, phone || null, latitude || null, longitude || null, is_main_branch || false]
+      [id, scopedBusinessId(req, business_id), name, address || null, city || null, parish || null, phone || null, latitude || null, longitude || null, is_main_branch || false]
     );
     const [created] = await pool.query('SELECT * FROM branches WHERE id = ?', [id]);
     res.status(201).json(created[0]);
@@ -93,9 +101,14 @@ router.post('/', requireAuth, requireRole('manager', 'executive'), async (req, r
   }
 });
 
-router.put('/:id', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
   try {
     const { name, address, city, parish, phone, latitude, longitude, is_main_branch, is_active } = req.body;
+    const [existing] = await pool.query('SELECT business_id FROM branches WHERE id = ? LIMIT 1', [req.params.id]);
+    if (!existing.length) return res.status(404).json({ error: 'Branch not found.' });
+    if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, req.params.id)) {
+      return res.status(403).json({ error: 'You do not have access to this branch.' });
+    }
     await pool.query(
       `UPDATE branches SET
          name           = COALESCE(?, name),

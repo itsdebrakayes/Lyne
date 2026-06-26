@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
 
 const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: BG },
-  ambientLines:{ position: 'absolute', inset: 0 },
+  ambientLines:{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   ambientLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(212,175,55,0.04)' },
   skip:        { position: 'absolute', top: 60, right: 28, zIndex: 10 },
   skipText:    { fontSize: 11, fontWeight: '600', color: 'rgba(245,240,232,0.3)', textTransform: 'uppercase', letterSpacing: 2 },
@@ -153,7 +153,7 @@ const s = StyleSheet.create({
   },
 
   dots: { flexDirection: 'row', gap: 6 },
-  dot:  { height: 6, borderRadius: 3, transition: 'width 0.3s' } as any,
+  dot:  { height: 6, borderRadius: 3 },
 
   nextBtn: {
     paddingHorizontal: 28,

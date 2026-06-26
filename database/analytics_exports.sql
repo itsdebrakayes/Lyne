@@ -41,7 +41,7 @@ SELECT
     s.name                              AS service_name,
     biz.name                            AS business_name,
     COUNT(*)                            AS total_visits,
-    SUM(w.status = 'completed')         AS completed,
+    SUM(w.status = 'served')            AS completed,
     SUM(w.status = 'cancelled')         AS cancelled,
     SUM(w.status = 'no_show')           AS no_show,
     ROUND(AVG(w.wait_time_minutes), 2)  AS avg_wait_minutes,
@@ -67,7 +67,7 @@ SELECT
     w.month_of_year                     AS month,
     COUNT(*)                            AS total_visits,
     ROUND(AVG(w.wait_time_minutes), 2)  AS avg_wait_minutes,
-    SUM(w.status = 'completed')         AS completed,
+    SUM(w.status = 'served')            AS completed,
     SUM(w.status = 'no_show')           AS no_shows
 FROM wait_time_records w
 JOIN branches b     ON w.branch_id   = b.id
@@ -94,7 +94,7 @@ FROM queue_tickets t
 JOIN staff st  ON t.served_by_staff_id = st.id
 JOIN queues q  ON t.queue_id           = q.id
 JOIN services s ON q.service_id        = s.id
-WHERE t.status = 'completed'
+WHERE t.status = 'served'
   AND t.started_serving_at IS NOT NULL
   AND t.completed_at IS NOT NULL
 GROUP BY st.id, st.full_name, st.staff_code, s.name
@@ -127,6 +127,6 @@ SELECT
 FROM queue_tickets t
 JOIN queues q ON t.queue_id = q.id
 LEFT JOIN wait_time_records w ON w.ticket_id = t.id
-WHERE t.status IN ('completed', 'cancelled', 'no_show')
+WHERE t.status IN ('served', 'left', 'cancelled', 'no_show')
 INTO OUTFILE '/var/lib/mysql-files/prediction_inputs.csv'
 FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY '\n';

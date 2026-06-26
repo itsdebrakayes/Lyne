@@ -25,9 +25,13 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      # Auto-run schema + seed on first start
+      # Auto-run production schema + migrations on first start.
+      # Demo seed data belongs on the demo branch only.
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/migrations/001_performance_indexes.sql:/docker-entrypoint-initdb.d/02_001_performance_indexes.sql:ro
+      - ./database/migrations/002_security_and_ocr.sql:/docker-entrypoint-initdb.d/03_002_security_and_ocr.sql:ro
+      - ./database/migrations/003_sessions_and_token_security.sql:/docker-entrypoint-initdb.d/04_003_sessions_and_token_security.sql:ro
+      - ./database/migrations/004_pipeline_and_tenant_hardening.sql:/docker-entrypoint-initdb.d/05_004_pipeline_and_tenant_hardening.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s

@@ -9,6 +9,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const pool = require('../db/pool');
+const { sessionLimiter } = require('./sessionLimiter');
 
 // Support both env var naming conventions
 // Accept either naming convention (docker-compose uses SUPABASE_SERVICE_KEY)
@@ -55,7 +56,7 @@ async function requireAuth(req, res, next) {
     }
   }
 
-  next();
+  return sessionLimiter(req, res, next);
 }
 
 /**

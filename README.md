@@ -65,8 +65,8 @@ docker compose up -d
 ```
 
 This will:
-- Start MySQL 8 on port 3306
-- Auto-run database/schema.sql and database/seed.sql on first start
+- Start MySQL 8 on host port 3307
+- Auto-run the production schema and migrations on first start
 - Start the Express API on port 4000
 - Health check: http://localhost:4000/health
 

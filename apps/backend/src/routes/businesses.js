@@ -10,7 +10,8 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireStaffRole, assertBusinessAccess } = require('../middleware/tenantAccess');
 
 // List all active businesses — public
 router.get('/', async (_req, res) => {
@@ -52,7 +53,7 @@ router.get('/:slug', async (req, res) => {
 });
 
 // Create business — executive only
-router.post('/', requireAuth, requireRole('executive'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('platform_admin'), async (req, res) => {
   try {
     const { name, slug, description, logo_url, website_url, phone, email, subscription_tier_id } = req.body;
     if (!name || !slug || !subscription_tier_id) {
@@ -73,9 +74,12 @@ router.post('/', requireAuth, requireRole('executive'), async (req, res) => {
 });
 
 // Update business — executive only
-router.put('/:id', requireAuth, requireRole('executive'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'), async (req, res) => {
   try {
     const { name, description, logo_url, website_url, phone, email, subscription_tier_id, is_active } = req.body;
+    if (!assertBusinessAccess(req, req.params.id)) {
+      return res.status(403).json({ error: 'You do not have access to this business.' });
+    }
     await pool.query(
       `UPDATE businesses SET
          name                 = COALESCE(?, name),
