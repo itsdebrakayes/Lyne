@@ -27,6 +27,12 @@ const { requireAuth } = require('../middleware/auth');
 const { auditLog }    = require('../middleware/auditLog');
 const { maskTRN, maskNationalId } = require('../utils/maskData');
 
+function validationMessage(error) {
+  return error.issues?.[0]?.message || 'Invalid request data.';
+}
+
+const idSchema = z.string().min(1).max(64);
+
 // ── Validation schemas ────────────────────────────────────────
 const scanSchema = z.object({
   image_base64: z.string().min(100, 'image_base64 must be a valid base64-encoded image'),
@@ -37,9 +43,9 @@ const scanSchema = z.object({
 });
 
 const saveSchema = z.object({
-  ocr_result_id: z.string().uuid('ocr_result_id must be a valid UUID'),
-  queue_id:      z.string().uuid('queue_id must be a valid UUID').optional(),
-  service_id:    z.string().uuid('service_id must be a valid UUID').optional(),
+  ocr_result_id: idSchema,
+  queue_id:      idSchema.optional(),
+  service_id:    idSchema.optional(),
 });
 
 // ── Helper: parse OCR text into structured fields ─────────────
@@ -83,7 +89,7 @@ function parseOcrText(text) {
 router.post('/scan', requireAuth, auditLog('ocr_scan', 'ocr_document'), async (req, res) => {
   const parsed = scanSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
+    return res.status(400).json({ error: validationMessage(parsed.error) });
   }
 
   const { image_base64, mime_type, document_type } = parsed.data;
@@ -162,7 +168,7 @@ router.post('/scan', requireAuth, auditLog('ocr_scan', 'ocr_document'), async (r
 router.post('/save', requireAuth, async (req, res) => {
   const parsed = saveSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
+    return res.status(400).json({ error: validationMessage(parsed.error) });
   }
 
   const { ocr_result_id, queue_id, service_id } = parsed.data;

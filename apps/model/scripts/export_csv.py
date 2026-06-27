@@ -24,7 +24,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 QUEUE_HISTORY_QUERY = """
 SELECT
-    w.id AS visit_id, w.ticket_id, t.ticket_number,
+    w.id AS visit_id, w.ticket_id, COALESCE(t.ticket_number, w.ticket_id) AS ticket_number,
     w.business_id, biz.name AS business_name,
     w.branch_id, b.name AS branch_name, b.parish,
     w.service_id, s.name AS service_name,
@@ -38,7 +38,7 @@ SELECT
     w.queue_length_at_time AS queue_length_at_join,
     w.staff_count_at_time, w.active_counters_at_time AS active_counters
 FROM wait_time_records w
-JOIN queue_tickets t ON t.id = w.ticket_id
+LEFT JOIN queue_tickets t ON t.id = w.ticket_id
 JOIN businesses biz ON biz.id = w.business_id
 JOIN branches b ON b.id = w.branch_id
 JOIN services s ON s.id = w.service_id
