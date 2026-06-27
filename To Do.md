@@ -35,26 +35,21 @@ Notes:
 - Do not paste GitHub personal tokens into chat.
 - Use GitHub CLI or SSH keys so credentials stay in the local system credential store.
 
-## 2. Supabase Test Accounts
+## 2. Supabase Pilot Accounts
 
 Purpose: verify login, role mapping, tenant isolation, and dashboard/mobile access before real users are invited.
 
-Create these accounts in Supabase Authentication for demo/testing only:
+Production customer deployments must start without demo/test users. Create only
+the real customer owner/admin accounts needed for onboarding, then provision
+staff roles through the admin workflow.
 
-| Email | Password | Intended Role |
-|---|---|---|
-| `user@test.com` | `test1234` | Mobile/client user |
-| `staff@test.com` | `test1234` | Line staff |
-| `manager@test.com` | `test1234` | Branch manager |
-| `executive@test.com` | `test1234` | Business executive |
-| `platform@test.com` | `test1234` | Q ME NOW platform admin |
-
-After the Supabase Auth users exist, link each account to the matching MySQL `users` or `staff` rows in the demo database.
+Demo-only test account instructions live on the `demo` branch.
 
 Notes:
 
-- These accounts must not exist in production customer deployments.
-- For scripted setup, use a Supabase service role key in a local `.env` file only. Never commit it.
+- Never commit real credentials or service role keys.
+- Keep demo/test users out of production customer deployments.
+- Use a Supabase service role key in a local `.env` file only for controlled setup tasks.
 
 ## 3. Expo And EAS
 

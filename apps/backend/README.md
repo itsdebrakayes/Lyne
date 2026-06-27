@@ -67,20 +67,6 @@ npm start
 
 The API will be available at `http://localhost:4000`.
 
-### 5. Link demo/test accounts
-
-After the matching Supabase Auth users exist, a demo database can link those
-accounts to the MySQL demo roles and permissions:
-
-```bash
-ALLOW_DEMO_TEST_ACCOUNT_SYNC=true npm run sync:demo-test-accounts
-```
-
-The script refuses to run with `NODE_ENV=production`, requires the Supabase
-service role key, and expects the demo seed records to exist first.
-
----
-
 ## API Reference
 
 ### Health
