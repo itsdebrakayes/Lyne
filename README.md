@@ -4,7 +4,7 @@ Intelligent queue management and predictive analytics for multi-branch organizat
 
 Q ME NOW has five production surfaces:
 
-- `apps/website` — public marketing and user-facing web queue flows.
+- `apps/website` — public marketing website for product information, quote/contact requests, and app-store links only.
 - `apps/mobile` — Expo mobile app for customers on phones and tablets.
 - `apps/admin-desktop` — Electron admin dashboards for line staff, managers, and executives.
 - `apps/backend` — Express API with MySQL application data and Supabase Auth verification.
@@ -19,7 +19,9 @@ Each contracted company should run on its own deployment/database. The backend a
 ## Architecture
 
 ```text
-Website / Mobile / Admin Desktop
+Public Website (marketing only)
+
+Mobile / Admin Desktop
         |
         | Supabase Auth JWT
         v
