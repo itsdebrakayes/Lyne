@@ -1,4 +1,4 @@
-import { useState, type ElementType } from 'react';
+import { useState, type ElementType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -152,7 +152,7 @@ function trendData(rows: SummaryRow[]) {
     .slice()
     .reverse()
     .map(row => ({
-      day: String(row.summary_date || '').slice(5),
+      day: String(row.summary_date || '').split('T')[0].slice(5),
       served: Number(row.completed_count || 0),
       joined: Number(row.total_visitors || 0),
       wait: Number(row.avg_wait_time_minutes || 0),
@@ -184,10 +184,11 @@ function RoleSwitcher({ active }: { active: Role }) {
   );
 }
 
-function Topbar({ name, role, tone }: { name: string; role: string; tone: string }) {
+function Topbar({ name, role, tone, children }: { name: string; role: string; tone: string; children?: ReactNode }) {
   const { logout } = useAdminAuth();
   return (
     <div className="v2-topbar">
+      {children}
       <div className="v2-top-actions">
         <div className="v2-user"><div style={{ background: tone }}>{name[0] || 'Q'}</div><span><b>{name}</b><small>{role}</small></span></div>
         <button onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={17} /></button>
@@ -306,11 +307,10 @@ export function StaffDashboardV2() {
   return (
     <div className="v2-page staff">
       <GuidedTour role="staff" />
-      <RoleSwitcher active="staff" />
       <div className="v2-window">
         <Sidebar role="staff" tone="#1f9d57" />
         <main className="v2-main">
-          <Topbar name={name} role="Line staff" tone="#1f9d57" />
+          <Topbar name={name} role="Line staff" tone="#1f9d57"><RoleSwitcher active="staff" /></Topbar>
           <section className="v2-title-row">
             <div><h1>My Queue</h1><p>{activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No assigned live queue'} · {activeQueue?.service_name || 'Waiting for assignment'}</p></div>
             <button className="v2-primary" disabled={!nextTicket || Boolean(calledTicket || servingTicket) || action.isPending} onClick={() => updateStatus(nextTicket, 'called')}>Call next</button>
@@ -376,11 +376,10 @@ export function ManagerDashboardV2() {
   return (
     <div className="v2-page manager">
       <GuidedTour role="manager" />
-      <RoleSwitcher active="manager" />
       <div className="v2-window">
         <Sidebar role="manager" tone="#2f5cf0" />
         <main className="v2-main">
-          <Topbar name={admin?.name || 'Manager'} role="Manager" tone="#2f5cf0" />
+          <Topbar name={admin?.name || 'Manager'} role="Manager" tone="#2f5cf0"><RoleSwitcher active="manager" /></Topbar>
           <section className="v2-title-row">
             <div><h1>Branch Operations</h1><p>{admin?.staffRecord.branch_name || 'Branch'} · live queues and analytics</p></div>
             <button onClick={() => qc.invalidateQueries()} className="v2-primary blue">Refresh</button>
@@ -419,11 +418,10 @@ export function ExecutiveDashboardV2() {
   return (
     <div className="v2-page executive">
       <GuidedTour role="executive" />
-      <RoleSwitcher active="executive" />
       <div className="v2-window executive-layout">
         <Sidebar role="executive" tone="linear-gradient(135deg,#3ed877,#22c25e)" />
         <main className="v2-main">
-          <Topbar name={admin?.name || 'Executive'} role="Executive" tone="#22c25e" />
+          <Topbar name={admin?.name || 'Executive'} role="Executive" tone="#22c25e"><RoleSwitcher active="executive" /></Topbar>
           <section className="v2-title-row"><div><h1>Network Overview</h1><p>{admin?.staffRecord.business_name || 'Business'} · live operational intelligence</p></div><div className="v2-title-actions"><button className="v2-plus" title="Run analytics pipeline" aria-label="Run analytics pipeline" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><Plus size={22} /></button><button className="v2-plus report" title="Download current report" aria-label="Download current report" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={19} /></button></div></section>
           {triggerPipeline.isError && <section className="manager-alert"><AlertTriangle size={18} />{triggerPipeline.error instanceof Error ? triggerPipeline.error.message : 'The analytics run could not be queued.'}</section>}
           <section className="v2-grid two" id="executive-analytics" data-tour="analytics">
