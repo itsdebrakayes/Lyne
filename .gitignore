@@ -48,3 +48,4 @@ apps/model/data_exports/plots/**
 .expo/
 .turbo/
 .vite/
+supabase/.temp/
