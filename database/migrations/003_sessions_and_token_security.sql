@@ -15,8 +15,8 @@
 -- =============================================================
 CREATE TABLE IF NOT EXISTS user_sessions (
     id              VARCHAR(36)  NOT NULL PRIMARY KEY,
-    user_id         VARCHAR(36)  NULL,                       -- users.id (nullable for staff)
-    staff_id        VARCHAR(36)  NULL,                       -- staff.id (nullable for users)
+    user_id         CHAR(36)     NULL,                       -- users.id (nullable for staff)
+    staff_id        CHAR(36)     NULL,                       -- staff.id (nullable for users)
     session_type    ENUM('user','staff') NOT NULL DEFAULT 'user',
     supabase_uid    VARCHAR(255) NOT NULL,                   -- Supabase Auth user.id
     jti             VARCHAR(255) NULL UNIQUE,                -- JWT ID claim (for revocation lookup)
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
     CONSTRAINT fk_session_user  FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
     CONSTRAINT fk_session_staff FOREIGN KEY (staff_id) REFERENCES staff(id)  ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================================
 -- SECTION 25: TOKEN REVOCATIONS
@@ -55,17 +55,19 @@ CREATE TABLE IF NOT EXISTS token_revocations (
     INDEX idx_revoke_uid     (supabase_uid),
     INDEX idx_revoke_jti     (jti),
     INDEX idx_revoke_expires (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================================
 -- CLEANUP EVENT: purge expired sessions and revocations nightly
 -- Requires MySQL event scheduler: SET GLOBAL event_scheduler = ON;
 -- =============================================================
 DROP EVENT IF EXISTS purge_expired_sessions;
+DELIMITER $$
 CREATE EVENT purge_expired_sessions
     ON SCHEDULE EVERY 1 DAY
     STARTS (TIMESTAMP(CURDATE()) + INTERVAL 3 HOUR)
     DO BEGIN
         DELETE FROM user_sessions     WHERE expires_at    < NOW();
         DELETE FROM token_revocations WHERE expires_at    < NOW();
-    END;
+    END$$
+DELIMITER ;

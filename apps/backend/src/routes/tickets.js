@@ -30,6 +30,10 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 
+function validationMessage(error) {
+  return error.issues?.[0]?.message || 'Invalid request data.';
+}
+
 // Lazy-load to avoid circular dependency at startup
 function broadcast(queueId, ticket) {
   try {
@@ -40,7 +44,7 @@ function broadcast(queueId, ticket) {
 
 // Validation schemas
 const joinQueueSchema = z.object({
-  queue_id:  z.string().uuid('queue_id must be a valid UUID'),
+  queue_id:  z.string().min(1).max(64),
   form_data: z.record(z.unknown()).optional(),
 });
 
@@ -60,7 +64,7 @@ function createVerificationCode() {
 router.post('/', requireAuth, async (req, res) => {
   const parsed = joinQueueSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
+    return res.status(400).json({ error: validationMessage(parsed.error) });
   }
 
   const conn = await pool.getConnection();
@@ -280,7 +284,7 @@ router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
 router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
   const parsed = updateStatusSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
+    return res.status(400).json({ error: validationMessage(parsed.error) });
   }
 
   const conn = await pool.getConnection();

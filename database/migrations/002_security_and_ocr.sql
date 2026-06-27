@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_audit_action      (action),
     INDEX idx_audit_resource    (resource_type, resource_id),
     INDEX idx_audit_created_at  (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================================
 -- SECTION 21: OCR RESULTS
@@ -41,9 +41,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- =============================================================
 CREATE TABLE IF NOT EXISTS ocr_results (
     id                   VARCHAR(36)   NOT NULL PRIMARY KEY,
-    user_id              VARCHAR(36)   NULL,
-    queue_id             VARCHAR(36)   NULL,
-    service_id           VARCHAR(36)   NULL,
+    user_id              CHAR(36)      NULL,
+    queue_id             CHAR(36)      NULL,
+    service_id           CHAR(36)      NULL,
     document_type        ENUM('national_id','trn','passport','drivers_license','other') NOT NULL DEFAULT 'other',
     raw_text             TEXT          NULL,              -- Full OCR text output (capped at 5000 chars)
     extracted_full_name  VARCHAR(255)  NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS ocr_results (
     CONSTRAINT fk_ocr_user    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE SET NULL,
     CONSTRAINT fk_ocr_queue   FOREIGN KEY (queue_id)   REFERENCES queues(id)   ON DELETE SET NULL,
     CONSTRAINT fk_ocr_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================================
 -- SECTION 22: STAFF INVITES
@@ -70,17 +70,17 @@ CREATE TABLE IF NOT EXISTS ocr_results (
 -- =============================================================
 CREATE TABLE IF NOT EXISTS staff_invites (
     id                    VARCHAR(36)  NOT NULL PRIMARY KEY,
-    business_id           VARCHAR(36)  NOT NULL,
-    branch_id             VARCHAR(36)  NULL,
+    business_id           CHAR(36)     NOT NULL,
+    branch_id             CHAR(36)     NULL,
     email                 VARCHAR(255) NOT NULL,
     full_name             VARCHAR(255) NOT NULL,
     role                  ENUM('line_staff','manager','executive') NOT NULL,
     invite_code           VARCHAR(64)  NOT NULL UNIQUE,
-    invited_by_staff_id   VARCHAR(36)  NULL,
+    invited_by_staff_id   CHAR(36)     NULL,
     status                ENUM('pending','redeemed','revoked','expired') NOT NULL DEFAULT 'pending',
     expires_at            TIMESTAMP    NOT NULL,
     redeemed_at           TIMESTAMP    NULL,
-    redeemed_by_staff_id  VARCHAR(36)  NULL,
+    redeemed_by_staff_id  CHAR(36)     NULL,
     revoked_at            TIMESTAMP    NULL,
     created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS staff_invites (
     CONSTRAINT fk_invite_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
     CONSTRAINT fk_invite_branch   FOREIGN KEY (branch_id)   REFERENCES branches(id)   ON DELETE SET NULL,
     CONSTRAINT fk_invite_inviter  FOREIGN KEY (invited_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================================
 -- SECTION 23: STAFF ROLES (normalized)
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS staff_roles (
     role_name   VARCHAR(50)  NOT NULL UNIQUE,
     description TEXT         NULL,
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Seed default roles
 INSERT IGNORE INTO staff_roles (id, role_name, description) VALUES
@@ -115,51 +115,13 @@ INSERT IGNORE INTO staff_roles (id, role_name, description) VALUES
 -- ALTER: Add new columns to existing staff table
 -- =============================================================
 ALTER TABLE staff
-    ADD COLUMN IF NOT EXISTS password_hash       VARCHAR(255) NULL AFTER email,
-    ADD COLUMN IF NOT EXISTS invited_by_staff_id VARCHAR(36)  NULL AFTER is_active,
-    ADD COLUMN IF NOT EXISTS role_id             VARCHAR(36)  NULL AFTER role;
-
--- =============================================================
--- ALTER: Fix queue_tickets.status ENUM
--- Remove 'called' — calling a customer moves them directly to 'in_service'.
--- Valid statuses: waiting, in_service, served, left, cancelled
--- =============================================================
-ALTER TABLE queue_tickets
-    MODIFY COLUMN status ENUM('waiting','in_service','served','left','cancelled')
-    NOT NULL DEFAULT 'waiting';
-
--- =============================================================
--- ALTER: Add called_at and started_serving_at columns to queue_tickets
--- called_at = when staff pressed "Call Next" (same as started_serving_at now)
--- started_serving_at = when service actually began
--- =============================================================
-ALTER TABLE queue_tickets
-    ADD COLUMN IF NOT EXISTS called_at           TIMESTAMP NULL AFTER joined_at,
-    ADD COLUMN IF NOT EXISTS started_serving_at  TIMESTAMP NULL AFTER called_at,
-    ADD COLUMN IF NOT EXISTS completed_at        TIMESTAMP NULL AFTER started_serving_at,
-    ADD COLUMN IF NOT EXISTS served_by_staff_id  VARCHAR(36) NULL AFTER completed_at;
+    ADD COLUMN password_hash       VARCHAR(255) NULL AFTER email,
+    ADD COLUMN invited_by_staff_id CHAR(36)     NULL AFTER is_active;
 
 -- =============================================================
 -- INDEXES: Performance improvements for common queries
 -- =============================================================
--- Queue tickets: fast lookup by status for counting WAITING only
-CREATE INDEX IF NOT EXISTS idx_tickets_queue_status
-    ON queue_tickets (queue_id, status);
-
--- Queue tickets: fast lookup by user
-CREATE INDEX IF NOT EXISTS idx_tickets_user_id
-    ON queue_tickets (user_id);
-
--- Wait time records: fast lookup for ML input
-CREATE INDEX IF NOT EXISTS idx_wtr_branch_date
-    ON wait_time_records (branch_id, visit_date);
-
-CREATE INDEX IF NOT EXISTS idx_wtr_service_date
-    ON wait_time_records (service_id, visit_date);
-
--- Audit logs: fast date-range queries
-CREATE INDEX IF NOT EXISTS idx_audit_date_range
-    ON audit_logs (created_at, actor_type);
+-- Core queue and wait-time indexes are created by schema.sql and migration 001.
 
 -- =============================================================
 -- VIEWS: Convenience views for common queries

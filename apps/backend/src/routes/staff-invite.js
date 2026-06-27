@@ -19,6 +19,12 @@ const pool    = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
 
+function validationMessage(error) {
+  return error.issues?.[0]?.message || 'Invalid request data.';
+}
+
+const idSchema = z.string().min(1).max(64);
+
 // Admin Supabase client for creating staff auth accounts
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL        || 'https://placeholder.supabase.co',
@@ -32,8 +38,8 @@ const createInviteSchema = z.object({
   role:        z.enum(['line_staff', 'manager'], {
     errorMap: () => ({ message: 'role must be line_staff or manager' }),
   }),
-  business_id: z.string().uuid('business_id must be a valid UUID'),
-  branch_id:   z.string().uuid('branch_id must be a valid UUID').optional(),
+  business_id: idSchema,
+  branch_id:   idSchema.optional(),
   expires_hours: z.number().int().min(1).max(168).optional().default(48),
 });
 
@@ -52,7 +58,7 @@ router.post('/create',
   async (req, res) => {
     const parsed = createInviteSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0].message });
+      return res.status(400).json({ error: validationMessage(parsed.error) });
     }
 
     const { email, full_name, role, business_id, branch_id, expires_hours } = parsed.data;
@@ -119,7 +125,7 @@ router.post('/create',
 router.post('/redeem', async (req, res) => {
   const parsed = redeemInviteSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.errors[0].message });
+    return res.status(400).json({ error: validationMessage(parsed.error) });
   }
 
   const { invite_code, full_name, phone, password } = parsed.data;
