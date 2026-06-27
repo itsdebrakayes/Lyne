@@ -10,7 +10,6 @@ import { useAuth } from '../hooks/useAuth';
 // Auth screens
 import LoginScreen    from '../screens/auth/LoginScreen';
 import SignupScreen   from '../screens/auth/SignupScreen';
-import OnboardingScreen from '../screens/auth/OnboardingScreen';
 
 // Main screens
 import HomeScreen       from '../screens/main/HomeScreen';
@@ -28,7 +27,6 @@ import TicketScreen     from '../screens/queue/TicketScreen';
 export type RootStackParamList = {
   Auth:       undefined;
   Signup:     undefined;
-  Onboarding: undefined;
   Main:       undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
@@ -101,7 +99,6 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Auth" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           </>
         ) : (
           <>

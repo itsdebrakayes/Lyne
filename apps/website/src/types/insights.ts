@@ -17,7 +17,7 @@ export interface AnalyticsInsight {
   id: string;
   organization_id: string;
   insight_type: InsightType;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   period_start: string;
   period_end: string;
   generated_at: string;

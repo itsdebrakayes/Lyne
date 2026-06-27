@@ -13,15 +13,18 @@ const { sessionLimiter } = require('./sessionLimiter');
 
 // Support both env var naming conventions
 // Accept either naming convention (docker-compose uses SUPABASE_SERVICE_KEY)
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY
+  || process.env.SUPABASE_ANON_KEY
+  || process.env.SUPABASE_SERVICE_ROLE_KEY
   || process.env.SUPABASE_SERVICE_KEY
-  || 'placeholder-key';
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
-  supabaseKey
-);
+  || '';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 async function requireAuth(req, res, next) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Authentication service is not configured.' });
+  }
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing or invalid Authorization header.' });

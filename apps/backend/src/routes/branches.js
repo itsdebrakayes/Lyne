@@ -8,7 +8,7 @@
  */
 
 const router = require('express').Router();
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const {
@@ -26,7 +26,18 @@ router.get('/', async (req, res) => {
     const where = business_id ? 'WHERE br.business_id = ? AND br.is_active = TRUE' : 'WHERE br.is_active = TRUE';
     const params = business_id ? [business_id] : [];
     const [rows] = await pool.query(
-      `SELECT br.*, b.name AS business_name, b.slug AS business_slug
+      `SELECT br.*, b.name AS business_name, b.slug AS business_slug,
+              (SELECT COUNT(*)
+               FROM queues q JOIN queue_tickets qt ON qt.queue_id = q.id
+               WHERE q.branch_id = br.id AND q.is_active = TRUE
+                 AND q.queue_date = CURDATE() AND qt.status = 'waiting') AS total_waiting,
+              COALESCE((SELECT AVG(qt.estimated_wait_minutes)
+               FROM queues q JOIN queue_tickets qt ON qt.queue_id = q.id
+               WHERE q.branch_id = br.id AND q.is_active = TRUE
+                 AND q.queue_date = CURDATE() AND qt.status = 'waiting'), 0) AS avg_wait_minutes,
+              (SELECT COUNT(*) FROM queues q
+               WHERE q.branch_id = br.id AND q.is_active = TRUE
+                 AND q.queue_date = CURDATE()) AS open_queues
        FROM branches br
        JOIN businesses b ON br.business_id = b.id
        ${where}

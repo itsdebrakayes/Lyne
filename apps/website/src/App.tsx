@@ -26,18 +26,6 @@ import JoinQueue from './pages/JoinQueue';
 // Protected Route
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-// Admin Pages
-import { AdminLayout } from './components/admin/AdminLayout';
-import Dashboard from './pages/admin/Dashboard';
-import Customers from './pages/admin/Customers';
-import Services from './pages/admin/Services';
-import Staff from './pages/admin/Staff';
-import StaffDetail from './pages/admin/StaffDetail';
-import Analytics from './pages/admin/Analytics';
-import Settings from './pages/admin/Settings';
-import AdminLogin from './pages/admin/Login';
-import { ProtectedAdminRoute } from './components/admin/ProtectedAdminRoute';
-
 // Client Pages
 import BestTime from './pages/BestTime';
 
@@ -82,16 +70,6 @@ function App() {
               {/* Protected User Routes */}
               <Route path="/service-select" element={<ProtectedRoute><ServiceSelect /></ProtectedRoute>} />
               <Route path="/ticket" element={<ProtectedRoute><Ticket /></ProtectedRoute>} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout><Dashboard /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/customers" element={<ProtectedAdminRoute><AdminLayout><Customers /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/services" element={<ProtectedAdminRoute><AdminLayout><Services /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/staff" element={<ProtectedAdminRoute><AdminLayout><Staff /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/staff/:userId" element={<ProtectedAdminRoute><AdminLayout><StaffDetail /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/analytics" element={<ProtectedAdminRoute><AdminLayout><Analytics /></AdminLayout></ProtectedAdminRoute>} />
-              <Route path="/admin/settings" element={<ProtectedAdminRoute><AdminLayout><Settings /></AdminLayout></ProtectedAdminRoute>} />
               
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />

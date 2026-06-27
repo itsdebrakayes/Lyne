@@ -28,8 +28,8 @@ export const useLiveQueuePosition = (ticketId: string | undefined) => {
       const data = await api.get<LineData>(`/tickets/${ticketId}`, false);
       setLineData(data);
       setError(null);
-    } catch (err: any) {
-      if (err?.message?.includes('404')) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('404')) {
         setLineData(null);
         setError('Ticket not found');
       } else {

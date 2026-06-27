@@ -15,6 +15,7 @@ const GOLD = '#CA8A04';
 const GOLD_LIGHT = '#D4AF37';
 const BG = '#080706';
 const EASE_LUX = [0.22, 1, 0.36, 1] as const;
+const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
 
 // ─── Morphing Golden Sphere ──────────────────────────────────────────────────
 function GoldenSphere() {
@@ -57,7 +58,8 @@ function GoldenSphere() {
           const rr = r * (1 + noise);
           const x = cx + rr * Math.cos(angle);
           const y = cy + rr * Math.sin(angle);
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
         ctx.closePath();
         const alpha = 0.55 - ring * 0.08;
@@ -297,7 +299,7 @@ export default function MarketingHome() {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
             className="hidden md:flex items-center gap-3">
-            <a href="/admin/login" className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
+            <a href={ADMIN_URL} className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
               style={{ color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#F5F0E8')}
               onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.35)')}>
@@ -374,7 +376,7 @@ export default function MarketingHome() {
               <a href="/explore" className="btn-gold text-xs px-7 py-3.5 rounded-xl flex items-center gap-2">
                 Join a Queue <ChevronRight size={14} />
               </a>
-              <a href="/admin/login"
+              <a href={ADMIN_URL}
                 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest px-7 py-3.5 rounded-xl transition-all duration-400"
                 style={{ border: '1px solid rgba(212,175,55,0.2)', color: 'rgba(245,240,232,0.55)', letterSpacing: '0.1em' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)'; e.currentTarget.style.color = GOLD_LIGHT; }}
@@ -601,7 +603,7 @@ export default function MarketingHome() {
                       <span className="text-xs" style={{ color: 'rgba(245,240,232,0.55)' }}>{f}</span>
                     </div>
                   ))}
-                  <a href="/admin/login" className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-8">
+                  <a href={ADMIN_URL} className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-8">
                     <Monitor size={13} /> Access Admin
                   </a>
                 </div>

@@ -26,6 +26,12 @@ export interface ServiceWithStats extends Service {
   activeCounters: number;
 }
 
+interface QueueStats {
+  service_id: string;
+  waiting_count: number;
+  avg_wait_minutes: number;
+}
+
 export async function fetchServices(businessId?: string): Promise<Service[]> {
   const query = businessId ? `?business_id=${businessId}` : '';
   return api.get<Service[]>(`/services${query}`, false);
@@ -38,14 +44,14 @@ export async function fetchServicesWithStats(
   // Fetch services and today's queues in parallel
   const [services, queues] = await Promise.all([
     fetchServices(businessId),
-    api.get<{ service_id: string; waiting_count: number; avg_wait_minutes: number }[]>(
+    api.get<QueueStats[]>(
       `/queues?business_id=${businessId}`,
       false
     ).catch(() => []),
   ]);
 
   return services.map(service => {
-    const queue = (queues as any[]).find((q: any) => q.service_id === service.id);
+    const queue = queues.find(q => q.service_id === service.id);
     return {
       ...service,
       queueCount:     queue?.waiting_count    ?? 0,

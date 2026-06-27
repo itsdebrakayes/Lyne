@@ -109,7 +109,7 @@ export async function fetchLatestInsight(
       type: insightType,
       ...(branchId ? { branch_id: branchId } : {}),
     }).toString();
-    const results = await api.get<AnalyticsInsight[]>(`/predictions?${qs}`, false);
+    const results = await api.get<AnalyticsInsight[]>(`/predictions/public?${qs}`, false);
     return results[0] ?? null;
   } catch {
     return null;

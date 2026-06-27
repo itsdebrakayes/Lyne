@@ -1,14 +1,10 @@
 """
 run_pipeline.py — Master runner for the Q ME NOW ML pipeline.
 
-Executes the full pipeline in order:
-    1. Export CSVs from MySQL         (export_csv.py)
-    2. Run notebook 01: Data health   (01_ingest_and_validate.ipynb)
-    3. Run notebook 02: Ops insights  (02_admin_ops_insights.ipynb)
-    4. Run notebook 03: Staff metrics (03_admin_staff_metrics.ipynb)
-    5. Run notebook 04: Best time     (04_client_best_time.ipynb)
-    6. Run notebook 05: Predictions   (05_predictive_model.ipynb)
-    7. Import results to backend API  (import_predictions.py)
+Executes the production pipeline in order:
+    1. Export tenant-scoped CSVs from MySQL (export_csv.py)
+    2. Run notebook 05: Predictions         (05_predictive_model.ipynb)
+    3. Import results to backend API        (import_predictions.py)
 
 Usage:
     python scripts/run_pipeline.py [--days N] [--business-id UUID] [--dry-run]
@@ -34,13 +30,9 @@ SCRIPTS_DIR   = BASE_DIR / 'scripts'
 LOG_DIR       = OUTPUTS_DIR / 'logs'
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-NOTEBOOKS_IN_ORDER = [
-    '01_ingest_and_validate.ipynb',
-    '02_admin_ops_insights.ipynb',
-    '03_admin_staff_metrics.ipynb',
-    '04_client_best_time.ipynb',
-    '05_predictive_model.ipynb',
-]
+# The first four notebooks belong to the retired Supabase Storage prototype.
+# Production uses the MySQL-shaped predictive notebook exclusively.
+NOTEBOOKS_IN_ORDER = ['05_predictive_model.ipynb']
 
 
 def setup_logging(run_id: str) -> logging.Logger:
@@ -81,7 +73,9 @@ def run_notebook(log: logging.Logger, notebook: str, output_suffix: str,
     Path(nb_out).parent.mkdir(parents=True, exist_ok=True)
 
     log.info(f'Executing notebook: {notebook}')
+    previous_cwd = Path.cwd()
     try:
+        os.chdir(NOTEBOOKS_DIR)
         pm.execute_notebook(
             input_path=nb_in,
             output_path=nb_out,
@@ -94,6 +88,8 @@ def run_notebook(log: logging.Logger, notebook: str, output_suffix: str,
     except Exception as e:
         log.error(f'  Notebook failed: {e}')
         return False
+    finally:
+        os.chdir(previous_cwd)
 
 
 def main():
@@ -104,6 +100,9 @@ def main():
     parser.add_argument('--skip-export', action='store_true',       help='Skip CSV export (use existing)')
     parser.add_argument('--skip-import', action='store_true',       help='Skip prediction import')
     args = parser.parse_args()
+
+    if not args.business_id and (not args.skip_export or (not args.skip_import and not args.dry_run)):
+        parser.error('--business-id is required for every tenant-scoped production run')
 
     run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
     log    = setup_logging(run_id)
@@ -130,23 +129,20 @@ def main():
         log.info('Skipping CSV export (--skip-export).')
 
     # ── Steps 2-6: Notebooks ──────────────────────────────────
-    nb_params = {}
-    if args.business_id:
-        nb_params['BUSINESS_ID'] = args.business_id
-    nb_params['LOOKBACK_DAYS'] = args.days
-
     for notebook in NOTEBOOKS_IN_ORDER:
         nb_path = NOTEBOOKS_DIR / notebook
         if not nb_path.exists():
             log.warning(f'Notebook not found, skipping: {notebook}')
             continue
-        ok = run_notebook(log, notebook, run_id, nb_params)
+        ok = run_notebook(log, notebook, run_id)
         if not ok:
-            log.warning(f'Notebook {notebook} failed — continuing pipeline.')
+            log.error(f'Notebook {notebook} failed — import will not run.')
             failures.append(notebook)
 
     # ── Step 7: Import predictions ────────────────────────────
-    if not args.skip_import and not args.dry_run:
+    if failures:
+        log.error('One or more model steps failed. Refusing to import stale or partial output.')
+    elif not args.skip_import and not args.dry_run:
         import_args = []
         if args.business_id:
             import_args += ['--business-id', args.business_id]
@@ -159,7 +155,8 @@ def main():
     # ── Summary ───────────────────────────────────────────────
     log.info('=' * 60)
     if failures:
-        log.warning(f'Pipeline completed with {len(failures)} failure(s): {", ".join(failures)}')
+        log.error(f'Pipeline failed with {len(failures)} failure(s): {", ".join(failures)}')
+        sys.exit(1)
     else:
         log.info('Pipeline completed successfully.')
     log.info('=' * 60)

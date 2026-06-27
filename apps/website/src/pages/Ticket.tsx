@@ -53,7 +53,7 @@ const Ticket = () => {
       }
     }
     prevStatus.current = current;
-  }, [lineData?.status]);
+  }, [lineData]);
 
   const estimatedWaitMinutes = lineData?.estimated_wait_minutes ?? 0;
   const [countdown, setCountdown] = useState(estimatedWaitMinutes * 60);

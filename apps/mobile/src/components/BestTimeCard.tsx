@@ -25,6 +25,7 @@ interface PredictionRow {
     expected_wait_minutes?: number;
     confidence?: number;
     note?: string;
+    recommendation?: string;
   };
   branch_name?: string;
   generated_at?: string;
@@ -47,7 +48,7 @@ export default function BestTimeCard({ businessId, branchId }: Props) {
     queryKey: ['best-time', businessId, branchId],
     queryFn: () =>
       api.get<PredictionRow[]>(
-        `/predictions?business_id=${businessId}&branch_id=${branchId}&type=best_time_to_visit`
+        `/predictions/public?business_id=${businessId}&branch_id=${branchId}&type=best_time_to_visit`
       ),
     staleTime: 1000 * 60 * 30, // 30 minutes — predictions don't change often
   });
@@ -101,7 +102,7 @@ export default function BestTimeCard({ businessId, branchId }: Props) {
             </View>
           )}
         </View>
-        {d.note && <Text style={styles.note}>{d.note}</Text>}
+        {(d.note || d.recommendation) && <Text style={styles.note}>{d.note || d.recommendation}</Text>}
       </View>
 
       {/* Footer */}

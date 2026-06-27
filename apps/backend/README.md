@@ -37,7 +37,7 @@ Supabase is used **only** for authentication. All application data (queues, tick
 ### 1. Install dependencies
 
 ```bash
-cd backend
+cd apps/backend
 npm install
 ```
 
@@ -45,22 +45,17 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env with your MySQL credentials and Supabase service role key
+# Edit .env with your MySQL credentials, Supabase URL, and Supabase publishable key
 ```
 
 ### 3. Create the database
 
-```bash
-mysql -u root -p < ../database/schema.sql
-```
+Use the root `docker-compose.yml` for local startup, or apply `database/schema.sql`
+and all files in `database/migrations/` manually.
 
-### 4. Load seed data (optional, recommended for development)
+Production `main` does not include demo seed data. Demo data belongs on the `demo` branch.
 
-```bash
-mysql -u root -p qme_now < ../database/seed.sql
-```
-
-### 5. Start the server
+### 4. Start the server
 
 ```bash
 # Development (auto-reload)
@@ -121,7 +116,8 @@ The API will be available at `http://localhost:4000`.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/queues?branch_id=&service_id=&date=` | None | List today's queues |
-| GET | `/api/queues/:id` | None | Get queue with ticket list |
+| GET | `/api/queues/:id` | Staff+ | Get full queue with ticket list |
+| GET | `/api/queues/mine` | Staff+ | Get queues available to the signed-in staff member |
 | POST | `/api/queues` | Staff+ | Open a queue |
 | PUT | `/api/queues/:id/close` | Manager+ | Close a queue |
 
@@ -130,7 +126,8 @@ The API will be available at `http://localhost:4000`.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | POST | `/api/tickets` | Bearer JWT | Join a queue |
-| GET | `/api/tickets/:id` | None | Get ticket status |
+| GET | `/api/tickets/:id` | Bearer JWT | Get owned ticket status |
+| GET | `/api/tickets/:id/position` | Bearer JWT | Get owned ticket position |
 | GET | `/api/tickets/queue/:queue_id` | Staff+ | All tickets for a queue |
 | PUT | `/api/tickets/:id/status` | Staff+ | Update ticket status |
 
@@ -164,7 +161,8 @@ The API will be available at `http://localhost:4000`.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/predictions?business_id=` | None | Get predictive insights |
+| GET | `/api/predictions?business_id=` | Manager+ | Get private dashboard predictive insights |
+| GET | `/api/predictions/public?business_id=` | None | Get public-safe predictive insights |
 | POST | `/api/predictions` | Executive | Save Jupyter model output |
 
 ### User Data
@@ -193,10 +191,12 @@ The API will be available at `http://localhost:4000`.
 
 ## Connecting the Jupyter Model
 
-1. Export CSV data using the queries in `../database/analytics_exports.sql`
-2. Run the Jupyter notebooks in `../analytics/notebooks/`
-3. POST the results to `POST /api/predictions` using an executive JWT
-4. The frontend will automatically display the new predictions
+The production pipeline is bidirectional:
+
+1. `apps/model/scripts/export_csv.py` exports tenant-scoped MySQL operational data.
+2. `apps/model/notebooks/05_predictive_model.ipynb` produces insight outputs.
+3. `apps/model/scripts/import_predictions.py` posts standardized results to secured backend routes.
+4. Dashboards read the latest imported data from backend prediction/analytics APIs.
 
 ---
 
@@ -204,5 +204,4 @@ The API will be available at `http://localhost:4000`.
 
 See `../database/` for:
 - `schema.sql` — Full MySQL schema
-- `seed.sql` — Demo data (TAJ, NHT, PICA)
 - `analytics_exports.sql` — CSV export queries for the Jupyter model

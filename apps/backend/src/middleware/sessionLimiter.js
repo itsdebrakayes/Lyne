@@ -19,7 +19,7 @@
  *   router.get('/profile', requireAuth, sessionLimiter, handler);
  */
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 
 const MAX_SESSIONS_BY_TYPE = {
@@ -33,14 +33,13 @@ const SESSION_TTL_HOURS = 1;
  * Extract the JWT ID (jti) claim from a raw Bearer token without full re-verification.
  * We trust the signature was already verified by requireAuth.
  */
-function extractJti(token) {
+function extractTokenClaims(token) {
   try {
-    const payload = JSON.parse(
+    return JSON.parse(
       Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
     );
-    return payload.jti || null;
   } catch {
-    return null;
+    return {};
   }
 }
 
@@ -49,7 +48,8 @@ async function sessionLimiter(req, res, next) {
   if (!user) return next(); // requireAuth didn't attach user — let requireAuth handle it
 
   const token     = (req.headers.authorization || '').split(' ')[1];
-  const jti       = extractJti(token);
+  const claims    = extractTokenClaims(token);
+  const jti       = claims.jti || claims.session_id || null;
   const uid       = user.id;
   const ipAddress = req.ip || req.socket?.remoteAddress || null;
   const userAgent = req.headers['user-agent'] || null;
@@ -69,7 +69,8 @@ async function sessionLimiter(req, res, next) {
     }
 
     // ── 2. Upsert session record ────────────────────────────────
-    const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000);
+    const fallbackExpiry = Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000;
+    const expiresAt = new Date(claims.exp ? Math.min(claims.exp * 1000, fallbackExpiry) : fallbackExpiry);
     const actorId   = req.dbStaff?.id || req.dbUser?.id || null;
     const sessionType = req.dbStaff ? 'staff' : 'user';
 

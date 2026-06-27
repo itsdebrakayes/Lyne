@@ -51,7 +51,7 @@ function AmbientCanvas() {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { signIn } = useAdminAuth();
+  const { login } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -62,8 +62,13 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email || !password) { setError('Please complete all fields.'); return; }
     setLoading(true); setError('');
-    try { await signIn(email, password); navigate('/'); }
-    catch (err: any) { setError(err.message || 'Invalid credentials.'); }
+    try {
+      const { error: authError } = await login(email, password);
+      if (authError) throw authError;
+      navigate('/');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials.');
+    }
     finally { setLoading(false); }
   };
 

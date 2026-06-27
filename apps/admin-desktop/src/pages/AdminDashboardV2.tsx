@@ -1,17 +1,16 @@
-import type { ElementType } from 'react';
+import { useState, type ElementType } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
+import GuidedTour from '@/components/GuidedTour';
 import {
   Activity,
   AlertTriangle,
-  Bell,
   Clock,
   Download,
   LogOut,
   Plus,
-  Search,
   Ticket,
   UserCog,
   Users,
@@ -29,6 +28,14 @@ type QueueRow = {
   total_count?: number;
   avg_wait_minutes?: number;
   status?: string;
+};
+
+type TicketRow = {
+  id: string;
+  ticket_number: string;
+  user_name?: string;
+  status: 'waiting' | 'called' | 'in_service' | 'served' | 'no_show' | 'left' | 'cancelled';
+  position: number;
 };
 
 type SummaryRow = {
@@ -58,6 +65,10 @@ type StaffInsight = {
   avg_handle_minutes?: number;
 };
 
+type StaffOption = { id: string; full_name: string; staff_code?: string };
+type CounterOption = { id: string; label?: string; counter_number: number; service_name?: string };
+type AssignmentRow = { id: string; staff_name: string; staff_code?: string; counter_label?: string; counter_number: number };
+
 function useDashboardData() {
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
@@ -67,7 +78,7 @@ function useDashboardData() {
 
   const queues = useQuery({
     queryKey: ['v2-queues', businessId, branchId, admin?.role],
-    queryFn: () => api.get<QueueRow[]>(`/queues${branchId ? `?branch_id=${branchId}` : ''}`, false),
+    queryFn: () => api.get<QueueRow[]>('/queues/mine'),
     enabled: Boolean(admin),
     refetchInterval: 15000,
   });
@@ -102,7 +113,7 @@ function useDashboardData() {
 
   const predictions = useQuery({
     queryKey: ['v2-predictions', businessId],
-    queryFn: () => api.get<any[]>(`/predictions?business_id=${businessId}&max_age_minutes=60`, false),
+    queryFn: () => api.get<any[]>(`/predictions?business_id=${businessId}&max_age_minutes=60`),
     enabled: Boolean(businessId),
     refetchInterval: 60000,
   });
@@ -149,13 +160,26 @@ function trendData(rows: SummaryRow[]) {
     }));
 }
 
+function downloadJson(filename: string, value: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function RoleSwitcher({ active }: { active: Role }) {
+  const { admin } = useAdminAuth();
+  const allowed: Role[] = admin?.role === 'executive'
+    ? ['staff', 'manager', 'executive']
+    : admin?.role === 'manager' ? ['staff', 'manager'] : ['staff'];
   return (
     <div className="v2-role-switch">
       <span>Role view</span>
-      <Link className={active === 'staff' ? 'active' : ''} to="/staff">Line staff</Link>
-      <Link className={active === 'manager' ? 'active' : ''} to="/manager">Manager</Link>
-      <Link className={active === 'executive' ? 'active' : ''} to="/executive">Executive</Link>
+      {allowed.includes('staff') && <Link className={active === 'staff' ? 'active' : ''} to="/staff">Line staff</Link>}
+      {allowed.includes('manager') && <Link className={active === 'manager' ? 'active' : ''} to="/manager">Manager</Link>}
+      {allowed.includes('executive') && <Link className={active === 'executive' ? 'active' : ''} to="/executive">Executive</Link>}
     </div>
   );
 }
@@ -164,11 +188,9 @@ function Topbar({ name, role, tone }: { name: string; role: string; tone: string
   const { logout } = useAdminAuth();
   return (
     <div className="v2-topbar">
-      <div className="v2-search"><Search size={17} /> <span>Search</span></div>
       <div className="v2-top-actions">
-        <button><Bell size={18} /></button>
         <div className="v2-user"><div style={{ background: tone }}>{name[0] || 'Q'}</div><span><b>{name}</b><small>{role}</small></span></div>
-        <button onClick={logout}><LogOut size={17} /></button>
+        <button onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={17} /></button>
       </div>
     </div>
   );
@@ -176,18 +198,17 @@ function Topbar({ name, role, tone }: { name: string; role: string; tone: string
 
 function Sidebar({ role, tone }: { role: Role; tone: string }) {
   const items = role === 'staff'
-    ? ['Dashboard', 'My queue', 'Tickets', 'Services', 'Settings']
+    ? [{ label: 'My queue', id: 'staff-live' }, { label: 'Tickets', id: 'staff-tickets' }]
     : role === 'manager'
-      ? ['Overview', 'Branch queues', 'Staff', 'Assignments', 'Reports']
-      : ['Network', 'Analytics', 'Branches', 'Staff', 'Reports'];
+      ? [{ label: 'Overview', id: 'manager-metrics' }, { label: 'Assignments', id: 'manager-assignments' }, { label: 'Branch queues', id: 'manager-queues' }]
+      : [{ label: 'Analytics', id: 'executive-analytics' }, { label: 'Pipeline', id: 'executive-pipeline' }, { label: 'Network signals', id: 'executive-signals' }];
   return (
-    <aside className="v2-sidebar">
+    <aside className="v2-sidebar" data-tour="navigation">
       <div className="v2-brand"><div style={{ background: tone }}>Q</div><span>QMe</span></div>
-      <nav>{items.map((item, index) => <a key={item} className={index === 0 ? 'active' : ''}>{item}</a>)}</nav>
+      <nav>{items.map((item, index) => <button type="button" key={item.id} className={index === 0 ? 'active' : ''} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{item.label}</button>)}</nav>
       <div className="v2-download" style={{ background: tone }}>
         <b>{role === 'executive' ? 'Network report' : 'Download our Mobile App'}</b>
-        <small>{role === 'executive' ? 'Generated from live analytics.' : 'Manage your line on the go.'}</small>
-        <button><Download size={14} /> Download</button>
+        <small>{role === 'executive' ? 'Reports use live company analytics.' : 'Available for company-issued mobile devices.'}</small>
       </div>
     </aside>
   );
@@ -203,8 +224,8 @@ function Kpi({ label, value, sub, icon: Icon }: { label: string; value: string |
   );
 }
 
-function EmptyState({ label }: { label: string }) {
-  return <div className="v2-empty-state">{label}</div>;
+function EmptyState({ label, detail = 'Data will appear here as soon as setup is complete and live activity begins.' }: { label: string; detail?: string }) {
+  return <div className="v2-empty-state"><b>{label}</b><small>{detail}</small></div>;
 }
 
 function PipelineStatusCard({ pipeline }: { pipeline: any }) {
@@ -243,11 +264,48 @@ function ChartCard({ title, data, kind = 'bar' }: { title: string; data: any[]; 
 }
 
 export function StaffDashboardV2() {
+  const qc = useQueryClient();
   const { admin, queues } = useDashboardData();
   const activeQueue = queues[0];
   const name = admin?.name || 'Staff';
+  const [verificationCode, setVerificationCode] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
+  const ticketsQuery = useQuery({
+    queryKey: ['v2-tickets', activeQueue?.id],
+    queryFn: () => api.get<TicketRow[]>(`/tickets/queue/${activeQueue!.id}`),
+    enabled: Boolean(activeQueue?.id),
+    refetchInterval: 5000,
+  });
+  const tickets = ticketsQuery.data || [];
+  const calledTicket = tickets.find(ticket => ticket.status === 'called');
+  const servingTicket = tickets.find(ticket => ticket.status === 'in_service');
+  const nextTicket = tickets.find(ticket => ticket.status === 'waiting');
+  const action = useMutation({
+    mutationFn: async ({ ticketId, path, body }: { ticketId: string; path: 'status' | 'skip'; body: Record<string, unknown> }) => (
+      api.put(`/tickets/${ticketId}/${path}`, body)
+    ),
+    onSuccess: async () => {
+      setVerificationCode('');
+      setActionMessage('Queue updated.');
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['v2-tickets', activeQueue?.id] }),
+        qc.invalidateQueries({ queryKey: ['v2-queues'] }),
+      ]);
+    },
+    onError: error => setActionMessage(error instanceof Error ? error.message : 'The queue could not be updated.'),
+  });
+  const updateStatus = (ticket: TicketRow | undefined, newStatus: string, code?: string) => {
+    if (!ticket) return;
+    setActionMessage('');
+    action.mutate({
+      ticketId: ticket.id,
+      path: 'status',
+      body: { new_status: newStatus, ...(code ? { verification_code: code.trim().toUpperCase() } : {}) },
+    });
+  };
   return (
     <div className="v2-page staff">
+      <GuidedTour role="staff" />
       <RoleSwitcher active="staff" />
       <div className="v2-window">
         <Sidebar role="staff" tone="#1f9d57" />
@@ -255,16 +313,21 @@ export function StaffDashboardV2() {
           <Topbar name={name} role="Line staff" tone="#1f9d57" />
           <section className="v2-title-row">
             <div><h1>My Queue</h1><p>{activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No assigned live queue'} · {activeQueue?.service_name || 'Waiting for assignment'}</p></div>
-            <button className="v2-primary" disabled={!activeQueue}>Call next</button>
+            <button className="v2-primary" disabled={!nextTicket || Boolean(calledTicket || servingTicket) || action.isPending} onClick={() => updateStatus(nextTicket, 'called')}>Call next</button>
           </section>
-          <section className="staff-hero">
-            <div><span>Now serving</span><strong>{activeQueue ? activeQueue.service_name : 'Empty'}</strong></div>
+          <section className="staff-hero" id="staff-live" data-tour="live-queue">
+            <div><span>Now serving</span><strong>{servingTicket?.ticket_number || calledTicket?.ticket_number || 'Empty'}</strong><small>{servingTicket?.user_name || calledTicket?.user_name || activeQueue?.service_name || 'No active ticket'}</small></div>
             <i />
             <div><small>Waiting</small><b>{activeQueue?.waiting_count || 0}</b><small>Avg wait</small><b>{Math.round(Number(activeQueue?.avg_wait_minutes || 0))}m</b></div>
             <em><span />Live</em>
-            <div className="staff-actions">
-              <button disabled={!activeQueue}>Call next</button><button disabled={!activeQueue}>Complete</button><button disabled={!activeQueue}>Skip</button><button disabled={!activeQueue}>No-show</button>
+            <div className="staff-actions" data-tour="queue-actions">
+              <button disabled={!nextTicket || Boolean(calledTicket || servingTicket) || action.isPending} onClick={() => updateStatus(nextTicket, 'called')}>Call next</button>
+              <button disabled={!servingTicket || action.isPending} onClick={() => updateStatus(servingTicket, 'served')}>Complete</button>
+              <button disabled={!nextTicket || action.isPending} onClick={() => nextTicket && action.mutate({ ticketId: nextTicket.id, path: 'skip', body: { disposition: 'requeue' } })}>Skip</button>
+              <button disabled={!calledTicket || action.isPending} onClick={() => updateStatus(calledTicket, 'no_show')}>No-show</button>
             </div>
+            {calledTicket && <div className="staff-verification"><label htmlFor="verification-code">Customer code</label><input id="verification-code" value={verificationCode} maxLength={12} autoComplete="off" onChange={event => setVerificationCode(event.target.value)} placeholder="Enter code" /><button disabled={!verificationCode.trim() || action.isPending} onClick={() => updateStatus(calledTicket, 'in_service', verificationCode)}>Start service</button></div>}
+            {actionMessage && <p className="staff-action-message" role="status">{actionMessage}</p>}
           </section>
           <section className="v2-grid four">
             <Kpi label="Open queues" value={queues.length} sub="Assigned branch" icon={Ticket} />
@@ -272,7 +335,7 @@ export function StaffDashboardV2() {
             <Kpi label="Waiting" value={total(queues, 'waiting_count')} sub="Live tickets" icon={Users} />
             <Kpi label="In service" value={total(queues, 'serving_count')} sub="Counters active" icon={Activity} />
           </section>
-          <section className="v2-card"><h3>My services</h3>{queues.length ? queues.map(q => <div className="v2-row" key={q.id}><span>{q.service_name || 'Service'}<small>{q.branch_name || 'Branch'}</small></span><b>{q.waiting_count || 0} waiting</b></div>) : <EmptyState label="No live queues assigned" />}</section>
+          <section className="v2-card" id="staff-tickets"><h3>Queue tickets</h3>{tickets.length ? tickets.filter(ticket => ['waiting', 'called', 'in_service'].includes(ticket.status)).map(ticket => <div className="v2-row" key={ticket.id}><span>{ticket.ticket_number}<small>{ticket.user_name || 'Customer'} · {ticket.status.replace('_', ' ')}</small></span><b>#{ticket.position}</b></div>) : <EmptyState label={ticketsQuery.isLoading ? 'Loading assigned queue' : 'No active tickets'} detail={activeQueue ? 'New tickets will appear here automatically.' : 'Ask your branch manager to assign you to a service and counter. Your controls will activate automatically.'} />}</section>
         </main>
       </div>
     </div>
@@ -283,8 +346,36 @@ export function ManagerDashboardV2() {
   const qc = useQueryClient();
   const { admin, queues, summary, services, staff, pipeline } = useDashboardData();
   const chart = trendData(summary);
+  const branchId = admin?.staffRecord.branch_id;
+  const businessId = admin?.staffRecord.business_id;
+  const [staffId, setStaffId] = useState('');
+  const [counterId, setCounterId] = useState('');
+  const staffOptions = useQuery({
+    queryKey: ['manager-staff-options', businessId, branchId],
+    queryFn: () => api.get<StaffOption[]>(`/staff?business_id=${businessId}&branch_id=${branchId}`),
+    enabled: Boolean(businessId && branchId),
+  });
+  const counters = useQuery({
+    queryKey: ['manager-counters', branchId],
+    queryFn: () => api.get<CounterOption[]>(`/counters?branch_id=${branchId}`),
+    enabled: Boolean(branchId),
+  });
+  const assignments = useQuery({
+    queryKey: ['manager-assignments', branchId],
+    queryFn: () => api.get<AssignmentRow[]>(`/assignments?branch_id=${branchId}`),
+    enabled: Boolean(branchId),
+  });
+  const assignStaff = useMutation({
+    mutationFn: () => api.post('/assignments', { staff_id: staffId, counter_id: counterId }),
+    onSuccess: async () => {
+      setStaffId('');
+      setCounterId('');
+      await qc.invalidateQueries({ queryKey: ['manager-assignments', branchId] });
+    },
+  });
   return (
     <div className="v2-page manager">
+      <GuidedTour role="manager" />
       <RoleSwitcher active="manager" />
       <div className="v2-window">
         <Sidebar role="manager" tone="#2f5cf0" />
@@ -295,18 +386,19 @@ export function ManagerDashboardV2() {
             <button onClick={() => qc.invalidateQueries()} className="v2-primary blue">Refresh</button>
           </section>
           {services.some(s => Number(s.dropoff_pct || 0) > 20) && <section className="manager-alert"><AlertTriangle size={18} /> One or more services are above the drop-off threshold.</section>}
-          <section className="v2-grid four">
+          <section className="v2-grid four" id="manager-metrics" data-tour="metrics">
             <Kpi label="Total waiting" value={total(queues, 'waiting_count')} sub="Across active services" icon={Users} />
             <Kpi label="Being served" value={total(queues, 'serving_count')} sub="Live counters" icon={Activity} />
             <Kpi label="Avg wait" value={`${avg(queues, 'avg_wait_minutes')}m`} sub="Branch average" icon={Clock} />
             <Kpi label="Staff handled" value={total(staff, 'tickets_handled')} sub="Recorded completions" icon={UserCog} />
           </section>
-          <section className="v2-grid two">
+          <section className="v2-grid two" data-tour="analytics">
             <ChartCard title="Queue volume" data={chart} />
             <PipelineStatusCard pipeline={pipeline} />
           </section>
           <section className="v2-card"><h3>Staff utilization</h3>{staff.length ? staff.map(row => <div className="v2-row" key={row.staff_code || row.full_name}><span>{row.full_name}<small>{row.staff_code || 'Staff'}</small></span><b>{row.tickets_handled || 0}</b></div>) : <EmptyState label="No staff analytics yet" />}</section>
-          <section className="v2-card"><h3>Active queues</h3>{queues.length ? queues.map(q => <div className="v2-row ticket" key={q.id}><span>{q.service_name || 'Service'}<small>{q.branch_name || 'Branch'} · {Math.round(Number(q.avg_wait_minutes || 0))}m avg wait</small></span><b>{q.waiting_count || 0} waiting</b><em>{q.status || 'Live'}</em></div>) : <EmptyState label="No live queues yet" />}</section>
+          <section className="v2-card" id="manager-assignments" data-tour="assignments"><h3>Counter assignments</h3>{branchId ? <><div className="assignment-controls"><select aria-label="Staff member" value={staffId} onChange={event => setStaffId(event.target.value)}><option value="">Select staff</option>{(staffOptions.data || []).map(member => <option key={member.id} value={member.id}>{member.full_name} {member.staff_code ? `(${member.staff_code})` : ''}</option>)}</select><select aria-label="Counter" value={counterId} onChange={event => setCounterId(event.target.value)}><option value="">Select counter</option>{(counters.data || []).map(counter => <option key={counter.id} value={counter.id}>{counter.label || `Counter ${counter.counter_number}`}{counter.service_name ? ` · ${counter.service_name}` : ''}</option>)}</select><button className="v2-primary blue" disabled={!staffId || !counterId || assignStaff.isPending} onClick={() => assignStaff.mutate()}>Assign</button></div>{assignStaff.isError && <p className="assignment-error">{assignStaff.error instanceof Error ? assignStaff.error.message : 'Assignment failed.'}</p>}{(assignments.data || []).length ? (assignments.data || []).map(row => <div className="v2-row" key={row.id}><span>{row.staff_name}<small>{row.staff_code || 'Staff member'}</small></span><b>{row.counter_label || `Counter ${row.counter_number}`}</b></div>) : <EmptyState label="No counter assignments today" detail="Choose a staff member and counter to prepare the branch for service." />}</> : <EmptyState label="Assign this manager to a branch" detail="Counter controls become available after the manager has a branch assignment." />}</section>
+          <section className="v2-card" id="manager-queues"><h3>Active queues</h3>{queues.length ? queues.map(q => <div className="v2-row ticket" key={q.id}><span>{q.service_name || 'Service'}<small>{q.branch_name || 'Branch'} · {Math.round(Number(q.avg_wait_minutes || 0))}m avg wait</small></span><b>{q.waiting_count || 0} waiting</b><em>{q.status || 'Live'}</em></div>) : <EmptyState label="No live queues yet" />}</section>
         </main>
       </div>
     </div>
@@ -314,26 +406,35 @@ export function ManagerDashboardV2() {
 }
 
 export function ExecutiveDashboardV2() {
+  const qc = useQueryClient();
   const { admin, queues, summary, services, branchTrends, predictions, pipeline } = useDashboardData();
   const chart = trendData(summary);
   const staleInsights = predictions.filter(item => item.is_stale).length;
+  const businessId = admin?.staffRecord.business_id;
+  const triggerPipeline = useMutation({
+    mutationFn: () => api.post('/pipeline/trigger', { business_id: businessId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['v2-pipeline', businessId] }),
+  });
+  const report = { generated_at: new Date().toISOString(), business_id: businessId, summary, services, branch_trends: branchTrends, predictions };
   return (
     <div className="v2-page executive">
+      <GuidedTour role="executive" />
       <RoleSwitcher active="executive" />
       <div className="v2-window executive-layout">
         <Sidebar role="executive" tone="linear-gradient(135deg,#3ed877,#22c25e)" />
         <main className="v2-main">
           <Topbar name={admin?.name || 'Executive'} role="Executive" tone="#22c25e" />
-          <section className="v2-title-row"><div><h1>Network Overview</h1><p>{admin?.staffRecord.business_name || 'Business'} · live operational intelligence</p></div><button className="v2-plus"><Plus size={22} /></button></section>
-          <section className="v2-grid two">
+          <section className="v2-title-row"><div><h1>Network Overview</h1><p>{admin?.staffRecord.business_name || 'Business'} · live operational intelligence</p></div><div className="v2-title-actions"><button className="v2-plus" title="Run analytics pipeline" aria-label="Run analytics pipeline" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><Plus size={22} /></button><button className="v2-plus report" title="Download current report" aria-label="Download current report" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={19} /></button></div></section>
+          {triggerPipeline.isError && <section className="manager-alert"><AlertTriangle size={18} />{triggerPipeline.error instanceof Error ? triggerPipeline.error.message : 'The analytics run could not be queued.'}</section>}
+          <section className="v2-grid two" id="executive-analytics" data-tour="analytics">
             <ChartCard title="Visitors served" data={chart} kind="area" />
             <div className="v2-card"><h3>Avg wait</h3>{chart.length ? <ResponsiveContainer height={160}><BarChart data={chart}><Bar dataKey="wait" fill="#22c25e" radius={[10, 10, 6, 6]} /><XAxis dataKey="day" /><Tooltip /></BarChart></ResponsiveContainer> : <EmptyState label="No wait-time analytics yet" />}</div>
           </section>
-          <section className="v2-grid two">
+          <section className="v2-grid two" id="executive-pipeline">
             <ChartCard title="Queue volume" data={chart} />
-            <PipelineStatusCard pipeline={pipeline} />
+            <div data-tour="insights"><PipelineStatusCard pipeline={pipeline} /></div>
           </section>
-          <section className="v2-card"><h3>Network signals</h3>{services.length ? services.map(service => <div className="v2-row" key={service.service_name}><span>{service.service_name}<small>{service.total_visits || 0} visits</small></span><b>{Math.round(Number(service.avg_wait_minutes || 0))}m</b></div>) : <EmptyState label="No service analytics yet" />}</section>
+          <section className="v2-card" id="executive-signals"><h3>Network signals</h3>{services.length ? services.map(service => <div className="v2-row" key={service.service_name}><span>{service.service_name}<small>{service.total_visits || 0} visits</small></span><b>{Math.round(Number(service.avg_wait_minutes || 0))}m</b></div>) : <EmptyState label="No service analytics yet" />}</section>
         </main>
         <aside className="v2-right-rail">
           <div><Users size={16} /><span>Visitors</span><b>{total(summary, 'total_visitors')}</b></div>

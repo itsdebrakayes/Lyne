@@ -8,10 +8,10 @@
  */
 
 const router = require('express').Router();
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { requireStaffRole } = require('../middleware/tenantAccess');
+const { requireStaffRole, requireTicketAccess } = require('../middleware/tenantAccess');
 
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -61,17 +61,21 @@ router.post('/register-device', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive', 'platform_admin'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive', 'platform_admin'), requireTicketAccess, async (req, res) => {
   try {
     const { user_id, ticket_id, notification_type, channel, message } = req.body;
-    if (!user_id || !notification_type || !message) {
-      return res.status(400).json({ error: 'user_id, notification_type, and message are required.' });
+    if (!user_id || !ticket_id || !notification_type || !message) {
+      return res.status(400).json({ error: 'user_id, ticket_id, notification_type, and message are required.' });
+    }
+    const [ticketRows] = await pool.query('SELECT user_id FROM queue_tickets WHERE id = ? LIMIT 1', [ticket_id]);
+    if (!ticketRows.length || ticketRows[0].user_id !== user_id) {
+      return res.status(403).json({ error: 'Notification recipient must own the authorized ticket.' });
     }
     const id = uuidv4();
     await pool.query(
       `INSERT INTO notifications (id, user_id, ticket_id, notification_type, channel, message)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, user_id, ticket_id || null, notification_type, channel || 'push', message]
+      [id, user_id, ticket_id, notification_type, channel || 'push', message]
     );
     const [created] = await pool.query('SELECT * FROM notifications WHERE id = ?', [id]);
     res.status(201).json(created[0]);

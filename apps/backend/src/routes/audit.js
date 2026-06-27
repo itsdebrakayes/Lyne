@@ -13,10 +13,11 @@
  */
 const router = require('express').Router();
 const pool   = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireStaffRole, isPlatformAdmin } = require('../middleware/tenantAccess');
 
 // GET /api/audit
-router.get('/', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/', requireAuth, requireStaffRole('manager', 'executive', 'platform_admin'), async (req, res) => {
   try {
     const {
       actor_id,
@@ -34,6 +35,10 @@ router.get('/', requireAuth, requireRole('manager', 'executive'), async (req, re
 
     const conditions = [];
     const params     = [];
+    if (!isPlatformAdmin(req)) {
+      conditions.push('al.business_id = ?');
+      params.push(req.dbStaff.business_id);
+    }
 
     if (actor_id) {
       conditions.push('al.actor_id = ?');
@@ -93,15 +98,15 @@ router.get('/', requireAuth, requireRole('manager', 'executive'), async (req, re
 });
 
 // GET /api/audit/:id
-router.get('/:id', requireAuth, requireRole('manager', 'executive'), async (req, res) => {
+router.get('/:id', requireAuth, requireStaffRole('manager', 'executive', 'platform_admin'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT al.*, COALESCE(u.full_name, s.full_name) AS actor_name
        FROM audit_logs al
        LEFT JOIN users u ON al.actor_id = u.id AND al.actor_type = 'user'
        LEFT JOIN staff s ON al.actor_id = s.id AND al.actor_type = 'staff'
-       WHERE al.id = ?`,
-      [req.params.id]
+       WHERE al.id = ? AND (? = TRUE OR al.business_id = ?)`,
+      [req.params.id, isPlatformAdmin(req), req.dbStaff.business_id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Audit log entry not found.' });
     res.json(rows[0]);

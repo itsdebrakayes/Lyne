@@ -1,12 +1,13 @@
 /**
  * predictions.js — Predictive model results (Jupyter output)
  *
- * GET  /api/predictions?business_id=&branch_id=&type=  — get latest insights (public)
+ * GET  /api/predictions/public?business_id=&branch_id=&type= — public customer-facing insights
+ * GET  /api/predictions?business_id=&branch_id=&type=        — private company insights
  * POST /api/predictions                                 — upsert insight (executive/system)
  */
 
 const router = require('express').Router();
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
@@ -17,19 +18,22 @@ const {
   scopedBusinessId,
 } = require('../middleware/tenantAccess');
 
-// Get predictions — public (used by Best Time page and user website)
-router.get('/', async (req, res) => {
+const PUBLIC_INSIGHT_TYPES = new Set(['best_time_to_visit', 'wait_time_predictions', 'heatmap_data']);
+
+async function getPredictions(req, res, publicOnly = false) {
   try {
     const { business_id, branch_id, service_id, type, max_age_minutes = 60 } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    if (publicOnly && (!type || !PUBLIC_INSIGHT_TYPES.has(type))) {
+      return res.status(400).json({ error: 'A supported public insight type is required.' });
+    }
 
     const conditions = ['p.business_id = ?'];
     const params = [business_id];
     if (branch_id) { conditions.push('p.branch_id = ?'); params.push(branch_id); }
     if (service_id) { conditions.push('p.service_id = ?'); params.push(service_id); }
-    if (type)      { conditions.push('p.insight_type = ?'); params.push(type); }
+    if (type) { conditions.push('p.insight_type = ?'); params.push(type); }
 
-    // Return only the latest record per insight_type
     const [rows] = await pool.query(
       `SELECT p.*, b.name AS branch_name, s.name AS service_name,
               CASE
@@ -57,7 +61,18 @@ router.get('/', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch predictions.' });
   }
-});
+}
+
+router.get('/public', (req, res) => getPredictions(req, res, true));
+
+router.get(
+  '/',
+  requireAuth,
+  requireStaffRole('manager', 'executive'),
+  requireBusinessAccess(),
+  requireBranchAccess,
+  (req, res) => getPredictions(req, res)
+);
 
 // Upsert prediction result — called by the Jupyter pipeline import script
 router.post(

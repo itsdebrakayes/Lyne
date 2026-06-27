@@ -1,4 +1,3 @@
-/// <reference path="../types/expo-location.d.ts" />
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -7,7 +6,8 @@ import api from './apiClient';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -85,7 +85,11 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
       body: `Leave soon to reach ${input.branchName} before your queue is called.`,
       data: { ticketId: input.ticketId, branchName: input.branchName },
     },
-    trigger: { seconds: secondsUntilReminder },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: secondsUntilReminder,
+      repeats: false,
+    },
   });
 }
 

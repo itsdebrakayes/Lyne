@@ -32,6 +32,7 @@ services:
       - ./database/migrations/002_security_and_ocr.sql:/docker-entrypoint-initdb.d/03_002_security_and_ocr.sql:ro
       - ./database/migrations/003_sessions_and_token_security.sql:/docker-entrypoint-initdb.d/04_003_sessions_and_token_security.sql:ro
       - ./database/migrations/004_pipeline_and_tenant_hardening.sql:/docker-entrypoint-initdb.d/05_004_pipeline_and_tenant_hardening.sql:ro
+      - ./database/migrations/005_audit_tenant_scope.sql:/docker-entrypoint-initdb.d/06_005_audit_tenant_scope.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -60,10 +61,42 @@ services:
       MYSQL_PASSWORD:       ${MYSQL_PASSWORD:-qmenow_secret}
       MYSQL_DATABASE:       ${MYSQL_DATABASE:-qmenow}
       SUPABASE_URL:         ${SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:5173}
     ports:
       - "4000:4000"
+    networks:
+      - qmenow_net
+
+  analytics-worker:
+    build:
+      context: ./apps/model
+      dockerfile: Dockerfile
+    container_name: qmenow_analytics
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      MYSQL_HOST:             db
+      MYSQL_PORT:             3306
+      MYSQL_USER:             ${MYSQL_USER:-qmenow}
+      MYSQL_PASSWORD:         ${MYSQL_PASSWORD:-qmenow_secret}
+      MYSQL_DATABASE:         ${MYSQL_DATABASE:-qmenow}
+      API_URL:                http://api:4000/api
+      SUPABASE_URL:           ${SUPABASE_URL}
+      SUPABASE_ANON_KEY:      ${SUPABASE_PUBLISHABLE_KEY}
+      PIPELINE_EMAIL:         ${PIPELINE_EMAIL}
+      PIPELINE_PASSWORD:      ${PIPELINE_PASSWORD}
+      PIPELINE_BUSINESS_ID:   ${PIPELINE_BUSINESS_ID}
+      PIPELINE_TIMEZONE:      ${PIPELINE_TIMEZONE:-America/Jamaica}
+    volumes:
+      - analytics_outputs:/app/outputs
+      - analytics_exports:/app/data_exports
+      - analytics_state:/app/state
     networks:
       - qmenow_net
 
@@ -84,6 +117,12 @@ services:
 # ── Volumes ──────────────────────────────────────────────────
 volumes:
   mysql_data:
+    driver: local
+  analytics_outputs:
+    driver: local
+  analytics_exports:
+    driver: local
+  analytics_state:
     driver: local
 
 # ── Networks ─────────────────────────────────────────────────

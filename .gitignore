@@ -49,3 +49,24 @@ apps/model/data_exports/plots/**
 .turbo/
 .vite/
 supabase/.temp/
+
+# Local coding-assistant and generated analysis metadata
+.agent/
+.agents/
+.claude/
+.codebuddy/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.kiro/
+.lovable/
+.manos/
+.cloud/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.windsurf/
+graphify-out/
+skills-lock.json

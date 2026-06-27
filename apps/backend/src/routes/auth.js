@@ -15,7 +15,7 @@
  */
 
 const router = require('express').Router();
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
@@ -131,7 +131,7 @@ router.post('/logout', requireAuth, async (req, res) => {
       const payload = JSON.parse(
         Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
       );
-      jti = payload.jti || null;
+      jti = payload.jti || payload.session_id || null;
     } catch { /* non-fatal */ }
 
     const uid      = req.supabaseUser.id;
@@ -156,7 +156,7 @@ router.post('/logout', requireAuth, async (req, res) => {
 // Manager/executive can force-sign-out a specific user or staff member.
 // Revokes ALL active tokens for that supabase_uid.
 router.post('/force-signout', requireAuth, async (req, res) => {
-  if (!req.dbStaff || !['manager', 'executive'].includes(req.dbStaff.role_name)) {
+  if (!req.dbStaff || !['manager', 'executive', 'platform_admin'].includes(req.dbStaff.role_name)) {
     return res.status(403).json({ error: 'Managers and executives only.' });
   }
   const { target_supabase_uid } = req.body;
@@ -166,15 +166,15 @@ router.post('/force-signout', requireAuth, async (req, res) => {
   try {
     if (!isPlatformAdmin(req)) {
       const [targetRows] = await pool.query(
-        `SELECT business_id FROM staff WHERE supabase_uid = ?
-         UNION
-         SELECT NULL AS business_id FROM users WHERE supabase_uid = ?
-         LIMIT 1`,
-        [target_supabase_uid, target_supabase_uid]
+        `SELECT business_id, branch_id FROM staff WHERE supabase_uid = ? LIMIT 1`,
+        [target_supabase_uid]
       );
-      if (!targetRows.length) return res.status(404).json({ error: 'Target account not found.' });
-      if (targetRows[0].business_id && targetRows[0].business_id !== req.dbStaff.business_id) {
+      if (!targetRows.length) return res.status(404).json({ error: 'Target staff account not found.' });
+      if (targetRows[0].business_id !== req.dbStaff.business_id) {
         return res.status(403).json({ error: 'You cannot force sign-out accounts outside your business.' });
+      }
+      if (req.dbStaff.role_name === 'manager' && req.dbStaff.branch_id && targetRows[0].branch_id !== req.dbStaff.branch_id) {
+        return res.status(403).json({ error: 'You cannot force sign-out staff outside your branch.' });
       }
     }
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

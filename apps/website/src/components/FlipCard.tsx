@@ -39,7 +39,7 @@ const gradientPresets = [
 
 // Helper to get org identifier (slug or code)
 const getOrgIdentifier = (org: Organization): string => {
-  return org.slug || (org as any).code || '';
+  return org.slug || org.code || '';
 };
 
 export const FlipCard = ({ organization, onFlipChange }: FlipCardProps) => {

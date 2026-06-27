@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Q ME NOW — Performance Index Migration 001
 -- Adds indexes identified during stress testing and load analysis.
--- Run AFTER schema.sql and seed.sql.
+-- Run AFTER schema.sql.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 USE qmenow;

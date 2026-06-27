@@ -4,15 +4,9 @@
     "slug": "qme-now",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./src/assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0a0a0a"
-    },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.qmenow.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Q ME NOW uses your location to estimate when you should leave for your queue.",
@@ -20,10 +14,6 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#0a0a0a"
-      },
       "package": "com.qmenow.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
@@ -32,11 +22,9 @@
       ]
     },
     "plugins": [
-      "expo-router",
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/notification-icon.png",
           "color": "#0a0a0a",
           "sounds": []
         }
@@ -44,10 +32,12 @@
       "expo-location"
     ],
     "extra": {
-      "supabaseUrl": "",
-      "supabaseAnonKey": "",
+      "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",
+      "supabaseAnonKey": "sb_publishable_DlwXt8oEDcFNrYFmOMsxGA_z7qU9cXA",
       "apiUrl": "http://localhost:4000/api",
-      "eas": { "projectId": "" }
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

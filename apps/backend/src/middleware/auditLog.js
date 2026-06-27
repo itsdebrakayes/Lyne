@@ -14,7 +14,7 @@
  *   id, actor_id, actor_type, action, resource_type, resource_id,
  *   ip_address, user_agent, created_at
  */
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 
 /**
@@ -32,15 +32,16 @@ function auditLog(action, resourceType, getResourceId) {
       try {
         const actorId   = req.dbStaff?.id || req.dbUser?.id || null;
         const actorType = req.dbStaff ? 'staff' : (req.dbUser ? 'user' : 'anonymous');
+        const businessId = req.dbStaff?.business_id || req.body?.business_id || req.query?.business_id || null;
         const resourceId = getResourceId ? getResourceId(req) : (req.params.id || null);
         const ipAddress  = req.ip || req.connection?.remoteAddress || null;
         const userAgent  = req.headers['user-agent'] || null;
 
         await pool.query(
           `INSERT INTO audit_logs
-             (id, actor_id, actor_type, action, resource_type, resource_id, ip_address, user_agent)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [uuidv4(), actorId, actorType, action, resourceType, resourceId, ipAddress, userAgent]
+             (id, actor_id, actor_type, business_id, action, resource_type, resource_id, ip_address, user_agent)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [uuidv4(), actorId, actorType, businessId, action, resourceType, resourceId, ipAddress, userAgent]
         );
       } catch (err) {
         // Never let audit logging break the main request

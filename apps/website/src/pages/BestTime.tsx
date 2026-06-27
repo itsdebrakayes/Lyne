@@ -2,13 +2,14 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, TrendingDown, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Clock, TrendingDown, CheckCircle, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import api from '@/lib/apiClient';
 import { useOrganization } from '@/hooks/useOrganizations';
 import { cn } from '@/lib/utils';
 import { useBranches } from '@/hooks/useBranches';
+import { NoAnalyticsEmpty } from '@/components/EmptyState';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,13 @@ interface CongestionData {
   hour: number;
   level: 'low' | 'moderate' | 'high';
   avgWait: number;
+}
+
+interface PredictionRow {
+  insight_data: {
+    cells?: Array<{ dow: number; hour: number; avg_wait_minutes: number }>;
+    recommendation?: string;
+  };
 }
 
 export default function BestTime() {
@@ -56,21 +64,17 @@ export default function BestTime() {
         ...(selectedBranchId ? { branch_id: selectedBranchId } : {}),
       }).toString();
 
-      const cells = await api.get<{ dow: number; hour: number; visit_count: number; avg_wait: number }[]>(
-        `/analytics/heatmap?${qs}`
-      );
-
-      const heatmap: CongestionData[] = [];
-      for (const day of [0, 1, 2, 3, 4, 5, 6]) {
-        for (const hour of HOURS) {
-          const cell = cells.find(c => c.dow === day && c.hour === hour);
-          const avgWait = cell ? Math.round(cell.avg_wait) : 0;
-          const level = avgWait < 10 ? 'low' : avgWait < 20 ? 'moderate' : 'high';
-          heatmap.push({ day, hour, level, avgWait });
-        }
-      }
-
-      return { heatmap };
+      const [heatmapRows, recommendationRows] = await Promise.all([
+        api.get<PredictionRow[]>(`/predictions/public?${qs}&type=heatmap_data`, false),
+        api.get<PredictionRow[]>(`/predictions/public?${qs}&type=best_time_to_visit`, false),
+      ]);
+      const cells = heatmapRows[0]?.insight_data?.cells || [];
+      const heatmap: CongestionData[] = cells.map(cell => {
+        const avgWait = Math.round(Number(cell.avg_wait_minutes || 0));
+        const level = avgWait < 10 ? 'low' : avgWait < 20 ? 'moderate' : 'high';
+        return { day: Number(cell.dow), hour: Number(cell.hour), level, avgWait };
+      });
+      return { heatmap, recommendation: recommendationRows[0]?.insight_data?.recommendation };
     },
     enabled: !!org?.id,
   });
@@ -176,6 +180,8 @@ export default function BestTime() {
           </p>
         </div>
 
+        {congestionData?.recommendation && <div className="glass rounded-xl p-6"><p className="text-foreground font-medium">{congestionData.recommendation}</p></div>}
+
         {/* Recommendations */}
         {bestTimes.length > 0 && (
           <div className="glass rounded-xl p-6">
@@ -203,7 +209,7 @@ export default function BestTime() {
         )}
 
         {/* Congestion Heatmap */}
-        <div className="glass rounded-xl p-6">
+        {congestionData?.heatmap.length ? <div className="glass rounded-xl p-6">
           <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5" />
             Weekly Congestion Map
@@ -269,33 +275,7 @@ export default function BestTime() {
               <span className="text-sm text-muted-foreground">High (&gt;20 min)</span>
             </div>
           </div>
-        </div>
-
-        {/* Tips */}
-        <div className="glass rounded-xl p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-primary" />
-            Tips for a Faster Visit
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <CheckCircle className="h-5 w-5 text-status-light flex-shrink-0 mt-0.5" />
-              <span>Visit during off-peak hours, typically mid-morning (10-11 AM) or early afternoon (2-3 PM)</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle className="h-5 w-5 text-status-light flex-shrink-0 mt-0.5" />
-              <span>Avoid Mondays and the first hour after opening as these tend to be busiest</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle className="h-5 w-5 text-status-light flex-shrink-0 mt-0.5" />
-              <span>Have all required documents ready before arriving to speed up your service</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle className="h-5 w-5 text-status-light flex-shrink-0 mt-0.5" />
-              <span>Use the virtual queue to join remotely and arrive when it's your turn</span>
-            </li>
-          </ul>
-        </div>
+        </div> : <div className="glass rounded-xl"><NoAnalyticsEmpty /></div>}
       </main>
     </div>
   );

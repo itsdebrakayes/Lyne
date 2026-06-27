@@ -24,7 +24,7 @@
  */
 const router = require('express').Router();
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -57,7 +57,7 @@ function createVerificationCode() {
 }
 
 // POST /api/tickets — Join a queue
-router.post('/', requireAuth, requireQueueAccess, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const parsed = joinQueueSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.errors[0].message });
@@ -145,7 +145,9 @@ router.post('/', requireAuth, requireQueueAccess, async (req, res) => {
 router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireQueueAccess, async (req, res) => {
   try {
     const [tickets] = await pool.query(
-      `SELECT t.*, u.full_name AS user_name, u.phone AS user_phone
+      `SELECT t.id, t.queue_id, t.user_id, t.ticket_number, t.position, t.status,
+              t.estimated_wait_minutes, t.joined_at, t.called_at, t.started_serving_at,
+              u.full_name AS user_name, u.phone AS user_phone
        FROM queue_tickets t
        LEFT JOIN users u ON t.user_id = u.id
        WHERE t.queue_id = ?
@@ -161,7 +163,7 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
 
 // GET /api/tickets/:id/position — Customer position among WAITING only
 // MUST be declared before /:id
-router.get('/:id/position', async (req, res) => {
+router.get('/:id/position', requireAuth, requireTicketAccess, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT t.id, t.status, t.queue_id,
@@ -198,7 +200,7 @@ router.get('/:id/position', async (req, res) => {
 });
 
 // GET /api/tickets/:id — Get ticket status
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT t.*,
@@ -403,9 +405,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
       const [avgRows] = await conn.query(
         `SELECT AVG(service_time_minutes) AS avg_svc
-         FROM wait_time_records
-         WHERE queue_id = ? AND status = 'served'
-         ORDER BY created_at DESC LIMIT 20`,
+         FROM wait_time_records w
+         JOIN queue_tickets recent_ticket ON recent_ticket.id = w.ticket_id
+         WHERE recent_ticket.queue_id = ? AND w.status = 'served'
+         ORDER BY w.created_at DESC LIMIT 20`,
         [ticket.queue_id]
       );
       const [svcBase] = await conn.query(

@@ -49,6 +49,27 @@ function assertBranchAccess(req, branchId) {
   return !req.dbStaff.branch_id || req.dbStaff.branch_id === branchId;
 }
 
+async function assertLineStaffQueueAccess(req, queue) {
+  if (roleName(req) !== 'line_staff') return true;
+  if (!req.dbStaff || !queue?.service_id || !queue?.branch_id) return false;
+  if (req.dbStaff.assigned_service_id === queue.service_id && req.dbStaff.branch_id === queue.branch_id) {
+    return true;
+  }
+  const [assignments] = await pool.query(
+    `SELECT 1
+     FROM staff_assignments sa
+     JOIN counters c ON sa.counter_id = c.id
+     WHERE sa.staff_id = ?
+       AND sa.assignment_date = CURDATE()
+       AND c.branch_id = ?
+       AND c.service_id = ?
+       AND c.is_active = TRUE
+     LIMIT 1`,
+    [req.dbStaff.id, queue.branch_id, queue.service_id]
+  );
+  return assignments.length > 0;
+}
+
 function requireBusinessAccess(source = 'query') {
   return (req, res, next) => {
     const businessId = req[source]?.business_id;
@@ -80,7 +101,7 @@ async function requireQueueAccess(req, res, next) {
     const queueId = req.query.queue_id || req.body.queue_id || req.params.queue_id || req.params.id;
     if (!queueId) return next();
     const [rows] = await pool.query(
-      `SELECT b.business_id, q.branch_id
+      `SELECT b.business_id, q.branch_id, q.service_id
        FROM queues q
        JOIN branches b ON q.branch_id = b.id
        WHERE q.id = ?
@@ -88,7 +109,9 @@ async function requireQueueAccess(req, res, next) {
       [queueId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Queue not found.' });
-    if (!assertBusinessAccess(req, rows[0].business_id) || !assertBranchAccess(req, rows[0].branch_id)) {
+    if (!assertBusinessAccess(req, rows[0].business_id)
+      || !assertBranchAccess(req, rows[0].branch_id)
+      || !await assertLineStaffQueueAccess(req, rows[0])) {
       return res.status(403).json({ error: 'You do not have access to this queue.' });
     }
     next();
@@ -103,7 +126,7 @@ async function requireTicketAccess(req, res, next) {
     const ticketId = req.query.ticket_id || req.body.ticket_id || req.params.ticket_id || req.params.id;
     if (!ticketId) return next();
     const [rows] = await pool.query(
-      `SELECT t.user_id, b.business_id, q.branch_id
+      `SELECT t.user_id, b.business_id, q.branch_id, q.service_id
        FROM queue_tickets t
        JOIN queues q ON t.queue_id = q.id
        JOIN branches b ON q.branch_id = b.id
@@ -120,7 +143,9 @@ async function requireTicketAccess(req, res, next) {
       return next();
     }
 
-    if (!assertBusinessAccess(req, rows[0].business_id) || !assertBranchAccess(req, rows[0].branch_id)) {
+    if (!assertBusinessAccess(req, rows[0].business_id)
+      || !assertBranchAccess(req, rows[0].branch_id)
+      || !await assertLineStaffQueueAccess(req, rows[0])) {
       return res.status(403).json({ error: 'You do not have access to this ticket.' });
     }
     next();
@@ -152,6 +177,7 @@ module.exports = {
   requireTicketAccess,
   assertBusinessAccess,
   assertBranchAccess,
+  assertLineStaffQueueAccess,
   scopedBusinessId,
   scopedBranchId,
   roleName,

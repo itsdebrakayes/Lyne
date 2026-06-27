@@ -1,96 +1,47 @@
 # Q ME NOW — MySQL Database
 
-This folder contains the complete MySQL database schema, seed data, and CSV export queries for the Q ME NOW platform.
-
----
+This folder contains the production MySQL schema, migrations, and analytics export reference queries.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `schema.sql` | Full CREATE TABLE statements for all 19 tables |
-| `seed.sql` | Demo data: TAJ, NHT, PICA + 90 days of synthetic queue history |
-| `analytics_exports.sql` | SELECT … INTO OUTFILE queries to produce CSV files for the Jupyter model |
-| `README.md` | This file |
+| `schema.sql` | Full production schema |
+| `migrations/` | Incremental security, performance, pipeline, and audit migrations |
+| `analytics_exports.sql` | Reference CSV export queries for model development |
+| `README.md` | Database setup notes |
 
----
+Demo seed data is not stored on production `main`. Use the `demo` branch for demo businesses and synthetic activity.
 
-## Setup
+## Fresh Production Setup
 
-### 1. Create the database and schema
+For local Docker startup, `docker-compose.yml` mounts `schema.sql` and all migrations into MySQL automatically on first database creation.
 
-```bash
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qme_now CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p qme_now < schema.sql
-```
-
-### 2. Load seed data
+For manual setup:
 
 ```bash
-mysql -u root -p qme_now < seed.sql
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qmenow CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p qmenow < schema.sql
+mysql -u root -p qmenow < migrations/001_performance_indexes.sql
+mysql -u root -p qmenow < migrations/002_security_and_ocr.sql
+mysql -u root -p qmenow < migrations/003_sessions_and_token_security.sql
+mysql -u root -p qmenow < migrations/004_pipeline_and_tenant_hardening.sql
+mysql -u root -p qmenow < migrations/005_audit_tenant_scope.sql
 ```
 
-### 3. Verify
+After schema creation, onboard the first company and first authorized admin account through a controlled onboarding script or support workflow. Do not seed demo companies into production.
 
-```bash
-mysql -u root -p qme_now -e "SHOW TABLES;"
-```
+## Core Tables
 
-Expected output: 19 tables.
+- `businesses`, `branches`, `services`, `counters`
+- `users`, `roles`, `staff`, `staff_assignments`
+- `queues`, `queue_tickets`, `queue_events`
+- `wait_time_records`, `analytics_summaries`, `predictive_results`
+- `saved_businesses`, `visit_history`, `notifications`
+- `session_events`, `revoked_tokens`, `audit_logs`, `pipeline_runs`
 
----
+## Analytics Flow
 
-## Schema Overview
+The production worker exports tenant-scoped operational data from MySQL, runs the model notebook, and imports standardized insights back through the backend API.
 
-```
-subscription_tiers          — Feature flags per tier (Basic → Executive)
-businesses                  — Top-level organizations
-branches                    — Physical locations
-services                    — Service types with ticket prefixes
-counters                    — Physical service windows
-users                       — End-user clients
-roles                       — line_staff / manager / executive
-staff                       — Employees (auto-generated staff codes)
-staff_assignments           — Daily counter-to-staff shift assignments
-intake_forms                — Dynamic JSON form data at queue join
-queues                      — Per-service, per-branch, per-day queues
-queue_tickets               — Core operational table
-queue_events                — Immutable audit log of every status change
-wait_time_records           — Denormalized historical data (ML input)
-analytics_summaries         — Pre-aggregated daily metrics
-predictive_results          — JSON blobs written back by Jupyter
-saved_businesses            — User favourites (mobile app)
-visit_history               — Denormalized user-facing visit feed
-notifications               — Push/SMS notification log
-```
-
----
-
-## Exporting CSV for the Jupyter Model
-
-Ensure `secure_file_priv` is set to `/var/lib/mysql-files/` in `my.cnf`, then run:
-
-```bash
-mysql -u root -p qme_now < analytics_exports.sql
-```
-
-This produces five CSV files:
-- `queue_history.csv` — Full visit-level data
-- `service_performance.csv` — Aggregated per-service metrics
-- `branch_performance.csv` — Daily branch-level aggregates
-- `staff_activity.csv` — Per-staff service counts
-- `prediction_inputs.csv` — Full ML feature set
-
-Copy these to `../analytics/data/` before running the Jupyter notebooks.
-
----
-
-## Replacing the Previous Supabase/PostgreSQL Setup
-
-The `supabase/` folder at the root of the repository is now **deprecated**. The Supabase project is retained **only for authentication** (login/signup). All application data has moved to this MySQL schema.
-
-The migration path:
-1. Run `schema.sql` on your MySQL server.
-2. Run `seed.sql` for demo data.
-3. Configure the backend `.env` with your MySQL credentials.
-4. The backend API handles all data reads/writes; Supabase Auth issues JWTs that the backend verifies.
+Dashboards should read analytics from backend routes only. They should not read local CSV or notebook files.

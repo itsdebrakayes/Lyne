@@ -12,8 +12,6 @@ const {
   publicQueueLimiter,
   generalLimiter,
 } = require('./middleware/rateLimiter');
-const { requireAuth }    = require('./middleware/auth');
-const { sessionLimiter } = require('./middleware/sessionLimiter');
 const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
 
 const app = express();
@@ -29,7 +27,8 @@ app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(cors({
   origin(origin, callback) {
-    if (!origin && process.env.NODE_ENV !== 'production') return callback(null, true);
+    // Native mobile clients do not send a browser Origin header.
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) return callback(null, true);
     return callback(new Error('Origin not allowed by CORS.'));
@@ -42,12 +41,6 @@ app.use(express.json({ limit: '1mb' }));
 
 // Global rate limiter
 app.use(generalLimiter);
-
-// Session limiter — applied to all authenticated routes.
-// Must run after requireAuth so req.supabaseUser is populated.
-// We apply it inline per-route group rather than globally so unauthenticated
-// public routes (e.g. /api/queues/live) are unaffected.
-const withSession = [requireAuth, sessionLimiter];
 
 // Routes with per-endpoint rate limits
 app.use('/api/auth/sync-user', authLimiter);
@@ -66,6 +59,7 @@ app.use('/api/tickets',        queueJoinLimiter, require('./routes/tickets'));
 
 app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));
+app.use('/api/counters',       require('./routes/counters'));
 app.use('/api/analytics',      require('./routes/analytics'));
 app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));

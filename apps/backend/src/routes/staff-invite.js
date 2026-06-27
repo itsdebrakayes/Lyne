@@ -12,7 +12,7 @@
  */
 const router  = require('express').Router();
 const { z }   = require('zod');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const crypto  = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const pool    = require('../db/pool');

@@ -20,6 +20,7 @@
 const router = require('express').Router();
 const pool   = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireQueueAccess } = require('../middleware/tenantAccess');
 
 // In-memory subscriber registry: queue_id → Set<res>
 const staffSubscribers   = new Map();
@@ -38,6 +39,17 @@ function sendEvent(res, type, data) {
   try {
     res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
   } catch { /* client disconnected */ }
+}
+
+function toPublicTicketUpdate(ticket) {
+  if (!ticket) return null;
+  return {
+    id: ticket.id,
+    ticket_number: ticket.ticket_number,
+    position: ticket.position,
+    status: ticket.status,
+    estimated_wait_minutes: ticket.estimated_wait_minutes,
+  };
 }
 
 async function fetchQueueSnapshot(queueId, includeNames = false) {
@@ -109,6 +121,7 @@ router.get('/queue/:queue_id', async (req, res) => {
 router.get('/queue/:queue_id/staff',
   requireAuth,
   requireRole('line_staff', 'manager', 'executive'),
+  requireQueueAccess,
   async (req, res) => {
     const { queue_id } = req.params;
 
@@ -154,7 +167,7 @@ async function broadcastQueueUpdate(queueId, changedTicket = null) {
 
     if (hasPublic && publicSnapshot) {
       for (const res of publicSubscribers.get(queueId)) {
-        if (changedTicket) sendEvent(res, 'ticket_update', changedTicket);
+        if (changedTicket) sendEvent(res, 'ticket_update', toPublicTicketUpdate(changedTicket));
         sendEvent(res, 'queue_state', publicSnapshot);
       }
     }
@@ -171,3 +184,4 @@ async function broadcastQueueUpdate(queueId, changedTicket = null) {
 
 module.exports = router;
 module.exports.broadcastQueueUpdate = broadcastQueueUpdate;
+module.exports.toPublicTicketUpdate = toPublicTicketUpdate;

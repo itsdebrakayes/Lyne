@@ -84,12 +84,6 @@ const JoinQueue = () => {
     return `${value.slice(0, 3)}${'*'.repeat(value.length - 5)}${value.slice(-2)}`;
   };
 
-  const generateTicketNumber = (serviceName: string) => {
-    const prefix = serviceName.substring(0, 3).toUpperCase();
-    const num = Math.floor(Math.random() * 999) + 1;
-    return `${prefix}-A${num.toString().padStart(3, '0')}`;
-  };
-
   const joinQueue = async () => {
     if (!selectedService || !organization) {
       toast.error('Please select a service');
@@ -107,8 +101,8 @@ const JoinQueue = () => {
         intake_data: {},
       });
       return ticket;
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to join queue');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to join queue');
       return null;
     }
   };
@@ -134,8 +128,8 @@ const JoinQueue = () => {
         toast.success('Successfully joined the queue!');
         navigate(`/client/${slug}/ticket?line=${lineData.id}`);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -189,8 +183,8 @@ const JoinQueue = () => {
         toast.success('Account created! You\'re now in the queue.');
         navigate(`/client/${slug}/ticket?line=${lineData.id}`);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Signup failed');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Signup failed');
     } finally {
       setIsLoading(false);
     }
