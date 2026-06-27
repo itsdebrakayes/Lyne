@@ -114,22 +114,6 @@
   overflow: hidden;
 }
 .v2-page * { box-sizing: border-box; letter-spacing: 0; }
-.v2-role-badge {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #fff;
-  padding: 10px 14px;
-  border-radius: 14px;
-  box-shadow: 0 2px 14px rgba(20,30,60,.08);
-}
-.v2-role-badge span {
-  font-size: 11px;
-  font-weight: 800;
-  color: #9aa3b5;
-  text-transform: uppercase;
-}
-.v2-role-badge b { color: #15231b; font-size: 13px; font-weight: 900; }
 .v2-window {
   width: 100vw;
   height: 100vh;
@@ -171,17 +155,6 @@
 }
 .v2-sidebar nav button.active { background: #e9f5ee; color: #1f9d57; }
 .manager .v2-sidebar nav button.active { background: #edf2ff; color: #2f5cf0; }
-.v2-download {
-  margin-top: auto;
-  border-radius: 20px;
-  padding: 18px;
-  color: #fff;
-  display: grid;
-  gap: 7px;
-  overflow: hidden;
-}
-.v2-download b { font-size: 15px; line-height: 1.25; }
-.v2-download small { color: rgba(255,255,255,.75); font-weight: 600; }
 .v2-main { flex: 1; overflow: auto; padding-bottom: 36px; }
 .v2-topbar {
   min-height: 78px;
@@ -257,6 +230,7 @@
   padding: 12px 20px;
 }
 .v2-primary.blue { background: #2f5cf0; }
+.v2-primary.dark { background: #18231d; display: inline-flex; align-items: center; gap: 8px; }
 .v2-plus { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; background: linear-gradient(135deg,#3ed877,#22c25e); }
 .v2-title-actions { display: flex; gap: 8px; }
 .v2-plus.report { background: #18231d; }
@@ -306,6 +280,9 @@
 .v2-grid { display: grid; gap: 16px; margin: 0 28px 18px; }
 .v2-grid.four { grid-template-columns: repeat(4, 1fr); }
 .v2-grid.two { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+.v2-main > .v2-card,
+.v2-section-card { margin: 0 28px 18px; }
+.v2-section-card > .v2-card { margin: 0; }
 .v2-kpi, .v2-card {
   background: #fff;
   border-radius: 22px;
@@ -384,6 +361,25 @@
 .v2-row b { color: #15231b; font-weight: 900; }
 .v2-row em { border-radius: 9px; padding: 6px 11px; background: #e9f5ee; color: #1f9d57; font-size: 11.5px; font-style: normal; font-weight: 900; }
 .v2-row.ticket > b { width: 50px; color: #1f9d57; }
+.v2-meter-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(110px, 28%) auto;
+  gap: 16px;
+}
+.v2-meter-row span { min-width: 0; }
+.v2-meter {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #edf3ee;
+}
+.v2-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,#36cf6e,#169b4d);
+}
+.manager .v2-meter i { background: linear-gradient(90deg,#8aa4ff,#2f5cf0); }
 .v2-empty-state {
   min-height: 120px;
   border: 1px dashed rgba(15, 23, 42, 0.18);
@@ -448,6 +444,14 @@
 }
 .v2-right-rail .ontime b { color: #fff; font-size: 44px; }
 .v2-right-rail .ontime small { color: rgba(255,255,255,.86); }
+.v2-report-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.v2-report-card h3 { margin-bottom: 4px; }
+.v2-report-actions { display: flex; align-items: center; gap: 10px; }
 
 @media (max-width: 1100px) {
   .v2-grid.four { grid-template-columns: repeat(2, 1fr); }
@@ -465,12 +469,12 @@
     padding: 16px;
   }
   .v2-sidebar nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .v2-download { display: none; }
   .v2-main { overflow: visible; }
   .v2-topbar { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
-  .v2-role-badge { order: 2; width: 100%; justify-content: space-between; }
   .v2-title-row { padding: 8px 16px 18px; flex-direction: column; }
   .v2-grid { margin: 0 16px 16px; }
+  .v2-main > .v2-card,
+  .v2-section-card { margin: 0 16px 16px; }
   .v2-grid.four { grid-template-columns: 1fr; }
   .v2-card, .v2-kpi { border-radius: 18px; padding: 18px; }
   .manager-alert { margin: 0 16px 16px; }
@@ -480,4 +484,7 @@
   .staff-hero strong { font-size: 48px; }
   .staff-actions { grid-template-columns: repeat(2, 1fr); }
   .staff-verification { grid-template-columns: 1fr; }
+  .v2-meter-row { grid-template-columns: 1fr; align-items: start; padding: 14px 0; }
+  .v2-report-card,
+  .v2-report-actions { align-items: stretch; flex-direction: column; }
 }
