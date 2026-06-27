@@ -7,6 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin } from "lucide-react";
 
 const JoinUs = () => {
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitted(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
       <Navbar />
@@ -26,7 +33,7 @@ const JoinUs = () => {
           <div className="grid md:grid-cols-2 gap-8">
             {/* Contact Form */}
             <GlassCard className="p-8 animate-slide-up">
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Name</label>
                   <Input 
@@ -66,8 +73,13 @@ const JoinUs = () => {
                   type="submit" 
                   className="w-full bg-primary hover:bg-primary-dark text-lg py-6 rounded-full"
                 >
-                  Send Message
+                  Request Quote
                 </Button>
+                {submitted && (
+                  <p className="text-sm text-muted-foreground">
+                    Thanks. This demo form is ready for a quote workflow when the public marketing site goes live.
+                  </p>
+                )}
               </form>
             </GlassCard>
 

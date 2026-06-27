@@ -15,7 +15,6 @@ const GOLD = '#CA8A04';
 const GOLD_LIGHT = '#D4AF37';
 const BG = '#080706';
 const EASE_LUX = [0.22, 1, 0.36, 1] as const;
-const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
 
 // ─── Morphing Golden Sphere ──────────────────────────────────────────────────
 function GoldenSphere() {
@@ -299,14 +298,14 @@ export default function MarketingHome() {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
             className="hidden md:flex items-center gap-3">
-            <a href={ADMIN_URL} className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
+            <a href="#download" className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
               style={{ color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#F5F0E8')}
               onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.35)')}>
-              Admin
+              Download
             </a>
-            <a href="/explore" className="btn-gold text-xs px-5 py-2.5 rounded-lg">
-              Join a Queue
+            <a href="/join-us" className="btn-gold text-xs px-5 py-2.5 rounded-lg">
+              Request a Quote
             </a>
           </motion.div>
 
@@ -322,12 +321,12 @@ export default function MarketingHome() {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             className="fixed top-16 inset-x-0 z-40 px-5 pb-4 space-y-3"
             style={{ background: 'rgba(8,7,6,0.97)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
-            {['Features', 'How it Works', 'Download', 'Admin Login'].map(l => (
-              <a key={l} href="#" onClick={() => setMenuOpen(false)}
+            {['Features', 'How it Works', 'Download'].map(l => (
+              <a key={l} href={`#${l.toLowerCase().replace(/ /g, '-')}`} onClick={() => setMenuOpen(false)}
                 className="block py-2.5 text-xs font-semibold uppercase tracking-widest"
                 style={{ color: 'rgba(245,240,232,0.5)', letterSpacing: '0.1em' }}>{l}</a>
             ))}
-            <a href="/explore" className="btn-gold block text-center text-xs px-5 py-3 rounded-lg">Join a Queue</a>
+            <a href="/join-us" className="btn-gold block text-center text-xs px-5 py-3 rounded-lg">Request a Quote</a>
           </motion.div>
         )}
       </AnimatePresence>
@@ -373,15 +372,15 @@ export default function MarketingHome() {
 
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.38, ease: EASE_LUX }}
               className="flex flex-wrap gap-3 mb-10">
-              <a href="/explore" className="btn-gold text-xs px-7 py-3.5 rounded-xl flex items-center gap-2">
-                Join a Queue <ChevronRight size={14} />
+              <a href="#download" className="btn-gold text-xs px-7 py-3.5 rounded-xl flex items-center gap-2">
+                Get the App <ChevronRight size={14} />
               </a>
-              <a href={ADMIN_URL}
+              <a href="/join-us"
                 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest px-7 py-3.5 rounded-xl transition-all duration-400"
                 style={{ border: '1px solid rgba(212,175,55,0.2)', color: 'rgba(245,240,232,0.55)', letterSpacing: '0.1em' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)'; e.currentTarget.style.color = GOLD_LIGHT; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.2)'; e.currentTarget.style.color = 'rgba(245,240,232,0.55)'; }}>
-                <Monitor size={14} /> Admin Access
+                <Mail size={14} /> Request a Quote
               </a>
             </motion.div>
 
@@ -603,8 +602,8 @@ export default function MarketingHome() {
                       <span className="text-xs" style={{ color: 'rgba(245,240,232,0.55)' }}>{f}</span>
                     </div>
                   ))}
-                  <a href={ADMIN_URL} className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-8">
-                    <Monitor size={13} /> Access Admin
+                  <a href="/join-us" className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-8">
+                    <Mail size={13} /> Contact Sales
                   </a>
                 </div>
               </div>

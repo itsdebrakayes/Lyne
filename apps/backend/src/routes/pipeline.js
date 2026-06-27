@@ -42,15 +42,29 @@ router.get('/status', requireAuth, requireStaffRole('manager', 'executive'), req
       [businessId]
     );
     const [freshness] = await pool.query(
-      `SELECT insight_type,
-              MAX(generated_at) AS latest_generated_at,
-              MAX(stale_after) AS stale_after,
-              SUM(stale_after IS NOT NULL AND stale_after < NOW()) AS stale_count
-       FROM predictive_results
-       WHERE business_id = ?
-       GROUP BY insight_type
-       ORDER BY insight_type`,
-      [businessId]
+      `SELECT latest.insight_type,
+              MAX(latest.generated_at) AS latest_generated_at,
+              MAX(latest.stale_after) AS stale_after,
+              SUM(
+                CASE
+                  WHEN latest.stale_after IS NOT NULL THEN latest.stale_after < NOW()
+                  WHEN TIMESTAMPDIFF(MINUTE, latest.generated_at, NOW()) > 30 THEN TRUE
+                  ELSE FALSE
+                END
+              ) AS stale_count
+       FROM predictive_results latest
+       JOIN (
+         SELECT insight_type, MAX(generated_at) AS latest_generated_at
+         FROM predictive_results
+         WHERE business_id = ?
+         GROUP BY insight_type
+       ) newest
+         ON newest.insight_type = latest.insight_type
+        AND newest.latest_generated_at = latest.generated_at
+       WHERE latest.business_id = ?
+       GROUP BY latest.insight_type
+       ORDER BY latest.insight_type`,
+      [businessId, businessId]
     );
     res.json({
       business_id: businessId,
@@ -58,7 +72,7 @@ router.get('/status', requireAuth, requireStaffRole('manager', 'executive'), req
       recent_runs: runs,
       insights: freshness.map(row => ({
         ...row,
-        is_stale: Boolean(row.stale_count),
+        is_stale: Number(row.stale_count || 0) > 0,
       })),
     });
   } catch (err) {

@@ -6,7 +6,7 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Home, Info, Users, Building2, Shield, Menu, X } from 'lucide-react';
+import { Moon, Sun, Home, Info, Users, Menu, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -15,8 +15,6 @@ const navItems = [
   { name: 'Home',   path: '/',        icon: Home },
   { name: 'About',  path: '/about',   icon: Info },
   { name: 'Join Us',path: '/join-us', icon: Users },
-  { name: 'TAJ',    path: '/taj',     icon: Building2 },
-  { name: 'Admin',  path: '/admin',   icon: Shield },
 ];
 
 export const Navbar = () => {
@@ -34,8 +32,7 @@ export const Navbar = () => {
   // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  const isActive = (path: string) =>
-    path === '/admin' ? location.pathname.startsWith('/admin') : location.pathname === path;
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
