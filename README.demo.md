@@ -16,7 +16,10 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 The demo overlay loads:
 
 - `database/seed.sql`
-- `database/demo_data.sql`
+
+`database/demo_data.sql` is retained as an older prototype fixture, but it is
+not auto-loaded because the production schema has moved on. Keep the maintained
+demo data in `database/seed.sql`.
 
 Because MySQL only runs init scripts when the database volume is first created, reset the local demo database volume if you need to reload seed data:
 

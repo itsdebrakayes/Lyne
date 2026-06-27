@@ -21,7 +21,7 @@ INSERT INTO subscription_tiers (id, name, label, description, can_view_analytics
 -- ROLES
 -- =============================================================
 
-INSERT INTO roles (id, name, label, description) VALUES
+INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-staff-001',   'line_staff', 'Line Staff',   'Handles a single service counter; calls and completes tickets.'),
 ('role-mgr-001',     'manager',    'Manager',      'Oversees all queues at a branch; assigns staff to counters.'),
 ('role-exec-001',    'executive',  'Executive',    'Cross-branch analytics and reporting for the whole organization.');
@@ -38,7 +38,7 @@ INSERT INTO businesses (id, name, slug, description, logo_url, subscription_tier
 
 -- Branches
 INSERT INTO branches (id, business_id, name, address, city, parish, phone, is_main_branch, is_active) VALUES
-('br-taj-kgn', 'biz-taj-001', 'Kingston — Half Way Tree',  '2 Constant Spring Road, Kingston 10',    'Kingston',   'Kingston',       '876-922-3470', TRUE,  TRUE),
+('br-taj-kgn', 'biz-taj-001', 'Kingston - Half Way Tree',  '2 Constant Spring Road, Kingston 10',    'Kingston',   'Kingston',       '876-922-3470', TRUE,  TRUE),
 ('br-taj-mob', 'biz-taj-001', 'Montego Bay',               '31 Market Street, Montego Bay',           'Montego Bay','St. James',      '876-952-5002', FALSE, TRUE),
 ('br-taj-man', 'biz-taj-001', 'Mandeville',                '4 Ward Avenue, Mandeville',               'Mandeville', 'Manchester',     '876-962-2420', FALSE, TRUE),
 ('br-taj-por', 'biz-taj-001', 'Portmore',                  'Portmore Mall, Portmore',                 'Portmore',   'St. Catherine',  '876-988-1234', FALSE, TRUE);
@@ -54,12 +54,12 @@ INSERT INTO services (id, business_id, name, description, ticket_prefix, base_av
 
 -- Counters (Kingston branch — 6 counters)
 INSERT INTO counters (id, branch_id, service_id, counter_number, label, is_active) VALUES
-('ctr-taj-kgn-1', 'br-taj-kgn', 'svc-taj-trn',  1, 'Window 1 — TRN',        TRUE),
-('ctr-taj-kgn-2', 'br-taj-kgn', 'svc-taj-trn',  2, 'Window 2 — TRN',        TRUE),
-('ctr-taj-kgn-3', 'br-taj-kgn', 'svc-taj-pay',  3, 'Window 3 — Payments',   TRUE),
-('ctr-taj-kgn-4', 'br-taj-kgn', 'svc-taj-inc',  4, 'Window 4 — Income Tax', TRUE),
-('ctr-taj-kgn-5', 'br-taj-kgn', 'svc-taj-gct',  5, 'Window 5 — GCT',        TRUE),
-('ctr-taj-kgn-6', 'br-taj-kgn', 'svc-taj-enq',  6, 'Window 6 — Enquiries',  TRUE);
+('ctr-taj-kgn-1', 'br-taj-kgn', 'svc-taj-trn',  1, 'Window 1 - TRN',        TRUE),
+('ctr-taj-kgn-2', 'br-taj-kgn', 'svc-taj-trn',  2, 'Window 2 - TRN',        TRUE),
+('ctr-taj-kgn-3', 'br-taj-kgn', 'svc-taj-pay',  3, 'Window 3 - Payments',   TRUE),
+('ctr-taj-kgn-4', 'br-taj-kgn', 'svc-taj-inc',  4, 'Window 4 - Income Tax', TRUE),
+('ctr-taj-kgn-5', 'br-taj-kgn', 'svc-taj-gct',  5, 'Window 5 - GCT',        TRUE),
+('ctr-taj-kgn-6', 'br-taj-kgn', 'svc-taj-enq',  6, 'Window 6 - Enquiries',  TRUE);
 
 -- Staff
 INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active) VALUES
@@ -89,7 +89,7 @@ INSERT INTO businesses (id, name, slug, description, logo_url, subscription_tier
 
 -- Branches
 INSERT INTO branches (id, business_id, name, address, city, parish, phone, is_main_branch, is_active) VALUES
-('br-nht-kgn', 'biz-nht-001', 'Kingston — Head Office', '4 Park Boulevard, Kingston 5', 'Kingston',   'Kingston',  '876-929-6500', TRUE,  TRUE),
+('br-nht-kgn', 'biz-nht-001', 'Kingston - Head Office', '4 Park Boulevard, Kingston 5', 'Kingston',   'Kingston',  '876-929-6500', TRUE,  TRUE),
 ('br-nht-mob', 'biz-nht-001', 'Montego Bay',            '23 Barnett Street, Montego Bay','Montego Bay','St. James', '876-952-3800', FALSE, TRUE),
 ('br-nht-may', 'biz-nht-001', 'May Pen',                'Main Street, May Pen',          'May Pen',    'Clarendon', '876-986-2345', FALSE, TRUE);
 
@@ -102,10 +102,10 @@ INSERT INTO services (id, business_id, name, description, ticket_prefix, base_av
 
 -- Counters (Kingston branch — 4 counters)
 INSERT INTO counters (id, branch_id, service_id, counter_number, label, is_active) VALUES
-('ctr-nht-kgn-1', 'br-nht-kgn', 'svc-nht-ben', 1, 'Counter 1 — Benefits',      TRUE),
-('ctr-nht-kgn-2', 'br-nht-kgn', 'svc-nht-app', 2, 'Counter 2 — Loans',         TRUE),
-('ctr-nht-kgn-3', 'br-nht-kgn', 'svc-nht-reg', 3, 'Counter 3 — Registration',  TRUE),
-('ctr-nht-kgn-4', 'br-nht-kgn', 'svc-nht-pay', 4, 'Counter 4 — Payments',      TRUE);
+('ctr-nht-kgn-1', 'br-nht-kgn', 'svc-nht-ben', 1, 'Counter 1 - Benefits',      TRUE),
+('ctr-nht-kgn-2', 'br-nht-kgn', 'svc-nht-app', 2, 'Counter 2 - Loans',         TRUE),
+('ctr-nht-kgn-3', 'br-nht-kgn', 'svc-nht-reg', 3, 'Counter 3 - Registration',  TRUE),
+('ctr-nht-kgn-4', 'br-nht-kgn', 'svc-nht-pay', 4, 'Counter 4 - Payments',      TRUE);
 
 -- Staff
 INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active) VALUES
@@ -126,7 +126,7 @@ INSERT INTO businesses (id, name, slug, description, logo_url, subscription_tier
 
 -- Branches
 INSERT INTO branches (id, business_id, name, address, city, parish, phone, is_main_branch, is_active) VALUES
-('br-pica-kgn', 'biz-pica-001', 'Kingston — Constant Spring', '25 Constant Spring Road, Kingston 10', 'Kingston', 'Kingston', '876-754-7422', TRUE, TRUE),
+('br-pica-kgn', 'biz-pica-001', 'Kingston - Constant Spring', '25 Constant Spring Road, Kingston 10', 'Kingston', 'Kingston', '876-754-7422', TRUE, TRUE),
 ('br-pica-mob', 'biz-pica-001', 'Montego Bay',                '1 Sunset Boulevard, Montego Bay',       'Montego Bay','St. James','876-952-6789', FALSE, TRUE);
 
 -- Services
@@ -139,11 +139,11 @@ INSERT INTO services (id, business_id, name, description, ticket_prefix, base_av
 
 -- Counters (Kingston branch — 5 counters)
 INSERT INTO counters (id, branch_id, service_id, counter_number, label, is_active) VALUES
-('ctr-pica-kgn-1', 'br-pica-kgn', 'svc-pica-new', 1, 'Counter 1 — New Applications', TRUE),
-('ctr-pica-kgn-2', 'br-pica-kgn', 'svc-pica-ren', 2, 'Counter 2 — Renewals',         TRUE),
-('ctr-pica-kgn-3', 'br-pica-kgn', 'svc-pica-vis', 3, 'Counter 3 — Visa Enquiries',   TRUE),
-('ctr-pica-kgn-4', 'br-pica-kgn', 'svc-pica-cit', 4, 'Counter 4 — Citizenship',      TRUE),
-('ctr-pica-kgn-5', 'br-pica-kgn', 'svc-pica-col', 5, 'Counter 5 — Collection',       TRUE);
+('ctr-pica-kgn-1', 'br-pica-kgn', 'svc-pica-new', 1, 'Counter 1 - New Applications', TRUE),
+('ctr-pica-kgn-2', 'br-pica-kgn', 'svc-pica-ren', 2, 'Counter 2 - Renewals',         TRUE),
+('ctr-pica-kgn-3', 'br-pica-kgn', 'svc-pica-vis', 3, 'Counter 3 - Visa Enquiries',   TRUE),
+('ctr-pica-kgn-4', 'br-pica-kgn', 'svc-pica-cit', 4, 'Counter 4 - Citizenship',      TRUE),
+('ctr-pica-kgn-5', 'br-pica-kgn', 'svc-pica-col', 5, 'Counter 5 - Collection',       TRUE);
 
 -- Staff
 INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active) VALUES
@@ -206,22 +206,22 @@ INSERT INTO intake_forms (id, service_id, user_id, form_data) VALUES
 ('iform-006', 'svc-nht-ben', 'usr-006', '{"enquiry_type":"balance_check","trn":"678-901-234"}');
 
 -- Active tickets
-INSERT INTO queue_tickets (id, queue_id, user_id, intake_form_id, ticket_number, position, status, estimated_wait_minutes, joined_at) VALUES
-('tkt-001', 'q-taj-trn-today', 'usr-001', 'iform-001', 'TRN-A001', 1, 'serving',  0,  DATE_SUB(NOW(), INTERVAL 45 MINUTE)),
-('tkt-002', 'q-taj-trn-today', 'usr-002', 'iform-002', 'TRN-A002', 2, 'waiting',  20, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
-('tkt-003', 'q-taj-trn-today', 'usr-003', NULL,        'TRN-A003', 3, 'waiting',  40, DATE_SUB(NOW(), INTERVAL 20 MINUTE)),
-('tkt-004', 'q-taj-trn-today', 'usr-004', NULL,        'TRN-A004', 4, 'waiting',  60, DATE_SUB(NOW(), INTERVAL 10 MINUTE)),
-('tkt-005', 'q-taj-pay-today', 'usr-005', 'iform-003', 'PAY-A001', 1, 'serving',  0,  DATE_SUB(NOW(), INTERVAL 8 MINUTE)),
-('tkt-006', 'q-pica-new-today','usr-006', 'iform-004', 'NEW-A001', 1, 'serving',  0,  DATE_SUB(NOW(), INTERVAL 25 MINUTE)),
-('tkt-007', 'q-pica-ren-today','usr-007', 'iform-005', 'REN-A001', 1, 'waiting',  20, DATE_SUB(NOW(), INTERVAL 15 MINUTE)),
-('tkt-008', 'q-nht-ben-today', 'usr-008', 'iform-006', 'BEN-A001', 1, 'serving',  0,  DATE_SUB(NOW(), INTERVAL 12 MINUTE));
+INSERT INTO queue_tickets (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes, joined_at, called_at, started_serving_at) VALUES
+('tkt-001', 'q-taj-trn-today', 'usr-001', 'iform-001', 'TRN-A001', 'TRNA001', 1, 'in_service', 0,  DATE_SUB(NOW(), INTERVAL 45 MINUTE), DATE_SUB(NOW(), INTERVAL 5 MINUTE), DATE_SUB(NOW(), INTERVAL 4 MINUTE)),
+('tkt-002', 'q-taj-trn-today', 'usr-002', 'iform-002', 'TRN-A002', 'TRNA002', 2, 'waiting',    20, DATE_SUB(NOW(), INTERVAL 30 MINUTE), NULL, NULL),
+('tkt-003', 'q-taj-trn-today', 'usr-003', NULL,        'TRN-A003', 'TRNA003', 3, 'waiting',    40, DATE_SUB(NOW(), INTERVAL 20 MINUTE), NULL, NULL),
+('tkt-004', 'q-taj-trn-today', 'usr-004', NULL,        'TRN-A004', 'TRNA004', 4, 'waiting',    60, DATE_SUB(NOW(), INTERVAL 10 MINUTE), NULL, NULL),
+('tkt-005', 'q-taj-pay-today', 'usr-005', 'iform-003', 'PAY-A001', 'PAYA001', 1, 'in_service', 0,  DATE_SUB(NOW(), INTERVAL 8 MINUTE),  DATE_SUB(NOW(), INTERVAL 3 MINUTE), DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+('tkt-006', 'q-pica-new-today','usr-006', 'iform-004', 'NEW-A001', 'NEWA001', 1, 'in_service', 0,  DATE_SUB(NOW(), INTERVAL 25 MINUTE), DATE_SUB(NOW(), INTERVAL 6 MINUTE), DATE_SUB(NOW(), INTERVAL 5 MINUTE)),
+('tkt-007', 'q-pica-ren-today','usr-007', 'iform-005', 'REN-A001', 'RENA001', 1, 'waiting',    20, DATE_SUB(NOW(), INTERVAL 15 MINUTE), NULL, NULL),
+('tkt-008', 'q-nht-ben-today', 'usr-008', 'iform-006', 'BEN-A001', 'BENA001', 1, 'in_service', 0,  DATE_SUB(NOW(), INTERVAL 12 MINUTE), DATE_SUB(NOW(), INTERVAL 4 MINUTE), DATE_SUB(NOW(), INTERVAL 3 MINUTE));
 
 -- Queue events for active tickets
 INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id) VALUES
-('evt-001', 'tkt-001', 'waiting',  'serving', 'stf-taj-001'),
-('evt-002', 'tkt-005', 'waiting',  'serving', 'stf-taj-003'),
-('evt-003', 'tkt-006', 'waiting',  'serving', 'stf-pica-001'),
-('evt-004', 'tkt-008', 'waiting',  'serving', 'stf-nht-001');
+('evt-001', 'tkt-001', 'waiting',  'in_service', 'stf-taj-001'),
+('evt-002', 'tkt-005', 'waiting',  'in_service', 'stf-taj-003'),
+('evt-003', 'tkt-006', 'waiting',  'in_service', 'stf-pica-001'),
+('evt-004', 'tkt-008', 'waiting',  'in_service', 'stf-nht-001');
 
 
 -- =============================================================
@@ -384,11 +384,11 @@ INSERT INTO predictive_results (id, business_id, branch_id, insight_type, insigh
 -- =============================================================
 
 INSERT INTO visit_history (id, user_id, ticket_id, business_id, branch_id, service_id, business_name, branch_name, service_name, ticket_number, visit_date, wait_time_minutes, service_time_minutes, status) VALUES
-('vh-001', 'usr-001', 'tkt-001', 'biz-taj-001',  'br-taj-kgn',  'svc-taj-trn',  'Tax Administration Jamaica', 'Kingston — Half Way Tree', 'TRN Registration', 'TRN-A001', CURDATE(), NULL, NULL, 'serving'),
-('vh-002', 'usr-003', UUID(),    'biz-taj-001',  'br-taj-kgn',  'svc-taj-pay',  'Tax Administration Jamaica', 'Kingston — Half Way Tree', 'Tax Payments',     'PAY-Z099', DATE_SUB(CURDATE(), INTERVAL 7 DAY), 8, 12, 'completed'),
-('vh-003', 'usr-004', UUID(),    'biz-pica-001', 'br-pica-kgn', 'svc-pica-ren', 'PICA',                       'Kingston — Constant Spring','Passport Renewal', 'REN-B014', DATE_SUB(CURDATE(), INTERVAL 14 DAY), 22, 18, 'completed'),
-('vh-004', 'usr-005', UUID(),    'biz-nht-001',  'br-nht-kgn',  'svc-nht-ben',  'National Housing Trust',     'Kingston — Head Office',   'Benefits Enquiry', 'BEN-C007', DATE_SUB(CURDATE(), INTERVAL 21 DAY), 15, 14, 'completed'),
-('vh-005', 'usr-001', UUID(),    'biz-taj-001',  'br-taj-kgn',  'svc-taj-inc',  'Tax Administration Jamaica', 'Kingston — Half Way Tree', 'Income Tax Filing', 'INC-A033', DATE_SUB(CURDATE(), INTERVAL 30 DAY), 35, 28, 'completed');
+('vh-001', 'usr-001', 'tkt-001', 'biz-taj-001',  'br-taj-kgn',  'svc-taj-trn',  'Tax Administration Jamaica', 'Kingston - Half Way Tree', 'TRN Registration', 'TRN-A001', CURDATE(), NULL, NULL, 'serving'),
+('vh-002', 'usr-003', UUID(),    'biz-taj-001',  'br-taj-kgn',  'svc-taj-pay',  'Tax Administration Jamaica', 'Kingston - Half Way Tree', 'Tax Payments',     'PAY-Z099', DATE_SUB(CURDATE(), INTERVAL 7 DAY), 8, 12, 'completed'),
+('vh-003', 'usr-004', UUID(),    'biz-pica-001', 'br-pica-kgn', 'svc-pica-ren', 'PICA',                       'Kingston - Constant Spring','Passport Renewal', 'REN-B014', DATE_SUB(CURDATE(), INTERVAL 14 DAY), 22, 18, 'completed'),
+('vh-004', 'usr-005', UUID(),    'biz-nht-001',  'br-nht-kgn',  'svc-nht-ben',  'National Housing Trust',     'Kingston - Head Office',   'Benefits Enquiry', 'BEN-C007', DATE_SUB(CURDATE(), INTERVAL 21 DAY), 15, 14, 'completed'),
+('vh-005', 'usr-001', UUID(),    'biz-taj-001',  'br-taj-kgn',  'svc-taj-inc',  'Tax Administration Jamaica', 'Kingston - Half Way Tree', 'Income Tax Filing', 'INC-A033', DATE_SUB(CURDATE(), INTERVAL 30 DAY), 35, 28, 'completed');
 
 
 -- =============================================================
