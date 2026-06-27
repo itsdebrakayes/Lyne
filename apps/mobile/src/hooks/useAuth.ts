@@ -3,6 +3,7 @@ import api, { supabase } from '../lib/apiClient';
 
 export interface UserProfile {
   id: string;
+  supabase_uid?: string;
   full_name: string;
   email: string;
   phone?: string;
@@ -10,23 +11,39 @@ export interface UserProfile {
   trn?: string;
 }
 
+interface AuthMe {
+  type: 'user' | 'staff';
+  record: UserProfile;
+}
+
 export const useAuth = () => {
   const [user, setUser]     = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const syncMobileUser = useCallback(async (metadata?: Record<string, string>) => {
+    await api.post('/auth/sync-user', metadata || {});
+    const me = await api.get<AuthMe>('/auth/me');
+    if (me.type !== 'user') {
+      await supabase.auth.signOut();
+      setUser(null);
+      throw new Error('This account is provisioned for admin access, not the mobile app.');
+    }
+    setUser(me.record);
+    return me.record;
+  }, []);
 
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user: sbUser } } = await supabase.auth.getUser();
       if (!sbUser) { setUser(null); return; }
-      const profile = await api.get<UserProfile>('/auth/me');
-      setUser(profile);
+      await syncMobileUser(sbUser.user_metadata as Record<string, string> | undefined);
     } catch {
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncMobileUser]);
 
   useEffect(() => {
     loadProfile();
@@ -36,6 +53,13 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      try {
+        await syncMobileUser();
+      } catch (syncError) {
+        return { error: syncError as Error };
+      }
+    }
     return { error };
   };
 
@@ -45,8 +69,11 @@ export const useAuth = () => {
       : nameOrMeta;
     const { error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
     if (!error) {
-      // Sync to MySQL — non-blocking; failure is acceptable at signup time
-      await api.post('/auth/sync-user', metadata).catch(() => {});
+      try {
+        await syncMobileUser(metadata);
+      } catch (syncError) {
+        return { error: syncError as Error };
+      }
     }
     return { error };
   };

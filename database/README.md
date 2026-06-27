@@ -20,13 +20,14 @@ For local Docker startup, `docker-compose.yml` mounts `schema.sql` and all migra
 For manual setup:
 
 ```bash
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qmenow CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p qmenow < schema.sql
-mysql -u root -p qmenow < migrations/001_performance_indexes.sql
-mysql -u root -p qmenow < migrations/002_security_and_ocr.sql
-mysql -u root -p qmenow < migrations/003_sessions_and_token_security.sql
-mysql -u root -p qmenow < migrations/004_pipeline_and_tenant_hardening.sql
-mysql -u root -p qmenow < migrations/005_audit_tenant_scope.sql
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qme_now CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p qme_now < schema.sql
+mysql -u root -p qme_now < migrations/001_performance_indexes.sql
+mysql -u root -p qme_now < migrations/002_security_and_ocr.sql
+mysql -u root -p qme_now < migrations/003_sessions_and_token_security.sql
+mysql -u root -p qme_now < migrations/004_pipeline_and_tenant_hardening.sql
+mysql -u root -p qme_now < migrations/005_audit_tenant_scope.sql
+mysql -u root -p qme_now < migrations/006_roles_and_demo_auth_hardening.sql
 ```
 
 After schema creation, onboard the first company and first authorized admin account through a controlled onboarding script or support workflow. Do not seed demo companies into production.

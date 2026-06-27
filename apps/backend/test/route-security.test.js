@@ -6,6 +6,7 @@ const queueRouter = require('../src/routes/queues');
 const sseRouter = require('../src/routes/sse');
 const predictionsRouter = require('../src/routes/predictions');
 const notificationsRouter = require('../src/routes/notifications');
+const { lookupActorBySupabaseUid } = require('../src/middleware/auth');
 
 function routeHandlers(router, method, path) {
   const layer = router.stack.find(candidate => (
@@ -81,4 +82,45 @@ test('staff notifications require access to the recipient ticket', () => {
   const handlers = routeHandlers(notificationsRouter, 'post', '/');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(handlers.includes('requireTicketAccess'));
+});
+
+test('auth lookup prefers provisioned staff role over synced mobile user row', async () => {
+  const calls = [];
+  const db = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM staff')) {
+        return [[{
+          id: 'staff-1',
+          supabase_uid: 'supabase-1',
+          role_name: 'manager',
+        }]];
+      }
+      return [[{
+        id: 'user-1',
+        supabase_uid: 'supabase-1',
+      }]];
+    },
+  };
+
+  const actor = await lookupActorBySupabaseUid('supabase-1', db);
+
+  assert.equal(actor.dbStaff.role_name, 'manager');
+  assert.equal(actor.dbUser, undefined);
+  assert.equal(calls.length, 1, 'user table should not be queried once staff is found');
+});
+
+test('auth lookup treats unprovisioned Supabase accounts as mobile users only after sync', async () => {
+  const db = {
+    async query(sql) {
+      if (sql.includes('FROM staff')) return [[]];
+      if (sql.includes('FROM users')) return [[{ id: 'user-1', supabase_uid: 'supabase-1' }]];
+      return [[]];
+    },
+  };
+
+  const actor = await lookupActorBySupabaseUid('supabase-1', db);
+
+  assert.equal(actor.dbStaff, undefined);
+  assert.equal(actor.dbUser.id, 'user-1');
 });

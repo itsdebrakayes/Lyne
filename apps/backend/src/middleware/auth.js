@@ -21,6 +21,26 @@ const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+async function lookupActorBySupabaseUid(supabaseUid, db = pool) {
+  const [staffRows] = await db.query(
+    'SELECT s.*, r.name AS role_name FROM staff s JOIN roles r ON s.role_id = r.id WHERE s.supabase_uid = ? AND s.is_active = TRUE LIMIT 1',
+    [supabaseUid]
+  );
+  if (staffRows.length > 0) {
+    return { dbStaff: staffRows[0] };
+  }
+
+  const [userRows] = await db.query(
+    'SELECT * FROM users WHERE supabase_uid = ? LIMIT 1',
+    [supabaseUid]
+  );
+  if (userRows.length > 0) {
+    return { dbUser: userRows[0] };
+  }
+
+  return {};
+}
+
 async function requireAuth(req, res, next) {
   if (!supabase) {
     return res.status(503).json({ error: 'Authentication service is not configured.' });
@@ -40,24 +60,7 @@ async function requireAuth(req, res, next) {
 
   req.supabaseUser = user;
 
-  // Look up MySQL user record
-  const [rows] = await pool.query(
-    'SELECT * FROM users WHERE supabase_uid = ? LIMIT 1',
-    [user.id]
-  );
-
-  if (rows.length > 0) {
-    req.dbUser = rows[0];
-  } else {
-    // Check if this is a staff account
-    const [staffRows] = await pool.query(
-      'SELECT s.*, r.name AS role_name FROM staff s JOIN roles r ON s.role_id = r.id WHERE s.supabase_uid = ? LIMIT 1',
-      [user.id]
-    );
-    if (staffRows.length > 0) {
-      req.dbStaff = staffRows[0];
-    }
-  }
+  Object.assign(req, await lookupActorBySupabaseUid(user.id));
 
   return sessionLimiter(req, res, next);
 }
@@ -78,4 +81,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+module.exports = { requireAuth, requireRole, lookupActorBySupabaseUid };
