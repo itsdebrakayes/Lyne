@@ -1,5 +1,4 @@
-import { useState, type ElementType, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, type ElementType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
@@ -169,26 +168,11 @@ function downloadJson(filename: string, value: unknown) {
   URL.revokeObjectURL(url);
 }
 
-function RoleSwitcher({ active }: { active: Role }) {
-  const { admin } = useAdminAuth();
-  const allowed: Role[] = admin?.role === 'executive'
-    ? ['staff', 'manager', 'executive']
-    : admin?.role === 'manager' ? ['staff', 'manager'] : ['staff'];
-  return (
-    <div className="v2-role-switch">
-      <span>Role view</span>
-      {allowed.includes('staff') && <Link className={active === 'staff' ? 'active' : ''} to="/staff">Line staff</Link>}
-      {allowed.includes('manager') && <Link className={active === 'manager' ? 'active' : ''} to="/manager">Manager</Link>}
-      {allowed.includes('executive') && <Link className={active === 'executive' ? 'active' : ''} to="/executive">Executive</Link>}
-    </div>
-  );
-}
-
-function Topbar({ name, role, tone, children }: { name: string; role: string; tone: string; children?: ReactNode }) {
+function Topbar({ name, role, tone }: { name: string; role: string; tone: string }) {
   const { logout } = useAdminAuth();
   return (
     <div className="v2-topbar">
-      {children}
+      <div className="v2-role-badge"><span>Signed in as</span><b>{role}</b></div>
       <div className="v2-top-actions">
         <div className="v2-user"><div style={{ background: tone }}>{name[0] || 'Q'}</div><span><b>{name}</b><small>{role}</small></span></div>
         <button onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={17} /></button>
@@ -247,16 +231,63 @@ function PipelineStatusCard({ pipeline }: { pipeline: any }) {
   );
 }
 
-function ChartCard({ title, data, kind = 'bar' }: { title: string; data: any[]; kind?: 'bar' | 'area' }) {
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="v2-card">
-      <h3>{title}</h3>
+    <div className="v2-chart-tooltip">
+      <b>{label}</b>
+      {payload.map((item: any) => (
+        <span key={item.dataKey} style={{ '--dot': item.color } as any}>
+          {item.name || item.dataKey}: {Math.round(Number(item.value || 0))}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ChartCard({ title, data, kind = 'bar' }: { title: string; data: any[]; kind?: 'bar' | 'area' }) {
+  const gradientId = `${kind}-${title.replace(/\W+/g, '-').toLowerCase()}`;
+  return (
+    <div className="v2-card v2-chart-card">
+      <div className="v2-card-heading">
+        <h3>{title}</h3>
+        {data.length ? <span>{data.length} periods</span> : null}
+      </div>
       {data.length ? (
-        <ResponsiveContainer height={kind === 'area' ? 160 : 220}>
+        <ResponsiveContainer height={kind === 'area' ? 190 : 240}>
           {kind === 'area' ? (
-            <AreaChart data={data}><Area dataKey="visitors" stroke="#22c25e" fill="#dff6e8" strokeWidth={3} /><XAxis dataKey="day" /><Tooltip /></AreaChart>
+            <AreaChart data={data} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c25e" stopOpacity={0.42} />
+                  <stop offset="72%" stopColor="#22c25e" stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#dfe7df" strokeDasharray="3 8" />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#7d897f', fontSize: 12, fontWeight: 700 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9aa79e', fontSize: 11, fontWeight: 700 }} width={34} />
+              <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#22c25e', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#169b4d" fill={`url(#${gradientId})`} strokeWidth={4} dot={{ r: 3, fill: '#fff', stroke: '#169b4d', strokeWidth: 2 }} activeDot={{ r: 5, fill: '#169b4d', stroke: '#fff', strokeWidth: 2 }} />
+            </AreaChart>
           ) : (
-            <BarChart data={data}><CartesianGrid vertical={false} strokeDasharray="4 4" /><Bar dataKey="joined" fill="#cfd8f6" radius={[8, 8, 4, 4]} /><Bar dataKey="served" fill="#2f5cf0" radius={[8, 8, 4, 4]} /><XAxis dataKey="day" /><YAxis /><Tooltip /></BarChart>
+            <BarChart data={data} barGap={8} barCategoryGap="24%" margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`${gradientId}-joined`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#aebdff" />
+                  <stop offset="100%" stopColor="#dfe6ff" />
+                </linearGradient>
+                <linearGradient id={`${gradientId}-served`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2f5cf0" />
+                  <stop offset="100%" stopColor="#173aa3" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#dfe5ef" strokeDasharray="3 8" />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#7d8795', fontSize: 12, fontWeight: 700 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9aa3b5', fontSize: 11, fontWeight: 700 }} width={34} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(47,92,240,.06)' }} />
+              <Bar dataKey="joined" name="Joined" fill={`url(#${gradientId}-joined)`} radius={[10, 10, 5, 5]} />
+              <Bar dataKey="served" name="Served" fill={`url(#${gradientId}-served)`} radius={[10, 10, 5, 5]} />
+            </BarChart>
           )}
         </ResponsiveContainer>
       ) : <EmptyState label="No live analytics yet" />}
@@ -310,7 +341,7 @@ export function StaffDashboardV2() {
       <div className="v2-window">
         <Sidebar role="staff" tone="#1f9d57" />
         <main className="v2-main">
-          <Topbar name={name} role="Line staff" tone="#1f9d57"><RoleSwitcher active="staff" /></Topbar>
+          <Topbar name={name} role="Line staff" tone="#1f9d57" />
           <section className="v2-title-row">
             <div><h1>My Queue</h1><p>{activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No assigned live queue'} · {activeQueue?.service_name || 'Waiting for assignment'}</p></div>
             <button className="v2-primary" disabled={!nextTicket || Boolean(calledTicket || servingTicket) || action.isPending} onClick={() => updateStatus(nextTicket, 'called')}>Call next</button>
@@ -379,7 +410,7 @@ export function ManagerDashboardV2() {
       <div className="v2-window">
         <Sidebar role="manager" tone="#2f5cf0" />
         <main className="v2-main">
-          <Topbar name={admin?.name || 'Manager'} role="Manager" tone="#2f5cf0"><RoleSwitcher active="manager" /></Topbar>
+          <Topbar name={admin?.name || 'Manager'} role="Manager" tone="#2f5cf0" />
           <section className="v2-title-row">
             <div><h1>Branch Operations</h1><p>{admin?.staffRecord.branch_name || 'Branch'} · live queues and analytics</p></div>
             <button onClick={() => qc.invalidateQueries()} className="v2-primary blue">Refresh</button>
@@ -421,12 +452,12 @@ export function ExecutiveDashboardV2() {
       <div className="v2-window executive-layout">
         <Sidebar role="executive" tone="linear-gradient(135deg,#3ed877,#22c25e)" />
         <main className="v2-main">
-          <Topbar name={admin?.name || 'Executive'} role="Executive" tone="#22c25e"><RoleSwitcher active="executive" /></Topbar>
+          <Topbar name={admin?.name || 'Executive'} role="Executive" tone="#22c25e" />
           <section className="v2-title-row"><div><h1>Network Overview</h1><p>{admin?.staffRecord.business_name || 'Business'} · live operational intelligence</p></div><div className="v2-title-actions"><button className="v2-plus" title="Run analytics pipeline" aria-label="Run analytics pipeline" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><Plus size={22} /></button><button className="v2-plus report" title="Download current report" aria-label="Download current report" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={19} /></button></div></section>
           {triggerPipeline.isError && <section className="manager-alert"><AlertTriangle size={18} />{triggerPipeline.error instanceof Error ? triggerPipeline.error.message : 'The analytics run could not be queued.'}</section>}
           <section className="v2-grid two" id="executive-analytics" data-tour="analytics">
             <ChartCard title="Visitors served" data={chart} kind="area" />
-            <div className="v2-card"><h3>Avg wait</h3>{chart.length ? <ResponsiveContainer height={160}><BarChart data={chart}><Bar dataKey="wait" fill="#22c25e" radius={[10, 10, 6, 6]} /><XAxis dataKey="day" /><Tooltip /></BarChart></ResponsiveContainer> : <EmptyState label="No wait-time analytics yet" />}</div>
+            <div className="v2-card v2-chart-card"><div className="v2-card-heading"><h3>Avg wait</h3>{chart.length ? <span>minutes</span> : null}</div>{chart.length ? <ResponsiveContainer height={190}><BarChart data={chart} barCategoryGap="32%" margin={{ top: 8, right: 8, left: -18, bottom: 0 }}><defs><linearGradient id="wait-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3ed877" /><stop offset="100%" stopColor="#149747" /></linearGradient></defs><CartesianGrid vertical={false} stroke="#dfe7df" strokeDasharray="3 8" /><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#7d897f', fontSize: 12, fontWeight: 700 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9aa79e', fontSize: 11, fontWeight: 700 }} width={34} /><Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(34,194,94,.08)' }} /><Bar dataKey="wait" name="Avg wait" fill="url(#wait-gradient)" radius={[12, 12, 6, 6]} /></BarChart></ResponsiveContainer> : <EmptyState label="No wait-time analytics yet" />}</div>
           </section>
           <section className="v2-grid two" id="executive-pipeline">
             <ChartCard title="Queue volume" data={chart} />

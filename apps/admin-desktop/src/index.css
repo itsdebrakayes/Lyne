@@ -114,37 +114,22 @@
   overflow: hidden;
 }
 .v2-page * { box-sizing: border-box; letter-spacing: 0; }
-.v2-role-switch {
-  width: auto;
+.v2-role-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
+  gap: 10px;
   background: #fff;
-  padding: 6px;
-  border-radius: 15px;
+  padding: 10px 14px;
+  border-radius: 14px;
   box-shadow: 0 2px 14px rgba(20,30,60,.08);
 }
-.v2-role-switch span {
+.v2-role-badge span {
   font-size: 11px;
   font-weight: 800;
   color: #9aa3b5;
-  letter-spacing: .05em;
-  padding: 0 8px;
   text-transform: uppercase;
 }
-.v2-role-switch a {
-  min-width: 88px;
-  text-align: center;
-  padding: 9px 14px;
-  border-radius: 12px;
-  color: #6b7280;
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 800;
-}
-.v2-role-switch a.active { color: #fff; background: #22c25e; box-shadow: 0 8px 18px -10px rgba(34,194,94,.8); }
-.manager .v2-role-switch a.active { background: #2f5cf0; }
+.v2-role-badge b { color: #15231b; font-size: 13px; font-weight: 900; }
 .v2-window {
   width: 100vw;
   height: 100vh;
@@ -331,6 +316,67 @@
 .v2-kpi b { display: block; margin: 14px 0 8px; font-size: 38px; line-height: 1; color: #15231b; letter-spacing: -.03em; }
 .v2-kpi small, .v2-card small { color: #8c9a90; font-weight: 700; }
 .v2-card h3 { margin: 0 0 14px; font-family: "Plus Jakarta Sans", Manrope, sans-serif; color: #15231b; font-size: 16px; font-weight: 900; }
+.v2-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.v2-card-heading h3 { margin: 0; }
+.v2-card-heading span {
+  border-radius: 999px;
+  background: #f0f4f1;
+  color: #7b8a80;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+.manager .v2-card-heading span { background: #edf2ff; color: #2f5cf0; }
+.v2-chart-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.72);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,255,.94)),
+    radial-gradient(circle at 12% 0%, rgba(47,92,240,.08), transparent 34%);
+}
+.v2-chart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #2f5cf0, #8aa4ff, #22c25e);
+  opacity: .75;
+}
+.v2-chart-card .recharts-wrapper { font-family: Manrope, "Plus Jakarta Sans", system-ui, sans-serif; }
+.v2-chart-tooltip {
+  min-width: 140px;
+  border: 1px solid rgba(21,35,27,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+  padding: 11px 12px;
+  display: grid;
+  gap: 7px;
+}
+.v2-chart-tooltip b { color: #15231b; font-size: 12px; font-weight: 900; }
+.v2-chart-tooltip span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6e7a72;
+  font-size: 12px;
+  font-weight: 800;
+}
+.v2-chart-tooltip span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, #2f5cf0);
+}
 .v2-row { min-height: 54px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f2f5f2; }
 .v2-row:last-child { border-bottom: 0; }
 .v2-row span { flex: 1; display: grid; color: #15231b; font-size: 13px; font-weight: 900; }
@@ -422,9 +468,7 @@
   .v2-download { display: none; }
   .v2-main { overflow: visible; }
   .v2-topbar { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
-  .v2-role-switch { order: 2; width: 100%; overflow-x: auto; }
-  .v2-role-switch span { white-space: nowrap; }
-  .v2-role-switch a { min-width: max-content; }
+  .v2-role-badge { order: 2; width: 100%; justify-content: space-between; }
   .v2-title-row { padding: 8px 16px 18px; flex-direction: column; }
   .v2-grid { margin: 0 16px 16px; }
   .v2-grid.four { grid-template-columns: 1fr; }
