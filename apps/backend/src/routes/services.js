@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
               ), 0) AS waiting_count,
               -- rolling avg wait from last 50 completed tickets
               COALESCE((
-                SELECT AVG(TIMESTAMPDIFF(MINUTE, qt.created_at, qt.completed_at))
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, qt.joined_at, qt.completed_at))
                 FROM queue_tickets qt
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
@@ -70,7 +70,7 @@ router.get('/:id', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.*, b.name AS business_name,
               COALESCE((
-                SELECT AVG(TIMESTAMPDIFF(MINUTE, qt.created_at, qt.completed_at))
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, qt.joined_at, qt.completed_at))
                 FROM queue_tickets qt
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
