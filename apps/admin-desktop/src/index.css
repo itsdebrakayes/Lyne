@@ -40,13 +40,16 @@
 
 @layer base {
   * { @apply border-border; }
-  html { background-color: #080706; color: #F5F0E8; color-scheme: dark; }
+  html { min-height: 100%; background-color: #080706; color: #F5F0E8; color-scheme: dark; }
   body {
+    min-height: 100%;
+    margin: 0;
     font-family: 'Jost', system-ui, sans-serif;
     background-color: #080706;
     @apply text-foreground;
     -webkit-font-smoothing: antialiased;
   }
+  #root { min-height: 100vh; }
   h1, h2, h3, .display { font-family: 'Bodoni Moda', Georgia, serif; }
 }
 
@@ -101,19 +104,22 @@
 
 /* QMe Admin Dashboards v2 — emerald staff, indigo manager, kiwi executive */
 .v2-page {
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
   background: #e7e8ee;
   color: #15231b;
   font-family: Manrope, "Plus Jakarta Sans", system-ui, sans-serif;
-  padding: 24px 20px 50px;
+  padding: 0;
+  overflow: hidden;
 }
 .v2-page * { box-sizing: border-box; letter-spacing: 0; }
 .v2-role-switch {
-  width: fit-content;
+  width: auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 auto 16px;
+  margin: 0;
   background: #fff;
   padding: 6px;
   border-radius: 15px;
@@ -128,9 +134,9 @@
   text-transform: uppercase;
 }
 .v2-role-switch a {
-  min-width: 94px;
+  min-width: 88px;
   text-align: center;
-  padding: 10px 16px;
+  padding: 9px 14px;
   border-radius: 12px;
   color: #6b7280;
   text-decoration: none;
@@ -140,19 +146,20 @@
 .v2-role-switch a.active { color: #fff; background: #22c25e; box-shadow: 0 8px 18px -10px rgba(34,194,94,.8); }
 .manager .v2-role-switch a.active { background: #2f5cf0; }
 .v2-window {
-  width: min(1360px, calc(100vw - 40px));
-  height: 884px;
-  margin: 0 auto;
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  margin: 0;
   display: flex;
   overflow: hidden;
-  border-radius: 30px;
-  box-shadow: 0 30px 80px -30px rgba(15,25,60,.4);
+  border-radius: 0;
+  box-shadow: none;
   background: #f4f7f4;
 }
 .manager .v2-window { background: #eef1f7; }
 .executive .v2-window { background: #f5f8f5; }
 .v2-sidebar {
-  width: 236px;
+  width: clamp(210px, 16vw, 260px);
   flex-shrink: 0;
   background: #fff;
   border-right: 1px solid #eef1ee;
@@ -192,7 +199,7 @@
 .v2-download small { color: rgba(255,255,255,.75); font-weight: 600; }
 .v2-main { flex: 1; overflow: auto; padding-bottom: 36px; }
 .v2-topbar {
-  height: 78px;
+  min-height: 78px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -240,7 +247,7 @@
 .v2-user b { font-size: 13px; color: #15231b; }
 .v2-user small { font-size: 11px; color: #9aa79e; font-weight: 700; }
 .v2-title-row {
-  padding: 4px 28px 20px;
+  padding: 8px 28px 20px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -313,7 +320,7 @@
 .staff-action-message { grid-column: 1 / -1; margin: 0; font-size: 12px; font-weight: 800; }
 .v2-grid { display: grid; gap: 16px; margin: 0 28px 18px; }
 .v2-grid.four { grid-template-columns: repeat(4, 1fr); }
-.v2-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.v2-grid.two { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
 .v2-kpi, .v2-card {
   background: #fff;
   border-radius: 22px;
@@ -397,13 +404,33 @@
 .v2-right-rail .ontime small { color: rgba(255,255,255,.86); }
 
 @media (max-width: 1100px) {
-  .v2-window { width: calc(100vw - 24px); border-radius: 22px; }
   .v2-grid.four { grid-template-columns: repeat(2, 1fr); }
   .v2-grid.two { grid-template-columns: 1fr; }
   .v2-right-rail { display: none; }
 }
 
 @media (max-width: 760px) {
+  .v2-window { display: block; overflow: auto; }
+  .v2-sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #eef1ee;
+    padding: 16px;
+  }
+  .v2-sidebar nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .v2-download { display: none; }
+  .v2-main { overflow: visible; }
+  .v2-topbar { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
+  .v2-role-switch { order: 2; width: 100%; overflow-x: auto; }
+  .v2-role-switch span { white-space: nowrap; }
+  .v2-role-switch a { min-width: max-content; }
+  .v2-title-row { padding: 8px 16px 18px; flex-direction: column; }
+  .v2-grid { margin: 0 16px 16px; }
+  .v2-grid.four { grid-template-columns: 1fr; }
+  .v2-card, .v2-kpi { border-radius: 18px; padding: 18px; }
+  .manager-alert { margin: 0 16px 16px; }
+  .assignment-controls { grid-template-columns: 1fr; }
   .staff-hero { grid-template-columns: 1fr 1fr; gap: 18px; }
   .staff-hero i, .staff-hero em { display: none; }
   .staff-hero strong { font-size: 48px; }
