@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS staff (
     date_of_birth       DATE,
     address             TEXT,
     assigned_service_id CHAR(36),
+    availability_status ENUM('active','on_leave','inactive') NOT NULL DEFAULT 'active',
     is_active           BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -258,6 +259,8 @@ CREATE TABLE IF NOT EXISTS queue_tickets (
     estimated_wait_minutes INT,
     joined_at             TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     called_at             TIMESTAMP   NULL,
+    call_timeout_seconds  INT         NOT NULL DEFAULT 120,
+    call_expires_at       TIMESTAMP   NULL,
     started_serving_at    TIMESTAMP   NULL,
     completed_at          TIMESTAMP   NULL,
     served_by_staff_id    CHAR(36),
@@ -332,10 +335,13 @@ CREATE TABLE IF NOT EXISTS analytics_summaries (
     completed_count          INT           NOT NULL DEFAULT 0,
     cancelled_count          INT           NOT NULL DEFAULT 0,
     no_show_count            INT           NOT NULL DEFAULT 0,
+    left_count               INT           NOT NULL DEFAULT 0,
     avg_wait_time_minutes    DECIMAL(10,2) DEFAULT 0,
     avg_service_time_minutes DECIMAL(10,2) DEFAULT 0,
     peak_hour                TINYINT,
+    completion_rate          DECIMAL(5,2)  DEFAULT 0,
     created_at               TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
@@ -477,6 +483,7 @@ CREATE TABLE IF NOT EXISTS device_push_tokens (
 CREATE INDEX idx_tickets_queue_status    ON queue_tickets(queue_id, status);
 CREATE INDEX idx_tickets_user            ON queue_tickets(user_id);
 CREATE INDEX idx_tickets_position        ON queue_tickets(queue_id, position);
+CREATE INDEX idx_tickets_call_expiry     ON queue_tickets(queue_id, status, call_expires_at);
 CREATE UNIQUE INDEX idx_tickets_verification_code ON queue_tickets(verification_code);
 CREATE INDEX idx_wtr_analytics           ON wait_time_records(business_id, visit_date, hour_of_day);
 CREATE INDEX idx_wtr_service             ON wait_time_records(service_id, visit_date);

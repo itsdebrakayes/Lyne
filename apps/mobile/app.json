@@ -34,7 +34,7 @@
     "extra": {
       "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",
       "supabaseAnonKey": "sb_publishable_DlwXt8oEDcFNrYFmOMsxGA_z7qU9cXA",
-      "apiUrl": "http://localhost:4000/api",
+      "apiUrl": "",
       "eas": {
         "projectId": ""
       }

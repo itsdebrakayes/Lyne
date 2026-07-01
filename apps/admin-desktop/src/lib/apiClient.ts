@@ -1,7 +1,7 @@
 /**
  * apiClient.ts — Admin Desktop API Client
  *
- * Attaches the Supabase JWT to every request to the Q ME NOW backend.
+ * Attaches the Supabase JWT to every request to the QMe Now backend.
  */
 
 import { createClient } from '@supabase/supabase-js';

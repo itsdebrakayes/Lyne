@@ -14,10 +14,17 @@ const barcode = [3,1,2,1,4,1,1,3,2,1,1,2,4,1,2,1,3,1,1,2,1,4,2,1,3,1,2,1,1,4,1,2
 export default function TicketScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const ticketId = route.params?.ticketId;
+  const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
   const previous = useRef<{ status?: string; wait?: number }>({});
+  const activeTicketQuery = useQuery({
+    queryKey: ['active-ticket'],
+    queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
+    enabled: !providedTicketId,
+    refetchInterval: 5_000,
+  });
+  const ticketId = providedTicketId || activeTicketQuery.data?.id;
   const ticketQuery = useQuery({
     queryKey: ['ticket', ticketId],
     queryFn: () => api.get<TicketRecord>(`/tickets/${ticketId}`),
@@ -51,7 +58,8 @@ export default function TicketScreen() {
     }
   };
 
-  if (!ticketId) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700' }}>No active ticket was provided.</Text></View>;
+  if (!providedTicketId && activeTicketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.text} /></View>;
+  if (!ticketId) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700', textAlign: 'center' }}>You do not have an active ticket right now.</Text><TouchableOpacity style={[v3.primaryButton, { marginTop: 18 }]} onPress={() => navigation.navigate('Main')}><Text style={v3.primaryButtonText}>Find a queue</Text></TouchableOpacity></View>;
   if (ticketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.text} /></View>;
   if (ticketQuery.error || !ticket) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700', textAlign: 'center' }}>Your live ticket could not be loaded. Check your connection and try again.</Text></View>;
 

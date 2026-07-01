@@ -62,10 +62,11 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'manager', 'exec
 // Get queues — public (used by user website to show live wait times)
 router.get('/', async (req, res) => {
   try {
-    const { branch_id, service_id, date } = req.query;
+    const { business_id, branch_id, service_id, date } = req.query;
     const conditions = ['q.is_active = TRUE'];
     const params = [];
 
+    if (business_id) { conditions.push('b.business_id = ?'); params.push(business_id); }
     if (branch_id)  { conditions.push('q.branch_id = ?');  params.push(branch_id); }
     if (service_id) { conditions.push('q.service_id = ?'); params.push(service_id); }
     if (date)       { conditions.push('q.queue_date = ?'); params.push(date); }
@@ -152,7 +153,11 @@ router.get(
     if (!queues.length) return res.status(404).json({ error: 'Queue not found.' });
 
     const [tickets] = await pool.query(
-      `SELECT t.*, u.full_name AS user_name
+      `SELECT t.id, t.queue_id, t.user_id, t.intake_form_id, t.ticket_number,
+              t.position, t.status, t.estimated_wait_minutes, t.joined_at,
+              t.called_at, t.call_timeout_seconds, t.call_expires_at,
+              t.started_serving_at, t.completed_at, t.served_by_staff_id,
+              t.served_at_counter_id, u.full_name AS user_name
        FROM queue_tickets t
        LEFT JOIN users u ON t.user_id = u.id
        WHERE t.queue_id = ?

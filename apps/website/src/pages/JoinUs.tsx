@@ -11,7 +11,20 @@ const JoinUs = () => {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const name = String(data.get('name') || '');
+    const email = String(data.get('email') || '');
+    const phone = String(data.get('phone') || '');
+    const message = String(data.get('message') || '');
+    const body = encodeURIComponent([
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Phone: ${phone}`,
+      '',
+      message,
+    ].join('\n'));
     setSubmitted(true);
+    window.location.href = `mailto:support@quemenow.com?subject=QMe%20Now%20Quote%20Request&body=${body}`;
   };
 
   return (
@@ -37,6 +50,8 @@ const JoinUs = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Name</label>
                   <Input 
+                    name="name"
+                    required
                     placeholder="Your full name" 
                     className="bg-white/50"
                   />
@@ -45,7 +60,9 @@ const JoinUs = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Email</label>
                   <Input 
+                    name="email"
                     type="email" 
+                    required
                     placeholder="your.email@example.com" 
                     className="bg-white/50"
                   />
@@ -54,6 +71,7 @@ const JoinUs = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Phone</label>
                   <Input 
+                    name="phone"
                     type="tel" 
                     placeholder="+1 (876) 000-0000" 
                     className="bg-white/50"
@@ -63,6 +81,8 @@ const JoinUs = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Message</label>
                   <Textarea 
+                    name="message"
+                    required
                     placeholder="Tell us how we can help..."
                     rows={5}
                     className="bg-white/50"
@@ -77,7 +97,7 @@ const JoinUs = () => {
                 </Button>
                 {submitted && (
                   <p className="text-sm text-muted-foreground">
-                    Thanks. This demo form is ready for a quote workflow when the public marketing site goes live.
+                    Thanks. Your email client should open with the quote request ready to send.
                   </p>
                 )}
               </form>

@@ -30,6 +30,10 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 
+const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
+const MIN_CALL_TIMEOUT_SECONDS = 30;
+const MAX_CALL_TIMEOUT_SECONDS = 30 * 60;
+
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
 }
@@ -53,11 +57,60 @@ const updateStatusSchema = z.object({
     errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
   }),
   verification_code: z.string().max(12).optional(),
+  call_timeout_seconds: z.number().int().min(MIN_CALL_TIMEOUT_SECONDS).max(MAX_CALL_TIMEOUT_SECONDS).optional(),
   notes: z.string().max(1000).optional(),
 });
 
 function createVerificationCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
+function periodCondition(period, month) {
+  if (period === 'this_week') {
+    return { sql: 'YEARWEEK(COALESCE(t.completed_at, t.called_at, t.joined_at), 1) = YEARWEEK(CURDATE(), 1)', params: [] };
+  }
+  if (period === 'last_week') {
+    return { sql: 'YEARWEEK(COALESCE(t.completed_at, t.called_at, t.joined_at), 1) = YEARWEEK(DATE_SUB(CURDATE(), INTERVAL 1 WEEK), 1)', params: [] };
+  }
+  if (period === 'month') {
+    const safeMonth = /^\d{4}-\d{2}$/.test(month || '') ? month : new Date().toISOString().slice(0, 7);
+    return { sql: "DATE_FORMAT(COALESCE(t.completed_at, t.called_at, t.joined_at), '%Y-%m') = ?", params: [safeMonth] };
+  }
+  return { sql: 'DATE(COALESCE(t.completed_at, t.called_at, t.joined_at)) = CURDATE()', params: [] };
+}
+
+function safeCallTimeout(seconds) {
+  const value = Number(seconds || DEFAULT_CALL_TIMEOUT_SECONDS);
+  if (!Number.isFinite(value)) return DEFAULT_CALL_TIMEOUT_SECONDS;
+  return Math.max(MIN_CALL_TIMEOUT_SECONDS, Math.min(MAX_CALL_TIMEOUT_SECONDS, Math.round(value)));
+}
+
+async function inferActiveCounter(conn, staffId, queueId) {
+  if (!staffId) return null;
+  const [rows] = await conn.query(
+    `SELECT c.id
+     FROM staff_assignments sa
+     JOIN counters c ON c.id = sa.counter_id
+     JOIN queues q ON q.id = ?
+     WHERE sa.staff_id = ?
+       AND sa.assignment_date = CURDATE()
+       AND c.branch_id = q.branch_id
+       AND c.service_id = q.service_id
+       AND c.is_active = TRUE
+     ORDER BY sa.shift_start IS NULL, sa.shift_start DESC, c.counter_number
+     LIMIT 1`,
+    [queueId, staffId]
+  );
+  return rows[0]?.id || null;
+}
+
+async function notifyTicketUser(conn, ticket, notificationType, message) {
+  if (!ticket?.user_id) return;
+  await conn.query(
+    `INSERT INTO notifications (id, user_id, ticket_id, notification_type, channel, message)
+     VALUES (?, ?, ?, ?, 'push', ?)`,
+    [uuidv4(), ticket.user_id, ticket.id, notificationType, message]
+  );
 }
 
 // POST /api/tickets — Join a queue
@@ -151,9 +204,13 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
     const [tickets] = await pool.query(
       `SELECT t.id, t.queue_id, t.user_id, t.ticket_number, t.position, t.status,
               t.estimated_wait_minutes, t.joined_at, t.called_at, t.started_serving_at,
-              u.full_name AS user_name, u.phone AS user_phone
+              t.completed_at, t.call_timeout_seconds, t.call_expires_at,
+              t.served_by_staff_id, t.served_at_counter_id,
+              u.full_name AS user_name, u.phone AS user_phone,
+              c.label AS counter_label, c.counter_number
        FROM queue_tickets t
        LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN counters c ON c.id = t.served_at_counter_id
        WHERE t.queue_id = ?
        ORDER BY t.position`,
       [req.params.queue_id]
@@ -162,6 +219,111 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch tickets.' });
+  }
+});
+
+// GET /api/tickets/history?period=today|this_week|last_week|month&month=YYYY-MM
+// Staff see their own served/no-show tickets; managers/executives see their scoped branch/business.
+router.get('/history', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  try {
+    const period = ['today', 'this_week', 'last_week', 'month'].includes(req.query.period)
+      ? req.query.period
+      : 'today';
+    const dateFilter = periodCondition(period, req.query.month);
+    const conditions = [
+      "t.status IN ('served', 'no_show')",
+      dateFilter.sql,
+      'b.business_id = ?',
+    ];
+    const params = [...dateFilter.params, req.dbStaff.business_id];
+
+    if (req.dbStaff.role_name === 'line_staff') {
+      conditions.push('t.served_by_staff_id = ?');
+      params.push(req.dbStaff.id);
+    } else if (req.dbStaff.role_name === 'manager' && req.dbStaff.branch_id) {
+      conditions.push('q.branch_id = ?');
+      params.push(req.dbStaff.branch_id);
+    } else if (req.query.branch_id) {
+      conditions.push('q.branch_id = ?');
+      params.push(req.query.branch_id);
+    }
+
+    if (req.query.service_id) {
+      conditions.push('q.service_id = ?');
+      params.push(req.query.service_id);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT t.id, t.ticket_number, t.status, t.position, t.joined_at, t.called_at,
+              t.started_serving_at, t.completed_at, t.call_timeout_seconds, t.call_expires_at,
+              u.full_name AS user_name,
+              q.id AS queue_id, q.queue_date,
+              b.id AS branch_id, b.name AS branch_name,
+              s.id AS service_id, s.name AS service_name,
+              st.id AS staff_id, st.full_name AS staff_name, st.staff_code,
+              c.label AS counter_label, c.counter_number,
+              ROUND(TIMESTAMPDIFF(SECOND, t.joined_at, COALESCE(t.started_serving_at, t.called_at, t.completed_at)) / 60, 1) AS wait_minutes,
+              ROUND(TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at) / 60, 1) AS service_minutes
+       FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
+       JOIN branches b ON b.id = q.branch_id
+       JOIN services s ON s.id = q.service_id
+       LEFT JOIN users u ON u.id = t.user_id
+       LEFT JOIN staff st ON st.id = t.served_by_staff_id
+       LEFT JOIN counters c ON c.id = t.served_at_counter_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY COALESCE(t.completed_at, t.called_at, t.joined_at) DESC
+       LIMIT 300`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch ticket history.' });
+  }
+});
+
+// GET /api/tickets/active — recover the authenticated user's current ticket
+router.get('/active', requireAuth, async (req, res) => {
+  try {
+    if (!req.dbUser?.id) return res.status(403).json({ error: 'User account required.' });
+
+    const [rows] = await pool.query(
+      `SELECT t.*,
+              q.branch_id, q.service_id, q.queue_date,
+              b.name AS branch_name,
+              s.name AS service_name,
+              (SELECT COUNT(*) + 1
+               FROM queue_tickets t2
+               WHERE t2.queue_id = t.queue_id
+                 AND t2.status = 'waiting'
+                 AND t2.position < t.position) AS waiting_position,
+              (SELECT COUNT(*)
+               FROM queue_tickets t3
+               WHERE t3.queue_id = t.queue_id
+                 AND t3.status = 'waiting') AS total_waiting
+       FROM queue_tickets t
+       JOIN queues   q ON t.queue_id   = q.id
+       JOIN branches b ON q.branch_id  = b.id
+       JOIN services s ON q.service_id = s.id
+       WHERE t.user_id = ? AND t.status IN ('waiting', 'called', 'in_service')
+       ORDER BY t.joined_at DESC
+       LIMIT 1`,
+      [req.dbUser.id]
+    );
+
+    if (!rows.length) return res.json(null);
+
+    const ticket = rows[0];
+    const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
+    res.json({
+      ...ticket,
+      is_next: isNext,
+      status_message: isNext ? "You're next!" : null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to recover active ticket.' });
   }
 });
 
@@ -232,6 +394,10 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
     const ticket = rows[0];
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
 
+    if (req.dbStaff) {
+      delete ticket.verification_code;
+    }
+
     res.json({
       ...ticket,
       is_next:       isNext,
@@ -294,7 +460,12 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     const { new_status, verification_code, notes } = parsed.data;
 
     const [tickets] = await conn.query(
-      'SELECT t.*, q.branch_id FROM queue_tickets t JOIN queues q ON t.queue_id = q.id WHERE t.id = ? FOR UPDATE',
+      `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name
+       FROM queue_tickets t
+       JOIN queues q ON t.queue_id = q.id
+       JOIN branches b ON q.branch_id = b.id
+       JOIN services s ON q.service_id = s.id
+       WHERE t.id = ? FOR UPDATE`,
       [req.params.id]
     );
     if (!tickets.length) {
@@ -303,6 +474,7 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
     const ticket     = tickets[0];
     const prevStatus = ticket.status;
+    const activeCounterId = await inferActiveCounter(conn, req.dbStaff?.id, ticket.queue_id);
 
     if (new_status === 'called' && prevStatus !== 'waiting') {
       await conn.rollback();
@@ -320,7 +492,11 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       await conn.rollback();
       return res.status(400).json({ error: 'Only called or waiting tickets can be marked no_show.' });
     }
-    if (new_status === 'in_service' && verification_code && verification_code.toUpperCase() !== ticket.verification_code) {
+    if (new_status === 'in_service' && !verification_code) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Ticket verification code is required to start service.' });
+    }
+    if (new_status === 'in_service' && verification_code.trim().toUpperCase() !== ticket.verification_code) {
       await conn.rollback();
       return res.status(403).json({ error: 'Invalid ticket verification code.' });
     }
@@ -330,12 +506,17 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     let extraParams = [];
 
     if (new_status === 'called') {
-      extraFields = ', called_at = ?, served_by_staff_id = ?';
-      extraParams = [now, req.dbStaff?.id || null];
+      const callTimeout = safeCallTimeout(parsed.data.call_timeout_seconds);
+      const callExpiresAt = new Date(now.getTime() + callTimeout * 1000);
+      extraFields = ', called_at = ?, call_timeout_seconds = ?, call_expires_at = ?, served_by_staff_id = ?, served_at_counter_id = COALESCE(?, served_at_counter_id)';
+      extraParams = [now, callTimeout, callExpiresAt, req.dbStaff?.id || null, activeCounterId];
     } else if (new_status === 'in_service') {
-      extraFields = ', started_serving_at = ?, served_by_staff_id = ?';
-      extraParams = [now, req.dbStaff?.id || null];
+      extraFields = ', started_serving_at = ?, served_by_staff_id = ?, served_at_counter_id = COALESCE(?, served_at_counter_id)';
+      extraParams = [now, req.dbStaff?.id || null, activeCounterId];
     } else if (new_status === 'served') {
+      extraFields = ', completed_at = ?';
+      extraParams = [now];
+    } else if (new_status === 'no_show') {
       extraFields = ', completed_at = ?';
       extraParams = [now];
     }
@@ -344,8 +525,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
       const joinedAt  = ticket.joined_at ? new Date(ticket.joined_at) : null;
       const startedAt = ticket.started_serving_at ? new Date(ticket.started_serving_at) : null;
-      const waitMin   = joinedAt && startedAt ? (startedAt - joinedAt) / 60000 : null;
-      const svcMin    = startedAt ? (now - startedAt) / 60000 : null;
+      const calledAt  = ticket.called_at ? new Date(ticket.called_at) : null;
+      const waitEndAt = startedAt || calledAt || now;
+      const waitMin   = joinedAt && waitEndAt ? (waitEndAt - joinedAt) / 60000 : null;
+      const svcMin    = new_status === 'served' && startedAt ? (now - startedAt) / 60000 : null;
 
       const [qLen] = await conn.query(
         "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
@@ -355,16 +538,23 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
         'SELECT COUNT(*) AS cnt FROM staff_assignments WHERE counter_id IN (SELECT id FROM counters WHERE branch_id = ?) AND assignment_date = CURDATE()',
         [ticket.branch_id]
       );
+      const [activeCounters] = await conn.query(
+        `SELECT COUNT(DISTINCT c.id) AS cnt
+         FROM counters c
+         JOIN staff_assignments sa ON sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+         WHERE c.branch_id = ? AND c.service_id = ? AND c.is_active = TRUE`,
+        [ticket.branch_id, ticket.service_id]
+      );
 
       await conn.query(
         `INSERT INTO wait_time_records
            (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
-            wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time)
+            wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time, active_counters_at_time)
          SELECT ?, ?, b.business_id, b.id, q.service_id, CURDATE(),
                 DAYOFWEEK(NOW())-1, HOUR(NOW()), MONTH(NOW()),
-                ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?
          FROM queues q JOIN branches b ON q.branch_id = b.id WHERE q.id = ?`,
-        [uuidv4(), ticket.id, waitMin, svcMin, new_status, staffCnt[0].cnt, qLen[0].cnt, ticket.queue_id]
+        [uuidv4(), ticket.id, waitMin, svcMin, new_status, staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
       );
 
       if (ticket.user_id) {
@@ -404,6 +594,22 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
        VALUES (?, ?, ?, ?, ?, ?)`,
       [uuidv4(), ticket.id, prevStatus, new_status, req.dbStaff?.id || null, notes || null]
     );
+
+    if (new_status === 'called') {
+      await notifyTicketUser(
+        conn,
+        ticket,
+        'called',
+        `${ticket.ticket_number} is being called for ${ticket.service_name}. Please come to the front and show your verification code.`
+      );
+    } else if (new_status === 'no_show') {
+      await notifyTicketUser(
+        conn,
+        ticket,
+        'no_show',
+        `${ticket.ticket_number} was marked no-show and skipped in the line. Please speak with staff if you still need service.`
+      );
+    }
 
     // Recalculate wait times for remaining WAITING tickets after terminal events
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {

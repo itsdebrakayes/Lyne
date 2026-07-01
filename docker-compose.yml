@@ -34,6 +34,8 @@ services:
       - ./database/migrations/004_pipeline_and_tenant_hardening.sql:/docker-entrypoint-initdb.d/05_004_pipeline_and_tenant_hardening.sql:ro
       - ./database/migrations/005_audit_tenant_scope.sql:/docker-entrypoint-initdb.d/06_005_audit_tenant_scope.sql:ro
       - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
+      - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
+      - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s

@@ -1,22 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function requireEnv(name: string) {
-  const v = Deno.env.get(name);
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
-}
+import { corsHeaders, requireEdgeSecret, requireEnv } from "../_shared/edgeAuth.ts";
 
 function requireAuth(req: Request) {
-  const expected = requireEnv("EDGE_SYNC_SECRET");
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.replace("Bearer ", "").trim();
-  if (!token || token !== expected) throw new Error("Unauthorized");
+  requireEdgeSecret(req);
 }
 
 Deno.serve(async (req) => {

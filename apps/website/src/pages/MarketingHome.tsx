@@ -309,7 +309,14 @@ export default function MarketingHome() {
             </a>
           </motion.div>
 
-          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2" style={{ color: 'rgba(245,240,232,0.6)' }}>
+          <button
+            type="button"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden p-2"
+            style={{ color: 'rgba(245,240,232,0.75)' }}
+          >
             {menuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
@@ -634,14 +641,14 @@ export default function MarketingHome() {
                 <p className="text-xs mb-1" style={{ color: 'rgba(245,240,232,0.4)' }}>For customers. Free to download.</p>
                 <p className="text-[10px] uppercase tracking-widest mb-6 font-semibold" style={{ color: GOLD, letterSpacing: '0.12em' }}>iOS · Android</p>
                 <div className="flex gap-3">
-                  <a href="#" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5"
-                    style={{ background: '#F5F0E8', color: BG }}>
-                    <Apple size={13} /> App Store
-                  </a>
-                  <a href="#" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5"
-                    style={{ border: '1px solid rgba(245,240,232,0.15)', color: 'rgba(245,240,232,0.6)' }}>
-                    <Play size={13} /> Play Store
-                  </a>
+                  <button type="button" disabled aria-disabled="true" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-not-allowed"
+                    style={{ background: '#F5F0E8', color: BG, opacity: 0.72 }}>
+                    <Apple size={13} /> App Store Soon
+                  </button>
+                  <button type="button" disabled aria-disabled="true" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-not-allowed"
+                    style={{ border: '1px solid rgba(245,240,232,0.2)', color: 'rgba(245,240,232,0.75)', opacity: 0.72 }}>
+                    <Play size={13} /> Play Store Soon
+                  </button>
                 </div>
               </div>
             </Reveal>
@@ -681,11 +688,16 @@ export default function MarketingHome() {
             <span className="font-display text-sm font-semibold" style={{ color: '#F5F0E8' }}>QMe <span className="gold-text">Now</span></span>
           </div>
           <div className="flex gap-8">
-            {['Features', 'Privacy', 'Terms', 'Contact'].map(l => (
-              <a key={l} href="#" className="text-[11px] uppercase tracking-widest transition-colors duration-300"
-                style={{ color: 'rgba(245,240,232,0.25)', letterSpacing: '0.1em' }}
+            {[
+              ['Features', '#features'],
+              ['Privacy', '/about'],
+              ['Terms', '/about'],
+              ['Contact', '/join-us'],
+            ].map(([l, href]) => (
+              <a key={l} href={href} className="text-[11px] uppercase tracking-widest transition-colors duration-300"
+                style={{ color: 'rgba(245,240,232,0.55)', letterSpacing: '0.1em' }}
                 onMouseEnter={e => (e.currentTarget.style.color = GOLD_LIGHT)}
-                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.25)')}>
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.55)')}>
                 {l}
               </a>
             ))}

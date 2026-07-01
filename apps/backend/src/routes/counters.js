@@ -7,13 +7,19 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBr
   try {
     const branchId = scopedBranchId(req, req.query.branch_id);
     if (!branchId) return res.status(400).json({ error: 'branch_id is required.' });
+    const conditions = ['c.branch_id = ?', 'c.is_active = TRUE'];
+    const params = [branchId];
+    if (req.query.service_id) {
+      conditions.push('c.service_id = ?');
+      params.push(req.query.service_id);
+    }
     const [rows] = await pool.query(
       `SELECT c.*, s.name AS service_name
        FROM counters c
        LEFT JOIN services s ON s.id = c.service_id
-       WHERE c.branch_id = ? AND c.is_active = TRUE
+       WHERE ${conditions.join(' AND ')}
        ORDER BY c.counter_number`,
-      [branchId]
+      params
     );
     res.json(rows);
   } catch (err) {

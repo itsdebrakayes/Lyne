@@ -14,7 +14,7 @@ const pool = require('../db/pool');
 const UPSERT_SQL = `
   INSERT INTO analytics_summaries
     (id, business_id, branch_id, summary_date,
-     total_visitors, completed_count, no_show_count, left_count,
+     total_visitors, completed_count, cancelled_count, no_show_count, left_count,
      avg_wait_minutes, avg_service_minutes, peak_hour, completion_rate,
      updated_at)
   SELECT
@@ -24,7 +24,8 @@ const UPSERT_SQL = `
     w.visit_date                                                   AS summary_date,
     COUNT(*)                                                       AS total_visitors,
     SUM(w.status = 'served')                                       AS completed_count,
-    SUM(w.status = 'cancelled')                                    AS no_show_count,
+    SUM(w.status = 'cancelled')                                    AS cancelled_count,
+    SUM(w.status = 'no_show')                                      AS no_show_count,
     SUM(w.status = 'left')                                         AS left_count,
     ROUND(AVG(w.wait_time_minutes), 2)                             AS avg_wait_minutes,
     ROUND(AVG(w.service_time_minutes), 2)                          AS avg_service_minutes,
@@ -47,6 +48,7 @@ const UPSERT_SQL = `
   ON DUPLICATE KEY UPDATE
     total_visitors      = VALUES(total_visitors),
     completed_count     = VALUES(completed_count),
+    cancelled_count     = VALUES(cancelled_count),
     no_show_count       = VALUES(no_show_count),
     left_count          = VALUES(left_count),
     avg_wait_minutes    = VALUES(avg_wait_minutes),

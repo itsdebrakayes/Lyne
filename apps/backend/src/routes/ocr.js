@@ -26,6 +26,7 @@ const pool    = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { auditLog }    = require('../middleware/auditLog');
 const { maskTRN, maskNationalId } = require('../utils/maskData');
+const { assertBusinessAccess, assertBranchAccess, assertLineStaffQueueAccess } = require('../middleware/tenantAccess');
 
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
@@ -206,7 +207,12 @@ router.get('/signed-url/:id',
   async (req, res) => {
     try {
       const [rows] = await pool.query(
-        'SELECT id, user_id, storage_path FROM ocr_results WHERE id = ?',
+        `SELECT o.id, o.user_id, o.queue_id, o.service_id, o.storage_path,
+                b.business_id, q.branch_id, q.service_id AS queue_service_id
+         FROM ocr_results o
+         LEFT JOIN queues q ON q.id = o.queue_id
+         LEFT JOIN branches b ON b.id = q.branch_id
+         WHERE o.id = ?`,
         [req.params.id]
       );
       if (!rows.length) {
@@ -215,7 +221,20 @@ router.get('/signed-url/:id',
 
       const record = rows[0];
       const isOwner = record.user_id === req.dbUser?.id;
-      const isStaff = !!req.dbStaff;
+      let isStaff = false;
+      if (req.dbStaff && record.queue_id && record.business_id) {
+        const [activeTicket] = await pool.query(
+          "SELECT id FROM queue_tickets WHERE queue_id = ? AND user_id = ? AND status = 'in_service' LIMIT 1",
+          [record.queue_id, record.user_id]
+        );
+        isStaff = activeTicket.length > 0
+          && assertBusinessAccess(req, record.business_id)
+          && assertBranchAccess(req, record.branch_id)
+          && await assertLineStaffQueueAccess(req, {
+            branch_id: record.branch_id,
+            service_id: record.queue_service_id || record.service_id,
+          });
+      }
 
       if (!isOwner && !isStaff) {
         return res.status(403).json({ error: 'Access denied.' });

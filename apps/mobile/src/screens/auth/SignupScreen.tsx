@@ -25,7 +25,8 @@ export default function SignupScreen() {
     }
     setLoading(true); setError(null);
     try {
-      await signUp(email, password, fullName);
+      const { error: signupError } = await signUp(email, password, fullName);
+      if (signupError) throw signupError;
     } catch (e: any) {
       setError(e.message || 'Signup failed.');
     } finally {
@@ -50,7 +51,7 @@ export default function SignupScreen() {
         <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
           {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.buttonText}>Create Account</Text>}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Auth')}>
           <Text style={styles.link}>Already have an account? <Text style={styles.linkBold}>Sign In</Text></Text>
         </TouchableOpacity>
       </ScrollView>

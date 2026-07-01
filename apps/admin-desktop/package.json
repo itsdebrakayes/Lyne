@@ -1,9 +1,9 @@
 {
   "name": "qme-now-admin-desktop",
   "version": "1.0.0",
-  "description": "Q ME NOW Admin Desktop App — Electron + React + Vite",
+  "description": "QMe Now Admin Desktop App — Electron + React + Vite",
   "main": "dist-electron/main.js",
-  "author": "Q ME NOW",
+  "author": "QMe Now",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"vite\" \"electron .\"",
@@ -43,7 +43,7 @@
   },
   "build": {
     "appId": "com.qmenow.admin",
-    "productName": "Q ME NOW Admin",
+    "productName": "QMe Now Admin",
     "directories": {
       "output": "release"
     },
