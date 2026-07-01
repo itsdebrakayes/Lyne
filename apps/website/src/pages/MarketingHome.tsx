@@ -112,12 +112,12 @@ function OrbitalTimeline() {
 
   const getPos = (i: number, total: number) => {
     const a = ((i / total) * 360 + rotation - 90) * (Math.PI / 180);
-    const r = 160;
+    const r = 145;
     return { x: r * Math.cos(a), y: r * Math.sin(a) };
   };
 
   return (
-    <div className="relative flex items-center justify-center" style={{ height: 420 }}>
+    <div className="relative flex items-center justify-center" style={{ height: 480 }}>
       {/* Orbit ring */}
       <div className="absolute w-80 h-80 rounded-full" style={{ border: '1px solid rgba(212,175,55,0.12)' }} />
       <div className="absolute w-64 h-64 rounded-full" style={{ border: '1px solid rgba(212,175,55,0.06)' }} />
@@ -188,7 +188,7 @@ function ContainerScroll({ children, title }: { children: React.ReactNode; title
 
   return (
     <div ref={ref} className="relative flex items-start justify-center" style={{ height: '140vh' }}>
-      <div className="sticky top-12 w-full" style={{ perspective: '1200px' }}>
+      <div className="sticky top-24 md:top-28 w-full" style={{ perspective: '1200px' }}>
         <motion.div style={{ y: titleY, opacity: titleOpacity }} className="text-center mb-10 px-5">
           {title}
         </motion.div>
@@ -494,7 +494,7 @@ export default function MarketingHome() {
       </section>
 
       {/* ── How it Works — Orbital Timeline ── */}
-      <section id="how-it-works" className="py-28 px-5 relative">
+      <section id="how-it-works" className="scroll-mt-28 py-28 px-5 relative">
         <div className="max-w-4xl mx-auto">
           <Reveal className="text-center mb-4">
             <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Process</p>
@@ -516,7 +516,7 @@ export default function MarketingHome() {
       </section>
 
       {/* ── Features ── */}
-      <section id="features" className="py-24 px-5">
+      <section id="features" className="scroll-mt-28 py-24 px-5">
         <div className="max-w-6xl mx-auto">
           <Reveal className="text-center mb-4">
             <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Capabilities</p>
@@ -620,7 +620,7 @@ export default function MarketingHome() {
       </section>
 
       {/* ── Download ── */}
-      <section id="download" className="py-24 px-5 relative overflow-hidden">
+      <section id="download" className="scroll-mt-28 py-24 px-5 relative overflow-hidden">
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(202,138,4,0.06) 0%, transparent 70%)' }} />
         <div className="max-w-4xl mx-auto relative">
           <Reveal className="text-center mb-14">

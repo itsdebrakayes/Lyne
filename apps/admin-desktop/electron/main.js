@@ -3,6 +3,8 @@ const path = require('path');
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL || 'http://localhost:5174';
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
+const shouldOpenDevTools = isDev && process.env.QMENOW_OPEN_DEVTOOLS === 'true';
+const shouldStartFullscreen = process.env.QMENOW_WINDOWED !== 'true';
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -10,6 +12,8 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 600,
+    fullscreen: shouldStartFullscreen,
+    autoHideMenuBar: true,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#0a0a0a',
@@ -28,7 +32,9 @@ function createWindow() {
 
   if (isDev) {
     win.loadURL(devServerUrl);
-    win.webContents.openDevTools();
+    if (shouldOpenDevTools) {
+      win.webContents.openDevTools({ mode: 'detach' });
+    }
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }

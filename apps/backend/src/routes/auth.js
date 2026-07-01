@@ -21,6 +21,37 @@ const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
 
+async function getStaffProfile(staffId) {
+  const [rows] = await pool.query(
+    `SELECT
+       s.*,
+       r.name AS role_name,
+       r.label AS role_label,
+       b.name AS business_name,
+       br.name AS branch_name,
+       svc.name AS assigned_service_name,
+       sa.id AS assignment_id,
+       c.id AS counter_id,
+       c.label AS counter_label,
+       c.counter_number
+     FROM staff s
+     LEFT JOIN roles r ON r.id = s.role_id
+     LEFT JOIN businesses b ON b.id = s.business_id
+     LEFT JOIN branches br ON br.id = s.branch_id
+     LEFT JOIN services svc ON svc.id = s.assigned_service_id
+     LEFT JOIN staff_assignments sa
+       ON sa.staff_id = s.id
+      AND sa.assignment_date = CURDATE()
+     LEFT JOIN counters c ON c.id = sa.counter_id
+     WHERE s.id = ?
+     ORDER BY sa.shift_start DESC
+     LIMIT 1`,
+    [staffId]
+  );
+
+  return rows[0] || null;
+}
+
 // ── POST /api/auth/sync-user ──────────────────────────────────
 // Called after every Supabase signup / first login.
 // Idempotent: safe to call multiple times.
@@ -75,9 +106,17 @@ router.post('/sync-user', requireAuth, async (req, res) => {
 
 // ── GET /api/auth/me ──────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
-  if (req.dbUser)  return res.json({ type: 'user',  record: req.dbUser });
-  if (req.dbStaff) return res.json({ type: 'staff', record: req.dbStaff });
-  res.status(404).json({ error: 'No MySQL record found for this account.' });
+  try {
+    if (req.dbUser) return res.json({ type: 'user', record: req.dbUser });
+    if (req.dbStaff) {
+      const staffProfile = await getStaffProfile(req.dbStaff.id);
+      return res.json({ type: 'staff', record: staffProfile || req.dbStaff });
+    }
+    res.status(404).json({ error: 'No MySQL record found for this account.' });
+  } catch (err) {
+    console.error('auth/me error:', err);
+    res.status(500).json({ error: 'Failed to load account profile.' });
+  }
 });
 
 // ── PATCH /api/auth/profile ──────────────────────────────────

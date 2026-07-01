@@ -1346,7 +1346,7 @@ function StaffDashboardContent() {
     <DashboardShell
       roleLabel="Line Staff"
       title="Run Today’s Line"
-      subtitle={`${activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No Branch'} · ${activeQueue?.service_name || 'Waiting For Assignment'}`}
+      subtitle={`${activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No Branch'} · ${activeQueue?.service_name || admin?.staffRecord.assigned_service_name || 'Waiting For Assignment'}`}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

@@ -36,6 +36,8 @@ services:
       - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
       - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
       - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
+      - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/21_demo_active_seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -66,14 +68,16 @@ services:
       SUPABASE_URL:         ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
-      FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:5173}
-      ALLOWED_ORIGINS:      ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174}
+      FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:8080}
+      ALLOWED_ORIGINS:      ${ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
     ports:
       - "4000:4000"
     networks:
       - qmenow_net
 
   analytics-worker:
+    profiles:
+      - analytics
     build:
       context: ./apps/model
       dockerfile: Dockerfile
@@ -93,9 +97,9 @@ services:
       API_URL:                http://api:4000/api
       SUPABASE_URL:           ${SUPABASE_URL}
       SUPABASE_ANON_KEY:      ${SUPABASE_PUBLISHABLE_KEY}
-      PIPELINE_EMAIL:         ${PIPELINE_EMAIL}
-      PIPELINE_PASSWORD:      ${PIPELINE_PASSWORD}
-      PIPELINE_BUSINESS_ID:   ${PIPELINE_BUSINESS_ID}
+      PIPELINE_EMAIL:         ${PIPELINE_EMAIL:-}
+      PIPELINE_PASSWORD:      ${PIPELINE_PASSWORD:-}
+      PIPELINE_BUSINESS_ID:   ${PIPELINE_BUSINESS_ID:-}
       PIPELINE_TIMEZONE:      ${PIPELINE_TIMEZONE:-America/Jamaica}
     volumes:
       - analytics_outputs:/app/outputs
@@ -112,7 +116,7 @@ services:
     depends_on:
       - db
     ports:
-      - "8080:8080"
+      - "8081:8080"
     networks:
       - qmenow_net
     profiles:

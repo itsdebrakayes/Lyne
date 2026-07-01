@@ -10,6 +10,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
+const { refreshDemoData } = require('./refresh-demo-data');
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env'), override: false });
@@ -107,6 +108,11 @@ const accounts = [
   },
 ];
 
+const demoQueues = [
+  ['q-taj-trn-today', 'br-taj-kgn', 'svc-taj-trn', 50],
+  ['q-taj-pay-today', 'br-taj-kgn', 'svc-taj-pay', 30],
+];
+
 async function getAllSupabaseUsers() {
   const users = [];
   let page = 1;
@@ -155,6 +161,22 @@ async function syncRoles(connection) {
   );
 }
 
+async function syncTodayQueues(connection) {
+  for (const [id, branchId, serviceId, maxCapacity] of demoQueues) {
+    await connection.query(
+      `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
+       VALUES (?, ?, ?, CURDATE(), ?, TRUE)
+       ON DUPLICATE KEY UPDATE
+         branch_id = VALUES(branch_id),
+         service_id = VALUES(service_id),
+         queue_date = VALUES(queue_date),
+         max_capacity = VALUES(max_capacity),
+         is_active = TRUE`,
+      [id, branchId, serviceId, maxCapacity]
+    );
+  }
+}
+
 async function syncMobileUser(connection, account, supabaseUser) {
   await connection.query(
     `INSERT INTO users (id, supabase_uid, email, full_name)
@@ -164,6 +186,13 @@ async function syncMobileUser(connection, account, supabaseUser) {
        full_name = VALUES(full_name),
        updated_at = NOW()`,
     [account.id, supabaseUser.id, account.email, account.fullName]
+  );
+
+  await connection.query(
+    `INSERT INTO saved_businesses (user_id, business_id)
+     VALUES (?, 'biz-taj-001'), (?, 'biz-pica-001'), (?, 'biz-nht-001')
+     ON DUPLICATE KEY UPDATE saved_at = saved_at`,
+    [account.id, account.id, account.id]
   );
 }
 
@@ -202,6 +231,7 @@ async function syncStaff(connection, account, supabaseUser) {
        VALUES (?, ?, ?, CURDATE(), '08:30:00', '16:30:00', ?)
        ON DUPLICATE KEY UPDATE
          counter_id = VALUES(counter_id),
+         assignment_date = VALUES(assignment_date),
          shift_start = VALUES(shift_start),
          shift_end = VALUES(shift_end),
          created_by = VALUES(created_by)`,
@@ -223,8 +253,10 @@ async function main() {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await refreshDemoData(connection);
     await assertDemoDataExists(connection);
     await syncRoles(connection);
+    await syncTodayQueues(connection);
 
     for (const account of accounts) {
       const supabaseUser = usersByEmail.get(account.email);

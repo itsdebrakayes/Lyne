@@ -6,6 +6,6 @@ module.exports = () => ({
     ...appJson.expo.extra,
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || appJson.expo.extra.supabaseUrl,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || appJson.expo.extra.supabaseAnonKey,
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000/api',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || appJson.expo.extra.apiUrl || '',
   },
 });

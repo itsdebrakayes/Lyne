@@ -67,6 +67,16 @@ npm start
 
 The API will be available at `http://localhost:4000`.
 
+### Demo data refresh
+
+On the `demo` branch, refresh the active testing sandbox with:
+
+```bash
+npm run refresh:demo-data
+```
+
+This creates today's active queues and waiting tickets across the demo businesses so mobile, staff, manager, and executive dashboards have realistic data to manipulate.
+
 ### 5. Link demo/test accounts
 
 After the matching Supabase Auth users exist, a demo database can link those
