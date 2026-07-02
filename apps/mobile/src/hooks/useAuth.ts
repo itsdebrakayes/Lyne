@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import api, { supabase } from '../lib/apiClient';
 
 export interface UserProfile {
@@ -20,6 +21,14 @@ export const useAuth = () => {
   const [user, setUser]     = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Guards against the re-entrant sync loop: track the Supabase uid we have
+  // already synced, and whether a sync is currently in flight. onAuthStateChange
+  // fires on every TOKEN_REFRESHED (roughly hourly, plus on focus); without these
+  // guards each event would call sync-user again and, on any transient failure,
+  // retry in a tight loop.
+  const syncedUid = useRef<string | null>(null);
+  const inFlight  = useRef(false);
+
   const syncMobileUser = useCallback(async (metadata?: Record<string, string>) => {
     await api.post('/auth/sync-user', metadata || {});
     const me = await api.get<AuthMe>('/auth/me');
@@ -32,30 +41,61 @@ export const useAuth = () => {
     return me.record;
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  const applySession = useCallback(async (session: Session | null, force = false) => {
+    const sbUser = session?.user ?? null;
+
+    if (!sbUser) {
+      syncedUid.current = null;
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    // Already synced this user and not explicitly forced (e.g. token refresh) —
+    // nothing to do, so we never loop on repeated auth events.
+    if (!force && syncedUid.current === sbUser.id) {
+      setLoading(false);
+      return;
+    }
+    if (inFlight.current) return;
+
+    inFlight.current = true;
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data: { user: sbUser } } = await supabase.auth.getUser();
-      if (!sbUser) { setUser(null); return; }
       await syncMobileUser(sbUser.user_metadata as Record<string, string> | undefined);
+      syncedUid.current = sbUser.id;
     } catch {
+      syncedUid.current = null;
       setUser(null);
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   }, [syncMobileUser]);
 
   useEffect(() => {
-    loadProfile();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => loadProfile());
-    return () => subscription.unsubscribe();
-  }, [loadProfile]);
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) applySession(session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only (re)sync the MySQL profile on real identity changes. Token refreshes
+      // keep the same user, so they must not trigger another sync.
+      if (event === 'SIGNED_OUT') { applySession(null); return; }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+        applySession(session);
+      }
+    });
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, [applySession]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) {
       try {
         await syncMobileUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        syncedUid.current = session?.user?.id ?? null;
       } catch (syncError) {
         return { error: syncError as Error };
       }
@@ -71,6 +111,8 @@ export const useAuth = () => {
     if (!error) {
       try {
         await syncMobileUser(metadata);
+        const { data: { session } } = await supabase.auth.getSession();
+        syncedUid.current = session?.user?.id ?? null;
       } catch (syncError) {
         return { error: syncError as Error };
       }
@@ -79,6 +121,7 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    syncedUid.current = null;
     await supabase.auth.signOut();
     setUser(null);
   };

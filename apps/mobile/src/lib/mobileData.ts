@@ -34,6 +34,7 @@ export interface TicketRecord {
   waiting_position?: number | null;
   estimated_wait_minutes: number;
   status: string;
+  business_id?: string;
   branch_id?: string;
   branch_name?: string;
   service_id?: string;

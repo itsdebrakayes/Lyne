@@ -3,7 +3,8 @@ import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View 
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, v3 } from '../../lib/mobileV3Styles';
+import { LinearGradient } from 'expo-linear-gradient';
+import { brandGradient, colors, shadow, v3 } from '../../lib/mobileV3Styles';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { BranchSummary, initials, queueStatus, statusMeta } from '../../lib/mobileData';
@@ -39,14 +40,16 @@ function BranchRow({ branch, dark = false }: { branch: BranchSummary; dark?: boo
 
   if (dark) {
     return (
-      <TouchableOpacity activeOpacity={0.86} onPress={open} style={[v3.darkCard, { padding: 20, marginBottom: 26 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[v3.iconBox, { backgroundColor: 'rgba(255,255,255,.12)' }]}><Text style={[v3.iconText, { color: '#fff' }]}>{initials(branch.business_name)}</Text></View>
-          <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{branch.business_name}</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: '500' }}>{location}</Text></View>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: meta.color }} /><Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 11, fontWeight: '800' }}>LIVE</Text></View>
-        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginTop: 2, marginBottom: 16 }}>{branch.name}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Text style={{ backgroundColor: 'rgba(255,255,255,.12)', color: '#fff', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 11, fontWeight: '700' }}>~{wait} min wait</Text><Text style={{ backgroundColor: 'rgba(255,255,255,.12)', color: '#fff', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 11, fontWeight: '700' }}>{Number(branch.total_waiting || 0)} in line</Text></View>
+      <TouchableOpacity activeOpacity={0.9} onPress={open} style={{ marginBottom: 26 }}>
+        <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ padding: 20, borderRadius: 28 }, shadow.brand]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={[v3.iconBox, { backgroundColor: 'rgba(255,255,255,.18)' }]}><Text style={[v3.iconText, { color: '#fff' }]}>{initials(branch.business_name)}</Text></View>
+            <View style={{ flex: 1 }}><Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{branch.business_name}</Text><Text style={{ color: 'rgba(255,255,255,.72)', fontSize: 12, fontWeight: '500' }}>{location}</Text></View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#7ef2a3' }} /><Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>LIVE</Text></View>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginTop: 2, marginBottom: 16, letterSpacing: -0.5 }}>{branch.name}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Text style={{ backgroundColor: 'rgba(255,255,255,.18)', color: '#fff', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 11, fontWeight: '700', overflow: 'hidden' }}>~{wait} min wait</Text><Text style={{ backgroundColor: 'rgba(255,255,255,.18)', color: '#fff', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 11, fontWeight: '700', overflow: 'hidden' }}>{Number(branch.total_waiting || 0)} in line</Text></View>
+        </LinearGradient>
       </TouchableOpacity>
     );
   }
@@ -74,7 +77,7 @@ export default function HomeScreen() {
   return (
     <View style={v3.root}>
       <ScrollView contentContainerStyle={v3.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}><View><Text style={v3.small}>Hello, {user?.full_name?.split(' ')[0] || 'there'}</Text><Text style={{ fontSize: 15, color: colors.text, fontWeight: '800' }}>Find a branch near you</Text></View><TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.featured, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{initials(user?.full_name || 'User')}</Text></TouchableOpacity></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}><View><Text style={v3.small}>Hello, {user?.full_name?.split(' ')[0] || 'there'}</Text><Text style={{ fontSize: 15, color: colors.text, fontWeight: '800' }}>Find a branch near you</Text></View><TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{initials(user?.full_name || 'User')}</Text></TouchableOpacity></View>
         <Text style={[v3.h1, { marginBottom: 20 }]}>Find your{`\n`}shortest wait.</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Search')} style={[v3.search, { marginBottom: 24 }]}><Ionicons name="search-outline" size={18} color={colors.muted} /><TextInput editable={false} pointerEvents="none" style={v3.searchText} placeholder="Search businesses and branches" placeholderTextColor={colors.muted} /></TouchableOpacity>
         {isLoading && <ActivityIndicator color={colors.text} style={{ marginTop: 40 }} />}
