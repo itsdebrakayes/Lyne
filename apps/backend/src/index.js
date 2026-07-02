@@ -54,8 +54,11 @@ app.use('/api/services',       require('./routes/services'));
 app.use('/api/queues/live',    publicQueueLimiter);
 app.use('/api/queues',         require('./routes/queues'));
 
-// Queue join — stricter rate limit
-app.use('/api/tickets',        queueJoinLimiter, require('./routes/tickets'));
+// Queue join — stricter rate limit on joining only. Staff serve operations
+// (status updates, reorder, skip) run on the same router and must not be
+// throttled by the customer join limit.
+app.post('/api/tickets',       queueJoinLimiter);
+app.use('/api/tickets',        require('./routes/tickets'));
 
 app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));

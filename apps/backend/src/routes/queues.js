@@ -108,10 +108,9 @@ router.get('/live', async (req, res) => {
       `SELECT q.id,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS waiting_count,
               COALESCE((
-                SELECT AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.completed_at))
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t.started_serving_at, t.called_at, t.joined_at), t.completed_at))
                 FROM queue_tickets t
-                WHERE t.queue_id = q.id AND t.status = 'served'
-                ORDER BY t.completed_at DESC LIMIT 20
+                WHERE t.queue_id = q.id AND t.status = 'served' AND t.completed_at IS NOT NULL
               ), s.base_avg_time_minutes) AS avg_service_minutes
        FROM queues q
        JOIN services s ON q.service_id = s.id
