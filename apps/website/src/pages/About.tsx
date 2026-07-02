@@ -1,135 +1,136 @@
-import * as React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Sun, Moon } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { GlassCard } from "@/components/GlassCard";
-import { Button } from '@/components/ui/button';
-import { Clock, Users, Shield, Zap } from "lucide-react";
+/**
+ * About — QME Now story, mission and values in the marketing design language.
+ */
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Clock, Users, Shield, Zap, ArrowRight } from "lucide-react";
+import { MarketingNav, MarketingFooter } from "@/components/qme/Marketing";
+
+const features = [
+  {
+    icon: Clock,
+    title: "Save time",
+    description: "Check wait times before you leave home and plan your visit accordingly.",
+  },
+  {
+    icon: Users,
+    title: "Real-time updates",
+    description: "Get live updates on queue status and your position in line.",
+  },
+  {
+    icon: Shield,
+    title: "Secure & private",
+    description: "Your data is encrypted and handled with the highest security standards.",
+  },
+  {
+    icon: Zap,
+    title: "Fast & efficient",
+    description: "Streamlined process to get you in and out as quickly as possible.",
+  },
+];
+
+const steps = [
+  { step: "01", title: "Check the wait", desc: "View live wait times for every branch and service" },
+  { step: "02", title: "Join the queue", desc: "Pick your service and get your ticket from anywhere" },
+  { step: "03", title: "Track your spot", desc: "Watch your position update in real time until you're called" },
+];
 
 const About = () => {
-  const { theme, setTheme } = useTheme();
-
-  const features = [
-    {
-      icon: Clock,
-      title: "Save Time",
-      description: "Check wait times before you leave home and plan your visit accordingly.",
-    },
-    {
-      icon: Users,
-      title: "Real-time Updates",
-      description: "Get live updates on queue status and your position in line.",
-    },
-    {
-      icon: Shield,
-      title: "Secure & Private",
-      description: "Your data is encrypted and handled with the highest security standards.",
-    },
-    {
-      icon: Zap,
-      title: "Fast & Efficient",
-      description: "Streamlined process to get you in and out as quickly as possible.",
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
-      {/* Simple top navbar with back button */}
-      <header className="fixed top-0 left-0 right-0 z-50">
-        <nav className="glass border-b border-white/10 dark:border-white/5">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            {/* Back button on the left */}
-            <Link to="/">
-              <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-            </Link>
-            
-            {/* Theme Toggle on the right */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-full text-muted-foreground transition-all hover:text-foreground hover:bg-card/60"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </nav>
-      </header>
+    <div className="relative min-h-screen overflow-x-hidden bg-qme-night text-white">
+      {/* ambient glows */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-qme-purple/20 blur-[140px]" />
+        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-qme-violet/25 blur-[150px]" />
+      </div>
 
-      <div className="pt-24 pb-16 px-4 md:px-8">
-        <div className="max-w-6xl mx-auto space-y-16">
+      <MarketingNav />
+
+      <div className="pb-24 pt-20">
+        <div className="lux-container space-y-16">
           {/* Header */}
-          <div className="text-center space-y-4 animate-fade-in">
-            <h1 className="text-4xl md:text-6xl font-bold text-foreground">
-              About QueMe Now
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mx-auto max-w-3xl text-center"
+          >
+            <div className="chip chip-mute mx-auto mb-5">About us</div>
+            <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+              The story behind <span className="serif accent-text">the calm.</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Revolutionizing the way you interact with Tax Administration Jamaica through smart technology and real-time data.
+            <p className="mx-auto mt-5 max-w-2xl text-lg text-qme-lavender/70">
+              Revolutionizing the way people wait — with smart technology,
+              real-time data, and queues that respect everyone's time.
             </p>
-          </div>
+          </motion.div>
 
           {/* Mission */}
-          <GlassCard className="p-8 md:p-12 animate-slide-up">
-            <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-primary">Our Mission</h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                QueMe Now is designed to eliminate the frustration of long wait times and uncertainty. We provide real-time traffic information, remote queue joining, and live position tracking to make your visit to Tax Administration Jamaica as smooth and efficient as possible.
-              </p>
-            </div>
-          </GlassCard>
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="panel-elev p-8 md:p-12"
+          >
+            <h2 className="mb-4 text-3xl font-bold tracking-tight">
+              Our <span className="serif accent-text">mission.</span>
+            </h2>
+            <p className="max-w-3xl text-lg leading-relaxed text-qme-lavender/75">
+              QME Now is designed to eliminate the frustration of long wait times
+              and uncertainty. We provide real-time queue information, remote
+              joining, and live position tracking so a visit to any of our partner
+              institutions is as smooth and efficient as possible — for the
+              customers in line and the teams serving them.
+            </p>
+          </motion.div>
 
           {/* Features Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid gap-5 md:grid-cols-2">
             {features.map((feature, index) => (
-              <GlassCard
+              <motion.div
                 key={feature.title}
-                className="p-8 animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s` }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.45, delay: index * 0.05 }}
+                className="panel panel-hover p-8"
               >
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-                    <feature.icon className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              </GlassCard>
+                <span className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+                  <feature.icon className="h-6 w-6" />
+                </span>
+                <h3 className="mb-2 text-2xl font-semibold tracking-tight">{feature.title}</h3>
+                <p className="leading-relaxed text-qme-lavender/70">{feature.description}</p>
+              </motion.div>
             ))}
           </div>
 
           {/* How It Works */}
-          <div className="space-y-8 animate-slide-up">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground">
-              How It Works
+          <div>
+            <h2 className="mb-10 text-center text-3xl font-bold tracking-tight md:text-4xl">
+              How it <span className="serif accent-text">works.</span>
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                { step: 1, title: "Check Traffic", desc: "View live traffic data for all services" },
-                { step: 2, title: "Join Queue", desc: "Select your service and get your ticket" },
-                { step: 3, title: "Track Position", desc: "Monitor your position in real-time" },
-              ].map((item) => (
-                <GlassCard key={item.step} className="p-8 text-center">
-                  <div className="space-y-4">
-                    <div className="w-16 h-16 mx-auto bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold">
-                      {item.step}
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground">{item.title}</h3>
-                    <p className="text-muted-foreground">{item.desc}</p>
-                  </div>
-                </GlassCard>
+            <div className="grid gap-5 md:grid-cols-3">
+              {steps.map((item) => (
+                <div key={item.step} className="panel-elev p-8 text-center">
+                  <div className="mb-4 font-serif text-5xl italic accent-text">{item.step}</div>
+                  <h3 className="mb-2 text-xl font-semibold tracking-tight">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-qme-lavender/65">{item.desc}</p>
+                </div>
               ))}
             </div>
           </div>
+
+          {/* CTA */}
+          <div className="text-center">
+            <Link to="/join-us" className="btn btn-primary btn-lg">
+              Partner with us <ArrowRight className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
       </div>
+
+      <MarketingFooter />
     </div>
   );
 };

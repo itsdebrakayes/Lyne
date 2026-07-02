@@ -1,710 +1,536 @@
 /**
- * QMe Now — Luxury Marketing Landing Page
- * Design: Liquid Glass · OLED Black · Bodoni Moda × Jost · Gold #CA8A04
- * Animations: Morphing golden sphere · Radial orbital timeline · Container scroll · Liquid glass cards
+ * QME Now — Marketing Landing Page
+ * Design ported from queue-master-reimagined (Lovable): deep violet canvas,
+ * hairline glass panels, serif accents, aurora text-clip hero.
  */
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  Smartphone, Monitor, CheckCircle2, Apple, Play, Globe,
-  X, Menu, Mail, ChevronRight, ArrowDown, Users, Clock,
-  BarChart3, Zap, ShieldCheck, Bell, Star,
-} from 'lucide-react';
+  ArrowUpRight,
+  ArrowRight,
+  Clock,
+  QrCode,
+  Bell,
+  Zap,
+  TrendingUp,
+  ShieldCheck,
+  Check,
+  Building2,
+  Mail,
+  Star,
+  Radio,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+import { MarketingNav, MarketingFooter } from "@/components/qme/Marketing";
+import { FloatingSquares } from "@/components/qme/FloatingSquares";
+import heroAurora from "@/assets/hero-aurora.jpg";
 
-const GOLD = '#CA8A04';
-const GOLD_LIGHT = '#D4AF37';
-const BG = '#080706';
-const EASE_LUX = [0.22, 1, 0.36, 1] as const;
-
-// ─── Morphing Golden Sphere ──────────────────────────────────────────────────
-function GoldenSphere() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    let raf: number;
-    let t = 0;
-    const resize = () => {
-      const s = Math.min(canvas.parentElement!.clientWidth, 520);
-      canvas.width = canvas.height = s;
-      canvas.style.width = canvas.style.height = `${s}px`;
-    };
-    resize();
-    const draw = () => {
-      const s = canvas.width;
-      const cx = s / 2, cy = s / 2;
-      ctx.clearRect(0, 0, s, s);
-      // Outer ambient glow
-      const grd0 = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.52);
-      grd0.addColorStop(0, 'rgba(202,138,4,0.12)');
-      grd0.addColorStop(0.6, 'rgba(212,175,55,0.04)');
-      grd0.addColorStop(1, 'rgba(202,138,4,0)');
-      ctx.fillStyle = grd0;
-      ctx.beginPath(); ctx.arc(cx, cy, s * 0.52, 0, Math.PI * 2); ctx.fill();
-      // Draw morph rings
-      for (let ring = 0; ring < 5; ring++) {
-        const rScale = 0.25 + ring * 0.06;
-        const r = s * rScale;
-        const pts = 80;
-        ctx.beginPath();
-        for (let i = 0; i <= pts; i++) {
-          const angle = (i / pts) * Math.PI * 2;
-          const noise = 0.035 * Math.sin(3 * angle + t * 0.7 + ring * 1.1)
-                      + 0.02 * Math.sin(5 * angle - t * 0.4 + ring * 0.6)
-                      + 0.015 * Math.sin(7 * angle + t * 1.1 + ring * 2.2);
-          const rr = r * (1 + noise);
-          const x = cx + rr * Math.cos(angle);
-          const y = cy + rr * Math.sin(angle);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        const alpha = 0.55 - ring * 0.08;
-        const grd = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-        grd.addColorStop(0, `rgba(202,138,4,${alpha})`);
-        grd.addColorStop(0.4, `rgba(212,175,55,${alpha * 0.7})`);
-        grd.addColorStop(0.7, `rgba(245,197,24,${alpha * 0.5})`);
-        grd.addColorStop(1, `rgba(202,138,4,${alpha * 0.3})`);
-        ctx.strokeStyle = grd;
-        ctx.lineWidth = 1 + (4 - ring) * 0.4;
-        ctx.stroke();
-      }
-      // Inner sphere fill
-      const grd2 = ctx.createRadialGradient(cx - s * 0.07, cy - s * 0.09, 0, cx, cy, s * 0.28);
-      grd2.addColorStop(0, 'rgba(245,197,24,0.22)');
-      grd2.addColorStop(0.4, 'rgba(202,138,4,0.12)');
-      grd2.addColorStop(1, 'rgba(202,138,4,0.03)');
-      ctx.fillStyle = grd2;
-      ctx.beginPath(); ctx.arc(cx, cy, s * 0.28, 0, Math.PI * 2); ctx.fill();
-      t += 0.012;
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    window.addEventListener('resize', resize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-  }, []);
-  return <canvas ref={canvasRef} className="w-full h-full" />;
-}
-
-// ─── Radial Orbital Timeline ──────────────────────────────────────────────────
-const HOW_DATA = [
-  { id: 1, icon: '01', title: 'Find', detail: 'Search businesses near you or scan a QR code. No account needed.', relatedIds: [2] },
-  { id: 2, icon: '02', title: 'Join', detail: 'Select your service and receive your digital ticket instantly.', relatedIds: [1, 3] },
-  { id: 3, icon: '03', title: 'Arrive', detail: "We notify you when it's your turn. Walk in — never wait in line.", relatedIds: [2] },
-];
-
-function OrbitalTimeline() {
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [rotation, setRotation] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    let angle = 0;
-    const tick = () => {
-      if (activeId === null) { angle += 0.2; setRotation(angle % 360); }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [activeId]);
-
-  const getPos = (i: number, total: number) => {
-    const a = ((i / total) * 360 + rotation - 90) * (Math.PI / 180);
-    const r = 145;
-    return { x: r * Math.cos(a), y: r * Math.sin(a) };
-  };
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ height: 480 }}>
-      {/* Orbit ring */}
-      <div className="absolute w-80 h-80 rounded-full" style={{ border: '1px solid rgba(212,175,55,0.12)' }} />
-      <div className="absolute w-64 h-64 rounded-full" style={{ border: '1px solid rgba(212,175,55,0.06)' }} />
-
-      {/* Center orb */}
-      <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute z-10 w-16 h-16 rounded-full flex items-center justify-center"
-        style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.25), rgba(202,138,4,0.08) 60%, transparent)', border: '1px solid rgba(212,175,55,0.3)' }}>
-        <div className="w-3 h-3 rounded-full" style={{ background: GOLD_LIGHT, boxShadow: `0 0 16px ${GOLD}` }} />
-      </motion.div>
-
-      {/* Nodes */}
-      {HOW_DATA.map((item, i) => {
-        const pos = getPos(i, HOW_DATA.length);
-        const isActive = activeId === item.id;
-        return (
-          <div key={item.id} className="absolute" style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}>
-            <motion.button
-              onClick={() => setActiveId(isActive ? null : item.id)}
-              whileHover={{ scale: 1.1 }}
-              className="relative w-14 h-14 rounded-full flex items-center justify-center -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-              style={{
-                background: isActive ? `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})` : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isActive ? GOLD_LIGHT : 'rgba(212,175,55,0.2)'}`,
-                boxShadow: isActive ? `0 0 32px rgba(202,138,4,0.4)` : 'none',
-                transition: 'all 0.4s cubic-bezier(0.4,0,0.2,1)',
-              }}>
-              <span className="font-display text-sm font-bold" style={{ color: isActive ? BG : GOLD_LIGHT }}>{item.icon}</span>
-              {isActive && <><div className="pulse-ring" /><div className="pulse-ring-2" /></>}
-            </motion.button>
-
-            {/* Label */}
-            <div className="absolute text-center" style={{ width: 80, left: -33, top: 60 }}>
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: isActive ? GOLD_LIGHT : 'rgba(245,240,232,0.4)', transition: 'color 0.3s' }}>
-                {item.title}
-              </p>
-            </div>
-
-            {/* Detail card */}
-            <AnimatePresence>
-              {isActive && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.85, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.85, y: 8 }}
-                  transition={{ duration: 0.35, ease: EASE_LUX }}
-                  className="absolute z-20 w-52 glass rounded-xl p-4"
-                  style={{ top: 72, left: '50%', transform: 'translateX(-50%)' }}>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(245,240,232,0.65)' }}>{item.detail}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Container Scroll ────────────────────────────────────────────────────────
-function ContainerScroll({ children, title }: { children: React.ReactNode; title: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref });
-  const rotateX = useTransform(scrollYProgress, [0, 1], [18, 0]);
-  const scale = useTransform(scrollYProgress, [0, 1], [0.88, 1]);
-  const titleY = useTransform(scrollYProgress, [0, 0.5], [0, -60]);
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.4], [1, 0]);
-
-  return (
-    <div ref={ref} className="relative flex items-start justify-center" style={{ height: '140vh' }}>
-      <div className="sticky top-24 md:top-28 w-full" style={{ perspective: '1200px' }}>
-        <motion.div style={{ y: titleY, opacity: titleOpacity }} className="text-center mb-10 px-5">
-          {title}
-        </motion.div>
-        <motion.div style={{ rotateX, scale, transformOrigin: 'top center' }}>
-          {children}
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Scroll Reveal ────────────────────────────────────────────────────────────
-function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
-  return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 28 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.8, delay, ease: EASE_LUX }}
-      className={className}>
-      {children}
-    </motion.div>
-  );
-}
-
-// ─── Gold Counter ─────────────────────────────────────────────────────────────
-function GoldCounter({ to, suffix = '', label }: { to: number; suffix?: string; label: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true });
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!inView) return;
-    let start = 0;
-    const step = to / 70;
-    const t = setInterval(() => {
-      start += step;
-      if (start >= to) { setCount(to); clearInterval(t); }
-      else setCount(Math.floor(start));
-    }, 18);
-    return () => clearInterval(t);
-  }, [inView, to]);
-  return (
-    <div ref={ref} className="text-center">
-      <div className="font-display gold-text" style={{ fontSize: 'clamp(2.5rem,5vw,4rem)', lineHeight: 1, letterSpacing: '-0.02em' }}>
-        {count.toLocaleString()}{suffix}
-      </div>
-      <div className="mt-2 text-xs uppercase tracking-widest font-medium" style={{ color: 'rgba(245,240,232,0.38)', letterSpacing: '0.12em' }}>
-        {label}
-      </div>
-    </div>
-  );
-}
-
-// ─── Features ────────────────────────────────────────────────────────────────
-const FEATURES = [
-  { icon: Zap,         title: 'Instant Ticketing',    body: 'Join any queue in seconds. Digital ticket issued immediately, no sign-up required.' },
-  { icon: Bell,        title: 'Precision Alerts',     body: 'Notified at exactly the right moment. Never early, never late.' },
-  { icon: BarChart3,   title: 'Predictive Analytics', body: 'AI forecasts peak hours and recommends optimal staffing before bottlenecks form.' },
-  { icon: Users,       title: 'Multi-Branch Scale',   body: 'Manage unlimited queues and locations from a single command centre.' },
-  { icon: ShieldCheck, title: 'Enterprise Security',  body: 'End-to-end encrypted tickets, role-based access, and full audit trails.' },
-  { icon: Globe,       title: 'Everywhere Access',    body: 'Mobile app, web portal, desktop — all synchronised in real time.' },
-];
-
-// ─── Main ────────────────────────────────────────────────────────────────────
 export default function MarketingHome() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { scrollY } = useScroll();
-  const navOpacity = useTransform(scrollY, [0, 60], [0, 1]);
-
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: BG, fontFamily: "'Jost', system-ui, sans-serif", color: '#F5F0E8' }}>
-
-      {/* ── Floating Nav ── */}
-      <div className="fixed top-0 inset-x-0 z-50 flex justify-center pt-4 pointer-events-none">
-        <motion.nav
-          style={{ opacity: navOpacity }}
-          className="absolute inset-x-0 top-0 pointer-events-none"
-          initial={false}>
-          <div className="absolute inset-0" style={{ background: `rgba(8,7,6,0.85)`, backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(212,175,55,0.08)' }} />
-        </motion.nav>
-        <div className="relative pointer-events-auto w-full max-w-6xl mx-4 flex items-center justify-between h-16">
-          {/* Logo */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}
-            className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})` }}>
-              <span className="font-display font-bold text-xs" style={{ color: BG }}>Q</span>
-            </div>
-            <span className="font-display font-bold tracking-tight text-sm" style={{ color: '#F5F0E8' }}>
-              QMe <span className="gold-text">Now</span>
-            </span>
-          </motion.div>
-
-          {/* Desktop links */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="hidden md:flex items-center gap-8">
-            {['Features', 'How it Works', 'Download'].map(l => (
-              <a key={l} href={`#${l.toLowerCase().replace(/ /g, '-')}`}
-                className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
-                style={{ color: 'rgba(245,240,232,0.45)', letterSpacing: '0.1em' }}
-                onMouseEnter={e => (e.currentTarget.style.color = GOLD_LIGHT)}
-                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.45)')}>
-                {l}
-              </a>
-            ))}
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-            className="hidden md:flex items-center gap-3">
-            <a href="#download" className="text-xs font-semibold uppercase tracking-widest transition-colors duration-300"
-              style={{ color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#F5F0E8')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.35)')}>
-              Download
-            </a>
-            <a href="/join-us" className="btn-gold text-xs px-5 py-2.5 rounded-lg">
-              Request a Quote
-            </a>
-          </motion.div>
-
-          <button
-            type="button"
-            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2"
-            style={{ color: 'rgba(245,240,232,0.75)' }}
-          >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
+    <div className="relative min-h-screen overflow-x-hidden bg-qme-night text-white">
+      {/* ambient glows */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-qme-purple/20 blur-[140px]" />
+        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-qme-violet/25 blur-[150px]" />
+        <div className="absolute bottom-0 right-[10%] h-[400px] w-[400px] rounded-full bg-qme-purple/10 blur-[140px]" />
       </div>
 
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="fixed top-16 inset-x-0 z-40 px-5 pb-4 space-y-3"
-            style={{ background: 'rgba(8,7,6,0.97)', backdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
-            {['Features', 'How it Works', 'Download'].map(l => (
-              <a key={l} href={`#${l.toLowerCase().replace(/ /g, '-')}`} onClick={() => setMenuOpen(false)}
-                className="block py-2.5 text-xs font-semibold uppercase tracking-widest"
-                style={{ color: 'rgba(245,240,232,0.5)', letterSpacing: '0.1em' }}>{l}</a>
-            ))}
-            <a href="/join-us" className="btn-gold block text-center text-xs px-5 py-3 rounded-lg">Request a Quote</a>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Hero ── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
-        {/* Scan line effect */}
-        <motion.div animate={{ y: ['-100%', '100vh'] }} transition={{ duration: 8, repeat: Infinity, ease: 'linear', repeatDelay: 4 }}
-          className="absolute inset-x-0 h-px z-0 pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.15), transparent)' }} />
-
-        {/* Background grid */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'linear-gradient(rgba(212,175,55,1) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,1) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }} />
-
-        <div className="relative z-10 max-w-6xl mx-auto px-5 w-full grid lg:grid-cols-2 gap-16 items-center py-20">
-          {/* Left copy */}
-          <div>
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE_LUX }}
-              className="inline-flex items-center gap-2.5 mb-8">
-              <motion.span animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.8, repeat: Infinity }}
-                className="w-1.5 h-1.5 rounded-full" style={{ background: '#4ade80' }} />
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(245,240,232,0.4)', letterSpacing: '0.14em' }}>
-                Live Queue Management
-              </span>
-            </motion.div>
-
-            <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.1, ease: EASE_LUX }}
-              className="font-display leading-[1.04] tracking-tight mb-6"
-              style={{ fontSize: 'clamp(3rem,6vw,5.5rem)', fontWeight: 600, letterSpacing: '-0.02em' }}>
-              Wait Less.
-              <br />
-              <span className="gold-text">Live More.</span>
-            </motion.h1>
-
-            <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25, ease: EASE_LUX }}
-              className="text-lg leading-relaxed mb-10 max-w-md"
-              style={{ color: 'rgba(245,240,232,0.45)', fontWeight: 300 }}>
-              QMe Now transforms how businesses and customers experience queuing. Frictionless digital ticketing, real-time intelligence, and enterprise-grade reliability.
-            </motion.p>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.38, ease: EASE_LUX }}
-              className="flex flex-wrap gap-3 mb-10">
-              <a href="#download" className="btn-gold text-xs px-7 py-3.5 rounded-xl flex items-center gap-2">
-                Get the App <ChevronRight size={14} />
-              </a>
-              <a href="/join-us"
-                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest px-7 py-3.5 rounded-xl transition-all duration-400"
-                style={{ border: '1px solid rgba(212,175,55,0.2)', color: 'rgba(245,240,232,0.55)', letterSpacing: '0.1em' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)'; e.currentTarget.style.color = GOLD_LIGHT; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.2)'; e.currentTarget.style.color = 'rgba(245,240,232,0.55)'; }}>
-                <Mail size={14} /> Request a Quote
-              </a>
-            </motion.div>
-
-            {/* Trust line */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="flex items-center gap-3">
-              <div className="flex -space-x-1.5">
-                {['#CA8A04', '#D4AF37', '#4ade80', '#60a5fa'].map((c, i) => (
-                  <div key={i} className="w-6 h-6 rounded-full" style={{ background: c, border: `2px solid ${BG}` }} />
-                ))}
-              </div>
-              <p className="text-xs" style={{ color: 'rgba(245,240,232,0.3)' }}>
-                <span style={{ color: 'rgba(245,240,232,0.65)' }}>2,400+</span> customers served today
-              </p>
-            </motion.div>
-          </div>
-
-          {/* Right sphere */}
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2, delay: 0.2, ease: EASE_LUX }}
-            className="flex items-center justify-center">
-            <div className="relative w-full max-w-[420px] aspect-square">
-              <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(202,138,4,0.08) 0%, transparent 70%)' }} />
-              <GoldenSphere />
-            </div>
-          </motion.div>
-        </div>
-
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 2.5, repeat: Infinity }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-          style={{ color: 'rgba(245,240,232,0.2)' }}>
-          <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
-          <ArrowDown size={12} />
-        </motion.div>
-      </section>
-
-      {/* ── Stats ── */}
-      <section className="py-24 relative">
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(202,138,4,0.03) 50%, transparent)' }} />
-        <div className="max-w-4xl mx-auto px-5 relative">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <GoldCounter to={50000} suffix="+" label="Customers Served" />
-            <GoldCounter to={200}   suffix="+"  label="Businesses" />
-            <GoldCounter to={99}    suffix="%"  label="Uptime" />
-            <GoldCounter to={8}     suffix="m"  label="Avg Wait Saved" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Container Scroll — Dashboard Preview ── */}
-      <section className="relative px-5">
-        <ContainerScroll
-          title={
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-widest mb-3 font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Executive View</p>
-              <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-                Command-grade intelligence
-              </h2>
-              <p className="mt-4 max-w-xl mx-auto text-base" style={{ color: 'rgba(245,240,232,0.4)', fontWeight: 300 }}>
-                Every metric, every branch, every trend — visible at a glance.
-              </p>
-            </div>
-          }>
-          {/* Dashboard mockup */}
-          <div className="max-w-5xl mx-auto mx-px-4 rounded-2xl overflow-hidden"
-            style={{ border: '1px solid rgba(212,175,55,0.18)', background: 'rgba(8,7,6,0.95)' }}>
-            {/* Titlebar */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'rgba(212,175,55,0.08)', background: 'rgba(255,255,255,0.02)' }}>
-              {['#ff5f57','#febc2e','#28c840'].map(c => <div key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />)}
-              <div className="flex-1 mx-4 h-5 rounded" style={{ background: 'rgba(255,255,255,0.04)', maxWidth: 200 }} />
-            </div>
-            {/* Content */}
-            <div className="p-6 grid grid-cols-4 gap-4">
-              {[['1,842', 'Served Today', GOLD_LIGHT], ['8m', 'Avg Wait', '#4ade80'], ['24', 'Active Queues', '#60a5fa'], ['4.8★', 'Satisfaction', GOLD]].map(([v, l, c]) => (
-                <div key={l} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(212,175,55,0.08)' }}>
-                  <div className="font-display text-2xl font-semibold mb-1" style={{ color: c as string }}>{v}</div>
-                  <div className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(245,240,232,0.3)' }}>{l}</div>
-                </div>
-              ))}
-              <div className="col-span-3 rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(212,175,55,0.08)' }}>
-                <div className="text-xs font-semibold mb-3 uppercase tracking-widest" style={{ color: 'rgba(245,240,232,0.3)' }}>Queue Activity — 7 Days</div>
-                <div className="flex items-end gap-1.5 h-20">
-                  {[45, 72, 58, 91, 68, 88, 76].map((h, i) => (
-                    <div key={i} className="flex-1 rounded-sm transition-all" style={{ height: `${h}%`, background: `linear-gradient(to top, ${GOLD}, ${GOLD_LIGHT})`, opacity: 0.6 + i * 0.06 }} />
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(212,175,55,0.08)' }}>
-                <div className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'rgba(245,240,232,0.3)' }}>Services</div>
-                {[['General', 38], ['Premium', 24], ['Express', 38]].map(([n, v]) => (
-                  <div key={n} className="mb-1.5">
-                    <div className="flex justify-between text-[10px] mb-0.5">
-                      <span style={{ color: 'rgba(245,240,232,0.5)' }}>{n}</span>
-                      <span style={{ color: GOLD_LIGHT }}>{v}%</span>
-                    </div>
-                    <div className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      <div className="h-full rounded-full" style={{ width: `${v}%`, background: `linear-gradient(90deg, ${GOLD}, ${GOLD_LIGHT})` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </ContainerScroll>
-      </section>
-
-      {/* ── How it Works — Orbital Timeline ── */}
-      <section id="how-it-works" className="scroll-mt-28 py-28 px-5 relative">
-        <div className="max-w-4xl mx-auto">
-          <Reveal className="text-center mb-4">
-            <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Process</p>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-              Three steps.<br />Infinite time saved.
-            </h2>
-          </Reveal>
-          <Reveal delay={0.2}>
-            <OrbitalTimeline />
-          </Reveal>
-          <Reveal delay={0.3} className="text-center mt-8">
-            <p className="text-xs uppercase tracking-widest" style={{ color: 'rgba(245,240,232,0.28)', letterSpacing: '0.12em' }}>
-              Click each node to explore
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section id="features" className="scroll-mt-28 py-24 px-5">
-        <div className="max-w-6xl mx-auto">
-          <Reveal className="text-center mb-4">
-            <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Capabilities</p>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-14">
-            <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-              Built without compromise
-            </h2>
-          </Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={i * 0.06}>
-                <div className="group liquid-glass liquid-glass-hover rounded-2xl p-6 cursor-default">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-5 transition-all duration-400"
-                    style={{ background: 'rgba(202,138,4,0.08)', color: GOLD }}
-                    onMouseEnter={() => {}} /* handled by group */
-                  >
-                    <f.icon size={17} />
-                  </div>
-                  <h3 className="text-sm font-semibold mb-2 uppercase tracking-wide" style={{ letterSpacing: '0.06em', color: '#F5F0E8' }}>{f.title}</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(245,240,232,0.4)', lineHeight: 1.75 }}>{f.body}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Products ── */}
-      <section className="py-24 px-5 relative">
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent, rgba(202,138,4,0.025) 50%, transparent)' }} />
-        <div className="max-w-6xl mx-auto relative">
-          <Reveal className="text-center mb-4">
-            <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD, letterSpacing: '0.14em' }}>Two Products</p>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-14">
-            <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>A complete ecosystem</h2>
-          </Reveal>
-
-          <div className="grid md:grid-cols-2 gap-5">
-            {/* Mobile */}
-            <Reveal delay={0.1}>
-              <div className="relative group liquid-glass liquid-glass-hover rounded-3xl p-8 overflow-hidden h-full">
-                <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-40 -translate-y-24 translate-x-16" style={{ background: 'radial-gradient(circle, rgba(202,138,4,0.15), transparent)' }} />
-                <div className="relative">
-                  <div className="inline-flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-widest"
-                    style={{ color: GOLD, letterSpacing: '0.12em', borderBottom: `1px solid ${GOLD}`, paddingBottom: 8 }}>
-                    <Smartphone size={12} /> Mobile App
-                  </div>
-                  <h3 className="font-display text-2xl font-semibold mb-3" style={{ letterSpacing: '-0.01em' }}>For Customers</h3>
-                  <p className="text-sm mb-6 leading-relaxed" style={{ color: 'rgba(245,240,232,0.4)', fontWeight: 300, lineHeight: 1.8 }}>
-                    Join queues instantly. Track your position in real time. Get notified the moment it's your turn. iOS and Android.
-                  </p>
-                  {['Join any queue instantly', 'Live position tracking', 'Smart turn notifications', 'Queue history'].map(f => (
-                    <div key={f} className="flex items-center gap-2.5 mb-2.5">
-                      <div className="w-1 h-1 rounded-full" style={{ background: GOLD_LIGHT }} />
-                      <span className="text-xs" style={{ color: 'rgba(245,240,232,0.55)' }}>{f}</span>
-                    </div>
-                  ))}
-                  <div className="flex gap-3 mt-8">
-                    <a href="#download" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300"
-                      style={{ background: '#F5F0E8', color: BG }}>
-                      <Apple size={13} /> App Store
-                    </a>
-                    <a href="#download" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300"
-                      style={{ border: '1px solid rgba(245,240,232,0.15)', color: 'rgba(245,240,232,0.6)' }}>
-                      <Play size={13} /> Google Play
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Desktop */}
-            <Reveal delay={0.2}>
-              <div className="relative group liquid-glass liquid-glass-hover rounded-3xl p-8 overflow-hidden h-full">
-                <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-40 -translate-y-24 translate-x-16" style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.1), transparent)' }} />
-                <div className="relative">
-                  <div className="inline-flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-widest"
-                    style={{ color: GOLD_LIGHT, letterSpacing: '0.12em', borderBottom: `1px solid ${GOLD_LIGHT}40`, paddingBottom: 8 }}>
-                    <Monitor size={12} /> Desktop Admin
-                  </div>
-                  <h3 className="font-display text-2xl font-semibold mb-3" style={{ letterSpacing: '-0.01em' }}>For Businesses</h3>
-                  <p className="text-sm mb-6 leading-relaxed" style={{ color: 'rgba(245,240,232,0.4)', fontWeight: 300, lineHeight: 1.8 }}>
-                    Purpose-built interfaces for three distinct roles. Staff serve faster. Managers control smarter. Executives see everything.
-                  </p>
-                  {['Staff — call next in one click', 'Manager — live queue control', 'Executive — AI-powered insights', 'All roles synchronised'].map(f => (
-                    <div key={f} className="flex items-center gap-2.5 mb-2.5">
-                      <div className="w-1 h-1 rounded-full" style={{ background: GOLD }} />
-                      <span className="text-xs" style={{ color: 'rgba(245,240,232,0.55)' }}>{f}</span>
-                    </div>
-                  ))}
-                  <a href="/join-us" className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-8">
-                    <Mail size={13} /> Contact Sales
-                  </a>
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Download ── */}
-      <section id="download" className="scroll-mt-28 py-24 px-5 relative overflow-hidden">
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(202,138,4,0.06) 0%, transparent 70%)' }} />
-        <div className="max-w-4xl mx-auto relative">
-          <Reveal className="text-center mb-14">
-            <p className="text-xs uppercase tracking-widest font-semibold mb-3" style={{ color: GOLD, letterSpacing: '0.14em' }}>Get Started</p>
-            <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-              Ready when you are
-            </h2>
-          </Reveal>
-
-          <div className="grid md:grid-cols-2 gap-5">
-            {/* Mobile download */}
-            <Reveal delay={0.1}>
-              <div className="liquid-glass rounded-3xl p-8">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'linear-gradient(135deg, rgba(202,138,4,0.15), rgba(212,175,55,0.08))', border: '1px solid rgba(212,175,55,0.2)' }}>
-                  <Smartphone size={22} style={{ color: GOLD_LIGHT }} />
-                </div>
-                <h3 className="font-display text-xl font-semibold mb-1" style={{ letterSpacing: '-0.01em' }}>Mobile App</h3>
-                <p className="text-xs mb-1" style={{ color: 'rgba(245,240,232,0.4)' }}>For customers. Free to download.</p>
-                <p className="text-[10px] uppercase tracking-widest mb-6 font-semibold" style={{ color: GOLD, letterSpacing: '0.12em' }}>iOS · Android</p>
-                <div className="flex gap-3">
-                  <button type="button" disabled aria-disabled="true" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-not-allowed"
-                    style={{ background: '#F5F0E8', color: BG, opacity: 0.72 }}>
-                    <Apple size={13} /> App Store Soon
-                  </button>
-                  <button type="button" disabled aria-disabled="true" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold cursor-not-allowed"
-                    style={{ border: '1px solid rgba(245,240,232,0.2)', color: 'rgba(245,240,232,0.75)', opacity: 0.72 }}>
-                    <Play size={13} /> Play Store Soon
-                  </button>
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Desktop licensing */}
-            <Reveal delay={0.2}>
-              <div className="liquid-glass rounded-3xl p-8"
-                style={{ background: 'linear-gradient(135deg, rgba(202,138,4,0.07), rgba(212,175,55,0.03))', borderColor: 'rgba(212,175,55,0.18)' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})` }}>
-                  <Monitor size={22} style={{ color: BG }} />
-                </div>
-                <h3 className="font-display text-xl font-semibold mb-1" style={{ letterSpacing: '-0.01em' }}>Desktop Admin</h3>
-                <p className="text-xs mb-1" style={{ color: 'rgba(245,240,232,0.4)' }}>Enterprise licensing. Per-seat pricing.</p>
-                <p className="text-[10px] uppercase tracking-widest mb-5 font-semibold" style={{ color: GOLD, letterSpacing: '0.12em' }}>Windows · macOS</p>
-                {['All three admin role views', 'Unlimited queues & branches', 'AI analytics included', 'Priority onboarding support'].map(f => (
-                  <div key={f} className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 size={11} style={{ color: GOLD }} />
-                    <span className="text-xs" style={{ color: 'rgba(245,240,232,0.5)' }}>{f}</span>
-                  </div>
-                ))}
-                <a href="mailto:hello@qmenow.com?subject=Desktop%20Licensing" className="btn-gold inline-flex items-center gap-2 text-xs px-6 py-2.5 rounded-xl mt-6">
-                  <Mail size={13} /> Contact Us for Licensing
-                </a>
-              </div>
-            </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="py-12 px-5" style={{ borderTop: '1px solid rgba(212,175,55,0.08)' }}>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})` }}>
-              <span className="font-display font-bold text-xs" style={{ color: BG }}>Q</span>
-            </div>
-            <span className="font-display text-sm font-semibold" style={{ color: '#F5F0E8' }}>QMe <span className="gold-text">Now</span></span>
-          </div>
-          <div className="flex gap-8">
-            {[
-              ['Features', '#features'],
-              ['Privacy', '/about'],
-              ['Terms', '/about'],
-              ['Contact', '/join-us'],
-            ].map(([l, href]) => (
-              <a key={l} href={href} className="text-[11px] uppercase tracking-widest transition-colors duration-300"
-                style={{ color: 'rgba(245,240,232,0.55)', letterSpacing: '0.1em' }}
-                onMouseEnter={e => (e.currentTarget.style.color = GOLD_LIGHT)}
-                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(245,240,232,0.55)')}>
-                {l}
-              </a>
-            ))}
-          </div>
-          <p className="text-[11px]" style={{ color: 'rgba(245,240,232,0.18)' }}>© {new Date().getFullYear()} QMe Now</p>
-        </div>
-      </footer>
+      <MarketingNav />
+      <Hero />
+      <WhatItIs />
+      <Features />
+      <HowItWorks />
+      <Pricing />
+      <ForBusiness />
+      <Testimonials />
+      <Newsletter />
+      <MarketingFooter />
     </div>
+  );
+}
+
+/* ------------------------------ HERO ------------------------------ */
+
+function Hero() {
+  return (
+    <section className="relative flex min-h-[92vh] items-center justify-center overflow-hidden pb-28 pt-24">
+      <div className="pointer-events-none absolute inset-0 grid-bg" />
+
+      {/* ambient hero glows */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-1/2 top-[46%] h-[46rem] w-[46rem] -translate-x-1/2 rounded-full bg-qme-purple/25 blur-[160px]" />
+        <div className="absolute left-[10%] top-[58%] h-[24rem] w-[24rem] rounded-full bg-qme-violet/30 blur-[150px]" />
+        <div className="absolute right-[8%] top-[40%] h-[24rem] w-[24rem] rounded-full bg-qme-purple/20 blur-[150px]" />
+      </div>
+
+      {/* floating glass squares with cursor parallax */}
+      <FloatingSquares />
+
+      <div className="lux-container relative z-20 text-center">
+        <motion.span
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="chip mx-auto"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-qme-green blink-dot" />
+          Trusted by Jamaica's leading institutions
+        </motion.span>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto mt-7 max-w-4xl text-balance text-6xl font-bold leading-[1.02] tracking-tight text-white sm:text-7xl lg:text-8xl xl:max-w-5xl xl:text-[6.5rem] 2xl:text-[7rem]"
+        >
+          The calm{" "}
+          <span
+            className="serif text-clip-img text-clip-glow"
+            style={{ backgroundImage: `url(${heroAurora})` }}
+          >
+            queue layer
+          </span>
+          <br className="hidden sm:block" /> for modern business.
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-qme-lavender/75 xl:text-xl"
+        >
+          QME Now replaces crowded waiting rooms and guesswork with a single
+          live queue — real-time wait times, barcode check-in and dashboards for
+          everyone from a single counter to a multi-branch network.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+        >
+          <a href="#pricing" className="btn btn-primary btn-lg">
+            Download the app <ArrowUpRight className="h-5 w-5" />
+          </a>
+          <a href="#features" className="btn btn-ghost btn-lg">
+            Learn more <ArrowRight className="h-5 w-5" />
+          </a>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- WHAT IT IS --------------------------- */
+
+function WhatItIs() {
+  return (
+    <section className="py-24 md:py-32">
+      <div className="lux-container grid items-start gap-12 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <div className="chip chip-mute mb-5">What it is</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            One quiet system for <span className="serif accent-text">everything that happens</span> before the appointment.
+          </h2>
+        </div>
+        <div className="space-y-5 text-lg leading-relaxed text-qme-lavender/75 lg:col-span-7">
+          <p>
+            <strong className="text-white">QME Now</strong> replaces the clipboard,
+            the sign-in sheet and the "how long's the wait?" chorus with a single
+            live queue your clients can join from their phone — and watch in
+            real time.
+          </p>
+          <p>
+            Clients always know where they stand. Your team works from calm,
+            purpose-built dashboards. Owners get a live operating picture across
+            every location — no spreadsheets, no hardware, no training day.
+          </p>
+          <div className="grid gap-3 pt-2 sm:grid-cols-3">
+            {[
+              { i: Radio, t: "Real-time" },
+              { i: ShieldCheck, t: "Secure by design" },
+              { i: Layers, t: "Built for teams" },
+            ].map(({ i: Icon, t }) => (
+              <div key={t} className="panel flex items-center gap-3 px-4 py-3">
+                <Icon className="h-5 w-5 text-qme-lavender" />
+                <span className="text-sm font-medium text-white">{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------- FEATURES ---------------------------- */
+
+function Features() {
+  const features = [
+    { icon: Clock, tag: "Live", title: "Real-time wait times", body: "Customers always know exactly how long until their turn — no guessing, no crowding, no front-desk interruptions." },
+    { icon: QrCode, tag: "Secure", title: "Barcode check-in", body: "A scannable ticket code verifies every customer before service starts — the line stays honest and on schedule." },
+    { icon: Zap, tag: "Teams", title: "Role-based dashboards", body: "Line staff, manager and executive views out of the box — each person sees exactly what they need, nothing more." },
+    { icon: Bell, tag: "Focus", title: "Smart notifications", body: "Automatic 'you're next' pings — and GPS-aware departure reminders — let customers wait wherever they like." },
+    { icon: TrendingUp, tag: "Insight", title: "Live analytics", body: "Throughput, no-shows and wait times per branch — tracked on charts that update as the day unfolds." },
+    { icon: ShieldCheck, tag: "Trust", title: "Reliable & secure", body: "Encrypted traffic and role-scoped access keep customer data locked down and your operation audit-ready." },
+  ];
+  return (
+    <section id="features" className="scroll-mt-24 border-t border-white/[0.06] py-24 md:py-28">
+      <div className="lux-container">
+        <div className="mb-14 max-w-2xl">
+          <div className="chip chip-mute mb-5">The product</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            Six tools. <span className="serif accent-text">One calm surface.</span>
+          </h2>
+          <p className="mt-4 text-lg text-qme-lavender/70">
+            Each piece works on its own — together they become the daily backbone
+            of how your business runs.
+          </p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.05 }}
+              className="panel panel-hover flex flex-col p-6"
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+                  <f.icon className="h-5 w-5" />
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-qme-lavender/50">
+                  {f.tag}
+                </span>
+              </div>
+              <h3 className="mb-2 text-xl font-semibold tracking-tight">{f.title}</h3>
+              <p className="text-[15px] leading-relaxed text-qme-lavender/70">{f.body}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------- HOW IT WORKS -------------------------- */
+
+function HowItWorks() {
+  const steps = [
+    { n: "01", t: "Join from anywhere", d: "Customers pick a branch in the app and drop straight into the live queue — before they even leave home." },
+    { n: "02", t: "Track in real time", d: "They watch their position and wait time update live on their phone, free to wait wherever they like." },
+    { n: "03", t: "Get the call", d: "A push notification tells them to head over the moment you're ready. No shouting names across the room." },
+    { n: "04", t: "Run the numbers", d: "Every visit feeds your dashboards — so owners see throughput and efficiency without lifting a finger." },
+  ];
+  return (
+    <section className="border-t border-white/[0.06] py-24 md:py-32">
+      <div className="lux-container">
+        <div className="mb-14 max-w-3xl">
+          <div className="chip chip-mute mb-5">How it works</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            From download to <span className="serif accent-text">a calmer day</span> in minutes.
+          </h2>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {steps.map((s) => (
+            <div key={s.n} className="panel-elev relative overflow-hidden p-6">
+              <div className="mb-3 font-serif text-5xl italic accent-text">{s.n}</div>
+              <h4 className="mb-1.5 text-lg font-semibold tracking-tight">{s.t}</h4>
+              <p className="text-sm leading-relaxed text-qme-lavender/65">{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------- PRICING ---------------------------- */
+
+const plans = [
+  {
+    name: "Free",
+    price: { m: "Free", y: "Free" },
+    desc: "For customers checking in and tracking their place in line.",
+    features: ["Join any QME Now queue", "Live position & wait time", "Barcode check-in ticket", "Push notifications", "Visit history"],
+    highlighted: false,
+    cta: "Download the app for free",
+    href: "#pricing",
+    internal: false,
+  },
+  {
+    name: "Pro",
+    price: { m: "$9.99/mo", y: "$95.90/yr" },
+    desc: "For frequent customers who want priority and richer tracking.",
+    features: ["Everything in Free", "Priority queue notifications", "Favourites with branch wait times", "Personal queue analytics", "Multi-line tracking"],
+    highlighted: true,
+    cta: "Start a subscription",
+    href: "#pricing",
+    internal: false,
+  },
+  {
+    name: "Executive / Business",
+    price: { m: "Custom", y: "Custom" },
+    desc: "For businesses running their own queues across one or many locations.",
+    features: ["Staff, Manager & Executive dashboards", "Unlimited counters & branches", "Live analytics & no-show handling", "Predictive insights & heatmaps", "Dedicated onboarding & support"],
+    highlighted: false,
+    cta: "Get a license quote",
+    href: "/join-us",
+    internal: true,
+  },
+];
+
+function Pricing() {
+  const [yearly, setYearly] = useState(false);
+  return (
+    <section id="pricing" className="scroll-mt-24 border-t border-white/[0.06] py-24 md:py-32">
+      <div className="lux-container">
+        <div className="mx-auto mb-10 max-w-2xl text-center">
+          <div className="chip chip-mute mb-5">Plans · for the mobile app</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            Plans that <span className="serif accent-text">grow with you.</span>
+          </h2>
+          <p className="mt-4 text-lg text-qme-lavender/70">
+            Download the app for free, start a subscription, or license QME Now
+            for your business.
+          </p>
+        </div>
+
+        <div className="mb-12 flex items-center justify-center gap-3">
+          <span className={`text-sm ${!yearly ? "text-white" : "text-qme-lavender/55"}`}>Monthly</span>
+          <button
+            onClick={() => setYearly((v) => !v)}
+            className={`flex h-7 w-12 items-center rounded-full p-1 transition-colors ${yearly ? "bg-qme-purple" : "bg-white/15"}`}
+            aria-label="Toggle yearly billing"
+          >
+            <span className={`h-5 w-5 rounded-full bg-white transition-transform ${yearly ? "translate-x-5" : ""}`} />
+          </button>
+          <span className={`text-sm ${yearly ? "text-white" : "text-qme-lavender/55"}`}>
+            Yearly
+            <span className="ml-2 rounded-full bg-qme-green/20 px-2 py-0.5 text-xs text-qme-green">Save 20%</span>
+          </span>
+        </div>
+
+        <div className="grid items-stretch gap-6 md:grid-cols-3">
+          {plans.map((plan, i) => (
+            <motion.div
+              key={plan.name}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.08 }}
+              className={`flex flex-col p-7 ${
+                plan.highlighted
+                  ? "panel-elev shadow-[0_0_70px_-20px_rgba(123,95,255,0.7)] ring-1 ring-qme-purple/40"
+                  : "panel"
+              }`}
+            >
+              {plan.highlighted && (
+                <span className="chip mb-4 w-fit">
+                  <Sparkles className="h-3 w-3" /> Most popular
+                </span>
+              )}
+              <p className="text-sm text-qme-lavender/65">{plan.name}</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight">{yearly ? plan.price.y : plan.price.m}</p>
+              <p className="mt-3 text-sm text-qme-lavender/60">{plan.desc}</p>
+              <ul className="mt-6 space-y-3">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-sm">
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/10">
+                      <Check className="h-3 w-3 text-qme-green" />
+                    </span>
+                    <span className="text-qme-lavender/85">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              {plan.internal ? (
+                <Link
+                  to={plan.href}
+                  className={`mt-8 block rounded-full py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
+                    plan.highlighted ? "btn-primary" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
+              ) : (
+                <a
+                  href={plan.href}
+                  className={`mt-8 block rounded-full py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
+                    plan.highlighted ? "btn-primary" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        <p className="mt-8 text-center text-sm text-qme-lavender/50">
+          iOS and Android apps are coming to the App Store and Google Play.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- FOR BUSINESS --------------------------- */
+
+function ForBusiness() {
+  const points = [
+    { t: "A live operating picture", d: "See every branch's queue, throughput and efficiency in one place — the way you'd check the weather." },
+    { t: "Zero new hardware", d: "Works on the phones, tablets and desktops you already own. Set up a branch in an afternoon." },
+    { t: "Role-scoped access", d: "Line staff, managers and executives each get a focused dashboard. Permissions live server-side, validated on every read." },
+    { t: "No-show protection", d: "Automated reminders and smart hold windows quietly recover the time empty counters used to cost you." },
+    { t: "Predictive insights", d: "Notebook-driven analytics recommend staffing levels, flag busy hours, and score branch performance." },
+  ];
+  return (
+    <section id="partners" className="scroll-mt-24 border-t border-white/[0.06] py-24 md:py-32">
+      <div className="lux-container grid items-start gap-12 lg:grid-cols-12">
+        <div className="lg:col-span-5 lg:sticky lg:top-24">
+          <div className="chip mb-5">
+            <Building2 className="h-3.5 w-3.5" /> Partners & business
+          </div>
+          <h2 className="mb-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            Trusted by the teams <span className="serif accent-text">that run the day.</span>
+          </h2>
+          <p className="mb-7 text-lg leading-relaxed text-qme-lavender/70">
+            From government agencies to clinics and studios, QME Now powers calmer
+            queues at scale. Want to bring it to your business? Size your setup
+            and talk to sales about a license.
+          </p>
+          <Link to="/join-us" className="btn btn-primary">
+            Contact sales <ArrowRight className="h-4 w-4" />
+          </Link>
+          <div className="mt-8 flex flex-wrap gap-2">
+            {["Tax Administration Jamaica", "NHT", "PICA"].map((p) => (
+              <span key={p} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-qme-lavender/80">
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3 lg:col-span-7">
+          {points.map((x) => (
+            <div key={x.t} className="panel flex items-start gap-4 p-5">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-qme-purple/30 bg-qme-purple/15">
+                <Check className="h-4 w-4 text-qme-lavender" />
+              </div>
+              <div>
+                <h4 className="mb-1 text-lg font-semibold tracking-tight">{x.t}</h4>
+                <p className="text-[15px] leading-relaxed text-qme-lavender/65">{x.d}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------- TESTIMONIALS -------------------------- */
+
+function Testimonials() {
+  const quotes = [
+    { name: "Maya R.", role: "Branch Manager", body: "We cut our walk-in chaos overnight. Customers love seeing their spot in line, and no-shows dropped by a third." },
+    { name: "Devon K.", role: "Line Staff", body: "The service timer keeps me on schedule and the barcode check-in means nobody jumps the queue. Quietly brilliant." },
+    { name: "Priya S.", role: "Regional Executive", body: "The executive dashboard finally gives me a live view across all five branches. I check it with my coffee." },
+  ];
+  return (
+    <section className="border-t border-white/[0.06] py-24 md:py-32">
+      <div className="lux-container">
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <div className="chip chip-mute mb-5">Loved by teams</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            Calmer days, <span className="serif accent-text">in their words.</span>
+          </h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {quotes.map((q) => (
+            <div key={q.name} className="panel flex flex-col p-6">
+              <div className="flex gap-1 text-qme-yellow">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-current" />
+                ))}
+              </div>
+              <p className="mt-4 flex-1 text-[15px] leading-relaxed text-qme-lavender/85">"{q.body}"</p>
+              <div className="mt-6 flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-qme-purple/30 text-xs font-bold">
+                  {q.name.charAt(0)}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">{q.name}</p>
+                  <p className="text-xs text-qme-lavender/55">{q.role}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- NEWSLETTER --------------------------- */
+
+function Newsletter() {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  return (
+    <section className="border-t border-white/[0.06] py-24">
+      <div className="w-full px-6 md:px-10 lg:px-16">
+        <div className="panel-elev relative overflow-hidden px-8 py-16 text-center md:px-16 lg:py-20">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-qme-purple/30 blur-3xl" />
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+            <Mail className="h-5 w-5" />
+          </span>
+          <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+            Stay in <span className="serif accent-text">the loop.</span>
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm text-qme-lavender/65">
+            Product updates, queue craft and the occasional behind-the-scenes.
+            No spam — unsubscribe anytime.
+          </p>
+
+          {submitted ? (
+            <div className="mx-auto mt-8 inline-flex items-center gap-2 rounded-full bg-qme-green/20 px-5 py-3 text-sm font-semibold text-qme-green">
+              <Check className="h-4 w-4" /> You're subscribed! Check your inbox.
+            </div>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (valid) setSubmitted(true);
+              }}
+              className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row"
+            >
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@business.com"
+                maxLength={255}
+                className="flex-1 rounded-full border border-white/[0.12] bg-white/[0.05] px-5 py-3.5 text-sm outline-none placeholder:text-white/30 focus:border-qme-purple"
+              />
+              <button
+                type="submit"
+                disabled={!valid}
+                className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Subscribe
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

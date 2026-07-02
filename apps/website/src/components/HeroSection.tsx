@@ -8,7 +8,7 @@
  *  - Animated CTA buttons with glow
  *  - Live stats counter
  */
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Zap, Clock, Shield, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { FloatingShapes } from '@/components/ui/FloatingShapes';
 import { StatItem } from '@/components/ui/AnimatedStats';
 import { cn } from '@/lib/utils';
 
-const fadeUpVariants = {
+const fadeUpVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
     opacity: 1,
