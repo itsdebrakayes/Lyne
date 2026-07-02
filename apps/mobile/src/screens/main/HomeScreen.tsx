@@ -10,7 +10,7 @@ import { BranchSummary, initials, queueStatus, statusMeta } from '../../lib/mobi
 
 function MiniTabBar({ active }: { active: 'Home' | 'Search' | 'Saved' | 'Profile' }) {
   const navigation = useNavigation<any>();
-  const tabs = [['Home', 'home-outline'], ['Search', 'search-outline'], ['Saved', 'time-outline'], ['Profile', 'person-outline']] as const;
+  const tabs = [['Home', 'home-outline'], ['Search', 'search-outline'], ['Saved', 'bookmark-outline'], ['Profile', 'person-outline']] as const;
   return (
     <View style={v3.bottomTabs}>
       {tabs.map(([name, icon]) => {
@@ -18,7 +18,7 @@ function MiniTabBar({ active }: { active: 'Home' | 'Search' | 'Saved' | 'Profile
         return (
           <TouchableOpacity key={name} onPress={() => navigation.navigate(name)} style={on ? v3.tabOn : v3.tabOff}>
             <Ionicons name={icon} size={21} color={on ? '#fff' : colors.muted} />
-            {on && <Text style={v3.tabOnText}>{name === 'Saved' ? 'History' : name}</Text>}
+            {on && <Text style={v3.tabOnText}>{name}</Text>}
           </TouchableOpacity>
         );
       })}

@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, v3 } from '../../lib/mobileV3Styles';
 import api from '../../lib/apiClient';
-import { MiniTabBar } from './HomeScreen';
 
 interface VisitHistoryRow {
   id: string;
@@ -34,6 +33,13 @@ export default function HistoryScreen() {
   return (
     <View style={v3.root}>
       <ScrollView contentContainerStyle={v3.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => navigation.goBack()}
+          style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
         <Text style={[v3.h2, { marginBottom: 18 }]}>Queue History</Text>
         {isLoading && <ActivityIndicator color={colors.text} style={{ marginTop: 32 }} />}
         {!!error && <Text style={{ color: colors.danger, fontWeight: '700' }}>Queue history could not be loaded.</Text>}
@@ -56,7 +62,6 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <MiniTabBar active="Saved" />
     </View>
   );
 }

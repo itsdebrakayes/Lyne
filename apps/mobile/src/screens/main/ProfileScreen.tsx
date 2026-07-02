@@ -24,7 +24,7 @@ export default function ProfileScreen() {
   const name = user?.full_name || 'Andre Campbell';
   const email = user?.email || 'andre.c@email.com';
   const rows = [
-    ['Queue history', `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, '#2176f3', () => navigation.navigate('Saved')],
+    ['Queue history', `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, '#2176f3', () => navigation.navigate('History')],
     ...baseRows.map(row => [...row, undefined] as const),
   ] as const;
   return (

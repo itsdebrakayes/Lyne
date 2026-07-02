@@ -22,6 +22,10 @@ Built with **Expo + React Native + TypeScript**.
 
 ## Setup
 
+This project is pinned to **Expo SDK 56** so it matches the current Expo Go release.
+If Expo Go says the project requires a different app version, reinstall dependencies
+from this directory before scanning the QR code.
+
 ```bash
 cd apps/mobile
 npm install

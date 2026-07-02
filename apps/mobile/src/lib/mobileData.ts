@@ -42,6 +42,15 @@ export interface TicketRecord {
   status_message?: string | null;
 }
 
+export interface SavedBusiness {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  logo_url?: string | null;
+  saved_at: string;
+}
+
 export function queueStatus(waitMinutes: number): QueueStatus {
   if (waitMinutes >= 40) return 'busy';
   if (waitMinutes >= 15) return 'moderate';
