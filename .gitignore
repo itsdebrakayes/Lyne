@@ -70,3 +70,6 @@ supabase/.temp/
 .windsurf/
 graphify-out/
 skills-lock.json
+
+# TypeScript incremental build info
+*.tsbuildinfo
