@@ -7,10 +7,54 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const SUPABASE_URL     = (Constants.expoConfig?.extra?.supabaseUrl     as string) || '';
-const SUPABASE_ANON    = (Constants.expoConfig?.extra?.supabaseAnonKey as string) || '';
-const API_URL          = (Constants.expoConfig?.extra?.apiUrl          as string) || 'http://localhost:4000/api';
+type ExpoExtra = {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  apiUrl?: string;
+};
+
+type ExpoConstantsWithHosts = typeof Constants & {
+  expoConfig?: NonNullable<typeof Constants.expoConfig> & { hostUri?: string };
+  manifest?: { debuggerHost?: string };
+  manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
+};
+
+const expoConstants = Constants as ExpoConstantsWithHosts;
+const expoExtra = (expoConstants.expoConfig?.extra || {}) as ExpoExtra;
+
+function normalizeApiUrl(url: string) {
+  return url.replace(/\/+$/, '');
+}
+
+function parseHost(hostUri?: unknown) {
+  if (typeof hostUri !== 'string' || hostUri.trim() === '') return '';
+  const hostPort = hostUri.trim().replace(/^[a-z]+:\/\//i, '').split('/')[0];
+  if (hostPort.startsWith('[')) return hostPort.slice(1, hostPort.indexOf(']'));
+  return hostPort.split(':')[0];
+}
+
+function inferApiUrl() {
+  const configuredUrl = expoExtra.apiUrl?.trim();
+  if (configuredUrl) return normalizeApiUrl(configuredUrl);
+
+  const expoHost = parseHost(
+    expoConstants.expoConfig?.hostUri
+      || expoConstants.manifest2?.extra?.expoClient?.hostUri
+      || expoConstants.manifest?.debuggerHost
+  );
+
+  if (expoHost && !['localhost', '127.0.0.1', '::1'].includes(expoHost)) {
+    return `http://${expoHost}:4000/api`;
+  }
+
+  return Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api';
+}
+
+const SUPABASE_URL = expoExtra.supabaseUrl || '';
+const SUPABASE_ANON = expoExtra.supabaseAnonKey || '';
+const API_URL = inferApiUrl();
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
@@ -59,4 +103,5 @@ const api = {
   delete: <T>(path: string, auth = true) => request<T>('DELETE', path, undefined, auth),
 };
 
+export { API_URL };
 export default api;

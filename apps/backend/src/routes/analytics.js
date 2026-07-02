@@ -12,6 +12,9 @@
  *
  * GET /api/analytics/staff?business_id=&branch_id=
  *     — staff performance (manager/executive)
+ *
+ * GET /api/analytics/executive-kpis?business_id=&month=YYYY-MM
+ *     — employee KPI cards for executive dashboards
  */
 
 const router = require('express').Router();
@@ -24,6 +27,66 @@ const {
   scopedBusinessId,
   scopedBranchId,
 } = require('../middleware/tenantAccess');
+
+function periodRange(period, month) {
+  if (period === 'this_week') {
+    return {
+      visitSql: 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
+      ticketSql: 'DATE(COALESCE(t.completed_at, t.called_at, t.joined_at)) >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
+      params: [],
+    };
+  }
+  if (period === 'last_week') {
+    return {
+      visitSql: `w.visit_date >= DATE_SUB(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
+                 AND w.visit_date < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)`,
+      ticketSql: `DATE(COALESCE(t.completed_at, t.called_at, t.joined_at)) >= DATE_SUB(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
+                  AND DATE(COALESCE(t.completed_at, t.called_at, t.joined_at)) < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)`,
+      params: [],
+    };
+  }
+  if (period === 'month') {
+    const safeMonth = /^\d{4}-\d{2}$/.test(month || '') ? month : new Date().toISOString().slice(0, 7);
+    return {
+      visitSql: "DATE_FORMAT(w.visit_date, '%Y-%m') = ?",
+      ticketSql: "DATE_FORMAT(COALESCE(t.completed_at, t.called_at, t.joined_at), '%Y-%m') = ?",
+      params: [safeMonth],
+    };
+  }
+  return {
+    visitSql: 'w.visit_date = CURDATE()',
+    ticketSql: 'DATE(COALESCE(t.completed_at, t.called_at, t.joined_at)) = CURDATE()',
+    params: [],
+  };
+}
+
+function monthBounds(month) {
+  const safeMonth = /^\d{4}-\d{2}$/.test(month || '') ? month : new Date().toISOString().slice(0, 7);
+  const [year, monthNumber] = safeMonth.split('-').map(Number);
+  const current = new Date(Date.UTC(year, monthNumber - 1, 1));
+  const next = new Date(Date.UTC(year, monthNumber, 1));
+  const previous = new Date(Date.UTC(year, monthNumber - 2, 1));
+  const format = (date) => date.toISOString().slice(0, 10);
+  return {
+    month: safeMonth,
+    start: format(current),
+    next: format(next),
+    previousStart: format(previous),
+  };
+}
+
+function normalizeScore(value, max, higherIsBetter = true) {
+  const numeric = Number(value || 0);
+  const limit = Number(max || 0);
+  if (limit <= 0) return 50;
+  const raw = Math.max(0, Math.min(100, (numeric / limit) * 100));
+  return higherIsBetter ? raw : 100 - raw;
+}
+
+function utilizationScore(utilization) {
+  const value = Number(utilization || 0);
+  return Math.max(0, Math.min(100, 100 - Math.abs(value - 0.8) * 140));
+}
 
 // Daily summary
 router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
@@ -51,6 +114,222 @@ router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), re
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch analytics summary.' });
+  }
+});
+
+router.get('/line-staff', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), async (req, res) => {
+  try {
+    const period = ['today', 'this_week', 'last_week', 'month'].includes(req.query.period) ? req.query.period : 'today';
+    const range = periodRange(period, req.query.month);
+    const conditions = ['b.business_id = ?', "t.status IN ('served', 'no_show')", range.ticketSql];
+    const params = [req.dbStaff.business_id, ...range.params];
+
+    if (req.dbStaff.role_name === 'line_staff') {
+      conditions.push('t.served_by_staff_id = ?');
+      params.push(req.dbStaff.id);
+    } else if (req.query.staff_id) {
+      conditions.push('t.served_by_staff_id = ?');
+      params.push(req.query.staff_id);
+    } else if (req.dbStaff.role_name === 'manager' && req.dbStaff.branch_id) {
+      conditions.push('q.branch_id = ?');
+      params.push(req.dbStaff.branch_id);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+         COUNT(*) AS total_handled,
+         SUM(t.status = 'served') AS served_count,
+         SUM(t.status = 'no_show') AS no_show_count,
+         ROUND(AVG(TIMESTAMPDIFF(SECOND, t.joined_at, COALESCE(t.started_serving_at, t.called_at, t.completed_at)) / 60), 1) AS avg_wait_minutes,
+         ROUND(AVG(CASE WHEN t.status = 'served' THEN TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at) / 60 END), 1) AS avg_service_minutes,
+         ROUND(AVG(TIMESTAMPDIFF(SECOND, t.called_at, t.started_serving_at) / 60), 1) AS avg_call_response_minutes
+       FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
+       JOIN branches b ON b.id = q.branch_id
+       WHERE ${conditions.join(' AND ')}`,
+      params
+    );
+
+    res.json({
+      period,
+      total_handled: Number(rows[0]?.total_handled || 0),
+      served_count: Number(rows[0]?.served_count || 0),
+      no_show_count: Number(rows[0]?.no_show_count || 0),
+      avg_wait_minutes: Number(rows[0]?.avg_wait_minutes || 0),
+      avg_service_minutes: Number(rows[0]?.avg_service_minutes || 0),
+      avg_call_response_minutes: Number(rows[0]?.avg_call_response_minutes || 0),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch line staff analytics.' });
+  }
+});
+
+router.get('/executive-kpis', requireAuth, requireStaffRole('executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const bounds = monthBounds(req.query.month);
+
+    const [rows] = await pool.query(
+      `SELECT
+         COUNT(DISTINCT s.id) AS total_employees,
+         COUNT(DISTINCT CASE WHEN s.availability_status = 'active' AND current_active.staff_id IS NOT NULL THEN s.id END) AS active_employees,
+         COUNT(DISTINCT CASE WHEN s.availability_status = 'active' AND previous_active.staff_id IS NOT NULL THEN s.id END) AS previous_active_employees,
+         SUM(s.availability_status = 'on_leave') AS leave_employees,
+         SUM(s.created_at >= ? AND s.created_at < ?) AS new_employees
+       FROM staff s
+       JOIN roles r ON r.id = s.role_id AND r.name IN ('line_staff', 'manager', 'executive')
+       LEFT JOIN (
+         SELECT staff_id
+         FROM user_sessions
+         WHERE session_type = 'staff' AND last_seen_at >= ? AND last_seen_at < ?
+         UNION
+         SELECT staff_id
+         FROM staff_assignments
+         WHERE assignment_date >= ? AND assignment_date < ?
+       ) current_active ON current_active.staff_id = s.id
+       LEFT JOIN (
+         SELECT staff_id
+         FROM user_sessions
+         WHERE session_type = 'staff' AND last_seen_at >= ? AND last_seen_at < ?
+         UNION
+         SELECT staff_id
+         FROM staff_assignments
+         WHERE assignment_date >= ? AND assignment_date < ?
+       ) previous_active ON previous_active.staff_id = s.id
+       WHERE s.business_id = ?
+         AND s.is_active = TRUE
+         AND s.availability_status <> 'inactive'`,
+      [
+        bounds.start, bounds.next,
+        bounds.start, bounds.next,
+        bounds.start, bounds.next,
+        bounds.previousStart, bounds.start,
+        bounds.previousStart, bounds.start,
+        businessId,
+      ]
+    );
+
+    const [newStaff] = await pool.query(
+      `SELECT s.id, s.full_name, s.staff_code, s.created_at, b.name AS branch_name
+       FROM staff s
+       JOIN roles r ON r.id = s.role_id AND r.name IN ('line_staff', 'manager', 'executive')
+       LEFT JOIN branches b ON b.id = s.branch_id
+       WHERE s.business_id = ?
+         AND s.is_active = TRUE
+         AND s.availability_status <> 'inactive'
+         AND s.created_at >= ? AND s.created_at < ?
+       ORDER BY s.created_at DESC
+       LIMIT 6`,
+      [businessId, bounds.start, bounds.next]
+    );
+
+    const row = rows[0] || {};
+    const activeEmployees = Number(row.active_employees || 0);
+    const previousActiveEmployees = Number(row.previous_active_employees || 0);
+    const activeChangePct = previousActiveEmployees
+      ? ((activeEmployees - previousActiveEmployees) / previousActiveEmployees) * 100
+      : activeEmployees ? 100 : 0;
+
+    res.json({
+      month: bounds.month,
+      total_employees: Number(row.total_employees || 0),
+      active_employees: activeEmployees,
+      previous_active_employees: previousActiveEmployees,
+      active_change_pct: Math.round(activeChangePct * 10) / 10,
+      leave_employees: Number(row.leave_employees || 0),
+      new_employees: Number(row.new_employees || 0),
+      new_staff: newStaff,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch executive employee KPIs.' });
+  }
+});
+
+router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const period = ['today', 'this_week', 'last_week', 'month'].includes(req.query.period) ? req.query.period : 'month';
+    const range = periodRange(period, req.query.month);
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+
+    const [rows] = await pool.query(
+      `SELECT
+         mgr.id AS manager_id,
+         mgr.full_name AS manager_name,
+         mgr.staff_code,
+         br.id AS branch_id,
+         br.name AS branch_name,
+         COUNT(w.id) AS total_visits,
+         SUM(w.status = 'served') AS completed_count,
+         SUM(w.status = 'no_show') AS no_show_count,
+         ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait_minutes,
+         ROUND(AVG(w.service_time_minutes), 1) AS avg_service_minutes,
+         COALESCE(assignments.assigned_staff, 0) AS assigned_staff,
+         COALESCE(counters.counter_count, 0) AS counter_count
+       FROM staff mgr
+       JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager'
+       LEFT JOIN branches br ON br.id = mgr.branch_id
+       LEFT JOIN wait_time_records w ON w.branch_id = br.id AND w.business_id = mgr.business_id AND ${range.visitSql}
+       LEFT JOIN (
+         SELECT c.branch_id, COUNT(DISTINCT sa.staff_id) AS assigned_staff
+         FROM staff_assignments sa
+         JOIN counters c ON c.id = sa.counter_id
+         WHERE sa.assignment_date = CURDATE()
+         GROUP BY c.branch_id
+       ) assignments ON assignments.branch_id = br.id
+       LEFT JOIN (
+         SELECT branch_id, COUNT(*) AS counter_count
+         FROM counters
+         WHERE is_active = TRUE
+         GROUP BY branch_id
+       ) counters ON counters.branch_id = br.id
+       WHERE mgr.business_id = ? AND mgr.is_active = TRUE
+       GROUP BY mgr.id, mgr.full_name, mgr.staff_code, br.id, br.name, assignments.assigned_staff, counters.counter_count
+       ORDER BY mgr.full_name`,
+      [...range.params, businessId]
+    );
+
+    const maxVisits = Math.max(...rows.map(row => Number(row.total_visits || 0)), 0);
+    const maxWait = Math.max(...rows.map(row => Number(row.avg_wait_minutes || 0)), 0);
+    const scored = rows.map(row => {
+      const totalVisits = Number(row.total_visits || 0);
+      const completed = Number(row.completed_count || 0);
+      const noShows = Number(row.no_show_count || 0);
+      const completionRate = totalVisits ? completed / totalVisits : 0;
+      const noShowRate = totalVisits ? noShows / totalVisits : 0;
+      const utilization = Number(row.counter_count || 0) ? Number(row.assigned_staff || 0) / Number(row.counter_count || 1) : 0;
+      const waitScore = normalizeScore(row.avg_wait_minutes, maxWait, false);
+      const completionScore = completionRate * 100;
+      const noShowScore = (1 - noShowRate) * 100;
+      const throughputScore = normalizeScore(totalVisits, maxVisits, true);
+      const staffUtilizationScore = utilizationScore(utilization);
+      const managerScore = (
+        waitScore * 0.30 +
+        completionScore * 0.25 +
+        noShowScore * 0.20 +
+        throughputScore * 0.15 +
+        staffUtilizationScore * 0.10
+      );
+      return {
+        ...row,
+        total_visits: totalVisits,
+        completed_count: completed,
+        no_show_count: noShows,
+        completion_rate: Math.round(completionRate * 1000) / 10,
+        no_show_rate: Math.round(noShowRate * 1000) / 10,
+        staff_utilization: Math.round(utilization * 1000) / 10,
+        manager_score: Math.round(managerScore * 10) / 10,
+      };
+    }).sort((a, b) => b.manager_score - a.manager_score)
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+
+    res.json(scored);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch manager performance.' });
   }
 });
 

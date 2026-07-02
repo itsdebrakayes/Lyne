@@ -6,18 +6,25 @@ import { colors, v3 } from '../../lib/mobileV3Styles';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { scheduleQueueUpdateNotification } from '../../lib/notifications';
+import Code39Barcode from '../../components/Code39Barcode';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
-const barcode = [3,1,2,1,4,1,1,3,2,1,1,2,4,1,2,1,3,1,1,2,1,4,2,1,3,1,2,1,1,4,1,2,3,1,1,2,1,3,2,1,4,1,2,1,3,1,1,2,4,1,2,1,1,3];
 
 export default function TicketScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const ticketId = route.params?.ticketId;
+  const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
   const previous = useRef<{ status?: string; wait?: number }>({});
+  const activeTicketQuery = useQuery({
+    queryKey: ['active-ticket'],
+    queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
+    enabled: !providedTicketId,
+    refetchInterval: 5_000,
+  });
+  const ticketId = providedTicketId || activeTicketQuery.data?.id;
   const ticketQuery = useQuery({
     queryKey: ['ticket', ticketId],
     queryFn: () => api.get<TicketRecord>(`/tickets/${ticketId}`),
@@ -51,7 +58,8 @@ export default function TicketScreen() {
     }
   };
 
-  if (!ticketId) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700' }}>No active ticket was provided.</Text></View>;
+  if (!providedTicketId && activeTicketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.text} /></View>;
+  if (!ticketId) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700', textAlign: 'center' }}>You do not have an active ticket right now.</Text><TouchableOpacity style={[v3.primaryButton, { marginTop: 18 }]} onPress={() => navigation.navigate('Main')}><Text style={v3.primaryButtonText}>Find a queue</Text></TouchableOpacity></View>;
   if (ticketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.text} /></View>;
   if (ticketQuery.error || !ticket) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700', textAlign: 'center' }}>Your live ticket could not be loaded. Check your connection and try again.</Text></View>;
 
@@ -66,7 +74,7 @@ export default function TicketScreen() {
           <Text style={{ color: ticket.status === 'called' ? '#7ef29a' : 'rgba(255,255,255,.65)', fontWeight: '800', textTransform: 'uppercase' }}>{ticket.status_message || ticket.status.replace('_', ' ')}</Text>
           <View style={{ flexDirection: 'row', marginTop: 24, width: '100%' }}><View style={{ flex: 1, alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 25, fontWeight: '800' }}>{position ?? '-'}</Text><Text style={{ color: 'rgba(255,255,255,.55)', fontWeight: '700' }}>position</Text></View><View style={{ flex: 1, alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 25, fontWeight: '800' }}>{ticket.estimated_wait_minutes}m</Text><Text style={{ color: 'rgba(255,255,255,.55)', fontWeight: '700' }}>est. wait</Text></View></View>
         </View>
-        <View style={[v3.card, { padding: 18, marginBottom: 16 }]}><Text style={{ color: colors.muted, fontWeight: '800', fontSize: 11, marginBottom: 12 }}>VERIFICATION CODE</Text><Text style={{ color: colors.text, fontSize: 25, fontWeight: '800', textAlign: 'center', letterSpacing: 3 }}>{ticket.verification_code}</Text><View style={{ height: 58, flexDirection: 'row', justifyContent: 'center', alignItems: 'stretch', gap: 1, marginTop: 16 }}>{barcode.map((width, index) => <View key={index} style={{ width, backgroundColor: index % 2 === 0 ? colors.text : 'transparent' }} />)}</View><Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 10 }}>Show this code when your number is called.</Text></View>
+        <View style={[v3.card, { padding: 18, marginBottom: 16 }]}><Text style={{ color: colors.muted, fontWeight: '800', fontSize: 11, marginBottom: 12 }}>VERIFICATION CODE</Text><Text style={{ color: colors.text, fontSize: 25, fontWeight: '800', textAlign: 'center', letterSpacing: 3 }}>{ticket.verification_code}</Text><View style={{ marginTop: 16 }}>{ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.text} /> : null}</View><Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 10 }}>Show this code when your number is called.</Text></View>
         {!!error && <Text style={{ color: colors.danger, fontWeight: '700', marginBottom: 12 }}>{error}</Text>}
         {active ? <TouchableOpacity disabled={leaving} style={v3.secondaryButton} onPress={leaveQueue}>{leaving ? <ActivityIndicator color={colors.text} /> : <Text style={{ color: colors.text, fontWeight: '800' }}>Leave queue</Text>}</TouchableOpacity> : <TouchableOpacity style={v3.primaryButton} onPress={() => navigation.navigate('Main')}><Text style={v3.primaryButtonText}>Return home</Text></TouchableOpacity>}
       </ScrollView>

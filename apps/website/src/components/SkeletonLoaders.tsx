@@ -9,8 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 // ── Base glass skeleton wrapper ───────────────────────────────
-const GlassSkeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <Skeleton className={cn('bg-white/8 rounded-xl', className)} />
+const GlassSkeleton: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <Skeleton className={cn('bg-white/8 rounded-xl', className)} style={style} />
 );
 
 // ── Business / Branch card skeleton ──────────────────────────

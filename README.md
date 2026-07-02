@@ -50,7 +50,7 @@ Supabase is used for authentication. Queue, staff, analytics, notifications, and
 cp .env.example .env
 ```
 
-Fill in MySQL credentials, Supabase URL, Supabase publishable key, allowed frontend/admin origins, and pipeline worker credentials.
+Fill in MySQL credentials, Supabase URL, Supabase publishable key, and allowed frontend/admin origins. Pipeline worker credentials are only required when running the analytics profile.
 
 2. Start the production stack locally:
 
@@ -58,11 +58,20 @@ Fill in MySQL credentials, Supabase URL, Supabase publishable key, allowed front
 docker compose up -d
 ```
 
-This starts MySQL, the backend API, and the analytics worker. The API health check is:
+This starts MySQL and the backend API. The API health check is:
 
 ```text
 http://localhost:4000/health
 ```
+
+On the `demo` branch, Docker also loads demo seed data for TAJ, Passport Office/PICA, and NHT when the database volume is first created. If you already have an existing demo database volume, refresh the living sandbox data without resetting the database:
+
+```bash
+cd apps/backend
+npm run refresh:demo-data
+```
+
+That refresh repopulates today's active queues, waiting tickets, staff assignments, analytics summaries, model insights, and branch/service history for demo testing.
 
 3. Start the website:
 
@@ -108,6 +117,12 @@ MySQL operational data -> CSV export -> notebook/model run -> JSON/CSV outputs -
 ```
 
 Live queue counts and active ticket status come directly from operational tables. Heavier predictions and insights refresh through the worker, with freshness metadata shown in dashboards.
+
+Run the scheduled analytics worker only after `PIPELINE_EMAIL`, `PIPELINE_PASSWORD`, and `PIPELINE_BUSINESS_ID` are configured:
+
+```bash
+docker compose --profile analytics up -d analytics-worker
+```
 
 ## Security Baseline
 

@@ -18,6 +18,7 @@ const { createClient } = require('@supabase/supabase-js');
 const pool    = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
+const { assertBusinessAccess, assertBranchAccess } = require('../middleware/tenantAccess');
 
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
@@ -64,19 +65,34 @@ router.post('/create',
     const { email, full_name, role, business_id, branch_id, expires_hours } = parsed.data;
 
     try {
-      // Verify the inviting staff belongs to this business
       const [staffRows] = await pool.query(
-        'SELECT id, role FROM staff WHERE id = ? AND business_id = ? AND is_active = TRUE',
+        `SELECT s.id, s.business_id, s.branch_id, r.name AS role_name
+         FROM staff s
+         JOIN roles r ON r.id = s.role_id
+         WHERE s.id = ? AND s.business_id = ? AND s.is_active = TRUE`,
         [req.dbStaff?.id, business_id]
       );
-      if (!staffRows.length) {
+      if (!staffRows.length || !assertBusinessAccess(req, business_id)) {
         return res.status(403).json({ error: 'You do not have permission to invite staff for this business.' });
       }
 
       // Managers can only invite line_staff; executives can invite managers and line_staff
-      const inviterRole = staffRows[0].role;
+      const inviterRole = staffRows[0].role_name;
       if (inviterRole === 'manager' && role !== 'line_staff') {
         return res.status(403).json({ error: 'Managers can only invite line staff.' });
+      }
+
+      if (branch_id) {
+        const [branchRows] = await pool.query(
+          'SELECT id, business_id FROM branches WHERE id = ? LIMIT 1',
+          [branch_id]
+        );
+        if (!branchRows.length || branchRows[0].business_id !== business_id) {
+          return res.status(400).json({ error: 'Branch does not belong to this business.' });
+        }
+        if (!assertBranchAccess(req, branch_id)) {
+          return res.status(403).json({ error: 'You do not have permission to invite staff for this branch.' });
+        }
       }
 
       // Check for existing pending invite for this email+business
@@ -183,7 +199,7 @@ router.post('/redeem', async (req, res) => {
 
     // Get the role_id for the invited role
     const [roleRows] = await conn.query(
-      'SELECT id FROM staff_roles WHERE role_name = ?',
+      'SELECT id FROM roles WHERE name = ?',
       [invite.role]
     );
     const roleId = roleRows[0]?.id || null;
@@ -246,6 +262,9 @@ router.get('/pending',
     if (!business_id) {
       return res.status(400).json({ error: 'business_id query parameter is required.' });
     }
+    if (!assertBusinessAccess(req, business_id)) {
+      return res.status(403).json({ error: 'You do not have access to this business.' });
+    }
 
     try {
       const [rows] = await pool.query(
@@ -279,10 +298,13 @@ router.delete('/:id',
       if (!rows.length) {
         return res.status(404).json({ error: 'Pending invite not found.' });
       }
+      if (!assertBusinessAccess(req, rows[0].business_id)) {
+        return res.status(403).json({ error: 'You do not have access to this invite.' });
+      }
 
       await pool.query(
-        "UPDATE staff_invites SET status = 'revoked', revoked_at = NOW() WHERE id = ?",
-        [req.params.id]
+        "UPDATE staff_invites SET status = 'revoked', revoked_at = NOW() WHERE id = ? AND business_id = ?",
+        [req.params.id, rows[0].business_id]
       );
 
       res.json({ success: true, message: 'Invite revoked.' });

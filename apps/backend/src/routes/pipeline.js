@@ -28,6 +28,7 @@ const INSIGHT_TYPES = new Set([
   'heatmap_data',
   'peak_hours',
   'model_performance',
+  'manager_performance',
 ]);
 
 router.get('/status', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {

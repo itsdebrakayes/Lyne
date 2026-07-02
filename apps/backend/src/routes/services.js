@@ -26,8 +26,19 @@ router.get('/', async (req, res) => {
     const conditions = ['s.is_active = TRUE'];
     const params = [];
     if (business_id) { conditions.push('s.business_id = ?'); params.push(business_id); }
-    if (branch_id)   { conditions.push('s.branch_id = ?');   params.push(branch_id); }
+    if (branch_id) {
+      conditions.push(`EXISTS (
+        SELECT 1
+        FROM counters c
+        WHERE c.service_id = s.id
+          AND c.branch_id = ?
+          AND c.is_active = TRUE
+      )`);
+      params.push(branch_id);
+    }
     const where = 'WHERE ' + conditions.join(' AND ');
+    const branchWaitFilter = branch_id ? 'AND q.branch_id = ?' : '';
+    const branchWaitParams = branch_id ? [branch_id] : [];
 
     const [rows] = await pool.query(
       `SELECT s.*,
@@ -39,6 +50,8 @@ router.get('/', async (req, res) => {
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
                   AND q.is_active = TRUE
+                  AND q.queue_date = CURDATE()
+                  ${branchWaitFilter}
                   AND qt.status = 'waiting'
               ), 0) AS waiting_count,
               -- rolling avg wait from last 50 completed tickets
@@ -47,6 +60,7 @@ router.get('/', async (req, res) => {
                 FROM queue_tickets qt
                 JOIN queues q ON qt.queue_id = q.id
                 WHERE q.service_id = s.id
+                  ${branchWaitFilter}
                   AND qt.status = 'served'
                   AND qt.completed_at IS NOT NULL
                 ORDER BY qt.completed_at DESC
@@ -56,7 +70,7 @@ router.get('/', async (req, res) => {
        JOIN businesses b ON s.business_id = b.id
        ${where}
        ORDER BY s.name`,
-      params
+      [...branchWaitParams, ...branchWaitParams, ...params]
     );
     res.json(rows);
   } catch (err) {

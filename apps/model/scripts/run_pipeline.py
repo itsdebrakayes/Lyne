@@ -31,8 +31,8 @@ LOG_DIR       = OUTPUTS_DIR / 'logs'
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # The first four notebooks belong to the retired Supabase Storage prototype.
-# Production uses the MySQL-shaped predictive notebook exclusively.
-NOTEBOOKS_IN_ORDER = ['05_predictive_model.ipynb']
+# Production uses MySQL-shaped notebooks exclusively.
+NOTEBOOKS_IN_ORDER = ['05_predictive_model.ipynb', '06_manager_performance.ipynb']
 
 
 def setup_logging(run_id: str) -> logging.Logger:

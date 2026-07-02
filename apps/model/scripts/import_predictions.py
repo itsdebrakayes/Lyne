@@ -148,6 +148,25 @@ def load_csv_fallback(business_id: str) -> list:
             'generated_at': generated_at,
         })
 
+    manager_rows = read_rows('manager_performance_summary.csv')
+    if manager_rows:
+        insights.append({
+            'business_id': business_id,
+            'insight_type': 'manager_performance',
+            'insight_data': {
+                'weights': {
+                    'wait_time': 0.30,
+                    'completion_rate': 0.25,
+                    'no_show_rate': 0.20,
+                    'throughput': 0.15,
+                    'staff_utilization': 0.10,
+                },
+                'managers': manager_rows,
+            },
+            'records_processed': len(manager_rows),
+            'generated_at': generated_at,
+        })
+
     history = read_rows('queue_history.csv')
     if history:
         heatmap = defaultdict(lambda: {'visits': 0, 'wait_total': 0.0, 'wait_count': 0})

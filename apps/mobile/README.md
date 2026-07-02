@@ -22,14 +22,30 @@ Built with **Expo + React Native + TypeScript**.
 
 ## Setup
 
+This project is pinned to **Expo SDK 56** so it matches the current Expo Go release.
+If Expo Go says the project requires a different app version, reinstall dependencies
+from this directory before scanning the QR code.
+
 ```bash
 cd apps/mobile
-cp app.json app.json   # Fill in extra.supabaseUrl, extra.supabaseAnonKey, extra.apiUrl
 npm install
 npx expo start
 ```
 
 Scan the QR code with Expo Go (iOS/Android) to preview.
+
+The app reads Supabase and API settings from Expo public environment variables when present:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key \
+EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP:4000/api \
+npx expo start
+```
+
+If `EXPO_PUBLIC_API_URL` is omitted, the app will infer the LAN host from Expo Go when possible. iOS simulators fall back to `localhost`; Android emulators fall back to `10.0.2.2`.
+
+This app is configured for native QA through Expo Go. Web preview requires Expo web dependencies such as `react-native-web` to be installed first.
 
 ---
 

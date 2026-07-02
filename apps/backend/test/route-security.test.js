@@ -6,6 +6,11 @@ const queueRouter = require('../src/routes/queues');
 const sseRouter = require('../src/routes/sse');
 const predictionsRouter = require('../src/routes/predictions');
 const notificationsRouter = require('../src/routes/notifications');
+const analyticsRouter = require('../src/routes/analytics');
+const staffRouter = require('../src/routes/staff');
+const assignmentsRouter = require('../src/routes/assignments');
+const staffInviteRouter = require('../src/routes/staff-invite');
+const ocrRouter = require('../src/routes/ocr');
 const { lookupActorBySupabaseUid } = require('../src/middleware/auth');
 
 function routeHandlers(router, method, path) {
@@ -28,6 +33,12 @@ test('ticket detail and position routes require ownership checks', () => {
     assert.ok(handlers.includes('requireAuth'), `${path} must authenticate`);
     assert.ok(handlers.includes('requireTicketAccess'), `${path} must verify ticket access`);
   }
+});
+
+test('active ticket recovery is authenticated user-only', () => {
+  const handlers = routeHandlers(ticketRouter, 'get', '/active');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(!handlers.includes('requireTicketAccess'));
 });
 
 test('full queue details are restricted to authorized staff', () => {
@@ -69,6 +80,18 @@ test('staff can skip a ticket only through authenticated tenant checks', () => {
   assert.ok(handlers.includes('requireTicketAccess'));
 });
 
+test('staff ticket history is restricted to authenticated staff roles', () => {
+  const handlers = routeHandlers(ticketRouter, 'get', '/history');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.length >= 3);
+});
+
+test('ticket status updates remain authenticated and tenant scoped', () => {
+  const handlers = routeHandlers(ticketRouter, 'put', '/:id/status');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.includes('requireTicketAccess'));
+});
+
 test('private predictions require staff authentication and public predictions are isolated', () => {
   const privateHandlers = routeHandlers(predictionsRouter, 'get', '/');
   assert.ok(privateHandlers.includes('requireAuth'));
@@ -82,6 +105,44 @@ test('staff notifications require access to the recipient ticket', () => {
   const handlers = routeHandlers(notificationsRouter, 'post', '/');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(handlers.includes('requireTicketAccess'));
+});
+
+test('staff presence endpoints require authenticated staff access', () => {
+  for (const path of ['/presence', '/on-shift-managers']) {
+    const handlers = routeHandlers(staffRouter, 'get', path);
+    assert.ok(handlers.includes('requireAuth'), `${path} must authenticate`);
+    assert.ok(handlers.length >= 3, `${path} must enforce staff roles`);
+  }
+});
+
+test('assignment and invite administration routes require authenticated staff access', () => {
+  const assignmentHandlers = routeHandlers(assignmentsRouter, 'get', '/');
+  assert.ok(assignmentHandlers.includes('requireAuth'));
+  assert.ok(assignmentHandlers.includes('requireBranchAccess'));
+
+  for (const [method, path] of [['post', '/create'], ['get', '/pending'], ['delete', '/:id']]) {
+    const handlers = routeHandlers(staffInviteRouter, method, path);
+    assert.ok(handlers.includes('requireAuth'), `${method.toUpperCase()} ${path} must authenticate`);
+  }
+});
+
+test('ocr signed url route requires authenticated access checks', () => {
+  const handlers = routeHandlers(ocrRouter, 'get', '/signed-url/:id');
+  assert.ok(handlers.includes('requireAuth'));
+});
+
+test('new analytics dashboards require authenticated staff access', () => {
+  const lineHandlers = routeHandlers(analyticsRouter, 'get', '/line-staff');
+  assert.ok(lineHandlers.includes('requireAuth'));
+  assert.ok(lineHandlers.length >= 3);
+
+  const managerHandlers = routeHandlers(analyticsRouter, 'get', '/managers');
+  assert.ok(managerHandlers.includes('requireAuth'));
+  assert.ok(managerHandlers.length >= 4);
+
+  const executiveKpiHandlers = routeHandlers(analyticsRouter, 'get', '/executive-kpis');
+  assert.ok(executiveKpiHandlers.includes('requireAuth'));
+  assert.ok(executiveKpiHandlers.length >= 4);
 });
 
 test('auth lookup prefers provisioned staff role over synced mobile user row', async () => {

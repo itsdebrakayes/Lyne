@@ -11,12 +11,11 @@ const { createClient } = require('@supabase/supabase-js');
 const pool = require('../db/pool');
 const { sessionLimiter } = require('./sessionLimiter');
 
-// Support both env var naming conventions
-// Accept either naming convention (docker-compose uses SUPABASE_SERVICE_KEY)
+// JWT verification must use a publishable/anon key. Service-role keys are
+// intentionally not accepted here because this middleware runs on every
+// authenticated request, not narrow administrative jobs.
 const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY
   || process.env.SUPABASE_ANON_KEY
-  || process.env.SUPABASE_SERVICE_ROLE_KEY
-  || process.env.SUPABASE_SERVICE_KEY
   || '';
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;

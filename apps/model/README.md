@@ -50,13 +50,17 @@ Each imported insight includes tenant metadata, model version, generated time, a
 
 ## Scheduled Worker
 
-The Docker service `analytics-worker` runs:
+The Docker service `analytics-worker` runs under the `analytics` compose profile:
 
 - every 30 minutes during business hours
 - a full nightly refresh
 - queued manual triggers created by authorized executives/platform admins
 
 Required environment variables are documented in `.env.example`.
+
+```bash
+docker compose --profile analytics up -d analytics-worker
+```
 
 ## Manual Run
 

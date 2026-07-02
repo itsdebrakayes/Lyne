@@ -17,6 +17,7 @@ const {
   scopedBranchId,
   assertBusinessAccess,
   assertBranchAccess,
+  isPlatformAdmin,
 } = require('../middleware/tenantAccess');
 
 router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
@@ -25,6 +26,11 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBr
     const targetDate = date || new Date().toISOString().slice(0, 10);
     const conditions = ['sa.assignment_date = ?'];
     const params = [targetDate];
+
+    if (!isPlatformAdmin(req)) {
+      conditions.push('s.business_id = ?');
+      params.push(req.dbStaff.business_id);
+    }
 
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) {

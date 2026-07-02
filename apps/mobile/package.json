@@ -19,22 +19,24 @@
     "@react-navigation/native-stack": "^6.9.26",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^5.0.0",
-    "expo": "^56.0.12",
-    "expo-constants": "~56.0.18",
+    "expo": "~56.0.13",
+    "expo-constants": "~56.0.19",
     "expo-font": "~56.0.7",
     "expo-linking": "~56.0.14",
-    "expo-location": "~56.0.18",
-    "expo-notifications": "~56.0.18",
-    "expo-splash-screen": "~56.0.10",
+    "expo-location": "~56.0.19",
+    "expo-notifications": "~56.0.19",
+    "expo-splash-screen": "~56.0.11",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2"
+    "react-native-screens": "4.25.2",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
-    "@types/react": "~19.2.14",
-    "typescript": "~6.0.3"
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

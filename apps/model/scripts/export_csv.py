@@ -115,12 +115,52 @@ WHERE DATE(e.event_timestamp) BETWEEN %s AND %s AND b.business_id = %s
 ORDER BY e.event_timestamp
 """
 
+MANAGER_PERFORMANCE_QUERY = """
+SELECT
+    mgr.id AS manager_id,
+    mgr.full_name AS manager_name,
+    mgr.staff_code,
+    mgr.business_id,
+    br.id AS branch_id,
+    br.name AS branch_name,
+    COUNT(w.id) AS total_visits,
+    SUM(w.status = 'served') AS completed_count,
+    SUM(w.status = 'no_show') AS no_show_count,
+    ROUND(AVG(w.wait_time_minutes), 2) AS avg_wait_minutes,
+    ROUND(AVG(w.service_time_minutes), 2) AS avg_service_minutes,
+    COALESCE(assignments.assigned_staff, 0) AS assigned_staff,
+    COALESCE(counters.counter_count, 0) AS counter_count
+FROM staff mgr
+JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager'
+LEFT JOIN branches br ON br.id = mgr.branch_id
+LEFT JOIN wait_time_records w
+  ON w.branch_id = br.id AND w.business_id = mgr.business_id AND w.visit_date BETWEEN %s AND %s
+LEFT JOIN (
+    SELECT c.branch_id, COUNT(DISTINCT sa.staff_id) AS assigned_staff
+    FROM staff_assignments sa
+    JOIN counters c ON c.id = sa.counter_id
+    WHERE sa.assignment_date = CURDATE()
+    GROUP BY c.branch_id
+) assignments ON assignments.branch_id = br.id
+LEFT JOIN (
+    SELECT branch_id, COUNT(*) AS counter_count
+    FROM counters
+    WHERE is_active = TRUE
+    GROUP BY branch_id
+) counters ON counters.branch_id = br.id
+WHERE mgr.business_id = %s AND mgr.is_active = TRUE
+GROUP BY mgr.id, mgr.full_name, mgr.staff_code, mgr.business_id, br.id, br.name,
+         assignments.assigned_staff, counters.counter_count
+ORDER BY mgr.full_name
+"""
+
 EXPORTS = (
     ('queue_history.csv', QUEUE_HISTORY_QUERY),
     ('service_performance.csv', SERVICE_PERFORMANCE_QUERY),
     ('branch_performance.csv', BRANCH_PERFORMANCE_QUERY),
     ('staff_activity.csv', STAFF_ACTIVITY_QUERY),
     ('queue_events.csv', QUEUE_EVENTS_QUERY),
+    ('manager_performance_input.csv', MANAGER_PERFORMANCE_QUERY),
 )
 
 

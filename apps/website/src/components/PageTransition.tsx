@@ -2,7 +2,7 @@
  * PageTransition — Wraps page content with smooth framer-motion entrance animation
  * Uses a subtle fade + upward slide for professional feel
  */
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { ReactNode } from 'react';
 
 interface PageTransitionProps {
@@ -10,7 +10,7 @@ interface PageTransitionProps {
   className?: string;
 }
 
-const pageVariants = {
+const pageVariants: Variants = {
   initial: { opacity: 0, y: 16 },
   enter: {
     opacity: 1,

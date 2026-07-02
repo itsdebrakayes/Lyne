@@ -14,6 +14,7 @@ import SignupScreen   from '../screens/auth/SignupScreen';
 // Main screens
 import HomeScreen       from '../screens/main/HomeScreen';
 import SearchScreen     from '../screens/main/SearchScreen';
+import SavedScreen      from '../screens/main/SavedScreen';
 import HistoryScreen    from '../screens/main/HistoryScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
 
@@ -28,6 +29,7 @@ export type RootStackParamList = {
   Auth:       undefined;
   Signup:     undefined;
   Main:       undefined;
+  History:    undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -67,7 +69,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Home"    component={HomeScreen}    />
       <Tab.Screen name="Search"  component={SearchScreen}  />
-      <Tab.Screen name="Saved"   component={HistoryScreen} />
+      <Tab.Screen name="Saved"   component={SavedScreen}   />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -103,6 +105,7 @@ export default function AppNavigator() {
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
+            <Stack.Screen name="History"   component={HistoryScreen}   />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />
