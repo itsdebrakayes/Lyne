@@ -1,4 +1,67 @@
+# ─────────────────────────────────────────────────────────────
+#  Q ME NOW — Demo overlay
+#
+#  Adds a SECOND, fully seeded demo database alongside the clean
+#  production database. The API is repointed at the demo database
+#  so end-to-end testing never touches production data.
+#
+#    db       (port 3307) — clean production schema, real data lives here
+#    demo-db  (port 3308) — schema + migrations + multi-business demo seed
+#
+#  Usage:
+#    docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+#  Reset the demo database (init scripts only run on a fresh volume):
+#    docker compose -f docker-compose.yml -f docker-compose.demo.yml down
+#    docker volume rm qme-now_mysql_demo_data
+#    docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+# ─────────────────────────────────────────────────────────────
+
 services:
-  db:
+
+  # ── Seeded demo MySQL ────────────────────────────────────────
+  demo-db:
+    image: mysql:8.0
+    container_name: qmenow_demo_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
+      MYSQL_USER:          ${MYSQL_USER:-qmenow}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-qmenow_secret}
+    ports:
+      - "3308:3306"
     volumes:
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/01b_seed.sql:ro
+      - mysql_demo_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/migrations/001_performance_indexes.sql:/docker-entrypoint-initdb.d/02_001_performance_indexes.sql:ro
+      - ./database/migrations/002_security_and_ocr.sql:/docker-entrypoint-initdb.d/03_002_security_and_ocr.sql:ro
+      - ./database/migrations/003_sessions_and_token_security.sql:/docker-entrypoint-initdb.d/04_003_sessions_and_token_security.sql:ro
+      - ./database/migrations/004_pipeline_and_tenant_hardening.sql:/docker-entrypoint-initdb.d/05_004_pipeline_and_tenant_hardening.sql:ro
+      - ./database/migrations/005_audit_tenant_scope.sql:/docker-entrypoint-initdb.d/06_005_audit_tenant_scope.sql:ro
+      - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
+      - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
+      - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
+      - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/21_demo_active_seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - qmenow_net
+
+  # ── API runs against the demo database in demo mode ─────────
+  api:
+    depends_on:
+      demo-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV:   development
+      MYSQL_HOST: demo-db
+
+volumes:
+  mysql_demo_data:
+    driver: local
