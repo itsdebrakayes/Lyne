@@ -16,12 +16,15 @@ import {
   TrendingUp,
   ShieldCheck,
   Check,
+  X,
   Building2,
   Mail,
   Star,
   Radio,
   Layers,
   Sparkles,
+  Users,
+  MapPin,
 } from "lucide-react";
 import { MarketingNav, MarketingFooter } from "@/components/qme/Marketing";
 import { FloatingSquares } from "@/components/qme/FloatingSquares";
@@ -40,6 +43,7 @@ export default function MarketingHome() {
       <MarketingNav />
       <Hero />
       <WhatItIs />
+      <TheOldWay />
       <Features />
       <HowItWorks />
       <Pricing />
@@ -160,6 +164,113 @@ function WhatItIs() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- THE OLD WAY --------------------------- */
+
+function TheOldWay() {
+  const oldWay = [
+    { icon: Users, title: "Stand in a physical line", body: "Show up, join the back of the crowd, and hope it moves. Leaving means losing your place." },
+    { icon: QrCode, title: "Take a paper number", body: "Pull a ticket and stare at a wall display. No idea if it's 10 minutes or two hours away." },
+    { icon: Clock, title: "Guess the wait", body: "No visibility into how busy it is before you leave home — so you plan your whole day around it." },
+    { icon: Bell, title: "Miss your turn", body: "Step out for air or a call and your number gets skipped. Back to the end of the line." },
+  ];
+  const newWay = [
+    { icon: MapPin, title: "Join from anywhere", body: "See live wait times across every branch and take your place in line from your phone — before you leave." },
+    { icon: Clock, title: "Watch your spot move", body: "Your position and estimated wait update in real time. Wait from your car, a café, or your couch." },
+    { icon: Bell, title: "Get called at the right moment", body: "A push notification tells you exactly when to head over — plus a GPS-aware reminder if you're far away." },
+    { icon: ShieldCheck, title: "Keep your place", body: "A scannable barcode ticket verifies you at the counter. No crowding, no line-jumping, no lost turns." },
+  ];
+  return (
+    <section className="border-t border-white/[0.06] py-24 md:py-32">
+      <div className="lux-container">
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <div className="chip chip-mute mb-5">Why it matters</div>
+          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+            The line hasn't changed in <span className="serif accent-text">a hundred years.</span>
+          </h2>
+          <p className="mt-4 text-lg text-qme-lavender/70">
+            Most places still run on a crowded room and a paper ticket. QME Now
+            replaces the whole experience — for the people waiting and the people serving.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Old way */}
+          <div className="panel p-7">
+            <div className="mb-6 flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-qme-lavender/60">
+                <X className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/50">Today, without QME Now</div>
+                <div className="text-lg font-semibold">The take-a-number line</div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {oldWay.map((item) => (
+                <div key={item.title} className="flex items-start gap-3.5">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-qme-lavender/45">
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h4 className="font-semibold text-white/80">{item.title}</h4>
+                    <p className="text-[14px] leading-relaxed text-qme-lavender/55">{item.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* New way */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="panel-elev p-7 ring-1 ring-qme-purple/40 shadow-[0_0_70px_-24px_rgba(123,95,255,0.65)]"
+          >
+            <div className="mb-6 flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-qme-purple/30 bg-qme-purple/15 text-qme-lavender">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/70">With QME Now</div>
+                <div className="text-lg font-semibold">The calm live queue</div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {newWay.map((item) => (
+                <div key={item.title} className="flex items-start gap-3.5">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-qme-purple/20 text-qme-lavender">
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h4 className="font-semibold text-white">{item.title}</h4>
+                    <p className="text-[14px] leading-relaxed text-qme-lavender/70">{item.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Impact stats */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {[
+            { stat: "0", label: "minutes standing in a physical line" },
+            { stat: "Live", label: "wait times before you leave home" },
+            { stat: "1 tap", label: "to rejoin if your turn slips" },
+          ].map((s) => (
+            <div key={s.label} className="panel px-6 py-6 text-center">
+              <div className="font-serif text-4xl italic accent-text">{s.stat}</div>
+              <div className="mt-2 text-sm text-qme-lavender/65">{s.label}</div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
