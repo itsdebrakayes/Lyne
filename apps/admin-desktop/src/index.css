@@ -1224,8 +1224,9 @@ button.ops-row { cursor: pointer; }
   grid-template-columns: minmax(220px, 1fr) minmax(220px, .75fr);
   gap: 18px;
   background:
-    linear-gradient(135deg, rgba(232,240,244,.9), rgba(232,240,244,.2) 38%, transparent 38%),
-    #1F3442;
+    linear-gradient(160deg, rgba(168,187,198,.28), rgba(168,187,198,.04) 46%, transparent 60%),
+    linear-gradient(135deg, #2F5063 0%, #1F3442 58%, #16262F 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 18px 44px -22px rgba(15,28,36,.6);
   color: #fff;
 }
 .staff-command small, .staff-command span { color: rgba(255,255,255,.78); font-weight: 800; }
@@ -1375,6 +1376,9 @@ button.ops-row { cursor: pointer; }
   color: #D9E4EA;
   padding: 14px;
   font-size: 12px;
+}
+.exec-action-plan-panel {
+  background: linear-gradient(150deg, rgba(96,119,135,.14) 0%, rgba(47,80,99,.06) 40%, transparent 100%);
 }
 .exec-action-plan-panel .ops-panel-head { margin-bottom: 16px; }
 .exec-action-plan-grid {
@@ -1916,6 +1920,8 @@ button.exec-kpi-card { cursor: pointer; }
   grid-template-columns: 28px 1fr auto;
   gap: 10px;
   align-items: start;
+  background: linear-gradient(150deg, rgba(96,119,135,.12) 0%, rgba(47,80,99,.05) 45%, transparent 100%);
+  border-radius: 8px;
 }
 .exec-insight-card i {
   width: 28px;
@@ -2620,4 +2626,88 @@ button.exec-kpi-card { cursor: pointer; }
   .staff-command-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .staff-code-entry, .assignment-controls { grid-template-columns: 1fr; }
   .ops-filter-row select { width: 100%; }
+}
+
+/* ── Branch Health / Efficiency (green→amber→red indicators) ── */
+.branch-health-panel { display: flex; flex-direction: column; }
+.health-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 2px 14px;
+  border-bottom: 1px solid #E2EBF0;
+  margin-bottom: 12px;
+}
+.health-head > div small { display: block; color: #718896; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.health-head > div b { font-size: 19px; font-weight: 900; letter-spacing: -.01em; }
+.health-head .ops-link-button { margin-left: auto; }
+.health-donut { position: relative; display: grid; place-items: center; flex-shrink: 0; }
+.health-donut svg { position: absolute; inset: 0; }
+.health-donut b { color: #1F3442; font-size: 21px; font-weight: 900; letter-spacing: -.02em; }
+.health-rows { display: flex; flex-direction: column; }
+.health-row {
+  display: grid;
+  grid-template-columns: 4px minmax(150px, 1.2fr) minmax(90px, 1fr) 34px;
+  gap: 14px;
+  align-items: center;
+  padding: 11px 2px;
+  border-bottom: 1px solid #EDF3F6;
+}
+.health-row:last-child { border-bottom: none; }
+.health-row > i { width: 4px; height: 34px; border-radius: 3px; }
+.health-row-main { min-width: 0; }
+.health-row-main b { display: block; color: #1F3442; font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.health-row-main small { color: #718896; font-size: 11.5px; font-weight: 700; }
+.health-line { height: 5px; border-radius: 4px; background: #E8F0F4; overflow: hidden; }
+.health-line i { display: block; height: 100%; border-radius: 4px; }
+.health-row > span { text-align: right; font-size: 15px; font-weight: 900; }
+
+/* Executive efficiency + health donut pair */
+.exec-health-pair { display: flex; justify-content: space-around; gap: 12px; padding: 12px 0 6px; }
+.exec-health-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.exec-health-cell small { color: #718896; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+.exec-health-cell b { font-size: 14px; font-weight: 900; }
+
+/* Executive branch drill-down */
+.branch-health-list { display: flex; flex-direction: column; }
+.branch-health-item { border-bottom: 1px solid #EDF3F6; }
+.branch-health-item:last-child { border-bottom: none; }
+.branch-health-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(200px, 1.4fr) minmax(110px, 1fr) 34px 18px;
+  gap: 14px;
+  align-items: center;
+  padding: 13px 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.branch-health-row:hover .health-row-main b { color: #2F5063; }
+.branch-health-row span { text-align: right; font-size: 15px; font-weight: 900; }
+.branch-health-row svg { color: #A8BBC6; transition: transform .2s ease; }
+.branch-health-row svg.open { transform: rotate(180deg); }
+.branch-drill {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 4px 2px 16px;
+}
+.branch-drill section {
+  background: #F6F9FB;
+  border: 1px solid #E2EBF0;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.branch-drill h4 { margin: 0 0 9px; font-size: 11.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
+.branch-drill p { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 7px; color: #1F3442; font-size: 12.5px; font-weight: 700; line-height: 1.45; }
+.branch-drill p:last-child { margin-bottom: 0; }
+.branch-drill p i { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.branch-drill-empty { color: #718896 !important; font-weight: 600 !important; }
+@media (max-width: 860px) {
+  .branch-drill { grid-template-columns: 1fr; }
+  .health-row { grid-template-columns: 4px minmax(120px, 1.2fr) minmax(60px, 1fr) 30px; gap: 10px; }
+  .branch-health-row { grid-template-columns: minmax(140px, 1.4fr) minmax(70px, 1fr) 30px 18px; gap: 10px; }
 }

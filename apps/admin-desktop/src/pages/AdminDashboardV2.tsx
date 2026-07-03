@@ -550,23 +550,87 @@ function ManagerMetricCard({
   );
 }
 
-function ManagerResourceAllocationChart({ data }: { data: ReturnType<typeof trendData> }) {
+// ── Efficiency / health scoring ───────────────────────────────
+// Green→amber→red is reserved for these indicator lines and scores;
+// everything else stays in the blue-grey palette.
+function serviceEfficiencyScore(service: ServiceInsight) {
+  const visits = numberValue(service.total_visits);
+  const completed = numberValue(service.completed);
+  const noShows = numberValue(service.no_shows);
+  const wait = numberValue(service.avg_wait_minutes);
+  const completion = visits ? (completed / visits) * 100 : 100;
+  const noShowRate = visits ? (noShows / visits) * 100 : 0;
+  const waitScore = Math.max(0, 100 - wait * 2);
+  return Math.round(Math.max(0, Math.min(100, completion * 0.45 + (100 - noShowRate) * 0.2 + waitScore * 0.35)));
+}
+
+function effColor(score: number) {
+  return score >= 80 ? '#22C55E' : score >= 60 ? '#F5A623' : '#E5484D';
+}
+
+function effLabel(score: number) {
+  return score >= 80 ? 'Good' : score >= 60 ? 'Fair' : 'Needs Attention';
+}
+
+function serviceEffNote(service: ServiceInsight, score: number) {
+  const wait = Math.round(numberValue(service.avg_wait_minutes));
+  if (score >= 80) return `${wait}m Avg · Well Under Target`;
+  if (score >= 60) return `${wait}m Avg · On Target`;
+  return `${wait}m Avg · Above Target`;
+}
+
+function HealthDonut({ score, size = 76, label }: { score: number; size?: number; label?: string }) {
+  const radius = (size - 12) / 2;
+  const circumference = 2 * Math.PI * radius;
   return (
-    <Panel title="Branch Resource Allocation" eyebrow="Branch Busyness" className="manager-resource-panel">
-      {data.length ? (
-        <ResponsiveContainer width="100%" height="100%" minHeight={318}>
-          <BarChart data={data} margin={{ top: 14, right: 20, left: 8, bottom: 0 }} barGap={8}>
-            <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
-            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={44} tickMargin={8} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(31,52,66,.06)' }} />
-            <Bar dataKey="visitors" name="Branch Traffic" fill="#A8BBC6" radius={[10, 10, 4, 4]} />
-            <Bar dataKey="served" name="Customers Served" fill="#1F3442" radius={[10, 10, 4, 4]} />
-            <Bar dataKey="noShows" name="No-Shows" fill="#FCA5A5" radius={[10, 10, 4, 4]} />
-          </BarChart>
-        </ResponsiveContainer>
+    <div className="health-donut" style={{ width: size, height: size }} role="img" aria-label={`${label || 'Health Score'} ${score}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(168,187,198,.28)" strokeWidth="7" />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none"
+          stroke={effColor(score)} strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={`${(Math.max(2, score) / 100) * circumference} ${circumference}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <b>{score}</b>
+    </div>
+  );
+}
+
+function BranchHealthCard({ services, onOpen, full = false }: { services: ServiceInsight[]; onOpen?: () => void; full?: boolean }) {
+  const rows = services
+    .map((service) => ({ service, score: serviceEfficiencyScore(service) }))
+    .sort((a, b) => b.score - a.score);
+  const health = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0;
+  return (
+    <Panel title="Branch Health" eyebrow="Efficiency By Service · Live" className="branch-health-panel">
+      {rows.length ? (
+        <>
+          <div className="health-head">
+            <HealthDonut score={health} />
+            <div>
+              <small>Health Score</small>
+              <b style={{ color: effColor(health) }}>{effLabel(health)}</b>
+            </div>
+            {onOpen ? <button type="button" className="ops-link-button" onClick={onOpen}>Open</button> : null}
+          </div>
+          <div className="health-rows">
+            {(full ? rows : rows.slice(0, 5)).map(({ service, score }) => (
+              <div key={service.service_id || service.service_name} className="health-row">
+                <i style={{ background: effColor(score) }} />
+                <div className="health-row-main">
+                  <b>{displayLabel(service.service_name)}</b>
+                  <small>{serviceEffNote(service, score)}</small>
+                </div>
+                <div className="health-line"><i style={{ width: `${Math.max(6, score)}%`, background: effColor(score) }} /></div>
+                <span style={{ color: effColor(score) }}>{score}</span>
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
-        <EmptyState title="No Resource Data Yet" detail="Branch busyness and staff allocation patterns will appear after visits are completed." />
+        <EmptyState title="No Service Activity Yet" detail="Service efficiency scores appear after today's visits are recorded." />
       )}
     </Panel>
   );
@@ -999,6 +1063,90 @@ function aggregateBranches(rows: BranchTrend[]) {
   });
 }
 
+// ── Executive branch drill-down ───────────────────────────────
+type BranchAggregate = ReturnType<typeof aggregateBranches>[number];
+
+function branchEfficiencyScore(branch: BranchAggregate) {
+  const visits = numberValue(branch.total_visits);
+  const completion = numberValue(branch.completion_rate);
+  const noShowRate = visits ? (numberValue(branch.no_shows) / visits) * 100 : 0;
+  const waitScore = Math.max(0, 100 - numberValue(branch.avg_wait_minutes) * 2);
+  return Math.round(Math.max(0, Math.min(100, completion * 0.5 + (100 - noShowRate) * 0.2 + waitScore * 0.3)));
+}
+
+function branchDrilldown(branch: BranchAggregate) {
+  const visits = numberValue(branch.total_visits);
+  const completion = numberValue(branch.completion_rate);
+  const wait = Math.round(numberValue(branch.avg_wait_minutes));
+  const noShowRate = visits ? (numberValue(branch.no_shows) / visits) * 100 : 0;
+  const working: string[] = [];
+  const failing: string[] = [];
+
+  (completion >= 75 ? working : failing).push(
+    completion >= 75
+      ? `Strong Completion — ${formatPercent(completion)} Of Visitors Served`
+      : `Low Completion — Only ${formatPercent(completion)} Of Visitors Served`
+  );
+  (wait <= 20 ? working : failing).push(
+    wait <= 20
+      ? `Average Wait Held At ${wait}m — Under The 20m Target`
+      : `Average Wait Is ${wait}m — Above The 20m Target`
+  );
+  (noShowRate <= 12 ? working : failing).push(
+    noShowRate <= 12
+      ? `No-Show Rate Contained At ${formatPercent(noShowRate)}`
+      : `No-Show Rate Elevated At ${formatPercent(noShowRate)} — Review Call Windows`
+  );
+  (visits >= 20 ? working : failing).push(
+    visits >= 20
+      ? `Healthy Demand — ${formatCount(visits)} Visits In The Window`
+      : `Light Demand — Only ${formatCount(visits)} Visits In The Window`
+  );
+  return { working, failing };
+}
+
+function ExecutiveBranchList({ branches }: { branches: BranchAggregate[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  if (!branches.length) {
+    return <EmptyState title="No Branch Analytics Yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
+  }
+  return (
+    <div className="branch-health-list">
+      {branches.map((branch) => {
+        const key = String(branch.branch_id || branch.branch_name);
+        const score = branchEfficiencyScore(branch);
+        const open = openId === key;
+        const drill = open ? branchDrilldown(branch) : null;
+        return (
+          <div key={key} className={`branch-health-item${open ? ' open' : ''}`}>
+            <button type="button" className="branch-health-row" onClick={() => setOpenId(open ? null : key)} aria-expanded={open}>
+              <div className="health-row-main">
+                <b>{displayLabel(branch.branch_name || 'Branch')}</b>
+                <small>{formatCount(branch.total_visits)} Visits · {formatMinutes(branch.avg_wait_minutes)} Avg Wait · {formatCount(branch.no_shows)} No-Shows</small>
+              </div>
+              <div className="health-line"><i style={{ width: `${Math.max(6, score)}%`, background: effColor(score) }} /></div>
+              <span style={{ color: effColor(score) }}>{score}</span>
+              <ChevronDown size={15} className={open ? 'open' : ''} />
+            </button>
+            {open && drill ? (
+              <div className="branch-drill">
+                <section>
+                  <h4 style={{ color: '#22C55E' }}>What&apos;s Working</h4>
+                  {drill.working.length ? drill.working.map((item) => <p key={item}><i style={{ background: '#22C55E' }} />{item}</p>) : <p className="branch-drill-empty">Nothing Is Above Target Yet.</p>}
+                </section>
+                <section>
+                  <h4 style={{ color: '#E5484D' }}>What&apos;s Not Working</h4>
+                  {drill.failing.length ? drill.failing.map((item) => <p key={item}><i style={{ background: '#E5484D' }} />{item}</p>) : <p className="branch-drill-empty">No Problem Areas Detected.</p>}
+                </section>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function eventDatesForMonth(monthKey: string, rows: SummaryRow[]) {
   const monthRows = rows.filter((row) => String(row.summary_date || '').slice(0, 7) === monthKey);
   const avgVisits = avg(monthRows, 'total_visitors');
@@ -1241,29 +1389,35 @@ function ExecutiveTopBranch({ branch, manager, onOpen }: { branch?: BranchTrend;
   );
 }
 
-function ExecutiveEfficiency({ summary, onOpen }: { summary: SummaryRow[]; onOpen: () => void }) {
+function ExecutiveEfficiency({ summary, services, onOpen }: { summary: SummaryRow[]; services: ServiceInsight[]; onOpen: () => void }) {
   const visitors = total(summary, 'total_visitors');
   const served = total(summary, 'completed_count');
   const noShows = total(summary, 'no_show_count');
   const completionRate = visitors ? (served / visitors) * 100 : avg(summary, 'completion_rate');
   const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
   const waitScore = Math.max(0, 100 - avg(summary, 'avg_wait_time_minutes') * 2);
-  const score = Math.round(Math.max(0, Math.min(100, completionRate * 0.5 + (100 - noShowRate) * 0.2 + waitScore * 0.3)));
-  const efficient = score >= 70;
+  const efficiency = Math.round(Math.max(0, Math.min(100, completionRate * 0.5 + (100 - noShowRate) * 0.2 + waitScore * 0.3)));
+  const serviceScores = services.map(serviceEfficiencyScore);
+  const health = serviceScores.length
+    ? Math.round(serviceScores.reduce((sum, score) => sum + score, 0) / serviceScores.length)
+    : efficiency;
   return (
     <section className="exec-efficiency">
       <div className="exec-panel-heading">
         <span><Gauge size={17} /> Efficiency Overview</span>
         <button type="button" onClick={onOpen}>Open</button>
       </div>
-      <strong>{score}%</strong>
-      <p>{efficient ? 'Efficient' : 'Needs Attention'}</p>
-      <div className="exec-efficiency-scale" aria-label={`Efficiency Score ${score}%`}>
-        <i style={{ width: `${score}%` }} />
-        <span style={{ left: `${score}%` }} />
-        <b>0%</b>
-        <b>70%</b>
-        <b>100%</b>
+      <div className="exec-health-pair">
+        <div className="exec-health-cell">
+          <HealthDonut score={efficiency} label="Efficiency Score" />
+          <small>Efficiency</small>
+          <b style={{ color: effColor(efficiency) }}>{effLabel(efficiency)}</b>
+        </div>
+        <div className="exec-health-cell">
+          <HealthDonut score={health} label="Health Score" />
+          <small>Health</small>
+          <b style={{ color: effColor(health) }}>{effLabel(health)}</b>
+        </div>
       </div>
       <small>{formatPercent(completionRate)} Completion · {formatPercent(noShowRate)} No-Show Rate</small>
     </section>
@@ -1603,7 +1757,7 @@ function ManagerDashboardContent() {
           </div>
           <div className="manager-overview-grid">
             <div className="manager-main-column">
-              <ManagerResourceAllocationChart data={chart} />
+              <BranchHealthCard services={services} onOpen={() => setActiveTab('services')} />
               <ManagerRecentCustomers tickets={managerHistory.data || []} onOpen={() => setActiveTab('analytics')} />
             </div>
             <div className="manager-side-column">
@@ -1697,7 +1851,7 @@ function ManagerDashboardContent() {
       {activeTab === 'busyness' ? (
         <section className="manager-busyness-page">
           <ManagerHeatmap cells={heatmap} full />
-          <ManagerResourceAllocationChart data={chart} />
+          <BranchHealthCard services={services} full />
         </section>
       ) : null}
 
@@ -1884,7 +2038,7 @@ function ExecutiveDashboardContent() {
               </div>
 
               <div className="exec-bottom-grid">
-                <ExecutiveEfficiency summary={summary} onOpen={() => setActiveTab('statistics')} />
+                <ExecutiveEfficiency summary={summary} services={services} onOpen={() => setActiveTab('statistics')} />
                 <ExecutiveTopBranch branch={topBranch} manager={topBranchManager} onOpen={() => setActiveTab('branches')} />
               </div>
             </section>
@@ -1941,16 +2095,8 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'branches' ? (
           <section className="exec-tab-page">
-            <Panel title="Branch Performance">
-              {branches.length ? branches.map((branch) => (
-                <DataRow
-                  key={branch.branch_id || branch.branch_name}
-                  title={branch.branch_name || 'Branch'}
-                  detail={`${formatCount(branch.total_visits)} Visits · ${formatMinutes(branch.avg_wait_minutes)} Avg Wait · ${formatCount(branch.no_shows)} No-Shows`}
-                  value={formatPercent(branch.completion_rate)}
-                  meta={<div className="ops-meter"><i style={{ width: `${Math.max(4, Math.min(100, numberValue(branch.completion_rate)))}%` }} /></div>}
-                />
-              )) : <EmptyState title="No Branch Analytics Yet" detail="Branch comparisons will appear after the analytics refresh has records." />}
+            <Panel title="Branch Performance" eyebrow="Efficiency Score · Click A Branch To Drill Down">
+              <ExecutiveBranchList branches={branches} />
             </Panel>
           </section>
         ) : null}
