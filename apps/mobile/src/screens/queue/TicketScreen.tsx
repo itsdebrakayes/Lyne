@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { brandGradient, colors, v3 } from '../../lib/mobileV3Styles';
+import { colors, font, shadow, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { scheduleQueueUpdateNotification } from '../../lib/notifications';
@@ -13,15 +12,11 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
-// Presentation config per ticket status.
-const STATE_META: Record<string, { label: string; tone: string; note: string }> = {
-  waiting: { label: 'In line', tone: '#c9bcff', note: 'Hang tight — we’ll notify you as your turn gets close.' },
-  called: { label: "You're being called", tone: '#7ef2a3', note: 'Head to the counter now and show the code below.' },
-  in_service: { label: 'Being served', tone: '#7ef2a3', note: 'You’re at the counter. Thanks for using QME Now!' },
-  served: { label: 'Completed', tone: '#7ef2a3', note: 'This visit is complete. See you next time!' },
-  no_show: { label: 'Place released', tone: '#ff9d9d', note: 'The call window passed, so your spot was released. You can rejoin the queue below.' },
-  left: { label: 'You left the queue', tone: '#c9c9d4', note: 'You left this line. Join again whenever you’re ready.' },
-  cancelled: { label: 'Ticket cancelled', tone: '#c9c9d4', note: 'This ticket was cancelled. You can join a new queue anytime.' },
+const TERMINAL_META: Record<string, { label: string; tone: string; note: string }> = {
+  no_show: { label: 'Place released', tone: colors.busy, note: 'The call window passed, so your spot was released. You can rejoin the queue below.' },
+  left: { label: 'You left the queue', tone: colors.muted, note: 'You left this line. Join again whenever you are ready.' },
+  cancelled: { label: 'Ticket cancelled', tone: colors.muted, note: 'This ticket was cancelled. You can join a new queue anytime.' },
+  served: { label: 'Completed', tone: colors.light, note: 'This visit is complete. See you next time!' },
 };
 
 export default function TicketScreen() {
@@ -31,6 +26,7 @@ export default function TicketScreen() {
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
   const previous = useRef<{ status?: string; wait?: number }>({});
+
   const activeTicketQuery = useQuery({
     queryKey: ['active-ticket'],
     queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
@@ -49,9 +45,8 @@ export default function TicketScreen() {
   useEffect(() => {
     if (!ticket) return;
     if (previous.current.status && previous.current.status !== ticket.status) {
-      const meta = STATE_META[ticket.status];
       const title = ticket.status === 'called' ? "You're being called" : ticket.status === 'no_show' ? 'You lost your place in line' : 'Queue status updated';
-      scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${meta?.label || ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
+      scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
       scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
     }
@@ -61,8 +56,7 @@ export default function TicketScreen() {
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
-      setLeaving(true);
-      setError('');
+      setLeaving(true); setError('');
       await api.put(`/tickets/${ticketId}/leave`, {});
       navigation.navigate('Main');
     } catch (caught: unknown) {
@@ -74,84 +68,121 @@ export default function TicketScreen() {
 
   const rejoin = () => {
     if (ticket?.branch_id && ticket?.service_id) {
-      navigation.navigate('JoinQueue', {
-        businessId: ticket.business_id || '',
-        branchId: ticket.branch_id,
-        serviceId: ticket.service_id,
-        serviceName: ticket.service_name,
-      });
+      navigation.navigate('JoinQueue', { businessId: ticket.business_id || '', branchId: ticket.branch_id, serviceId: ticket.service_id, serviceName: ticket.service_name });
     } else {
       navigation.navigate('Main');
     }
   };
 
-  if (!providedTicketId && activeTicketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.brand} /></View>;
+  if (!providedTicketId && activeTicketQuery.isLoading) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
   if (!ticketId) return (
-    <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 28 }]}>
-      <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}><Ionicons name="ticket-outline" size={32} color={colors.brand} /></View>
-      <Text style={{ color: colors.text, fontWeight: '800', fontSize: 18, textAlign: 'center' }}>No active ticket</Text>
-      <Text style={{ color: colors.muted, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>You&apos;re not in a line right now. Find a branch and join from anywhere.</Text>
-      <TouchableOpacity style={[v3.primaryButton, { marginTop: 20, alignSelf: 'stretch' }]} onPress={() => navigation.navigate('Main')}><Text style={v3.primaryButtonText}>Find a queue</Text></TouchableOpacity>
+    <View style={[t.root, { alignItems: 'center', justifyContent: 'center', padding: 28 }]}>
+      <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><Ionicons name="ticket-outline" size={30} color={colors.muted} /></View>
+      <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>No active ticket</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, textAlign: 'center', marginTop: 8 }}>You are not in a line right now. Find a branch and join from anywhere.</Text>
+      <TouchableOpacity style={[t.primaryBtn, { marginTop: 20, alignSelf: 'stretch' }]} onPress={() => navigation.navigate('Main')}><Text style={t.primaryBtnText}>Find a queue</Text></TouchableOpacity>
     </View>
   );
-  if (ticketQuery.isLoading) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.brand} /></View>;
-  if (ticketQuery.error || !ticket) return <View style={[v3.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ color: colors.danger, fontWeight: '700', textAlign: 'center' }}>Your live ticket could not be loaded. Check your connection and try again.</Text></View>;
+  if (ticketQuery.isLoading) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
+  if (ticketQuery.error || !ticket) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ fontFamily: font.bold, color: colors.danger, textAlign: 'center' }}>Your live ticket could not be loaded. Check your connection and try again.</Text></View>;
 
-  const meta = STATE_META[ticket.status] || STATE_META.waiting;
-  const position = ticket.waiting_position ?? ticket.position;
-  const active = ['waiting', 'called'].includes(ticket.status);
-  const inService = ticket.status === 'in_service';
-  const releasedNoShow = ticket.status === 'no_show';
-  const showCode = active || inService;
+  const ahead = Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1);
+  const active = ['waiting', 'called', 'in_service'].includes(ticket.status);
+  const terminal = TERMINAL_META[ticket.status];
 
   return (
-    <View style={v3.root}>
-      <ScrollView contentContainerStyle={[v3.content, { paddingBottom: 40 }]} showsVerticalScrollIndicator={false}>
-        <View style={{ alignItems: 'center', marginBottom: 18 }}>
-          <View style={v3.pillBadge}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand }} /><Text style={v3.pillBadgeText}>LIVE TICKET</Text></View>
-          <Text style={[v3.h2, { marginTop: 12, textAlign: 'center' }]}>{ticket.branch_name}</Text>
-          <Text style={v3.small}>{ticket.service_name}</Text>
+    <View style={t.root}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 36, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        {/* top bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Queue ticket</Text>
+          <View style={{ width: 44 }} />
         </View>
 
-        <LinearGradient colors={releasedNoShow ? ['#3a2440', '#241526'] : brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 30, padding: 26, marginBottom: 16, alignItems: 'center' }}>
-          <Text style={{ color: 'rgba(255,255,255,.7)', fontWeight: '800', fontSize: 11, letterSpacing: 1 }}>YOUR NUMBER</Text>
-          <Text style={{ color: '#fff', fontSize: 60, fontWeight: '900', marginVertical: 6, letterSpacing: -1 }}>{ticket.ticket_number}</Text>
-          <Text style={{ color: meta.tone, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 13 }}>{ticket.status_message || meta.label}</Text>
-          {(active || inService) && (
-            <View style={{ flexDirection: 'row', marginTop: 24, width: '100%' }}>
-              <View style={{ flex: 1, alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 26, fontWeight: '900' }}>{position ?? '-'}</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700', fontSize: 12, marginTop: 2 }}>position</Text></View>
-              <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,.18)' }} />
-              <View style={{ flex: 1, alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 26, fontWeight: '900' }}>{ticket.estimated_wait_minutes}m</Text><Text style={{ color: 'rgba(255,255,255,.6)', fontWeight: '700', fontSize: 12, marginTop: 2 }}>est. wait</Text></View>
+        {/* ticket card */}
+        <View style={[t.cardLg, { borderRadius: 26, overflow: 'hidden', padding: 0 }]}>
+          {/* dark header */}
+          <View style={{ backgroundColor: colors.dark, padding: 16, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(ticket.branch_name)}</Text>
             </View>
-          )}
-        </LinearGradient>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 11, color: 'rgba(255,255,255,.55)' }}>{ticket.service_name || 'Service'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 11 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
+              <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent }}>LIVE</Text>
+            </View>
+          </View>
 
-        <View style={[v3.card, { padding: 16, marginBottom: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }]}>
-          <Ionicons name={releasedNoShow ? 'alert-circle' : active || inService ? 'information-circle' : 'checkmark-circle'} size={22} color={releasedNoShow ? colors.danger : colors.brand} style={{ marginTop: 1 }} />
-          <Text style={{ flex: 1, color: colors.text, fontWeight: '600', fontSize: 13.5, lineHeight: 19 }}>{meta.note}</Text>
+          {/* body */}
+          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center' }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
+            <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '))}</Text>
+            </View>
+            {active && (
+              <View style={{ flexDirection: 'row', marginTop: 22, alignSelf: 'stretch' }}>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink }}>{ahead}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted, marginTop: 5 }}>ahead of you</Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: colors.border }} />
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted, marginTop: 5 }}>est. wait</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* perforation */}
+          <View style={{ height: 0, position: 'relative' }}>
+            <View style={{ position: 'absolute', left: -13, top: -13, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.bg }} />
+            <View style={{ position: 'absolute', right: -13, top: -13, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.bg }} />
+          </View>
+
+          {/* barcode */}
+          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, borderStyle: 'dashed', marginHorizontal: 20 }}>
+            {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: colors.faint, marginTop: 4 }}>Show at registration to confirm it&apos;s you</Text>
+          </View>
         </View>
 
-        {showCode && (
-          <View style={[v3.card, { padding: 20, marginBottom: 16, alignItems: 'center' }]}>
-            <Text style={v3.label}>Verification Code</Text>
-            <Text style={{ color: colors.text, fontSize: 26, fontWeight: '900', textAlign: 'center', letterSpacing: 4, marginTop: 10 }}>{ticket.verification_code}</Text>
-            <View style={{ marginTop: 16 }}>{ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.text} /> : null}</View>
-            <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 12, fontWeight: '600' }}>Show this code when your number is called.</Text>
+        {/* terminal note */}
+        {terminal && (
+          <View style={[t.card, { marginTop: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }]}>
+            <Ionicons name={ticket.status === 'served' ? 'checkmark-circle' : 'alert-circle'} size={22} color={terminal.tone} style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{terminal.note}</Text>
           </View>
         )}
 
-        {!!error && <Text style={{ color: colors.danger, fontWeight: '700', marginBottom: 12, textAlign: 'center' }}>{error}</Text>}
+        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 12, textAlign: 'center' }}>{error}</Text>}
 
-        {active ? (
-          <TouchableOpacity disabled={leaving} style={v3.secondaryButton} onPress={leaveQueue}>{leaving ? <ActivityIndicator color={colors.text} /> : <Text style={{ color: colors.danger, fontWeight: '800' }}>Leave queue</Text>}</TouchableOpacity>
-        ) : releasedNoShow || ticket.status === 'left' || ticket.status === 'cancelled' ? (
-          <>
-            <TouchableOpacity style={v3.primaryButton} onPress={rejoin}><Text style={v3.primaryButtonText}>Rejoin this queue</Text></TouchableOpacity>
-            <TouchableOpacity style={[v3.secondaryButton, { marginTop: 12 }]} onPress={() => navigation.navigate('Main')}><Text style={{ color: colors.text, fontWeight: '800' }}>Back to home</Text></TouchableOpacity>
-          </>
-        ) : (
-          <TouchableOpacity style={v3.primaryButton} onPress={() => navigation.navigate('Main')}><Text style={v3.primaryButtonText}>Return home</Text></TouchableOpacity>
-        )}
+        {/* actions */}
+        <View style={{ marginTop: 22, flexDirection: 'row', gap: 11 }}>
+          {active ? (
+            <>
+              <View style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Notify me</Text></View>
+              <TouchableOpacity disabled={leaving} onPress={leaveQueue} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
+                {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
+              </TouchableOpacity>
+            </>
+          ) : terminal && ticket.status !== 'served' ? (
+            <>
+              <TouchableOpacity onPress={rejoin} style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Rejoin queue</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Main')} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}><Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Home</Text></TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.navigate('Main')} style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Return home</Text></TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
     </View>
   );

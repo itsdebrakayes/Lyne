@@ -2,6 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
@@ -13,6 +21,14 @@ const queryClient = new QueryClient({
 export default function App() {
   const [launching, setLaunching] = useState(true);
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null);
+
+  const [fontsLoaded] = useFonts({
+    Jakarta_400Regular: PlusJakartaSans_400Regular,
+    Jakarta_500Medium: PlusJakartaSans_500Medium,
+    Jakarta_600SemiBold: PlusJakartaSans_600SemiBold,
+    Jakarta_700Bold: PlusJakartaSans_700Bold,
+    Jakarta_800ExtraBold: PlusJakartaSans_800ExtraBold,
+  });
 
   useEffect(() => {
     Promise.all([
@@ -29,12 +45,12 @@ export default function App() {
     setTutorialSeen(true);
   };
 
-  if (launching || tutorialSeen === null) return <LaunchScreen />;
+  if (launching || tutorialSeen === null || !fontsLoaded) return <LaunchScreen />;
   if (!tutorialSeen) return <OnboardingScreen onComplete={completeTutorial} />;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <AppNavigator />
     </QueryClientProvider>
   );
