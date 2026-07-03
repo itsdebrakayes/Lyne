@@ -16,6 +16,7 @@ import HomeScreen       from '../screens/main/HomeScreen';
 import SearchScreen     from '../screens/main/SearchScreen';
 import SavedScreen      from '../screens/main/SavedScreen';
 import HistoryScreen    from '../screens/main/HistoryScreen';
+import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
 
 // Queue flow screens
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   Signup:     undefined;
   Main:       undefined;
   History:    undefined;
+  Notifications: undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -106,6 +108,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
             <Stack.Screen name="History"   component={HistoryScreen}   />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />

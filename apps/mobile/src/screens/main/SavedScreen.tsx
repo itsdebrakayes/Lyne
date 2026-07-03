@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, font, shadow, t, companyGradients, initials, statusFromWait, statusMeta } from '../../lib/theme';
+import { colors, font, shadow, t, companyGradients, initials, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
@@ -92,7 +92,7 @@ export default function SavedScreen() {
                     <View style={{ flexDirection: 'row', gap: 9 }}>
                       <TouchableOpacity onPress={() => best && openBranch(best)} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,.16)', borderRadius: 15, padding: 9, paddingHorizontal: 14 }}>
                         <Text style={{ fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,.75)' }}>Nearest branch</Text>
-                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>{best ? `${best.name} · ~${Math.round(Number(best.avg_wait_minutes || 0))}m` : 'No live branch'}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>{best ? `${best.name} · ${waitShort(best.avg_wait_minutes)}` : 'No live branch'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => best && openBranch(best)} style={{ width: 52, borderRadius: 15, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, lineHeight: 20 }}>→</Text>
@@ -128,7 +128,7 @@ export default function SavedScreen() {
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.surfaceAlt, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 11 }}>
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                      <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>~{wait}m</Text>
+                      <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{waitShort(wait)}</Text>
                     </View>
                   </TouchableOpacity>
                 );

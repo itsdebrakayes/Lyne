@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
-import { colors, font, t, initials, statusFromWait, statusMeta } from '../../lib/theme';
+import { colors, font, t, initials, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Business'>;
@@ -66,7 +66,7 @@ export default function BusinessScreen() {
                   <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{wait}<Text style={{ fontSize: 11, color: colors.muted }}>m</Text></Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{waitShort(wait)}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
                     <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted }}>{meta.label}</Text>

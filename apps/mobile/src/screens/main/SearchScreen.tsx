@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View 
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials, statusFromWait, statusMeta } from '../../lib/theme';
+import { colors, font, t, initials, statusFromWait, statusMeta, waitLabel } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
@@ -69,7 +69,7 @@ export default function SearchScreen() {
                     <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 11.5, color: muted }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 13, color: dark ? colors.accent : colors.accentDeep }}>~{wait} min</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 13, color: dark ? colors.accent : colors.accentDeep }}>{waitLabel(wait)}</Text>
                     <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: muted }}>{Number(b.total_waiting || 0)} in line</Text>
                   </View>
                 </View>

@@ -114,6 +114,17 @@ export function statusMeta(status: QueueStatus) {
   return { label: 'Light', dot: colors.light };
 }
 
+// Human wait labels — a computed 0 reads as broken UI, so say "No wait".
+export function waitLabel(minutes?: number | string | null) {
+  const wait = Math.round(Number(minutes || 0));
+  return wait ? `~${wait} min` : 'No wait';
+}
+
+export function waitShort(minutes?: number | string | null) {
+  const wait = Math.round(Number(minutes || 0));
+  return wait ? `${wait}m` : 'Now';
+}
+
 export function initials(value?: string) {
   return (value || '')
     .split(/\s+/)

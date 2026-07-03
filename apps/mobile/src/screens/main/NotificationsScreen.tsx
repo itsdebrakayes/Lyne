@@ -1,0 +1,94 @@
+import React, { useEffect } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, font, t } from '../../lib/theme';
+import api from '../../lib/apiClient';
+
+interface NotificationRow {
+  id: string;
+  notification_type: string;
+  message: string;
+  is_read: boolean | number;
+  sent_at: string;
+  ticket_id?: string | null;
+}
+
+const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  called: 'megaphone-outline',
+  no_show: 'alert-circle-outline',
+  queue_update: 'swap-vertical-outline',
+};
+
+function timeAgo(value: string) {
+  const then = new Date(value).getTime();
+  if (!Number.isFinite(then)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+export default function NotificationsScreen() {
+  const navigation = useNavigation<any>();
+  const queryClient = useQueryClient();
+  const { data: notifications = [], isLoading, error } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<NotificationRow[]>('/notifications'),
+    refetchInterval: 20_000,
+  });
+
+  // Opening the screen clears the unread state.
+  useEffect(() => {
+    if (notifications.some(n => !n.is_read)) {
+      api.put('/notifications/read-all', {})
+        .then(() => queryClient.invalidateQueries({ queryKey: ['notifications'] }))
+        .catch(() => {});
+    }
+  }, [notifications, queryClient]);
+
+  return (
+    <View style={t.root}>
+      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 16 }]}>
+          <Ionicons name="chevron-back" size={20} color={colors.ink} />
+        </TouchableOpacity>
+        <Text style={[t.h2, { marginBottom: 18 }]}>Notifications</Text>
+
+        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
+        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger }}>Notifications could not be loaded.</Text>}
+        {!isLoading && !error && notifications.length === 0 && (
+          <View style={[t.cardLg, { padding: 22, alignItems: 'center' }]}>
+            <Ionicons name="notifications-off-outline" size={28} color={colors.muted} />
+            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginTop: 12 }}>Nothing here yet</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 6 }}>Queue calls, wait-time changes and reminders will show up here.</Text>
+          </View>
+        )}
+
+        <View style={{ gap: 11 }}>
+          {notifications.map(n => (
+            <TouchableOpacity
+              key={n.id}
+              activeOpacity={0.85}
+              disabled={!n.ticket_id}
+              onPress={() => n.ticket_id && navigation.navigate('Ticket', { ticketId: n.ticket_id })}
+              style={[t.listRow, { padding: 14, alignItems: 'flex-start', opacity: n.is_read ? 0.75 : 1 }]}
+            >
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: n.notification_type === 'no_show' ? '#fdeceb' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={TYPE_ICON[n.notification_type] || 'notifications-outline'} size={18} color={n.notification_type === 'no_show' ? colors.danger : colors.ink} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{n.message}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted, marginTop: 5 }}>{timeAgo(n.sent_at)}</Text>
+              </View>
+              {!n.is_read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 4 }} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}

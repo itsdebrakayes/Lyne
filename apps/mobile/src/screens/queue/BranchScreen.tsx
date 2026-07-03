@@ -47,7 +47,9 @@ export default function BranchScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-businesses'] }),
   });
 
-  const svcWait = (s: ServiceSummary) => Math.round(Number(s.avg_wait_minutes ?? s.base_avg_time_minutes ?? 0));
+  // A live average of 0 (no served visits yet today) falls back to the
+  // service's base estimate so the screen never advertises a 0-minute wait.
+  const svcWait = (s: ServiceSummary) => Math.round(Number(s.avg_wait_minutes || s.base_avg_time_minutes || 0));
   const leaveIn = (s: ServiceSummary) => Math.max(0, svcWait(s) - TRAVEL_DEFAULT_MIN);
   const join = (s?: ServiceSummary) => {
     if (!s) return;
@@ -184,7 +186,7 @@ export default function BranchScreen() {
                             <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>{Number(s.waiting_count || 0)}</Text>
                             <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, marginTop: 3 }}>in line</Text>
                           </View>
-                          <View style={{ flex: 1, height: 1, borderTopWidth: 2, borderTopColor: '#e0e3e8', borderStyle: 'dashed' }} />
+                          <View style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: '#e0e3e8' }} />
                           <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>~{svcWait(s)}<Text style={{ fontSize: 11, color: colors.muted }}>m</Text></Text>
                             <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, marginTop: 3 }}>est. wait</Text>

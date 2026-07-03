@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
@@ -32,6 +32,13 @@ export default function HomeScreen() {
     refetchInterval: 30_000,
   });
 
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<Array<{ id: string; is_read: boolean | number }>>('/notifications'),
+    refetchInterval: 30_000,
+  });
+  const hasUnread = notifications.some(n => !n.is_read);
+
   const sorted = useMemo(() => [...branches].sort((a, b) => Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)), [branches]);
   const shortest = sorted[0];
   const agencies = useMemo(() => {
@@ -57,8 +64,9 @@ export default function HomeScreen() {
             </View>
             <Text style={{ fontFamily: font.extra, fontSize: 17, letterSpacing: 2, color: colors.ink }}>QME NOW</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('History')} style={t.iconBtn}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />
+            {hasUnread && <View style={{ position: 'absolute', top: 10, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, borderWidth: 1.5, borderColor: '#fff' }} />}
           </TouchableOpacity>
         </View>
 
@@ -106,7 +114,7 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <View>
               <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Shortest wait nearby</Text>
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>~{Math.round(Number(shortest?.avg_wait_minutes || 0))} min</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
             </View>
             {shortest && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 8, paddingHorizontal: 13 }}>
@@ -160,7 +168,7 @@ export default function HomeScreen() {
                       <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{b.business_name} · {[b.city, b.parish].filter(Boolean)[0] || ''}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{wait}<Text style={{ fontSize: 11, color: colors.muted }}>m</Text></Text>
+                      <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{waitShort(wait)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
                         <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted }}>{meta.label}</Text>

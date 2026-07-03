@@ -148,7 +148,7 @@ export default function TicketScreen() {
           </View>
 
           {/* barcode */}
-          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, borderStyle: 'dashed', marginHorizontal: 20 }}>
+          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginHorizontal: 20 }}>
             {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: colors.faint, marginTop: 4 }}>Show at registration to confirm it&apos;s you</Text>
