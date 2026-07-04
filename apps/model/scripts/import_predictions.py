@@ -86,6 +86,32 @@ def load_json_insights(business_id: str, manifest: list) -> tuple[list, int]:
     return insights, skipped
 
 
+def load_dashboard_insights(business_id: str) -> list:
+    """Structured model outputs from notebook 07 / scripts/generate_insights.py.
+
+    These carry the chartable payloads the admin dashboards read directly
+    (hourly wait forecast, per-service abandonment thresholds, model quality),
+    so they take precedence over the coarser CSV-derived versions.
+    """
+    path = os.path.join(OUTPUTS_DIR, 'admin', 'dashboard_insights.json')
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding='utf-8') as handle:
+        rows = json.load(handle)
+    insights = [
+        {
+            'business_id': row['business_id'],
+            'insight_type': row['insight_type'],
+            'insight_data': row.get('insight_data') or {},
+        }
+        for row in rows
+        if not business_id or row.get('business_id') == business_id
+    ]
+    if insights:
+        print(f'  [OK] outputs/admin/dashboard_insights.json → {len(insights)} insight(s)')
+    return insights
+
+
 def load_csv_fallback(business_id: str) -> list:
     csv_path = os.path.join(os.path.dirname(__file__), '..', 'data_exports', 'predictions_output.csv')
     if not os.path.exists(csv_path):
@@ -333,6 +359,13 @@ def main():
     insights, skipped = load_json_insights(business_id, manifest)
     if not insights:
         insights = load_csv_fallback(business_id)
+
+    # Model-generated dashboard insights replace the coarser CSV-derived versions.
+    dashboard_insights = load_dashboard_insights(business_id)
+    if dashboard_insights:
+        replaced_types = {row['insight_type'] for row in dashboard_insights}
+        insights = [row for row in insights if row['insight_type'] not in replaced_types]
+        insights.extend(dashboard_insights)
 
     if not insights:
         print(f'\nDone. 0 imported, {skipped} skipped, 0 errors.')
