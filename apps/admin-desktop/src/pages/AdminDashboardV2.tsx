@@ -226,6 +226,38 @@ type HeatmapCell = {
   no_shows?: number;
 };
 
+type ServiceWeeklyCell = {
+  service_id: string;
+  service_name: string;
+  dow: number;
+  visit_count?: number;
+  avg_wait?: number;
+  completed?: number;
+  no_shows?: number;
+};
+
+type BusinessTargets = {
+  business_id: string;
+  target_wait_minutes: number;
+  target_completion_rate: number;
+  target_no_show_rate: number;
+  horizon_months: number;
+  target_date?: string | null;
+  note?: string | null;
+  set_by_name?: string | null;
+  updated_at?: string;
+  is_default?: boolean;
+};
+
+const DEFAULT_TARGETS: BusinessTargets = {
+  business_id: '',
+  target_wait_minutes: 20,
+  target_completion_rate: 80,
+  target_no_show_rate: 10,
+  horizon_months: 6,
+  is_default: true,
+};
+
 type ExecutiveKpis = {
   month: string;
   total_employees: number;
@@ -307,13 +339,13 @@ function analysisMonthKey(rows: SummaryRow[] = []) {
   return newest ? newest.slice(0, 7) : new Date().toISOString().slice(0, 7);
 }
 
-function useDashboardData() {
+function useDashboardData(serviceId = '') {
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
   const branchId = admin?.staffRecord.branch_id;
   const canAnalytics = admin?.role === 'manager' || admin?.role === 'executive';
   const analyticsQuery = businessId
-    ? `business_id=${businessId}${branchId && admin?.role === 'manager' ? `&branch_id=${branchId}` : ''}`
+    ? `business_id=${businessId}${branchId && admin?.role === 'manager' ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
     : '';
 
   const queues = useQuery({
@@ -358,6 +390,20 @@ function useDashboardData() {
     refetchInterval: 60_000,
   });
 
+  const serviceWeekly = useQuery({
+    queryKey: ['ops-service-weekly', analyticsQuery],
+    queryFn: () => api.get<ServiceWeeklyCell[]>(`/analytics/service-weekly?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery),
+    refetchInterval: 60_000,
+  });
+
+  const targets = useQuery({
+    queryKey: ['ops-targets', businessId],
+    queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
+    enabled: Boolean(canAnalytics && businessId),
+    refetchInterval: 120_000,
+  });
+
   const employeeKpis = useQuery({
     queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
     queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
@@ -389,10 +435,12 @@ function useDashboardData() {
     staff: staff.data || [],
     branchTrends: branchTrends.data || [],
     heatmap: heatmap.data || [],
+    serviceWeekly: serviceWeekly.data || [],
+    targets: targets.data || DEFAULT_TARGETS,
     employeeKpis: employeeKpis.data,
     predictions: predictions.data || [],
     pipeline: pipeline.data,
-    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch()]),
+    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), serviceWeekly.refetch(), targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch()]),
   };
 }
 
@@ -553,14 +601,21 @@ function ManagerMetricCard({
 // ── Efficiency / health scoring ───────────────────────────────
 // Green→amber→red is reserved for these indicator lines and scores;
 // everything else stays in the blue-grey palette.
-function serviceEfficiencyScore(service: ServiceInsight) {
+// Scores are measured against the business-set targets, not hardcoded values.
+function targetWaitScore(wait: number, targets: BusinessTargets) {
+  const target = Math.max(1, numberValue(targets.target_wait_minutes) || 20);
+  // 100 at zero wait, 60 ("Fair" boundary) exactly at the target, degrading beyond it.
+  return Math.max(0, Math.min(100, 100 - (wait / target) * 40));
+}
+
+function serviceEfficiencyScore(service: ServiceInsight, targets: BusinessTargets = DEFAULT_TARGETS) {
   const visits = numberValue(service.total_visits);
   const completed = numberValue(service.completed);
   const noShows = numberValue(service.no_shows);
   const wait = numberValue(service.avg_wait_minutes);
   const completion = visits ? (completed / visits) * 100 : 100;
   const noShowRate = visits ? (noShows / visits) * 100 : 0;
-  const waitScore = Math.max(0, 100 - wait * 2);
+  const waitScore = targetWaitScore(wait, targets);
   return Math.round(Math.max(0, Math.min(100, completion * 0.45 + (100 - noShowRate) * 0.2 + waitScore * 0.35)));
 }
 
@@ -572,11 +627,12 @@ function effLabel(score: number) {
   return score >= 80 ? 'Good' : score >= 60 ? 'Fair' : 'Needs Attention';
 }
 
-function serviceEffNote(service: ServiceInsight, score: number) {
+function serviceEffNote(service: ServiceInsight, targets: BusinessTargets) {
   const wait = Math.round(numberValue(service.avg_wait_minutes));
-  if (score >= 80) return `${wait}m Avg · Well Under Target`;
-  if (score >= 60) return `${wait}m Avg · On Target`;
-  return `${wait}m Avg · Above Target`;
+  const target = numberValue(targets.target_wait_minutes) || 20;
+  if (wait <= target * 0.75) return `${wait}m Avg · Well Under ${target}m Target`;
+  if (wait <= target) return `${wait}m Avg · On ${target}m Target`;
+  return `${wait}m Avg · Above ${target}m Target`;
 }
 
 function HealthDonut({ score, size = 76, label }: { score: number; size?: number; label?: string }) {
@@ -598,13 +654,25 @@ function HealthDonut({ score, size = 76, label }: { score: number; size?: number
   );
 }
 
-function BranchHealthCard({ services, onOpen, full = false }: { services: ServiceInsight[]; onOpen?: () => void; full?: boolean }) {
+function BranchHealthCard({
+  services,
+  targets,
+  onOpen,
+  full = false,
+  title = 'Branch Health',
+}: {
+  services: ServiceInsight[];
+  targets: BusinessTargets;
+  onOpen?: () => void;
+  full?: boolean;
+  title?: string;
+}) {
   const rows = services
-    .map((service) => ({ service, score: serviceEfficiencyScore(service) }))
+    .map((service) => ({ service, score: serviceEfficiencyScore(service, targets) }))
     .sort((a, b) => b.score - a.score);
   const health = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0;
   return (
-    <Panel title="Branch Health" eyebrow="Efficiency By Service · Live" className="branch-health-panel">
+    <Panel title={title} eyebrow="Efficiency By Service · Live" className="branch-health-panel">
       {rows.length ? (
         <>
           <div className="health-head">
@@ -621,7 +689,7 @@ function BranchHealthCard({ services, onOpen, full = false }: { services: Servic
                 <i style={{ background: effColor(score) }} />
                 <div className="health-row-main">
                   <b>{displayLabel(service.service_name)}</b>
-                  <small>{serviceEffNote(service, score)}</small>
+                  <small>{serviceEffNote(service, targets)}</small>
                 </div>
                 <div className="health-line"><i style={{ width: `${Math.max(6, score)}%`, background: effColor(score) }} /></div>
                 <span style={{ color: effColor(score) }}>{score}</span>
@@ -631,6 +699,41 @@ function BranchHealthCard({ services, onOpen, full = false }: { services: Servic
         </>
       ) : (
         <EmptyState title="No Service Activity Yet" detail="Service efficiency scores appear after today's visits are recorded." />
+      )}
+    </Panel>
+  );
+}
+
+function ServiceDetailTable({ services }: { services: ServiceInsight[] }) {
+  return (
+    <Panel title="Service Detail" eyebrow="Visits, Waits, And Drop-Off Behind The Scores" className="manager-table-panel">
+      {services.length ? (
+        <table className="manager-data-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Visits</th>
+              <th>Avg Wait</th>
+              <th>Service Avg</th>
+              <th>No-Shows</th>
+              <th>Drop-Off</th>
+            </tr>
+          </thead>
+          <tbody>
+            {services.map((service) => (
+              <tr key={service.service_id || service.service_name}>
+                <td><b>{displayLabel(service.service_name)}</b></td>
+                <td>{formatCount(service.total_visits)}</td>
+                <td>{formatMinutes(service.avg_wait_minutes)}</td>
+                <td>{formatMinutes(service.avg_service_minutes)}</td>
+                <td>{formatCount(service.no_shows)}</td>
+                <td>{formatPercent(service.dropoff_pct)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <EmptyState title="No Service Analytics Yet" detail="Service detail is generated as completed visits accumulate." />
       )}
     </Panel>
   );
@@ -677,65 +780,146 @@ function ManagerRecentCustomers({ tickets, onOpen }: { tickets: TicketRow[]; onO
   );
 }
 
-function ServicePerformanceList({ services, onOpen }: { services: ServiceInsight[]; onOpen?: () => void }) {
+// ── Busyness (approved design: rounded weekday bars, highlighted peak, dark tooltip) ──
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+type BusyBar = { key: string; label: string; visits: number; avgWait: number };
+
+function weeklyBars(cells: HeatmapCell[]): BusyBar[] {
+  const totals = Array.from({ length: 7 }, (_, dow) => ({ visits: 0, waitTotal: 0, weight: 0 }));
+  cells.forEach((cell) => {
+    const dow = Number(cell.dow);
+    if (dow < 0 || dow > 6) return;
+    const visits = numberValue(cell.visit_count);
+    totals[dow].visits += visits;
+    totals[dow].waitTotal += numberValue(cell.avg_wait ?? cell.avg_wait_minutes) * Math.max(visits, 1);
+    totals[dow].weight += Math.max(visits, 1);
+  });
+  return totals.map((entry, dow) => ({
+    key: `d${dow}`,
+    label: DOW_LABELS[dow],
+    visits: entry.visits,
+    avgWait: entry.weight ? entry.waitTotal / entry.weight : 0,
+  }));
+}
+
+function hourlyBars(cells: HeatmapCell[]): BusyBar[] {
+  const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+  return hours.map((hour) => {
+    const rows = cells.filter((cell) => Number(cell.hour) === hour);
+    const visits = total(rows, 'visit_count');
+    const waitTotal = rows.reduce((sum, row) => sum + numberValue(row.avg_wait ?? row.avg_wait_minutes) * Math.max(numberValue(row.visit_count), 1), 0);
+    const weight = rows.reduce((sum, row) => sum + Math.max(numberValue(row.visit_count), 1), 0);
+    return { key: `h${hour}`, label: `${hour}:00`, visits, avgWait: weight ? waitTotal / weight : 0 };
+  });
+}
+
+function BusyBars({ bars, compact = false }: { bars: BusyBar[]; compact?: boolean }) {
+  const max = Math.max(1, ...bars.map((bar) => bar.visits));
+  const peakIndex = bars.reduce((best, bar, index) => (bar.visits > bars[best].visits ? index : best), 0);
   return (
-    <Panel title="Service Performance" action={onOpen ? <button className="ops-link-button" onClick={onOpen}>Open</button> : null}>
-      {services.length ? services.map((service) => (
-        <DataRow
-          key={service.service_id || service.service_name}
-          title={displayLabel(service.service_name)}
-          detail={`${numberValue(service.total_visits)} Visits · ${Math.round(numberValue(service.avg_service_minutes))}m Service Avg`}
-          value={`${Math.round(numberValue(service.avg_wait_minutes))}m`}
-          meta={<div className="ops-meter"><i style={{ width: `${Math.max(4, Math.min(100, 100 - numberValue(service.dropoff_pct)))}%` }} /></div>}
-        />
-      )) : <EmptyState title="No Service Analytics Yet" detail="Service rankings are generated as completed visits accumulate." />}
+    <div className={`busy-bars ${compact ? 'compact' : ''}`}>
+      {bars.map((bar, index) => {
+        const peak = index === peakIndex && bar.visits > 0;
+        return (
+          <div key={bar.key} className={`busy-col ${peak ? 'peak' : ''}`}>
+            <div
+              className="busy-fill"
+              style={{ height: `${Math.max(8, (bar.visits / max) * 100)}%` }}
+              title={`${bar.label} · ${formatCount(bar.visits)} visits · ${formatMinutes(bar.avgWait)} avg wait`}
+            >
+              {peak ? <span className="busy-tip">{formatCount(bar.visits)} · {formatMinutes(bar.avgWait)}</span> : null}
+            </div>
+            <small>{bar.label}</small>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BusynessPanel({
+  cells,
+  onOpen,
+  full = false,
+}: {
+  cells: HeatmapCell[];
+  onOpen?: () => void;
+  full?: boolean;
+}) {
+  return (
+    <Panel
+      title="Branch Busyness"
+      eyebrow="Visits Per Day · Last 90 Days"
+      className={`busyness-panel ${full ? 'full' : ''}`}
+      action={onOpen ? <button className="ops-link-button" onClick={onOpen}>Open</button> : null}
+    >
+      {cells.length ? (
+        <>
+          <BusyBars bars={weeklyBars(cells)} />
+          {full ? (
+            <>
+              <div className="busy-subhead">
+                <b>Busiest Hours</b>
+                <small>Average Across The Week</small>
+              </div>
+              <BusyBars bars={hourlyBars(cells)} compact />
+            </>
+          ) : null}
+        </>
+      ) : <EmptyState title="No Busyness Data Yet" detail="Traffic patterns will appear after branch visits are recorded." />}
     </Panel>
   );
 }
 
-function ManagerHeatmap({ cells, onOpen, full = false }: { cells: HeatmapCell[]; onOpen?: () => void; full?: boolean }) {
-  const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-  const maxVisits = Math.max(1, ...cells.map((cell) => numberValue(cell.visit_count)));
-  const cellFor = (dow: number, hour: number) => cells.find((cell) => Number(cell.dow) === dow && Number(cell.hour) === hour);
+function ServiceWeeklyGrid({ rows }: { rows: ServiceWeeklyCell[] }) {
+  const services = new Map<string, { name: string; bars: BusyBar[] }>();
+  rows.forEach((row) => {
+    const key = row.service_id || row.service_name;
+    if (!services.has(key)) {
+      services.set(key, {
+        name: row.service_name,
+        bars: Array.from({ length: 7 }, (_, dow) => ({ key: `d${dow}`, label: DOW_LABELS[dow].slice(0, 2), visits: 0, avgWait: 0 })),
+      });
+    }
+    const dow = Number(row.dow);
+    if (dow < 0 || dow > 6) return;
+    const entry = services.get(key)!;
+    entry.bars[dow] = { key: `d${dow}`, label: DOW_LABELS[dow].slice(0, 2), visits: numberValue(row.visit_count), avgWait: numberValue(row.avg_wait) };
+  });
+  const list = Array.from(services.values())
+    .map((service) => ({ ...service, totalVisits: service.bars.reduce((sum, bar) => sum + bar.visits, 0) }))
+    .sort((a, b) => b.totalVisits - a.totalVisits);
 
   return (
-    <Panel
-      title="Branch Busyness"
-      eyebrow="Branch Heatmap"
-      className={`manager-heatmap-panel ${full ? 'full' : ''}`}
-      action={onOpen ? <button className="ops-link-button" onClick={onOpen}>Open Heatmap</button> : null}
-    >
-      {cells.length ? (
-        <>
-          <div className="manager-heatmap-legend">
-            <span>Low</span>
-            <i />
-            <b>High</b>
-          </div>
-          <div className="manager-heatmap">
-            <div className="manager-heatmap-days">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <b key={day}>{day}</b>)}
-            </div>
-            {hours.map((hour) => (
-              <div className="manager-heatmap-row" key={hour}>
-                <small>{hour}:00</small>
-                {Array.from({ length: 7 }, (_, dow) => {
-                  const cell = cellFor(dow, hour);
-                  const intensity = numberValue(cell?.visit_count) / maxVisits;
-                  const alpha = 0.08 + intensity * 0.82;
-                  return (
-                    <span
-                      key={`${dow}-${hour}`}
-                      title={`${hour}:00 · ${formatCount(cell?.visit_count || 0)} visits · ${formatMinutes(cell?.avg_wait ?? cell?.avg_wait_minutes)}`}
-                      style={{ backgroundColor: `rgba(185, 28, 28, ${alpha})` }}
+    <Panel title="Weekly Busyness By Service" eyebrow="Which Days Each Service Runs Hot" className="service-weekly-panel">
+      {list.length ? (
+        <div className="service-weekly-grid">
+          {list.map((service) => {
+            const max = Math.max(1, ...service.bars.map((bar) => bar.visits));
+            const peak = service.bars.reduce((best, bar, index) => (bar.visits > service.bars[best].visits ? index : best), 0);
+            return (
+              <div key={service.name} className="service-weekly-row">
+                <div className="health-row-main">
+                  <b>{displayLabel(service.name)}</b>
+                  <small>Peak {DOW_LABELS[peak]} · {formatMinutes(service.bars[peak].avgWait)} Avg Wait</small>
+                </div>
+                <div className="mini-bars">
+                  {service.bars.map((bar, index) => (
+                    <i
+                      key={bar.key}
+                      className={index === peak && bar.visits > 0 ? 'peak' : ''}
+                      style={{ height: `${Math.max(10, (bar.visits / max) * 100)}%` }}
+                      title={`${DOW_LABELS[index]} · ${formatCount(bar.visits)} visits · ${formatMinutes(bar.avgWait)} avg wait`}
                     />
-                  );
-                })}
+                  ))}
+                </div>
+                <span>{formatCount(service.totalVisits)} Visits</span>
               </div>
-            ))}
-          </div>
-        </>
-      ) : <EmptyState title="No Heatmap Data Yet" detail="Traffic patterns will appear after branch visits are recorded." />}
+            );
+          })}
+        </div>
+      ) : <EmptyState title="No Weekly Service Data Yet" detail="Weekly patterns appear as visits accumulate for each service." />}
     </Panel>
   );
 }
@@ -967,6 +1151,12 @@ function predictionBullets(prediction: PredictionRow | undefined) {
   return collectInsightStrings(parseInsightData(prediction?.insight_data));
 }
 
+function targetDeadlineLabel(targets: BusinessTargets) {
+  if (!targets.target_date) return `${targets.horizon_months}-Month Goal`;
+  const date = new Date(String(targets.target_date));
+  return date.toLocaleDateString([], { month: 'long', year: 'numeric' });
+}
+
 function buildExecutiveActionPlan({
   predictions,
   summary,
@@ -974,6 +1164,7 @@ function buildExecutiveActionPlan({
   branches,
   managers,
   heatmap,
+  targets,
 }: {
   predictions: PredictionRow[];
   summary: SummaryRow[];
@@ -981,6 +1172,7 @@ function buildExecutiveActionPlan({
   branches: BranchTrend[];
   managers: ManagerScore[];
   heatmap: HeatmapCell[];
+  targets: BusinessTargets;
 }) {
   const resourceInsight = predictionOf(predictions, 'resource_recommendations');
   const opsInsight = predictionOf(predictions, 'ops_insights');
@@ -1001,11 +1193,16 @@ function buildExecutiveActionPlan({
   const busiestCell = [...heatmap].sort((a, b) => numberValue(b.visit_count) - numberValue(a.visit_count))[0];
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetNoShow = numberValue(targets.target_no_show_rate) || 10;
+  const deadline = targetDeadlineLabel(targets);
+
   const improve = uniqueTake([
+    avgWait > targetWait ? `Bring average wait from ${formatMinutes(avgWait)} down to the ${targetWait}m target by ${deadline}.` : '',
     ...predictionBullets(resourceInsight),
     ...predictionBullets(waitInsight),
     topService ? `Reduce wait pressure in ${topService.service_name}; it is averaging ${formatMinutes(topService.avg_wait_minutes)} wait time.` : '',
-    noShowRate > 8 ? `Tighten call follow-up and counter coverage because the no-show rate is ${formatPercent(noShowRate)}.` : '',
+    noShowRate > targetNoShow ? `Tighten call follow-up and counter coverage; the no-show rate is ${formatPercent(noShowRate)} against a ${targetNoShow}% target.` : '',
   ], 'Prioritize the busiest services first, then rebalance coverage using the latest queue and manager score data.');
 
   const maintain = uniqueTake([
@@ -1023,6 +1220,7 @@ function buildExecutiveActionPlan({
   ], 'Focus the next review on branch staffing, busiest heatmap windows, and manager score movement.');
 
   const why = uniqueTake([
+    `The business target is a ${targetWait}m average wait, ${formatPercent(targets.target_completion_rate)} completion, and ${formatPercent(targetNoShow)} no-shows by ${deadline}; this plan works toward those numbers.`,
     ...predictionBullets(abandonmentInsight),
     `${formatCount(visitors)} clients, ${formatPercent(completionRate)} completion, ${formatPercent(noShowRate)} no-show rate, and ${formatMinutes(avgWait)} average wait time informed this action plan.`,
     predictions.length ? `The recommendation uses ${predictions.map((prediction) => insightDisplayName(prediction.insight_type)).join(', ')} from the latest notebook import.` : '',
@@ -1066,36 +1264,39 @@ function aggregateBranches(rows: BranchTrend[]) {
 // ── Executive branch drill-down ───────────────────────────────
 type BranchAggregate = ReturnType<typeof aggregateBranches>[number];
 
-function branchEfficiencyScore(branch: BranchAggregate) {
+function branchEfficiencyScore(branch: BranchAggregate, targets: BusinessTargets = DEFAULT_TARGETS) {
   const visits = numberValue(branch.total_visits);
   const completion = numberValue(branch.completion_rate);
   const noShowRate = visits ? (numberValue(branch.no_shows) / visits) * 100 : 0;
-  const waitScore = Math.max(0, 100 - numberValue(branch.avg_wait_minutes) * 2);
+  const waitScore = targetWaitScore(numberValue(branch.avg_wait_minutes), targets);
   return Math.round(Math.max(0, Math.min(100, completion * 0.5 + (100 - noShowRate) * 0.2 + waitScore * 0.3)));
 }
 
-function branchDrilldown(branch: BranchAggregate) {
+function branchDrilldown(branch: BranchAggregate, targets: BusinessTargets) {
   const visits = numberValue(branch.total_visits);
   const completion = numberValue(branch.completion_rate);
   const wait = Math.round(numberValue(branch.avg_wait_minutes));
   const noShowRate = visits ? (numberValue(branch.no_shows) / visits) * 100 : 0;
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetCompletion = numberValue(targets.target_completion_rate) || 80;
+  const targetNoShow = numberValue(targets.target_no_show_rate) || 10;
   const working: string[] = [];
   const failing: string[] = [];
 
-  (completion >= 75 ? working : failing).push(
-    completion >= 75
-      ? `Strong Completion — ${formatPercent(completion)} Of Visitors Served`
-      : `Low Completion — Only ${formatPercent(completion)} Of Visitors Served`
+  (completion >= targetCompletion ? working : failing).push(
+    completion >= targetCompletion
+      ? `Strong Completion — ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
+      : `Low Completion — Only ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
   );
-  (wait <= 20 ? working : failing).push(
-    wait <= 20
-      ? `Average Wait Held At ${wait}m — Under The 20m Target`
-      : `Average Wait Is ${wait}m — Above The 20m Target`
+  (wait <= targetWait ? working : failing).push(
+    wait <= targetWait
+      ? `Average Wait Held At ${wait}m — Under The ${targetWait}m Target`
+      : `Average Wait Is ${wait}m — Above The ${targetWait}m Target`
   );
-  (noShowRate <= 12 ? working : failing).push(
-    noShowRate <= 12
-      ? `No-Show Rate Contained At ${formatPercent(noShowRate)}`
-      : `No-Show Rate Elevated At ${formatPercent(noShowRate)} — Review Call Windows`
+  (noShowRate <= targetNoShow ? working : failing).push(
+    noShowRate <= targetNoShow
+      ? `No-Show Rate Contained At ${formatPercent(noShowRate)} (Target ${targetNoShow}%)`
+      : `No-Show Rate Elevated At ${formatPercent(noShowRate)} — Target Is ${targetNoShow}%`
   );
   (visits >= 20 ? working : failing).push(
     visits >= 20
@@ -1105,7 +1306,7 @@ function branchDrilldown(branch: BranchAggregate) {
   return { working, failing };
 }
 
-function ExecutiveBranchList({ branches }: { branches: BranchAggregate[] }) {
+function ExecutiveBranchList({ branches, targets }: { branches: BranchAggregate[]; targets: BusinessTargets }) {
   const [openId, setOpenId] = useState<string | null>(null);
   if (!branches.length) {
     return <EmptyState title="No Branch Analytics Yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
@@ -1114,9 +1315,9 @@ function ExecutiveBranchList({ branches }: { branches: BranchAggregate[] }) {
     <div className="branch-health-list">
       {branches.map((branch) => {
         const key = String(branch.branch_id || branch.branch_name);
-        const score = branchEfficiencyScore(branch);
+        const score = branchEfficiencyScore(branch, targets);
         const open = openId === key;
-        const drill = open ? branchDrilldown(branch) : null;
+        const drill = open ? branchDrilldown(branch, targets) : null;
         return (
           <div key={key} className={`branch-health-item${open ? ' open' : ''}`}>
             <button type="button" className="branch-health-row" onClick={() => setOpenId(open ? null : key)} aria-expanded={open}>
@@ -1333,35 +1534,16 @@ function ExecutiveManagerList({ managers, onOpen }: { managers: ManagerScore[]; 
   );
 }
 
-function ExecutiveHeatmap({ cells, onOpen, full = false }: { cells: HeatmapCell[]; onOpen: () => void; full?: boolean }) {
-  const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-  const maxVisits = Math.max(1, ...cells.map((cell) => numberValue(cell.visit_count)));
-  const cellFor = (dow: number, hour: number) => cells.find((cell) => Number(cell.dow) === dow && Number(cell.hour) === hour);
+function ExecutiveBusyness({ cells, onOpen }: { cells: HeatmapCell[]; onOpen: () => void }) {
   return (
-    <section className={`exec-side-panel exec-heatmap-panel ${full ? 'full' : ''}`}>
+    <section className="exec-side-panel exec-busyness-panel">
       <div className="exec-side-head">
         <h3>Branch Busyness</h3>
         <button type="button" onClick={onOpen}>Open</button>
       </div>
-      <div className="exec-heatmap">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <b key={`${day}-${index}`}>{day}</b>)}
-        {hours.map((hour) => (
-          <div className="exec-heatmap-row" key={hour}>
-            {Array.from({ length: 7 }, (_, dow) => {
-              const cell = cellFor(dow, hour);
-              const intensity = numberValue(cell?.visit_count) / maxVisits;
-              const alpha = 0.12 + intensity * 0.78;
-              return (
-                <span
-                  key={`${dow}-${hour}`}
-                  title={`${hour}:00 · ${formatCount(cell?.visit_count || 0)} visits · ${formatMinutes(cell?.avg_wait ?? cell?.avg_wait_minutes)}`}
-                  style={{ backgroundColor: `rgba(185, 28, 28, ${alpha})` }}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      {cells.length ? (
+        <BusyBars bars={weeklyBars(cells)} compact />
+      ) : <EmptyState title="No Busyness Data Yet" detail="Traffic patterns appear after branch visits are recorded." />}
     </section>
   );
 }
@@ -1389,15 +1571,25 @@ function ExecutiveTopBranch({ branch, manager, onOpen }: { branch?: BranchTrend;
   );
 }
 
-function ExecutiveEfficiency({ summary, services, onOpen }: { summary: SummaryRow[]; services: ServiceInsight[]; onOpen: () => void }) {
+function ExecutiveEfficiency({
+  summary,
+  services,
+  targets,
+  onOpen,
+}: {
+  summary: SummaryRow[];
+  services: ServiceInsight[];
+  targets: BusinessTargets;
+  onOpen?: () => void;
+}) {
   const visitors = total(summary, 'total_visitors');
   const served = total(summary, 'completed_count');
   const noShows = total(summary, 'no_show_count');
   const completionRate = visitors ? (served / visitors) * 100 : avg(summary, 'completion_rate');
   const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
-  const waitScore = Math.max(0, 100 - avg(summary, 'avg_wait_time_minutes') * 2);
+  const waitScore = targetWaitScore(avg(summary, 'avg_wait_time_minutes'), targets);
   const efficiency = Math.round(Math.max(0, Math.min(100, completionRate * 0.5 + (100 - noShowRate) * 0.2 + waitScore * 0.3)));
-  const serviceScores = services.map(serviceEfficiencyScore);
+  const serviceScores = services.map((service) => serviceEfficiencyScore(service, targets));
   const health = serviceScores.length
     ? Math.round(serviceScores.reduce((sum, score) => sum + score, 0) / serviceScores.length)
     : efficiency;
@@ -1405,7 +1597,7 @@ function ExecutiveEfficiency({ summary, services, onOpen }: { summary: SummaryRo
     <section className="exec-efficiency">
       <div className="exec-panel-heading">
         <span><Gauge size={17} /> Efficiency Overview</span>
-        <button type="button" onClick={onOpen}>Open</button>
+        {onOpen ? <button type="button" onClick={onOpen}>Open</button> : null}
       </div>
       <div className="exec-health-pair">
         <div className="exec-health-cell">
@@ -1421,6 +1613,243 @@ function ExecutiveEfficiency({ summary, services, onOpen }: { summary: SummaryRo
       </div>
       <small>{formatPercent(completionRate)} Completion · {formatPercent(noShowRate)} No-Show Rate</small>
     </section>
+  );
+}
+
+// ── Business targets ──────────────────────────────────────────
+const HORIZON_OPTIONS = [3, 6, 9, 12, 18, 24];
+
+function TargetsPanel({ targets, businessId, editable }: { targets: BusinessTargets; businessId?: string; editable: boolean }) {
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState({
+    target_wait_minutes: String(targets.target_wait_minutes),
+    target_completion_rate: String(targets.target_completion_rate),
+    target_no_show_rate: String(targets.target_no_show_rate),
+    horizon_months: String(targets.horizon_months),
+  });
+  useEffect(() => {
+    setDraft({
+      target_wait_minutes: String(targets.target_wait_minutes),
+      target_completion_rate: String(targets.target_completion_rate),
+      target_no_show_rate: String(targets.target_no_show_rate),
+      horizon_months: String(targets.horizon_months),
+    });
+  }, [targets.target_wait_minutes, targets.target_completion_rate, targets.target_no_show_rate, targets.horizon_months]);
+
+  const saveTargets = useMutation({
+    mutationFn: () => api.put('/targets', {
+      business_id: businessId,
+      target_wait_minutes: Number(draft.target_wait_minutes),
+      target_completion_rate: Number(draft.target_completion_rate),
+      target_no_show_rate: Number(draft.target_no_show_rate),
+      horizon_months: Number(draft.horizon_months),
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops-targets'] }),
+  });
+
+  const deadline = targetDeadlineLabel(targets);
+  const provenance = targets.is_default
+    ? 'Default Targets · Not Set Yet'
+    : `Set By ${displayLabel(targets.set_by_name || 'Executive')} · Due ${deadline}`;
+
+  if (!editable) {
+    return (
+      <Panel title="Business Targets" eyebrow={provenance}>
+        <DataRow title="Average Wait" detail="Branch-wide wait time goal" value={`${targets.target_wait_minutes}m`} />
+        <DataRow title="Completion Rate" detail="Visitors served before leaving" value={`${targets.target_completion_rate}%`} />
+        <DataRow title="No-Show Rate" detail="Maximum acceptable no-shows" value={`${targets.target_no_show_rate}%`} />
+        <DataRow title="Deadline" detail={`${targets.horizon_months}-Month Horizon`} value={deadline} />
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel title="Business Targets" eyebrow={provenance} className="targets-panel">
+      <div className="targets-grid">
+        <label>
+          <small>Avg Wait Target (Minutes)</small>
+          <input type="number" min={1} max={240} value={draft.target_wait_minutes} onChange={(event) => setDraft({ ...draft, target_wait_minutes: event.target.value })} />
+        </label>
+        <label>
+          <small>Completion Target (%)</small>
+          <input type="number" min={1} max={100} value={draft.target_completion_rate} onChange={(event) => setDraft({ ...draft, target_completion_rate: event.target.value })} />
+        </label>
+        <label>
+          <small>No-Show Ceiling (%)</small>
+          <input type="number" min={0} max={100} value={draft.target_no_show_rate} onChange={(event) => setDraft({ ...draft, target_no_show_rate: event.target.value })} />
+        </label>
+        <label>
+          <small>Reach It Within</small>
+          <select value={draft.horizon_months} onChange={(event) => setDraft({ ...draft, horizon_months: event.target.value })}>
+            {HORIZON_OPTIONS.map((months) => <option key={months} value={months}>{months} Months</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="targets-actions">
+        <button className="ops-primary accent" disabled={!businessId || saveTargets.isPending} onClick={() => saveTargets.mutate()}>
+          {saveTargets.isPending ? 'Saving…' : 'Save Targets'}
+        </button>
+        {saveTargets.isSuccess ? <span className="targets-saved">Targets Saved — Scores And The Action Plan Now Track Them.</span> : null}
+        {saveTargets.isError ? <span className="ops-error">{saveTargets.error instanceof Error ? saveTargets.error.message : 'The targets could not be saved.'}</span> : null}
+      </div>
+    </Panel>
+  );
+}
+
+function TargetProgress({ targets, summary }: { targets: BusinessTargets; summary: SummaryRow[] }) {
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const noShows = total(summary, 'no_show_count');
+  const currentWait = avg(summary, 'avg_wait_time_minutes');
+  const currentCompletion = visitors ? (served / visitors) * 100 : 0;
+  const currentNoShow = visitors ? (noShows / visitors) * 100 : 0;
+  const deadline = targetDeadlineLabel(targets);
+
+  const rows = [
+    {
+      label: 'Average Wait',
+      current: `${currentWait}m`,
+      target: `${targets.target_wait_minutes}m`,
+      // Lower is better: full bar when at/below target.
+      progress: currentWait ? Math.min(100, (numberValue(targets.target_wait_minutes) / Math.max(currentWait, 1)) * 100) : 100,
+      onTrack: currentWait <= numberValue(targets.target_wait_minutes),
+    },
+    {
+      label: 'Completion Rate',
+      current: formatPercent(currentCompletion),
+      target: `${targets.target_completion_rate}%`,
+      progress: Math.min(100, (currentCompletion / Math.max(numberValue(targets.target_completion_rate), 1)) * 100),
+      onTrack: currentCompletion >= numberValue(targets.target_completion_rate),
+    },
+    {
+      label: 'No-Show Rate',
+      current: formatPercent(currentNoShow),
+      target: `${targets.target_no_show_rate}%`,
+      progress: currentNoShow ? Math.min(100, (numberValue(targets.target_no_show_rate) / Math.max(currentNoShow, 0.1)) * 100) : 100,
+      onTrack: currentNoShow <= numberValue(targets.target_no_show_rate),
+    },
+  ];
+
+  return (
+    <Panel title="Target Progress" eyebrow={`Where You Stand Against The ${targets.horizon_months}-Month Goal · Due ${deadline}`}>
+      <div className="target-progress">
+        {rows.map((row) => (
+          <div key={row.label} className="target-progress-row">
+            <div className="health-row-main">
+              <b>{row.label}</b>
+              <small>{row.current} Now · {row.target} Target</small>
+            </div>
+            <div className="health-line"><i style={{ width: `${Math.max(6, Math.round(row.progress))}%`, background: row.onTrack ? '#22C55E' : '#F5A623' }} /></div>
+            <span style={{ color: row.onTrack ? '#22C55E' : '#F5A623' }}>{row.onTrack ? 'On Target' : 'In Progress'}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ── Notebook / model chart panels ─────────────────────────────
+function latestPrediction(predictions: PredictionRow[], type: string) {
+  return predictions
+    .filter((item) => item.insight_type === type)
+    .sort((a, b) => String(b.generated_at || '').localeCompare(String(a.generated_at || '')))[0];
+}
+
+function NotebookWaitForecast({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'wait_time_predictions');
+  const data = parseInsightData(prediction?.insight_data);
+  const hours: Array<{ hour: number; predicted_wait: number }> = Array.isArray(data?.hours)
+    ? data.hours
+    : Array.isArray(data?.by_hour) ? data.by_hour : [];
+  const chart = hours
+    .map((row: any) => ({ day: `${numberValue(row.hour)}:00`, wait: Math.round(numberValue(row.predicted_wait ?? row.wait)) }))
+    .filter((row) => row.wait >= 0);
+  return (
+    <Panel title="Predicted Wait By Hour" eyebrow={`Model Forecast${prediction?.branch_name ? ` · ${displayLabel(prediction.branch_name)}` : ''}`} className="ops-chart-panel">
+      {chart.length ? (
+        <ResponsiveContainer height={210}>
+          <AreaChart data={chart} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
+            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={40} tickMargin={8} allowDecimals={false} />
+            <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#1F3442', strokeDasharray: '4 4' }} />
+            <Area type="monotone" dataKey="wait" name="Predicted Wait (m)" stroke="#1F3442" fill="#E8F0F4" fillOpacity={0.5} strokeWidth={3} />
+          </AreaChart>
+        </ResponsiveContainer>
+      ) : (
+        <EmptyState title="No Wait Forecast Yet" detail={insightSentence(prediction, 'Run the analytics refresh to generate the hourly wait forecast from the notebook model.')} />
+      )}
+    </Panel>
+  );
+}
+
+function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'abandonment_thresholds');
+  const data = parseInsightData(prediction?.insight_data);
+  const services: any[] = Array.isArray(data?.services) ? data.services : [];
+  const maxThreshold = Math.max(1, ...services.map((row) => numberValue(row.threshold_queue_length ?? row.max_queue_length)));
+  return (
+    <Panel title="Queue Length Tolerance" eyebrow="How Long A Line Gets Before People Stop Joining · Model Output">
+      {services.length ? (
+        <div className="health-rows">
+          {services.map((row) => {
+            const threshold = numberValue(row.threshold_queue_length ?? row.max_queue_length);
+            const abandonRate = numberValue(row.abandon_rate_pct);
+            return (
+              <div key={row.service_name || row.service_id} className="health-row">
+                <i style={{ background: '#607787' }} />
+                <div className="health-row-main">
+                  <b>{displayLabel(row.service_name || 'Service')}</b>
+                  <small>{abandonRate ? `${formatPercent(abandonRate)} Walk Away Beyond This Point` : 'Joining Drops Beyond This Point'}</small>
+                </div>
+                <div className="health-line"><i style={{ width: `${Math.max(8, (threshold / maxThreshold) * 100)}%`, background: 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
+                <span>{formatCount(threshold)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState title="No Abandonment Model Yet" detail={insightSentence(prediction, 'The notebook model estimates the queue length at which customers stop joining each service.')} />
+      )}
+    </Panel>
+  );
+}
+
+function NotebookModelQuality({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'model_performance');
+  const data = parseInsightData(prediction?.insight_data);
+  if (!prediction) return null;
+  return (
+    <Panel title="Model Quality" eyebrow="Wait-Time Prediction Model · Notebook 05">
+      <DataRow title="Typical Error" detail="Mean Absolute Error Of Predicted Waits" value={data?.mae_minutes != null ? `±${Math.round(numberValue(data.mae_minutes))}m` : 'Pending'} />
+      <DataRow title="Fit (R²)" detail="Share Of Wait Variation The Model Explains" value={data?.r2 != null ? `${Math.round(numberValue(data.r2) * 100)}%` : 'Pending'} />
+      <DataRow title="Model" detail={data?.summary ? String(data.summary) : 'Gradient Boosting Trained On Visit History'} value={displayLabel(data?.model || 'GBR')} />
+    </Panel>
+  );
+}
+
+function NotebookAnalytics({ predictions }: { predictions: PredictionRow[] }) {
+  return (
+    <>
+      <div className="ops-grid two">
+        <NotebookWaitForecast predictions={predictions} />
+        <NotebookAbandonment predictions={predictions} />
+      </div>
+      <NotebookModelQuality predictions={predictions} />
+    </>
+  );
+}
+
+function WorkforcePanel({ employeeKpis }: { employeeKpis?: ExecutiveKpis }) {
+  return (
+    <Panel title="Workforce" eyebrow={`Employee Movement · ${employeeKpis ? monthLabel(employeeKpis.month) : 'This Month'}`}>
+      <DataRow title="Total Employees" detail="Active Staff Accounts" value={formatCount(employeeKpis?.total_employees)} />
+      <DataRow title="Active This Month" detail={`Vs Last Month: ${signedPercent(employeeKpis?.active_change_pct)}`} value={formatCount(employeeKpis?.active_employees)} />
+      <DataRow title="On Leave" detail="Marked Unavailable" value={formatCount(employeeKpis?.leave_employees)} />
+      {(employeeKpis?.new_staff || []).map((member) => (
+        <DataRow key={member.id} title={displayLabel(member.full_name)} detail={`New Hire · ${displayLabel(member.branch_name || 'Branch')}`} value={member.created_at ? compactDate(member.created_at) : 'New'} />
+      ))}
+    </Panel>
   );
 }
 
@@ -1642,9 +2071,9 @@ function StaffDashboardContent() {
 
 function ManagerDashboardContent() {
   const qc = useQueryClient();
-  const { admin, businessId, branchId, queues, summary, services, staff, heatmap, pipeline, refreshAll } = useDashboardData();
-  const [activeTab, setActiveTab] = useState('overview');
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const { admin, businessId, branchId, queues, summary, services, heatmap, serviceWeekly, targets, predictions, pipeline, refreshAll } = useDashboardData(selectedServiceId);
+  const [activeTab, setActiveTab] = useState('overview');
   const [staffId, setStaffId] = useState('');
   const [counterId, setCounterId] = useState('');
   const [staffFilter, setStaffFilter] = useState<'active' | 'all'>('active');
@@ -1757,11 +2186,11 @@ function ManagerDashboardContent() {
           </div>
           <div className="manager-overview-grid">
             <div className="manager-main-column">
-              <BranchHealthCard services={services} onOpen={() => setActiveTab('services')} />
+              <BranchHealthCard services={services} targets={targets} onOpen={() => setActiveTab('services')} />
               <ManagerRecentCustomers tickets={managerHistory.data || []} onOpen={() => setActiveTab('analytics')} />
             </div>
             <div className="manager-side-column">
-              <ManagerHeatmap cells={heatmap} onOpen={() => setActiveTab('busyness')} />
+              <BusynessPanel cells={heatmap} onOpen={() => setActiveTab('busyness')} />
               <ManagerStaffPanel staff={lineStaffPresence} filter={staffFilter} onFilter={setStaffFilter} onOpen={() => setActiveTab('staff')} />
             </div>
           </div>
@@ -1825,7 +2254,12 @@ function ManagerDashboardContent() {
         </Panel>
       ) : null}
 
-      {activeTab === 'services' ? <ServicePerformanceList services={services} /> : null}
+      {activeTab === 'services' ? (
+        <div className="manager-services-page">
+          <BranchHealthCard services={services} targets={targets} full />
+          <ServiceDetailTable services={services} />
+        </div>
+      ) : null}
 
       {activeTab === 'queues' ? (
         <Panel title="Active Queues">
@@ -1842,24 +2276,30 @@ function ManagerDashboardContent() {
       ) : null}
 
       {activeTab === 'analytics' ? (
-        <div className="manager-analytics-grid">
-          <ChartCard title="Visitors Served" data={chart} mode="area" />
-          <ServicePerformanceList services={services} />
-        </div>
+        <>
+          <div className="ops-grid two">
+            <ChartCard title="Visitors Served" data={chart} mode="area" />
+            <ChartCard title="Served Vs No-Shows" data={chart} />
+          </div>
+          <NotebookAnalytics predictions={predictions} />
+        </>
       ) : null}
 
       {activeTab === 'busyness' ? (
         <section className="manager-busyness-page">
-          <ManagerHeatmap cells={heatmap} full />
-          <BranchHealthCard services={services} full />
+          <BusynessPanel cells={heatmap} full />
+          <ServiceWeeklyGrid rows={serviceWeekly} />
         </section>
       ) : null}
 
       {activeTab === 'settings' ? (
-        <Panel title="Settings" eyebrow="Branch Controls">
-          <DataRow title="Service Filter" detail={selectedServiceName} value="Active" />
-          <DataRow title="Analytics Refresh" detail="Refresh branch queue, staff, and notebook data from the dashboard controls." value="Ready" />
-        </Panel>
+        <>
+          <TargetsPanel targets={targets} businessId={businessId} editable={false} />
+          <Panel title="Settings" eyebrow="Branch Controls">
+            <DataRow title="Service Filter" detail={selectedServiceName} value="Active" />
+            <DataRow title="Analytics Refresh" detail="Refresh branch queue, staff, and notebook data from the dashboard controls." value="Ready" />
+          </Panel>
+        </>
       ) : null}
 
       {activeTab === 'support' ? (
@@ -1874,7 +2314,8 @@ function ManagerDashboardContent() {
 
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
-  const { admin, businessId, queues, summary, services, branchTrends, heatmap, employeeKpis, predictions, pipeline } = useDashboardData();
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const { admin, businessId, queues, summary, services, branchTrends, heatmap, serviceWeekly, targets, employeeKpis, predictions, pipeline } = useDashboardData(selectedServiceId);
   const { logout } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('month');
@@ -1901,6 +2342,11 @@ function ExecutiveDashboardContent() {
     queryFn: () => api.get<BranchOption[]>(`/branches?business_id=${businessId}`),
     enabled: Boolean(businessId),
     refetchInterval: 60_000,
+  });
+  const serviceOptions = useQuery({
+    queryKey: ['executive-service-options', businessId],
+    queryFn: () => api.get<Array<{ id?: string; service_id?: string; name?: string; service_name?: string }>>(`/services?business_id=${businessId}`),
+    enabled: Boolean(businessId),
   });
   const triggerPipeline = useMutation({
     mutationFn: () => api.post('/pipeline/trigger', { business_id: businessId }),
@@ -1933,6 +2379,7 @@ function ExecutiveDashboardContent() {
     branches,
     managers: managerRows,
     heatmap,
+    targets,
   });
   const report = {
     generated_at: new Date().toISOString(),
@@ -2019,6 +2466,18 @@ function ExecutiveDashboardContent() {
 
         {triggerPipeline.isError ? <section className="ops-alert exec-alert"><AlertTriangle size={18} />{triggerPipeline.error instanceof Error ? triggerPipeline.error.message : 'The analytics refresh could not be queued.'}</section> : null}
 
+        <div className="ops-filter-row exec-filter-row">
+          <select value={selectedServiceId} onChange={(event) => setSelectedServiceId(event.target.value)} aria-label="Service filter">
+            <option value="">All Services</option>
+            {(serviceOptions.data || []).map((service) => (
+              <option key={service.id || service.service_id} value={service.id || service.service_id}>
+                {displayLabel(service.name || service.service_name)}
+              </option>
+            ))}
+          </select>
+          {selectedServiceId ? <span className="exec-filter-note">Every Graph Below Is Rebuilt From This Service Only.</span> : null}
+        </div>
+
         {activeTab === 'overview' ? (
           <div className="exec-board">
             <section className="exec-center-column">
@@ -2038,7 +2497,7 @@ function ExecutiveDashboardContent() {
               </div>
 
               <div className="exec-bottom-grid">
-                <ExecutiveEfficiency summary={summary} services={services} onOpen={() => setActiveTab('statistics')} />
+                <ExecutiveEfficiency summary={summary} services={services} targets={targets} onOpen={() => setActiveTab('branches')} />
                 <ExecutiveTopBranch branch={topBranch} manager={topBranchManager} onOpen={() => setActiveTab('branches')} />
               </div>
             </section>
@@ -2046,7 +2505,7 @@ function ExecutiveDashboardContent() {
             <aside className="exec-right-column">
               <ExecutiveCalendar monthKey={analyticsMonth} rows={summary} />
               <ExecutiveManagerList managers={managerRows} onOpen={() => setActiveTab('managers')} />
-              <ExecutiveHeatmap cells={heatmap} onOpen={() => setActiveTab('heatmap')} />
+              <ExecutiveBusyness cells={heatmap} onOpen={() => setActiveTab('heatmap')} />
             </aside>
           </div>
         ) : null}
@@ -2058,12 +2517,15 @@ function ExecutiveDashboardContent() {
               <ChartCard title="Queue Volume" data={chart} />
               <ChartCard title="Visitor Trend" data={chart} mode="area" />
             </div>
+            <WorkforcePanel employeeKpis={employeeKpis} />
+            <NotebookAnalytics predictions={predictions} />
           </section>
         ) : null}
 
         {activeTab === 'heatmap' ? (
           <section className="exec-tab-page">
-            <ExecutiveHeatmap cells={heatmap} onOpen={() => setActiveTab('overview')} full />
+            <BusynessPanel cells={heatmap} full />
+            <ServiceWeeklyGrid rows={serviceWeekly} />
           </section>
         ) : null}
 
@@ -2095,15 +2557,19 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'branches' ? (
           <section className="exec-tab-page">
+            <div className="exec-branches-head">
+              <ExecutiveEfficiency summary={summary} services={services} targets={targets} />
+            </div>
             <Panel title="Branch Performance" eyebrow="Efficiency Score · Click A Branch To Drill Down">
-              <ExecutiveBranchList branches={branches} />
+              <ExecutiveBranchList branches={branches} targets={targets} />
             </Panel>
           </section>
         ) : null}
 
         {activeTab === 'services' ? (
           <section className="exec-tab-page">
-            <ServicePerformanceList services={services} />
+            <BranchHealthCard services={services} targets={targets} full title="Service Health" />
+            <ServiceDetailTable services={services} />
           </section>
         ) : null}
 
@@ -2132,7 +2598,11 @@ function ExecutiveDashboardContent() {
                 <button className="ops-primary dark" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={16} /> Export Report</button>
               </div>
             </Panel>
-            <Panel title="Action Plan" eyebrow={reportFocus === 'action_plan' ? 'Selected From Dashboard' : 'Notebook Recommendations'} className="exec-action-plan-panel">
+            <div className="ops-grid two">
+              <TargetsPanel targets={targets} businessId={businessId} editable />
+              <TargetProgress targets={targets} summary={summary} />
+            </div>
+            <Panel title="Action Plan" eyebrow={reportFocus === 'action_plan' ? 'Selected From Dashboard' : `Working Toward Your ${targets.horizon_months}-Month Targets`} className="exec-action-plan-panel">
               <div className="exec-action-plan-grid">
                 <section>
                   <h3>What To Improve</h3>

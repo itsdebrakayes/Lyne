@@ -101,9 +101,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkAuth();
+    // Token refreshes must not flip `loading` — that would unmount the
+    // dashboards mid-session and reset the active tab and filters.
+    let lastToken: string | null | undefined;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setLoading(true);
-      applySession(session?.access_token)
+      const token = session?.access_token || null;
+      if (token === lastToken) return;
+      lastToken = token;
+      applySession(token)
         .catch((err) => {
           setAdmin(null);
           setError(err instanceof Error ? err.message : 'Authentication failed. Please try again.');
