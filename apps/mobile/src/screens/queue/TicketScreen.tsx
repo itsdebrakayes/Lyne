@@ -100,7 +100,14 @@ export default function TicketScreen() {
 
   const ahead = Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1);
   const active = ['waiting', 'called', 'in_service'].includes(ticket.status);
+  const called = ticket.status === 'called';
+  const inService = ticket.status === 'in_service';
   const terminal = TERMINAL_META[ticket.status];
+  const statusLabel = called
+    ? "It's your turn — head to the counter"
+    : inService
+      ? 'You are being served now'
+      : ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '));
 
   return (
     <View style={t.root}>
@@ -135,10 +142,15 @@ export default function TicketScreen() {
           <View style={{ padding: 22, paddingTop: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
             <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
-            <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '))}</Text>
+            <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
             </View>
-            {active && (
+            {called && (
+              <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, textAlign: 'center', marginTop: 12, lineHeight: 18 }}>
+                Go to the counter and show the code below before the call window closes.
+              </Text>
+            )}
+            {active && !called && !inService && (
               <View style={{ flexDirection: 'row', marginTop: 22, alignSelf: 'stretch' }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                   <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink }}>{ahead}</Text>

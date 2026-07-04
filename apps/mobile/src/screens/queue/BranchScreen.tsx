@@ -50,7 +50,12 @@ export default function BranchScreen() {
 
   // A live average of 0 (no served visits yet today) falls back to the
   // service's base estimate so the screen never advertises a 0-minute wait.
-  const svcWait = (s: ServiceSummary) => Math.round(Number(s.avg_wait_minutes || s.base_avg_time_minutes || 0));
+  // The API returns decimals as strings, so "0.0000" must be numerically
+  // compared — a bare || would treat it as truthy and skip the fallback.
+  const svcWait = (s: ServiceSummary) => {
+    const live = Number(s.avg_wait_minutes || 0);
+    return Math.round(live > 0 ? live : Number(s.base_avg_time_minutes || 0));
+  };
   const leaveIn = (s: ServiceSummary) => Math.max(0, svcWait(s) - TRAVEL_DEFAULT_MIN);
   const join = (s?: ServiceSummary) => {
     if (!s) return;
@@ -81,8 +86,10 @@ export default function BranchScreen() {
             <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(branch?.business_name)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Live queue · open now</Text>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: Number(branch?.open_queues) > 0 ? colors.light : colors.faint }} />
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>
+              {Number(branch?.open_queues) > 0 ? 'Live queue · open now' : 'Queues closed right now'}
+            </Text>
           </View>
         </View>
         <Text style={[t.h1, { marginBottom: 18 }]}>{branch?.business_name || 'Agency'}</Text>

@@ -39,7 +39,12 @@ export default function HomeScreen() {
   });
   const hasUnread = notifications.some(n => !n.is_read);
 
-  const sorted = useMemo(() => [...branches].sort((a, b) => Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)), [branches]);
+  // Branches with open queues rank first — a closed branch's stale low wait
+  // must never beat a live line for the hero or the "near you" list.
+  const sorted = useMemo(() => [...branches].sort((a, b) =>
+    (Number(Number(b.open_queues) > 0) - Number(Number(a.open_queues) > 0))
+    || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
+  ), [branches]);
   const shortest = sorted[0];
   const agencies = useMemo(() => {
     const seen = new Set<string>();
