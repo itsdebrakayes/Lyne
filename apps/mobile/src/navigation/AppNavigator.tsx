@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { colors } from '../lib/theme';
 
 // Auth screens
 import LoginScreen    from '../screens/auth/LoginScreen';
@@ -90,8 +91,8 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#ffffff" />
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }

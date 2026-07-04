@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
-import { scheduleQueueUpdateNotification } from '../../lib/notifications';
+import { registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -25,7 +25,19 @@ export default function TicketScreen() {
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
+  const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
   const previous = useRef<{ status?: string; wait?: number }>({});
+
+  const enableAlerts = async () => {
+    if (alerts === 'enabling' || alerts === 'on') return;
+    try {
+      setAlerts('enabling');
+      const token = await registerPushNotifications();
+      setAlerts(token ? 'on' : 'denied');
+    } catch {
+      setAlerts('denied');
+    }
+  };
 
   const activeTicketQuery = useQuery({
     queryKey: ['active-ticket'],
@@ -169,7 +181,20 @@ export default function TicketScreen() {
         <View style={{ marginTop: 22, flexDirection: 'row', gap: 11 }}>
           {active ? (
             <>
-              <View style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Notify me</Text></View>
+              <TouchableOpacity
+                disabled={alerts === 'enabling' || alerts === 'on'}
+                onPress={enableAlerts}
+                style={[t.primaryBtn, { flex: 1, minHeight: 54 }, alerts === 'on' && { backgroundColor: colors.light }]}
+              >
+                {alerts === 'enabling' ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <Ionicons name={alerts === 'on' ? 'notifications' : 'notifications-outline'} size={16} color={colors.onDark} />
+                    <Text style={t.primaryBtnText}>{alerts === 'on' ? 'Alerts on' : 'Notify me'}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <TouchableOpacity disabled={leaving} onPress={leaveQueue} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
                 {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
               </TouchableOpacity>
@@ -183,6 +208,8 @@ export default function TicketScreen() {
             <TouchableOpacity onPress={() => navigation.navigate('Main')} style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Return home</Text></TouchableOpacity>
           )}
         </View>
+        {active && alerts === 'on' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
+        {active && alerts === 'denied' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
     </View>
   );

@@ -93,7 +93,7 @@ export default function ProfileScreen() {
         <SectionLabel>Account & activity</SectionLabel>
         <ListCard rows={[
           { icon: 'time-outline', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
-          { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts' },
+          { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards' },
           { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'Passcode, data' },
           { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us' },

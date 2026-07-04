@@ -7,6 +7,7 @@ import { colors, font, t, initials, statusFromWait, statusMeta } from '../../lib
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import BestTimeCard from '../../components/BestTimeCard';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -151,16 +152,8 @@ export default function BranchScreen() {
               <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#0d5c6e', lineHeight: 17 }}>Leave in <Text style={{ fontFamily: font.extra }}>~{leaveIn(selected)} min</Text> to reach the front on time — we&apos;ll remind you once you join.</Text>
             </View>
 
-            {/* premium best-time teaser */}
-            <View style={{ backgroundColor: colors.dark, borderRadius: 20, padding: 15, marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 13 }}>
-              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="sparkles-outline" size={19} color={colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM · SMART TIMING</Text>
-                <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff', marginTop: 2 }}>Best time to visit</Text>
-              </View>
-            </View>
+            {/* premium best-time recommendation (live model output) */}
+            <BestTimeCard businessId={businessId} branchId={branchId} />
 
             {/* other services */}
             {others.length > 0 && (
