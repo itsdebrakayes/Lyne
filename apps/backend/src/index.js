@@ -64,6 +64,7 @@ app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));
 app.use('/api/counters',       require('./routes/counters'));
 app.use('/api/analytics',      require('./routes/analytics'));
+app.use('/api/targets',        require('./routes/targets'));
 app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
