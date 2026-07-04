@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -226,14 +227,12 @@ type HeatmapCell = {
   no_shows?: number;
 };
 
-type ServiceWeeklyCell = {
-  service_id: string;
-  service_name: string;
-  dow: number;
+type DemandCell = {
+  row_id: string;
+  row_name: string;
+  bucket: number;
   visit_count?: number;
   avg_wait?: number;
-  completed?: number;
-  no_shows?: number;
 };
 
 type BusinessTargets = {
@@ -390,9 +389,18 @@ function useDashboardData(serviceId = '') {
     refetchInterval: 60_000,
   });
 
-  const serviceWeekly = useQuery({
-    queryKey: ['ops-service-weekly', analyticsQuery],
-    queryFn: () => api.get<ServiceWeeklyCell[]>(`/analytics/service-weekly?${analyticsQuery}`),
+  // Dot-matrix demand breakdown: rows are services for managers, branches
+  // for executives (an executive views multiple branches at once).
+  const demandRows = admin?.role === 'executive' ? 'branch' : 'service';
+  const demandHourly = useQuery({
+    queryKey: ['ops-demand-hourly', analyticsQuery, demandRows],
+    queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=hour`),
+    enabled: Boolean(canAnalytics && analyticsQuery),
+    refetchInterval: 60_000,
+  });
+  const demandWeekly = useQuery({
+    queryKey: ['ops-demand-weekly', analyticsQuery, demandRows],
+    queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
     enabled: Boolean(canAnalytics && analyticsQuery),
     refetchInterval: 60_000,
   });
@@ -435,12 +443,13 @@ function useDashboardData(serviceId = '') {
     staff: staff.data || [],
     branchTrends: branchTrends.data || [],
     heatmap: heatmap.data || [],
-    serviceWeekly: serviceWeekly.data || [],
+    demandHourly: demandHourly.data || [],
+    demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
     employeeKpis: employeeKpis.data,
     predictions: predictions.data || [],
     pipeline: pipeline.data,
-    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), serviceWeekly.refetch(), targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch()]),
+    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(), targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch()]),
   };
 }
 
@@ -780,146 +789,126 @@ function ManagerRecentCustomers({ tickets, onOpen }: { tickets: TicketRow[]; onO
   );
 }
 
-// ── Busyness (approved design: rounded weekday bars, highlighted peak, dark tooltip) ──
+// ── Demand breakdown (approved design: dot-matrix, rows × time columns) ──
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const HOUR_COLUMNS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
 
-type BusyBar = { key: string; label: string; visits: number; avgWait: number };
+function hourColumnLabel(hour: number) {
+  if (hour === 12) return '12p';
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+}
 
-function weeklyBars(cells: HeatmapCell[]): BusyBar[] {
-  const totals = Array.from({ length: 7 }, (_, dow) => ({ visits: 0, waitTotal: 0, weight: 0 }));
+// Quantize a cell's traffic (relative to the matrix max) into the three
+// approved levels — Quiet / Busy / Peak — plus an "empty" level for no visits.
+function demandLevel(visits: number, max: number): 0 | 1 | 2 | 3 {
+  if (visits <= 0) return 0;
+  const ratio = visits / Math.max(max, 1);
+  if (ratio >= 0.66) return 3;
+  if (ratio >= 0.33) return 2;
+  return 1;
+}
+
+type DemandRow = { id: string; name: string; total: number; cells: Map<number, { visits: number; avgWait: number }> };
+
+function buildDemandRows(cells: DemandCell[]): DemandRow[] {
+  const rows = new Map<string, DemandRow>();
   cells.forEach((cell) => {
-    const dow = Number(cell.dow);
-    if (dow < 0 || dow > 6) return;
+    const key = cell.row_id || cell.row_name;
+    if (!rows.has(key)) rows.set(key, { id: key, name: cell.row_name, total: 0, cells: new Map() });
+    const row = rows.get(key)!;
     const visits = numberValue(cell.visit_count);
-    totals[dow].visits += visits;
-    totals[dow].waitTotal += numberValue(cell.avg_wait ?? cell.avg_wait_minutes) * Math.max(visits, 1);
-    totals[dow].weight += Math.max(visits, 1);
+    row.total += visits;
+    row.cells.set(Number(cell.bucket), { visits, avgWait: numberValue(cell.avg_wait) });
   });
-  return totals.map((entry, dow) => ({
-    key: `d${dow}`,
-    label: DOW_LABELS[dow],
-    visits: entry.visits,
-    avgWait: entry.weight ? entry.waitTotal / entry.weight : 0,
-  }));
+  return Array.from(rows.values()).sort((a, b) => b.total - a.total);
 }
 
-function hourlyBars(cells: HeatmapCell[]): BusyBar[] {
-  const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-  return hours.map((hour) => {
-    const rows = cells.filter((cell) => Number(cell.hour) === hour);
-    const visits = total(rows, 'visit_count');
-    const waitTotal = rows.reduce((sum, row) => sum + numberValue(row.avg_wait ?? row.avg_wait_minutes) * Math.max(numberValue(row.visit_count), 1), 0);
-    const weight = rows.reduce((sum, row) => sum + Math.max(numberValue(row.visit_count), 1), 0);
-    return { key: `h${hour}`, label: `${hour}:00`, visits, avgWait: weight ? waitTotal / weight : 0 };
-  });
-}
+function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }) {
+  const rows = buildDemandRows(cells);
+  const columns = by === 'hour' ? HOUR_COLUMNS : [0, 1, 2, 3, 4, 5, 6];
+  const columnLabel = (col: number) => (by === 'hour' ? hourColumnLabel(col) : DOW_LABELS[col].slice(0, 2));
+  const columnTitle = (col: number) => (by === 'hour' ? `${col}:00` : DOW_LABELS[col]);
+  const max = Math.max(1, ...cells.map((cell) => numberValue(cell.visit_count)));
 
-function BusyBars({ bars, compact = false }: { bars: BusyBar[]; compact?: boolean }) {
-  const max = Math.max(1, ...bars.map((bar) => bar.visits));
-  const peakIndex = bars.reduce((best, bar, index) => (bar.visits > bars[best].visits ? index : best), 0);
+  if (!rows.length) {
+    return <EmptyState title="No Demand Data Yet" detail="Traffic patterns will appear here after visits are recorded." />;
+  }
+  const colStyle = { '--demand-cols': columns.length } as CSSProperties;
   return (
-    <div className={`busy-bars ${compact ? 'compact' : ''}`}>
-      {bars.map((bar, index) => {
-        const peak = index === peakIndex && bar.visits > 0;
-        return (
-          <div key={bar.key} className={`busy-col ${peak ? 'peak' : ''}`}>
-            <div
-              className="busy-fill"
-              style={{ height: `${Math.max(8, (bar.visits / max) * 100)}%` }}
-              title={`${bar.label} · ${formatCount(bar.visits)} visits · ${formatMinutes(bar.avgWait)} avg wait`}
-            >
-              {peak ? <span className="busy-tip">{formatCount(bar.visits)} · {formatMinutes(bar.avgWait)}</span> : null}
-            </div>
-            <small>{bar.label}</small>
+    <div className="demand-matrix">
+      {rows.map((row) => (
+        <div key={row.id} className="demand-row">
+          <span className="demand-row-label" title={displayLabel(row.name)}>{displayLabel(row.name)}</span>
+          <div className="demand-dots" style={colStyle}>
+            {columns.map((col) => {
+              const cell = row.cells.get(col);
+              const visits = cell?.visits || 0;
+              const level = demandLevel(visits, max);
+              return (
+                <span
+                  key={col}
+                  className={`demand-dot lvl-${level}`}
+                  title={`${displayLabel(row.name)} · ${columnTitle(col)} · ${formatCount(visits)} visits · ${formatMinutes(cell?.avgWait)} avg wait`}
+                />
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      ))}
+      <div className="demand-axis demand-row">
+        <span className="demand-row-label" />
+        <div className="demand-dots" style={colStyle}>
+          {columns.map((col) => <small key={col}>{columnLabel(col)}</small>)}
+        </div>
+      </div>
     </div>
   );
 }
 
-function BusynessPanel({
-  cells,
+function DemandPanel({
+  hourly,
+  weekly,
+  rowKind,
   onOpen,
   full = false,
 }: {
-  cells: HeatmapCell[];
+  hourly: DemandCell[];
+  weekly: DemandCell[];
+  rowKind: 'service' | 'branch';
   onOpen?: () => void;
   full?: boolean;
 }) {
+  const [view, setView] = useState<'hour' | 'dow'>('hour');
+  const cells = view === 'hour' ? hourly : weekly;
+  const totalVisits = total(cells, 'visit_count');
+  const title = rowKind === 'branch' ? 'Branch Demand Breakdown' : 'Service Demand Breakdown';
+
   return (
     <Panel
-      title="Branch Busyness"
-      eyebrow="Visits Per Day · Last 90 Days"
-      className={`busyness-panel ${full ? 'full' : ''}`}
-      action={onOpen ? <button className="ops-link-button" onClick={onOpen}>Open</button> : null}
-    >
-      {cells.length ? (
-        <>
-          <BusyBars bars={weeklyBars(cells)} />
-          {full ? (
-            <>
-              <div className="busy-subhead">
-                <b>Busiest Hours</b>
-                <small>Average Across The Week</small>
-              </div>
-              <BusyBars bars={hourlyBars(cells)} compact />
-            </>
-          ) : null}
-        </>
-      ) : <EmptyState title="No Busyness Data Yet" detail="Traffic patterns will appear after branch visits are recorded." />}
-    </Panel>
-  );
-}
-
-function ServiceWeeklyGrid({ rows }: { rows: ServiceWeeklyCell[] }) {
-  const services = new Map<string, { name: string; bars: BusyBar[] }>();
-  rows.forEach((row) => {
-    const key = row.service_id || row.service_name;
-    if (!services.has(key)) {
-      services.set(key, {
-        name: row.service_name,
-        bars: Array.from({ length: 7 }, (_, dow) => ({ key: `d${dow}`, label: DOW_LABELS[dow].slice(0, 2), visits: 0, avgWait: 0 })),
-      });
-    }
-    const dow = Number(row.dow);
-    if (dow < 0 || dow > 6) return;
-    const entry = services.get(key)!;
-    entry.bars[dow] = { key: `d${dow}`, label: DOW_LABELS[dow].slice(0, 2), visits: numberValue(row.visit_count), avgWait: numberValue(row.avg_wait) };
-  });
-  const list = Array.from(services.values())
-    .map((service) => ({ ...service, totalVisits: service.bars.reduce((sum, bar) => sum + bar.visits, 0) }))
-    .sort((a, b) => b.totalVisits - a.totalVisits);
-
-  return (
-    <Panel title="Weekly Busyness By Service" eyebrow="Which Days Each Service Runs Hot" className="service-weekly-panel">
-      {list.length ? (
-        <div className="service-weekly-grid">
-          {list.map((service) => {
-            const max = Math.max(1, ...service.bars.map((bar) => bar.visits));
-            const peak = service.bars.reduce((best, bar, index) => (bar.visits > service.bars[best].visits ? index : best), 0);
-            return (
-              <div key={service.name} className="service-weekly-row">
-                <div className="health-row-main">
-                  <b>{displayLabel(service.name)}</b>
-                  <small>Peak {DOW_LABELS[peak]} · {formatMinutes(service.bars[peak].avgWait)} Avg Wait</small>
-                </div>
-                <div className="mini-bars">
-                  {service.bars.map((bar, index) => (
-                    <i
-                      key={bar.key}
-                      className={index === peak && bar.visits > 0 ? 'peak' : ''}
-                      style={{ height: `${Math.max(10, (bar.visits / max) * 100)}%` }}
-                      title={`${DOW_LABELS[index]} · ${formatCount(bar.visits)} visits · ${formatMinutes(bar.avgWait)} avg wait`}
-                    />
-                  ))}
-                </div>
-                <span>{formatCount(service.totalVisits)} Visits</span>
-              </div>
-            );
-          })}
+      title={title}
+      className={`demand-panel ${full ? 'full' : ''}`}
+      action={
+        <div className="demand-controls">
+          <div className="demand-toggle" role="group" aria-label="Demand view">
+            <button type="button" className={view === 'hour' ? 'active' : ''} onClick={() => setView('hour')}>Hourly</button>
+            <button type="button" className={view === 'dow' ? 'active' : ''} onClick={() => setView('dow')}>Weekly</button>
+          </div>
+          {onOpen ? <button className="ops-link-button" onClick={onOpen}>Open</button> : null}
         </div>
-      ) : <EmptyState title="No Weekly Service Data Yet" detail="Weekly patterns appear as visits accumulate for each service." />}
+      }
+    >
+      <div className="demand-head">
+        <div>
+          <strong>{formatCount(totalVisits)}</strong>
+          <small>Visits · Last 90 Days</small>
+        </div>
+        <div className="demand-legend">
+          <span><i className="demand-dot lvl-3" /> Peak</span>
+          <span><i className="demand-dot lvl-2" /> Busy</span>
+          <span><i className="demand-dot lvl-1" /> Quiet</span>
+        </div>
+      </div>
+      <DemandMatrix cells={cells} by={view} />
     </Panel>
   );
 }
@@ -1534,16 +1523,14 @@ function ExecutiveManagerList({ managers, onOpen }: { managers: ManagerScore[]; 
   );
 }
 
-function ExecutiveBusyness({ cells, onOpen }: { cells: HeatmapCell[]; onOpen: () => void }) {
+function ExecutiveBusyness({ cells, onOpen }: { cells: DemandCell[]; onOpen: () => void }) {
   return (
     <section className="exec-side-panel exec-busyness-panel">
       <div className="exec-side-head">
-        <h3>Branch Busyness</h3>
+        <h3>Branch Demand</h3>
         <button type="button" onClick={onOpen}>Open</button>
       </div>
-      {cells.length ? (
-        <BusyBars bars={weeklyBars(cells)} compact />
-      ) : <EmptyState title="No Busyness Data Yet" detail="Traffic patterns appear after branch visits are recorded." />}
+      <DemandMatrix cells={cells} by="hour" />
     </section>
   );
 }
@@ -2072,7 +2059,7 @@ function StaffDashboardContent() {
 function ManagerDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, branchId, queues, summary, services, heatmap, serviceWeekly, targets, predictions, pipeline, refreshAll } = useDashboardData(selectedServiceId);
+  const { admin, businessId, branchId, queues, summary, services, demandHourly, demandWeekly, targets, predictions, pipeline, refreshAll } = useDashboardData(selectedServiceId);
   const [activeTab, setActiveTab] = useState('overview');
   const [staffId, setStaffId] = useState('');
   const [counterId, setCounterId] = useState('');
@@ -2190,7 +2177,7 @@ function ManagerDashboardContent() {
               <ManagerRecentCustomers tickets={managerHistory.data || []} onOpen={() => setActiveTab('analytics')} />
             </div>
             <div className="manager-side-column">
-              <BusynessPanel cells={heatmap} onOpen={() => setActiveTab('busyness')} />
+              <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="service" onOpen={() => setActiveTab('busyness')} />
               <ManagerStaffPanel staff={lineStaffPresence} filter={staffFilter} onFilter={setStaffFilter} onOpen={() => setActiveTab('staff')} />
             </div>
           </div>
@@ -2287,8 +2274,7 @@ function ManagerDashboardContent() {
 
       {activeTab === 'busyness' ? (
         <section className="manager-busyness-page">
-          <BusynessPanel cells={heatmap} full />
-          <ServiceWeeklyGrid rows={serviceWeekly} />
+          <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="service" full />
         </section>
       ) : null}
 
@@ -2315,7 +2301,7 @@ function ManagerDashboardContent() {
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, queues, summary, services, branchTrends, heatmap, serviceWeekly, targets, employeeKpis, predictions, pipeline } = useDashboardData(selectedServiceId);
+  const { admin, businessId, queues, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline } = useDashboardData(selectedServiceId);
   const { logout } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('month');
@@ -2505,7 +2491,7 @@ function ExecutiveDashboardContent() {
             <aside className="exec-right-column">
               <ExecutiveCalendar monthKey={analyticsMonth} rows={summary} />
               <ExecutiveManagerList managers={managerRows} onOpen={() => setActiveTab('managers')} />
-              <ExecutiveBusyness cells={heatmap} onOpen={() => setActiveTab('heatmap')} />
+              <ExecutiveBusyness cells={demandHourly} onOpen={() => setActiveTab('heatmap')} />
             </aside>
           </div>
         ) : null}
@@ -2524,8 +2510,7 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'heatmap' ? (
           <section className="exec-tab-page">
-            <BusynessPanel cells={heatmap} full />
-            <ServiceWeeklyGrid rows={serviceWeekly} />
+            <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="branch" full />
           </section>
         ) : null}
 

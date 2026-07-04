@@ -440,6 +440,45 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
   }
 });
 
+// Demand breakdown — dot-matrix heatmap. Rows are services (manager) or
+// branches (executive); columns are hour-of-day or day-of-week.
+router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const rowsBy = req.query.rows === 'branch' ? 'branch' : 'service';
+    const bucket = req.query.by === 'dow' ? 'w.day_of_week' : 'w.hour_of_day';
+
+    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const serviceFilter = safeServiceId(req.query.service_id);
+    if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
+
+    const rowJoin = rowsBy === 'branch'
+      ? 'JOIN branches rw ON w.branch_id = rw.id'
+      : 'JOIN services rw ON w.service_id = rw.id';
+
+    const [rows] = await pool.query(
+      `SELECT rw.id AS row_id, rw.name AS row_name,
+              ${bucket} AS bucket,
+              COUNT(*)                           AS visit_count,
+              ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait
+       FROM wait_time_records w
+       ${rowJoin}
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY rw.id, rw.name, ${bucket}
+       ORDER BY rw.name, bucket`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch demand breakdown.' });
+  }
+});
+
 // Weekly busyness per service — day-of-week traffic for each service
 router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {

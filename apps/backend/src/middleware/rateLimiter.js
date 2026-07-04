@@ -50,9 +50,12 @@ const publicQueueLimiter = rateLimit({
 });
 
 // ── General API fallback ──────────────────────────────────────
+// The admin dashboards legitimately poll ~15 analytics endpoints on a 60s
+// refresh cycle (~15 req/min at idle, more while navigating), so the ceiling
+// must clear that comfortably while still stopping real abuse/scraping.
 const generalLimiter = rateLimit({
   windowMs:         15 * 60 * 1000,
-  max:              200,
+  max:              1000,
   standardHeaders:  true,
   legacyHeaders:    false,
   message: { error: 'Too many requests. Please try again later.' },
