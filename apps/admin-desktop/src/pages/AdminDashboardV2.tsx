@@ -798,26 +798,29 @@ function hourColumnLabel(hour: number) {
   return hour < 12 ? `${hour}a` : `${hour - 12}p`;
 }
 
-// Quantize a cell's traffic (relative to the matrix max) into the three
+// Quantize a cell's traffic (relative to its row's own peak) into the three
 // approved levels — Quiet / Busy / Peak — plus an "empty" level for no visits.
-function demandLevel(visits: number, max: number): 0 | 1 | 2 | 3 {
+// Row-relative scaling surfaces each service/branch's own busy hours even when
+// another row dwarfs it in absolute volume (matches the reference design).
+function demandLevel(visits: number, rowMax: number): 0 | 1 | 2 | 3 {
   if (visits <= 0) return 0;
-  const ratio = visits / Math.max(max, 1);
+  const ratio = visits / Math.max(rowMax, 1);
   if (ratio >= 0.66) return 3;
   if (ratio >= 0.33) return 2;
   return 1;
 }
 
-type DemandRow = { id: string; name: string; total: number; cells: Map<number, { visits: number; avgWait: number }> };
+type DemandRow = { id: string; name: string; total: number; max: number; cells: Map<number, { visits: number; avgWait: number }> };
 
 function buildDemandRows(cells: DemandCell[]): DemandRow[] {
   const rows = new Map<string, DemandRow>();
   cells.forEach((cell) => {
     const key = cell.row_id || cell.row_name;
-    if (!rows.has(key)) rows.set(key, { id: key, name: cell.row_name, total: 0, cells: new Map() });
+    if (!rows.has(key)) rows.set(key, { id: key, name: cell.row_name, total: 0, max: 0, cells: new Map() });
     const row = rows.get(key)!;
     const visits = numberValue(cell.visit_count);
     row.total += visits;
+    row.max = Math.max(row.max, visits);
     row.cells.set(Number(cell.bucket), { visits, avgWait: numberValue(cell.avg_wait) });
   });
   return Array.from(rows.values()).sort((a, b) => b.total - a.total);
@@ -828,7 +831,6 @@ function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }
   const columns = by === 'hour' ? HOUR_COLUMNS : [0, 1, 2, 3, 4, 5, 6];
   const columnLabel = (col: number) => (by === 'hour' ? hourColumnLabel(col) : DOW_LABELS[col].slice(0, 2));
   const columnTitle = (col: number) => (by === 'hour' ? `${col}:00` : DOW_LABELS[col]);
-  const max = Math.max(1, ...cells.map((cell) => numberValue(cell.visit_count)));
 
   if (!rows.length) {
     return <EmptyState title="No Demand Data Yet" detail="Traffic patterns will appear here after visits are recorded." />;
@@ -843,7 +845,7 @@ function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }
             {columns.map((col) => {
               const cell = row.cells.get(col);
               const visits = cell?.visits || 0;
-              const level = demandLevel(visits, max);
+              const level = demandLevel(visits, row.max);
               return (
                 <span
                   key={col}
@@ -861,6 +863,16 @@ function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }
           {columns.map((col) => <small key={col}>{columnLabel(col)}</small>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DemandLegend() {
+  return (
+    <div className="demand-legend">
+      <span><i className="demand-dot lvl-3" /> Peak</span>
+      <span><i className="demand-dot lvl-2" /> Busy</span>
+      <span><i className="demand-dot lvl-1" /> Quiet</span>
     </div>
   );
 }
@@ -902,11 +914,7 @@ function DemandPanel({
           <strong>{formatCount(totalVisits)}</strong>
           <small>Visits · Last 90 Days</small>
         </div>
-        <div className="demand-legend">
-          <span><i className="demand-dot lvl-3" /> Peak</span>
-          <span><i className="demand-dot lvl-2" /> Busy</span>
-          <span><i className="demand-dot lvl-1" /> Quiet</span>
-        </div>
+        <DemandLegend />
       </div>
       <DemandMatrix cells={cells} by={view} />
     </Panel>
@@ -1519,18 +1527,6 @@ function ExecutiveManagerList({ managers, onOpen }: { managers: ManagerScore[]; 
         </button>
       ))}
       {!managers.length ? <EmptyState title="No Manager Scores" detail="Manager ranking appears after branch activity is available." /> : null}
-    </section>
-  );
-}
-
-function ExecutiveBusyness({ cells, onOpen }: { cells: DemandCell[]; onOpen: () => void }) {
-  return (
-    <section className="exec-side-panel exec-busyness-panel">
-      <div className="exec-side-head">
-        <h3>Branch Demand</h3>
-        <button type="button" onClick={onOpen}>Open</button>
-      </div>
-      <DemandMatrix cells={cells} by="hour" />
     </section>
   );
 }
@@ -2171,13 +2167,13 @@ function ManagerDashboardContent() {
             <ManagerMetricCard label="Turnover Rate" value={formatPercent(turnoverRate)} detail="Completed / Total Visitors" icon={TrendingUp} trend={turnoverTrend} onClick={() => setActiveTab('analytics')} />
             <ManagerMetricCard label="No-Shows" value={formatCount(noShowTotal)} detail="Skipped Customers" icon={XCircle} trend={noShowTrend} onClick={() => setActiveTab('analytics')} />
           </div>
+          <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="service" onOpen={() => setActiveTab('busyness')} />
           <div className="manager-overview-grid">
             <div className="manager-main-column">
               <BranchHealthCard services={services} targets={targets} onOpen={() => setActiveTab('services')} />
               <ManagerRecentCustomers tickets={managerHistory.data || []} onOpen={() => setActiveTab('analytics')} />
             </div>
             <div className="manager-side-column">
-              <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="service" onOpen={() => setActiveTab('busyness')} />
               <ManagerStaffPanel staff={lineStaffPresence} filter={staffFilter} onFilter={setStaffFilter} onOpen={() => setActiveTab('staff')} />
             </div>
           </div>
@@ -2476,6 +2472,8 @@ function ExecutiveDashboardContent() {
 
               <ExecutiveAnalyticsView data={chart} services={services} branches={branchTrends} />
 
+              <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="branch" onOpen={() => setActiveTab('heatmap')} />
+
               <div className="exec-insight-grid">
                 <ExecutiveInsightCard title="Overview" icon={LayoutDashboard} body={insightSentence(opsInsight, overviewText)} onMore={() => openReports()} />
                 <ExecutiveInsightCard title="Customer Happiness" icon={ShieldCheck} body={happinessText} onMore={() => openReports()} />
@@ -2491,7 +2489,6 @@ function ExecutiveDashboardContent() {
             <aside className="exec-right-column">
               <ExecutiveCalendar monthKey={analyticsMonth} rows={summary} />
               <ExecutiveManagerList managers={managerRows} onOpen={() => setActiveTab('managers')} />
-              <ExecutiveBusyness cells={demandHourly} onOpen={() => setActiveTab('heatmap')} />
             </aside>
           </div>
         ) : null}
