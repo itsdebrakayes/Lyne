@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 /**
  * QME Now — mobile design system (v4 · fintech style)
@@ -76,6 +76,10 @@ export const font = {
   extra: 'Jakarta_800ExtraBold',
 };
 
+// Browsers draw their own focus ring around TextInputs (an orange/blue
+// rectangle) — kill it on web; native platforms ignore this.
+export const inputReset = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null;
+
 export const shadow = {
   card: {
     shadowColor: '#141923',
@@ -109,8 +113,8 @@ export function statusFromWait(waitMinutes: number): QueueStatus {
 }
 
 export function statusMeta(status: QueueStatus) {
-  if (status === 'busy') return { label: 'Busy', dot: colors.busy };
-  if (status === 'moderate') return { label: 'Moderate', dot: colors.moderate };
+  if (status === 'busy') return { label: 'High traffic', dot: colors.busy };
+  if (status === 'moderate') return { label: 'Busy', dot: colors.moderate };
   return { label: 'Light', dot: colors.light };
 }
 

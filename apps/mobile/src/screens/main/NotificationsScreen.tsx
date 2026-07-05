@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t } from '../../lib/theme';
 import api from '../../lib/apiClient';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 interface NotificationRow {
   id: string;
@@ -35,11 +36,18 @@ function timeAgo(value: string) {
 export default function NotificationsScreen() {
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
-  const { data: notifications = [], isLoading, error } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: notifications = [], isLoading, error, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<NotificationRow[]>('/notifications'),
     refetchInterval: 20_000,
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   // Opening the screen clears the unread state.
   useEffect(() => {
@@ -52,14 +60,20 @@ export default function NotificationsScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
         <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 16 }]}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <Text style={[t.h2, { marginBottom: 18 }]}>Notifications</Text>
 
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
-        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger }}>Notifications could not be loaded.</Text>}
+        {isLoading && <SkeletonRows count={4} />}
+        {!!error && !isLoading && (
+          <ErrorCard title="Notifications unavailable" message="Your notifications could not be loaded right now." onRetry={() => refetch()} />
+        )}
         {!isLoading && !error && notifications.length === 0 && (
           <View style={[t.cardLg, { padding: 22, alignItems: 'center' }]}>
             <Ionicons name="notifications-off-outline" size={28} color={colors.muted} />

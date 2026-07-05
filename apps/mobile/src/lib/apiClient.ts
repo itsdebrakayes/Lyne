@@ -100,6 +100,7 @@ const api = {
   get:    <T>(path: string, auth = true) => request<T>('GET',    path, undefined, auth),
   post:   <T>(path: string, body: unknown, auth = true) => request<T>('POST',   path, body, auth),
   put:    <T>(path: string, body: unknown, auth = true) => request<T>('PUT',    path, body, auth),
+  patch:  <T>(path: string, body: unknown, auth = true) => request<T>('PATCH',  path, body, auth),
   delete: <T>(path: string, auth = true) => request<T>('DELETE', path, undefined, auth),
 };
 

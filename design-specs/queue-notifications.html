@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMe Now — Queue Notification Designs</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest: #101d18;
+    --forest-2: #15231c;
+    --cyan: #1fc2de;
+    --cyan-ink: #08110f;
+    --ink: #101418;
+    --muted: #8a919b;
+    --green: #2fbf71;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #eef0f3; color: var(--ink); padding: 48px 24px 90px; }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1 { font-weight: 800; letter-spacing: -0.5px; font-size: 30px; }
+  .sub { color: var(--muted); font-weight: 600; margin-top: 8px; max-width: 720px; line-height: 1.55; }
+  h2 { font-weight: 800; font-size: 15px; letter-spacing: 1.6px; text-transform: uppercase; color: #5c636d; margin: 52px 0 18px; }
+  .row { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .note { flex: 1; min-width: 260px; background: #fff; border: 1px solid #e5e8ec; border-radius: 18px; padding: 20px; font-size: 13.5px; line-height: 1.65; color: #3d444d; font-weight: 600; }
+  .note b { color: var(--ink); }
+  .note ul { margin: 10px 0 0 18px; }
+  .note li { margin-bottom: 7px; }
+
+  /* phone frame */
+  .phone { width: 340px; border-radius: 48px; background: #000; padding: 12px; box-shadow: 0 30px 70px rgba(10,20,17,.35); flex-shrink: 0; }
+  .screen { border-radius: 38px; overflow: hidden; position: relative; min-height: 620px;
+    background: linear-gradient(160deg, #223a31 0%, #101d18 55%, #0b1512 100%); }
+  .lock-time { text-align: center; color: #fff; padding-top: 72px; }
+  .lock-time .day { font-size: 14px; font-weight: 700; opacity: .8; }
+  .lock-time .time { font-size: 74px; font-weight: 800; letter-spacing: -3px; line-height: 1.05; }
+
+  /* Live Activity card — styled like the in-app "Tap to join" hero */
+  .activity { margin: 26px 14px 0; background: var(--forest); border: 1px solid rgba(255,255,255,.08); border-radius: 26px; padding: 18px; color: #fff; box-shadow: 0 18px 40px rgba(0,0,0,.45); }
+  .activity .top { display: flex; align-items: center; gap: 11px; }
+  .qmark { width: 38px; height: 38px; border-radius: 13px; background: var(--cyan); color: var(--cyan-ink); display: grid; place-items: center; font-weight: 800; font-size: 19px; }
+  .activity .who { flex: 1; min-width: 0; }
+  .activity .who b { display: block; font-size: 13.5px; }
+  .activity .who span { font-size: 11px; color: rgba(255,255,255,.55); font-weight: 600; }
+  .live-chip { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.1); border-radius: 12px; padding: 5px 10px; font-size: 10px; font-weight: 800; color: var(--cyan); letter-spacing: .6px; }
+  .live-chip i { width: 6px; height: 6px; border-radius: 3px; background: var(--green); }
+  .activity .divider { height: 1px; background: rgba(255,255,255,.1); margin: 15px 0; }
+  .activity .stats { display: flex; align-items: flex-end; justify-content: space-between; }
+  .bignum { font-size: 34px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+  .bignum small { font-size: 13px; letter-spacing: 0; }
+  .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: rgba(255,255,255,.5); margin-top: 6px; }
+  .leaveby { text-align: right; }
+  .leaveby .t { font-size: 16px; font-weight: 800; color: var(--cyan); }
+  .progress { margin-top: 15px; height: 7px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 62%; border-radius: 4px; background: linear-gradient(90deg, var(--cyan), #6ee0f2); }
+  .prog-caption { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.45); margin-top: 7px; }
+
+  /* Called variant */
+  .activity.called { background: var(--cyan); border-color: rgba(0,0,0,.06); color: var(--cyan-ink); }
+  .activity.called .who span { color: rgba(8,17,15,.6); }
+  .activity.called .qmark { background: var(--forest); color: #fff; }
+  .activity.called .divider { background: rgba(8,17,15,.14); }
+  .activity.called .stat-label { color: rgba(8,17,15,.55); }
+  .activity.called .live-chip { background: rgba(8,17,15,.1); color: var(--cyan-ink); }
+
+  /* banner drop-down (mirrors the in-app cyan pill) */
+  .banner-screen { background: linear-gradient(170deg, #e9ebee, #dfe3e8); min-height: 300px; }
+  .banner { margin: 18px 12px 0; background: var(--cyan); border-radius: 20px; padding: 13px 16px; display: flex; align-items: center; gap: 12px; color: var(--cyan-ink); box-shadow: 0 16px 34px rgba(15,120,140,.4); }
+  .banner .dot { width: 9px; height: 9px; border-radius: 5px; background: var(--cyan-ink); flex-shrink: 0; }
+  .banner b { display: block; font-size: 13.5px; }
+  .banner span { font-size: 11px; font-weight: 600; color: rgba(8,17,15,.65); }
+  .banner .chev { margin-left: auto; font-weight: 800; font-size: 17px; }
+  .banner.dark { background: var(--forest); color: #fff; box-shadow: 0 16px 34px rgba(0,0,0,.4); }
+  .banner.dark .dot { background: var(--green); }
+  .banner.dark span { color: rgba(255,255,255,.55); }
+  .banner.dark .chev { color: var(--cyan); }
+
+  /* Dynamic Island */
+  .di-wrap { display: flex; flex-direction: column; gap: 16px; }
+  .island { background: #000; color: #fff; border-radius: 40px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 12px; width: max-content; box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+  .island .qmark { width: 26px; height: 26px; border-radius: 9px; font-size: 13px; }
+  .island .ahead { font-size: 13px; font-weight: 800; color: var(--cyan); }
+  .island.expanded { border-radius: 30px; padding: 16px 18px; display: block; width: 320px; }
+  .island.expanded .head { display: flex; align-items: center; gap: 10px; }
+  .island.expanded .head b { font-size: 14px; }
+  .island.expanded .head span { display: block; font-size: 11px; color: rgba(255,255,255,.55); font-weight: 600; }
+  .caption { font-size: 11px; font-weight: 700; color: #8a919b; margin-top: 8px; letter-spacing: .4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Queue notifications — design spec</h1>
+  <p class="sub">The live ticket follows the customer out of the app: a Live Activity pinned to the lock screen (styled after the in-app join hero), the Dynamic Island while they're elsewhere on the phone, and drop-down banners that mirror the in-app cyan pill. Copy, colors, and hierarchy below are the source of truth for the EAS build.</p>
+
+  <h2>1 · Lock screen — Live Activity (waiting)</h2>
+  <div class="row">
+    <div class="phone"><div class="screen">
+      <div class="lock-time"><div class="day">Friday, July 4</div><div class="time">9:41</div></div>
+      <div class="activity">
+        <div class="top">
+          <div class="qmark">Q</div>
+          <div class="who"><b>Tax Administration Jamaica</b><span>Kingston – Half Way Tree · TRN Registration</span></div>
+          <div class="live-chip"><i></i>LIVE</div>
+        </div>
+        <div class="divider"></div>
+        <div class="stats">
+          <div><div class="bignum">TRN-006</div><div class="stat-label">Your ticket</div></div>
+          <div><div class="bignum">3</div><div class="stat-label">Ahead of you</div></div>
+          <div class="leaveby"><div class="t">Leave by 10:05</div><div class="stat-label">~25 min wait</div></div>
+        </div>
+        <div class="progress"><i></i></div>
+        <div class="prog-caption"><span>Joined 9:12</span><span>Front of line</span></div>
+      </div>
+    </div></div>
+    <div class="note">
+      <b>Behavior</b>
+      <ul>
+        <li>Starts when a ticket is created; updates via ActivityKit push tokens as position changes (no polling needed on the lock screen).</li>
+        <li>The progress bar is <b>position-based</b> (people served ÷ people at join), not time-based — it only ever moves forward.</li>
+        <li>“Leave by” uses the GPS travel-time estimate already computed for the departure reminder.</li>
+        <li>Card mirrors the in-app join hero: forest surface, white type, cyan accents, green live dot.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2 · Lock screen — Live Activity (called)</h2>
+  <div class="row">
+    <div class="phone"><div class="screen">
+      <div class="lock-time"><div class="day">Friday, July 4</div><div class="time">10:02</div></div>
+      <div class="activity called">
+        <div class="top">
+          <div class="qmark">Q</div>
+          <div class="who"><b>It’s your turn — head to the counter</b><span>Kingston – Half Way Tree · Counter 3</span></div>
+          <div class="live-chip">NOW</div>
+        </div>
+        <div class="divider"></div>
+        <div class="stats">
+          <div><div class="bignum">TRN-006</div><div class="stat-label">Show this ticket</div></div>
+          <div class="leaveby"><div class="t" style="color:var(--cyan-ink)">Code 4C736B4B</div><div class="stat-label">Verify at the counter</div></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="note">
+      <b>The called state flips the whole card to cyan</b> — the same inversion the in-app pill uses, so the moment reads instantly even at a glance.
+      <ul>
+        <li>Time-sensitive interruption level: breaks through Focus modes.</li>
+        <li>Shows the verification code so the customer can walk straight up without unlocking.</li>
+        <li>Auto-dismisses (activity ends) when served, no-show, or left.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3 · Dynamic Island</h2>
+  <div class="row">
+    <div class="di-wrap">
+      <div>
+        <div class="island"><div class="qmark">Q</div><div class="ahead">3 ahead</div></div>
+        <div class="caption">Compact — while using other apps</div>
+      </div>
+      <div>
+        <div class="island expanded">
+          <div class="head"><div class="qmark">Q</div><div><b>TRN-006 · 3 ahead</b><span>TAJ Half Way Tree · ~25 min · leave by 10:05</span></div></div>
+          <div class="progress" style="margin-top:14px"><i></i></div>
+        </div>
+        <div class="caption">Expanded — long-press</div>
+      </div>
+    </div>
+    <div class="note">
+      <b>Island states</b>
+      <ul>
+        <li>Compact: Q monogram (leading) + “3 ahead” in cyan (trailing).</li>
+        <li>When called, trailing swaps to <b style="color:#0f97b3">“Your turn”</b> and the island pulses once.</li>
+        <li>Expanded: same content hierarchy as the lock-screen card, condensed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>4 · Drop-down banners (in-use notifications)</h2>
+  <div class="row">
+    <div class="phone"><div class="screen banner-screen">
+      <div class="banner"><div class="dot"></div><div><b>TRN-006 — it’s your turn!</b><span>Head to the counter and show your code</span></div><div class="chev">›</div></div>
+      <div class="banner dark"><div class="dot"></div><div><b>You’re next — 1 ahead of you</b><span>TAJ Half Way Tree · start heading over</span></div><div class="chev">›</div></div>
+      <div class="banner dark"><div class="dot"></div><div><b>Time to head out</b><span>Leave now to reach TAJ before you’re called</span></div><div class="chev">›</div></div>
+      <div class="banner dark" style="opacity:.92"><div class="dot" style="background:#e5484d"></div><div><b>You lost your place in line</b><span>The call window passed — tap to rejoin</span></div><div class="chev">›</div></div>
+    </div></div>
+    <div class="note">
+      <b>Banner rules</b> — banners are the in-app cyan pill, verbatim:
+      <ul>
+        <li><b>Called</b> → cyan banner (the only cyan one; reserved for “your turn”).</li>
+        <li>Progress, departure, and requeue updates → forest banner, green dot.</li>
+        <li>No-show → forest banner, red dot, rejoin deep-link.</li>
+        <li>Every banner deep-links to the Ticket screen.</li>
+        <li>Android equivalent ships today: sticky “live ticket” notification on the <i>live-ticket</i> channel + heads-up alerts on <i>queue-alerts</i> (implemented in <code>lib/notifications.ts</code>).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>5 · Build requirement</h2>
+  <div class="note" style="max-width:760px">
+    iOS Live Activities and the Dynamic Island require an <b>ActivityKit widget extension</b> — a native target that Expo Go cannot run. Ship path: EAS dev build with a config plugin (e.g. <code>expo-live-activity</code>) + APNs push-to-update tokens so the backend drives position changes. The Android side (persistent live-ticket notification + max-importance call alerts) requires no extra build steps and is already implemented.
+  </div>
+</main>
+</body>
+</html>

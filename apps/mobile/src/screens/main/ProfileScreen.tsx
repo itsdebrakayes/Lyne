@@ -1,12 +1,20 @@
-import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../lib/apiClient';
-import { colors, font, t, categoryTints, initials } from '../../lib/theme';
+import { colors, font, t, categoryTints, initials, inputReset } from '../../lib/theme';
 import { TabBar } from '../../components/TabBar';
+
+type DocKey = 'trn' | 'national_id' | 'phone';
+
+const DOC_SHEET: Record<DocKey, { title: string; hint: string; placeholder: string; keyboard: 'default' | 'phone-pad' | 'number-pad' }> = {
+  trn: { title: 'Add your TRN', hint: 'Your 9-digit Tax Registration Number. Agencies use it to verify you faster at the counter.', placeholder: '000-000-000', keyboard: 'number-pad' },
+  national_id: { title: 'Add your National ID', hint: 'Your national identification number, kept private and only shown to the agency serving you.', placeholder: 'ID number', keyboard: 'default' },
+  phone: { title: 'Add your phone', hint: 'Used for queue updates if push notifications are unavailable.', placeholder: '876-000-0000', keyboard: 'phone-pad' },
+};
 
 type Row = { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; onPress?: () => void; badge?: string };
 
@@ -37,16 +45,41 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshProfile } = useAuth();
   const { data: history = [] } = useQuery({ queryKey: ['visit-history-count'], queryFn: () => api.get<Array<{ id: string }>>('/history') });
+  const [editingDoc, setEditingDoc] = useState<DocKey | null>(null);
+  const [docValue, setDocValue] = useState('');
+  const [docSaving, setDocSaving] = useState(false);
+  const [docError, setDocError] = useState('');
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
-  const docs = [
-    { key: 'TRN', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline' as const, ok: 'On file', missing: 'Add TRN' },
-    { key: 'National ID', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline' as const, ok: 'Verified', missing: 'Add ID' },
-    { key: 'Phone', value: user?.phone, tint: categoryTints.orange, icon: 'call-outline' as const, ok: 'On file', missing: 'Add phone' },
+  const docs: Array<{ key: string; docKey: DocKey; value?: string; tint: { fg: string; bg: string }; icon: keyof typeof Ionicons.glyphMap; ok: string; missing: string }> = [
+    { key: 'TRN', docKey: 'trn', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On file', missing: 'Add TRN' },
+    { key: 'National ID', docKey: 'national_id', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On file', missing: 'Add ID' },
+    { key: 'Phone', docKey: 'phone', value: user?.phone, tint: categoryTints.orange, icon: 'call-outline', ok: 'On file', missing: 'Add phone' },
   ];
+
+  const openDocSheet = (docKey: DocKey, current?: string) => {
+    setDocValue(current || '');
+    setDocError('');
+    setEditingDoc(docKey);
+  };
+
+  const saveDoc = async () => {
+    if (!editingDoc || !docValue.trim()) { setDocError('Enter a value to save.'); return; }
+    try {
+      setDocSaving(true);
+      setDocError('');
+      await api.patch('/auth/profile', { [editingDoc]: docValue.trim() });
+      await refreshProfile();
+      setEditingDoc(null);
+    } catch (caught: unknown) {
+      setDocError(caught instanceof Error ? caught.message : 'Could not save. Try again.');
+    } finally {
+      setDocSaving(false);
+    }
+  };
 
   return (
     <View style={t.root}>
@@ -76,7 +109,7 @@ export default function ProfileScreen() {
         <SectionLabel>My documents</SectionLabel>
         <View style={{ flexDirection: 'row', gap: 11 }}>
           {docs.map(d => (
-            <View key={d.key} style={[t.card, { flex: 1, padding: 14, borderRadius: 18 }]}>
+            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 14, borderRadius: 18 }]}>
               <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
               </View>
@@ -85,7 +118,7 @@ export default function ProfileScreen() {
                 <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.value ? colors.light : colors.moderate }} />
                 <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted }}>{d.value ? d.ok : d.missing}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -104,6 +137,38 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
       <TabBar active="Profile" />
+
+      {/* document edit sheet */}
+      <Modal visible={!!editingDoc} transparent animationType="slide" onRequestClose={() => setEditingDoc(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setEditingDoc(null)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
+          {editingDoc && (
+            <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
+              <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>{DOC_SHEET[editingDoc].title}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6, lineHeight: 18 }}>{DOC_SHEET[editingDoc].hint}</Text>
+              <TextInput
+                autoFocus
+                value={docValue}
+                onChangeText={setDocValue}
+                placeholder={DOC_SHEET[editingDoc].placeholder}
+                placeholderTextColor={colors.faint}
+                keyboardType={DOC_SHEET[editingDoc].keyboard}
+                style={[{ backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 16, height: 54, fontFamily: font.semibold, color: colors.ink, fontSize: 15, marginTop: 16 }, inputReset]}
+              />
+              {!!docError && <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 10 }}>{docError}</Text>}
+              <View style={{ flexDirection: 'row', gap: 11, marginTop: 18 }}>
+                <TouchableOpacity onPress={() => setEditingDoc(null)} style={[t.ghostBtn, { flex: 1, minHeight: 52 }]}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity disabled={docSaving} onPress={saveDoc} style={[t.primaryBtn, { flex: 1, minHeight: 52 }]}>
+                  {docSaving ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>Save</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow } from '../lib/theme';
@@ -24,19 +25,29 @@ export function ActiveTicketPill() {
     refetchInterval: 8_000,
   });
   if (!ticket || !['waiting', 'called', 'in_service'].includes(ticket.status)) return null;
-  const ahead = ticket.waiting_position ?? ticket.position;
+  const called = ticket.status === 'called';
+  const inService = ticket.status === 'in_service';
+  const ahead = Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1);
+  const headline = called
+    ? `${ticket.ticket_number} — it's your turn!`
+    : inService
+      ? `${ticket.ticket_number} · being served`
+      : `Ticket ${ticket.ticket_number} · ${ahead} ahead`;
+  const sub = called
+    ? 'Head to the counter and show your code'
+    : `${ticket.branch_name || 'Your branch'} · ~${ticket.estimated_wait_minutes} min`;
   return (
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-      style={{ position: 'absolute', bottom: 100, left: 14, right: 14, backgroundColor: colors.dark, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
+      style={{ position: 'absolute', bottom: 100, left: 14, right: 14, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
-      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.light }} />
+      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 13 }}>Ticket {ticket.ticket_number} · {ahead ?? 0} ahead</Text>
-        <Text style={{ color: 'rgba(255,255,255,.55)', fontFamily: font.medium, fontSize: 11 }}>{ticket.branch_name || 'Your branch'} · ~{ticket.estimated_wait_minutes} min</Text>
+        <Text style={{ color: called ? colors.accentInk : '#fff', fontFamily: font.extra, fontSize: 13 }}>{headline}</Text>
+        <Text style={{ color: called ? 'rgba(8,17,15,.65)' : 'rgba(255,255,255,.55)', fontFamily: font.medium, fontSize: 11 }}>{sub}</Text>
       </View>
-      <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 16 }}>›</Text>
+      <Text style={{ color: called ? colors.accentInk : colors.accent, fontFamily: font.extra, fontSize: 16 }}>›</Text>
     </TouchableOpacity>
   );
 }
@@ -45,6 +56,13 @@ export function TabBar({ active }: { active: TabKey }) {
   const navigation = useNavigation<any>();
   return (
     <>
+      {/* Fade scrolling content out before it reaches the floating bar. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.92)', colors.bg]}
+        locations={[0, 0.42, 0.75]}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 128, zIndex: 29 }}
+      />
       <ActiveTicketPill />
       <View style={{ position: 'absolute', bottom: 20, left: 14, right: 14, height: 66, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 8, zIndex: 30, ...shadow.floating }}>
         {TABS.map(tab => {

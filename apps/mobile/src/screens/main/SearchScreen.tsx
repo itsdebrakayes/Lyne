@@ -1,21 +1,29 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials, statusFromWait, statusMeta, waitLabel } from '../../lib/theme';
+import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitLabel } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
-  const { data: branches = [], isLoading, error } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   const results = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -27,13 +35,18 @@ export default function SearchScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
         {/* search bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23, height: 46, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
             <Ionicons name="search-outline" size={16} color={colors.ink} />
-            <TextInput autoFocus value={search} onChangeText={setSearch} style={{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.ink }} placeholder="Search agencies & branches" placeholderTextColor={colors.muted} />
+            <TextInput autoFocus value={search} onChangeText={setSearch} style={[{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.ink }, inputReset]} placeholder="Search agencies & branches" placeholderTextColor={colors.muted} />
           </View>
         </View>
 
@@ -42,9 +55,21 @@ export default function SearchScreen() {
           <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{results.length} found</Text>
         </View>
 
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
-        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger }}>Search is unavailable while the live service is offline.</Text>}
-        {!isLoading && !error && results.length === 0 && <Text style={{ fontFamily: font.semibold, color: colors.muted }}>No matching branches found.</Text>}
+        {isLoading && <SkeletonRows count={5} />}
+        {!!error && !isLoading && (
+          <ErrorCard
+            title="Search is offline"
+            message="Live branch data could not be loaded. Pull down or tap to retry."
+            onRetry={() => refetch()}
+          />
+        )}
+        {!isLoading && !error && results.length === 0 && (
+          <EmptyCard
+            icon="search-outline"
+            title={search.trim() ? `No matches for “${search.trim()}”` : 'No branches yet'}
+            message={search.trim() ? 'Try a different agency, branch, or parish name.' : 'Branches will appear here as agencies come online.'}
+          />
+        )}
 
         <View style={{ gap: 12 }}>
           {results.map((b, index) => {

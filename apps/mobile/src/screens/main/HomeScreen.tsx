@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statu
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 const QUICK: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; tint: keyof typeof categoryTints }> = [
   { label: 'Nearby', icon: 'location-outline', tint: 'blue' },
@@ -26,18 +27,25 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const { data: branches = [], isLoading, error } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [], refetch: refetchNotifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Array<{ id: string; is_read: boolean | number }>>('/notifications'),
     refetchInterval: 30_000,
   });
   const hasUnread = notifications.some(n => !n.is_read);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.allSettled([refetch(), refetchNotifications()]);
+    setRefreshing(false);
+  }, [refetch, refetchNotifications]);
 
   // Branches with open queues rank first — a closed branch's stale low wait
   // must never beat a live line for the hero or the "near you" list.
@@ -57,7 +65,11 @@ export default function HomeScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
         {/* header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Search')} style={t.iconBtn}>
@@ -116,22 +128,28 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: 20 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+            <View style={{ flexShrink: 0 }}>
               <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Shortest wait nearby</Text>
               <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
             </View>
             {shortest && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 8, paddingHorizontal: 13 }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />
-                <Text style={{ fontFamily: font.extra, fontSize: 12, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
+              <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 8, paddingHorizontal: 13, marginBottom: 2 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light, flexShrink: 0 }} />
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 12, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
               </View>
             )}
           </View>
         </TouchableOpacity>
 
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 20 }} />}
-        {!!error && <Text style={{ fontFamily: font.semibold, color: colors.danger }}>Live branch data is unavailable right now.</Text>}
+        {isLoading && <SkeletonRows count={4} />}
+        {!!error && !isLoading && (
+          <ErrorCard
+            title="Live data unavailable"
+            message="We couldn't reach the queue service. Check your connection and try again."
+            onRetry={() => refetch()}
+          />
+        )}
 
         {/* top agencies */}
         {agencies.length > 0 && (

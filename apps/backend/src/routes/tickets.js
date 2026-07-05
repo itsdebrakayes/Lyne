@@ -153,6 +153,26 @@ router.post('/', requireAuth, async (req, res) => {
     }
     const queue = queues[0];
 
+    // One live ticket per customer — a person cannot hold places in several
+    // lines at once, and the apps are built around a single active ticket.
+    if (req.dbUser?.id) {
+      const [activeRows] = await conn.query(
+        `SELECT t.ticket_number, s.name AS service_name
+         FROM queue_tickets t
+         JOIN queues q ON q.id = t.queue_id
+         LEFT JOIN services s ON s.id = q.service_id
+         WHERE t.user_id = ? AND t.status IN ('waiting', 'called', 'in_service')
+         LIMIT 1`,
+        [req.dbUser.id]
+      );
+      if (activeRows.length) {
+        await conn.rollback();
+        return res.status(409).json({
+          error: `You are already in line (${activeRows[0].ticket_number} · ${activeRows[0].service_name || 'current queue'}). Leave or finish that queue before joining another.`,
+        });
+      }
+    }
+
     // Count WAITING only — in_service are being served and should not block capacity
     const [countRows] = await conn.query(
       "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",

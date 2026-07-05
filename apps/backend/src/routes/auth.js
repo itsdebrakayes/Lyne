@@ -127,26 +127,22 @@ router.patch('/profile', requireAuth, async (req, res) => {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
   try {
-    const {
-      full_name, phone, date_of_birth, address,
-      national_id, trn, employer, occupation,
-    } = req.body;
+    // Only columns that exist on the users table — the previous version
+    // referenced address/employer/occupation and 500'd on every save.
+    const { full_name, phone, date_of_birth, national_id, trn } = req.body;
 
     await pool.query(
       `UPDATE users SET
          full_name     = COALESCE(?, full_name),
          phone         = COALESCE(?, phone),
          date_of_birth = COALESCE(?, date_of_birth),
-         address       = COALESCE(?, address),
          national_id   = COALESCE(?, national_id),
          trn           = COALESCE(?, trn),
-         employer      = COALESCE(?, employer),
-         occupation    = COALESCE(?, occupation),
          updated_at    = NOW()
        WHERE id = ?`,
       [
-        full_name || null, phone || null, date_of_birth || null, address || null,
-        national_id || null, trn || null, employer || null, occupation || null,
+        full_name || null, phone || null, date_of_birth || null,
+        national_id || null, trn || null,
         req.dbUser.id,
       ]
     );

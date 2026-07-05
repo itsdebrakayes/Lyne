@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import BestTimeCard from '../../components/BestTimeCard';
+import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -29,7 +30,7 @@ export default function BranchScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false) });
+  const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false), refetchInterval: 30_000 });
   const servicesQuery = useQuery({
     queryKey: ['branch-services', businessId, branchId],
     queryFn: () => api.get<ServiceSummary[]>(`/services?business_id=${businessId}&branch_id=${branchId}`, false),
@@ -43,9 +44,22 @@ export default function BranchScreen() {
   const others = services.filter(s => s.id !== selected?.id);
   const isSaved = saved.some(b => b.id === businessId);
 
+  // Optimistic toggle — the bookmark fills instantly (like a like button) and
+  // rolls back only if the request actually fails.
   const toggleSave = useMutation({
     mutationFn: () => (isSaved ? api.delete(`/saved/${businessId}`) : api.post(`/saved/${businessId}`, {})),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-businesses'] }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['saved-businesses'] });
+      const previous = queryClient.getQueryData<SavedBusiness[]>(['saved-businesses']) || [];
+      queryClient.setQueryData<SavedBusiness[]>(['saved-businesses'], isSaved
+        ? previous.filter(b => b.id !== businessId)
+        : [...previous, { id: businessId, name: branch?.business_name || 'Saved company', slug: '', saved_at: new Date().toISOString() }]);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['saved-businesses'], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['saved-businesses'] }),
   });
 
   // A live average of 0 (no served visits yet today) falls back to the
@@ -94,8 +108,15 @@ export default function BranchScreen() {
         </View>
         <Text style={[t.h1, { marginBottom: 18 }]}>{branch?.business_name || 'Agency'}</Text>
 
-        {servicesQuery.isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 30 }} />}
-        {!servicesQuery.isLoading && services.length === 0 && (
+        {servicesQuery.isLoading && <SkeletonCard height={230} />}
+        {!!servicesQuery.error && !servicesQuery.isLoading && (
+          <ErrorCard
+            title="Services unavailable"
+            message="This branch's live services could not be loaded."
+            onRetry={() => servicesQuery.refetch()}
+          />
+        )}
+        {!servicesQuery.isLoading && !servicesQuery.error && services.length === 0 && (
           <View style={[t.cardLg, { padding: 22, alignItems: 'center' }]}>
             <Ionicons name="time-outline" size={28} color={colors.muted} />
             <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginTop: 12 }}>No open services right now</Text>
@@ -119,19 +140,27 @@ export default function BranchScreen() {
 
               {pickerOpen && (
                 <View style={{ marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 6, gap: 3 }}>
+                  {/* Quick switcher: name + traffic dot only — the numbers live
+                      on the selected card and the comparison cards below. */}
                   {services.map(s => {
                     const on = s.id === selected.id;
                     const meta = statusMeta(statusFromWait(svcWait(s)));
                     return (
                       <TouchableOpacity key={s.id} onPress={() => { setSelectedId(s.id); setPickerOpen(false); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 11, borderRadius: 11, backgroundColor: on ? colors.surfaceAlt : 'transparent' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: meta.dot }} />
-                          <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.ink }}>{s.name}</Text>
-                        </View>
-                        <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.muted }}>~{svcWait(s)}m</Text>
+                        <Text style={{ fontFamily: on ? font.extra : font.bold, fontSize: 14, color: colors.ink }}>{s.name}</Text>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: meta.dot }} />
                       </TouchableOpacity>
                     );
                   })}
+                  {/* Key for the dots */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, paddingTop: 9, paddingBottom: 4, paddingHorizontal: 11, borderTopWidth: 1, borderTopColor: colors.borderSoft, marginTop: 3 }}>
+                    {([['Light', colors.light], ['Busy', colors.moderate], ['High traffic', colors.busy]] as const).map(([label, dot]) => (
+                      <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
+                        <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted }}>{label}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
 

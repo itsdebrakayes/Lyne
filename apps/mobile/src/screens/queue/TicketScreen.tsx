@@ -6,8 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
-import { registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
+import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
+import { ErrorCard } from '../../components/Feedback';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -56,11 +57,26 @@ export default function TicketScreen() {
 
   useEffect(() => {
     if (!ticket) return;
+    const liveStatuses = ['waiting', 'called', 'in_service'];
     if (previous.current.status && previous.current.status !== ticket.status) {
       const title = ticket.status === 'called' ? "You're being called" : ticket.status === 'no_show' ? 'You lost your place in line' : 'Queue status updated';
       scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
       scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
+    }
+    // Ongoing "live ticket" notification (Android sticky; iOS passive/time-sensitive)
+    // mirrors the in-app pill on the lock screen and notification shade.
+    if (liveStatuses.includes(ticket.status)) {
+      updateLiveTicketNotification({
+        ticketId: ticket.id,
+        ticketNumber: ticket.ticket_number,
+        status: ticket.status as 'waiting' | 'called' | 'in_service',
+        ahead: Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1),
+        estimatedWaitMinutes: ticket.estimated_wait_minutes,
+        branchName: ticket.branch_name,
+      }).catch(() => {});
+    } else if (previous.current.status && liveStatuses.includes(previous.current.status)) {
+      dismissLiveTicketNotification();
     }
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket]);
@@ -96,7 +112,17 @@ export default function TicketScreen() {
     </View>
   );
   if (ticketQuery.isLoading) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
-  if (ticketQuery.error || !ticket) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}><Text style={{ fontFamily: font.bold, color: colors.danger, textAlign: 'center' }}>Your live ticket could not be loaded. Check your connection and try again.</Text></View>;
+  if (ticketQuery.error || !ticket) {
+    return (
+      <View style={[t.root, { justifyContent: 'center', padding: 24 }]}>
+        <ErrorCard
+          title="Ticket unavailable"
+          message="Your live ticket could not be loaded. Check your connection and try again."
+          onRetry={() => ticketQuery.refetch()}
+        />
+      </View>
+    );
+  }
 
   const ahead = Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1);
   const active = ['waiting', 'called', 'in_service'].includes(ticket.status);

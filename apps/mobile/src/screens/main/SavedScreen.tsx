@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,12 +8,20 @@ import { colors, font, shadow, t, companyGradients, initials, statusFromWait, st
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 export default function SavedScreen() {
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
-  const { data: saved = [], isLoading, error } = useQuery({ queryKey: ['saved-businesses'], queryFn: () => api.get<SavedBusiness[]>('/saved') });
-  const { data: branches = [] } = useQuery({ queryKey: ['mobile-branches'], queryFn: () => api.get<BranchSummary[]>('/branches', false), refetchInterval: 30_000 });
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: saved = [], isLoading, error, refetch } = useQuery({ queryKey: ['saved-businesses'], queryFn: () => api.get<SavedBusiness[]>('/saved') });
+  const { data: branches = [], refetch: refetchBranches } = useQuery({ queryKey: ['mobile-branches'], queryFn: () => api.get<BranchSummary[]>('/branches', false), refetchInterval: 30_000 });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.allSettled([refetch(), refetchBranches()]);
+    setRefreshing(false);
+  }, [refetch, refetchBranches]);
 
   const branchesByBusiness = useMemo(() => {
     const map: Record<string, BranchSummary[]> = {};
@@ -40,12 +48,20 @@ export default function SavedScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
         <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted }}>Your saved companies</Text>
         <Text style={[t.h2, { marginTop: 5 }]}>Welcome to your{'\n'}favorite companies</Text>
 
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
-        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 20 }}>Saved companies could not be loaded.</Text>}
+        {isLoading && <View style={{ marginTop: 22 }}><SkeletonRows count={3} /></View>}
+        {!!error && !isLoading && (
+          <View style={{ marginTop: 20 }}>
+            <ErrorCard title="Saved list unavailable" message="Your saved companies could not be loaded right now." onRetry={() => refetch()} />
+          </View>
+        )}
 
         {!isLoading && !error && saved.length === 0 && (
           <View style={[t.cardLg, { padding: 22, alignItems: 'center', marginTop: 22 }]}>

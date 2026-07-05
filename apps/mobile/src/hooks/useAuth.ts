@@ -126,5 +126,13 @@ export const useAuth = () => {
     setUser(null);
   };
 
-  return { user, loading, signIn, signUp, signOut };
+  // Re-reads the profile after an edit (e.g. adding a document) so the
+  // screen reflects the saved values immediately.
+  const refreshProfile = useCallback(async () => {
+    const me = await api.get<AuthMe>('/auth/me');
+    if (me.type === 'user') setUser(me.record);
+    return me.record;
+  }, []);
+
+  return { user, loading, signIn, signUp, signOut, refreshProfile };
 };

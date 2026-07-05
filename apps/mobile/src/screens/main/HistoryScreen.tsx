@@ -1,10 +1,11 @@
-import React from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 interface VisitHistoryRow {
   id: string;
@@ -25,21 +26,36 @@ function formatStatus(status: string) {
 
 export default function HistoryScreen() {
   const navigation = useNavigation<any>();
-  const { data: history = [], isLoading, error } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: history = [], isLoading, error, refetch } = useQuery({
     queryKey: ['visit-history'],
     queryFn: () => api.get<VisitHistoryRow[]>('/history'),
   });
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
         <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 16 }]}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <Text style={[t.h2, { marginBottom: 18 }]}>Queue history</Text>
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
-        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger }}>Queue history could not be loaded.</Text>}
-        {!isLoading && !error && history.length === 0 && <Text style={{ fontFamily: font.semibold, color: colors.muted }}>You do not have any completed visits yet.</Text>}
+        {isLoading && <SkeletonRows count={5} />}
+        {!!error && !isLoading && (
+          <ErrorCard title="History unavailable" message="Your queue history could not be loaded right now." onRetry={() => refetch()} />
+        )}
+        {!isLoading && !error && history.length === 0 && (
+          <EmptyCard icon="time-outline" title="No visits yet" message="Join your first queue and your completed visits will show up here." />
+        )}
         <View style={{ gap: 12 }}>
           {history.map(visit => (
             <TouchableOpacity
