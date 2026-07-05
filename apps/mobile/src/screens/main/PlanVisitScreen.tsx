@@ -90,9 +90,9 @@ export default function PlanVisitScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 56 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
           <View style={{ width: 44, alignItems: 'flex-end' }}>
@@ -105,14 +105,14 @@ export default function PlanVisitScreen() {
         </View>
 
         <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentDeep, letterSpacing: 1.6 }}>SMART TIMING</Text>
-        <Text style={[t.h1, { marginTop: 6, marginBottom: 16 }]}>Beat the line before{'\n'}you leave home.</Text>
+        <Text style={[t.h1, { marginTop: 8, marginBottom: 22 }]}>Beat the line before{'\n'}you leave home.</Text>
 
         {/* branch chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingBottom: 4 }} style={{ marginBottom: 18 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
           {branches.map(b => {
             const on = branch?.id === b.id;
             return (
-              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 16, paddingVertical: 9, paddingHorizontal: 13 }}>
+              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 17, paddingVertical: 11, paddingHorizontal: 15 }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? colors.accent : colors.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
                 <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
               </TouchableOpacity>
@@ -152,15 +152,15 @@ export default function PlanVisitScreen() {
             </View>
 
             {/* per-service planner */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, marginBottom: 13 }}>
+            <View style={t.sectionRow}>
               <Text style={t.section}>Best time by service</Text>
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>{plan.services.length} services</Text>
             </View>
 
             {premium ? (
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 14 }}>
                 {plan.services.map(service => (
-                  <View key={service.service_id} style={[t.card, { padding: 16, borderRadius: 22 }]}>
+                  <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                       <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
                       {service.best && (

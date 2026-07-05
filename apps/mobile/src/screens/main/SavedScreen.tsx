@@ -75,8 +75,8 @@ export default function SavedScreen() {
         {/* favorite company cards */}
         {saved.length > 0 && (
           <>
-            <Text style={[t.section, { marginTop: 22, marginBottom: 14 }]}>Your favorites</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingRight: 8, paddingBottom: 6 }} style={{ marginBottom: 24 }}>
+            <Text style={[t.section, { marginTop: 32, marginBottom: 16 }]}>Your favorites</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingRight: 8, paddingBottom: 8 }} style={{ marginBottom: 4 }}>
               {saved.map((company, index) => {
                 const grad = companyGradients[index % companyGradients.length];
                 const list = branchesByBusiness[company.id] || [];
@@ -125,11 +125,11 @@ export default function SavedScreen() {
         {/* explore more */}
         {exploreBusinesses.length > 0 && (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <View style={t.sectionRow}>
               <Text style={t.section}>Explore more companies</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>See all</Text></TouchableOpacity>
             </View>
-            <View style={{ gap: 11 }}>
+            <View style={{ gap: 12 }}>
               {exploreBusinesses.map(b => {
                 const wait = Math.round(Number(b.avg_wait_minutes || 0));
                 const meta = statusMeta(statusFromWait(wait));

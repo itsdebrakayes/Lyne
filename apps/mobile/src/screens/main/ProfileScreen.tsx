@@ -22,7 +22,7 @@ function ListCard({ rows }: { rows: Row[] }) {
   return (
     <View style={[t.card, { overflow: 'hidden' }]}>
       {rows.map((r, i) => (
-        <TouchableOpacity key={r.label} disabled={!r.onPress} onPress={r.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 14, paddingHorizontal: 16, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
+        <TouchableOpacity key={r.label} disabled={!r.onPress} onPress={r.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
           <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={r.icon} size={17} color={colors.ink} />
           </View>
@@ -40,7 +40,7 @@ function ListCard({ rows }: { rows: Row[] }) {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 24, marginBottom: 10, marginLeft: 4 }}>{children}</Text>;
+  return <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 32, marginBottom: 13, marginLeft: 4 }}>{children}</Text>;
 }
 
 export default function ProfileScreen() {
@@ -84,7 +84,7 @@ export default function ProfileScreen() {
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="settings-outline" size={18} color={colors.ink} /></TouchableOpacity>
         </View>
@@ -107,9 +107,9 @@ export default function ProfileScreen() {
 
         {/* documents */}
         <SectionLabel>My documents</SectionLabel>
-        <View style={{ flexDirection: 'row', gap: 11 }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
           {docs.map(d => (
-            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 14, borderRadius: 18 }]}>
+            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20 }]}>
               <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
               </View>

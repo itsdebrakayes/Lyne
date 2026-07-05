@@ -40,7 +40,7 @@ export function ActiveTicketPill() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-      style={{ position: 'absolute', bottom: 100, left: 14, right: 14, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
+      style={{ position: 'absolute', bottom: 104, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
       <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
       <View style={{ flex: 1 }}>
@@ -61,10 +61,10 @@ export function TabBar({ active }: { active: TabKey }) {
         pointerEvents="none"
         colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.92)', colors.bg]}
         locations={[0, 0.42, 0.75]}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 128, zIndex: 29 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
       />
       <ActiveTicketPill />
-      <View style={{ position: 'absolute', bottom: 20, left: 14, right: 14, height: 66, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 8, zIndex: 30, ...shadow.floating }}>
+      <View style={{ position: 'absolute', bottom: 22, left: 16, right: 16, height: 68, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 10, zIndex: 30, ...shadow.floating }}>
         {TABS.map(tab => {
           const on = tab.key === active;
           return (

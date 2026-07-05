@@ -45,10 +45,10 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 16 }]}>
+        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 20 }]}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={[t.h2, { marginBottom: 18 }]}>Queue history</Text>
+        <Text style={[t.h2, { marginBottom: 22 }]}>Queue history</Text>
         {isLoading && <SkeletonRows count={5} />}
         {!!error && !isLoading && (
           <ErrorCard title="History unavailable" message="Your queue history could not be loaded right now." onRetry={() => refetch()} />

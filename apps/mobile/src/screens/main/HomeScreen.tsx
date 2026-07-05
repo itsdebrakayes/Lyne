@@ -71,7 +71,7 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
         {/* header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Search')} style={t.iconBtn}>
             <Ionicons name="grid-outline" size={19} color={colors.ink} />
           </TouchableOpacity>
@@ -88,19 +88,19 @@ export default function HomeScreen() {
         </View>
 
         {/* search */}
-        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={[t.search, { marginBottom: 20 }]}>
+        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={[t.search, { marginBottom: 28 }]}>
           <Ionicons name="search-outline" size={17} color={colors.muted} />
           <Text style={t.searchText}>Search agencies & branches</Text>
         </TouchableOpacity>
 
         {/* quick actions */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 22 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 }}>
           {QUICK.map(q => {
             const tint = categoryTints[q.tint];
             return (
-              <TouchableOpacity key={q.label} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 8, width: 58 }}>
-                <View style={{ width: 54, height: 54, borderRadius: 19, backgroundColor: tint.bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={q.icon} size={21} color={tint.fg} />
+              <TouchableOpacity key={q.label} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
+                <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: tint.bg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={q.icon} size={22} color={tint.fg} />
                 </View>
                 <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.sub }}>{q.label}</Text>
               </TouchableOpacity>
@@ -113,7 +113,7 @@ export default function HomeScreen() {
           activeOpacity={0.9}
           disabled={!shortest}
           onPress={() => shortest && openBranch(shortest)}
-          style={{ backgroundColor: colors.dark, borderRadius: 28, padding: 22, marginBottom: 24, ...shadow.hero }}
+          style={{ backgroundColor: colors.dark, borderRadius: 30, padding: 24, marginBottom: 18, ...shadow.hero }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
             <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -127,7 +127,7 @@ export default function HomeScreen() {
               <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 19 }}>→</Text>
             </View>
           </View>
-          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: 20 }} />
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: 22 }} />
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <View style={{ flexShrink: 0 }}>
               <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Shortest wait nearby</Text>
@@ -143,7 +143,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* smart timing — plan your visit */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, borderRadius: 22, marginBottom: 24 }]}>
+        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, borderRadius: 24, marginBottom: 8 }]}>
           <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
           </View>
@@ -169,13 +169,13 @@ export default function HomeScreen() {
         {/* top agencies */}
         {agencies.length > 0 && (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <View style={t.sectionRow}>
               <Text style={t.section}>Top agencies</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>See all</Text></TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 2 }} style={{ marginBottom: 24 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 2 }} style={{ marginBottom: 4 }}>
               {agencies.map(a => (
-                <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 8, width: 62 }}>
+                <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 9, width: 64 }}>
                   <Monogram label={a.business_slug?.toUpperCase().slice(0, 4) || initials(a.business_name)} />
                   <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.sub }}>{a.business_slug?.toUpperCase() || initials(a.business_name)}</Text>
                 </TouchableOpacity>
@@ -187,14 +187,14 @@ export default function HomeScreen() {
         {/* live near you */}
         {liveNear.length > 0 && (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <View style={t.sectionRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={t.section}>Live near you</Text>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>View all</Text></TouchableOpacity>
             </View>
-            <View style={{ gap: 11 }}>
+            <View style={{ gap: 12 }}>
               {liveNear.map(b => {
                 const wait = Math.round(Number(b.avg_wait_minutes || 0));
                 const meta = statusMeta(statusFromWait(wait));

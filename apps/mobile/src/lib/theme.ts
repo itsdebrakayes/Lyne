@@ -139,34 +139,41 @@ export function initials(value?: string) {
     .toUpperCase() || 'Q';
 }
 
+// Spacing scale — the whole app sits on this rhythm. Sections get xl above
+// and m below their header; cards pad with l; grouped items gap with s/m.
+export const space = { xs: 6, s: 10, m: 14, l: 20, xl: 32, xxl: 44 } as const;
+
 export const t = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 20, paddingTop: 62, paddingBottom: 128 },
+  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
 
   // typography
-  h1: { fontFamily: font.extra, fontSize: 27, color: colors.ink, letterSpacing: -0.7, lineHeight: 31 },
-  h2: { fontFamily: font.extra, fontSize: 25, color: colors.ink, letterSpacing: -0.6, lineHeight: 29 },
-  section: { fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.2 },
-  body: { fontFamily: font.medium, fontSize: 14.5, color: colors.ink },
-  small: { fontFamily: font.semibold, fontSize: 12.5, color: colors.muted },
+  h1: { fontFamily: font.extra, fontSize: 29, color: colors.ink, letterSpacing: -0.8, lineHeight: 34 },
+  h2: { fontFamily: font.extra, fontSize: 26, color: colors.ink, letterSpacing: -0.6, lineHeight: 31 },
+  section: { fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3 },
+  body: { fontFamily: font.medium, fontSize: 14.5, color: colors.ink, lineHeight: 21 },
+  small: { fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, lineHeight: 18 },
   micro: { fontFamily: font.bold, fontSize: 10.5, color: colors.muted, letterSpacing: 0.5 },
-  overline: { fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
+  overline: { fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 1.4, textTransform: 'uppercase' },
+
+  // section header row: generous air above, a clear beat before content
+  sectionRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 32, marginBottom: 16 },
 
   // surfaces
-  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20 },
-  cardLg: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 26, ...shadow.card },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22 },
+  cardLg: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 28, ...shadow.card },
 
   // controls
-  iconBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  search: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 24, height: 48, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 18 },
+  iconBtn: { width: 46, height: 46, borderRadius: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  search: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 26, height: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 },
   searchText: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted },
 
-  primaryBtn: { backgroundColor: colors.dark, borderRadius: 18, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  primaryBtn: { backgroundColor: colors.dark, borderRadius: 19, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
   primaryBtnText: { fontFamily: font.extra, fontSize: 15.5, color: colors.onDark },
-  ghostBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  ghostBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 19, minHeight: 58, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
 
   // rows / tiles
-  listRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 13 },
+  listRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
   logoTile: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoTileText: { fontFamily: font.extra, fontSize: 13, color: colors.ink },
 });

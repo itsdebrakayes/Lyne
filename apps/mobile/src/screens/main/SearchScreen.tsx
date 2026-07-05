@@ -42,7 +42,7 @@ export default function SearchScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
         {/* search bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 22 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23, height: 46, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
             <Ionicons name="search-outline" size={16} color={colors.ink} />
@@ -50,7 +50,7 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
           <Text style={t.section}>Result branches</Text>
           <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{results.length} found</Text>
         </View>
@@ -83,7 +83,7 @@ export default function SearchScreen() {
                 key={b.id}
                 activeOpacity={0.9}
                 onPress={() => openBranch(b)}
-                style={{ backgroundColor: dark ? colors.dark : colors.surface, borderWidth: dark ? 0 : 1, borderColor: colors.border, borderRadius: 22, padding: 17 }}
+                style={{ backgroundColor: dark ? colors.dark : colors.surface, borderWidth: dark ? 0 : 1, borderColor: colors.border, borderRadius: 24, padding: 18 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: dark ? '#fff' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>

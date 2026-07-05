@@ -78,9 +78,9 @@ export default function BranchScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Now</Text>
@@ -95,7 +95,7 @@ export default function BranchScreen() {
         </View>
 
         {/* business heading */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 9 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 }}>
           <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(branch?.business_name)}</Text>
           </View>
@@ -106,7 +106,7 @@ export default function BranchScreen() {
             </Text>
           </View>
         </View>
-        <Text style={[t.h1, { marginBottom: 18 }]}>{branch?.business_name || 'Agency'}</Text>
+        <Text style={[t.h1, { marginBottom: 24 }]}>{branch?.business_name || 'Agency'}</Text>
 
         {servicesQuery.isLoading && <SkeletonCard height={230} />}
         {!!servicesQuery.error && !servicesQuery.isLoading && (
@@ -127,7 +127,7 @@ export default function BranchScreen() {
         {selected && (
           <>
             {/* service picker card */}
-            <View style={[t.cardLg, { padding: 16 }]}>
+            <View style={[t.cardLg, { padding: 18 }]}>
               <TouchableOpacity onPress={() => setPickerOpen(o => !o)} style={{ backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 13, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ minWidth: 0, flex: 1 }}>
                   <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>Choose your service</Text>
@@ -164,7 +164,7 @@ export default function BranchScreen() {
                 </View>
               )}
 
-              <View style={{ flexDirection: 'row', marginVertical: 16, marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', marginVertical: 22, marginBottom: 8 }}>
                 <ServiceStat value={Number(selected.waiting_count || 0)} label="in line" />
                 <View style={{ width: 1, backgroundColor: colors.border }} />
                 <ServiceStat value={`~${svcWait(selected)}`} unit="m" label="est. wait" />
@@ -172,7 +172,7 @@ export default function BranchScreen() {
                 <ServiceStat value={leaveIn(selected)} unit="m" label="leave in" accent />
               </View>
 
-              <TouchableOpacity onPress={() => join(selected)} style={{ backgroundColor: colors.dark, borderRadius: 18, height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 20, paddingRight: 8, marginTop: 14 }}>
+              <TouchableOpacity onPress={() => join(selected)} style={{ backgroundColor: colors.dark, borderRadius: 19, height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 22, paddingRight: 9, marginTop: 16 }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: '#fff' }}>Join this queue · ~{svcWait(selected)}m</Text>
                 <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 17 }}>→</Text>
@@ -181,7 +181,7 @@ export default function BranchScreen() {
             </View>
 
             {/* leave-in note */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#eef8fb', borderWidth: 1, borderColor: '#dbeef4', borderRadius: 18, padding: 13, paddingHorizontal: 15, marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#eef8fb', borderWidth: 1, borderColor: '#dbeef4', borderRadius: 19, padding: 15, paddingHorizontal: 16, marginTop: 16 }}>
               <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="time-outline" size={17} color={colors.accentDeep} />
               </View>
@@ -194,15 +194,15 @@ export default function BranchScreen() {
             {/* other services */}
             {others.length > 0 && (
               <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 13 }}>
+                <View style={t.sectionRow}>
                   <Text style={t.section}>Other services</Text>
                   <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{others.length} available</Text>
                 </View>
-                <View style={{ gap: 12 }}>
+                <View style={{ gap: 14 }}>
                   {others.map(s => {
                     const meta = statusMeta(statusFromWait(svcWait(s)));
                     return (
-                      <TouchableOpacity key={s.id} activeOpacity={0.85} onPress={() => setSelectedId(s.id)} style={[t.card, { padding: 16, borderRadius: 22 }]}>
+                      <TouchableOpacity key={s.id} activeOpacity={0.85} onPress={() => setSelectedId(s.id)} style={[t.card, { padding: 18, borderRadius: 24 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{s.name}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 5, paddingHorizontal: 10 }}>
@@ -210,7 +210,7 @@ export default function BranchScreen() {
                             <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.sub }}>{meta.label}</Text>
                           </View>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}>
                           <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>{Number(s.waiting_count || 0)}</Text>
                             <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, marginTop: 3 }}>in line</Text>

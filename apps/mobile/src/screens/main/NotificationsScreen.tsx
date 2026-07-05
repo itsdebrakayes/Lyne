@@ -65,10 +65,10 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 16 }]}>
+        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 20 }]}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={[t.h2, { marginBottom: 18 }]}>Notifications</Text>
+        <Text style={[t.h2, { marginBottom: 22 }]}>Notifications</Text>
 
         {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (
@@ -82,7 +82,7 @@ export default function NotificationsScreen() {
           </View>
         )}
 
-        <View style={{ gap: 11 }}>
+        <View style={{ gap: 12 }}>
           {notifications.map(n => (
             <TouchableOpacity
               key={n.id}

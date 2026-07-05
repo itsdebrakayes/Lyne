@@ -137,9 +137,9 @@ export default function TicketScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 36, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
@@ -165,7 +165,7 @@ export default function TicketScreen() {
           </View>
 
           {/* body */}
-          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center' }}>
+          <View style={{ padding: 24, paddingTop: 28, alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
             <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
             <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14 }}>
@@ -198,7 +198,7 @@ export default function TicketScreen() {
           </View>
 
           {/* barcode */}
-          <View style={{ padding: 22, paddingTop: 24, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginHorizontal: 20 }}>
+          <View style={{ padding: 24, paddingTop: 26, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginHorizontal: 22 }}>
             {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: colors.faint, marginTop: 4 }}>Show at registration to confirm it&apos;s you</Text>
@@ -216,7 +216,7 @@ export default function TicketScreen() {
         {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 12, textAlign: 'center' }}>{error}</Text>}
 
         {/* actions */}
-        <View style={{ marginTop: 22, flexDirection: 'row', gap: 11 }}>
+        <View style={{ marginTop: 28, flexDirection: 'row', gap: 12 }}>
           {active ? (
             <>
               <TouchableOpacity
