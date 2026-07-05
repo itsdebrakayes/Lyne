@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone           VARCHAR(50),
     national_id     VARCHAR(100),
     trn             VARCHAR(20),
+    is_premium      BOOLEAN      NOT NULL DEFAULT FALSE,
     date_of_birth   DATE,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

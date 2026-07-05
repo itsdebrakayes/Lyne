@@ -155,6 +155,23 @@ router.patch('/profile', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/auth/start-trial ───────────────────────────────
+// Unlocks QMe Premium (Smart Timing / visit planner) for this user.
+// Billing comes later — for now a trial start simply flips the flag.
+router.post('/start-trial', requireAuth, async (req, res) => {
+  if (!req.dbUser) {
+    return res.status(404).json({ error: 'No user record found. Please sync first.' });
+  }
+  try {
+    await pool.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [req.dbUser.id]);
+    const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
+    res.json({ user: updated[0] });
+  } catch (err) {
+    console.error('start-trial error:', err);
+    res.status(500).json({ error: 'Failed to start your trial.' });
+  }
+});
+
 // ── POST /api/auth/logout ──────────────────────────────────────
 // Revokes the current token and destroys the session record.
 // Client should also call supabase.auth.signOut() to clear local storage.

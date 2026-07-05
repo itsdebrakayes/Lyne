@@ -10,6 +10,7 @@ export interface UserProfile {
   phone?: string;
   national_id?: string;
   trn?: string;
+  is_premium?: boolean | number;
 }
 
 interface AuthMe {

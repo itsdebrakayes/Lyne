@@ -189,7 +189,7 @@ export default function BranchScreen() {
             </View>
 
             {/* premium best-time recommendation (live model output) */}
-            <BestTimeCard businessId={businessId} branchId={branchId} />
+            <BestTimeCard businessId={businessId} branchId={branchId} onPlan={() => navigation.navigate('Plan', { businessId, branchId })} />
 
             {/* other services */}
             {others.length > 0 && (

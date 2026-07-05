@@ -65,6 +65,108 @@ async function getPredictions(req, res, publicOnly = false) {
 
 router.get('/public', (req, res) => getPredictions(req, res, true));
 
+// ── GET /api/predictions/best-times ──────────────────────────
+// Public, computed live from the last 90 days of visit history:
+// the best (and worst) time to visit each service of a branch, plus a
+// 7-day quietness strip for the mobile "Plan your visit" section.
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function hourLabel(hour) {
+  if (hour === 12) return '12:00 PM';
+  return hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`;
+}
+
+function quietLevel(avgWait, min, max) {
+  if (max <= min) return 1;
+  const ratio = (avgWait - min) / (max - min);
+  return ratio <= 0.33 ? 1 : ratio <= 0.66 ? 2 : 3; // 1 quiet · 2 busy · 3 peak
+}
+
+router.get('/best-times', async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id || !branch_id) {
+      return res.status(400).json({ error: 'business_id and branch_id are required.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT s.id AS service_id, s.name AS service_name,
+              w.day_of_week AS dow, w.hour_of_day AS hour,
+              COUNT(*) AS visits,
+              ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait
+       FROM wait_time_records w
+       JOIN services s ON s.id = w.service_id
+       WHERE w.business_id = ? AND w.branch_id = ?
+         AND w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+         AND w.hour_of_day BETWEEN 8 AND 17
+       GROUP BY s.id, s.name, w.day_of_week, w.hour_of_day
+       HAVING COUNT(*) >= 2`,
+      [business_id, branch_id]
+    );
+
+    const byService = new Map();
+    rows.forEach((row) => {
+      const key = row.service_id;
+      if (!byService.has(key)) byService.set(key, { service_id: key, service_name: row.service_name, slots: [] });
+      byService.get(key).slots.push({ dow: Number(row.dow), hour: Number(row.hour), visits: Number(row.visits), avg_wait: Number(row.avg_wait) });
+    });
+
+    const decorate = (slot) => slot && ({
+      ...slot,
+      day_name: DAY_NAMES[slot.dow] || 'Any day',
+      hour_label: hourLabel(slot.hour),
+    });
+
+    const services = Array.from(byService.values()).map((service) => {
+      const slots = service.slots;
+      const best = [...slots].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0];
+      const busiest = [...slots].sort((a, b) => b.avg_wait - a.avg_wait || b.visits - a.visits)[0];
+
+      // Day-of-week averages → the 7-day quietness strip.
+      const dayTotals = Array.from({ length: 7 }, () => ({ waitTotal: 0, weight: 0 }));
+      slots.forEach((slot) => {
+        dayTotals[slot.dow].waitTotal += slot.avg_wait * slot.visits;
+        dayTotals[slot.dow].weight += slot.visits;
+      });
+      const dayAverages = dayTotals.map((day, dow) => ({
+        dow,
+        day_name: DAY_NAMES[dow],
+        avg_wait: day.weight ? Math.round((day.waitTotal / day.weight) * 10) / 10 : null,
+      }));
+      const known = dayAverages.filter((day) => day.avg_wait !== null);
+      const minWait = Math.min(...known.map((day) => day.avg_wait));
+      const maxWait = Math.max(...known.map((day) => day.avg_wait));
+      const week = dayAverages.map((day) => ({
+        ...day,
+        level: day.avg_wait === null ? 0 : quietLevel(day.avg_wait, minWait, maxWait),
+      }));
+      const quietestDay = known.sort((a, b) => a.avg_wait - b.avg_wait)[0];
+
+      return {
+        service_id: service.service_id,
+        service_name: service.service_name,
+        best: decorate(best),
+        busiest: decorate(busiest),
+        quietest_day: quietestDay || null,
+        week,
+      };
+    }).sort((a, b) => a.service_name.localeCompare(b.service_name));
+
+    // Branch-level rollup for the free tier: one honest headline window.
+    const allSlots = rows.map((row) => ({ dow: Number(row.dow), hour: Number(row.hour), visits: Number(row.visits), avg_wait: Number(row.avg_wait) }));
+    const branchBest = decorate([...allSlots].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]);
+
+    res.json({
+      window_days: 90,
+      branch_best: branchBest || null,
+      services,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to compute best visit times.' });
+  }
+});
+
 router.get(
   '/',
   requireAuth,

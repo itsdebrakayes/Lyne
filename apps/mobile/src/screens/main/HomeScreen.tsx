@@ -142,6 +142,21 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* smart timing — plan your visit */}
+        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 15, borderRadius: 22, marginBottom: 24 }]}>
+          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Plan your visit</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 1 }}>Best time for every service, at every branch</Text>
+          </View>
+          <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 8.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
+        </TouchableOpacity>
+
         {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (
           <ErrorCard

@@ -8,7 +8,7 @@
  * Renders nothing until data exists, so it never shows an empty shell.
  */
 import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
@@ -38,7 +38,7 @@ function formatHour(h?: number) {
   return `${h - 12} PM`;
 }
 
-export default function BestTimeCard({ businessId, branchId }: { businessId: string; branchId: string }) {
+export default function BestTimeCard({ businessId, branchId, onPlan }: { businessId: string; branchId: string; onPlan?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['best-time', businessId, branchId],
     queryFn: () => api.get<PredictionRow[]>(
@@ -93,6 +93,13 @@ export default function BestTimeCard({ businessId, branchId }: { businessId: str
             </View>
           ))}
         </View>
+      )}
+
+      {onPlan && (
+        <TouchableOpacity onPress={onPlan} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Plan your visit — every service, every branch</Text>
+          <Ionicons name="arrow-forward" size={14} color={colors.accent} />
+        </TouchableOpacity>
       )}
     </View>
   );
