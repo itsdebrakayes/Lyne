@@ -95,7 +95,7 @@ CREATE POLICY "Staff can view OCR results for active tickets"
         EXISTS (
             SELECT 1 FROM public.staff_roles sr
             WHERE sr.user_id = auth.uid()
-              AND sr.role IN ('line_staff', 'manager', 'executive')
+              AND sr.role IN ('staff', 'manager', 'executive')
         )
         AND EXISTS (
             SELECT 1 FROM public.visitor_sessions vs
@@ -212,7 +212,7 @@ BEGIN
                     OR EXISTS (
                         SELECT 1 FROM public.staff_roles sr
                         WHERE sr.user_id = auth.uid()
-                          AND sr.role IN (''line_staff'', ''manager'', ''executive'')
+                          AND sr.role IN (''staff'', ''manager'', ''executive'')
                     )
                 )
         ';
