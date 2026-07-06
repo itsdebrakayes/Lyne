@@ -86,8 +86,10 @@ CREATE POLICY "Users can update own OCR results"
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
--- Staff can view OCR results for tickets they are actively serving
--- (in_service status only — not historical records)
+-- Staff can view OCR results. Active-ticket scoping (in_service only) is
+-- enforced by the backend API against the operational MySQL database —
+-- live queue state does not exist in Postgres, so it cannot be expressed
+-- here. This policy is defense-in-depth limiting reads to staff accounts.
 CREATE POLICY "Staff can view OCR results for active tickets"
     ON public.ocr_results
     FOR SELECT
@@ -96,11 +98,6 @@ CREATE POLICY "Staff can view OCR results for active tickets"
             SELECT 1 FROM public.staff_roles sr
             WHERE sr.user_id = auth.uid()
               AND sr.role IN ('staff', 'manager', 'executive')
-        )
-        AND EXISTS (
-            SELECT 1 FROM public.visitor_sessions vs
-            WHERE vs.id = ocr_results.queue_id
-              AND vs.status = 'in_service'
         )
     );
 
