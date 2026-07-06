@@ -29,7 +29,8 @@
           "sounds": []
         }
       ],
-      "expo-location"
+      "expo-location",
+      "expo-font"
     ],
     "extra": {
       "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",

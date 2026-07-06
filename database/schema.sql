@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone           VARCHAR(50),
     national_id     VARCHAR(100),
     trn             VARCHAR(20),
+    is_premium      BOOLEAN      NOT NULL DEFAULT FALSE,
     date_of_birth   DATE,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -473,6 +474,23 @@ CREATE TABLE IF NOT EXISTS device_push_tokens (
     PRIMARY KEY (id),
     UNIQUE KEY uk_device_push_token (expo_push_token),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Executive-set operational targets with a chosen horizon.
+CREATE TABLE IF NOT EXISTS business_targets (
+    business_id            CHAR(36)  NOT NULL,
+    target_wait_minutes    INT       NOT NULL DEFAULT 20,
+    target_completion_rate INT       NOT NULL DEFAULT 80,
+    target_no_show_rate    INT       NOT NULL DEFAULT 10,
+    horizon_months         INT       NOT NULL DEFAULT 6,
+    target_date            DATE      NULL,
+    note                   VARCHAR(255) NULL,
+    set_by_staff_id        CHAR(36)  NULL,
+    created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id),
+    FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+    FOREIGN KEY (set_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

@@ -29,6 +29,7 @@ const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
+const { sendPushToUser } = require('../utils/pushSender');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -104,13 +105,30 @@ async function inferActiveCounter(conn, staffId, queueId) {
   return rows[0]?.id || null;
 }
 
+const PUSH_TITLES = {
+  called: "It's your turn!",
+  no_show: 'You lost your place in line',
+};
+
+/**
+ * Records an in-app notification row inside the caller's transaction and
+ * returns the matching push payload. The caller must deliver the push with
+ * sendPushToUser AFTER the transaction commits, so a rollback never
+ * produces a phantom notification on the customer's phone.
+ */
 async function notifyTicketUser(conn, ticket, notificationType, message) {
-  if (!ticket?.user_id) return;
+  if (!ticket?.user_id) return null;
   await conn.query(
     `INSERT INTO notifications (id, user_id, ticket_id, notification_type, channel, message)
      VALUES (?, ?, ?, ?, 'push', ?)`,
     [uuidv4(), ticket.user_id, ticket.id, notificationType, message]
   );
+  return {
+    userId: ticket.user_id,
+    title: PUSH_TITLES[notificationType] || 'Queue update',
+    body: message,
+    data: { ticketId: ticket.id, type: notificationType },
+  };
 }
 
 // POST /api/tickets — Join a queue
@@ -134,6 +152,26 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Queue not found or is closed.' });
     }
     const queue = queues[0];
+
+    // One live ticket per customer — a person cannot hold places in several
+    // lines at once, and the apps are built around a single active ticket.
+    if (req.dbUser?.id) {
+      const [activeRows] = await conn.query(
+        `SELECT t.ticket_number, s.name AS service_name
+         FROM queue_tickets t
+         JOIN queues q ON q.id = t.queue_id
+         LEFT JOIN services s ON s.id = q.service_id
+         WHERE t.user_id = ? AND t.status IN ('waiting', 'called', 'in_service')
+         LIMIT 1`,
+        [req.dbUser.id]
+      );
+      if (activeRows.length) {
+        await conn.rollback();
+        return res.status(409).json({
+          error: `You are already in line (${activeRows[0].ticket_number} · ${activeRows[0].service_name || 'current queue'}). Leave or finish that queue before joining another.`,
+        });
+      }
+    }
 
     // Count WAITING only — in_service are being served and should not block capacity
     const [countRows] = await conn.query(
@@ -371,6 +409,7 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT t.*,
               q.branch_id, q.service_id, q.queue_date,
+              b.business_id,
               b.name AS branch_name,
               s.name AS service_name,
               (SELECT COUNT(*) + 1
@@ -595,19 +634,20 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       [uuidv4(), ticket.id, prevStatus, new_status, req.dbStaff?.id || null, notes || null]
     );
 
+    let pendingPush = null;
     if (new_status === 'called') {
-      await notifyTicketUser(
+      pendingPush = await notifyTicketUser(
         conn,
         ticket,
         'called',
         `${ticket.ticket_number} is being called for ${ticket.service_name}. Please come to the front and show your verification code.`
       );
     } else if (new_status === 'no_show') {
-      await notifyTicketUser(
+      pendingPush = await notifyTicketUser(
         conn,
         ticket,
         'no_show',
-        `${ticket.ticket_number} was marked no-show and skipped in the line. Please speak with staff if you still need service.`
+        `${ticket.ticket_number} was marked as a no-show because the call window expired, and your place in line was released. You can rejoin the queue from the app, or speak with staff at the branch if you are on site.`
       );
     }
 
@@ -643,6 +683,12 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     await conn.commit();
+
+    // Deliver the push only after the transaction is durable.
+    if (pendingPush) {
+      sendPushToUser(pendingPush.userId, pendingPush).catch(() => {});
+    }
+
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
     broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
@@ -799,7 +845,21 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
       );
     }
 
+    const pendingPush = await notifyTicketUser(
+      conn,
+      ticket,
+      'queue_update',
+      disposition === 'remove'
+        ? `${ticket.ticket_number} was removed from the line by staff. Please speak with staff or rejoin the queue if you still need service.`
+        : `${ticket.ticket_number} was skipped for now but kept near the front of the line. Head to the counter so you don't miss the next call.`
+    );
+
     await conn.commit();
+
+    if (pendingPush) {
+      sendPushToUser(pendingPush.userId, pendingPush).catch(() => {});
+    }
+
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
     broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);

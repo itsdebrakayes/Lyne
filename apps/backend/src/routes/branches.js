@@ -54,7 +54,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT br.*, b.name AS business_name, b.slug AS business_slug
+      `SELECT br.*, b.name AS business_name, b.slug AS business_slug,
+              (SELECT COUNT(*) FROM queues q
+               WHERE q.branch_id = br.id AND q.is_active = TRUE
+                 AND q.queue_date = CURDATE()) AS open_queues
        FROM branches br
        JOIN businesses b ON br.business_id = b.id
        WHERE br.id = ?`,

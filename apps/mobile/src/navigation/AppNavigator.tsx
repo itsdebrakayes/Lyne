@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { colors } from '../lib/theme';
 
 // Auth screens
 import LoginScreen    from '../screens/auth/LoginScreen';
@@ -16,7 +17,9 @@ import HomeScreen       from '../screens/main/HomeScreen';
 import SearchScreen     from '../screens/main/SearchScreen';
 import SavedScreen      from '../screens/main/SavedScreen';
 import HistoryScreen    from '../screens/main/HistoryScreen';
+import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
+import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -30,6 +33,8 @@ export type RootStackParamList = {
   Signup:     undefined;
   Main:       undefined;
   History:    undefined;
+  Notifications: undefined;
+  Plan:       { businessId?: string; branchId?: string } | undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -88,8 +93,8 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#ffffff" />
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -106,6 +111,8 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
             <Stack.Screen name="History"   component={HistoryScreen}   />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />

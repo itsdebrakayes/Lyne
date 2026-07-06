@@ -75,6 +75,11 @@ function monthBounds(month) {
   };
 }
 
+function safeServiceId(value) {
+  const raw = String(value || '').trim();
+  return /^[0-9a-zA-Z_-]{4,64}$/.test(raw) ? raw : null;
+}
+
 function normalizeScore(value, max, higherIsBetter = true) {
   const numeric = Number(value || 0);
   const limit = Number(max || 0);
@@ -93,6 +98,39 @@ router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), re
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const serviceId = safeServiceId(req.query.service_id);
+    if (serviceId) {
+      // analytics_summaries has no service dimension, so service-scoped
+      // summaries are computed live from wait_time_records.
+      const conditions = ['w.business_id = ?', 'w.service_id = ?'];
+      const params = [scopedBusinessId(req, business_id), serviceId];
+      const scopedBranch = scopedBranchId(req, branch_id);
+      if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+      if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
+      if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
+      else           { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+
+      const [rows] = await pool.query(
+        `SELECT w.visit_date AS summary_date,
+                w.branch_id,
+                b.name AS branch_name,
+                COUNT(*)                              AS total_visitors,
+                SUM(w.status = 'served')              AS completed_count,
+                SUM(w.status = 'no_show')             AS no_show_count,
+                SUM(w.status = 'cancelled')           AS left_count,
+                ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
+                ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
+                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate
+         FROM wait_time_records w
+         LEFT JOIN branches b ON w.branch_id = b.id
+         WHERE ${conditions.join(' AND ')}
+         GROUP BY w.visit_date, w.branch_id, b.name
+         ORDER BY w.visit_date DESC`,
+        params
+      );
+      return res.json(rows);
+    }
 
     const conditions = ['a.business_id = ?'];
     const params = [scopedBusinessId(req, business_id)];
@@ -343,6 +381,8 @@ router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), re
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const heatmapService = safeServiceId(req.query.service_id);
+    if (heatmapService) { conditions.push('w.service_id = ?'); params.push(heatmapService); }
 
     const [rows] = await pool.query(
       `SELECT w.day_of_week AS dow,
@@ -374,6 +414,8 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const serviceFilter = safeServiceId(req.query.service_id);
+    if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
 
     const [rows] = await pool.query(
       `SELECT s.id AS service_id, s.name AS service_name,
@@ -398,6 +440,79 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
   }
 });
 
+// Demand breakdown — dot-matrix heatmap. Rows are services (manager) or
+// branches (executive); columns are hour-of-day or day-of-week.
+router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const rowsBy = req.query.rows === 'branch' ? 'branch' : 'service';
+    const bucket = req.query.by === 'dow' ? 'w.day_of_week' : 'w.hour_of_day';
+
+    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const serviceFilter = safeServiceId(req.query.service_id);
+    if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
+
+    const rowJoin = rowsBy === 'branch'
+      ? 'JOIN branches rw ON w.branch_id = rw.id'
+      : 'JOIN services rw ON w.service_id = rw.id';
+
+    const [rows] = await pool.query(
+      `SELECT rw.id AS row_id, rw.name AS row_name,
+              ${bucket} AS bucket,
+              COUNT(*)                           AS visit_count,
+              ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait
+       FROM wait_time_records w
+       ${rowJoin}
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY rw.id, rw.name, ${bucket}
+       ORDER BY rw.name, bucket`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch demand breakdown.' });
+  }
+});
+
+// Weekly busyness per service — day-of-week traffic for each service
+router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const serviceFilter = safeServiceId(req.query.service_id);
+    if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
+
+    const [rows] = await pool.query(
+      `SELECT s.id AS service_id, s.name AS service_name,
+              w.day_of_week AS dow,
+              COUNT(*)                              AS visit_count,
+              ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait,
+              SUM(w.status = 'served')              AS completed,
+              SUM(w.status = 'no_show')             AS no_shows
+       FROM wait_time_records w
+       JOIN services s ON w.service_id = s.id
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY s.id, s.name, w.day_of_week
+       ORDER BY s.name, w.day_of_week`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch weekly service busyness.' });
+  }
+});
+
 // Staff performance
 router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
@@ -408,6 +523,8 @@ router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requ
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('st.branch_id = ?'); params.push(scopedBranch); }
+    const staffServiceFilter = safeServiceId(req.query.service_id);
+    if (staffServiceFilter) { conditions.push('q.service_id = ?'); params.push(staffServiceFilter); }
 
     const [rows] = await pool.query(
       `SELECT st.id AS staff_id, st.full_name, st.staff_code,
@@ -415,6 +532,7 @@ router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requ
               ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS avg_handle_minutes
        FROM queue_tickets t
        JOIN staff st ON t.served_by_staff_id = st.id
+       JOIN queues q ON q.id = t.queue_id
        WHERE ${conditions.join(' AND ')}
          AND t.started_serving_at IS NOT NULL AND t.completed_at IS NOT NULL
        GROUP BY st.id, st.full_name, st.staff_code
@@ -438,6 +556,8 @@ router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const trendServiceFilter = safeServiceId(req.query.service_id);
+    if (trendServiceFilter) { conditions.push('w.service_id = ?'); params.push(trendServiceFilter); }
     const [rows] = await pool.query(
       `SELECT b.id AS branch_id, b.name AS branch_name, biz.name AS business_name,
               w.visit_date,

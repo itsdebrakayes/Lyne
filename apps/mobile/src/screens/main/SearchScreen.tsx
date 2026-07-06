@@ -1,41 +1,116 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, v3 } from '../../lib/mobileV3Styles';
+import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitLabel } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
-import { BranchRow, MiniTabBar } from './HomeScreen';
+import { TabBar } from '../../components/TabBar';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
-  const { data: branches = [], isLoading, error } = useQuery({
+  const [refreshing, setRefreshing] = useState(false);
+  const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
   const results = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return branches;
-    return branches.filter(branch => [branch.name, branch.business_name, branch.city, branch.parish].some(value => value?.toLowerCase().includes(term)));
+    return branches.filter(b => [b.name, b.business_name, b.city, b.parish].some(v => v?.toLowerCase().includes(term)));
   }, [branches, search]);
 
+  const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
+
   return (
-    <View style={v3.root}>
-      <ScrollView contentContainerStyle={v3.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="chevron-back" size={22} color={colors.text} /></TouchableOpacity>
-          <View style={[v3.search, { flex: 1, height: 46, borderRadius: 14 }]}><Ionicons name="search-outline" size={17} color={colors.text} /><TextInput autoFocus value={search} onChangeText={setSearch} style={v3.searchText} placeholder="Search branches" placeholderTextColor={colors.muted} /></View>
+    <View style={t.root}>
+      <ScrollView
+        contentContainerStyle={t.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+      >
+        {/* search bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 22 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23, height: 46, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+            <Ionicons name="search-outline" size={16} color={colors.ink} />
+            <TextInput autoFocus value={search} onChangeText={setSearch} style={[{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.ink }, inputReset]} placeholder="Search agencies & branches" placeholderTextColor={colors.muted} />
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}><Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Search results</Text><Text style={v3.small}>{results.length} branches</Text></View>
-        {isLoading && <ActivityIndicator color={colors.text} style={{ marginTop: 32 }} />}
-        {!!error && <Text style={{ color: colors.danger, fontWeight: '700' }}>Search is unavailable while the live service is offline.</Text>}
-        {!isLoading && !error && results.length === 0 && <Text style={{ color: colors.muted, fontWeight: '600' }}>No matching branches found.</Text>}
-        {results.map((branch, index) => <BranchRow key={branch.id} branch={branch} dark={index === 0} />)}
+
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
+          <Text style={t.section}>Result branches</Text>
+          <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{results.length} found</Text>
+        </View>
+
+        {isLoading && <SkeletonRows count={5} />}
+        {!!error && !isLoading && (
+          <ErrorCard
+            title="Search is offline"
+            message="Live branch data could not be loaded. Pull down or tap to retry."
+            onRetry={() => refetch()}
+          />
+        )}
+        {!isLoading && !error && results.length === 0 && (
+          <EmptyCard
+            icon="search-outline"
+            title={search.trim() ? `No matches for “${search.trim()}”` : 'No branches yet'}
+            message={search.trim() ? 'Try a different agency, branch, or parish name.' : 'Branches will appear here as agencies come online.'}
+          />
+        )}
+
+        <View style={{ gap: 12 }}>
+          {results.map((b, index) => {
+            const wait = Math.round(Number(b.avg_wait_minutes || 0));
+            const meta = statusMeta(statusFromWait(wait));
+            const dark = index === 0;
+            const ink = dark ? '#fff' : colors.ink;
+            const muted = dark ? 'rgba(255,255,255,.55)' : colors.muted;
+            return (
+              <TouchableOpacity
+                key={b.id}
+                activeOpacity={0.9}
+                onPress={() => openBranch(b)}
+                style={{ backgroundColor: dark ? colors.dark : colors.surface, borderWidth: dark ? 0 : 1, borderColor: colors.border, borderRadius: 24, padding: 18 }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: dark ? '#fff' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{initials(b.business_name)}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13.5, color: ink }}>{b.business_name}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 11.5, color: muted }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 13, color: dark ? colors.accent : colors.accentDeep }}>{waitLabel(wait)}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: muted }}>{Number(b.total_waiting || 0)} in line</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14 }}>
+                  <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 19, color: ink, letterSpacing: -0.4 }}>{b.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
+                    <Text style={{ fontFamily: font.bold, fontSize: 11, color: muted }}>{meta.label}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
-      <MiniTabBar active="Search" />
+      <TabBar active="Search" />
     </View>
   );
 }
