@@ -8,6 +8,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
+import { GlassView } from '../../components/Glass';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 function timeGreeting() {
@@ -96,20 +97,23 @@ export default function HomeScreen() {
         </View>
 
         {/* search */}
-        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={[t.search, { marginBottom: 28 }]}>
-          <Ionicons name="search-outline" size={17} color={colors.muted} />
-          <Text style={t.searchText}>Search agencies & branches</Text>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Search')} style={{ marginBottom: 28 }}>
+          <GlassView radius={26} intensity={45} style={{ height: 54, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, ...shadow.card }}>
+            <Ionicons name="search-outline" size={17} color={colors.muted} />
+            <Text style={t.searchText}>Search agencies & branches</Text>
+          </GlassView>
         </TouchableOpacity>
 
-        {/* quick actions */}
+        {/* quick actions — glass cards */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 }}>
           {QUICK.map(q => {
             const tint = categoryTints[q.tint];
             return (
-              <TouchableOpacity key={q.label} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
-                <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: tint.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
+                <GlassView radius={20} intensity={38} style={{ width: 58, height: 58, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: 0.55 }} />
                   <Ionicons name={q.icon} size={22} color={tint.fg} />
-                </View>
+                </GlassView>
                 <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.sub }}>{q.label}</Text>
               </TouchableOpacity>
             );
@@ -151,18 +155,20 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* smart timing — plan your visit */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, borderRadius: 24, marginBottom: 8 }]}>
-          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Plan your visit</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 1 }}>Best time for every service, at every branch</Text>
-          </View>
-          <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 8.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
+        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
+          <GlassView radius={24} intensity={40} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, ...shadow.card }}>
+            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Plan your visit</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 1 }}>Best time for every service, at every branch</Text>
+            </View>
+            <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 8.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
+          </GlassView>
         </TouchableOpacity>
 
         {isLoading && <SkeletonRows count={4} />}
@@ -207,19 +213,16 @@ export default function HomeScreen() {
                 const wait = Math.round(Number(b.avg_wait_minutes || 0));
                 const meta = statusMeta(statusFromWait(wait));
                 return (
-                  <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={t.listRow}>
-                    <Monogram label={initials(b.business_name)} size={48} radius={16} bg={colors.surfaceAlt} border={false} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{b.name}</Text>
-                      <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{b.business_name} · {[b.city, b.parish].filter(Boolean)[0] || ''}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{waitShort(wait)}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={[t.listRow, { paddingVertical: 16, paddingRight: 18, gap: 15 }]}>
+                    <Monogram label={initials(b.business_name)} size={46} radius={15} bg={colors.surfaceAlt} border={false} />
+                    <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+                      <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink, letterSpacing: -0.2 }}>{b.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                        <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted }}>{meta.label}</Text>
+                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{meta.label} · {[b.city, b.parish].filter(Boolean)[0] || b.business_name}</Text>
                       </View>
                     </View>
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{waitShort(wait)}</Text>
                   </TouchableOpacity>
                 );
               })}

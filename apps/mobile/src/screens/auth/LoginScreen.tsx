@@ -7,7 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
-import { colors, font, inputReset, shadow } from '../../lib/theme';
+import { GlassView } from '../../components/Glass';
+import { colors, font, inputReset } from '../../lib/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -29,76 +30,69 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* background layers must never intercept touches */}
-      <LinearGradient pointerEvents="none" colors={['#0b1512', '#101d18', '#15231c']} style={StyleSheet.absoluteFill} />
-      <Text pointerEvents="none" style={styles.ghost}>Q</Text>
+      {/* neutral light source — a soft white streak from the top-right */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0.3, y: 0.55 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
-          <View style={styles.logoWrap}>
-            <View style={styles.logoRing}><Text style={styles.logoRingText}>Q</Text></View>
-            <Text style={styles.wordmark}>QME NOW</Text>
-            <Text style={styles.tagline}>Skip the line, not your day.</Text>
-          </View>
+          <GlassView tint="dark" radius={28} intensity={45} style={styles.sheet}>
+            <View style={{ padding: 26, paddingVertical: 30 }}>
+              <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+              <Text style={styles.title}>Sign In</Text>
+              <Text style={styles.subtitle}>Please enter your details to sign in.</Text>
 
-          <View style={styles.sheet}>
-            <Text style={styles.overline}>WELCOME BACK</Text>
-            <Text style={styles.title}>Sign in</Text>
+              {!!error && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={14} color="#ff8f8f" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
 
-            {!!error && (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={15} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <Text style={styles.label}>EMAIL</Text>
-            <TextInput
-              style={[styles.input, focused === 'email' && styles.inputFocused, inputReset]}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.faint}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-
-            <Text style={styles.label}>PASSWORD</Text>
-            <View style={[styles.input, styles.passwordRow, focused === 'password' && styles.inputFocused]}>
               <TextInput
-                style={[styles.passwordInput, inputReset]}
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setFocused('password')}
+                style={[styles.input, focused === 'email' && styles.inputFocused, inputReset]}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setFocused('email')}
                 onBlur={() => setFocused(null)}
-                placeholder="••••••••"
-                placeholderTextColor={colors.faint}
-                secureTextEntry={!showPassword}
-                autoComplete="current-password"
+                placeholder="Enter your email address"
+                placeholderTextColor="rgba(255,255,255,0.38)"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
               />
-              <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
+
+              <View style={[styles.input, styles.passwordRow, focused === 'password' && styles.inputFocused]}>
+                <TextInput
+                  style={[styles.passwordInput, inputReset]}
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setFocused('password')}
+                  onBlur={() => setFocused(null)}
+                  placeholder="Password"
+                  placeholderTextColor="rgba(255,255,255,0.38)"
+                  secureTextEntry={!showPassword}
+                  autoComplete="current-password"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={17} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+                {loading ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.btnText}>Sign in</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
+                <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : (
-                <>
-                  <Text style={styles.btnText}>Sign in</Text>
-                  <View style={styles.btnChip}><Ionicons name="arrow-forward" size={17} color={colors.accentInk} /></View>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
-              <Text style={styles.switchText}>New to QMe Now?  <Text style={styles.switchBold}>Create an account</Text></Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.footnote}>Live queues · Real wait times · Arrive on time</Text>
+          </GlassView>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -106,55 +100,39 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#101d18' },
-  ghost: {
-    position: 'absolute', top: -60, right: -70,
-    fontFamily: font.extra, fontSize: 420, color: 'rgba(255,255,255,0.025)',
+  container: { flex: 1, backgroundColor: '#0a0d0c' },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26 },
+  sheet: {
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 40, shadowOffset: { width: 0, height: 22 }, elevation: 12,
   },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 34 },
-  logoRing: {
-    width: 74, height: 74, borderRadius: 37,
-    borderWidth: 1.5, borderColor: 'rgba(31,194,222,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+  logo: {
+    width: 52, height: 52, borderRadius: 16, alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 18,
   },
-  logoRingText: { color: colors.accent, fontFamily: font.extra, fontSize: 32 },
-  wordmark: { fontFamily: font.extra, fontSize: 24, color: '#fff', letterSpacing: 6 },
-  tagline: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 8, letterSpacing: 0.3 },
-  sheet: {
-    backgroundColor: 'rgba(255,255,255,0.985)', borderRadius: 32, padding: 26, paddingTop: 24,
-    ...shadow.hero,
-  },
-  overline: { fontFamily: font.extra, fontSize: 10.5, color: colors.accentDeep, letterSpacing: 2 },
-  title: { fontFamily: font.extra, fontSize: 27, color: colors.ink, letterSpacing: -0.6, marginTop: 4, marginBottom: 18 },
+  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 24 },
+  title: { fontFamily: font.extra, fontSize: 24, color: '#fff', textAlign: 'center', letterSpacing: -0.4 },
+  subtitle: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 7, marginBottom: 26 },
   errorBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#fdf0ef', borderWidth: 1, borderColor: '#f5d8d6',
-    borderRadius: 13, padding: 11, marginBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(229,72,77,0.14)', borderWidth: 1, borderColor: 'rgba(229,72,77,0.28)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16,
   },
-  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#b3383d', lineHeight: 17 },
-  label: { fontFamily: font.extra, fontSize: 10.5, color: colors.muted, letterSpacing: 1.4, marginBottom: 7, marginTop: 6 },
+  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#ffb4b4' },
   input: {
-    backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border,
-    borderRadius: 16, paddingHorizontal: 16, height: 54,
-    fontFamily: font.semibold, color: colors.ink, fontSize: 15, marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14, paddingHorizontal: 16, height: 52,
+    fontFamily: font.medium, color: '#fff', fontSize: 14.5, marginBottom: 14,
   },
-  inputFocused: { borderColor: colors.accentDeep, backgroundColor: '#fff' },
+  inputFocused: { borderColor: 'rgba(31,194,222,0.7)', backgroundColor: 'rgba(255,255,255,0.09)' },
   passwordRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 14 },
-  passwordInput: { flex: 1, height: '100%', fontFamily: font.semibold, color: colors.ink, fontSize: 15 },
+  passwordInput: { flex: 1, height: '100%', fontFamily: font.medium, color: '#fff', fontSize: 14.5 },
   btn: {
-    backgroundColor: colors.dark, borderRadius: 18, height: 58,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingLeft: 22, paddingRight: 8, marginTop: 12,
+    backgroundColor: '#fff', borderRadius: 14, height: 54,
+    alignItems: 'center', justifyContent: 'center', marginTop: 6,
   },
-  btnText: { fontFamily: font.extra, color: '#fff', fontSize: 15.5 },
-  btnChip: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  switchRow: { alignItems: 'center', marginTop: 18 },
-  switchText: { fontFamily: font.medium, fontSize: 13, color: colors.muted },
-  switchBold: { fontFamily: font.extra, color: colors.ink },
-  footnote: {
-    fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,0.35)',
-    textAlign: 'center', marginTop: 26, letterSpacing: 0.8,
-  },
+  btnText: { fontFamily: font.bold, color: colors.ink, fontSize: 15 },
+  switchRow: { alignItems: 'center', marginTop: 22 },
+  switchText: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  switchBold: { fontFamily: font.bold, color: '#fff' },
 });

@@ -130,45 +130,47 @@ export default function SavedScreen() {
           />
         )}
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
-          {shownSaved.map((company, index) => {
-            const dark = index % 2 === 0;
-            const best = bestBranch(company.id);
-            const list = branchesByBusiness[company.id] || [];
-            return (
-              <TouchableOpacity
-                key={company.id}
-                activeOpacity={0.9}
-                onPress={() => openBranch(best)}
-                style={{
-                  width: '47.5%', flexGrow: 1, borderRadius: 26, padding: 18, minHeight: 172,
-                  backgroundColor: dark ? colors.dark : colors.surface,
-                  borderWidth: dark ? 0 : 1, borderColor: colors.border,
-                  ...(dark ? shadow.hero : shadow.card),
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                  <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: dark ? '#fff' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{initials(company.name)}</Text>
+        {shownSaved.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingRight: 8, paddingVertical: 4 }}>
+            {shownSaved.map((company, index) => {
+              const dark = index % 2 === 0;
+              const best = bestBranch(company.id);
+              const list = branchesByBusiness[company.id] || [];
+              return (
+                <TouchableOpacity
+                  key={company.id}
+                  activeOpacity={0.9}
+                  onPress={() => openBranch(best)}
+                  style={{
+                    width: 230, borderRadius: 26, padding: 18, minHeight: 178,
+                    backgroundColor: dark ? colors.dark : colors.surface,
+                    borderWidth: dark ? 0 : 1, borderColor: colors.border,
+                    ...(dark ? shadow.hero : shadow.card),
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: dark ? '#fff' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{initials(company.name)}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => unsave.mutate(company.id)} disabled={unsave.isPending} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="bookmark" size={17} color={dark ? colors.accent : colors.ink} />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => unsave.mutate(company.id)} disabled={unsave.isPending} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="bookmark" size={16} color={dark ? colors.accent : colors.ink} />
-                  </TouchableOpacity>
-                </View>
-                <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 15.5, lineHeight: 20, color: dark ? '#fff' : colors.ink, letterSpacing: -0.3, marginTop: 14 }}>{company.name}</Text>
-                <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: dark ? 'rgba(255,255,255,.5)' : colors.muted, marginTop: 4 }}>
-                  {list.length} {list.length === 1 ? 'branch' : 'branches'}{best ? ` · ${waitShort(best.avg_wait_minutes)} wait` : ''}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 14 }}>
-                  <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 11, color: dark ? 'rgba(255,255,255,.55)' : colors.muted }}>{best ? best.name : 'No live branch'}</Text>
-                  <View style={{ width: 30, height: 30, borderRadius: 11, backgroundColor: dark ? colors.accent : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="arrow-forward" size={14} color={dark ? colors.accentInk : '#fff'} />
+                  <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 16, lineHeight: 21, color: dark ? '#fff' : colors.ink, letterSpacing: -0.3, marginTop: 15 }}>{company.name}</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: dark ? 'rgba(255,255,255,.5)' : colors.muted, marginTop: 5 }}>
+                    {list.length} {list.length === 1 ? 'branch' : 'branches'}{best ? ` · ${waitShort(best.avg_wait_minutes)} wait` : ''}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 16 }}>
+                    <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 11, color: dark ? 'rgba(255,255,255,.55)' : colors.muted }}>{best ? best.name : 'No live branch'}</Text>
+                    <View style={{ width: 32, height: 32, borderRadius: 12, backgroundColor: dark ? colors.accent : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="arrow-forward" size={15} color={dark ? colors.accentInk : '#fff'} />
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* recent lines */}
         {recentLines.length > 0 && (
