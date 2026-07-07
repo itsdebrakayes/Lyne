@@ -152,17 +152,38 @@ export function initials(value?: string) {
 // and m below their header; cards pad with l; grouped items gap with s/m.
 export const space = { xs: 6, s: 10, m: 14, l: 20, xl: 32, xxl: 44 } as const;
 
+/**
+ * Type scale — one consistent ramp with a readable floor (per the typography
+ * spec: Headline 24 · Subheadline 16 · Body 14 · Button 16, no big jumps,
+ * nothing below ~13). Card content uses `cardTitle` / `subhead` / `bodySm`;
+ * screen titles use `display` / `title`. Never hand-set a fontSize below 13
+ * for readable text — use `tag`/`overline` (uppercase, tracked) if smaller.
+ */
+export const type = {
+  display:   { fontFamily: font.extra,    fontSize: 28,   letterSpacing: -0.6, lineHeight: 33 },
+  title:     { fontFamily: font.extra,    fontSize: 22,   letterSpacing: -0.5, lineHeight: 27 },
+  section:   { fontFamily: font.extra,    fontSize: 18,   letterSpacing: -0.3, lineHeight: 23 },
+  cardTitle: { fontFamily: font.bold,     fontSize: 16.5, letterSpacing: -0.3, lineHeight: 21 },
+  subhead:   { fontFamily: font.semibold, fontSize: 14,   lineHeight: 19 },
+  body:      { fontFamily: font.medium,   fontSize: 14.5, lineHeight: 21 },
+  bodySm:    { fontFamily: font.medium,   fontSize: 13.5, lineHeight: 19 },
+  callout:   { fontFamily: font.semibold, fontSize: 13,   lineHeight: 17 },
+  button:    { fontFamily: font.bold,     fontSize: 16 },
+  buttonSm:  { fontFamily: font.bold,     fontSize: 14 },
+  tag:       { fontFamily: font.bold,     fontSize: 12,   letterSpacing: 0.2 },
+} as const;
+
 export const t = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
 
-  // typography
-  h1: { fontFamily: font.extra, fontSize: 29, color: colors.ink, letterSpacing: -0.8, lineHeight: 34 },
-  h2: { fontFamily: font.extra, fontSize: 26, color: colors.ink, letterSpacing: -0.6, lineHeight: 31 },
+  // typography (mirrors the `type` scale — readable floors, consistent ramp)
+  h1: { fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.6, lineHeight: 33 },
+  h2: { fontFamily: font.extra, fontSize: 24, color: colors.ink, letterSpacing: -0.5, lineHeight: 29 },
   section: { fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3 },
   body: { fontFamily: font.medium, fontSize: 14.5, color: colors.ink, lineHeight: 21 },
-  small: { fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, lineHeight: 18 },
-  micro: { fontFamily: font.bold, fontSize: 10.5, color: colors.muted, letterSpacing: 0.5 },
+  small: { fontFamily: font.semibold, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  micro: { fontFamily: font.bold, fontSize: 12, color: colors.muted, letterSpacing: 0.3 },
   overline: { fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 1.4, textTransform: 'uppercase' },
 
   // section header row: generous air above, a clear beat before content
@@ -178,7 +199,7 @@ export const t = StyleSheet.create({
   searchText: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted },
 
   primaryBtn: { backgroundColor: colors.dark, borderRadius: 19, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
-  primaryBtnText: { fontFamily: font.extra, fontSize: 15.5, color: colors.onDark },
+  primaryBtnText: { fontFamily: font.bold, fontSize: 16, color: colors.onDark },
   ghostBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 19, minHeight: 58, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
 
   // rows / tiles

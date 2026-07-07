@@ -155,37 +155,37 @@ export default function TicketScreen() {
               <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(ticket.branch_name)}</Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 11, color: 'rgba(255,255,255,.55)' }}>{ticket.service_name || 'Service'}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{ticket.service_name || 'Service'}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 11 }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-              <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent }}>LIVE</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>LIVE</Text>
             </View>
           </View>
 
           {/* body */}
           <View style={{ padding: 24, paddingTop: 28, alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
             <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
-            <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
+            <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 15 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 13, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
             </View>
             {called && (
-              <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, textAlign: 'center', marginTop: 12, lineHeight: 18 }}>
+              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.sub, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
                 Go to the counter and show the code below before the call window closes.
               </Text>
             )}
             {active && !called && !inService && (
-              <View style={{ flexDirection: 'row', marginTop: 22, alignSelf: 'stretch' }}>
+              <View style={{ flexDirection: 'row', marginTop: 24, alignSelf: 'stretch' }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink }}>{ahead}</Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted, marginTop: 5 }}>ahead of you</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ahead}</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>ahead of you</Text>
                 </View>
                 <View style={{ width: 1, backgroundColor: colors.border }} />
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted, marginTop: 5 }}>est. wait</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>est. wait</Text>
                 </View>
               </View>
             )}
@@ -200,8 +200,8 @@ export default function TicketScreen() {
           {/* barcode */}
           <View style={{ padding: 24, paddingTop: 26, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginHorizontal: 22 }}>
             {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
-            <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: colors.faint, marginTop: 4 }}>Show at registration to confirm it&apos;s you</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.faint, marginTop: 5 }}>Show at registration to confirm it&apos;s you</Text>
           </View>
         </View>
 

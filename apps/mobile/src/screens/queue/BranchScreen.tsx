@@ -17,7 +17,7 @@ function ServiceStat({ value, unit, label, accent }: { value: React.ReactNode; u
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <Text style={{ fontFamily: font.extra, fontSize: 22, color: accent ? colors.accentDeep : colors.ink }}>{value}{unit ? <Text style={{ fontSize: 12 }}>{unit}</Text> : null}</Text>
-      <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted, marginTop: 5 }}>{label}</Text>
+      <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>{label}</Text>
     </View>
   );
 }
@@ -97,7 +97,7 @@ export default function BranchScreen() {
         {/* business heading */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 }}>
           <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(branch?.business_name)}</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{initials(branch?.business_name)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: Number(branch?.open_queues) > 0 ? colors.light : colors.faint }} />
@@ -130,8 +130,8 @@ export default function BranchScreen() {
             <View style={[t.cardLg, { padding: 18 }]}>
               <TouchableOpacity onPress={() => setPickerOpen(o => !o)} style={{ backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 13, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ minWidth: 0, flex: 1 }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>Choose your service</Text>
-                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 2 }}>{selected.name}</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>Choose your service</Text>
+                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink, marginTop: 3 }}>{selected.name}</Text>
                 </View>
                 <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name={pickerOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#fff" />
@@ -157,7 +157,7 @@ export default function BranchScreen() {
                     {([['Light', colors.light], ['Busy', colors.moderate], ['High traffic', colors.busy]] as const).map(([label, dot]) => (
                       <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
-                        <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted }}>{label}</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{label}</Text>
                       </View>
                     ))}
                   </View>
@@ -211,24 +211,24 @@ export default function BranchScreen() {
                           <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name="documents-outline" size={19} color={colors.accentDeep} />
                           </View>
-                          <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.2 }}>{s.name}</Text>
+                          <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{s.name}</Text>
                           <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name="chevron-forward" size={15} color={colors.sub} />
                           </View>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 16 }}>
-                          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{Number(s.waiting_count || 0)} <Text style={{ fontSize: 11.5, fontFamily: font.bold, color: colors.muted }}>in line</Text></Text>
-                          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>~{wait}<Text style={{ fontSize: 11.5, fontFamily: font.bold, color: colors.muted }}>m wait</Text></Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 18 }}>
+                          <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink }}>{Number(s.waiting_count || 0)} <Text style={{ fontSize: 13, fontFamily: font.bold, color: colors.muted }}>in line</Text></Text>
+                          <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink }}>~{wait}<Text style={{ fontSize: 13, fontFamily: font.bold, color: colors.muted }}>m wait</Text></Text>
                         </View>
-                        <View style={{ height: 7, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden', marginTop: 9 }}>
+                        <View style={{ height: 7, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden', marginTop: 11 }}>
                           <View style={{ width: `${Math.round(busyRatio * 100)}%`, height: '100%', borderRadius: 4, backgroundColor: meta.dot }} />
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted }}>{meta.label}</Text>
+                            <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>{meta.label}</Text>
                           </View>
-                          <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.faint }}>Tap to select</Text>
+                          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.faint }}>Tap to select</Text>
                         </View>
                       </TouchableOpacity>
                     );

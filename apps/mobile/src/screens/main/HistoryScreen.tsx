@@ -108,7 +108,7 @@ export default function HistoryScreen() {
             return (
               <TouchableOpacity key={key} onPress={() => setSelectedKey(key)} activeOpacity={0.85} style={{ alignItems: 'center', gap: 6, width: 44, paddingVertical: 10, borderRadius: 22, backgroundColor: on ? colors.dark : 'transparent' }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : colors.ink }}>{day.getDate()}</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 10, color: on ? colors.accent : colors.muted }}>{DAY_SHORT[day.getDay()]}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: on ? colors.accent : colors.muted }}>{DAY_SHORT[day.getDay()]}</Text>
                 <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: hasVisits ? (on ? colors.accent : colors.light) : 'transparent' }} />
               </TouchableOpacity>
             );
@@ -155,12 +155,12 @@ export default function HistoryScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
                           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tone }} />
-                          <Text style={{ fontFamily: font.extra, fontSize: 11, color: '#fff' }}>{formatStatus(visit.status)}</Text>
+                          <Text style={{ fontFamily: font.extra, fontSize: 12, color: '#fff' }}>{formatStatus(visit.status)}</Text>
                         </View>
                         <View style={{ backgroundColor: colors.accent, borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
-                          <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentInk }}>{visit.ticket_number}</Text>
+                          <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.accentInk }}>{visit.ticket_number}</Text>
                         </View>
-                        <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.55)' }}>{visit.wait_time_minutes ?? 0}m wait</Text>
+                        <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)' }}>{visit.wait_time_minutes ?? 0}m wait</Text>
                       </View>
                     </TouchableOpacity>
                   ) : (
@@ -171,10 +171,10 @@ export default function HistoryScreen() {
                       style={{ paddingTop: 2 }}
                     >
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.2 }}>{visit.service_name}</Text>
-                        <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{timeLabel}</Text>
+                        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.2 }}>{visit.service_name}</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{timeLabel}</Text>
                       </View>
-                      <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>{visit.branch_name} · {formatStatus(visit.status)} · {visit.wait_time_minutes ?? 0}m wait</Text>
+                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 4 }}>{visit.branch_name} · {formatStatus(visit.status)} · {visit.wait_time_minutes ?? 0}m wait</Text>
                     </TouchableOpacity>
                   )}
                 </View>

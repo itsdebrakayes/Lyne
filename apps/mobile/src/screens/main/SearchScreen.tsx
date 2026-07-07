@@ -207,22 +207,22 @@ export default function SearchScreen() {
                         <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{initials(b.business_name)}</Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13.5, color: ink }}>{b.business_name}</Text>
-                        <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 11.5, color: muted }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 14, color: ink }}>{b.business_name}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: muted, marginTop: 2 }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
                       </View>
                       <Ionicons name="bookmark-outline" size={17} color={dark ? 'rgba(255,255,255,.5)' : colors.chevron} />
                     </View>
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 20, color: ink, letterSpacing: -0.4, marginTop: 15 }}>{b.name}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                      <View style={{ backgroundColor: dark ? colors.accent : colors.dark, borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 11, color: dark ? colors.accentInk : '#fff' }}>{waitShort(wait)} wait</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 19, color: ink, letterSpacing: -0.4, marginTop: 16 }}>{b.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
+                      <View style={{ backgroundColor: dark ? colors.accent : colors.dark, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 11 }}>
+                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: dark ? colors.accentInk : '#fff' }}>{waitShort(wait)} wait</Text>
                       </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: dark ? 'rgba(255,255,255,.1)' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: dark ? 'rgba(255,255,255,.1)' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 11 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                        <Text style={{ fontFamily: font.extra, fontSize: 11, color: dark ? '#fff' : colors.sub }}>{meta.label}</Text>
+                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: dark ? '#fff' : colors.sub }}>{meta.label}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-                        <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: muted }}>{Number(b.total_waiting || 0)} in line</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: muted }}>{Number(b.total_waiting || 0)} in line</Text>
                       </View>
                     </View>
                   </TouchableOpacity>

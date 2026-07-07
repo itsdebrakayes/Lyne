@@ -41,7 +41,7 @@ function WeekStrip({ week, compact = false }: { week: WeekDay[]; compact?: boole
       {week.map(day => (
         <View key={day.dow} style={{ alignItems: 'center', gap: 5, flex: 1 }}>
           <View style={{ width: compact ? 10 : 13, height: compact ? 10 : 13, borderRadius: 7, backgroundColor: LEVEL_DOT[day.level] }} />
-          <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted }}>{DAY_SHORT[day.dow]}</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{DAY_SHORT[day.dow]}</Text>
         </View>
       ))}
     </View>
@@ -97,8 +97,8 @@ export default function PlanVisitScreen() {
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
           <View style={{ width: 44, alignItems: 'flex-end' }}>
             {premium && (
-              <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 8.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
+              <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 9 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
               </View>
             )}
           </View>
@@ -144,7 +144,7 @@ export default function PlanVisitScreen() {
                 {plan.branch_best && (
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.accent }}>{Math.round(plan.branch_best.avg_wait)}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                    <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: 'rgba(255,255,255,.5)' }}>typical wait</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>typical wait</Text>
                   </View>
                 )}
               </View>
@@ -230,7 +230,7 @@ export default function PlanVisitScreen() {
                       </>
                     )}
                   </TouchableOpacity>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 10 }}>No card needed · cancel anytime</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed · cancel anytime</Text>
                 </View>
               </>
             )}

@@ -87,8 +87,8 @@ export default function HomeScreen() {
             <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 16 }}>{initials(user?.full_name || 'Q')}</Text>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{timeGreeting()}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{firstName}</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted }}>{timeGreeting()}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.3 }}>{firstName}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />
@@ -114,7 +114,7 @@ export default function HomeScreen() {
                   <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: 0.55 }} />
                   <Ionicons name={q.icon} size={22} color={tint.fg} />
                 </GlassView>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.sub }}>{q.label}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{q.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -133,7 +133,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>Tap to join a queue</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 1 }}>Live waits at every branch, in one tap</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>Live waits at every branch, in one tap</Text>
             </View>
             <View style={{ width: 42, height: 42, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 19 }}>→</Text>
@@ -142,13 +142,13 @@ export default function HomeScreen() {
           <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: 22 }} />
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <View style={{ flexShrink: 0 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Shortest wait nearby</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
               <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
             </View>
             {shortest && (
-              <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 8, paddingHorizontal: 13, marginBottom: 2 }}>
+              <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light, flexShrink: 0 }} />
-                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 12, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.bold, fontSize: 12.5, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
               </View>
             )}
           </View>
@@ -161,11 +161,11 @@ export default function HomeScreen() {
               <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Plan your visit</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 1 }}>Best time for every service, at every branch</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 16, color: colors.ink, letterSpacing: -0.2 }}>Plan your visit</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>Best time for every service</Text>
             </View>
-            <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 8 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 8.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
+            <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 5, paddingHorizontal: 9 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 9.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
             </View>
             <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
           </GlassView>
@@ -185,13 +185,13 @@ export default function HomeScreen() {
           <>
             <View style={t.sectionRow}>
               <Text style={t.section}>Top agencies</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>See all</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>See all</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 2 }} style={{ marginBottom: 4 }}>
               {agencies.map(a => (
                 <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 9, width: 64 }}>
                   <Monogram label={a.business_slug?.toUpperCase().slice(0, 4) || initials(a.business_name)} />
-                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.sub }}>{a.business_slug?.toUpperCase() || initials(a.business_name)}</Text>
+                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{a.business_slug?.toUpperCase() || initials(a.business_name)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -206,7 +206,7 @@ export default function HomeScreen() {
                 <Text style={t.section}>Live near you</Text>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>View all</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>View all</Text></TouchableOpacity>
             </View>
             <View style={{ gap: 12 }}>
               {liveNear.map(b => {
@@ -216,13 +216,13 @@ export default function HomeScreen() {
                   <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={[t.listRow, { paddingVertical: 16, paddingRight: 18, gap: 15 }]}>
                     <Monogram label={initials(b.business_name)} size={46} radius={15} bg={colors.surfaceAlt} border={false} />
                     <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-                      <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink, letterSpacing: -0.2 }}>{b.name}</Text>
+                      <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{b.name}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{meta.label} · {[b.city, b.parish].filter(Boolean)[0] || b.business_name}</Text>
+                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: colors.muted }}>{meta.label} · {[b.city, b.parish].filter(Boolean)[0] || b.business_name}</Text>
                       </View>
                     </View>
-                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{waitShort(wait)}</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
                   </TouchableOpacity>
                 );
               })}

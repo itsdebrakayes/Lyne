@@ -95,8 +95,8 @@ export default function NotificationsScreen() {
                 <Ionicons name={TYPE_ICON[n.notification_type] || 'notifications-outline'} size={18} color={n.notification_type === 'no_show' ? colors.danger : colors.ink} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{n.message}</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted, marginTop: 5 }}>{timeAgo(n.sent_at)}</Text>
+                <Text style={{ fontFamily: font.semibold, fontSize: 14, color: colors.ink, lineHeight: 20 }}>{n.message}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>{timeAgo(n.sent_at)}</Text>
               </View>
               {!n.is_read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 4 }} />}
             </TouchableOpacity>

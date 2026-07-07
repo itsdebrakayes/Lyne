@@ -156,12 +156,12 @@ export default function SavedScreen() {
                       <Ionicons name="bookmark" size={17} color={dark ? colors.accent : colors.ink} />
                     </TouchableOpacity>
                   </View>
-                  <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 16, lineHeight: 21, color: dark ? '#fff' : colors.ink, letterSpacing: -0.3, marginTop: 15 }}>{company.name}</Text>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: dark ? 'rgba(255,255,255,.5)' : colors.muted, marginTop: 5 }}>
+                  <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 16.5, lineHeight: 21, color: dark ? '#fff' : colors.ink, letterSpacing: -0.3, marginTop: 15 }}>{company.name}</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: dark ? 'rgba(255,255,255,.5)' : colors.muted, marginTop: 6 }}>
                     {list.length} {list.length === 1 ? 'branch' : 'branches'}{best ? ` · ${waitShort(best.avg_wait_minutes)} wait` : ''}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 16 }}>
-                    <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 11, color: dark ? 'rgba(255,255,255,.55)' : colors.muted }}>{best ? best.name : 'No live branch'}</Text>
+                    <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 12.5, color: dark ? 'rgba(255,255,255,.55)' : colors.muted }}>{best ? best.name : 'No live branch'}</Text>
                     <View style={{ width: 32, height: 32, borderRadius: 12, backgroundColor: dark ? colors.accent : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name="arrow-forward" size={15} color={dark ? colors.accentInk : '#fff'} />
                     </View>
@@ -195,10 +195,10 @@ export default function SavedScreen() {
                     <Ionicons name="repeat" size={17} color={colors.accentDeep} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{visit.service_name}</Text>
-                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 2 }}>{visit.business_name} · {visit.branch_name}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink, letterSpacing: -0.2 }}>{visit.service_name}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>{visit.business_name} · {visit.branch_name}</Text>
                   </View>
-                  <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.accentDeep }}>Rejoin →</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentDeep }}>Rejoin →</Text>
                 </TouchableOpacity>
               ))}
             </View>
