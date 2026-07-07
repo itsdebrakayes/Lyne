@@ -82,12 +82,12 @@ export default function JoinQueueScreen() {
               <View style={{ flexDirection: 'row', marginTop: 22 }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                   <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.waiting_count ?? 0}</Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 4 }}>ahead</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>ahead</Text>
                 </View>
                 <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,.12)' }} />
                 <View style={{ flex: 1, alignItems: 'center' }}>
                   <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.estimated_wait_minutes ?? 0}<Text style={{ fontSize: 13 }}>m</Text></Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 4 }}>est. wait</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>est. wait</Text>
                 </View>
               </View>
             </View>

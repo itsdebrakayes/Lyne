@@ -69,7 +69,7 @@ export default function BusinessScreen() {
                   <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{waitShort(wait)}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                    <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: colors.muted }}>{meta.label}</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{meta.label}</Text>
                   </View>
                 </View>
               </TouchableOpacity>

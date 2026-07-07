@@ -27,8 +27,8 @@ function ListCard({ rows }: { rows: Row[] }) {
             <Ionicons name={r.icon} size={17} color={colors.ink} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>{r.label}</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted }}>{r.sub}</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{r.label}</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{r.sub}</Text>
           </View>
           {r.badge
             ? <View style={{ minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentInk }}>{r.badge}</Text></View>
@@ -113,10 +113,10 @@ export default function ProfileScreen() {
               <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
               </View>
-              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{d.key}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{d.key}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 }}>
                 <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.value ? colors.light : colors.moderate }} />
-                <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted }}>{d.value ? d.ok : d.missing}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{d.value ? d.ok : d.missing}</Text>
               </View>
             </TouchableOpacity>
           ))}
