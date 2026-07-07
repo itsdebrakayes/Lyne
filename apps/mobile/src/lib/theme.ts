@@ -33,6 +33,14 @@ export const colors = {
   border: '#eceef1',
   borderSoft: '#f1f2f4',
 
+  // glass materials (Apple liquid-glass): translucent fills + hairline
+  // highlight borders that sit over the ambient wash / content behind.
+  glass: 'rgba(255,255,255,0.55)',
+  glassStrong: 'rgba(255,255,255,0.72)',
+  glassBorder: 'rgba(255,255,255,0.75)',
+  glassDark: 'rgba(16,29,24,0.55)',
+  glassDarkBorder: 'rgba(255,255,255,0.12)',
+
   // brand
   dark: '#101d18', // forest hero tone (--dk)
   accent: '#1fc2de', // cyan (--acc)
@@ -69,12 +77,13 @@ export const companyGradients: Array<{ colors: [string, string]; shadow: string 
 ];
 
 export const font = {
-  regular: 'Jakarta_400Regular',
-  medium: 'Jakarta_500Medium',
-  semibold: 'Jakarta_600SemiBold',
-  bold: 'Jakarta_700Bold',
-  extra: 'Jakarta_800ExtraBold',
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_500Medium',
+  semibold: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
+  extra: 'Manrope_800ExtraBold',
 };
+
 
 // Browsers draw their own focus ring around TextInputs (an orange/blue
 // rectangle) — kill it on web; native platforms ignore this.

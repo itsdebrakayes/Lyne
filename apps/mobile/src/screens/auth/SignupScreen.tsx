@@ -7,7 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
-import { colors, font, inputReset, shadow } from '../../lib/theme';
+import { GlassView } from '../../components/Glass';
+import { colors, font, inputReset } from '../../lib/theme';
 
 type Field = 'name' | 'email' | 'password' | 'confirm';
 
@@ -42,52 +43,42 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
-      {/* background layers must never intercept touches */}
-      <LinearGradient pointerEvents="none" colors={['#0b1512', '#101d18', '#15231c']} style={StyleSheet.absoluteFill} />
-      <Text pointerEvents="none" style={styles.ghost}>Q</Text>
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0.3, y: 0.55 }}
+        style={StyleSheet.absoluteFill}
+      />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.logoWrap}>
-            <View style={styles.logoRing}><Text style={styles.logoRingText}>Q</Text></View>
-            <Text style={styles.wordmark}>QME NOW</Text>
-          </View>
+          <GlassView tint="dark" radius={28} intensity={45} style={styles.sheet}>
+            <View style={{ padding: 26, paddingVertical: 30 }}>
+              <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+              <Text style={styles.title}>Create account</Text>
+              <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
 
-          <View style={styles.sheet}>
-            <Text style={styles.overline}>BEGIN YOUR MEMBERSHIP</Text>
-            <Text style={styles.title}>Create account</Text>
-
-            {!!error && (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={15} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <Text style={styles.label}>FULL NAME</Text>
-            <TextInput style={fieldStyle('name')} {...focusProps('name')} placeholder="Your name" placeholderTextColor={colors.faint} value={fullName} onChangeText={setFullName} autoCapitalize="words" autoComplete="name" />
-
-            <Text style={styles.label}>EMAIL</Text>
-            <TextInput style={fieldStyle('email')} {...focusProps('email')} placeholder="you@example.com" placeholderTextColor={colors.faint} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-
-            <Text style={styles.label}>PASSWORD</Text>
-            <TextInput style={fieldStyle('password')} {...focusProps('password')} placeholder="At least 8 characters" placeholderTextColor={colors.faint} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
-
-            <Text style={styles.label}>CONFIRM PASSWORD</Text>
-            <TextInput style={fieldStyle('confirm')} {...focusProps('confirm')} placeholder="Repeat your password" placeholderTextColor={colors.faint} value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
-
-            <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleSignup} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : (
-                <>
-                  <Text style={styles.btnText}>Create account</Text>
-                  <View style={styles.btnChip}><Ionicons name="arrow-forward" size={17} color={colors.accentInk} /></View>
-                </>
+              {!!error && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={14} color="#ff8f8f" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
               )}
-            </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
-              <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
-            </TouchableOpacity>
-          </View>
+              <TextInput style={fieldStyle('name')} {...focusProps('name')} placeholder="Full name" placeholderTextColor="rgba(255,255,255,0.38)" value={fullName} onChangeText={setFullName} autoCapitalize="words" autoComplete="name" />
+              <TextInput style={fieldStyle('email')} {...focusProps('email')} placeholder="Enter your email address" placeholderTextColor="rgba(255,255,255,0.38)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+              <TextInput style={fieldStyle('password')} {...focusProps('password')} placeholder="Password (min. 8 characters)" placeholderTextColor="rgba(255,255,255,0.38)" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
+              <TextInput style={fieldStyle('confirm')} {...focusProps('confirm')} placeholder="Confirm password" placeholderTextColor="rgba(255,255,255,0.38)" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
+
+              <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleSignup} disabled={loading}>
+                {loading ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.btnText}>Create account</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
+                <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
+              </TouchableOpacity>
+            </View>
+          </GlassView>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -95,48 +86,37 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#101d18' },
-  ghost: {
-    position: 'absolute', top: -60, right: -70,
-    fontFamily: font.extra, fontSize: 420, color: 'rgba(255,255,255,0.025)',
-  },
-  inner: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 26 },
-  logoRing: {
-    width: 64, height: 64, borderRadius: 32,
-    borderWidth: 1.5, borderColor: 'rgba(31,194,222,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-  },
-  logoRingText: { color: colors.accent, fontFamily: font.extra, fontSize: 28 },
-  wordmark: { fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: 5 },
+  container: { flex: 1, backgroundColor: '#0a0d0c' },
+  inner: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 40 },
   sheet: {
-    backgroundColor: 'rgba(255,255,255,0.985)', borderRadius: 32, padding: 26, paddingTop: 24,
-    ...shadow.hero,
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 40, shadowOffset: { width: 0, height: 22 }, elevation: 12,
   },
-  overline: { fontFamily: font.extra, fontSize: 10.5, color: colors.accentDeep, letterSpacing: 2 },
-  title: { fontFamily: font.extra, fontSize: 27, color: colors.ink, letterSpacing: -0.6, marginTop: 4, marginBottom: 18 },
+  logo: {
+    width: 52, height: 52, borderRadius: 16, alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+  },
+  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 24 },
+  title: { fontFamily: font.extra, fontSize: 24, color: '#fff', textAlign: 'center', letterSpacing: -0.4 },
+  subtitle: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 7, marginBottom: 26 },
   errorBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#fdf0ef', borderWidth: 1, borderColor: '#f5d8d6',
-    borderRadius: 13, padding: 11, marginBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(229,72,77,0.14)', borderWidth: 1, borderColor: 'rgba(229,72,77,0.28)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16,
   },
-  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#b3383d', lineHeight: 17 },
-  label: { fontFamily: font.extra, fontSize: 10.5, color: colors.muted, letterSpacing: 1.4, marginBottom: 7, marginTop: 6 },
+  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#ffb4b4' },
   input: {
-    backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border,
-    borderRadius: 16, paddingHorizontal: 16, height: 54,
-    fontFamily: font.semibold, color: colors.ink, fontSize: 15, marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14, paddingHorizontal: 16, height: 52,
+    fontFamily: font.medium, color: '#fff', fontSize: 14.5, marginBottom: 14,
   },
-  inputFocused: { borderColor: colors.accentDeep, backgroundColor: '#fff' },
+  inputFocused: { borderColor: 'rgba(31,194,222,0.7)', backgroundColor: 'rgba(255,255,255,0.09)' },
   btn: {
-    backgroundColor: colors.dark, borderRadius: 18, height: 58,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingLeft: 22, paddingRight: 8, marginTop: 12,
+    backgroundColor: '#fff', borderRadius: 14, height: 54,
+    alignItems: 'center', justifyContent: 'center', marginTop: 6,
   },
-  btnText: { fontFamily: font.extra, color: '#fff', fontSize: 15.5 },
-  btnChip: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  switchRow: { alignItems: 'center', marginTop: 18 },
-  switchText: { fontFamily: font.medium, fontSize: 13, color: colors.muted },
-  switchBold: { fontFamily: font.extra, color: colors.ink },
+  btnText: { fontFamily: font.bold, color: colors.ink, fontSize: 15 },
+  switchRow: { alignItems: 'center', marginTop: 22 },
+  switchText: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  switchBold: { fontFamily: font.bold, color: '#fff' },
 });

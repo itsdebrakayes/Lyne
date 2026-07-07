@@ -4,12 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import {
   useFonts,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans';
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
@@ -23,11 +23,11 @@ export default function App() {
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null);
 
   const [fontsLoaded] = useFonts({
-    Jakarta_400Regular: PlusJakartaSans_400Regular,
-    Jakarta_500Medium: PlusJakartaSans_500Medium,
-    Jakarta_600SemiBold: PlusJakartaSans_600SemiBold,
-    Jakarta_700Bold: PlusJakartaSans_700Bold,
-    Jakarta_800ExtraBold: PlusJakartaSans_800ExtraBold,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
   });
 
   useEffect(() => {

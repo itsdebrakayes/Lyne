@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow } from '../lib/theme';
+import { GlassView } from './Glass';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
 
@@ -82,28 +83,29 @@ export function TabBar({ active }: { active: TabKey }) {
   const navigation = useNavigation<any>();
   const ticket = useActiveTicket();
 
-  // Center action = the core verb. With a live ticket it returns to it;
-  // otherwise it starts the join journey.
-  const centerPress = () => {
-    if (ticket) navigation.navigate('Ticket', { ticketId: ticket.id });
-    else navigation.navigate('Search');
-  };
+  // Center = the live ticket. It only lights cyan when there IS a line to
+  // return to; with no active ticket it sits hollow/grey and does nothing
+  // (the join journey belongs to Search / the Home hero, not here).
+  const hasTicket = Boolean(ticket);
+  const centerPress = () => { if (ticket) navigation.navigate('Ticket', { ticketId: ticket.id }); };
 
   return (
     <>
       {/* Fade scrolling content out before it reaches the floating bar. */}
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.92)', colors.bg]}
-        locations={[0, 0.42, 0.75]}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 138, zIndex: 29 }}
+        colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.85)', colors.bg]}
+        locations={[0, 0.42, 0.78]}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
       />
       <ActiveTicketPill />
-      <View
+      <GlassView
+        tint="dark"
+        intensity={55}
+        radius={34}
         style={{
-          position: 'absolute', bottom: 22, alignSelf: 'center',
-          backgroundColor: colors.dark, borderRadius: 33,
-          flexDirection: 'row', alignItems: 'center', gap: 6,
+          position: 'absolute', bottom: 24, alignSelf: 'center',
+          flexDirection: 'row', alignItems: 'center', gap: 4,
           paddingHorizontal: 10, paddingVertical: 8,
           zIndex: 30, ...shadow.floating,
         }}
@@ -113,19 +115,22 @@ export function TabBar({ active }: { active: TabKey }) {
         ))}
         <TouchableOpacity
           onPress={centerPress}
-          activeOpacity={0.85}
+          disabled={!hasTicket}
+          activeOpacity={hasTicket ? 0.85 : 1}
           style={{
-            width: 50, height: 50, borderRadius: 25, marginHorizontal: 2,
-            backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-            shadowColor: colors.accent, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 6,
+            width: 50, height: 50, borderRadius: 25, marginHorizontal: 3,
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: hasTicket ? colors.accent : 'rgba(255,255,255,0.08)',
+            borderWidth: hasTicket ? 0 : 1.5, borderColor: 'rgba(255,255,255,0.22)',
+            ...(hasTicket ? { shadowColor: colors.accent, shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 } : null),
           }}
         >
-          <Ionicons name="ticket" size={21} color={colors.accentInk} />
+          <Ionicons name="ticket" size={21} color={hasTicket ? colors.accentInk : 'rgba(255,255,255,0.4)'} />
         </TouchableOpacity>
         {RIGHT_TABS.map(tab => (
           <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
         ))}
-      </View>
+      </GlassView>
     </>
   );
 }
