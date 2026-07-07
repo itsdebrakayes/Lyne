@@ -87,8 +87,8 @@ export default function HomeScreen() {
             <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 16 }}>{initials(user?.full_name || 'Q')}</Text>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted }}>{timeGreeting()}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.3 }}>{firstName}</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.sub }}>{timeGreeting()}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3, marginTop: 1 }}>{firstName}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />
