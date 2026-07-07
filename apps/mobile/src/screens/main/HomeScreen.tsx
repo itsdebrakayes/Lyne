@@ -6,8 +6,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
+import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+
+function timeGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning,';
+  if (hour < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
 
 const QUICK: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; tint: keyof typeof categoryTints }> = [
   { label: 'Nearby', icon: 'location-outline', tint: 'blue' },
@@ -27,7 +35,9 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
   const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
@@ -70,16 +80,14 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
-        {/* header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Search')} style={t.iconBtn}>
-            <Ionicons name="grid-outline" size={19} color={colors.ink} />
+        {/* greeting header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 24 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 16 }}>{initials(user?.full_name || 'Q')}</Text>
           </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 14 }}>Q</Text>
-            </View>
-            <Text style={{ fontFamily: font.extra, fontSize: 17, letterSpacing: 2, color: colors.ink }}>QME NOW</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>{timeGreeting()}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{firstName}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />

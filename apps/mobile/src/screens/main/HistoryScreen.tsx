@@ -1,9 +1,15 @@
-import React, { useCallback, useState } from 'react';
+/**
+ * HistoryScreen — timeline redesign (reference image 2, right).
+ * A 7-day strip selects the day; that day's visits render as a vertical
+ * timeline. The most recent visit gets the full dark card; the rest are
+ * light timeline entries.
+ */
+import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials } from '../../lib/theme';
+import { colors, font, shadow, t } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 
@@ -20,9 +26,25 @@ interface VisitHistoryRow {
   status: string;
 }
 
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function dateKey(value: string | Date) {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function formatStatus(status: string) {
   return status.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
+
+const STATUS_TONE: Record<string, string> = {
+  served: colors.light,
+  completed: colors.light,
+  no_show: colors.busy,
+  cancelled: colors.muted,
+  left: colors.muted,
+};
 
 export default function HistoryScreen() {
   const navigation = useNavigation<any>();
@@ -38,45 +60,134 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  // The last 7 calendar days, today last.
+  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - index));
+    return d;
+  }), []);
+  const [selectedKey, setSelectedKey] = useState(() => dateKey(new Date()));
+
+  const byDay = useMemo(() => {
+    const map: Record<string, VisitHistoryRow[]> = {};
+    for (const visit of history) (map[dateKey(visit.visit_date)] ||= []).push(visit);
+    return map;
+  }, [history]);
+
+  const dayVisits = byDay[selectedKey] || [];
+  const selectedDate = new Date(`${selectedKey}T12:00:00`);
+  const isToday = selectedKey === dateKey(new Date());
+  const olderCount = useMemo(() => {
+    const weekKeys = new Set(days.map(dateKey));
+    return history.filter(v => !weekKeys.has(dateKey(v.visit_date))).length;
+  }, [history, days]);
+
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 56 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 20 }]}>
-          <Ionicons name="chevron-back" size={20} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={[t.h2, { marginBottom: 22 }]}>Queue history</Text>
-        {isLoading && <SkeletonRows count={5} />}
+        {/* header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={t.iconBtn}>
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>{MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}</Text>
+          <View style={{ width: 46 }} />
+        </View>
+        <Text style={[t.h1, { marginBottom: 20 }]}>{isToday ? 'Today' : DAY_SHORT[selectedDate.getDay()]}</Text>
+
+        {/* day strip */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28 }}>
+          {days.map(day => {
+            const key = dateKey(day);
+            const on = key === selectedKey;
+            const hasVisits = (byDay[key] || []).length > 0;
+            return (
+              <TouchableOpacity key={key} onPress={() => setSelectedKey(key)} activeOpacity={0.85} style={{ alignItems: 'center', gap: 6, width: 44, paddingVertical: 10, borderRadius: 22, backgroundColor: on ? colors.dark : 'transparent' }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : colors.ink }}>{day.getDate()}</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 10, color: on ? colors.accent : colors.muted }}>{DAY_SHORT[day.getDay()]}</Text>
+                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: hasVisits ? (on ? colors.accent : colors.light) : 'transparent' }} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (
           <ErrorCard title="History unavailable" message="Your queue history could not be loaded right now." onRetry={() => refetch()} />
         )}
-        {!isLoading && !error && history.length === 0 && (
-          <EmptyCard icon="time-outline" title="No visits yet" message="Join your first queue and your completed visits will show up here." />
+        {!isLoading && !error && dayVisits.length === 0 && (
+          <EmptyCard icon="time-outline" title={isToday ? 'No visits today' : 'No visits this day'} message="Pick another day above, or join a queue and it will show up here." />
         )}
-        <View style={{ gap: 12 }}>
-          {history.map(visit => (
-            <TouchableOpacity
-              key={visit.id}
-              activeOpacity={0.86}
-              disabled={!visit.ticket_id}
-              onPress={() => visit.ticket_id && navigation.navigate('Ticket', { ticketId: visit.ticket_id })}
-              style={[t.listRow, { padding: 15 }]}
-            >
-              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{visit.ticket_number?.slice(-2) || initials(visit.business_name)}</Text>
+
+        {/* timeline */}
+        <View>
+          {dayVisits.map((visit, index) => {
+            const first = index === 0;
+            const last = index === dayVisits.length - 1;
+            const tone = STATUS_TONE[visit.status] || colors.muted;
+            const timeLabel = new Date(visit.visit_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return (
+              <View key={visit.id} style={{ flexDirection: 'row', gap: 16 }}>
+                {/* rail */}
+                <View style={{ width: 18, alignItems: 'center' }}>
+                  <View style={{ width: first ? 14 : 10, height: first ? 14 : 10, borderRadius: 7, marginTop: first ? 4 : 8, backgroundColor: first ? colors.dark : 'transparent', borderWidth: first ? 0 : 2, borderColor: colors.chevron }} />
+                  {!last && <View style={{ flex: 1, width: 2, backgroundColor: '#e2e5ea', marginVertical: 4 }} />}
+                </View>
+
+                {/* entry */}
+                <View style={{ flex: 1, paddingBottom: last ? 0 : 22 }}>
+                  {first ? (
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      disabled={!visit.ticket_id}
+                      onPress={() => visit.ticket_id && navigation.navigate('Ticket', { ticketId: visit.ticket_id })}
+                      style={{ backgroundColor: colors.dark, borderRadius: 24, padding: 19, ...shadow.hero }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 17, color: '#fff', letterSpacing: -0.3 }}>{visit.service_name}</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)' }}>{timeLabel}</Text>
+                      </View>
+                      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>{visit.business_name} · {visit.branch_name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tone }} />
+                          <Text style={{ fontFamily: font.extra, fontSize: 11, color: '#fff' }}>{formatStatus(visit.status)}</Text>
+                        </View>
+                        <View style={{ backgroundColor: colors.accent, borderRadius: 11, paddingVertical: 5, paddingHorizontal: 11 }}>
+                          <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentInk }}>{visit.ticket_number}</Text>
+                        </View>
+                        <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.55)' }}>{visit.wait_time_minutes ?? 0}m wait</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      disabled={!visit.ticket_id}
+                      onPress={() => visit.ticket_id && navigation.navigate('Ticket', { ticketId: visit.ticket_id })}
+                      style={{ paddingTop: 2 }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.2 }}>{visit.service_name}</Text>
+                        <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{timeLabel}</Text>
+                      </View>
+                      <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>{visit.branch_name} · {formatStatus(visit.status)} · {visit.wait_time_minutes ?? 0}m wait</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{visit.business_name}</Text>
-                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>{visit.branch_name} · {visit.service_name}</Text>
-                <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, marginTop: 5 }}>{formatStatus(visit.status)} · {visit.wait_time_minutes ?? 0}m wait</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.chevron} />
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
+
+        {olderCount > 0 && (
+          <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.faint, textAlign: 'center', marginTop: 26 }}>
+            {olderCount} older {olderCount === 1 ? 'visit' : 'visits'} beyond this week
+          </Text>
+        )}
       </ScrollView>
     </View>
   );

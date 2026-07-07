@@ -10,21 +10,31 @@ import { colors, font, shadow } from '../lib/theme';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
 
-const TABS: Array<{ key: TabKey; label: string; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = [
-  { key: 'Home', label: 'Home', icon: 'home-outline', iconOn: 'home' },
-  { key: 'Search', label: 'Search', icon: 'search-outline', iconOn: 'search' },
-  { key: 'Saved', label: 'Saved', icon: 'bookmark-outline', iconOn: 'bookmark' },
-  { key: 'Profile', label: 'Account', icon: 'person-outline', iconOn: 'person' },
+// Compact dark pill: icon-only tabs, active icon lifted in a white circle,
+// and a cyan center action for the app's core verb — joining a line.
+const LEFT_TABS: Array<{ key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = [
+  { key: 'Home', icon: 'home-outline', iconOn: 'home' },
+  { key: 'Search', icon: 'search-outline', iconOn: 'search' },
+];
+const RIGHT_TABS: Array<{ key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = [
+  { key: 'Saved', icon: 'bookmark-outline', iconOn: 'bookmark' },
+  { key: 'Profile', icon: 'person-outline', iconOn: 'person' },
 ];
 
-export function ActiveTicketPill() {
-  const navigation = useNavigation<any>();
+function useActiveTicket() {
   const { data: ticket } = useQuery({
     queryKey: ['active-ticket'],
     queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
     refetchInterval: 8_000,
   });
   if (!ticket || !['waiting', 'called', 'in_service'].includes(ticket.status)) return null;
+  return ticket;
+}
+
+export function ActiveTicketPill() {
+  const navigation = useNavigation<any>();
+  const ticket = useActiveTicket();
+  if (!ticket) return null;
   const called = ticket.status === 'called';
   const inService = ticket.status === 'in_service';
   const ahead = Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1);
@@ -40,7 +50,7 @@ export function ActiveTicketPill() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-      style={{ position: 'absolute', bottom: 104, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
+      style={{ position: 'absolute', bottom: 102, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
       <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
       <View style={{ flex: 1 }}>
@@ -52,8 +62,33 @@ export function ActiveTicketPill() {
   );
 }
 
+function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }; active: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+      style={{
+        width: 46, height: 46, borderRadius: 23,
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: active ? '#fff' : 'transparent',
+      }}
+    >
+      <Ionicons name={active ? tab.iconOn : tab.icon} size={20} color={active ? colors.dark : 'rgba(255,255,255,.55)'} />
+    </TouchableOpacity>
+  );
+}
+
 export function TabBar({ active }: { active: TabKey }) {
   const navigation = useNavigation<any>();
+  const ticket = useActiveTicket();
+
+  // Center action = the core verb. With a live ticket it returns to it;
+  // otherwise it starts the join journey.
+  const centerPress = () => {
+    if (ticket) navigation.navigate('Ticket', { ticketId: ticket.id });
+    else navigation.navigate('Search');
+  };
+
   return (
     <>
       {/* Fade scrolling content out before it reaches the floating bar. */}
@@ -61,19 +96,35 @@ export function TabBar({ active }: { active: TabKey }) {
         pointerEvents="none"
         colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.92)', colors.bg]}
         locations={[0, 0.42, 0.75]}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 138, zIndex: 29 }}
       />
       <ActiveTicketPill />
-      <View style={{ position: 'absolute', bottom: 22, left: 16, right: 16, height: 68, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 10, zIndex: 30, ...shadow.floating }}>
-        {TABS.map(tab => {
-          const on = tab.key === active;
-          return (
-            <TouchableOpacity key={tab.key} onPress={() => navigation.navigate(tab.key)} style={{ alignItems: 'center', gap: 4, width: 64 }}>
-              <Ionicons name={on ? tab.iconOn : tab.icon} size={21} color={on ? colors.ink : '#a3aab3'} />
-              <Text style={{ fontFamily: font.extra, fontSize: 10, color: on ? colors.ink : '#a3aab3' }}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View
+        style={{
+          position: 'absolute', bottom: 22, alignSelf: 'center',
+          backgroundColor: colors.dark, borderRadius: 33,
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+          paddingHorizontal: 10, paddingVertical: 8,
+          zIndex: 30, ...shadow.floating,
+        }}
+      >
+        {LEFT_TABS.map(tab => (
+          <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
+        ))}
+        <TouchableOpacity
+          onPress={centerPress}
+          activeOpacity={0.85}
+          style={{
+            width: 50, height: 50, borderRadius: 25, marginHorizontal: 2,
+            backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
+            shadowColor: colors.accent, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 6,
+          }}
+        >
+          <Ionicons name="ticket" size={21} color={colors.accentInk} />
+        </TouchableOpacity>
+        {RIGHT_TABS.map(tab => (
+          <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
+        ))}
       </View>
     </>
   );

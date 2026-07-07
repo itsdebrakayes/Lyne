@@ -199,27 +199,36 @@ export default function BranchScreen() {
                   <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{others.length} available</Text>
                 </View>
                 <View style={{ gap: 14 }}>
+                  {/* finance-goal card style: icon tile + name + chevron, then a
+                      busyness meter with the numbers on either end. */}
                   {others.map(s => {
-                    const meta = statusMeta(statusFromWait(svcWait(s)));
+                    const wait = svcWait(s);
+                    const meta = statusMeta(statusFromWait(wait));
+                    const busyRatio = Math.max(0.06, Math.min(1, wait / 60));
                     return (
-                      <TouchableOpacity key={s.id} activeOpacity={0.85} onPress={() => setSelectedId(s.id)} style={[t.card, { padding: 18, borderRadius: 24 }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{s.name}</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 5, paddingHorizontal: 10 }}>
-                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                            <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.sub }}>{meta.label}</Text>
+                      <TouchableOpacity key={s.id} activeOpacity={0.88} onPress={() => setSelectedId(s.id)} style={[t.card, { padding: 17, borderRadius: 24 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+                          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="documents-outline" size={19} color={colors.accentDeep} />
+                          </View>
+                          <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.2 }}>{s.name}</Text>
+                          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="chevron-forward" size={15} color={colors.sub} />
                           </View>
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}>
-                          <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>{Number(s.waiting_count || 0)}</Text>
-                            <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, marginTop: 3 }}>in line</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 16 }}>
+                          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{Number(s.waiting_count || 0)} <Text style={{ fontSize: 11.5, fontFamily: font.bold, color: colors.muted }}>in line</Text></Text>
+                          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>~{wait}<Text style={{ fontSize: 11.5, fontFamily: font.bold, color: colors.muted }}>m wait</Text></Text>
+                        </View>
+                        <View style={{ height: 7, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden', marginTop: 9 }}>
+                          <View style={{ width: `${Math.round(busyRatio * 100)}%`, height: '100%', borderRadius: 4, backgroundColor: meta.dot }} />
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
+                            <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted }}>{meta.label}</Text>
                           </View>
-                          <View style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: '#e0e3e8' }} />
-                          <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>~{svcWait(s)}<Text style={{ fontSize: 11, color: colors.muted }}>m</Text></Text>
-                            <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, marginTop: 3 }}>est. wait</Text>
-                          </View>
+                          <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.faint }}>Tap to select</Text>
                         </View>
                       </TouchableOpacity>
                     );
