@@ -158,7 +158,7 @@ export default function ProfileScreen() {
           { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards' },
           { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'Passcode, data' },
-          { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us' },
+          { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 
         <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: '#f3d3d5', borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>

@@ -20,6 +20,8 @@ import HistoryScreen    from '../screens/main/HistoryScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
 import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
+import HelpScreen       from '../screens/main/HelpScreen';
+import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -34,6 +36,8 @@ export type RootStackParamList = {
   Main:       undefined;
   History:    undefined;
   Notifications: undefined;
+  Help:       undefined;
+  AgencyHelp: { slug: string };
   Plan:       { businessId?: string; branchId?: string } | undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
@@ -112,6 +116,8 @@ export default function AppNavigator() {
             <Stack.Screen name="Main"      component={MainTabs}        />
             <Stack.Screen name="History"   component={HistoryScreen}   />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Help"      component={HelpScreen}      />
+            <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
