@@ -5,8 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../lib/apiClient';
-import { colors, font, t, categoryTints, initials, inputReset } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
 import { TabBar } from '../../components/TabBar';
+import { Sheen } from '../../components/Glass';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -20,7 +21,7 @@ type Row = { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; o
 
 function ListCard({ rows }: { rows: Row[] }) {
   return (
-    <View style={[t.card, { overflow: 'hidden' }]}>
+    <View style={[t.card, { overflow: 'hidden', ...shadow.card }]}>
       {rows.map((r, i) => (
         <TouchableOpacity key={r.label} disabled={!r.onPress} onPress={r.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
           <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
@@ -90,8 +91,11 @@ export default function ProfileScreen() {
 
         {/* profile */}
         <View style={{ alignItems: 'center' }}>
-          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 30, color: colors.accentInk }}>{initials(name)}</Text>
+          <View style={{ borderRadius: 44, ...shadow.depth }}>
+            <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
+              <Sheen radius={44} />
+              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
+            </View>
           </View>
           <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>
           <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{email}</Text>
@@ -108,8 +112,9 @@ export default function ProfileScreen() {
         <SectionLabel>My documents</SectionLabel>
         <View style={{ flexDirection: 'row', gap: 12 }}>
           {docs.map(d => (
-            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20 }]}>
-              <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}>
+              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11, overflow: 'hidden' }}>
+                <Sheen radius={12} strength={0.6} />
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
               </View>
               <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{d.key}</Text>

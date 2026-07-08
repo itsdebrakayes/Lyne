@@ -111,6 +111,23 @@ export const shadow = {
     shadowOffset: { width: 0, height: 16 },
     elevation: 12,
   },
+  // Raised, Apple-native depth for cards, tiles and avatars — a touch stronger
+  // and tighter than `card`, so elements read as lifted off the canvas.
+  depth: {
+    shadowColor: '#0a1411',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+} as const;
+
+// Subtle emboss for letters sitting on colored/dark avatars — gives the
+// initials a little dimensionality (Apple Contacts style).
+export const depthText = {
+  textShadowColor: 'rgba(6,17,15,0.22)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
 } as const;
 
 export type QueueStatus = 'light' | 'moderate' | 'busy';
