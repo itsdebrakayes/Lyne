@@ -62,6 +62,7 @@ export default function SignupScreen() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim()) { setError('Add your name, email and phone number to continue.'); return; }
@@ -72,13 +73,14 @@ export default function SignupScreen() {
     if (!trn.trim()) { setError('Add your TRN — branches use it to verify you.'); return; }
     setLoading(true); setError(null);
     try {
-      const { error: signupError } = await signUp(email.trim(), password, {
+      const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         phone: phone.trim(),
         date_of_birth: toISODate(dob),
         trn: trn.trim(),
       });
       if (signupError) throw signupError;
+      if (needsConfirmation) setConfirmSent(true);
     } catch (e: any) {
       setError(e.message || 'Signup failed. Please try again.');
     } finally {
@@ -103,6 +105,19 @@ export default function SignupScreen() {
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
 
+          {confirmSent ? (
+            <View style={{ alignItems: 'center', paddingVertical: 18 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#e6f7ee', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Ionicons name="mail-unread-outline" size={26} color={colors.light} />
+              </View>
+              <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, textAlign: 'center', letterSpacing: -0.3 }}>Confirm your email</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 8, maxWidth: 300 }}>We sent a confirmation link to {email.trim().toLowerCase()}. Tap it to activate your account, then sign in.</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={[styles.btn, { alignSelf: 'stretch', marginTop: 24 }]}>
+                <Text style={styles.btnText}>Back to sign in</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+          <>
           {!!error && (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle" size={15} color={colors.danger} />
@@ -151,6 +166,8 @@ export default function SignupScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
           </TouchableOpacity>
+          </>
+          )}
 
           {/* bottom motif */}
           <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>

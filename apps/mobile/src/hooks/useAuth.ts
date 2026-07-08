@@ -104,21 +104,23 @@ export const useAuth = () => {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, nameOrMeta: string | Record<string, string>) => {
+  const signUp = async (email: string, password: string, nameOrMeta: string | Record<string, string>): Promise<{ error: Error | null; needsConfirmation?: boolean }> => {
     const metadata: Record<string, string> = typeof nameOrMeta === 'string'
       ? { full_name: nameOrMeta }
       : nameOrMeta;
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
-    if (!error) {
-      try {
-        await syncMobileUser(metadata);
-        const { data: { session } } = await supabase.auth.getSession();
-        syncedUid.current = session?.user?.id ?? null;
-      } catch (syncError) {
-        return { error: syncError as Error };
-      }
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+    if (error) return { error };
+    // When the project requires email confirmation, signUp succeeds but returns
+    // no session — we can't sync to the backend (it needs a token) until they
+    // confirm, so surface that instead of failing on the sync call.
+    if (!data.session) return { error: null, needsConfirmation: true };
+    try {
+      await syncMobileUser(metadata);
+      syncedUid.current = data.session.user.id;
+    } catch (syncError) {
+      return { error: syncError as Error };
     }
-    return { error };
+    return { error: null };
   };
 
   const signOut = async () => {
