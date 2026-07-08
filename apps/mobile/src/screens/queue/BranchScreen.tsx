@@ -3,7 +3,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials, statusFromWait, statusMeta } from '../../lib/theme';
+import { colors, font, t, initials, statusFromWait, statusMeta, branchOpenInfo } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -99,12 +99,20 @@ export default function BranchScreen() {
           <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{initials(branch?.business_name)}</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: Number(branch?.open_queues) > 0 ? colors.light : colors.faint }} />
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>
-              {Number(branch?.open_queues) > 0 ? 'Live queue · open now' : 'Queues closed right now'}
-            </Text>
-          </View>
+          {(() => {
+            const open = branchOpenInfo();
+            const live = open.state === 'open' && Number(branch?.open_queues) > 0;
+            const dot = open.state === 'open' ? colors.light : open.state === 'about_to_open' ? colors.accent : colors.faint;
+            const label = open.state === 'open'
+              ? (live ? 'Live queue · open now' : `Open · ${open.detail.toLowerCase()}`)
+              : open.state === 'about_to_open' ? open.detail : `Closed · ${open.detail.toLowerCase()}`;
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dot }} />
+                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{label}</Text>
+              </View>
+            );
+          })()}
         </View>
         <Text style={[t.h1, { marginBottom: 24 }]}>{branch?.business_name || 'Agency'}</Text>
 

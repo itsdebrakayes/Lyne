@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openingTimeLabel } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -66,6 +66,11 @@ export default function HomeScreen() {
     || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
   ), [branches]);
   const shortest = sorted[0];
+  // Open/closed by the wall clock — the source of truth for whether to show
+  // live waits or a Closed / About-to-open state (see branchOpenInfo).
+  const open = branchOpenInfo();
+  const isOpen = open.state === 'open';
+  const soon = open.state === 'about_to_open';
   const agencies = useMemo(() => {
     const seen = new Set<string>();
     return branches.filter(b => (seen.has(b.business_id) ? false : (seen.add(b.business_id), true))).slice(0, 8);
@@ -133,26 +138,39 @@ export default function HomeScreen() {
               <Ionicons name="time-outline" size={22} color={colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>Tap to join a queue</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>Live waits at every branch, in one tap</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>
+                {isOpen ? 'Tap to join a queue' : soon ? 'Be first in line' : 'Queues are closed'}
+              </Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>
+                {isOpen ? 'Live waits at every branch, in one tap' : soon ? 'Doors open soon — line up before the rush' : 'Browse now and plan your visit ahead'}
+              </Text>
             </View>
-            <View style={{ width: 42, height: 42, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 19 }}>→</Text>
+            <View style={{ width: 42, height: 42, borderRadius: 15, backgroundColor: isOpen ? colors.accent : 'rgba(255,255,255,.12)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={isOpen ? 'arrow-forward' : soon ? 'flash' : 'lock-closed'} size={18} color={isOpen ? colors.accentInk : soon ? colors.accent : 'rgba(255,255,255,.6)'} />
             </View>
           </View>
           <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: 22 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
-            <View style={{ flexShrink: 0 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
-            </View>
-            {shortest && (
-              <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light, flexShrink: 0 }} />
-                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.bold, fontSize: 12.5, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
+          {isOpen ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+              <View style={{ flexShrink: 0 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
               </View>
-            )}
-          </View>
+              {shortest && (
+                <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light, flexShrink: 0 }} />
+                  <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.bold, fontSize: 12.5, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 11, color: soon ? colors.accent : 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>{soon ? 'About to open' : 'Closed now'}</Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.4, marginTop: 7 }}>{open.detail}</Text>
+              </View>
+            </View>
+          )}
         </TouchableOpacity>
 
         {/* smart timing — plan your visit */}
@@ -202,8 +220,9 @@ export default function HomeScreen() {
           <>
             <View style={t.sectionRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={t.section}>Live near you</Text>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />
+                <Text style={t.section}>{isOpen ? 'Live near you' : 'Near you'}</Text>
+                {isOpen && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />}
+                {soon && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />}
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>View all</Text></TouchableOpacity>
             </View>
@@ -211,17 +230,26 @@ export default function HomeScreen() {
               {liveNear.map(b => {
                 const wait = Math.round(Number(b.avg_wait_minutes || 0));
                 const meta = statusMeta(statusFromWait(wait));
+                const loc = [b.city, b.parish].filter(Boolean)[0] || b.business_name;
+                const dotColor = isOpen ? meta.dot : soon ? colors.accent : colors.faint;
+                const statusLine = isOpen ? `${meta.label} · ${loc}` : soon ? `About to open · ${loc}` : `Closed · ${loc}`;
                 return (
                   <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={[t.listRow, { paddingVertical: 16, paddingRight: 18, gap: 15 }]}>
                     <Monogram label={initials(b.business_name)} size={46} radius={15} bg={colors.surfaceAlt} border={false} />
                     <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
                       <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{b.name}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: colors.muted }}>{meta.label} · {[b.city, b.parish].filter(Boolean)[0] || b.business_name}</Text>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />
+                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: colors.muted }}>{statusLine}</Text>
                       </View>
                     </View>
-                    <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
+                    {isOpen ? (
+                      <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
+                    ) : (
+                      <View style={{ backgroundColor: soon ? '#eef8fb' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
+                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: soon ? colors.accentDeep : colors.muted }}>Opens {openingTimeLabel}</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}

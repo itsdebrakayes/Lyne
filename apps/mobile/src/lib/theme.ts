@@ -138,6 +138,62 @@ export function waitShort(minutes?: number | string | null) {
   return wait ? `${wait}m` : 'Now';
 }
 
+/**
+ * Branch open/closed by the wall clock. The demo seeds queues for the whole
+ * day, so "open_queues > 0" is NOT a truthful "open now" signal — a branch
+ * can carry a stale low wait at midnight. Every QMe business here is a
+ * Jamaican government agency (TAJ · PICA · NHT) on standard Mon–Fri
+ * 8:30am–4:30pm hours, so we gate live waits on the clock and surface a
+ * clear Closed / About-to-open state instead of a fake "Now / Light".
+ *
+ * Structured to accept per-branch hours later (opening_time/closing_time on
+ * the branch) — for now it uses the shared agency schedule.
+ */
+export type OpenState = 'open' | 'about_to_open' | 'closed';
+export interface OpenInfo { state: OpenState; label: string; detail: string; }
+
+const OPEN_MIN = 8 * 60 + 30;   // 8:30 AM
+const CLOSE_MIN = 16 * 60 + 30; // 4:30 PM
+const OPEN_DAYS = [1, 2, 3, 4, 5]; // Mon–Fri
+const SOON_WINDOW = 90;         // "about to open" if opening within 90 min
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function clockLabel(mins: number) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const hour12 = ((h + 11) % 12) + 1;
+  return `${hour12}${m ? ':' + String(m).padStart(2, '0') : ''} ${ampm}`;
+}
+
+function nextOpenLabel(day: number) {
+  for (let i = 1; i <= 7; i++) {
+    const nd = (day + i) % 7;
+    if (OPEN_DAYS.includes(nd)) {
+      const rel = i === 1 ? 'tomorrow' : DAY_NAMES[nd];
+      return `Opens ${rel} ${clockLabel(OPEN_MIN)}`;
+    }
+  }
+  return `Opens ${clockLabel(OPEN_MIN)}`;
+}
+
+export function branchOpenInfo(now: Date = new Date()): OpenInfo {
+  const day = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  if (OPEN_DAYS.includes(day)) {
+    if (mins < OPEN_MIN) {
+      if (OPEN_MIN - mins <= SOON_WINDOW) return { state: 'about_to_open', label: 'About to open', detail: `Opens ${clockLabel(OPEN_MIN)} · be first in line` };
+      return { state: 'closed', label: 'Closed', detail: `Opens ${clockLabel(OPEN_MIN)}` };
+    }
+    if (mins <= CLOSE_MIN) return { state: 'open', label: 'Open', detail: `Open until ${clockLabel(CLOSE_MIN)}` };
+    return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day) };
+  }
+  return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day) };
+}
+
+// Short "opens at" time for compact rows (e.g. "8:30 AM").
+export const openingTimeLabel = clockLabel(OPEN_MIN);
+
 export function initials(value?: string) {
   return (value || '')
     .split(/\s+/)
