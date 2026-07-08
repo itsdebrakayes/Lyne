@@ -84,9 +84,8 @@ export default function ProfileScreen() {
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="settings-outline" size={18} color={colors.ink} /></TouchableOpacity>
         </View>
 
         {/* profile */}

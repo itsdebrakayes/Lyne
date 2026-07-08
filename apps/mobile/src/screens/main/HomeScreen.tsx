@@ -9,6 +9,7 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { GlassView } from '../../components/Glass';
+import { PremiumBadge } from '../../components/PremiumBadge';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 function timeGreeting() {
@@ -83,8 +84,8 @@ export default function HomeScreen() {
       >
         {/* greeting header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 16 }}>{initials(user?.full_name || 'Q')}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16 }}>{initials(user?.full_name || 'Q')}</Text>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.sub }}>{timeGreeting()}</Text>
@@ -164,9 +165,7 @@ export default function HomeScreen() {
               <Text style={{ fontFamily: font.bold, fontSize: 16, color: colors.ink, letterSpacing: -0.2 }}>Plan your visit</Text>
               <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>Best time for every service</Text>
             </View>
-            <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 5, paddingHorizontal: 9 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 9.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
-            </View>
+            <PremiumBadge size="sm" />
             <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
           </GlassView>
         </TouchableOpacity>
