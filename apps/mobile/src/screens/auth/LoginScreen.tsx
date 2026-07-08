@@ -1,3 +1,12 @@
+/**
+ * LoginScreen — brand-framed sign in.
+ *
+ * Carries the welcome screen's visual language onto auth: a white canvas with
+ * the QMe brand-tile mosaic bleeding in from the top and bottom edges (you see
+ * half of it at each end), fading into white around a centred QMe Now lockup,
+ * the sign-in form, and one black button — the same forest button as the
+ * intro's "Start queuing".
+ */
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -7,8 +16,45 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
-import { GlassView } from '../../components/Glass';
-import { colors, font, inputReset } from '../../lib/theme';
+import { colors, font, shadow, inputReset } from '../../lib/theme';
+
+type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
+
+// Two rows of brand tiles — one frames the top edge, one the bottom.
+const TOP_TILES: Tile[] = [
+  { icon: 'ticket', bg: colors.dark, fg: colors.accent },
+  { icon: 'time-outline', bg: '#ffffff', fg: colors.accentDeep },
+  { icon: 'barcode-outline', bg: colors.accent, fg: colors.accentInk },
+  { icon: 'location', bg: colors.dark, fg: '#ffffff' },
+  { icon: 'notifications', bg: '#ffffff', fg: colors.accentDeep },
+];
+const BOTTOM_TILES: Tile[] = [
+  { icon: 'qr-code-outline', bg: colors.dark, fg: '#ffffff' },
+  { icon: 'people-outline', bg: colors.accent, fg: colors.accentInk },
+  { icon: 'sparkles', bg: '#ffffff', fg: colors.accentDeep },
+  { icon: 'navigate', bg: colors.dark, fg: colors.accent },
+  { icon: 'checkmark-done', bg: colors.accent, fg: colors.accentInk },
+];
+
+function MotifRow({ tiles }: { tiles: Tile[] }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 13, transform: [{ rotate: '-7deg' }] }}>
+      {tiles.map((tile, index) => (
+        <View
+          key={index}
+          style={{
+            width: 84, height: 84, borderRadius: 25, backgroundColor: tile.bg,
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: tile.bg === '#ffffff' ? 1 : 0, borderColor: colors.border,
+            ...shadow.card,
+          }}
+        >
+          <Ionicons name={tile.icon} size={31} color={tile.fg} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -30,69 +76,80 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* neutral light source — a soft white streak from the top-right */}
+      {/* top motif — brand tiles bleeding off the top edge, fading into white */}
+      <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0.3, y: 0.55 }}
-        style={StyleSheet.absoluteFill}
+        colors={['rgba(255,255,255,0)', '#ffffff']}
+        locations={[0, 0.82]}
+        style={styles.topFade}
+      />
+
+      {/* bottom motif — mirrored off the bottom edge */}
+      <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
+      <LinearGradient
+        pointerEvents="none"
+        colors={['#ffffff', 'rgba(255,255,255,0)']}
+        locations={[0.18, 1]}
+        style={styles.bottomFade}
       />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
-          <GlassView tint="dark" radius={28} intensity={45} style={styles.sheet}>
-            <View style={{ padding: 26, paddingVertical: 30 }}>
-              <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
-              <Text style={styles.title}>Sign In</Text>
-              <Text style={styles.subtitle}>Please enter your details to sign in.</Text>
+          {/* brand lockup */}
+          <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+          <Text style={styles.brand}>QMe Now</Text>
+          <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
-              {!!error && (
-                <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={14} color="#ff8f8f" />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              <TextInput
-                style={[styles.input, focused === 'email' && styles.inputFocused, inputReset]}
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
-                placeholder="Enter your email address"
-                placeholderTextColor="rgba(255,255,255,0.38)"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-
-              <View style={[styles.input, styles.passwordRow, focused === 'password' && styles.inputFocused]}>
-                <TextInput
-                  style={[styles.passwordInput, inputReset]}
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setFocused('password')}
-                  onBlur={() => setFocused(null)}
-                  placeholder="Password"
-                  placeholderTextColor="rgba(255,255,255,0.38)"
-                  secureTextEntry={!showPassword}
-                  autoComplete="current-password"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={17} color="rgba(255,255,255,0.5)" />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
-                {loading ? <ActivityIndicator color={colors.ink} /> : <Text style={styles.btnText}>Sign in</Text>}
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
-                <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
-              </TouchableOpacity>
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={15} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
-          </GlassView>
+          )}
+
+          <TextInput
+            style={[styles.input, focused === 'email' && styles.inputFocused, inputReset]}
+            value={email}
+            onChangeText={setEmail}
+            onFocus={() => setFocused('email')}
+            onBlur={() => setFocused(null)}
+            placeholder="Enter your email address"
+            placeholderTextColor={colors.faint}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+
+          <View style={[styles.input, styles.passwordRow, focused === 'password' && styles.inputFocused]}>
+            <TextInput
+              style={[styles.passwordInput, inputReset]}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+              placeholder="Password"
+              placeholderTextColor={colors.faint}
+              secureTextEntry={!showPassword}
+              autoComplete="current-password"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity activeOpacity={0.9} style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : (
+              <>
+                <Text style={styles.btnText}>Sign in</Text>
+                <Ionicons name="arrow-forward" size={17} color={colors.accent} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
+            <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -100,39 +157,48 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0d0c' },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 26 },
-  sheet: {
-    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 40, shadowOffset: { width: 0, height: 22 }, elevation: 12,
-  },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+
+  topMotif: { position: 'absolute', top: -46, left: -44, right: -44, alignItems: 'center' },
+  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 210 },
+  bottomMotif: { position: 'absolute', bottom: -46, left: -44, right: -44, alignItems: 'center' },
+  bottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 210 },
+
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
+
   logo: {
-    width: 52, height: 52, borderRadius: 16, alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+    width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
+    backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16, ...shadow.card,
   },
-  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 24 },
-  title: { fontFamily: font.extra, fontSize: 24, color: '#fff', textAlign: 'center', letterSpacing: -0.4 },
-  subtitle: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 7, marginBottom: 26 },
+  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 26 },
+  brand: { fontFamily: font.extra, fontSize: 24, color: colors.ink, textAlign: 'center', letterSpacing: -0.5 },
+  subtitle: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 7, marginBottom: 28 },
+
   errorBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: 'rgba(229,72,77,0.14)', borderWidth: 1, borderColor: 'rgba(229,72,77,0.28)',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fdecec', borderWidth: 1, borderColor: '#f7cfcf',
+    borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13, marginBottom: 16,
   },
-  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#ffb4b4' },
+  errorText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: colors.danger },
+
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 14, paddingHorizontal: 16, height: 52,
-    fontFamily: font.medium, color: '#fff', fontSize: 14.5, marginBottom: 14,
+    backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 16, paddingHorizontal: 17, height: 56,
+    fontFamily: font.medium, color: colors.ink, fontSize: 15, marginBottom: 14,
   },
-  inputFocused: { borderColor: 'rgba(31,194,222,0.7)', backgroundColor: 'rgba(255,255,255,0.09)' },
-  passwordRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 14 },
-  passwordInput: { flex: 1, height: '100%', fontFamily: font.medium, color: '#fff', fontSize: 14.5 },
+  inputFocused: { borderColor: colors.accent, backgroundColor: '#ffffff' },
+  passwordRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 15 },
+  passwordInput: { flex: 1, height: '100%', fontFamily: font.medium, color: colors.ink, fontSize: 15 },
+
   btn: {
-    backgroundColor: '#fff', borderRadius: 14, height: 54,
-    alignItems: 'center', justifyContent: 'center', marginTop: 6,
+    backgroundColor: colors.dark, borderRadius: 18, height: 58,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+    marginTop: 8, ...shadow.hero,
   },
-  btnText: { fontFamily: font.bold, color: colors.ink, fontSize: 15 },
-  switchRow: { alignItems: 'center', marginTop: 22 },
-  switchText: { fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
-  switchBold: { fontFamily: font.bold, color: '#fff' },
+  btnText: { fontFamily: font.extra, color: '#ffffff', fontSize: 16 },
+
+  switchRow: { alignItems: 'center', marginTop: 24 },
+  switchText: { fontFamily: font.medium, fontSize: 13.5, color: colors.muted },
+  switchBold: { fontFamily: font.bold, color: colors.ink },
 });
