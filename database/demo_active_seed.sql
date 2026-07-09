@@ -425,3 +425,12 @@ ON DUPLICATE KEY UPDATE
   generated_at = VALUES(generated_at);
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Per-branch opening hours (migration 011) — real Jamaican agency schedules,
+-- so the mobile app shows honest per-branch Open / About-to-open / Closed.
+-- open_days: CSV of weekday numbers, 0=Sun..6=Sat.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-taj-001';
+UPDATE branches SET opening_time = '08:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-pica-001';
+UPDATE branches SET opening_time = '08:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-nht-001';
+-- Any remaining branches fall back to a standard weekday schedule.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:30:00', open_days = '1,2,3,4,5' WHERE opening_time IS NULL;

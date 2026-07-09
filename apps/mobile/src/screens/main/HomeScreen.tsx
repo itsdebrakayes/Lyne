@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openingTimeLabel, depthText } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -63,16 +63,19 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [refetch, refetchNotifications]);
 
-  // Branches with open queues rank first — a closed branch's stale low wait
-  // must never beat a live line for the hero or the "near you" list.
-  const sorted = useMemo(() => [...branches].sort((a, b) =>
-    (Number(Number(b.open_queues) > 0) - Number(Number(a.open_queues) > 0))
-    || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
-  ), [branches]);
+  // Branches that are actually OPEN now (by their own hours) rank first — a
+  // closed branch's stale low wait must never beat a live line for the hero or
+  // the "near you" list.
+  const sorted = useMemo(() => {
+    const now = new Date();
+    const openRank = (b: BranchSummary) => (branchOpenInfo(now, hoursFromBranch(b)).state === 'open' ? 1 : 0);
+    return [...branches].sort((a, b) =>
+      (openRank(b) - openRank(a)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
+  }, [branches]);
   const shortest = sorted[0];
-  // Open/closed by the wall clock — the source of truth for whether to show
-  // live waits or a Closed / About-to-open state (see branchOpenInfo).
-  const open = branchOpenInfo();
+  // Hero reflects the best branch's state (sorted open-first). Each row below
+  // computes its own state, so branches on different hours read correctly.
+  const open = branchOpenInfo(new Date(), shortest ? hoursFromBranch(shortest) : undefined);
   const isOpen = open.state === 'open';
   const soon = open.state === 'about_to_open';
   const closed = open.state === 'closed';
@@ -245,8 +248,12 @@ export default function HomeScreen() {
                 const wait = Math.round(Number(b.avg_wait_minutes || 0));
                 const meta = statusMeta(statusFromWait(wait));
                 const loc = [b.city, b.parish].filter(Boolean)[0] || b.business_name;
-                const dotColor = isOpen ? meta.dot : soon ? colors.accent : colors.faint;
-                const statusLine = isOpen ? `${meta.label} · ${loc}` : soon ? `About to open · ${loc}` : `Closed · ${loc}`;
+                const bHours = hoursFromBranch(b);
+                const bInfo = branchOpenInfo(new Date(), bHours);
+                const bOpen = bInfo.state === 'open';
+                const bSoon = bInfo.state === 'about_to_open';
+                const dotColor = bOpen ? meta.dot : bSoon ? colors.accent : colors.faint;
+                const statusLine = bOpen ? `${meta.label} · ${loc}` : bSoon ? `About to open · ${loc}` : `Closed · ${loc}`;
                 return (
                   <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={[t.listRow, { paddingVertical: 16, paddingRight: 18, gap: 15, ...shadow.card }]}>
                     <Monogram label={initials(b.business_name)} size={46} radius={15} bg={colors.surfaceAlt} border={false} />
@@ -257,11 +264,11 @@ export default function HomeScreen() {
                         <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: colors.muted }}>{statusLine}</Text>
                       </View>
                     </View>
-                    {isOpen ? (
+                    {bOpen ? (
                       <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
                     ) : (
-                      <View style={{ backgroundColor: soon ? '#eef8fb' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
-                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: soon ? colors.accentDeep : colors.muted }}>Opens {openingTimeLabel}</Text>
+                      <View style={{ backgroundColor: bSoon ? '#eef8fb' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
+                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: bSoon ? colors.accentDeep : colors.muted }}>Opens {openTimeLabel(bHours)}</Text>
                       </View>
                     )}
                   </TouchableOpacity>

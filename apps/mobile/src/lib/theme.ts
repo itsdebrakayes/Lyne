@@ -168,12 +168,16 @@ export function waitShort(minutes?: number | string | null) {
  */
 export type OpenState = 'open' | 'about_to_open' | 'closed';
 export interface OpenInfo { state: OpenState; label: string; detail: string; }
+export interface BranchHours { openMin: number; closeMin: number; days: number[] }
 
 const OPEN_MIN = 8 * 60 + 30;   // 8:30 AM
 const CLOSE_MIN = 16 * 60 + 30; // 4:30 PM
 const OPEN_DAYS = [1, 2, 3, 4, 5]; // Mon–Fri
 const SOON_WINDOW = 90;         // "about to open" if opening within 90 min
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Fallback for branches with no hours on file yet (standard agency schedule).
+export const DEFAULT_HOURS: BranchHours = { openMin: OPEN_MIN, closeMin: CLOSE_MIN, days: OPEN_DAYS };
 
 function clockLabel(mins: number) {
   const h = Math.floor(mins / 60);
@@ -183,32 +187,45 @@ function clockLabel(mins: number) {
   return `${hour12}${m ? ':' + String(m).padStart(2, '0') : ''} ${ampm}`;
 }
 
-function nextOpenLabel(day: number) {
+// Turn a branch's raw DB hour fields into a BranchHours; falls back to default
+// when a branch hasn't had hours set yet (opening_time/closing_time/open_days).
+export function hoursFromBranch(b?: { opening_time?: string | null; closing_time?: string | null; open_days?: string | null } | null): BranchHours {
+  if (!b || !b.opening_time || !b.closing_time || !b.open_days) return DEFAULT_HOURS;
+  const toMin = (t: string) => { const [h, m] = t.split(':'); return Number(h) * 60 + Number(m || 0); };
+  const days = b.open_days.split(',').map(s => parseInt(s, 10)).filter(n => !Number.isNaN(n));
+  if (!days.length) return DEFAULT_HOURS;
+  return { openMin: toMin(b.opening_time), closeMin: toMin(b.closing_time), days };
+}
+
+// Short "opens at" label for a branch's schedule (e.g. "8:30 AM").
+export function openTimeLabel(hours: BranchHours = DEFAULT_HOURS) { return clockLabel(hours.openMin); }
+
+function nextOpenLabel(day: number, hours: BranchHours) {
   for (let i = 1; i <= 7; i++) {
     const nd = (day + i) % 7;
-    if (OPEN_DAYS.includes(nd)) {
+    if (hours.days.includes(nd)) {
       const rel = i === 1 ? 'tomorrow' : DAY_NAMES[nd];
-      return `Opens ${rel} ${clockLabel(OPEN_MIN)}`;
+      return `Opens ${rel} ${clockLabel(hours.openMin)}`;
     }
   }
-  return `Opens ${clockLabel(OPEN_MIN)}`;
+  return `Opens ${clockLabel(hours.openMin)}`;
 }
 
-export function branchOpenInfo(now: Date = new Date()): OpenInfo {
+export function branchOpenInfo(now: Date = new Date(), hours: BranchHours = DEFAULT_HOURS): OpenInfo {
   const day = now.getDay();
   const mins = now.getHours() * 60 + now.getMinutes();
-  if (OPEN_DAYS.includes(day)) {
-    if (mins < OPEN_MIN) {
-      if (OPEN_MIN - mins <= SOON_WINDOW) return { state: 'about_to_open', label: 'About to open', detail: `Opens ${clockLabel(OPEN_MIN)} · be first in line` };
-      return { state: 'closed', label: 'Closed', detail: `Opens ${clockLabel(OPEN_MIN)}` };
+  if (hours.days.includes(day)) {
+    if (mins < hours.openMin) {
+      if (hours.openMin - mins <= SOON_WINDOW) return { state: 'about_to_open', label: 'About to open', detail: `Opens ${clockLabel(hours.openMin)} · be first in line` };
+      return { state: 'closed', label: 'Closed', detail: `Opens ${clockLabel(hours.openMin)}` };
     }
-    if (mins <= CLOSE_MIN) return { state: 'open', label: 'Open', detail: `Open until ${clockLabel(CLOSE_MIN)}` };
-    return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day) };
+    if (mins <= hours.closeMin) return { state: 'open', label: 'Open', detail: `Open until ${clockLabel(hours.closeMin)}` };
+    return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day, hours) };
   }
-  return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day) };
+  return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day, hours) };
 }
 
-// Short "opens at" time for compact rows (e.g. "8:30 AM").
+// Default agency open time as a plain label, for callers without a branch.
 export const openingTimeLabel = clockLabel(OPEN_MIN);
 
 export function initials(value?: string) {

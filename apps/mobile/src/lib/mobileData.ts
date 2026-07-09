@@ -10,6 +10,9 @@ export interface BranchSummary {
   parish?: string;
   latitude?: number;
   longitude?: number;
+  opening_time?: string | null;
+  closing_time?: string | null;
+  open_days?: string | null;
   total_waiting: number;
   avg_wait_minutes: number;
   open_queues: number;

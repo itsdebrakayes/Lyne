@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS branches (
     phone           VARCHAR(50),
     latitude        DECIMAL(9,6),
     longitude       DECIMAL(9,6),
+    opening_time    TIME,                   -- daily open time, e.g. 08:30
+    closing_time    TIME,                   -- daily close time, e.g. 16:30
+    open_days       VARCHAR(20),            -- CSV of weekday numbers open, 0=Sun..6=Sat (e.g. '1,2,3,4,5')
     is_main_branch  BOOLEAN      NOT NULL DEFAULT FALSE,
     is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,

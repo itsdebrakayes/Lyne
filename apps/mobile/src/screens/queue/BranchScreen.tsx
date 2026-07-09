@@ -3,7 +3,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials, statusFromWait, statusMeta, branchOpenInfo } from '../../lib/theme';
+import { colors, font, t, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -100,7 +100,7 @@ export default function BranchScreen() {
             <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{initials(branch?.business_name)}</Text>
           </View>
           {(() => {
-            const open = branchOpenInfo();
+            const open = branchOpenInfo(new Date(), hoursFromBranch(branch));
             const live = open.state === 'open' && Number(branch?.open_queues) > 0;
             const dot = open.state === 'open' ? colors.light : open.state === 'about_to_open' ? colors.accent : colors.faint;
             const label = open.state === 'open'
