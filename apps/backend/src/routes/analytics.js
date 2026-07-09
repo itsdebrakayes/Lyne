@@ -646,4 +646,81 @@ router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, 
   }
 });
 
+// ── GET /api/analytics/balking ────────────────────────────────
+// The demand you lose to long lines. We can't see people who never joined, so
+// we infer the balk point from the wait each customer *faced at the moment they
+// joined*: join volume collapses once the quoted wait crosses a threshold.
+// Also returns reneging (people who joined then left) for the full picture.
+router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const conditions = ['b.business_id = ?', 't.joined_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)', 't.estimated_wait_minutes IS NOT NULL'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    const serviceFilter = safeServiceId(req.query.service_id);
+    if (serviceFilter) { conditions.push('q.service_id = ?'); params.push(serviceFilter); }
+
+    const [rows] = await pool.query(
+      `SELECT
+         CASE
+           WHEN t.estimated_wait_minutes < 5  THEN '0-5'
+           WHEN t.estimated_wait_minutes < 10 THEN '5-10'
+           WHEN t.estimated_wait_minutes < 15 THEN '10-15'
+           WHEN t.estimated_wait_minutes < 20 THEN '15-20'
+           WHEN t.estimated_wait_minutes < 30 THEN '20-30'
+           WHEN t.estimated_wait_minutes < 45 THEN '30-45'
+           WHEN t.estimated_wait_minutes < 60 THEN '45-60'
+           ELSE '60+'
+         END AS wait_bucket,
+         COUNT(*)               AS joins,
+         SUM(t.status = 'left') AS reneged
+       FROM queue_tickets t
+       JOIN queues q ON t.queue_id = q.id
+       JOIN branches b ON q.branch_id = b.id
+       WHERE ${conditions.join(' AND ')}
+       GROUP BY wait_bucket`,
+      params
+    );
+
+    const ORDER = ['0-5', '5-10', '10-15', '15-20', '20-30', '30-45', '45-60', '60+'];
+    const UPPER = { '0-5': 5, '5-10': 10, '10-15': 15, '15-20': 20, '20-30': 30, '30-45': 45, '45-60': 60, '60+': 90 };
+    const byBucket = Object.fromEntries(rows.map(r => [r.wait_bucket, r]));
+    const histogram = ORDER.map(bucket => ({
+      wait_bucket: bucket,
+      joins: Number(byBucket[bucket]?.joins || 0),
+      reneged: Number(byBucket[bucket]?.reneged || 0),
+    }));
+
+    const totalJoins = histogram.reduce((s, h) => s + h.joins, 0);
+    const totalReneged = histogram.reduce((s, h) => s + h.reneged, 0);
+
+    // Balk threshold = the quoted-wait beyond which the last ~10% of joins sit;
+    // i.e. where cumulative joins reach 90%. Below this you capture demand;
+    // above it, join volume falls off a cliff.
+    let cumulative = 0;
+    let balkWaitMinutes = null;
+    for (const h of histogram) {
+      cumulative += h.joins;
+      if (totalJoins > 0 && cumulative >= totalJoins * 0.9) { balkWaitMinutes = UPPER[h.wait_bucket]; break; }
+    }
+
+    res.json({
+      total_joins: totalJoins,
+      total_reneged: totalReneged,
+      renege_rate_pct: totalJoins > 0 ? Math.round((totalReneged / totalJoins) * 1000) / 10 : 0,
+      balk_wait_minutes: balkWaitMinutes,
+      histogram,
+      insight: balkWaitMinutes
+        ? `Join volume drops off sharply once the quoted wait passes about ${balkWaitMinutes} minutes — keep lines under that to capture demand.`
+        : 'Not enough data yet to estimate a balk point.',
+    });
+  } catch (err) {
+    console.error('balking:', err);
+    res.status(500).json({ error: 'Failed to compute balking analytics.' });
+  }
+});
+
 module.exports = router;
