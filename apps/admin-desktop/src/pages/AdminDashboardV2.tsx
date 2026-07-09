@@ -433,6 +433,14 @@ function useDashboardData(serviceId = '') {
     refetchInterval: 60_000,
   });
 
+  // Balking — the demand lost to long lines, inferred from real join behaviour.
+  const balking = useQuery({
+    queryKey: ['ops-balking', businessId, branchId, admin?.role, serviceId],
+    queryFn: () => api.get<BalkingData>(`/analytics/balking?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && businessId),
+    refetchInterval: 60_000,
+  });
+
   return {
     admin,
     businessId,
@@ -449,9 +457,19 @@ function useDashboardData(serviceId = '') {
     employeeKpis: employeeKpis.data,
     predictions: predictions.data || [],
     pipeline: pipeline.data,
-    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(), targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch()]),
+    balking: balking.data || null,
+    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(), branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(), targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch()]),
   };
 }
+
+type BalkingData = {
+  total_joins: number;
+  total_reneged: number;
+  renege_rate_pct: number;
+  balk_wait_minutes: number | null;
+  histogram: Array<{ wait_bucket: string; joins: number; reneged: number }>;
+  insight: string;
+};
 
 function trendData(rows: SummaryRow[]) {
   return rows.slice().reverse().map((row) => ({
@@ -1811,13 +1829,58 @@ function NotebookModelQuality({ predictions }: { predictions: PredictionRow[] })
   );
 }
 
-function NotebookAnalytics({ predictions }: { predictions: PredictionRow[] }) {
+const BALK_UPPER: Record<string, number> = { '0-5': 5, '5-10': 10, '10-15': 15, '15-20': 20, '20-30': 30, '30-45': 45, '45-60': 60, '60+': 90 };
+
+function BalkingCard({ balking }: { balking: BalkingData | null }) {
+  if (!balking || !balking.total_joins) {
+    return (
+      <Panel title="Demand Lost To Long Lines" eyebrow="Balking · Observed From Real Joins">
+        <EmptyState title="Not Enough Joins Yet" detail="Once customers start joining, we'll show the quoted wait at which join volume drops off." />
+      </Panel>
+    );
+  }
+  const maxJoins = Math.max(1, ...balking.histogram.map((h) => h.joins));
+  return (
+    <Panel title="Demand Lost To Long Lines" eyebrow="Balking · Observed From Real Joins">
+      <div style={{ display: 'flex', gap: 14 }}>
+        <div style={{ flex: 1, background: '#F3F7F9', borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#1F3442', letterSpacing: '-0.5px' }}>{balking.balk_wait_minutes != null ? `~${balking.balk_wait_minutes}m` : '—'}</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#718896', marginTop: 2 }}>Join volume collapses past this quoted wait</div>
+        </div>
+        <div style={{ flex: 1, background: '#F3F7F9', borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#C24C3B', letterSpacing: '-0.5px' }}>{balking.renege_rate_pct}%</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#718896', marginTop: 2 }}>{formatCount(balking.total_reneged)} joined then left</div>
+        </div>
+      </div>
+      <div className="health-rows" style={{ marginTop: 14 }}>
+        {balking.histogram.map((h) => {
+          const inBalkZone = balking.balk_wait_minutes != null && (BALK_UPPER[h.wait_bucket] ?? 999) > balking.balk_wait_minutes;
+          return (
+            <div key={h.wait_bucket} className="health-row">
+              <i style={{ background: inBalkZone ? '#C24C3B' : '#2F5063' }} />
+              <div className="health-row-main">
+                <b>{h.wait_bucket} min quoted wait</b>
+                <small>{formatCount(h.joins)} joined{h.reneged ? ` · ${formatCount(h.reneged)} left` : ''}</small>
+              </div>
+              <div className="health-line"><i style={{ width: `${Math.max(6, (h.joins / maxJoins) * 100)}%`, background: inBalkZone ? 'linear-gradient(90deg,#C24C3B,#E6A99E)' : 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
+              <span>{formatCount(h.joins)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 12.5, fontWeight: 600, color: '#4A5F6C', lineHeight: 1.5, marginTop: 12 }}>{balking.insight}</p>
+    </Panel>
+  );
+}
+
+function NotebookAnalytics({ predictions, balking }: { predictions: PredictionRow[]; balking: BalkingData | null }) {
   return (
     <>
       <div className="ops-grid two">
         <NotebookWaitForecast predictions={predictions} />
         <NotebookAbandonment predictions={predictions} />
       </div>
+      <BalkingCard balking={balking} />
       <NotebookModelQuality predictions={predictions} />
     </>
   );
@@ -2055,7 +2118,7 @@ function StaffDashboardContent() {
 function ManagerDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, branchId, queues, summary, services, demandHourly, demandWeekly, targets, predictions, pipeline, refreshAll } = useDashboardData(selectedServiceId);
+  const { admin, businessId, branchId, queues, summary, services, demandHourly, demandWeekly, targets, predictions, pipeline, balking, refreshAll } = useDashboardData(selectedServiceId);
   const [activeTab, setActiveTab] = useState('overview');
   const [staffId, setStaffId] = useState('');
   const [counterId, setCounterId] = useState('');
@@ -2264,7 +2327,7 @@ function ManagerDashboardContent() {
             <ChartCard title="Visitors Served" data={chart} mode="area" />
             <ChartCard title="Served Vs No-Shows" data={chart} />
           </div>
-          <NotebookAnalytics predictions={predictions} />
+          <NotebookAnalytics predictions={predictions} balking={balking} />
         </>
       ) : null}
 
@@ -2297,7 +2360,7 @@ function ManagerDashboardContent() {
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, queues, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline } = useDashboardData(selectedServiceId);
+  const { admin, businessId, queues, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline, balking } = useDashboardData(selectedServiceId);
   const { logout } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('month');
@@ -2501,7 +2564,7 @@ function ExecutiveDashboardContent() {
               <ChartCard title="Visitor Trend" data={chart} mode="area" />
             </div>
             <WorkforcePanel employeeKpis={employeeKpis} />
-            <NotebookAnalytics predictions={predictions} />
+            <NotebookAnalytics predictions={predictions} balking={balking} />
           </section>
         ) : null}
 
