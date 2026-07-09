@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS users (
     national_id     VARCHAR(100),
     trn             VARCHAR(20),
     is_premium      BOOLEAN      NOT NULL DEFAULT FALSE,
+    stripe_customer_id VARCHAR(255),
     date_of_birth   DATE,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -494,6 +495,60 @@ CREATE TABLE IF NOT EXISTS business_targets (
     PRIMARY KEY (business_id),
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
     FOREIGN KEY (set_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =============================================================
+-- PAYMENTS (Stripe · event-sourced immutable ledger — see migration 012)
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id                        CHAR(36)     NOT NULL,
+  user_id                   CHAR(36)     NOT NULL,
+  stripe_payment_method_id  VARCHAR(255) NOT NULL,
+  brand                     VARCHAR(20),
+  last4                     VARCHAR(4),
+  exp_month                 INT,
+  exp_year                  INT,
+  is_default                BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at                TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_pm (user_id, stripe_payment_method_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS payment_intents (
+  id                        CHAR(36)     NOT NULL,
+  user_id                   CHAR(36)     NOT NULL,
+  idempotency_key           VARCHAR(64)  NOT NULL,
+  stripe_payment_intent_id  VARCHAR(255),
+  purpose                   VARCHAR(50)  NOT NULL DEFAULT 'premium_subscription',
+  amount_cents              INT          NOT NULL,
+  currency                  CHAR(3)      NOT NULL DEFAULT 'usd',
+  status                    ENUM('initialized','authorized','captured','failed','refunded','canceled')
+                                         NOT NULL DEFAULT 'initialized',
+  created_at                TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at                TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_idempotency (idempotency_key),
+  UNIQUE KEY uk_stripe_pi (stripe_payment_intent_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Append-only ledger (immutability enforced by triggers in migration 012).
+CREATE TABLE IF NOT EXISTS payment_events (
+  id                 CHAR(36)     NOT NULL,
+  payment_intent_id  CHAR(36)     NOT NULL,
+  stripe_event_id    VARCHAR(255),
+  event_type         VARCHAR(50)  NOT NULL,
+  amount_cents       INT,
+  payload            JSON,
+  occurred_at        TIMESTAMP    NULL,
+  recorded_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_stripe_event (stripe_event_id),
+  KEY idx_pe_intent (payment_intent_id),
+  FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

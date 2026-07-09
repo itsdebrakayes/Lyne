@@ -22,6 +22,7 @@
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
     "mysql2": "^3.9.7",
+    "stripe": "^22.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

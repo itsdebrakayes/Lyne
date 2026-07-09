@@ -36,6 +36,11 @@ app.use(cors({
   credentials: true,
 }));
 
+// Stripe webhook needs the RAW body for signature verification — mount it
+// before express.json() so the parser doesn't consume the body.
+const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+
 // Body parsing — limit OCR uploads separately (see /api/ocr route)
 app.use(express.json({ limit: '1mb' }));
 
@@ -70,6 +75,7 @@ app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));
+app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
 app.use('/api/ocr', ocrLimiter, express.json({ limit: '10mb' }), require('./routes/ocr'));
