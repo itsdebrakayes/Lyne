@@ -6,7 +6,7 @@
  * that collects everything a branch needs up front: name, email, phone, date
  * of birth (in-app calendar), password + confirmation, and TRN.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -14,6 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 
@@ -63,6 +64,8 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  const { scheme } = useTheme();
+  const styles = useMemo(() => makeStyles(), [scheme]);
 
   const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim()) { setError('Add your name, email and phone number to continue.'); return; }
@@ -179,8 +182,8 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+const makeStyles = () => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
   inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 40 },
 
   topMotif: { position: 'absolute', top: -30, left: -30, right: -30, alignItems: 'center', opacity: 0.9 },

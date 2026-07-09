@@ -7,7 +7,7 @@
  * the sign-in form, and one black button — the same forest button as the
  * intro's "Start queuing".
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
@@ -65,6 +66,8 @@ export default function LoginScreen() {
   const [focused, setFocused] = useState<'email' | 'password' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { scheme } = useTheme();
+  const styles = useMemo(() => makeStyles(), [scheme]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) { setError('Enter your email and password to continue.'); return; }
@@ -80,7 +83,7 @@ export default function LoginScreen() {
       <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(255,255,255,0)', '#ffffff']}
+        colors={['rgba(255,255,255,0)', colors.surface]}
         locations={[0, 0.82]}
         style={styles.topFade}
       />
@@ -89,7 +92,7 @@ export default function LoginScreen() {
       <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
       <LinearGradient
         pointerEvents="none"
-        colors={['#ffffff', 'rgba(255,255,255,0)']}
+        colors={[colors.surface, 'rgba(255,255,255,0)']}
         locations={[0.18, 1]}
         style={styles.bottomFade}
       />
@@ -156,8 +159,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
+const makeStyles = () => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surface },
 
   topMotif: { position: 'absolute', top: -46, left: -44, right: -44, alignItems: 'center' },
   topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 210 },

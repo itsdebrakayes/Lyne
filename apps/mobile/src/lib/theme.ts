@@ -13,7 +13,7 @@ import { Platform, StyleSheet } from 'react-native';
  * site — swap `accent` below to change it everywhere.
  */
 
-export const colors = {
+const lightColors = {
   // surfaces
   bg: '#f2f3f5',
   bgSoft: '#e9eaee',
@@ -55,6 +55,57 @@ export const colors = {
 
   onDark: '#ffffff',
 };
+
+export type Palette = typeof lightColors;
+
+// Dark palette — same keys, forest-dark surfaces with light ink and a brighter
+// cyan so the brand still pops. Status greens/ambers/reds lifted for contrast.
+const darkColors: Palette = {
+  bg: '#0b1210',
+  bgSoft: '#131c18',
+  surface: '#151f1a',
+  surfaceAlt: '#1c2822',
+  fieldBg: '#1c2822',
+
+  ink: '#eef2f0',
+  text: '#eef2f0',
+  muted: '#8b978f',
+  faint: '#5c665f',
+  sub: '#b7c0b9',
+  chevron: '#3a453f',
+
+  border: '#243029',
+  borderSoft: '#1c2822',
+
+  glass: 'rgba(28,40,34,0.55)',
+  glassStrong: 'rgba(28,40,34,0.75)',
+  glassBorder: 'rgba(255,255,255,0.10)',
+  glassDark: 'rgba(6,12,10,0.6)',
+  glassDarkBorder: 'rgba(255,255,255,0.10)',
+
+  dark: '#1e2e27', // raised dark surface (heroes / primary buttons)
+  accent: '#22c9e4',
+  accentInk: '#06100e',
+  accentDeep: '#4fd3ea',
+
+  light: '#3fd07f',
+  moderate: '#f5b83e',
+  busy: '#ef5a5f',
+  danger: '#ef5a5f',
+
+  onDark: '#ffffff',
+};
+
+export type ThemeScheme = 'light' | 'dark';
+
+/**
+ * Active palette. This is a LIVE ES-module binding: `import { colors }` reads
+ * the current object, and applyScheme() reassigns it. Combined with a root
+ * remount (ThemeProvider) a theme switch reflows the whole token-based UI
+ * without touching every screen. Inline literal colors (rare, mostly on
+ * already-dark hero surfaces) don't flip — those are tokenized over time.
+ */
+export let colors: Palette = lightColors;
 
 // Category tile palette (icon color + soft tile background).
 export const categoryTints = {
@@ -263,7 +314,7 @@ export const type = {
   tag:       { fontFamily: font.bold,     fontSize: 12,   letterSpacing: 0.2 },
 } as const;
 
-export const t = StyleSheet.create({
+const makeT = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
 
@@ -297,3 +348,16 @@ export const t = StyleSheet.create({
   logoTile: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoTileText: { fontFamily: font.extra, fontSize: 13, color: colors.ink },
 });
+
+// Live-binding shared styles — rebuilt by applyScheme() when the theme flips.
+export let t = makeT();
+
+/**
+ * Swap the active palette and rebuild shared styles. Screens read the live
+ * `colors` / `t` bindings, so after this runs the ThemeProvider remounts the
+ * tree and the whole token-based UI reflows into the new scheme.
+ */
+export function applyScheme(scheme: ThemeScheme) {
+  colors = scheme === 'dark' ? darkColors : lightColors;
+  t = makeT();
+}

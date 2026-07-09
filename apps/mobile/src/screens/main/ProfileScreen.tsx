@@ -8,6 +8,7 @@ import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
+import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -47,6 +48,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const { data: history = [] } = useQuery({ queryKey: ['visit-history-count'], queryFn: () => api.get<Array<{ id: string }>>('/history') });
   const [editingDoc, setEditingDoc] = useState<DocKey | null>(null);
   const [docValue, setDocValue] = useState('');
@@ -171,6 +174,7 @@ export default function ProfileScreen() {
         <ListCard rows={[
           { icon: 'time-outline', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
           { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
+          { icon: 'contrast-outline', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
           { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards' },
           { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'Passcode, data' },
           { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
@@ -258,6 +262,34 @@ export default function ProfileScreen() {
             )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* appearance picker */}
+      <Modal visible={appearanceOpen} transparent animationType="slide" onRequestClose={() => setAppearanceOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setAppearanceOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
+            <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Appearance</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how QMe Now looks. “System” follows your phone.</Text>
+            <View style={{ marginTop: 16, gap: 10 }}>
+              {([
+                { key: 'system', label: 'System default', icon: 'phone-portrait-outline' },
+                { key: 'light', label: 'Light', icon: 'sunny-outline' },
+                { key: 'dark', label: 'Dark', icon: 'moon-outline' },
+              ] as Array<{ key: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }>).map(o => {
+                const sel = themeMode === o.key;
+                return (
+                  <TouchableOpacity key={o.key} activeOpacity={0.85} onPress={() => setThemeMode(o.key)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 16, borderWidth: 1.5, borderColor: sel ? colors.accent : colors.border, backgroundColor: sel ? colors.fieldBg : colors.surface }}>
+                    <Ionicons name={o.icon} size={19} color={sel ? colors.accentDeep : colors.ink} />
+                    <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, color: colors.ink }}>{o.label}</Text>
+                    {sel && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
