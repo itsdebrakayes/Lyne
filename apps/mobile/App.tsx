@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from './src/lib/ThemeProvider';
+import { LockGate } from './src/components/LockGate';
 import {
   useFonts,
   Manrope_400Regular,
@@ -51,7 +52,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <AppNavigator />
+        <LockGate>
+          <AppNavigator />
+        </LockGate>
       </QueryClientProvider>
     </ThemeProvider>
   );
