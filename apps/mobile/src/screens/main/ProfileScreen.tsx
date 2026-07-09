@@ -175,7 +175,7 @@ export default function ProfileScreen() {
           { icon: 'time-outline', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
           { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'contrast-outline', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
-          { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards' },
+          { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
           { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'Passcode, data' },
           { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />

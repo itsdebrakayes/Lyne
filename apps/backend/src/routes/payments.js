@@ -72,6 +72,35 @@ router.get('/methods', requireAuth, async (req, res) => {
   } catch (err) { console.error('payments/methods:', err); res.status(500).json({ error: 'Could not load payment methods.' }); }
 });
 
+// ── POST /api/payments/methods — save a tokenized card ────────
+// Body: { payment_method_id }. The card was tokenized on the client; we only
+// attach the pm id to the customer and store display metadata (brand/last4).
+router.post('/methods', requireAuth, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  const { payment_method_id } = req.body || {};
+  if (!payment_method_id) return res.status(400).json({ error: 'payment_method_id is required.' });
+  try {
+    const customer = await getOrCreateCustomer(stripe, req.dbUser);
+    try { await stripe.paymentMethods.attach(payment_method_id, { customer }); } catch (e) { if (!/already been attached/i.test(e.message || '')) throw e; }
+    const pm = await stripe.paymentMethods.retrieve(payment_method_id);
+    if (!pm.card) return res.status(400).json({ error: 'That payment method is not a card.' });
+    const [existing] = await pool.query('SELECT COUNT(*) AS n FROM payment_methods WHERE user_id = ?', [req.dbUser.id]);
+    const isFirst = Number(existing[0].n) === 0;
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO payment_methods (id, user_id, stripe_payment_method_id, brand, last4, exp_month, exp_year, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE brand = VALUES(brand), last4 = VALUES(last4), exp_month = VALUES(exp_month), exp_year = VALUES(exp_year)`,
+      [id, req.dbUser.id, payment_method_id, pm.card.brand, pm.card.last4, pm.card.exp_month, pm.card.exp_year, isFirst]
+    );
+    res.status(201).json({ id, brand: pm.card.brand, last4: pm.card.last4, exp_month: pm.card.exp_month, exp_year: pm.card.exp_year, is_default: isFirst });
+  } catch (err) {
+    console.error('payments/methods add:', err);
+    res.status(402).json({ error: err.message || 'Could not save card.' });
+  }
+});
+
 // ── DELETE /api/payments/methods/:id — detach a saved card ────
 router.delete('/methods/:id', requireAuth, async (req, res) => {
   try {
