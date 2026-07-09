@@ -22,6 +22,7 @@ import ProfileScreen    from '../screens/main/ProfileScreen';
 import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
 import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
+import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -38,6 +39,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Help:       undefined;
   AgencyHelp: { slug: string };
+  DocumentCapture: { field: 'national_id' | 'trn' };
   Plan:       { businessId?: string; branchId?: string } | undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
@@ -118,6 +120,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Help"      component={HelpScreen}      />
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
+            <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />

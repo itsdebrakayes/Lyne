@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -137,7 +137,12 @@ export default function ProfileScreen() {
         <SectionLabel>My documents</SectionLabel>
         <View style={{ flexDirection: 'row', gap: 12 }}>
           {docs.map(d => (
-            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}>
+            <TouchableOpacity
+              key={d.key}
+              activeOpacity={0.85}
+              onPress={() => d.docKey === 'phone' ? openDocSheet('phone', user?.phone) : navigation.navigate('DocumentCapture', { field: d.docKey as 'national_id' | 'trn' })}
+              style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}
+            >
               <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11, overflow: 'hidden' }}>
                 <Sheen radius={12} strength={0.6} />
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
@@ -150,6 +155,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* add another document — grayed placeholder for extra doc types */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture — with secure, Face ID-protected storage — are on the way. For now you can add your National ID and TRN above.')}
+          style={{ marginTop: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surfaceAlt, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={colors.muted} />
+          <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Add another document</Text>
+        </TouchableOpacity>
 
         {/* account & activity */}
         <SectionLabel>Account & activity</SectionLabel>
