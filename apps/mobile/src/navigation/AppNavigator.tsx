@@ -24,6 +24,7 @@ import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
+import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   AgencyHelp: { slug: string };
   DocumentCapture: { field: 'national_id' | 'trn' };
   PaymentMethods: undefined;
+  PrivacySecurity: undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
@@ -124,6 +126,7 @@ export default function AppNavigator() {
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+            <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
