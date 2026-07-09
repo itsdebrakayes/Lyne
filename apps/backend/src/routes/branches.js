@@ -99,13 +99,13 @@ router.get('/:id/stats', async (req, res) => {
 
 router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), async (req, res) => {
   try {
-    const { business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch } = req.body;
+    const { business_id, name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO branches (id, business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, scopedBusinessId(req, business_id), name, address || null, city || null, parish || null, phone || null, latitude || null, longitude || null, is_main_branch || false]
+      `INSERT INTO branches (id, business_id, name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, scopedBusinessId(req, business_id), name, address || null, city || null, parish || null, phone || null, latitude || null, longitude || null, opening_time || null, closing_time || null, open_days || null, is_main_branch || false]
     );
     const [created] = await pool.query('SELECT * FROM branches WHERE id = ?', [id]);
     res.status(201).json(created[0]);
@@ -117,7 +117,7 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
 
 router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
   try {
-    const { name, address, city, parish, phone, latitude, longitude, is_main_branch, is_active } = req.body;
+    const { name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch, is_active } = req.body;
     const [existing] = await pool.query('SELECT business_id FROM branches WHERE id = ? LIMIT 1', [req.params.id]);
     if (!existing.length) return res.status(404).json({ error: 'Branch not found.' });
     if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, req.params.id)) {
@@ -132,11 +132,14 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
          phone          = COALESCE(?, phone),
          latitude       = COALESCE(?, latitude),
          longitude      = COALESCE(?, longitude),
+         opening_time   = COALESCE(?, opening_time),
+         closing_time   = COALESCE(?, closing_time),
+         open_days      = COALESCE(?, open_days),
          is_main_branch = COALESCE(?, is_main_branch),
          is_active      = COALESCE(?, is_active),
          updated_at     = NOW()
        WHERE id = ?`,
-      [name, address, city, parish, phone, latitude, longitude, is_main_branch, is_active, req.params.id]
+      [name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch, is_active, req.params.id]
     );
     const [updated] = await pool.query('SELECT * FROM branches WHERE id = ?', [req.params.id]);
     res.json(updated[0]);
