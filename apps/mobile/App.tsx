@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar } from 'expo-status-bar';
+import { ThemeProvider } from './src/lib/ThemeProvider';
 import {
   useFonts,
   Manrope_400Regular,
@@ -49,9 +49,10 @@ export default function App() {
   if (!tutorialSeen) return <OnboardingScreen onComplete={completeTutorial} />;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <StatusBar style="dark" />
-      <AppNavigator />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppNavigator />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
