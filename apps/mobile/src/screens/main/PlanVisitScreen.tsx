@@ -17,6 +17,8 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { PremiumBadge } from '../../components/PremiumBadge';
+import { CardSheet } from '../../components/CardSheet';
+import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -56,6 +58,7 @@ export default function PlanVisitScreen() {
   const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const { data: branches = [] } = useQuery({
     queryKey: ['mobile-branches'],
@@ -87,6 +90,20 @@ export default function PlanVisitScreen() {
     } finally {
       setTrialBusy(false);
     }
+  };
+
+  // Real paid checkout: the card was tokenized on the device; we send only the
+  // pm id + a client idempotency key. Premium flips via the Stripe webhook on
+  // capture, so we refresh the profile after the charge is accepted.
+  const subscribeWithCard = async (card: TokenizedCard) => {
+    await api.post('/payments/create-intent', {
+      payment_method_id: card.id,
+      idempotency_key: idempotencyKey(),
+      purpose: 'premium_subscription',
+      save_card: true,
+    });
+    await refreshProfile();
+    setCheckoutOpen(false);
   };
 
   return (
@@ -227,13 +244,19 @@ export default function PlanVisitScreen() {
                       </>
                     )}
                   </TouchableOpacity>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed · cancel anytime</Text>
+                  <TouchableOpacity onPress={() => setCheckoutOpen(true)} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Ionicons name="card-outline" size={16} color="#fff" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe with a card</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
                 </View>
               </>
             )}
           </>
         )}
       </ScrollView>
+
+      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get QMe Premium" submitLabel="Subscribe" />
     </View>
   );
 }
