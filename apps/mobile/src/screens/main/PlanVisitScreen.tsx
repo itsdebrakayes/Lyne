@@ -16,6 +16,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { PremiumBadge } from '../../components/PremiumBadge';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -95,12 +96,8 @@ export default function PlanVisitScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
-          <View style={{ width: 44, alignItems: 'flex-end' }}>
-            {premium && (
-              <View style={{ backgroundColor: colors.dark, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 9 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM</Text>
-              </View>
-            )}
+          <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
+            {premium && <PremiumBadge size="sm" />}
           </View>
         </View>
 

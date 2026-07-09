@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
-import api from '../../lib/apiClient';
-import { colors, font, t, categoryTints, initials, inputReset } from '../../lib/theme';
+import api, { supabase } from '../../lib/apiClient';
+import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
 import { TabBar } from '../../components/TabBar';
+import { Sheen } from '../../components/Glass';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -20,7 +21,7 @@ type Row = { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; o
 
 function ListCard({ rows }: { rows: Row[] }) {
   return (
-    <View style={[t.card, { overflow: 'hidden' }]}>
+    <View style={[t.card, { overflow: 'hidden', ...shadow.card }]}>
       {rows.map((r, i) => (
         <TouchableOpacity key={r.label} disabled={!r.onPress} onPress={r.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
           <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
@@ -51,6 +52,11 @@ export default function ProfileScreen() {
   const [docValue, setDocValue] = useState('');
   const [docSaving, setDocSaving] = useState(false);
   const [docError, setDocError] = useState('');
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailValue, setEmailValue] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
@@ -81,18 +87,40 @@ export default function ProfileScreen() {
     }
   };
 
+  const openEmailSheet = () => { setEmailValue(user?.email || ''); setEmailError(''); setEmailSent(false); setEmailOpen(true); };
+  const saveEmail = async () => {
+    const next = emailValue.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailError('Enter a valid email address.'); return; }
+    if (next === (user?.email || '').toLowerCase()) { setEmailError('That’s already your email.'); return; }
+    try {
+      setEmailSaving(true);
+      setEmailError('');
+      // Supabase sends a confirmation link to the new address; the change only
+      // takes effect once it's confirmed, so we surface that instead of a save.
+      const { error: updErr } = await supabase.auth.updateUser({ email: next });
+      if (updErr) throw updErr;
+      setEmailSent(true);
+    } catch (caught: unknown) {
+      setEmailError(caught instanceof Error ? caught.message : 'Could not update email. Try again.');
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="settings-outline" size={18} color={colors.ink} /></TouchableOpacity>
         </View>
 
         {/* profile */}
         <View style={{ alignItems: 'center' }}>
-          <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 30, color: colors.accentInk }}>{initials(name)}</Text>
+          <View style={{ borderRadius: 44, ...shadow.depth }}>
+            <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
+              <Sheen radius={44} />
+              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
+            </View>
           </View>
           <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>
           <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{email}</Text>
@@ -101,16 +129,17 @@ export default function ProfileScreen() {
         {/* personal details */}
         <SectionLabel>Personal details</SectionLabel>
         <ListCard rows={[
-          { icon: 'call-outline', label: 'Phone', sub: user?.phone || 'Not added yet' },
-          { icon: 'mail-outline', label: 'Email', sub: email },
+          { icon: 'call-outline', label: 'Phone', sub: user?.phone || 'Not added yet', onPress: () => openDocSheet('phone', user?.phone) },
+          { icon: 'mail-outline', label: 'Email', sub: email, onPress: openEmailSheet },
         ]} />
 
         {/* documents */}
         <SectionLabel>My documents</SectionLabel>
         <View style={{ flexDirection: 'row', gap: 12 }}>
           {docs.map(d => (
-            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20 }]}>
-              <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <TouchableOpacity key={d.key} activeOpacity={0.85} onPress={() => openDocSheet(d.docKey, d.value)} style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}>
+              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11, overflow: 'hidden' }}>
+                <Sheen radius={12} strength={0.6} />
                 <Ionicons name={d.icon} size={17} color={d.tint.fg} />
               </View>
               <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{d.key}</Text>
@@ -129,7 +158,7 @@ export default function ProfileScreen() {
           { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards' },
           { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'Passcode, data' },
-          { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us' },
+          { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 
         <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: '#f3d3d5', borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
@@ -167,6 +196,52 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* email change sheet */}
+      <Modal visible={emailOpen} transparent animationType="slide" onRequestClose={() => setEmailOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setEmailOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
+            {emailSent ? (
+              <View style={{ alignItems: 'center', paddingVertical: 6 }}>
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#e6f7ee', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                  <Ionicons name="mail-unread-outline" size={24} color={colors.light} />
+                </View>
+                <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4, textAlign: 'center' }}>Confirm your new email</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 8, lineHeight: 19, textAlign: 'center' }}>We sent a confirmation link to {emailValue.trim().toLowerCase()}. Your email updates once you tap it.</Text>
+                <TouchableOpacity onPress={() => setEmailOpen(false)} style={[t.primaryBtn, { alignSelf: 'stretch', minHeight: 52, marginTop: 20 }]}>
+                  <Text style={t.primaryBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Change email</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6, lineHeight: 18 }}>This is your sign-in email. We’ll send a confirmation link to the new address before it changes.</Text>
+                <TextInput
+                  autoFocus
+                  value={emailValue}
+                  onChangeText={setEmailValue}
+                  placeholder="you@email.com"
+                  placeholderTextColor={colors.faint}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={[{ backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 16, height: 54, fontFamily: font.semibold, color: colors.ink, fontSize: 15, marginTop: 16 }, inputReset]}
+                />
+                {!!emailError && <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 10 }}>{emailError}</Text>}
+                <View style={{ flexDirection: 'row', gap: 11, marginTop: 18 }}>
+                  <TouchableOpacity onPress={() => setEmailOpen(false)} style={[t.ghostBtn, { flex: 1, minHeight: 52 }]}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity disabled={emailSaving} onPress={saveEmail} style={[t.primaryBtn, { flex: 1, minHeight: 52 }]}>
+                    {emailSaving ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>Send link</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>

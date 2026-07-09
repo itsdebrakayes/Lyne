@@ -105,8 +105,8 @@ export function TabBar({ active }: { active: TabKey }) {
         radius={34}
         style={{
           position: 'absolute', bottom: 24, alignSelf: 'center',
-          flexDirection: 'row', alignItems: 'center', gap: 4,
-          paddingHorizontal: 10, paddingVertical: 8,
+          flexDirection: 'row', alignItems: 'center', gap: 10,
+          paddingHorizontal: 16, paddingVertical: 8,
           zIndex: 30, ...shadow.floating,
         }}
       >

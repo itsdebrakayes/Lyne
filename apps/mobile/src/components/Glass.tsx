@@ -10,9 +10,29 @@
 import React from 'react';
 import { Platform, StyleSheet, View, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../lib/theme';
 
 const canBlur = Platform.OS !== 'web';
+
+/**
+ * Sheen — an absolute-fill gradient that lights the top and shades the bottom
+ * of a rounded surface, giving it a subtle spherical/raised depth (the way
+ * Apple's avatars and buttons look "full" rather than flat). Drop it inside a
+ * rounded container, behind the content. `strength` scales the effect.
+ */
+export function Sheen({ radius = 999, strength = 1 }: { radius?: number; strength?: number }) {
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={[`rgba(255,255,255,${0.30 * strength})`, 'rgba(255,255,255,0)', `rgba(0,0,0,${0.07 * strength})`]}
+      locations={[0, 0.52, 1]}
+      start={{ x: 0.32, y: 0 }}
+      end={{ x: 0.68, y: 1 }}
+      style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+    />
+  );
+}
 
 type GlassProps = {
   children?: React.ReactNode;
