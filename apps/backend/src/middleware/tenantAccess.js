@@ -46,7 +46,10 @@ function assertBranchAccess(req, branchId) {
   if (!req.dbStaff) return false;
   const role = roleName(req);
   if (role === 'executive') return true;
-  return !req.dbStaff.branch_id || req.dbStaff.branch_id === branchId;
+  // Managers / line staff are strictly branch-scoped. A null branch_id must NOT
+  // grant all-branch access (defense-in-depth: only executives are company-wide),
+  // so require an explicit branch match.
+  return !!req.dbStaff.branch_id && req.dbStaff.branch_id === branchId;
 }
 
 async function assertLineStaffQueueAccess(req, queue) {
