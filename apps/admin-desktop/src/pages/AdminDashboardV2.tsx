@@ -466,6 +466,7 @@ type BalkingData = {
   total_joins: number;
   total_reneged: number;
   renege_rate_pct: number;
+  avg_renege_minutes: number | null;
   balk_wait_minutes: number | null;
   histogram: Array<{ wait_bucket: string; joins: number; reneged: number }>;
   insight: string;
@@ -1849,7 +1850,7 @@ function BalkingCard({ balking }: { balking: BalkingData | null }) {
         </div>
         <div style={{ flex: 1, background: '#F3F7F9', borderRadius: 12, padding: '12px 14px' }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#C24C3B', letterSpacing: '-0.5px' }}>{balking.renege_rate_pct}%</div>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#718896', marginTop: 2 }}>{formatCount(balking.total_reneged)} joined then left</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#718896', marginTop: 2 }}>{formatCount(balking.total_reneged)} joined then left{balking.avg_renege_minutes != null ? ` · ~${balking.avg_renege_minutes}m before leaving` : ''}</div>
         </div>
       </div>
       <div className="health-rows" style={{ marginTop: 14 }}>
