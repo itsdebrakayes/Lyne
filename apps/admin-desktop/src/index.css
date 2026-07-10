@@ -1617,13 +1617,13 @@ button.ops-row { cursor: pointer; }
   min-height: 100vh;
   min-height: 100dvh;
   overflow: auto;
-  padding: 0 clamp(12px, 1.2vw, 18px) 14px;
+  padding: 0 clamp(14px, 1.4vw, 22px) 20px;
 }
 .exec-topbar {
-  height: 48px;
+  height: 64px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 30;
@@ -1707,18 +1707,19 @@ button.ops-row { cursor: pointer; }
 }
 .exec-alert { margin: 8px 0 12px; }
 .exec-board {
-  height: calc(100vh - 62px);
-  height: calc(100dvh - 62px);
-  min-height: 720px;
+  /* Breathing room: fill the viewport but never squeeze content to fit it —
+     grow naturally when cards need more space. */
+  min-height: calc(100vh - 84px);
+  min-height: calc(100dvh - 84px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(300px, 21vw, 380px);
-  gap: 12px;
+  gap: 16px;
   align-items: stretch;
 }
 .exec-center-column {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   grid-template-rows: auto minmax(320px, 1fr) auto minmax(178px, .6fr);
   align-content: stretch;
   height: 100%;
@@ -1726,7 +1727,7 @@ button.ops-row { cursor: pointer; }
 .exec-right-column {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   grid-template-rows: minmax(260px, .9fr) minmax(190px, .7fr) minmax(198px, .65fr);
   align-content: stretch;
   height: 100%;
@@ -2208,8 +2209,8 @@ button.exec-kpi-card { cursor: pointer; }
 .exec-branches-head .exec-efficiency { width: 100%; }
 .exec-tab-page {
   display: grid;
-  gap: 14px;
-  padding: 10px 0 18px;
+  gap: 18px;
+  padding: 14px 0 26px;
 }
 .exec-tab-page > .ops-grid,
 .exec-tab-page > .ops-panel,

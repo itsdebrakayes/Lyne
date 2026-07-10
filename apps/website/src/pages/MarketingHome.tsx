@@ -377,8 +377,8 @@ const plans = [
   {
     name: "Pro",
     price: { m: "$9.99/mo", y: "$95.90/yr" },
-    desc: "For frequent customers who want priority and richer tracking.",
-    features: ["Everything in Free", "Priority queue notifications", "Favourites with branch wait times", "Personal queue analytics", "Multi-line tracking"],
+    desc: "For frequent visitors who want to skip the rush, not just the line.",
+    features: ["Everything in Free", "Plan Your Visit — the best time for every service", "Predictions built from real visit history", "Smart peak-hour alerts", "14-day free trial"],
     highlighted: true,
     cta: "Start a subscription",
     href: "#pricing",
@@ -402,7 +402,7 @@ function Pricing() {
     <section id="pricing" className="scroll-mt-24 border-t border-white/[0.06] py-24 md:py-32">
       <div className="lux-container">
         <div className="mx-auto mb-10 max-w-2xl text-center">
-          <div className="chip chip-mute mb-5">Plans · for the mobile app</div>
+          <div className="chip chip-mute mb-5">Plans · personal &amp; business</div>
           <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
@@ -462,7 +462,7 @@ function Pricing() {
               {plan.internal ? (
                 <Link
                   to={plan.href}
-                  className={`mt-8 block rounded-full py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
+                  className={`mt-8 block rounded-full px-8 py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
                     plan.highlighted ? "btn-primary" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]"
                   }`}
                 >
@@ -471,7 +471,7 @@ function Pricing() {
               ) : (
                 <a
                   href={plan.href}
-                  className={`mt-8 block rounded-full py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
+                  className={`mt-8 block rounded-full px-8 py-3.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
                     plan.highlighted ? "btn-primary" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08]"
                   }`}
                 >
