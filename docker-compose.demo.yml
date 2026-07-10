@@ -42,6 +42,10 @@ services:
       - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
       - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
       - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
+      - ./database/migrations/009_business_targets.sql:/docker-entrypoint-initdb.d/10_009_business_targets.sql:ro
+      - ./database/migrations/010_user_premium.sql:/docker-entrypoint-initdb.d/11_010_user_premium.sql:ro
+      - ./database/migrations/011_branch_hours.sql:/docker-entrypoint-initdb.d/12_011_branch_hours.sql:ro
+      - ./database/migrations/012_payments.sql:/docker-entrypoint-initdb.d/13_012_payments.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
       - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/21_demo_active_seed.sql:ro
     healthcheck:
