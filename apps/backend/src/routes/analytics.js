@@ -685,6 +685,17 @@ router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), re
       params
     );
 
+    // Reneging duration — how long people wait before giving up and leaving.
+    const [renegeRows] = await pool.query(
+      `SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.completed_at, t.updated_at))), 1) AS avg_renege_minutes
+       FROM queue_tickets t
+       JOIN queues q ON t.queue_id = q.id
+       JOIN branches b ON q.branch_id = b.id
+       WHERE ${conditions.join(' AND ')} AND t.status = 'left'`,
+      params
+    );
+    const avgRenegeMinutes = renegeRows[0]?.avg_renege_minutes != null ? Number(renegeRows[0].avg_renege_minutes) : null;
+
     const ORDER = ['0-5', '5-10', '10-15', '15-20', '20-30', '30-45', '45-60', '60+'];
     const UPPER = { '0-5': 5, '5-10': 10, '10-15': 15, '15-20': 20, '20-30': 30, '30-45': 45, '45-60': 60, '60+': 90 };
     const byBucket = Object.fromEntries(rows.map(r => [r.wait_bucket, r]));
@@ -711,6 +722,7 @@ router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), re
       total_joins: totalJoins,
       total_reneged: totalReneged,
       renege_rate_pct: totalJoins > 0 ? Math.round((totalReneged / totalJoins) * 1000) / 10 : 0,
+      avg_renege_minutes: avgRenegeMinutes,
       balk_wait_minutes: balkWaitMinutes,
       histogram,
       insight: balkWaitMinutes

@@ -6,9 +6,9 @@
  * locked preview; QMe Premium unlocks the per-service planner. The trial
  * button flips the flag server-side so both states are real, not mocked.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
@@ -19,6 +19,7 @@ import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
+import { getPremiumPreview } from '../../lib/premiumPreview';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -55,7 +56,9 @@ export default function PlanVisitScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const premium = Boolean(Number(user?.is_premium || 0));
+  const [preview, setPreview] = useState(false);
+  useFocusEffect(useCallback(() => { getPremiumPreview().then(setPreview); }, []));
+  const premium = Boolean(Number(user?.is_premium || 0)) || preview;
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
