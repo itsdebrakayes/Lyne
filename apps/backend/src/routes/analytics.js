@@ -686,11 +686,14 @@ router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), re
     );
 
     // Reneging duration — how long people wait before giving up and leaving.
+    // The leave moment is recorded as a queue_event ('left'); fall back to
+    // completed_at when present. AVG skips tickets with neither timestamp.
     const [renegeRows] = await pool.query(
-      `SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.completed_at, t.updated_at))), 1) AS avg_renege_minutes
+      `SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(e.event_timestamp, t.completed_at))), 1) AS avg_renege_minutes
        FROM queue_tickets t
        JOIN queues q ON t.queue_id = q.id
        JOIN branches b ON q.branch_id = b.id
+       LEFT JOIN queue_events e ON e.ticket_id = t.id AND e.new_status = 'left'
        WHERE ${conditions.join(' AND ')} AND t.status = 'left'`,
       params
     );
