@@ -352,12 +352,25 @@ const makeT = () => StyleSheet.create({
 // Live-binding shared styles — rebuilt by applyScheme() when the theme flips.
 export let t = makeT();
 
+// The scheme currently applied — for the few places that need to branch on
+// dark vs light beyond what the color tokens express (blur tints, overlays).
+export let activeScheme: ThemeScheme = 'light';
+
 /**
  * Swap the active palette and rebuild shared styles. Screens read the live
  * `colors` / `t` bindings, so after this runs the ThemeProvider remounts the
  * tree and the whole token-based UI reflows into the new scheme.
  */
 export function applyScheme(scheme: ThemeScheme) {
+  activeScheme = scheme;
   colors = scheme === 'dark' ? darkColors : lightColors;
   t = makeT();
+}
+
+/** '#rrggbb' (or '#rgb') → 'rgba(r,g,b,a)' — for gradients built from tokens. */
+export function hexToRgba(hex: string, alpha: number) {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }

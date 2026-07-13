@@ -11,7 +11,7 @@ import React from 'react';
 import { Platform, StyleSheet, View, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../lib/theme';
+import { colors, activeScheme } from '../lib/theme';
 
 const canBlur = Platform.OS !== 'web';
 
@@ -42,8 +42,10 @@ type GlassProps = {
   radius?: number;
 };
 
-export function GlassView({ children, style, tint = 'light', intensity = 40, radius = 24 }: GlassProps) {
-  const dark = tint === 'dark';
+export function GlassView({ children, style, tint, intensity = 40, radius = 24 }: GlassProps) {
+  // Untinted glass follows the active theme — light blur on the light canvas,
+  // dark blur in dark mode. Explicit tints (e.g. the dark nav pill) still win.
+  const dark = (tint ?? (activeScheme === 'dark' ? 'dark' : 'light')) === 'dark';
   const fill = dark ? colors.glassDark : colors.glass;
   const border = dark ? colors.glassDarkBorder : colors.glassBorder;
   const base: ViewStyle = {
@@ -70,7 +72,7 @@ export function GlassView({ children, style, tint = 'light', intensity = 40, rad
 }
 
 /** GlassView with sensible card padding baked in. */
-export function GlassCard({ children, style, tint = 'light', intensity = 38, radius = 26, padding = 18 }: GlassProps & { padding?: number }) {
+export function GlassCard({ children, style, tint, intensity = 38, radius = 26, padding = 18 }: GlassProps & { padding?: number }) {
   return (
     <GlassView tint={tint} intensity={intensity} radius={radius} style={style}>
       <View style={{ padding }}>{children}</View>
