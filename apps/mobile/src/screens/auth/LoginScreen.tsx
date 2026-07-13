@@ -190,7 +190,7 @@ const makeStyles = () => StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 17, height: 56,
     fontFamily: font.medium, color: colors.ink, fontSize: 15, marginBottom: 14,
   },
-  inputFocused: { borderColor: colors.accent, backgroundColor: '#ffffff' },
+  inputFocused: { borderColor: colors.accent, backgroundColor: colors.surface },
   passwordRow: { flexDirection: 'row', alignItems: 'center', paddingRight: 15 },
   passwordInput: { flex: 1, height: '100%', fontFamily: font.medium, color: colors.ink, fontSize: 15 },
 

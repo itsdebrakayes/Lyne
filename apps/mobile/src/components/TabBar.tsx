@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
 import { TicketRecord } from '../lib/mobileData';
-import { colors, font, shadow } from '../lib/theme';
+import { colors, font, shadow, hexToRgba } from '../lib/theme';
 import { GlassView } from './Glass';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
@@ -91,10 +91,11 @@ export function TabBar({ active }: { active: TabKey }) {
 
   return (
     <>
-      {/* Fade scrolling content out before it reaches the floating bar. */}
+      {/* Fade scrolling content out before it reaches the floating bar —
+          built from the theme background so dark mode fades to dark. */}
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(242,243,245,0)', 'rgba(242,243,245,.85)', colors.bg]}
+        colors={[hexToRgba(colors.bg, 0), hexToRgba(colors.bg, 0.85), colors.bg]}
         locations={[0, 0.42, 0.78]}
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
       />

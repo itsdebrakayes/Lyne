@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -128,8 +128,10 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
                 <GlassView radius={20} intensity={38} style={{ width: 58, height: 58, alignItems: 'center', justifyContent: 'center', ...shadow.depth }}>
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: 0.55 }} />
-                  <Sheen radius={20} strength={0.7} />
+                  {/* In dark mode the pastel wash goes translucent so the tile
+                      stays dark and the colored icon carries the identity. */}
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: activeScheme === 'dark' ? 0.14 : 0.55 }} />
+                  <Sheen radius={20} strength={activeScheme === 'dark' ? 0.4 : 0.7} />
                   <Ionicons name={q.icon} size={22} color={tint.fg} />
                 </GlassView>
                 <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{q.label}</Text>

@@ -191,19 +191,15 @@ export default function DocumentCaptureScreen() {
             <Text style={t.h2}>{cfg.title}</Text>
           </View>
 
-          {/* framed illustration */}
-          <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={{ width: frameW, height: frameH, borderRadius: 18, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.chevron, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt, overflow: 'hidden' }}>
-              {imageUri ? (
+          {/* captured/uploaded preview — only once an image actually exists;
+              the scan frame + guidance live in the camera view, not here */}
+          {mode === 'review' && imageUri ? (
+            <View style={{ alignItems: 'center', marginBottom: 22 }}>
+              <View style={{ width: frameW, height: frameH, borderRadius: 18, backgroundColor: colors.surfaceAlt, overflow: 'hidden', ...shadow.card }}>
                 <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-              ) : (
-                <>
-                  <Ionicons name={cfg.kind === 'card' ? 'card-outline' : 'document-text-outline'} size={38} color={colors.muted} />
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 8 }}>{cfg.guide}</Text>
-                </>
-              )}
+              </View>
             </View>
-          </View>
+          ) : null}
 
           {mode === 'review' ? (
             <>

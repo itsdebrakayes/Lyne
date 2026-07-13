@@ -211,7 +211,7 @@ const makeStyles = () => StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 17, height: 54,
     fontFamily: font.medium, color: colors.ink, fontSize: 15, marginBottom: 15,
   },
-  inputFocused: { borderColor: colors.accent, backgroundColor: '#ffffff' },
+  inputFocused: { borderColor: colors.accent, backgroundColor: colors.surface },
   pickerRow: { flexDirection: 'row', alignItems: 'center' },
 
   btn: {
