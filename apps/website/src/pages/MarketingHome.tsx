@@ -80,7 +80,7 @@ function Hero() {
           className="chip mx-auto"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-qme-green blink-dot" />
-          Trusted by Jamaica's leading institutions
+          Built for Jamaica's leading institutions
         </motion.span>
 
         <motion.h1
@@ -116,11 +116,11 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.55 }}
           className="mt-10 flex flex-wrap items-center justify-center gap-4"
         >
-          <a href="#pricing" className="btn btn-primary btn-lg">
-            Download the app <ArrowUpRight className="h-5 w-5" />
-          </a>
-          <a href="#features" className="btn btn-ghost btn-lg">
-            Learn more <ArrowRight className="h-5 w-5" />
+          <Link to="/join-us" className="btn btn-primary btn-lg">
+            Get a license quote <ArrowUpRight className="h-5 w-5" />
+          </Link>
+          <a href="#pricing" className="btn btn-ghost btn-lg">
+            Explore the app <ArrowRight className="h-5 w-5" />
           </a>
         </motion.div>
       </div>
@@ -508,7 +508,7 @@ function ForBusiness() {
             <Building2 className="h-3.5 w-3.5" /> Partners & business
           </div>
           <h2 className="mb-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-            Trusted by the teams <span className="serif accent-text">that run the day.</span>
+            Built for the teams <span className="serif accent-text">that run the day.</span>
           </h2>
           <p className="mb-7 text-lg leading-relaxed text-qme-lavender/70">
             From government agencies to clinics and studios, QME Now powers calmer
@@ -548,27 +548,23 @@ function ForBusiness() {
 
 function Testimonials() {
   const quotes = [
-    { name: "Maya R.", role: "Branch Manager", body: "We cut our walk-in chaos overnight. Customers love seeing their spot in line, and no-shows dropped by a third." },
-    { name: "Devon K.", role: "Line Staff", body: "The service timer keeps me on schedule and the barcode check-in means nobody jumps the queue. Quietly brilliant." },
-    { name: "Priya S.", role: "Regional Executive", body: "The executive dashboard finally gives me a live view across all five branches. I check it with my coffee." },
+    { name: "Your Branch Manager", role: "Day-To-Day Operations", body: "Walk-in chaos becomes a quiet, visible queue. Customers watch their spot from anywhere — and no-shows stop costing you counter time." },
+    { name: "Your Line Staff", role: "At The Counter", body: "The service timer keeps every counter on schedule, and barcode check-in means nobody jumps the queue. Quietly brilliant." },
+    { name: "Your Executive", role: "Across Every Branch", body: "The executive dashboard gives you a live view of every branch — waits, no-shows, and what to improve. Check it with your morning coffee." },
   ];
   return (
     <section className="border-t border-white/[0.06] py-24 md:py-32">
       <div className="lux-container">
         <div className="mx-auto mb-14 max-w-2xl text-center">
-          <div className="chip chip-mute mb-5">Loved by teams</div>
+          <div className="chip chip-mute mb-5">What your team will say</div>
           <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-            Calmer days, <span className="serif accent-text">in their words.</span>
+            Calmer days, <span className="serif accent-text">from week one.</span>
           </h2>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           {quotes.map((q) => (
             <div key={q.name} className="panel flex flex-col p-6">
-              <div className="flex gap-1 text-qme-yellow">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-current" />
-                ))}
-              </div>
+              <span className="font-serif text-4xl italic leading-none accent-text">“</span>
               <p className="mt-4 flex-1 text-[15px] leading-relaxed text-qme-lavender/85">"{q.body}"</p>
               <div className="mt-6 flex items-center gap-3">
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-qme-purple/30 text-xs font-bold">
