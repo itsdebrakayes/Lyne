@@ -178,6 +178,19 @@ role enum; MySQL `roles` doesn't yet.
 - [ ] Date labels unreadable (06-19 style) everywhere they appear.
 - [ ] Percentage-without-base metrics (Turnover 73%, walk-away %).
 
+### W5 — Mobile-on-the-go admin (dashboards on the executive's phone)
+Raised in the design review: executives should be able to check the business
+from their phone. Approach (per Debra's method): **dedicated mobile variations
+of each screen** — purpose-designed layouts per viewport, not fluid
+auto-adaptation. Architecture: the admin app is already a web app (Electron
+wraps it); once hosted, the same secured app serves phones as an installable
+PWA — **no admin screens ever enter the consumer mobile app**, preserving the
+strict surface separation. Scope the on-the-go set first: exec overview
+(KPIs + What To Improve + freshness), live queues, Busy Times, manager
+overview; desktop-only depth (reports, settings) can stay desktop. Build after
+P3–P5 stabilize the screens (no point designing mobile variants of layouts
+about to change). Design references from Debra before this phase starts.
+
 ## 9 · Mobile app follow-through
 
 Apply Rules 1–10 in a sweep: plain-language labels ("Busy times" naming for
@@ -196,6 +209,7 @@ bar; this is a polish pass, not an overhaul.)
 | **P4** | Exec overhaul (§4): What-to-improve placement, statistics absorb notebook insights, busy-times unification, big cards, Settings/Support screens, Reports preview + Word export | L |
 | **P5** | Manager overhaul (§5): branch targets + action plan + insights, Who's-needed-where, filter fixes | M–L |
 | **P6** | Supervisor role (§7) + mobile polish pass (§9) | M |
+| **P7** | Mobile-on-the-go admin variants (W5) — after screens stabilize; needs design references | M–L |
 
 Each phase ships committed to demo → synced to main (no demo data), verified
 in the logged-in preview before hand-off.
