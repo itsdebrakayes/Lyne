@@ -34,19 +34,26 @@ python scripts/export_csv.py --business-id YOUR_BUSINESS_ID --days 90
 
 ## Outputs
 
-`scripts/import_predictions.py` imports standardized insight types:
+The DB-connected model scripts (run with `--write-db`, and wired into
+`run_pipeline.py`) upsert these insight types into `predictive_results`:
 
-- `ops_insights`
-- `staff_metrics`
-- `branch_performance`
-- `service_performance`
-- `resource_recommendations`
-- `best_time_to_visit`
-- `wait_time_predictions`
-- `abandonment_thresholds`
-- `heatmap_data`
+- `wait_eta_grid` — model-based wait per (service, hour, queue length); powers the live customer ETA
+- `service_time_predictions` — expected minutes per customer, per service/hour
+- `demand_forecast` — 7-day arrival-volume forecast per branch (schedule + holiday aware)
+- `staffing_recommendation` — hourly counter plan (Erlang-C) to hold waits at target
+- `no_show_risk` — per-ticket no-show/abandonment risk + drivers
+- `target_attainment` — trend projection vs executive-set targets
+- `operational_anomalies` — branch-level early-warning alerts
+- `wait_time_predictions`, `abandonment_thresholds`, `model_performance`
 
-Each imported insight includes tenant metadata, model version, generated time, and source window where available.
+`scripts/import_predictions.py` still imports the CSV-derived and notebook
+insight types (`ops_insights`, `staff_metrics`, `branch_performance`,
+`service_performance`, `resource_recommendations`, `best_time_to_visit`,
+`heatmap_data`, `manager_performance`) through the secured backend API.
+
+See `docs/ML_MODELS.md` for the full model design. Each imported insight
+includes tenant metadata, model version, generated time, and source window
+where available.
 
 ## Scheduled Worker
 
