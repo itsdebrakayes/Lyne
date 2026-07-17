@@ -30,6 +30,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
+const { estimateWaitMinutes } = require('../utils/waitEstimator');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -196,7 +197,15 @@ router.post('/', requireAuth, async (req, res) => {
     const prefix  = svcRows[0]?.ticket_prefix || 'Q';
     const avgTime = svcRows[0]?.base_avg_time_minutes || 15;
     const ticketNumber  = `${prefix}-${String(position).padStart(3, '0')}`;
-    const estimatedWait = (position - 1) * avgTime;
+    // Prefer the model-based ETA (wait_eta_grid); fall back to position × avg
+    // when no grid is published yet for this tenant.
+    const modelWait = await estimateWaitMinutes({
+      branchId: queue.branch_id,
+      serviceId: queue.service_id,
+      position,
+      hour: new Date().getHours(),
+    });
+    const estimatedWait = modelWait ?? (position - 1) * avgTime;
     const verificationCode = createVerificationCode();
 
     let intakeFormId = null;
@@ -651,7 +660,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       );
     }
 
-    // Recalculate wait times for remaining WAITING tickets after terminal events
+    // Recalculate wait times for remaining WAITING tickets after terminal events.
+    // Prefer the model-based grid (same source as the join-time ETA) so the
+    // number a customer sees doesn't revert to a naive formula on the next
+    // queue update; fall back to position × recent-average service time.
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
       const [avgRows] = await conn.query(
         `SELECT AVG(service_time_minutes) AS avg_svc
@@ -661,25 +673,39 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
          ORDER BY w.created_at DESC LIMIT 20`,
         [ticket.queue_id]
       );
-      const [svcBase] = await conn.query(
-        `SELECT s.base_avg_time_minutes
+      const [qInfo] = await conn.query(
+        `SELECT q.branch_id, q.service_id, s.base_avg_time_minutes
          FROM queues q JOIN services s ON q.service_id = s.id
          WHERE q.id = ?`,
         [ticket.queue_id]
       );
-      const dynamicAvg = avgRows[0]?.avg_svc || svcBase[0]?.base_avg_time_minutes || 15;
+      const dynamicAvg = avgRows[0]?.avg_svc || qInfo[0]?.base_avg_time_minutes || 15;
 
-      await conn.query(
-        `UPDATE queue_tickets t
-         JOIN (
-           SELECT id,
-                  (ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY position) - 1) * ? AS new_wait
-           FROM queue_tickets
-           WHERE queue_id = ? AND status = 'waiting'
-         ) ranked ON t.id = ranked.id
-         SET t.estimated_wait_minutes = ranked.new_wait`,
-        [dynamicAvg, ticket.queue_id]
+      const [waiting] = await conn.query(
+        `SELECT id, position FROM queue_tickets
+         WHERE queue_id = ? AND status = 'waiting' ORDER BY position`,
+        [ticket.queue_id]
       );
+      if (waiting.length) {
+        const hour = new Date().getHours();
+        const updates = [];
+        for (let i = 0; i < waiting.length; i++) {
+          const modelWait = await estimateWaitMinutes({
+            branchId: qInfo[0]?.branch_id,
+            serviceId: qInfo[0]?.service_id,
+            position: i + 1,          // rank among remaining waiters
+            hour,
+          });
+          updates.push({ id: waiting[i].id, wait: modelWait ?? Math.round(i * dynamicAvg) });
+        }
+        const cases = updates.map(() => 'WHEN ? THEN ?').join(' ');
+        const params = updates.flatMap((u) => [u.id, u.wait]);
+        await conn.query(
+          `UPDATE queue_tickets SET estimated_wait_minutes = CASE id ${cases} END
+           WHERE id IN (${updates.map(() => '?').join(',')})`,
+          [...params, ...updates.map((u) => u.id)]
+        );
+      }
     }
 
     await conn.commit();
@@ -869,6 +895,53 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
     res.status(500).json({ error: 'Failed to skip ticket.' });
   } finally {
     conn.release();
+  }
+});
+
+// POST /api/tickets/:id/rating — customer rates a completed visit.
+// The only place customer-experience data is captured; feeds CX reporting and
+// future satisfaction modelling (see migration 014 / apps/model).
+const ratingSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  wait_ok: z.boolean().optional(),
+  comment: z.string().max(500).optional(),
+});
+
+router.post('/:id/rating', requireAuth, async (req, res) => {
+  const parsed = ratingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: validationMessage(parsed.error) });
+  }
+  const { rating, wait_ok, comment } = parsed.data;
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.id, t.user_id, t.status, q.service_id, b.id AS branch_id, b.business_id
+         FROM queue_tickets t
+         JOIN queues q   ON q.id = t.queue_id
+         JOIN branches b ON b.id = q.branch_id
+        WHERE t.id = ?`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const ticket = rows[0];
+    if (req.dbUser?.id && ticket.user_id && ticket.user_id !== req.dbUser.id) {
+      return res.status(403).json({ error: 'You can only rate your own visit.' });
+    }
+    if (!['served', 'no_show', 'left', 'cancelled'].includes(ticket.status)) {
+      return res.status(409).json({ error: 'You can rate a visit once it is complete.' });
+    }
+    await pool.query(
+      `INSERT INTO ticket_ratings
+         (id, ticket_id, user_id, business_id, branch_id, service_id, rating, wait_ok, comment)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE rating = VALUES(rating), wait_ok = VALUES(wait_ok), comment = VALUES(comment)`,
+      [uuidv4(), ticket.id, req.dbUser?.id || null, ticket.business_id, ticket.branch_id,
+       ticket.service_id, rating, wait_ok ?? null, comment ?? null]
+    );
+    res.status(201).json({ message: 'Thanks for your feedback.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save rating.' });
   }
 });
 
