@@ -34,6 +34,19 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # Production uses MySQL-shaped notebooks exclusively.
 NOTEBOOKS_IN_ORDER = ['05_predictive_model.ipynb', '06_manager_performance.ipynb']
 
+# DB-connected model scripts. Each trains/scores against MySQL and upserts its
+# insights straight into predictive_results (--write-db), so they run as their
+# own phase rather than through the CSV → API import path. Order is dependency
+# free; grouped by role (customer ETA → demand → staffing → risk → executive).
+MODEL_SCRIPTS_IN_ORDER = [
+    'generate_insights.py',              # wait_eta_grid, service_time, wait/abandonment, model_perf
+    'forecast_demand.py',                # demand_forecast
+    'recommend_staffing.py',             # staffing_recommendation
+    'predict_no_show.py',                # no_show_risk
+    'forecast_targets.py',               # target_attainment
+    'detect_operational_anomalies.py',   # operational_anomalies
+]
+
 
 def setup_logging(run_id: str) -> logging.Logger:
     log_file = LOG_DIR / f'pipeline_run_{run_id}.log'
@@ -138,6 +151,18 @@ def main():
         if not ok:
             log.error(f'Notebook {notebook} failed — import will not run.')
             failures.append(notebook)
+
+    # ── Model scripts: train + upsert insights directly ───────
+    if not args.dry_run:
+        for script in MODEL_SCRIPTS_IN_ORDER:
+            if not (SCRIPTS_DIR / script).exists():
+                log.warning(f'Model script not found, skipping: {script}')
+                continue
+            if not run_script(log, script, ['--write-db']):
+                log.error(f'Model script {script} failed.')
+                failures.append(script)
+    else:
+        log.info('Dry run — skipping model scripts (no DB writes).')
 
     # ── Step 7: Import predictions ────────────────────────────
     if failures:
