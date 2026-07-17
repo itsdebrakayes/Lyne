@@ -314,6 +314,7 @@ CREATE TABLE IF NOT EXISTS wait_time_records (
     wait_time_minutes       DECIMAL(10,2),
     service_time_minutes    DECIMAL(10,2),
     status                  VARCHAR(50)   NOT NULL,
+    channel                 ENUM('app','walk_in','kiosk') NULL,  -- join channel (see migration 015)
     staff_count_at_time     INT,
     queue_length_at_time    INT,
     active_counters_at_time INT,

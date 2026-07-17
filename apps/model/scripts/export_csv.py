@@ -37,7 +37,7 @@ SELECT
     CASE WHEN hn.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_post_holiday,
     CASE WHEN DAYOFMONTH(w.visit_date) >= 26 THEN 1 ELSE 0 END AS is_month_end,
     CASE WHEN DAYOFMONTH(w.visit_date) <= 3  THEN 1 ELSE 0 END AS is_month_start,
-    CASE WHEN t.user_id IS NULL THEN 'walk_in' ELSE 'app' END AS channel,
+    COALESCE(w.channel, CASE WHEN t.user_id IS NULL THEN 'walk_in' ELSE 'app' END) AS channel,
     w.wait_time_minutes, w.service_time_minutes,
     CASE WHEN w.status = 'served' THEN 'completed'
          WHEN w.status = 'in_service' THEN 'serving'

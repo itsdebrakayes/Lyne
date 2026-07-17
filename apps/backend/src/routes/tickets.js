@@ -597,12 +597,12 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       await conn.query(
         `INSERT INTO wait_time_records
            (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
-            wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time, active_counters_at_time)
+            wait_time_minutes, service_time_minutes, status, channel, staff_count_at_time, queue_length_at_time, active_counters_at_time)
          SELECT ?, ?, b.business_id, b.id, q.service_id, CURDATE(),
                 DAYOFWEEK(NOW())-1, HOUR(NOW()), MONTH(NOW()),
-                ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?
          FROM queues q JOIN branches b ON q.branch_id = b.id WHERE q.id = ?`,
-        [uuidv4(), ticket.id, waitMin, svcMin, new_status, staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
+        [uuidv4(), ticket.id, waitMin, svcMin, new_status, ticket.channel || 'app', staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
       );
 
       if (ticket.user_id) {

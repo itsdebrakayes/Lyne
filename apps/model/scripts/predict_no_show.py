@@ -50,7 +50,7 @@ def load_records(conn):
                w.branch_id, w.service_id, s.name AS service_name,
                w.visit_date, w.day_of_week AS dow, w.hour_of_day AS hour, w.month_of_year AS month,
                COALESCE(w.queue_length_at_time, 0) AS queue_length,
-               CASE WHEN t.user_id IS NULL THEN 1 ELSE 0 END AS is_walk_in,
+               CASE WHEN COALESCE(w.channel, IF(t.user_id IS NULL,'walk_in','app')) = 'app' THEN 0 ELSE 1 END AS is_walk_in,
                CASE WHEN h.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_holiday,
                CASE WHEN DAYOFMONTH(w.visit_date) >= 26 THEN 1 ELSE 0 END AS is_month_end,
                w.status

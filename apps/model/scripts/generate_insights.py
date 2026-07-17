@@ -194,6 +194,9 @@ def wait_eta_grid(trained, df_biz, empirical_min=8):
         dow = int((weekday_slice if len(weekday_slice) else grp)["dow"].mode().iloc[0])
         month = int(grp["month"].mode().iloc[0]) if len(grp["month"].mode()) else datetime.now().month
         ctx = _representative_context(grp)
+        # Ceiling so the model can't extrapolate a thin/high queue bucket into an
+        # absurd ETA: no cell exceeds 1.5× the worst wait this service actually saw.
+        wait_ceiling = float(grp["wait_time_minutes"].quantile(0.99)) * 1.5
         branch_enc = int(enc["branch"].transform([branch_mode.iloc[0]])[0])
         service_enc = int(enc["service"].transform([service_id])[0])
 
@@ -221,7 +224,7 @@ def wait_eta_grid(trained, df_biz, empirical_min=8):
                 cells.append({
                     "hour": hour,
                     "queue_max": bucket,
-                    "predicted_wait": round(max(0.0, wait), 1),
+                    "predicted_wait": round(min(wait_ceiling, max(0.0, wait)), 1),
                     "source": source,
                 })
         services.append({
