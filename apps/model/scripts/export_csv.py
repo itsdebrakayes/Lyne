@@ -30,8 +30,15 @@ SELECT
     w.service_id, s.name AS service_name,
     w.visit_date, w.day_of_week AS dow, w.hour_of_day AS hour,
     w.month_of_year AS month, WEEKOFYEAR(w.visit_date) AS week_of_year,
+    DAYOFMONTH(w.visit_date) AS day_of_month,
     CASE WHEN DAYOFWEEK(w.visit_date) IN (1, 7) THEN 1 ELSE 0 END AS is_weekend,
-    0 AS is_holiday, w.wait_time_minutes, w.service_time_minutes,
+    CASE WHEN h.holiday_date  IS NOT NULL THEN 1 ELSE 0 END AS is_holiday,
+    CASE WHEN hp.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_pre_holiday,
+    CASE WHEN hn.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_post_holiday,
+    CASE WHEN DAYOFMONTH(w.visit_date) >= 26 THEN 1 ELSE 0 END AS is_month_end,
+    CASE WHEN DAYOFMONTH(w.visit_date) <= 3  THEN 1 ELSE 0 END AS is_month_start,
+    CASE WHEN t.user_id IS NULL THEN 'walk_in' ELSE 'app' END AS channel,
+    w.wait_time_minutes, w.service_time_minutes,
     CASE WHEN w.status = 'served' THEN 'completed'
          WHEN w.status = 'in_service' THEN 'serving'
          ELSE w.status END AS status,
@@ -42,6 +49,9 @@ LEFT JOIN queue_tickets t ON t.id = w.ticket_id
 JOIN businesses biz ON biz.id = w.business_id
 JOIN branches b ON b.id = w.branch_id
 JOIN services s ON s.id = w.service_id
+LEFT JOIN public_holidays h  ON h.holiday_date  = w.visit_date
+LEFT JOIN public_holidays hp ON hp.holiday_date = w.visit_date + INTERVAL 1 DAY
+LEFT JOIN public_holidays hn ON hn.holiday_date = w.visit_date - INTERVAL 1 DAY
 WHERE w.visit_date BETWEEN %s AND %s AND w.business_id = %s
 ORDER BY w.visit_date, w.hour_of_day
 """

@@ -598,16 +598,20 @@ router.get('/export-csv', requireAuth, requireStaffRole('manager', 'executive'),
               w.visit_date, w.day_of_week AS dow, w.hour_of_day AS hour,
               w.month_of_year AS month,
               WEEKOFYEAR(w.visit_date) AS week_of_year,
+              DAYOFMONTH(w.visit_date) AS day_of_month,
               CASE WHEN DAYOFWEEK(w.visit_date) IN (1,7) THEN 1 ELSE 0 END AS is_weekend,
-              0 AS is_holiday,
+              CASE WHEN h.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_holiday,
+              CASE WHEN DAYOFMONTH(w.visit_date) >= 26 THEN 1 ELSE 0 END AS is_month_end,
               w.wait_time_minutes, w.service_time_minutes, w.status,
               w.queue_length_at_time AS queue_length_at_join,
-              w.staff_count_at_time, 1 AS active_counters
+              w.staff_count_at_time,
+              COALESCE(w.active_counters_at_time, 1) AS active_counters
        FROM wait_time_records w
        JOIN businesses biz ON w.business_id = biz.id
        JOIN branches b     ON w.branch_id   = b.id
        JOIN services s     ON w.service_id  = s.id
        LEFT JOIN queue_tickets t ON w.ticket_id = t.id
+       LEFT JOIN public_holidays h ON h.holiday_date = w.visit_date
        WHERE ${conditions.join(' AND ')}
        ORDER BY w.visit_date, w.hour_of_day`,
       params
