@@ -170,7 +170,7 @@ router.get('/best-times', async (req, res) => {
 router.get(
   '/',
   requireAuth,
-  requireStaffRole('manager', 'executive'),
+  requireStaffRole('supervisor', 'manager', 'executive'),
   requireBusinessAccess(),
   requireBranchAccess,
   (req, res) => getPredictions(req, res)

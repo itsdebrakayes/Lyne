@@ -25,7 +25,7 @@ const NAV: NavItem[] = [
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function buildHeatmap(cells: any[]) {
+export function buildHeatmap(cells: any[]) {
   const hours = [...new Set(cells.map((c) => num(c.hour)))].sort((a, b) => a - b);
   const max = Math.max(1, ...cells.map((c) => num(c.visit_count)));
   const lvl = (v: number) => (v <= 0 ? 0 : v / max > 0.66 ? 3 : v / max > 0.33 ? 2 : 1);
@@ -189,11 +189,11 @@ export function Bar({ label, n, accent2 }: { label: string; n: number; accent2?:
   const v = Math.max(0, Math.min(100, n));
   return (<div className="r"><span className="lbl">{label}</span><span className="n">{v}</span><span className="bar"><i style={{ width: `${v}%`, background: accent2 ? 'var(--qa-accent-2)' : 'var(--qa-accent)' }} /></span></div>);
 }
-function barPct(actual: number, target: number, lowerBetter: boolean) {
+export function barPct(actual: number, target: number, lowerBetter: boolean) {
   if (!target) return 60;
   return lowerBetter ? Math.max(0, Math.min(100, (target / Math.max(1, actual)) * 100)) : Math.min(100, (actual / target) * 100);
 }
-function scoreFromTargets(last: any, t: any) {
+export function scoreFromTargets(last: any, t: any) {
   const total = num(last.total_visitors) || 1;
   const wait = barPct(num(last.avg_wait_time_minutes), num(t.target_wait_minutes), true);
   const comp = num(last.completion_rate) || (num(last.completed_count) / total) * 100;

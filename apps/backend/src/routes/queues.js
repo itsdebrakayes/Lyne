@@ -18,7 +18,7 @@ const {
 } = require('../middleware/tenantAccess');
 
 // Staff-scoped queues for the administration dashboard.
-router.get('/mine', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), async (req, res) => {
+router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), async (req, res) => {
   try {
     const role = req.dbStaff.role_name;
     const conditions = ['q.is_active = TRUE', 'q.queue_date = CURDATE()', 'b.business_id = ?'];

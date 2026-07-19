@@ -37,7 +37,7 @@ function horizonDate(months) {
   return date.toISOString().slice(0, 10);
 }
 
-router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const businessId = scopedBusinessId(req, req.query.business_id);
     if (!businessId) return res.status(400).json({ error: 'business_id is required.' });

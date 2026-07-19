@@ -94,7 +94,7 @@ function utilizationScore(utilization) {
 }
 
 // Daily summary
-router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -372,7 +372,7 @@ router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusin
 });
 
 // Hourly heatmap
-router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/heatmap', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -405,7 +405,7 @@ router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), re
 });
 
 // Service performance
-router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -442,7 +442,7 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
 
 // Demand breakdown — dot-matrix heatmap. Rows are services (manager) or
 // branches (executive); columns are hour-of-day or day-of-week.
-router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -480,7 +480,7 @@ router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), req
 });
 
 // Weekly busyness per service — day-of-week traffic for each service
-router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -514,7 +514,7 @@ router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executiv
 });
 
 // Staff performance
-router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -547,7 +547,7 @@ router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requ
 });
 
 // Branch performance trends — daily aggregates for line charts
-router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, days = 90 } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -582,7 +582,7 @@ router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive
 });
 
 // CSV export — returns wait_time_records as CSV for the Jupyter model
-router.get('/export-csv', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+router.get('/export-csv', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const { business_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -655,7 +655,7 @@ router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, 
 // we infer the balk point from the wait each customer *faced at the moment they
 // joined*: join volume collapses once the quoted wait crosses a threshold.
 // Also returns reneging (people who joined then left) for the full picture.
-router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/balking', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });

@@ -73,9 +73,10 @@ export function useDashboardData(serviceId = '') {
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
   const branchId = admin?.staffRecord.branch_id;
-  const canAnalytics = admin?.role === 'manager' || admin?.role === 'executive';
+  const branchScoped = admin?.role === 'manager' || admin?.role === 'supervisor';
+  const canAnalytics = branchScoped || admin?.role === 'executive';
   const analyticsQuery = businessId
-    ? `business_id=${businessId}${branchId && admin?.role === 'manager' ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
+    ? `business_id=${businessId}${branchId && branchScoped ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
     : '';
 
   const queues = useQuery({

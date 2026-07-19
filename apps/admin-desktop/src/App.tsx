@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import LoginPage from './pages/Login';
 import StaffDashboard from './pages/StaffDashboard';
+import SupervisorDashboard from './pages/SupervisorDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import LoadingScreen from './components/LoadingScreen';
@@ -19,9 +20,10 @@ function RoleRouter() {
   if (loading) return <LoadingScreen />;
   if (!admin) return <Navigate to="/login" replace />;
   switch (admin.role) {
-    case 'executive': return <Navigate to="/executive" replace />;
-    case 'manager':   return <Navigate to="/manager"   replace />;
-    default:          return <Navigate to="/staff"     replace />;
+    case 'executive':  return <Navigate to="/executive"  replace />;
+    case 'manager':    return <Navigate to="/manager"    replace />;
+    case 'supervisor': return <Navigate to="/supervisor" replace />;
+    default:           return <Navigate to="/staff"      replace />;
   }
 }
 
@@ -36,6 +38,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={['line_staff']}>
             <StaffDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/supervisor"
+        element={
+          <ProtectedRoute roles={['supervisor']}>
+            <SupervisorDashboard />
           </ProtectedRoute>
         }
       />

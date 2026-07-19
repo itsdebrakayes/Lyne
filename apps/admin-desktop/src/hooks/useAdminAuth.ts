@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import { API_URL, supabase } from '@/lib/apiClient';
 
-type AppRole = 'line_staff' | 'manager' | 'executive';
+type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
 export interface StaffRecord {
   id: string;
