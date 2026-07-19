@@ -40,7 +40,7 @@ exercised end-to-end under test. Close that discipline gap and this sells.
 | Mobile app | 🟡 | 20 screens, feature-complete UI; payments stubbed; push needs creds; dark mode / animated splash TODO. |
 | Notifications (push) | 🟡 | Backend ready (device tokens, `pushSender`); needs Expo/FCM/APNs credentials to reach real devices. |
 | Payments (Stripe) | 🔴 | Sound design (event-sourced), but **not live** — gated on `STRIPE_SECRET_KEY`; mobile flow stubbed. |
-| Automated testing / QA | 🔴 | One security test file (17 cases). No unit/integration/e2e for queue logic, ML, payments. No CI. |
+| Automated testing / QA | 🟡 | Now 23 backend tests (security wiring + model-ETA logic) + 9 ML helper tests + GitHub Actions CI + a live e2e smoke (13/13). Still no route-level integration or payments coverage. |
 | Deployment / infra | 🟡 local / 🔴 prod | Docker-compose (two MySQL + API) for local/demo; no production hosting, CI/CD, monitoring, or backups. |
 | Compliance / legal | 🔴 | Stores sensitive PII (`national_id`, `trn`); no privacy policy, retention policy, or DPA assessed. |
 
@@ -88,12 +88,13 @@ exercised end-to-end under test. Close that discipline gap and this sells.
 
 ## 5. Tech debt & risks to schedule (not pilot blockers)
 
-- **No test safety net.** 🔴 Add coverage for the queue lifecycle, the ML
-  pipeline, and payments; add CI to run it on every push. Highest-leverage
-  quality investment.
-- **Dead code:** `apps/admin-desktop/src/pages/AdminDashboardV2.tsx` is now used
-  only for its `useDashboardData` hook (Manager/Exec render from `dashboard/`).
-  Extract the hook, delete the rest (~2,700 lines).
+- **Test safety net — started, not finished.** 🟡 Added functional tests for the
+  model ETA + ML helpers and GitHub Actions CI (backend tests + admin typecheck +
+  model tests on every push), plus `scripts/e2e-smoke.js` (live 13/13). Still
+  needs route-level integration coverage (queues, payments) — the next
+  highest-leverage investment.
+- ~~**Dead code:** AdminDashboardV2.tsx~~ — **done** (2025-07-18): `useDashboardData`
+  extracted to `hooks/`, the ~2.9k-line dead file deleted.
 - **ML is proven only on synthetic data.** The demo seed is realistic but
   generated; the models' real value must be validated on a pilot's actual data.
   Expect to re-tune once real signal arrives.
