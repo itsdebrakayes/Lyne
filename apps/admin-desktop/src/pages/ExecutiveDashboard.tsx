@@ -1,2 +1,2 @@
-import { ExecutiveDashboardV2 } from './AdminDashboardV2';
-export default ExecutiveDashboardV2;
+import ExecutiveDashboard from '../dashboard/ExecutiveDashboard';
+export default ExecutiveDashboard;

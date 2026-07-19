@@ -338,7 +338,7 @@ function analysisMonthKey(rows: SummaryRow[] = []) {
   return newest ? newest.slice(0, 7) : new Date().toISOString().slice(0, 7);
 }
 
-function useDashboardData(serviceId = '') {
+export function useDashboardData(serviceId = '') {
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
   const branchId = admin?.staffRecord.branch_id;
@@ -1093,6 +1093,11 @@ const INSIGHT_DISPLAY_NAMES: Record<string, string> = {
   abandonment_thresholds: 'Queue Length Tolerance',
   wait_time_predictions: 'Wait Time Forecast',
   heatmap_data: 'Busy Times',
+  demand_forecast: 'Expected Demand',
+  staffing_recommendation: 'Staffing Plan',
+  no_show_risk: 'No-Show Risk',
+  target_attainment: 'Target Tracker',
+  operational_anomalies: 'Early-Warning Alerts',
 };
 
 function insightDisplayName(type?: string) {
@@ -1835,6 +1840,166 @@ function NotebookModelQuality({ predictions }: { predictions: PredictionRow[] })
   );
 }
 
+// ── New model insight cards (demand, staffing, targets, anomalies, no-show) ──
+function clockLabel(hour: number) {
+  return `${((hour + 11) % 12) + 1}${hour < 12 ? 'AM' : 'PM'}`;
+}
+
+function branchesFromInsight(prediction: PredictionRow | undefined, branchId?: string) {
+  const data = parseInsightData(prediction?.insight_data);
+  const branches: any[] = Array.isArray(data?.branches) ? data.branches : [];
+  const scoped = branchId ? branches.filter((b) => b.branch_id === branchId) : branches;
+  return scoped.length ? scoped : branches;
+}
+
+function DemandForecastCard({ predictions, branchId }: { predictions: PredictionRow[]; branchId?: string }) {
+  const prediction = latestPrediction(predictions, 'demand_forecast');
+  const branches = branchesFromInsight(prediction, branchId);
+  const byDate = new Map<string, { label: string; expected: number; surge: boolean }>();
+  branches.forEach((b) => (b.next_7_days || []).forEach((d: any) => {
+    const cur = byDate.get(d.date) || { label: d.dow, expected: 0, surge: false };
+    cur.expected += numberValue(d.expected_arrivals);
+    cur.surge = cur.surge || Boolean(d.is_month_end) || Boolean(d.is_pre_holiday);
+    byDate.set(d.date, cur);
+  }));
+  const days = [...byDate.entries()].map(([date, v]) => ({ date, ...v }));
+  const max = Math.max(1, ...days.map((d) => d.expected));
+  return (
+    <Panel title="Expected Demand · Next 7 Days" eyebrow="Forecast Arrivals — Schedule & Holiday Aware">
+      {days.length ? (
+        <div className="health-rows">
+          {days.map((d) => (
+            <div key={d.date} className="health-row">
+              <i style={{ background: d.surge ? '#C24C3B' : '#2F5063' }} />
+              <div className="health-row-main">
+                <b>{d.label} · {new Date(d.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</b>
+                <small>{d.surge ? 'Surge day — month-end / pre-holiday' : 'Typical day'}</small>
+              </div>
+              <div className="health-line"><i style={{ width: `${Math.max(8, (d.expected / max) * 100)}%`, background: d.surge ? 'linear-gradient(90deg,#C24C3B,#E6A99E)' : 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
+              <span>{formatCount(d.expected)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No Forecast Yet" detail={insightSentence(prediction, 'Run the analytics refresh to forecast arrivals for the coming week.')} />
+      )}
+    </Panel>
+  );
+}
+
+function StaffingPlanCard({ predictions, branchId }: { predictions: PredictionRow[]; branchId?: string }) {
+  const prediction = latestPrediction(predictions, 'staffing_recommendation');
+  const data = parseInsightData(prediction?.insight_data);
+  const target = numberValue(data?.target_wait_minutes) || 20;
+  const branch = branchesFromInsight(prediction, branchId)[0];
+  const plan: any[] = Array.isArray(branch?.hourly_plan) ? branch.hourly_plan : [];
+  const maxRec = Math.max(1, ...plan.map((p) => numberValue(p.recommended_counters)));
+  return (
+    <Panel title="Counters To Open By Hour" eyebrow={`To Hold Waits Under ${target} Min${branch ? ` · ${displayLabel(branch.branch_name)}` : ''}`}>
+      {plan.length ? (
+        <div className="health-rows">
+          {plan.map((p) => {
+            const rec = numberValue(p.recommended_counters);
+            const over = Boolean(p.over_capacity);
+            return (
+              <div key={p.hour} className="health-row">
+                <i style={{ background: over ? '#C24C3B' : '#2F5063' }} />
+                <div className="health-row-main">
+                  <b>{clockLabel(numberValue(p.hour))}</b>
+                  <small>{over ? `Short-staffed · ${formatCount(p.available_counters)} counters available` : `~${numberValue(p.expected_wait_minutes)}m expected wait`}</small>
+                </div>
+                <div className="health-line"><i style={{ width: `${Math.max(8, (rec / maxRec) * 100)}%`, background: over ? 'linear-gradient(90deg,#C24C3B,#E6A99E)' : 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
+                <span>{formatCount(rec)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState title="No Staffing Plan Yet" detail={insightSentence(prediction, 'The model recommends how many counters to open each hour from forecast demand and service speed.')} />
+      )}
+    </Panel>
+  );
+}
+
+function TargetTrackerCard({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'target_attainment');
+  const data = parseInsightData(prediction?.insight_data);
+  const metrics: any[] = Array.isArray(data?.metrics) ? data.metrics : [];
+  const STATUS: Record<string, { c: string; l: string }> = {
+    on_track: { c: '#22C55E', l: 'On Track' }, at_risk: { c: '#F5A623', l: 'At Risk' }, off_track: { c: '#C24C3B', l: 'Off Track' },
+  };
+  const LABELS: Record<string, string> = { avg_wait_minutes: 'Average Wait', completion_rate_pct: 'Completion Rate', no_show_rate_pct: 'No-Show Rate' };
+  return (
+    <Panel title="On Track To Hit Targets?" eyebrow="Projected To Your Target Date">
+      {metrics.length ? (
+        <div className="health-rows">
+          {metrics.map((m) => {
+            const s = STATUS[m.status] || STATUS.at_risk;
+            return (
+              <div key={m.metric} className="target-progress-row">
+                <div className="health-row-main">
+                  <b>{LABELS[m.metric] || displayLabel(m.metric)}</b>
+                  <small>Now {m.current} · Projected {m.projected} · Target {m.target} · {displayLabel(m.trend || '')}</small>
+                </div>
+                <span style={{ color: s.c }}>{s.l}</span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState title="No Projection Yet" detail={insightSentence(prediction, 'Set targets and refresh analytics to project whether you will hit them by the horizon.')} />
+      )}
+    </Panel>
+  );
+}
+
+function AnomalyAlertsCard({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'operational_anomalies');
+  const data = parseInsightData(prediction?.insight_data);
+  const anomalies: any[] = Array.isArray(data?.anomalies) ? data.anomalies : [];
+  const COLOR: Record<string, string> = { critical: '#C24C3B', warning: '#F5A623', info: '#607787' };
+  return (
+    <Panel title="Early-Warning Alerts" eyebrow="Branch Days That Broke From The Norm">
+      {anomalies.length ? (
+        <div className="health-rows">
+          {anomalies.slice(0, 6).map((a, i) => (
+            <div key={i} className="health-row">
+              <i style={{ background: COLOR[a.severity] || '#607787' }} />
+              <div className="health-row-main">
+                <b>{displayLabel(a.branch_name || 'Branch')} · {displayLabel(a.metric || '')}</b>
+                <small>{a.value} on {a.date} vs a typical {a.expected}</small>
+              </div>
+              <span style={{ color: COLOR[a.severity] || '#607787', textTransform: 'capitalize' }}>{a.severity}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="All Steady" detail={insightSentence(prediction, 'No unusual branch days detected in the recent window.')} />
+      )}
+    </Panel>
+  );
+}
+
+function NoShowRiskCard({ predictions }: { predictions: PredictionRow[] }) {
+  const prediction = latestPrediction(predictions, 'no_show_risk');
+  const data = parseInsightData(prediction?.insight_data);
+  if (!prediction) return null;
+  const drivers: any[] = Array.isArray(data?.top_drivers) ? data.top_drivers : [];
+  const DRIVER: Record<string, string> = {
+    queue_length: 'How long the line is', hour: 'Time of day', service_enc: 'Which service',
+    dow: 'Day of week', is_walk_in: 'Walk-in vs app join', is_holiday: 'Holiday', is_month_end: 'Month-end', month: 'Month',
+  };
+  return (
+    <Panel title="No-Show Risk" eyebrow="Who Is Likely To Walk Away">
+      <DataRow title="Current No-Show Rate" detail="Share Of Tickets That Don’t Complete" value={data?.overall_abandon_rate_pct != null ? `${Math.round(numberValue(data.overall_abandon_rate_pct))}%` : 'Pending'} />
+      <DataRow title="Model Accuracy (AUC)" detail="Higher Is Better · 50% Is Guessing" value={data?.roc_auc != null ? `${Math.round(numberValue(data.roc_auc) * 100)}%` : 'Pending'} />
+      {drivers.slice(0, 3).map((d) => (
+        <DataRow key={d.feature} title={DRIVER[d.feature] || displayLabel(d.feature)} detail="Top Risk Driver" value={`${Math.round(numberValue(d.importance) * 100)}%`} />
+      ))}
+    </Panel>
+  );
+}
+
 const BALK_UPPER: Record<string, number> = { '0-5': 5, '5-10': 10, '10-15': 15, '15-20': 20, '20-30': 30, '30-45': 45, '45-60': 60, '60+': 90 };
 
 function BalkingCard({ balking }: { balking: BalkingData | null }) {
@@ -2341,6 +2506,11 @@ function ManagerDashboardContent() {
 
       {activeTab === 'busyness' ? (
         <section className="manager-busyness-page">
+          <div className="ops-grid two">
+            <DemandForecastCard predictions={predictions} branchId={branchId} />
+            <StaffingPlanCard predictions={predictions} branchId={branchId} />
+          </div>
+          <NoShowRiskCard predictions={predictions} />
           <DemandPanel hourly={demandHourly} weekly={demandWeekly} rowKind="service" full />
         </section>
       ) : null}
@@ -2628,6 +2798,11 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'operations' ? (
           <section className="exec-tab-page">
+            <div className="ops-grid two">
+              <TargetTrackerCard predictions={predictions} />
+              <AnomalyAlertsCard predictions={predictions} />
+            </div>
+            <DemandForecastCard predictions={predictions} />
             <div className="ops-grid two">
               <Panel title="Pipeline Status">
                 <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={pipeline?.last_run?.status || 'Empty'} />

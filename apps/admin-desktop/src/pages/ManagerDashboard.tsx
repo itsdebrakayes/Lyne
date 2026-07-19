@@ -1,2 +1,2 @@
-import { ManagerDashboardV2 } from './AdminDashboardV2';
-export default ManagerDashboardV2;
+import ManagerDashboard from '../dashboard/ManagerDashboard';
+export default ManagerDashboard;
