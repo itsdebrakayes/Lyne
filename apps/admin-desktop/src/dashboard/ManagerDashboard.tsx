@@ -8,7 +8,7 @@ import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
   AlertTriangle, TrendingUp, Clock, Info,
 } from 'lucide-react';
-import { useDashboardData } from '../pages/AdminDashboardV2';
+import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
 

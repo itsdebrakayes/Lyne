@@ -1,0 +1,168 @@
+/**
+ * useDashboardData — shared data layer for the Manager & Executive dashboards.
+ *
+ * Fetches queues, analytics summaries, service/branch/staff insights, targets,
+ * heatmap, demand and every predictive_results insight for the signed-in staff
+ * member's business (branch-scoped for managers, business-wide for executives),
+ * and returns them as flat, ready-to-render arrays.
+ */
+import { useQuery } from '@tanstack/react-query';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import api from '@/lib/apiClient';
+
+export type QueueRow = {
+  id: string; branch_id?: string; branch_name?: string; service_id?: string; service_name?: string;
+  waiting_count?: number; serving_count?: number; total_count?: number; avg_wait_minutes?: number; status?: string;
+};
+export type SummaryRow = {
+  summary_date: string; total_visitors?: number; completed_count?: number; no_show_count?: number;
+  left_count?: number; avg_wait_time_minutes?: number; avg_service_time_minutes?: number; completion_rate?: number;
+};
+export type ServiceInsight = {
+  service_id?: string; service_name: string; total_visits?: number; completed?: number; no_shows?: number;
+  avg_wait_minutes?: number; avg_service_minutes?: number; dropoff_pct?: number;
+};
+export type StaffInsight = {
+  staff_id?: string; full_name: string; staff_code?: string; tickets_handled?: number; avg_handle_minutes?: number;
+};
+export type BranchTrend = {
+  branch_id?: string; branch_name?: string; business_name?: string; visit_date?: string; total_visits?: number;
+  avg_wait_minutes?: number; completed?: number; no_shows?: number; completion_rate?: number;
+};
+export type ManagerScore = {
+  manager_id: string; manager_name: string; staff_code?: string; branch_id?: string; branch_name?: string;
+  total_visits: number; completed_count: number; no_show_count: number; avg_wait_minutes?: number;
+  avg_service_minutes?: number; completion_rate: number; no_show_rate: number; staff_utilization: number;
+  manager_score: number; rank: number;
+};
+export type HeatmapCell = {
+  dow: number; hour: number; visit_count?: number; avg_wait?: number; avg_wait_minutes?: number; completed?: number; no_shows?: number;
+};
+export type DemandCell = { row_id: string; row_name: string; bucket: number; visit_count?: number; avg_wait?: number };
+export type BusinessTargets = {
+  business_id: string; target_wait_minutes: number; target_completion_rate: number; target_no_show_rate: number;
+  horizon_months: number; target_date?: string | null; note?: string | null; set_by_name?: string | null;
+  updated_at?: string; is_default?: boolean;
+};
+export type ExecutiveKpis = {
+  month: string; total_employees: number; active_employees: number; previous_active_employees: number;
+  active_change_pct: number; leave_employees: number; new_employees: number;
+  new_staff?: Array<{ id: string; full_name: string; staff_code?: string; branch_name?: string; created_at?: string }>;
+};
+export type PredictionRow = {
+  id?: string; insight_type: string; insight_data?: unknown; generated_at?: string;
+  branch_name?: string; service_name?: string; is_stale?: boolean | number;
+};
+export type BalkingData = {
+  total_joins: number; total_reneged: number; renege_rate_pct: number; avg_renege_minutes: number | null;
+  balk_wait_minutes: number | null; histogram: Array<{ wait_bucket: string; joins: number; reneged: number }>; insight: string;
+};
+
+export const DEFAULT_TARGETS: BusinessTargets = {
+  business_id: '', target_wait_minutes: 20, target_completion_rate: 80, target_no_show_rate: 10,
+  horizon_months: 6, is_default: true,
+};
+
+export function analysisMonthKey(rows: SummaryRow[] = []) {
+  const dates = rows.map((r) => String(r.summary_date || '').slice(0, 10)).filter(Boolean).sort();
+  const newest = dates[dates.length - 1];
+  return newest ? newest.slice(0, 7) : new Date().toISOString().slice(0, 7);
+}
+
+export function useDashboardData(serviceId = '') {
+  const { admin } = useAdminAuth();
+  const businessId = admin?.staffRecord.business_id;
+  const branchId = admin?.staffRecord.branch_id;
+  const canAnalytics = admin?.role === 'manager' || admin?.role === 'executive';
+  const analyticsQuery = businessId
+    ? `business_id=${businessId}${branchId && admin?.role === 'manager' ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
+    : '';
+
+  const queues = useQuery({
+    queryKey: ['ops-queues', businessId, branchId, admin?.role],
+    queryFn: () => api.get<QueueRow[]>('/queues/mine'),
+    enabled: Boolean(admin), refetchInterval: 10_000,
+  });
+  const summary = useQuery({
+    queryKey: ['ops-summary', analyticsQuery],
+    queryFn: () => api.get<SummaryRow[]>(`/analytics/summary?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const services = useQuery({
+    queryKey: ['ops-services', analyticsQuery],
+    queryFn: () => api.get<ServiceInsight[]>(`/analytics/services?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const staff = useQuery({
+    queryKey: ['ops-staff-insights', analyticsQuery],
+    queryFn: () => api.get<StaffInsight[]>(`/analytics/staff?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const branchTrends = useQuery({
+    queryKey: ['ops-branch-trends', analyticsQuery],
+    queryFn: () => api.get<BranchTrend[]>(`/analytics/branch-trends?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const heatmap = useQuery({
+    queryKey: ['ops-heatmap', analyticsQuery],
+    queryFn: () => api.get<HeatmapCell[]>(`/analytics/heatmap?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  // Rows are services for managers, branches for executives.
+  const demandRows = admin?.role === 'executive' ? 'branch' : 'service';
+  const demandHourly = useQuery({
+    queryKey: ['ops-demand-hourly', analyticsQuery, demandRows],
+    queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=hour`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const demandWeekly = useQuery({
+    queryKey: ['ops-demand-weekly', analyticsQuery, demandRows],
+    queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+  });
+  const targets = useQuery({
+    queryKey: ['ops-targets', businessId],
+    queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: 120_000,
+  });
+  const employeeKpis = useQuery({
+    queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
+    queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
+    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: 60_000,
+  });
+  const predictions = useQuery({
+    queryKey: ['ops-predictions', businessId],
+    queryFn: () => api.get<PredictionRow[]>(`/predictions?business_id=${businessId}&max_age_minutes=60`),
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+  });
+  const pipeline = useQuery({
+    queryKey: ['ops-pipeline', businessId],
+    queryFn: () => api.get<any>(`/pipeline/status?business_id=${businessId}`),
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+  });
+  const balking = useQuery({
+    queryKey: ['ops-balking', businessId, branchId, admin?.role, serviceId],
+    queryFn: () => api.get<BalkingData>(`/analytics/balking?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+  });
+
+  return {
+    admin, businessId, branchId,
+    queues: queues.data || [],
+    summary: summary.data || [],
+    services: services.data || [],
+    staff: staff.data || [],
+    branchTrends: branchTrends.data || [],
+    heatmap: heatmap.data || [],
+    demandHourly: demandHourly.data || [],
+    demandWeekly: demandWeekly.data || [],
+    targets: targets.data || DEFAULT_TARGETS,
+    employeeKpis: employeeKpis.data,
+    predictions: predictions.data || [],
+    pipeline: pipeline.data,
+    balking: balking.data || null,
+    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
+      branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
+      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch()]),
+  };
+}
