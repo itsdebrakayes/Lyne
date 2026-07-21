@@ -44,6 +44,21 @@ export default function LineStaffDashboard() {
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
+  // Status messages are transient — auto-clear so an error can never sit on
+  // screen forever, and drop it when the user moves to another tab.
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(''), 5000);
+    return () => window.clearTimeout(t);
+  }, [msg]);
+  useEffect(() => { setMsg(''); }, [tab]);
+  // Contextual search over the ticket/history lists.
+  const [q, setQ] = useState('');
+  useEffect(() => { setQ(''); }, [tab]);
+  const needle = q.trim().toLowerCase();
+  const tmatch = (t: any) => !needle
+    || String(t.ticket_number ?? '').toLowerCase().includes(needle)
+    || String(t.user_name ?? '').toLowerCase().includes(needle);
   useNow();
 
   const queues = useQuery({ queryKey: ['ls-queues'], queryFn: () => api.get<QueueRow[]>('/queues/mine'), enabled: !!admin, refetchInterval: 10_000 });
@@ -90,6 +105,9 @@ export default function LineStaffDashboard() {
       eyebrow={`Line Staff${service ? ` · ${service}` : ''}`}
       title={titles[tab][0]} subtitle={titles[tab][1]}
       nav={NAV} active={tab} onNav={setTab} freshness={null}
+      search={tab === 'tickets' || tab === 'history'
+        ? { value: q, onChange: setQ, placeholder: 'Search by ticket number or customer…' }
+        : null}
     >
       {msg ? <div className="qa-msg">{msg}</div> : null}
 
@@ -165,8 +183,8 @@ export default function LineStaffDashboard() {
           <div className="qa-card qa-s12">
             <div className="qa-chead"><div><h3>Queue tickets</h3><div className="qa-cap">Waiting, called and in service · move a ticket up or down</div></div><button className="qa-qcall" onClick={() => ticketsQuery.refetch()}>Refresh</button></div>
             <div className="qa-qlist">
-              {tickets.filter((t) => ['waiting', 'called', 'in_service'].includes(t.status)).length ? tickets
-                .filter((t) => ['waiting', 'called', 'in_service'].includes(t.status))
+              {tickets.filter((t) => ['waiting', 'called', 'in_service'].includes(t.status) && tmatch(t)).length ? tickets
+                .filter((t) => ['waiting', 'called', 'in_service'].includes(t.status) && tmatch(t))
                 .map((t) => (
                   <div className="qa-qitem" key={t.id}>
                     <span className="no qa-num">{t.ticket_number}</span>
@@ -178,7 +196,7 @@ export default function LineStaffDashboard() {
                       <button disabled={t.status !== 'waiting' || action.isPending} onClick={() => action.mutate({ id: t.id, kind: 'move-down' })} aria-label="Move down"><ArrowDown size={15} /></button>
                     </span>
                   </div>
-                )) : <div className="qa-empty">{ticketsQuery.isLoading ? 'Loading…' : 'No active tickets right now.'}</div>}
+                )) : <div className="qa-empty">{ticketsQuery.isLoading ? 'Loading…' : needle ? `No tickets match “${q.trim()}”.` : 'No active tickets right now.'}</div>}
             </div>
           </div>
         </div>
@@ -190,7 +208,7 @@ export default function LineStaffDashboard() {
           <div className="qa-card qa-s12">
             <div className="qa-chead"><div><h3>History</h3><div className="qa-cap">Served and no-show, {period === 'today' ? 'today' : `this ${period}`}</div></div></div>
             <div className="qa-qlist">
-              {(history.data || []).length ? (history.data || []).map((t) => (
+              {(history.data || []).filter(tmatch).length ? (history.data || []).filter(tmatch).map((t) => (
                 <div className="qa-qitem" key={t.id}>
                   <span className="no qa-num">{t.ticket_number}</span>
                   <span className="nm">{t.user_name || 'Customer'}</span>
@@ -198,7 +216,7 @@ export default function LineStaffDashboard() {
                   <span className="w">{t.status === 'served' ? `${Math.round(num(t.service_minutes))}m` : 'skipped'}</span>
                   <span className="w">{when(t.completed_at || t.called_at)}</span>
                 </div>
-              )) : <div className="qa-empty">Nothing for this period yet.</div>}
+              )) : <div className="qa-empty">{needle ? `No tickets match “${q.trim()}”.` : 'Nothing for this period yet.'}</div>}
             </div>
           </div>
         </div>

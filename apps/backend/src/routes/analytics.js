@@ -109,7 +109,10 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
       if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
       if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
       if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
-      else           { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+      // Only fall back to the 30-day window when NEITHER bound was given.
+      // (Previously this `else` hung off `if (to)`, so passing `from` alone was
+      // silently overridden by the 30-day floor.)
+      if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
       const [rows] = await pool.query(
         `SELECT w.visit_date AS summary_date,
@@ -138,7 +141,8 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
-    else           { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+    // Only fall back to the 30-day window when NEITHER bound was given.
+    if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
       `SELECT a.*, b.name AS branch_name
@@ -407,7 +411,7 @@ router.get('/heatmap', requireAuth, requireStaffRole('supervisor', 'manager', 'e
 // Service performance
 router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
-    const { business_id, branch_id } = req.query;
+    const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['w.business_id = ?'];
@@ -416,6 +420,11 @@ router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', '
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
+    // Date window so per-service totals can be scoped to the same period the
+    // dashboards report (previously this aggregated ALL history, which made the
+    // Services tab wildly disagree with the "this week" numbers elsewhere).
+    if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
+    if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
 
     const [rows] = await pool.query(
       `SELECT s.id AS service_id, s.name AS service_name,

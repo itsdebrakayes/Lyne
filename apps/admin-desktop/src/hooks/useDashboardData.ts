@@ -6,6 +6,7 @@
  * member's business (branch-scoped for managers, business-wide for executives),
  * and returns them as flat, ready-to-render arrays.
  */
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
@@ -17,6 +18,9 @@ export type QueueRow = {
 export type SummaryRow = {
   summary_date: string; total_visitors?: number; completed_count?: number; no_show_count?: number;
   left_count?: number; avg_wait_time_minutes?: number; avg_service_time_minutes?: number; completion_rate?: number;
+  // analytics_summaries is per business × branch × service × date — the API
+  // returns a.* so these are present and let us scope totals per branch/service.
+  branch_id?: string; branch_name?: string; service_id?: string;
 };
 export type ServiceInsight = {
   service_id?: string; service_name: string; total_visits?: number; completed?: number; no_shows?: number;
@@ -84,15 +88,27 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<QueueRow[]>('/queues/mine'),
     enabled: Boolean(admin), refetchInterval: 10_000,
   });
+  // The summary endpoint defaults to only 30 days. Ask for a wider window so the
+  // drill-down's 30/90-day ranges are genuinely 30/90 days, not silently capped.
+  const historyFrom = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
   const summary = useQuery({
-    queryKey: ['ops-summary', analyticsQuery],
-    queryFn: () => api.get<SummaryRow[]>(`/analytics/summary?${analyticsQuery}`),
+    queryKey: ['ops-summary', analyticsQuery, historyFrom],
+    queryFn: () => api.get<SummaryRow[]>(`/analytics/summary?${analyticsQuery}&from=${historyFrom}`),
     enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
   });
+  // Scope services to exactly the SAME dates the dashboards headline — the last
+  // 7 dates that actually have data. A calendar guess (today-6) drifts whenever
+  // a day has no records, which made the Services tab disagree with Overview.
+  const weekWindow = useMemo(() => {
+    const ds = [...new Set((summary.data || []).map((r) => String(r.summary_date).slice(0, 10)))].sort();
+    const last7 = ds.slice(-7);
+    return { from: last7[0], to: last7[last7.length - 1] };
+  }, [summary.data]);
   const services = useQuery({
-    queryKey: ['ops-services', analyticsQuery],
-    queryFn: () => api.get<ServiceInsight[]>(`/analytics/services?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    queryKey: ['ops-services', analyticsQuery, weekWindow.from, weekWindow.to],
+    queryFn: () => api.get<ServiceInsight[]>(`/analytics/services?${analyticsQuery}&from=${weekWindow.from}&to=${weekWindow.to}`),
+    // wait for the summary so we know which 7 dates to scope to
+    enabled: Boolean(canAnalytics && analyticsQuery && weekWindow.from), refetchInterval: 60_000,
   });
   const staff = useQuery({
     queryKey: ['ops-staff-insights', analyticsQuery],

@@ -44,8 +44,8 @@ export default function LoginPage() {
           <h1>Run queues, staff, and branch performance from one place.</h1>
           <p>Sign in to access the workspace for your assigned role.</p>
           <div className="qa-login-metrics" aria-hidden="true">
-            <div className="qa-login-metric"><Users size={18} /><span>Live lines</span><b>42</b></div>
-            <div className="qa-login-metric"><Timer size={18} /><span>Avg wait</span><b>12m</b></div>
+            <div className="qa-login-metric"><Users size={18} /><span>Live queues</span><b>Real-time</b></div>
+            <div className="qa-login-metric"><Timer size={18} /><span>Wait times</span><b>Accurate</b></div>
             <div className="qa-login-metric"><BarChart3 size={18} /><span>Insights</span><b>Fresh</b></div>
           </div>
         </div>

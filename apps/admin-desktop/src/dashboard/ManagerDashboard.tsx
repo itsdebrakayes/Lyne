@@ -3,11 +3,13 @@
  * Reuses the shared useDashboardData() layer (live queues, summary, services,
  * targets, heatmap and every ML insight) and renders it in the qa-* design.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
-  AlertTriangle, TrendingUp, Clock, Info,
+  AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone,
 } from 'lucide-react';
+import api from '@/lib/apiClient';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
@@ -49,6 +51,18 @@ export default function ManagerDashboard() {
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
   const last = summary[summary.length - 1] || {};
   const servedSeries = summary.slice(-7).map((s) => num(s.completed_count));
+
+  // Contextual search — only on tabs with a list to filter.
+  const [q, setQ] = useState('');
+  useEffect(() => { setQ(''); }, [tab]);
+  const SEARCHABLE: Record<string, string> = {
+    staff: 'Search staff by name or code…',
+    services: 'Search services…',
+  };
+  const needle = q.trim().toLowerCase();
+  const match = (...vals: any[]) => !needle || vals.some((v) => String(v ?? '').toLowerCase().includes(needle));
+  const shownStaff = (d.staff as any[]).filter((s) => match(s.full_name, s.staff_code));
+  const shownServices = (d.services as any[]).filter((s) => match(s.service_name));
   const waitingNow = d.queues.reduce((t, q: any) => t + num(q.waiting_count), 0);
   const liveWait = Math.round(d.queues.reduce((t, q: any) => t + num(q.avg_wait_minutes), 0) / Math.max(1, d.queues.length)) || Math.round(num(last.avg_wait_time_minutes));
   const completed = num(last.completed_count);
@@ -78,6 +92,7 @@ export default function ManagerDashboard() {
       title={titles[tab][0]} subtitle={titles[tab][1]}
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
+      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
     >
       {tab === 'overview' && (
         <div className="qa-grid">
@@ -124,14 +139,14 @@ export default function ManagerDashboard() {
             <div className="qa-chartwrap"><table className="qa-dtable">
               <thead><tr><th>Name</th><th>Code</th><th className="r">Handled</th><th className="r">Avg Handle</th></tr></thead>
               <tbody>
-                {d.staff.length ? d.staff.map((s: any) => (
+                {shownStaff.length ? shownStaff.map((s: any) => (
                   <tr key={s.staff_id || s.full_name}>
                     <td><span className="qa-tname"><span className="qa-av">{initials(s.full_name)}</span>{titleCase(s.full_name)}</span></td>
                     <td>{s.staff_code || '—'}</td>
                     <td className="r qa-num">{fmtN(s.tickets_handled)}</td>
                     <td className="r qa-num">{s.avg_handle_minutes != null ? `${Math.round(num(s.avg_handle_minutes))}m` : '—'}</td>
                   </tr>
-                )) : <tr><td colSpan={4}><Empty msg="No staff activity yet." /></td></tr>}
+                )) : <tr><td colSpan={4}><Empty msg={needle ? `No staff match “${q.trim()}”.` : 'No staff activity yet.'} /></td></tr>}
               </tbody>
             </table></div>
           </Card>
@@ -140,7 +155,7 @@ export default function ManagerDashboard() {
 
       {tab === 'services' && (
         <div className="qa-grid">
-          <ServicesTable services={d.services} target={num(target.target_wait_minutes)} />
+          <ServicesTable services={shownServices} target={num(target.target_wait_minutes)} />
         </div>
       )}
 
@@ -160,7 +175,8 @@ export default function ManagerDashboard() {
         </div>
       )}
 
-      {tab === 'reports' && <ReportsTab summary={summary} last={last} completed={completed} total={totalToday} noShows={noShows} scope="Branch" />}
+      {/* week slice so the report reconciles with every other screen */}
+      {tab === 'reports' && <ReportsTab summary={summary.slice(-7)} last={last} completed={completed} total={totalToday} noShows={noShows} scope="Branch" />}
 
       {tab === 'settings' && (
         <div className="qa-grid">
@@ -177,7 +193,20 @@ export default function ManagerDashboard() {
         </div>
       )}
 
-      {tab === 'support' && <SupportTab role="Branch Managers" topics={['How Do I Reassign Staff Between Counters?', 'Setting Branch Targets Within The Company Target', 'Reading The Busy-Times Heatmap', 'Exporting Your Weekly Report', 'Adding Or Closing A Counter']} />}
+      {tab === 'support' && <SupportTab role="Branch Managers" topics={[
+        { q: 'How do I read the busy-times heatmap?',
+          a: 'Each row is a service and each column is a day or hour. The darker the square, the more customers arrived in that slot. Use it to decide when to put extra people on — the dark blocks are where your queue builds, and the pale ones are where you can safely take breaks or run training.' },
+        { q: 'What does the Branch Health Score mean?',
+          a: 'A score out of 100 blending your wait time against target, your completion rate, and your no-show control. The three bars underneath show which part is pulling the score down, so you know what to work on first rather than guessing.' },
+        { q: 'Where do I see how each service is performing?',
+          a: 'The Services tab lists every service with its average wait, how many it served, its completion rate, and whether it is under or over your wait target. Anything marked Over is where customers are waiting longest.' },
+        { q: 'Who sets my branch targets?',
+          a: 'Your executive sets the company-wide targets that your branch is measured against — you can see them on the Targets tab along with how your branch is tracking. Branch-specific targets that you set yourself are on the way.' },
+        { q: 'What is in my weekly report?',
+          a: 'Reports shows a preview of exactly what your export contains: your KPI summary against target, customers served per day, the service breakdown, busy times and staffing, and your What To Improve list.' },
+        { q: 'How do I get more staff onto a busy counter?',
+          a: 'Check Busy Times to confirm the peak window, then use your Staff roster to see who is free and their handling times. Staffing suggestions on the Overview also recommend where extra cover would cut the wait the most.' },
+      ]} />}
     </Shell>
   );
 }
@@ -227,7 +256,7 @@ export function ServedChart({ summary }: { summary: any[] }) {
         <span><span className="dash" /><span style={{ color: 'var(--qa-dim)' }}>Daily Average · {avg}</span></span>
       </div>
       <div className="qa-chartwrap">
-        <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${avg}`}
+        <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${avg}`} unitLabel="served"
           marker={{ i: best, label: `${labels[best]} · ${vals[best]} served`, delta: 'Best Day', dir: 'up' }} h={250} />
       </div>
       <div className="qa-cfooter">
@@ -354,14 +383,14 @@ export function ImproveCard({ preds, span }: { preds: any[]; span: number }) {
   );
 }
 
-export function TargetsCard({ target, last, completed, total, noShows, span, big }: { target: any; last: any; completed: number; total: number; noShows: number; span: number; big?: boolean }) {
+export function TargetsCard({ target, last, completed, total, noShows, span, big, title, cap }: { target: any; last: any; completed: number; total: number; noShows: number; span: number; big?: boolean; title?: string; cap?: string }) {
   const rows = [
     { label: 'Average Wait', actual: Math.round(num(last.avg_wait_time_minutes)), goal: num(target.target_wait_minutes), unit: ' min', lowerBetter: true },
     { label: 'Completed Visits', actual: Math.round(num(last.completion_rate) || (completed / Math.max(1, total)) * 100), goal: num(target.target_completion_rate), unit: '%', lowerBetter: false },
     { label: 'No-Show Rate', actual: Math.round((noShows / Math.max(1, total)) * 100), goal: num(target.target_no_show_rate), unit: '%', lowerBetter: true },
   ];
   return (
-    <Card span={span} title={big ? 'Your Branch Targets' : 'Your Branch Targets'} cap="Set Your Own — Within The Company Target">
+    <Card span={span} title={title || 'Your Branch Targets'} cap={cap || 'Set Your Own — Within The Company Target'}>
       {rows.map((r) => {
         const onTrack = r.lowerBetter ? r.actual <= r.goal : r.actual >= r.goal;
         const width = r.lowerBetter ? Math.min(100, (r.goal / Math.max(1, r.actual)) * 100) : Math.min(100, (r.actual / Math.max(1, r.goal)) * 100);
@@ -373,6 +402,67 @@ export function TargetsCard({ target, last, completed, total, noShows, span, big
           </div>
         );
       })}
+    </Card>
+  );
+}
+
+/**
+ * Editable company targets (executives only — the API restricts PUT /targets to
+ * the executive role). Every branch is measured against whatever is saved here.
+ */
+export function SetTargetsCard({ target, businessId, span }: { target: any; businessId?: string; span: number }) {
+  const qc = useQueryClient();
+  const [wait, setWait] = useState('');
+  const [done, setDone] = useState('');
+  const [noShow, setNoShow] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  // Seed the inputs from the saved targets once they load.
+  useEffect(() => {
+    setWait(String(num(target.target_wait_minutes) || ''));
+    setDone(String(num(target.target_completion_rate) || ''));
+    setNoShow(String(num(target.target_no_show_rate) || ''));
+  }, [target.target_wait_minutes, target.target_completion_rate, target.target_no_show_rate]);
+
+  const save = useMutation({
+    mutationFn: () => api.put('/targets', {
+      business_id: businessId,
+      target_wait_minutes: Number(wait),
+      target_completion_rate: Number(done),
+      target_no_show_rate: Number(noShow),
+    }),
+    onSuccess: () => {
+      setSaved(true);
+      qc.invalidateQueries({ queryKey: ['ops-targets', businessId] });
+      window.setTimeout(() => setSaved(false), 2600);
+    },
+  });
+
+  const fields: Array<[string, string, string, string, (v: string) => void, string]> = [
+    ['Average wait', 'The longest a customer should wait', 'minutes', wait, setWait, '1'],
+    ['Completed visits', 'Share of customers actually served', '%', done, setDone, '1'],
+    ['No-show rate', "Share who don't turn up after being called", '%', noShow, setNoShow, '0'],
+  ];
+
+  return (
+    <Card span={span} title="Set Company Targets" cap="You Set These — Every Branch Works Toward Them">
+      {fields.map(([label, hint, unit, val, set, min]) => (
+        <div key={label} className="qa-setrow">
+          <span className="sl">{label}<small>{hint}</small></span>
+          <span className="si">
+            <input type="number" min={min} max={unit === '%' ? 100 : 240} value={val}
+              onChange={(e) => set(e.target.value)} aria-label={label} />
+            <i>{unit}</i>
+          </span>
+        </div>
+      ))}
+      <div className="qa-setfoot">
+        <button type="button" className="qa-update" disabled={save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? 'Saving…' : 'Save targets'}
+        </button>
+        {saved ? <span className="ok">Saved — every branch now works toward these.</span> : null}
+        {save.isError ? <span className="bad">Couldn’t save. Check the numbers and try again.</span> : null}
+      </div>
     </Card>
   );
 }
@@ -445,15 +535,33 @@ export function ReportsTab({ summary, last, completed, total, noShows, scope }: 
   );
 }
 
-export function SupportTab({ role, topics }: { role: string; topics: string[] }) {
+export type HelpTopic = { q: string; a: string };
+
+/** Expandable help. Answers describe what the app actually does today —
+ *  no topic promises a screen or button that doesn't exist. */
+export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[] }) {
+  const [open, setOpen] = useState<number | null>(0);
   return (
     <div className="qa-grid">
-      <Card span={7} title="Help Topics" cap={`Common Questions For ${role}`}>
-        {topics.map((t) => <div key={t} className="qa-incl big">{t}</div>)}
+      <Card span={7} title="Help Topics" cap={`Common Questions For ${role} · Tap To Expand`}>
+        {topics.map((t, i) => (
+          <div key={t.q} className={`qa-faq${open === i ? ' on' : ''}`}>
+            <button type="button" className="qa-faqq" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
+              <span>{t.q}</span><i><ChevronDown size={16} /></i>
+            </button>
+            {open === i ? <p className="qa-faqa">{t.a}</p> : null}
+          </div>
+        ))}
       </Card>
-      <Card span={5} title="Contact QMe Support">
+      <Card span={5} title="Contact QMe Support" cap="We Reply Within One Business Day">
+        <a className="qa-contact" href="mailto:support@qmenow.com">
+          <i><Mail size={16} /></i><span><b>support@qmenow.com</b><small>Email us — best for questions with screenshots</small></span>
+        </a>
+        <a className="qa-contact" href="tel:+18765550199">
+          <i><Phone size={16} /></i><span><b>+1 (876) 555-0199</b><small>Call us — best when a line is down</small></span>
+        </a>
         <Field label="Support Hours" value="8am–8pm, Mon–Sat" />
-        <div className="qa-note"><Info size={14} />Reach your success manager from the desktop app menu.</div>
+        <div className="qa-note"><Info size={14} />Tell us your branch and what you were doing when it happened — it gets you a fix much faster.</div>
       </Card>
     </div>
   );

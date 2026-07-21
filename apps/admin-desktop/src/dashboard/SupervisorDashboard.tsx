@@ -4,7 +4,7 @@
  * the Manager cards, minus the editing controls: a supervisor watches the floor
  * and SEES the branch targets, but does not set them.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Heatmap, Card, ScoreRing, type NavItem } from './kit';
@@ -35,6 +35,14 @@ export default function SupervisorDashboard() {
   const completed = num(last.completed_count);
   const totalToday = num(last.total_visitors) || completed + num(last.no_show_count);
   const noShows = num(last.no_show_count);
+
+  // Contextual search — supervisors only have a staff list to filter.
+  const [q, setQ] = useState('');
+  useEffect(() => { setQ(''); }, [tab]);
+  const needle = q.trim().toLowerCase();
+  const shownStaff = (d.staff as any[]).filter((s) => !needle
+    || String(s.full_name ?? '').toLowerCase().includes(needle)
+    || String(s.staff_code ?? '').toLowerCase().includes(needle));
   const target = d.targets;
 
   const myScore = insightData(preds, 'manager_performance');
@@ -56,6 +64,7 @@ export default function SupervisorDashboard() {
       title={titles[tab][0]} subtitle={titles[tab][1]}
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
+      search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : null}
     >
       {tab === 'overview' && (
         <div className="qa-grid">
@@ -101,14 +110,14 @@ export default function SupervisorDashboard() {
             <div className="qa-chartwrap"><table className="qa-dtable">
               <thead><tr><th>Name</th><th>Code</th><th className="r">Handled</th><th className="r">Avg Handle</th></tr></thead>
               <tbody>
-                {d.staff.length ? d.staff.map((s: any) => (
+                {shownStaff.length ? shownStaff.map((s: any) => (
                   <tr key={s.staff_id || s.full_name}>
                     <td>{s.full_name}</td>
                     <td>{s.staff_code || '—'}</td>
                     <td className="r qa-num">{fmtN(s.tickets_handled)}</td>
                     <td className="r qa-num">{s.avg_handle_minutes != null ? `${Math.round(num(s.avg_handle_minutes))}m` : '—'}</td>
                   </tr>
-                )) : <tr><td colSpan={4}><Empty msg="No staff activity yet." /></td></tr>}
+                )) : <tr><td colSpan={4}><Empty msg={needle ? `No staff match “${q.trim()}”.` : 'No staff activity yet.'} /></td></tr>}
               </tbody>
             </table></div>
           </Card>
@@ -136,7 +145,20 @@ export default function SupervisorDashboard() {
         </div>
       )}
 
-      {tab === 'support' && <SupportTab role="Supervisors" topics={['Reading The Busy-Times Heatmap', 'What The Branch Health Score Means', 'Planning Cover And Breaks Around Peaks', 'Understanding The Wait Forecast', 'Who Sets Branch Targets']} />}
+      {tab === 'support' && <SupportTab role="Supervisors" topics={[
+        { q: 'How do I read the busy-times heatmap?',
+          a: 'Each row is a service and each column is a day or hour. The darker the square, the busier that slot was. It tells you at a glance when your floor gets pressure, so you can be standing in the right place before the queue builds.' },
+        { q: 'What does the Branch Health Score mean?',
+          a: 'A score out of 100 blending wait time against target, completion rate, and no-show control. The three bars underneath show which of the three is pulling it down.' },
+        { q: 'How do I plan cover and breaks around the peaks?',
+          a: 'Use Busy Times to find the pale slots — those are your safe windows for breaks, handovers and training. Keep your fullest counter coverage on the dark slots. The wait forecast on the Section Board tells you what is coming in the next few hours.' },
+        { q: 'What is the wait forecast telling me?',
+          a: 'It is the wait time the system expects for the rest of the day, learned from how your branch has actually run — not a simple average. Treat it as an early warning: if it climbs above your branch target, act before the queue gets long.' },
+        { q: 'Who sets the branch targets I see?',
+          a: 'Your branch manager sets them, within the company-wide targets your executive sets. You see them here for reference so you know what you are working toward — if one looks wrong, speak to your manager.' },
+        { q: 'A customer says they were skipped — what do I do?',
+          a: 'Ask for their ticket number and check it on the line staff screen. Every ticket keeps its status and timestamps, so you can see whether it was called, skipped or marked as a no-show, and re-call it if it was missed.' },
+      ]} />}
     </Shell>
   );
 }

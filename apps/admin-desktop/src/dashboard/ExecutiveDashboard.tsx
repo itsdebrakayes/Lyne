@@ -3,21 +3,22 @@
  * Reuses the shared useDashboardData() layer and the same sub-cards as the
  * Manager dashboard, rendered business-wide.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
-  AlertTriangle, Award,
+  AlertTriangle, Award, TrendingUp, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
-import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup } from './insights';
+import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type NavItem } from './kit';
+import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
-  TargetsCard, TargetTrendCard, ServicesTable, ReportsTab, SupportTab,
+  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab,
 } from './ManagerDashboard';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
+  { key: 'trends', label: 'Trends', icon: TrendingUp },
   { key: 'branches', label: 'Branches', icon: Building2 },
   { key: 'managers', label: 'Managers', icon: UserCheck },
   { key: 'services', label: 'Services', icon: Waypoints },
@@ -66,8 +67,118 @@ export default function ExecutiveDashboard() {
   const worst = managers[managers.length - 1];
   const heat = branchHeatmap(d.branchTrends);
 
+  // ── Week-scoped totals per branch and per service ──────────────────────────
+  // Every screen must reconcile to the SAME 7 days as the Overview hero numbers.
+  // Previously these tables showed the ML pipeline's much longer window, which
+  // made a single branch look bigger than the whole company for "this week".
+  const weekScoped = useMemo(() => {
+    const rows = d.summary as any[];
+    const dates = [...new Set(rows.map((s) => String(s.summary_date).slice(0, 10)))].sort();
+    const keep = new Set(dates.slice(-7));
+    const inWeek = rows.filter((s) => keep.has(String(s.summary_date).slice(0, 10)));
+    const group = (keyOf: (r: any) => string) => {
+      const m = new Map<string, { served: number; done: number; ns: number; waitSum: number; n: number }>();
+      for (const r of inWeek) {
+        const k = keyOf(r);
+        if (!k) continue;
+        const cur = m.get(k) || { served: 0, done: 0, ns: 0, waitSum: 0, n: 0 };
+        cur.served += num(r.total_visitors); cur.done += num(r.completed_count);
+        cur.ns += num(r.no_show_count); cur.waitSum += num(r.avg_wait_time_minutes); cur.n += 1;
+        m.set(k, cur);
+      }
+      return m;
+    };
+    return { byBranch: group((r) => String(r.branch_id || '')), byService: group((r) => String(r.service_id || '')) };
+  }, [d.summary]);
+  const zeroWeek = { served: 0, done: 0, ns: 0, waitSum: 0, n: 0 };
+  const branchWeek = (id?: string) => weekScoped.byBranch.get(String(id || '')) || zeroWeek;
+
+  // Contextual search — only on tabs that actually have a list to filter.
+  const [q, setQ] = useState('');
+  useEffect(() => { setQ(''); }, [tab]);
+  const SEARCHABLE: Record<string, string> = {
+    branches: 'Search branches or managers…',
+    managers: 'Search managers or branches…',
+    services: 'Search services…',
+  };
+  const needle = q.trim().toLowerCase();
+  const match = (...vals: any[]) => !needle || vals.some((v) => String(v ?? '').toLowerCase().includes(needle));
+  const shownManagers = managers.filter((m) => match(m.branch_name, m.manager_name));
+  // Services come from the API already scoped to the same 7 days (analytics_summaries
+  // has no service dimension, so this is computed from wait_time_records server-side).
+  const shownServices = (d.services as any[]).filter((s) => match(s.service_name));
+
+  // ── Trends tab: "at a glance" on Overview, full depth on its own tab ──
+  const [range, setRange] = useState('week');
+  const [monthOffset, setMonthOffset] = useState(0);
+  const RANGES: [string, string][] = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['90', '90 Days']];
+
+  const months = useMemo(() => {
+    const set = new Set(summary.map((s: any) => String(s.summary_date).slice(0, 7)));
+    return [...set].sort();
+  }, [summary]);
+  const activeMonth = months[months.length - 1 - monthOffset] || months[months.length - 1] || '';
+  const monthName = activeMonth
+    ? new Date(`${activeMonth}-01T00:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })
+    : '—';
+
+  const drill = useMemo(() => {
+    if (range === 'day') {
+      const byHour = new Map<number, number>();
+      (d.demandHourly as any[]).forEach((c) => byHour.set(num(c.bucket), (byHour.get(num(c.bucket)) || 0) + num(c.visit_count)));
+      const hours = [...byHour.keys()].sort((a, b) => a - b);
+      return {
+        values: hours.map((h) => byHour.get(h) || 0), labels: hours.map((h) => clockLabel(h)),
+        caption: 'Arrivals by hour of day, totalled across every branch — this is where your day peaks.', unit: 'customers',
+      };
+    }
+    if (range === 'month') {
+      const rows = summary.filter((s: any) => String(s.summary_date).slice(0, 7) === activeMonth);
+      return {
+        values: rows.map((s: any) => num(s.total_visitors)),
+        labels: rows.map((s: any) => new Date(s.summary_date).toLocaleDateString([], { day: 'numeric' })),
+        caption: `Customers served each day in ${monthName}.`, unit: 'served',
+      };
+    }
+    const rows = summary.slice(-7);
+    return {
+      values: rows.map((s: any) => num(s.total_visitors)),
+      labels: rows.map((s: any) => new Date(s.summary_date).toLocaleDateString([], { weekday: 'short' })),
+      caption: 'Customers served each day over the last 7 days.', unit: 'served',
+    };
+  }, [range, summary, d.demandHourly, activeMonth, monthName]);
+  const drillAvg = Math.round(drill.values.reduce((a, b) => a + b, 0) / Math.max(1, drill.values.length));
+  const drillPeak = drill.values.length ? drill.values.indexOf(Math.max(...drill.values)) : -1;
+
+  // 90 days is deliberately a REPORT, not a graph — 90 points at this traffic
+  // is unreadable, so it's summarised week by week instead.
+  const ninety = useMemo(() => {
+    const rows = summary.slice(-90);
+    const sum = (k: string) => rows.reduce((t: number, s: any) => t + num(s[k]), 0);
+    const weeks: any[] = [];
+    for (let i = 0; i < rows.length; i += 7) {
+      const g = rows.slice(i, i + 7);
+      if (!g.length) continue;
+      weeks.push({
+        from: g[0].summary_date, to: g[g.length - 1].summary_date,
+        served: g.reduce((t: number, s: any) => t + num(s.total_visitors), 0),
+        done: g.reduce((t: number, s: any) => t + num(s.completed_count), 0),
+        ns: g.reduce((t: number, s: any) => t + num(s.no_show_count), 0),
+        wait: g.reduce((t: number, s: any) => t + num(s.avg_wait_time_minutes), 0) / g.length,
+      });
+    }
+    const best = rows.reduce((b: any, s: any) => (!b || num(s.total_visitors) > num(b.total_visitors) ? s : b), null);
+    const quiet = rows.reduce((b: any, s: any) => (!b || num(s.total_visitors) < num(b.total_visitors) ? s : b), null);
+    return {
+      days: rows.length, served: sum('total_visitors'), done: sum('completed_count'), ns: sum('no_show_count'),
+      wait: sum('avg_wait_time_minutes') / Math.max(1, rows.length),
+      best, quiet, weeks: weeks.reverse(),
+    };
+  }, [summary]);
+
   const titles: Record<string, [string, string]> = {
     overview: ['The Business, In Five Seconds', `${branchCount} Branches, This Week, Against The Company Targets.`],
+    trends: ['Trends', 'How The Business Is Moving Over Time — Pick A Period.'],
     branches: ['Branches', 'This Week · Ranked By Performance Score.'],
     managers: ['Managers', 'Where To Focus Your Attention This Week.'],
     services: ['Services', 'Company-Wide, Against The Wait Target.'],
@@ -85,6 +196,7 @@ export default function ExecutiveDashboard() {
       title={titles[tab][0]} subtitle={titles[tab][1]}
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
+      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
     >
       {tab === 'overview' && (
         <div className="qa-grid">
@@ -113,16 +225,91 @@ export default function ExecutiveDashboard() {
             ) : <Empty msg="No branch scores yet — run the analytics refresh." />}
           </Card>
 
-          <Card span={8} title="Customers Served — All Branches" cap="Each Day Against The Company Daily Target"><ServedChartExec summary={summary} /></Card>
-          <ImproveCard preds={preds} span={4} />
+          <Card span={8} title="Customers Served — All Branches" cap="Each Day Against The Company Daily Target"
+            tools={<MoreBtn onClick={() => setTab('trends')} />}><ServedChartExec summary={summary} /></Card>
+          {/* Stacked beside the tall chart so the column fills instead of leaving a gap */}
+          <div className="qa-stack4">
+            <ImproveCard preds={preds} span={12} />
+            <DemandCard preds={preds} span={12} />
+          </div>
 
           <Card span={8} title="Busy Times — Branches By Day" cap="Which Branch Is Under The Most Pressure, And When">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No branch busy-times data yet." />}
           </Card>
-          <DemandCard preds={preds} span={4} />
+          <div className="qa-stack4">
+            <TargetTrendCard preds={preds} span={12} />
+            <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={12} />
+          </div>
+        </div>
+      )}
 
-          <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={6} />
-          <TargetTrendCard preds={preds} span={6} />
+      {tab === 'trends' && (
+        <div className="qa-grid">
+          <div className="qa-s12" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <Chips options={RANGES} value={range} onChange={(v) => { setRange(v); setMonthOffset(0); }} />
+            {range === 'month' && months.length > 1 ? (
+              <span className="qa-pager">
+                <button type="button" aria-label="Previous month" disabled={monthOffset >= months.length - 1}
+                  onClick={() => setMonthOffset((o) => Math.min(months.length - 1, o + 1))}><ChevronLeft size={16} /></button>
+                <b>{monthName}</b>
+                <button type="button" aria-label="Next month" disabled={monthOffset <= 0}
+                  onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}><ChevronRight size={16} /></button>
+              </span>
+            ) : null}
+          </div>
+
+          {range === '90' ? (
+            <>
+              <Kpi span={3} label="Customers Served" value={fmtN(ninety.served)} base={`Across ${ninety.days} Days`} />
+              <Kpi span={3} label="Completed" value={pct((ninety.done / Math.max(1, ninety.served)) * 100)} base={`${fmtN(ninety.done)} Visits`} />
+              <Kpi span={3} label="Average Wait" value={Math.round(ninety.wait)} unit="min" base={`Target ${num(target.target_wait_minutes)} min`} />
+              <Kpi span={3} label="No-Shows" value={pct((ninety.ns / Math.max(1, ninety.served)) * 100)} base={`${fmtN(ninety.ns)} Didn't Arrive`} />
+              <Card span={12} title="Week By Week" cap="Ninety days is easier to read as a report than as a graph — each row is one week, newest first.">
+                <div className="qa-chartwrap"><table className="qa-dtable">
+                  <thead><tr><th>Week</th><th className="r">Served</th><th className="r">Completed</th><th className="r">No-Shows</th><th className="r">Avg Wait</th></tr></thead>
+                  <tbody>
+                    {ninety.weeks.length ? ninety.weeks.map((w: any) => (
+                      <tr key={w.from}>
+                        <td><b>{new Date(w.from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(w.to).toLocaleDateString([], { month: 'short', day: 'numeric' })}</b></td>
+                        <td className="r qa-num">{fmtN(w.served)}</td>
+                        <td className="r qa-num">{pct((w.done / Math.max(1, w.served)) * 100)}</td>
+                        <td className="r qa-num">{fmtN(w.ns)}</td>
+                        <td className="r qa-num">{Math.round(w.wait)} min</td>
+                      </tr>
+                    )) : <tr><td colSpan={5}><Empty msg="No data for this period yet." /></td></tr>}
+                  </tbody>
+                </table></div>
+              </Card>
+              <Card span={6} title="Busiest Day" cap="The single heaviest day in the period">
+                <div className="qa-bigstat"><b>{ninety.best ? new Date(ninety.best.summary_date).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : '—'}</b>
+                  <small>{ninety.best ? `${fmtN(num(ninety.best.total_visitors))} customers served` : ''}</small></div>
+              </Card>
+              <Card span={6} title="Quietest Day" cap="Your best window for training or maintenance">
+                <div className="qa-bigstat"><b>{ninety.quiet ? new Date(ninety.quiet.summary_date).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : '—'}</b>
+                  <small>{ninety.quiet ? `${fmtN(num(ninety.quiet.total_visitors))} customers served` : ''}</small></div>
+              </Card>
+            </>
+          ) : (
+            <Card span={12} title="Customers Served" cap={drill.caption}>
+              {drill.values.length ? (
+                <>
+                  <div className="qa-chartwrap">
+                    <Area values={drill.values} labels={drill.labels} target={drillAvg} targetLabel={`Avg ${fmtN(drillAvg)}`}
+                      unitLabel={drill.unit}
+                      marker={drillPeak >= 0 ? { i: drillPeak, label: `${drill.labels[drillPeak]} · ${fmtN(drill.values[drillPeak])} ${drill.unit}`, delta: 'Busiest', dir: 'up' } : undefined}
+                      h={250} />
+                  </div>
+                  <div className="qa-cfooter">
+                    <div><div className="fl">Average</div><div className="fv qa-num">{fmtN(drillAvg)}</div></div>
+                    <div><div className="fl">Busiest</div><div className="fv qa-num">{drillPeak >= 0 ? drill.labels[drillPeak] : '—'}</div></div>
+                    <div><div className="fl">Total</div><div className="fv qa-num">{fmtN(drill.values.reduce((a, b) => a + b, 0))}</div></div>
+                    <div><div className="fl">Showing</div><div className="fv qa-num">{drill.values.length} {range === 'day' ? 'hours' : 'days'}</div></div>
+                  </div>
+                  <p className="qa-cap" style={{ marginTop: 12 }}>Hover any point to read that {range === 'day' ? 'hour' : 'day'} exactly.</p>
+                </>
+              ) : <Empty msg="No data for this period yet." />}
+            </Card>
+          )}
         </div>
       )}
 
@@ -132,21 +319,24 @@ export default function ExecutiveDashboard() {
           <Kpi span={3} label="Top Branch" value={<span style={{ fontSize: 22 }}>{titleCase(top?.branch_name) || '—'}</span>} base={top ? `Score ${Math.round(num(top.manager_score))} / 100` : ''} />
           <Kpi span={3} label="Needs Support" value={<span style={{ fontSize: 22 }}>{titleCase(worst?.branch_name) || '—'}</span>} base={worst ? `Score ${Math.round(num(worst.manager_score))} · Wait ${Math.round(num(worst.avg_wait_minutes))}m` : ''} />
           <Kpi span={3} label="Company Avg Wait" value={avgWait} unit="min" base={`Target ${num(target.target_wait_minutes)} min`} />
-          <Card span={12} title="All Branches" cap="This Week · Ranked By Performance Score">
+          <Card span={12} title="All Branches" cap="This Week's Numbers · Ranked By Overall Performance Score">
             <div className="qa-chartwrap"><table className="qa-dtable">
               <thead><tr><th>Branch</th><th>Manager</th><th className="r">Served</th><th className="r">Avg Wait</th><th className="r">Completed</th><th className="r">No-Show</th><th className="r">Score</th></tr></thead>
               <tbody>
-                {managers.length ? managers.map((m) => (
-                  <tr key={m.manager_id || m.branch_name}>
-                    <td><b>{titleCase(m.branch_name)}</b></td>
-                    <td>{titleCase(m.manager_name)}</td>
-                    <td className="r qa-num">{fmtN(m.total_visits)}</td>
-                    <td className="r qa-num">{Math.round(num(m.avg_wait_minutes))} min</td>
-                    <td className="r qa-num">{Math.round(num(m.completion_rate))}%</td>
-                    <td className="r qa-num">{Math.round(num(m.no_show_rate))}%</td>
-                    <td className="r qa-num" style={num(m.manager_score) < 60 ? { color: 'var(--qa-neg)' } : undefined}>{Math.round(num(m.manager_score))}</td>
-                  </tr>
-                )) : <tr><td colSpan={7}><Empty msg="No branch data yet." /></td></tr>}
+                {shownManagers.length ? shownManagers.map((m) => {
+                  const w = branchWeek(m.branch_id);
+                  return (
+                    <tr key={m.manager_id || m.branch_name}>
+                      <td><b>{titleCase(m.branch_name)}</b></td>
+                      <td>{titleCase(m.manager_name)}</td>
+                      <td className="r qa-num">{fmtN(w.served)}</td>
+                      <td className="r qa-num">{w.n ? Math.round(w.waitSum / w.n) : 0} min</td>
+                      <td className="r qa-num">{pct((w.done / Math.max(1, w.served)) * 100)}</td>
+                      <td className="r qa-num">{pct((w.ns / Math.max(1, w.served)) * 100)}</td>
+                      <td className="r qa-num" style={num(m.manager_score) < 60 ? { color: 'var(--qa-neg)' } : undefined}>{Math.round(num(m.manager_score))}</td>
+                    </tr>
+                  );
+                }) : <tr><td colSpan={7}><Empty msg={needle ? `No branches match “${q.trim()}”.` : 'No branch data yet.'} /></td></tr>}
               </tbody>
             </table></div>
           </Card>
@@ -156,9 +346,9 @@ export default function ExecutiveDashboard() {
       {tab === 'managers' && (
         <div className="qa-grid">
           <Card span={12} title="Branch Performance Score" cap="Out Of 100 · Wait Time, Completion And No-Show Control">
-            {managers.length ? (
+            {shownManagers.length ? (
               <div className="qa-grid4">
-                {managers.map((m) => (
+                {shownManagers.map((m) => (
                   <div key={m.manager_id || m.branch_name} className="qa-mgrcard">
                     <ScoreRing value={num(m.manager_score)} max={100} size={64} warn={num(m.manager_score) < 60} />
                     <div><b>{titleCase(m.manager_name)}</b><small>{titleCase(m.branch_name)}</small>
@@ -167,7 +357,7 @@ export default function ExecutiveDashboard() {
                   </div>
                 ))}
               </div>
-            ) : <Empty msg="No manager scores yet." />}
+            ) : <Empty msg={needle ? `No managers match “${q.trim()}”.` : 'No manager scores yet.'} />}
           </Card>
           <Card span={8} title="What To Do" cap="Where To Focus Your Attention This Week">
             {worst && num(worst.manager_score) < 75 ? <Rec tone="crit" icon={<AlertTriangle size={16} />} title={`Support ${titleCase(worst.manager_name)} at ${titleCase(worst.branch_name)}`} body={`Wait ${Math.round(num(worst.avg_wait_minutes))} min and completion at ${Math.round(num(worst.completion_rate))}%. Review staffing and add a counter at peak.`} target={<>Target: <b>{num(target.target_wait_minutes)} min wait · {num(target.target_completion_rate)}% completed</b></>} /> : null}
@@ -187,7 +377,7 @@ export default function ExecutiveDashboard() {
         </div>
       )}
 
-      {tab === 'services' && <div className="qa-grid"><ServicesTable services={d.services} target={num(target.target_wait_minutes)} /></div>}
+      {tab === 'services' && <div className="qa-grid"><ServicesTable services={shownServices} target={num(target.target_wait_minutes)} /></div>}
 
       {tab === 'busy' && (
         <div className="qa-grid">
@@ -200,12 +390,15 @@ export default function ExecutiveDashboard() {
 
       {tab === 'targets' && (
         <div className="qa-grid">
-          <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={8} big />
-          <TargetTrendCard preds={preds} span={4} />
+          <SetTargetsCard target={target} businessId={d.businessId} span={5} />
+          <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={4} big
+            title="Progress Against Your Targets" cap="How The Whole Company Is Tracking" />
+          <TargetTrendCard preds={preds} span={3} />
         </div>
       )}
 
-      {tab === 'reports' && <ReportsTab summary={summary} last={last} completed={completed} total={served} noShows={noShows} scope="Company" />}
+      {/* week slice so the report reconciles with every other screen */}
+      {tab === 'reports' && <ReportsTab summary={week} last={last} completed={completed} total={served} noShows={noShows} scope="Company" />}
 
       {tab === 'settings' && (
         <div className="qa-grid">
@@ -222,7 +415,21 @@ export default function ExecutiveDashboard() {
         </div>
       )}
 
-      {tab === 'support' && <SupportTab role="Executives" topics={['Setting And Rolling Out Company Targets', 'Reading The Branch League Table', 'Supporting An Underperforming Branch', 'Exporting The Company Report', 'Adding A New Branch Or Manager']} />}
+      {tab === 'support' && <SupportTab role="Executives" topics={[
+        { q: 'How do I set company targets?',
+          a: 'Open Targets and use “Set Company Targets”. Enter your average wait in minutes, the share of visits you expect to be completed, and the no-show rate you will tolerate, then press Save targets. Every branch, manager and supervisor screen is measured against those numbers straight away.' },
+        { q: 'What does the Branch Performance Score actually mean?',
+          a: 'It is a single score out of 100 that blends three things: how the branch’s wait time compares to your target, how many visits it completes, and how well it controls no-shows. Roughly: 80+ is good, 60–79 is fair, and under 60 needs attention. The Wait / Done / No-Show figures on each card show you which of the three is dragging the score down.' },
+        { q: 'How do I support an underperforming branch?',
+          a: 'Start with “What To Improve” on the Overview — it ranks issues by how much they cost you against your targets. Then open Managers to see that branch’s score breakdown, and Busy Times to see exactly which days and hours it is under pressure. The usual fix is moving cover to the peak hours shown there.' },
+        { q: 'What is in the company report?',
+          a: 'Reports shows a preview of exactly what the export contains: your KPI summary against targets, customers served per day, a service-by-service breakdown, busy times and staffing, and the What To Improve list.' },
+        { q: 'How often do the numbers update?',
+          a: 'They recalculate automatically in the background on a schedule, and the timestamp beside “Update now” always tells you how fresh they are. If you need them recalculated immediately — for example right before a meeting — press Update now.' },
+        { q: 'How do I add a new branch or manager?',
+          a: 'Branches, services and staff are configured when your organisation is set up. To add or remove one right now, contact QMe support using the details on this page and we will make the change for you.' },
+      ]} />}
+
     </Shell>
   );
 }
@@ -241,8 +448,8 @@ function ServedChartExec({ summary }: { summary: any[] }) {
         <span><span className="dash" /><span style={{ color: 'var(--qa-dim)' }}>Daily Average · {fmtN(avg)}</span></span>
       </div>
       <div className="qa-chartwrap">
-        <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${fmtN(avg)}`}
-          marker={{ i: best, label: `${labels[best]} · ${fmtN(vals[best])} served`, delta: 'Best Day', dir: 'up' }} h={250} />
+        <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${fmtN(avg)}`} unitLabel="served"
+          marker={{ i: best, label: `${labels[best]} · ${fmtN(vals[best])} served`, delta: 'Best Day', dir: 'up' }} h={384} />
       </div>
       <div className="qa-cfooter">
         <div><div className="fl">Avg / Day</div><div className="fv qa-num">{fmtN(avg)}</div></div>

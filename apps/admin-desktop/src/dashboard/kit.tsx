@@ -2,7 +2,7 @@
  * kit.tsx — shared building blocks for the redesigned admin dashboards.
  * Everything renders inside <Shell>, which owns the .qa-app theme scope.
  */
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { Bell, LogOut, Moon, Search, Sun } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -24,11 +24,14 @@ export function hueFor(name?: string) {
 
 /* ---------- Shell ---------- */
 export function Shell({
-  roleLabel, org, eyebrow, title, subtitle, nav, active, onNav, freshness, children,
+  roleLabel, org, eyebrow, title, subtitle, nav, active, onNav, freshness, search, children,
 }: {
   roleLabel: string; org: string; eyebrow: string; title: string; subtitle: string;
   nav: NavItem[]; active: string; onNav: (key: string) => void;
   freshness?: { stamp: string; onUpdate: () => void; auto: string } | null;
+  /** Contextual search for the active tab. Omit on tabs with nothing to search
+   *  — better no control than a dead one. */
+  search?: { value: string; onChange: (v: string) => void; placeholder: string } | null;
   children: ReactNode;
 }) {
   const { admin, logout } = useAdminAuth();
@@ -66,7 +69,20 @@ export function Shell({
 
       <div className="qa-main">
         <header className="qa-topbar">
-          <div className="qa-search"><Search size={16} /><input placeholder="Search customers, tickets, services…" aria-label="Search" /></div>
+          {search ? (
+            <div className="qa-search">
+              <Search size={16} />
+              <input
+                value={search.value}
+                onChange={(e) => search.onChange(e.target.value)}
+                placeholder={search.placeholder}
+                aria-label={search.placeholder}
+              />
+              {search.value ? (
+                <button type="button" className="qa-searchclear" aria-label="Clear search" onClick={() => search.onChange('')}>×</button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="qa-topright">
             <button className="qa-iconbtn" type="button" aria-label="Toggle light and dark" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
@@ -146,46 +162,81 @@ export function Sparkline({ values, tone = 'accent', w = 92, h = 36 }: { values:
 }
 
 /* ---------- area chart (faithful port of the preview's area()) ---------- */
-export function Area({ values, labels, target, targetLabel, marker, color = 'accent', sharp, compact, h = 250 }: {
+export function Area({ values, labels, target, targetLabel, marker, unitLabel, color = 'accent', sharp, compact, h = 250 }: {
   values: number[]; labels?: string[]; target?: number; targetLabel?: string;
   marker?: { i: number; label: string; delta?: string; dir?: 'up' | 'down' };
+  /** Word appended to the hovered value, e.g. "served" -> "Jul 12 · 353 served". */
+  unitLabel?: string;
   color?: 'accent' | 'accent-2'; sharp?: boolean; compact?: boolean; h?: number;
 }) {
   const w = 640;
   const padT = compact ? 14 : 20, padR = 14, padB = compact ? 22 : 30, padL = compact ? 10 : 14;
   const n = values.length || 1;
   const col = color === 'accent-2' ? 'var(--qa-accent-2)' : 'var(--qa-accent)';
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  // Stable gradient/filter ids so hovering doesn't churn <defs> on every render.
+  const ids = useMemo(() => ({ a: nextId('qar'), g: nextId('qgl') }), []);
+  const id = ids.a, gid = ids.g;
   let lo = Math.min(...values), hi = Math.max(...values);
   if (target != null) { lo = Math.min(lo, target); hi = Math.max(hi, target); }
   const span = (hi - lo) || 1; lo -= span * 0.18; hi += span * 0.16;
   const xs = (i: number) => padL + (w - padL - padR) * (n < 2 ? 0.5 : i / (n - 1));
   const ys = (v: number) => padT + (h - padT - padB) * (1 - (v - lo) / (hi - lo));
   const pts = values.map((v, i) => [xs(i), ys(v)]);
-  const id = nextId('qar'), gid = nextId('qgl');
   const line = sharp ? poly(pts) : catmull(pts);
   const areaP = `${line} L${xs(n - 1).toFixed(1)} ${h - padB} L${xs(0).toFixed(1)} ${h - padB} Z`;
   const gt = compact ? 2 : 4;
   const grids = Array.from({ length: gt + 1 }, (_, g) => padT + (h - padT - padB) * g / gt);
   const ty = target != null ? ys(target) : 0;
+
+  // Map the pointer's x onto the nearest data point so ANY point can be inspected,
+  // not just the preset marker. Falls back to the preset when the pointer leaves.
+  const onMove = (e: { clientX: number }) => {
+    const el = svgRef.current; if (!el) return;
+    const r = el.getBoundingClientRect(); if (!r.width) return;
+    const vbX = ((e.clientX - r.left) / r.width) * w;
+    const step = n < 2 ? 1 : (w - padL - padR) / (n - 1);
+    setHoverIdx(Math.max(0, Math.min(n - 1, Math.round((vbX - padL) / step))));
+  };
+
+  const activeIdx = hoverIdx != null ? hoverIdx : (marker ? marker.i : null);
   let markerEls: any = null;
-  if (marker) {
-    const mx = xs(marker.i), my = ys(values[marker.i]);
-    const dcol = marker.dir === 'down' ? 'var(--qa-neg)' : 'var(--qa-pos)';
-    const tw = Math.max(marker.label.length, (marker.delta || '').length) * 5.7 + 22;
-    const bx = Math.min(Math.max(mx - tw / 2, padL), w - padR - tw), by = my - 52;
+  if (activeIdx != null && values[activeIdx] != null) {
+    const usePreset = !!marker && activeIdx === marker.i;
+    const lbl = usePreset
+      ? marker!.label
+      : `${labels?.[activeIdx] ?? `#${activeIdx + 1}`} · ${Math.round(values[activeIdx]).toLocaleString()}${unitLabel ? ` ${unitLabel}` : ''}`;
+    const dlt = usePreset ? marker!.delta : undefined;
+    const dcol = usePreset && marker!.dir === 'down' ? 'var(--qa-neg)' : 'var(--qa-pos)';
+    const mx = xs(activeIdx), my = ys(values[activeIdx]);
+    const tw = Math.max(lbl.length, (dlt || '').length) * 5.7 + 22;
+    const boxH = dlt ? 40 : 26;
+    const bx = Math.min(Math.max(mx - tw / 2, padL), w - padR - tw);
+    const by = my - (boxH + 12) < 2 ? my + 14 : my - (boxH + 12);
     markerEls = (
-      <g>
+      <g style={{ pointerEvents: 'none' }}>
         <line x1={mx.toFixed(1)} y1={my.toFixed(1)} x2={mx.toFixed(1)} y2={h - padB} stroke={col} strokeWidth="1" strokeDasharray="2 3" opacity="0.6" />
         <circle cx={mx.toFixed(1)} cy={my.toFixed(1)} r="7" fill={col} opacity="0.18" />
         <circle cx={mx.toFixed(1)} cy={my.toFixed(1)} r="4" fill={col} stroke="var(--qa-surface)" strokeWidth="2" />
-        <rect x={bx.toFixed(1)} y={by} width={tw.toFixed(1)} height="40" rx="9" fill="var(--qa-surface)" stroke="var(--qa-line-2)" />
-        <text x={(bx + 11).toFixed(1)} y={by + 17} fill="var(--qa-text)" fontSize="11.5" fontWeight="700">{marker.label}</text>
-        <text x={(bx + 11).toFixed(1)} y={by + 32} fill={dcol} fontSize="11" fontWeight="800">{(marker.dir === 'down' ? '▾ ' : '▴ ') + (marker.delta || '')}</text>
+        <rect x={bx.toFixed(1)} y={by} width={tw.toFixed(1)} height={boxH} rx="9" fill="var(--qa-surface)" stroke="var(--qa-line-2)" />
+        <text x={(bx + 11).toFixed(1)} y={by + 17} fill="var(--qa-text)" fontSize="11.5" fontWeight="700">{lbl}</text>
+        {dlt ? <text x={(bx + 11).toFixed(1)} y={by + 32} fill={dcol} fontSize="11" fontWeight="800">{(marker!.dir === 'down' ? '▾ ' : '▴ ') + dlt}</text> : null}
       </g>
     );
   }
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="none" style={{ display: 'block', minWidth: compact ? 0 : 480, overflow: 'visible' }}>
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${w} ${h}`}
+      width="100%"
+      preserveAspectRatio="none"
+      onPointerMove={onMove}
+      onPointerLeave={() => setHoverIdx(null)}
+      style={{ display: 'block', minWidth: compact ? 0 : 480, overflow: 'visible', cursor: 'crosshair', touchAction: 'none' }}
+    >
+      {/* transparent hit area so hover works across the whole plot, not just on the line */}
+      <rect x="0" y="0" width={w} height={h} fill="transparent" />
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={col} stopOpacity="0.30" /><stop offset="100%" stopColor={col} stopOpacity="0" /></linearGradient>
         <filter id={gid} x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="2.6" /></filter>
@@ -210,6 +261,11 @@ export function Area({ values, labels, target, targetLabel, marker, color = 'acc
 }
 
 /* ---------- KPI card ---------- */
+/** Small "open in depth" affordance for a card header. */
+export function MoreBtn({ onClick, label = 'View in depth' }: { onClick: () => void; label?: string }) {
+  return <button type="button" className="qa-morebtn" onClick={onClick}>{label} →</button>;
+}
+
 export function Kpi({ label, value, unit, base, delta, spark, span }: {
   label: string; value: ReactNode; unit?: string; base?: string;
   delta?: { dir: 'up' | 'down' | 'good' | 'bad' | 'neutral'; text: string };

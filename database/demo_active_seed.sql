@@ -210,6 +210,7 @@ JOIN services s ON s.business_id = br.business_id AND s.is_active = TRUE
 WHERE br.is_active = TRUE
   AND br.business_id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
 ON DUPLICATE KEY UPDATE
+  queue_date = VALUES(queue_date),   -- re-date the queue to today on every refresh (ids are date-independent)
   max_capacity = VALUES(max_capacity),
   is_active = TRUE;
 
@@ -217,7 +218,7 @@ INSERT INTO queue_tickets
   (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes,
    joined_at, called_at, call_timeout_seconds, call_expires_at, started_serving_at, completed_at, served_by_staff_id, served_at_counter_id)
 SELECT
-  CONCAT('t-', SUBSTRING(MD5(CONCAT(q.id, ':', seq.n, ':', CURDATE())), 1, 30)),
+  CONCAT('t-', SUBSTRING(MD5(CONCAT(q.id, ':', seq.n)), 1, 30)),  -- stable id per (queue,seat): refresh updates in place instead of piling up daily
   q.id,
   CONCAT('usr-demo-', LPAD(1 + MOD(seq.n + CRC32(q.id), 20), 2, '0')),
   NULL,
