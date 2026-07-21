@@ -9,6 +9,7 @@ import { TicketRecord } from '../../lib/mobileData';
 import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
 import { ErrorCard } from '../../components/Feedback';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -25,6 +26,7 @@ export default function TicketScreen() {
   const route = useRoute<Params>();
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [error, setError] = useState('');
   const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
   const previous = useRef<{ status?: string; wait?: number }>({});
@@ -81,13 +83,17 @@ export default function TicketScreen() {
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket]);
 
+  // Leaving is irreversible — the place in line is released to the next person
+  // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
       setLeaving(true); setError('');
       await api.put(`/tickets/${ticketId}/leave`, {});
+      setConfirmLeave(false);
       navigation.navigate('Main');
     } catch (caught: unknown) {
+      setConfirmLeave(false);
       setError(caught instanceof Error ? caught.message : 'Could not leave this queue.');
     } finally {
       setLeaving(false);
@@ -233,7 +239,7 @@ export default function TicketScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity disabled={leaving} onPress={leaveQueue} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
+              <TouchableOpacity disabled={leaving} onPress={() => setConfirmLeave(true)} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
                 {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
               </TouchableOpacity>
             </>
@@ -249,6 +255,18 @@ export default function TicketScreen() {
         {active && alerts === 'on' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
         {active && alerts === 'denied' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
+
+      <ConfirmSheet
+        visible={confirmLeave}
+        title="Leave this queue?"
+        message={`You'll give up place ${ticket.waiting_position ?? ticket.position} for ${ticket.service_name || 'this service'}, and it goes to the next person straight away. If you change your mind you can rejoin, but you'll start again at the back of the line.`}
+        confirmLabel="Leave queue"
+        cancelLabel="Stay in line"
+        icon="exit-outline"
+        busy={leaving}
+        onConfirm={leaveQueue}
+        onCancel={() => setConfirmLeave(false)}
+      />
     </View>
   );
 }
