@@ -115,23 +115,35 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Q ME NOW backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 
-  // Schedule daily analytics summary refresh at 01:00
-  const now   = new Date();
-  const next1am = new Date(now);
-  next1am.setHours(1, 0, 0, 0);
-  if (next1am <= now) next1am.setDate(next1am.getDate() + 1);
-  const msUntil1am = next1am - now;
+  // Analytics summaries refresh EVERY 2 HOURS. The dashboards tell users
+  // "numbers recalculate automatically every 2 hours", so this must actually be
+  // true — it previously ran once daily at 01:00, making that claim false.
+  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+  const runRefresh = (why) =>
+    refreshAnalyticsSummaries()
+      .then(() => console.log(`[Analytics] Refresh complete (${why}).`))
+      .catch(err => console.error(`[Analytics] Refresh failed (${why}):`, err.message));
+
+  // Refresh once on boot so a freshly started/deployed server is never stale.
+  runRefresh('startup');
+
+  // Then align to the next even hour so runs land at predictable clock times
+  // (00:00, 02:00, 04:00 …) instead of drifting from whenever the process began.
+  const now = new Date();
+  const nextEvenHour = new Date(now);
+  nextEvenHour.setMinutes(0, 0, 0);
+  nextEvenHour.setHours(nextEvenHour.getHours() + 1);
+  if (nextEvenHour.getHours() % 2 !== 0) nextEvenHour.setHours(nextEvenHour.getHours() + 1);
+  const msUntilAligned = nextEvenHour - now;
 
   setTimeout(() => {
-    refreshAnalyticsSummaries().catch(err =>
-      console.error('[Analytics] Scheduled refresh failed:', err.message)
-    );
-    setInterval(() => {
-      refreshAnalyticsSummaries().catch(err =>
-        console.error('[Analytics] Scheduled refresh failed:', err.message)
-      );
-    }, 24 * 60 * 60 * 1000);
-  }, msUntil1am);
+    runRefresh('scheduled');
+    setInterval(() => runRefresh('scheduled'), TWO_HOURS_MS);
+  }, msUntilAligned);
 
-  console.log(`[Analytics] Daily refresh scheduled in ${Math.round(msUntil1am / 60000)} minutes.`);
+  console.log(
+    `[Analytics] Refreshing every 2 hours; next aligned run at ${nextEvenHour.toTimeString().slice(0, 5)} `
+    + `(in ${Math.round(msUntilAligned / 60000)} minutes).`
+  );
 });
