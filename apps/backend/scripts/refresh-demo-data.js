@@ -62,8 +62,14 @@ function splitStatements(sql) {
   return statements;
 }
 
+// Run from the repo the path is relative to the script; run inside the API
+// container only the app directory is copied in, so the seed is bind-mounted
+// and its location comes from the environment.
+const SEED_PATH = process.env.DEMO_SEED_PATH
+  || path.resolve(__dirname, '../../../database/demo_active_seed.sql');
+
 async function refreshDemoData(connection = pool) {
-  const filePath = path.resolve(__dirname, '../../../database/demo_active_seed.sql');
+  const filePath = SEED_PATH;
   const sql = fs.readFileSync(filePath, 'utf8');
   const statements = splitStatements(sql);
 

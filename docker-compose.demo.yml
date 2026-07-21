@@ -65,6 +65,13 @@ services:
     environment:
       NODE_ENV:   development
       MYSQL_HOST: demo-db
+      # Queues are per-day by design, so a demo box seeded yesterday shows
+      # "closed" everywhere today. Re-seed the demo day just after midnight.
+      # Demo overlay only — the production stack never sets this.
+      ALLOW_DEMO_DATA_REFRESH: "true"
+      DEMO_SEED_PATH: /seed/demo_active_seed.sql
+    volumes:
+      - ./database/demo_active_seed.sql:/seed/demo_active_seed.sql:ro
 
 volumes:
   mysql_demo_data:

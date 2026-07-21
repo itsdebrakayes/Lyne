@@ -101,3 +101,28 @@ The app is coded for **Stripe**, but **Stripe does not support Jamaica-based bus
 5. (Later) pick a **Jamaica payment processor** for the post-pilot paid tier.
 
 _Claude cannot purchase or create these accounts — Debra completes each in the provider's own interface; Claude wires up everything on the code/infra side._
+
+---
+
+## 6 · Demo-morning checklist
+
+Queues are **per-day by design** — the app looks for `queue_date = CURDATE()`, and a line does not roll over into the next day. So a demo box seeded on Friday shows every branch closed and every board at 0 on Monday. This is now handled automatically, but it must still be **eyeballed before the demo starts**.
+
+1. **Confirm the demo day rolled over.** The API re-seeds at 00:05 and again on every boot. Check the log:
+   ```
+   docker logs qmenow_api | grep '\[Demo\]'
+   # expect: [Demo] Re-seeded the demo day (daily) — 24 statements.
+   ```
+   If it's missing or says `Re-seed failed`, force it:
+   ```
+   docker compose -f docker-compose.yml -f docker-compose.demo.yml restart api
+   ```
+2. **Verify against the database** — queues must be dated today and active:
+   ```
+   docker exec qmenow_demo_db mysql -uroot -prootpassword qme_now \
+     -e "SELECT queue_date, COUNT(*), SUM(is_active) FROM queues GROUP BY queue_date ORDER BY queue_date DESC LIMIT 2;"
+   ```
+3. **Open one live screen of each role** (executive, manager, supervisor, line staff) and confirm today's numbers are non-zero.
+4. **Join a queue from the mobile app** end-to-end and confirm the ticket appears on the line-staff board.
+
+**Safety note:** the re-seed is double-gated — it needs `ALLOW_DEMO_DATA_REFRESH=true` **and** refuses to run when `NODE_ENV=production`. The flag is set only in `docker-compose.demo.yml`; the production stack never sets it, so this can never overwrite real customer data.
