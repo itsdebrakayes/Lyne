@@ -106,26 +106,31 @@ export default function ManagerDashboard() {
             <ServedChart summary={summary} />
           </Card>
 
-          <Card span={4} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
-            <div className="qa-scorewrap">
-              <ScoreRing value={num(myManager?.manager_score) || scoreFromTargets(last, target)} max={100} />
-              <div className="qa-scorebreak">
-                <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
-                <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
-                <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
+          {/* stacked beside the tall chart so the column fills instead of gapping */}
+          <div className="qa-stack4">
+            <Card span={12} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
+              <div className="qa-scorewrap">
+                <ScoreRing value={num(myManager?.manager_score) || scoreFromTargets(last, target)} max={100} />
+                <div className="qa-scorebreak">
+                  <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
+                  <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
+                  <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
+                </div>
               </div>
-            </div>
-          </Card>
-
-          <TrafficCard services={d.services} span={4} />
-          <WaitForecastCard preds={preds} span={4} />
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={4} />
-          <ImproveCard preds={preds} span={4} />
+            </Card>
+            <WaitForecastCard preds={preds} span={12} />
+          </div>
 
           <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour. Staff The Darkest Squares; Quiet Ones Are For Breaks.">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
           </Card>
-          <StaffingCard preds={preds} branchId={d.branchId} span={4} />
+          <div className="qa-stack4">
+            <ImproveCard preds={preds} span={12} />
+            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
+          </div>
+
+          <TrafficCard services={d.services} span={6} />
+          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={6} />
         </div>
       )}
 
@@ -164,7 +169,11 @@ export default function ManagerDashboard() {
           <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour Across The Week">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
           </Card>
-          <DemandCard preds={preds} branchId={d.branchId} span={4} />
+          {/* pair what's coming with when you're busy, so the column fills */}
+          <div className="qa-stack4">
+            <DemandCard preds={preds} branchId={d.branchId} span={12} />
+            <WaitForecastCard preds={preds} span={12} />
+          </div>
         </div>
       )}
 

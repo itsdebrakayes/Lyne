@@ -78,25 +78,30 @@ export default function SupervisorDashboard() {
             <ServedChart summary={summary} />
           </Card>
 
-          <Card span={4} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
-            <div className="qa-scorewrap">
-              <ScoreRing value={num(myBranch?.manager_score) || scoreFromTargets(last, target)} max={100} />
-              <div className="qa-scorebreak">
-                <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
-                <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
-                <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
+          {/* stacked beside the tall chart so the column fills instead of gapping */}
+          <div className="qa-stack4">
+            <Card span={12} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
+              <div className="qa-scorewrap">
+                <ScoreRing value={num(myBranch?.manager_score) || scoreFromTargets(last, target)} max={100} />
+                <div className="qa-scorebreak">
+                  <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
+                  <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
+                  <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
+                </div>
               </div>
-            </div>
-          </Card>
-
-          <TrafficCard services={d.services} span={4} />
-          <WaitForecastCard preds={preds} span={4} />
-          <StaffingCard preds={preds} branchId={d.branchId} span={4} />
+            </Card>
+            <WaitForecastCard preds={preds} span={12} />
+          </div>
 
           <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour. Staff The Darkest Squares; The Quiet Ones Are For Breaks.">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
           </Card>
-          <ImproveCard preds={preds} span={4} />
+          <div className="qa-stack4">
+            <ImproveCard preds={preds} span={12} />
+            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
+          </div>
+
+          <TrafficCard services={d.services} span={12} />
         </div>
       )}
 
@@ -129,14 +134,19 @@ export default function SupervisorDashboard() {
           <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour Across The Week">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
           </Card>
-          <StaffingCard preds={preds} branchId={d.branchId} span={4} />
+          {/* pair staffing with the forecast so the column fills */}
+          <div className="qa-stack4">
+            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
+            <WaitForecastCard preds={preds} span={12} />
+          </div>
         </div>
       )}
 
       {tab === 'targets' && (
         <div className="qa-grid">
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={8} big />
-          <Card span={4} title="Note" cap="Who Sets These">
+          {/* full width each — a short note beside a tall card just leaves a hole */}
+          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={12} big />
+          <Card span={12} title="Note" cap="Who Sets These">
             <p style={{ color: 'var(--qa-dim)', fontSize: 13, fontWeight: 600, lineHeight: 1.5 }}>
               These branch targets are set by your branch manager, within the company-wide targets the executive sets.
               As a supervisor you see them for reference — reach out to your manager to change them.
