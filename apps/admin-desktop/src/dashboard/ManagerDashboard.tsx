@@ -13,6 +13,7 @@ import api from '@/lib/apiClient';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
+import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -185,7 +186,10 @@ export default function ManagerDashboard() {
       )}
 
       {/* week slice so the report reconciles with every other screen */}
-      {tab === 'reports' && <ReportsTab summary={summary.slice(-7)} last={last} completed={completed} total={totalToday} noShows={noShows} scope="Branch" />}
+      {tab === 'reports' && (
+        <ReportsTab summary={summary.slice(-7)} last={last} completed={completed} total={totalToday} noShows={noShows}
+          scope={branchName} services={d.services} target={target} preds={preds} />
+      )}
 
       {tab === 'settings' && (
         <div className="qa-grid">
@@ -520,26 +524,120 @@ export function ServicesTable({ services, target }: { services: any[]; target: n
   );
 }
 
-export function ReportsTab({ summary, last, completed, total, noShows, scope }: { summary: any[]; last: any; completed: number; total: number; noShows: number; scope: string }) {
-  const served = summary.reduce((t, s) => t + num(s.total_visitors), 0);
-  const done = summary.reduce((t, s) => t + num(s.completed_count), 0);
-  const ns = summary.reduce((t, s) => t + num(s.no_show_count), 0);
+const dayLabel = (d: any) => (d ? new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—');
+
+/** Plain-language reading of a period — the "so what" under each chart. */
+export function periodBlurb(rows: any[], target: any, scope: string) {
+  if (!rows.length) return 'No activity recorded for this period yet.';
+  const served = rows.reduce((t, s) => t + num(s.total_visitors), 0);
+  const done = rows.reduce((t, s) => t + num(s.completed_count), 0);
+  const wait = rows.reduce((t, s) => t + num(s.avg_wait_time_minutes), 0) / rows.length;
+  const best = rows.reduce((b: any, s: any) => (!b || num(s.total_visitors) > num(b.total_visitors) ? s : b), null);
+  const goal = num(target?.target_wait_minutes) || 20;
+  const doneP = Math.round((done / Math.max(1, served)) * 100);
+  const over = Math.round(wait - goal);
+  const waitSentence = over > 0
+    ? `the average wait was ${Math.round(wait)} minutes — ${over} above the ${goal}-minute target`
+    : `the average wait was ${Math.round(wait)} minutes, inside the ${goal}-minute target`;
+  return `${scope} served ${fmtN(served)} customers over ${rows.length} day${rows.length === 1 ? '' : 's'} `
+    + `(${fmtN(Math.round(served / rows.length))} a day on average), busiest on ${dayLabel(best?.summary_date)} `
+    + `with ${fmtN(num(best?.total_visitors))}. ${doneP}% of visits were completed and ${waitSentence}.`;
+}
+
+export function ReportsTab({ summary, last, completed, total, noShows, scope, services = [], target = {}, preds = [], branches = [] }: {
+  summary: any[]; last: any; completed: number; total: number; noShows: number; scope: string;
+  services?: any[]; target?: any; preds?: any[]; branches?: any[];
+}) {
+  const served = summary.reduce((t, s) => t + num(s.total_visitors), 0) || total;
+  const done = summary.reduce((t, s) => t + num(s.completed_count), 0) || completed;
+  const ns = summary.reduce((t, s) => t + num(s.no_show_count), 0) || noShows;
+  const from = dayLabel(summary[0]?.summary_date);
+  const to = dayLabel(summary[summary.length - 1]?.summary_date);
+
+  const ta = insightData(preds, 'target_attainment');
+  const offTrack: any[] = (Array.isArray(ta?.metrics) ? ta.metrics : []).filter((m: any) => m.status !== 'on_track');
+  const anomalies: any[] = (insightData(preds, 'operational_anomalies')?.anomalies) || [];
+  const LABEL: Record<string, string> = {
+    avg_wait_minutes: 'Average wait', completion_rate_pct: 'Completion rate', no_show_rate_pct: 'No-show rate',
+  };
+
   return (
     <div className="qa-grid">
-      <Card span={8} title={`${scope} Report`} cap="A Preview Of Exactly What The Export Will Contain">
-        <div className="qa-repgrid">
-          <div className="qa-repstat"><small>Customers Served</small><b className="qa-num">{fmtN(served || total)}</b></div>
-          <div className="qa-repstat"><small>Completed</small><b className="qa-num">{fmtN(done || completed)} · {pct(((done || completed) / Math.max(1, served || total)) * 100)}</b></div>
-          <div className="qa-repstat"><small>Avg Wait</small><b className="qa-num">{Math.round(num(last.avg_wait_time_minutes))} min</b></div>
-          <div className="qa-repstat"><small>No-Shows</small><b className="qa-num">{fmtN(ns || noShows)} · {pct(((ns || noShows) / Math.max(1, served || total)) * 100)}</b></div>
-        </div>
-        <ServedChart summary={summary} />
-      </Card>
-      <Card span={4} title="What's Included">
-        {['KPI Summary & Targets', 'Customers Served Per Day', 'Service Breakdown', 'Busy Times & Staffing', 'What To Improve'].map((x) => (
-          <div key={x} className="qa-incl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M20 6L9 17l-5-5" /></svg>{x}</div>
-        ))}
-      </Card>
+      <ReportDoc
+        title={`${scope} Performance Report`}
+        subtitle={`${from} – ${to}`}
+        meta={`Generated ${new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })} · QMe Now`}
+        filename={`QMeNow-${scope}-Report-${to.replace(/\s/g, '')}`}
+      >
+        <ReportSection heading="Summary">
+          <ReportKpis items={[
+            ['Customers served', fmtN(served)],
+            ['Completed', `${fmtN(done)} · ${pct((done / Math.max(1, served)) * 100)}`],
+            ['Average wait', `${Math.round(num(last.avg_wait_time_minutes))} min`],
+            ['No-shows', `${fmtN(ns)} · ${pct((ns / Math.max(1, served)) * 100)}`],
+          ]} />
+        </ReportSection>
+
+        <ReportSection heading="Customers served per day" blurb={periodBlurb(summary, target, scope)}>
+          <ServedChart summary={summary} />
+        </ReportSection>
+
+        {services.length ? (
+          <ReportSection
+            heading="Service breakdown"
+            blurb={`${services.length} services ran in this period. Anything marked over target is where customers waited longest.`}
+          >
+            <ReportTable
+              head={['Service', 'Served', 'Completed', 'Avg wait', 'vs target']}
+              rows={services.map((s: any) => {
+                const w = Math.round(num(s.avg_wait_minutes));
+                const goal = num(target?.target_wait_minutes) || 20;
+                return [
+                  titleCase(s.service_name), fmtN(num(s.total_visits)),
+                  pct((num(s.completed) / Math.max(1, num(s.total_visits))) * 100),
+                  `${w} min`, w > goal ? 'Over' : 'On target',
+                ];
+              })}
+            />
+          </ReportSection>
+        ) : null}
+
+        {branches.length ? (
+          <ReportSection heading="Branch breakdown" blurb="Ranked by overall performance score, out of 100.">
+            <ReportTable
+              head={['Branch', 'Manager', 'Score', 'Avg wait', 'Completion']}
+              rows={branches.map((b: any) => [
+                titleCase(b.branch_name), titleCase(b.manager_name),
+                Math.round(num(b.manager_score)), `${Math.round(num(b.avg_wait_minutes))} min`,
+                `${Math.round(num(b.completion_rate))}%`,
+              ])}
+            />
+          </ReportSection>
+        ) : null}
+
+        <ReportSection
+          heading="What to improve"
+          blurb={offTrack.length || anomalies.length
+            ? 'Ranked by impact on your targets. Each item is measured against the goals you set.'
+            : 'Nothing is off track against your targets for this period.'}
+        >
+          {offTrack.map((m: any) => (
+            <p key={m.metric} className="blurb">
+              <b>{LABEL[m.metric] || titleCase(m.metric)} is {m.status === 'off_track' ? 'off track' : 'at risk'}.</b>{' '}
+              Now {m.current}, projected {m.projected} against a target of {m.target}. Trend: {titleCase(m.trend)}.
+            </p>
+          ))}
+          {anomalies.slice(0, 3).map((a: any, i: number) => (
+            <p key={`a${i}`} className="blurb">
+              <b>{titleCase(a.branch_name)} · {titleCase(a.metric)} broke from the norm.</b>{' '}
+              {a.value} on {a.date} against a typical {a.expected}.
+            </p>
+          ))}
+          {!offTrack.length && !anomalies.length ? (
+            <p className="blurb">No at-risk metrics or unusual days were detected in this period.</p>
+          ) : null}
+        </ReportSection>
+      </ReportDoc>
     </div>
   );
 }

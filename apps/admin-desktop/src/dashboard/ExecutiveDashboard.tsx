@@ -13,8 +13,9 @@ import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type N
 import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
-  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab,
+  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb,
 } from './ManagerDashboard';
+import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -150,6 +151,18 @@ export default function ExecutiveDashboard() {
   const drillAvg = Math.round(drill.values.reduce((a, b) => a + b, 0) / Math.max(1, drill.values.length));
   const drillPeak = drill.values.length ? drill.values.indexOf(Math.max(...drill.values)) : -1;
 
+  // The 90-day period broken into months, each with its own graph + reading.
+  const [trendReport, setTrendReport] = useState(false);
+  const reportMonths = useMemo(() => {
+    const byMonth = new Map<string, any[]>();
+    summary.slice(-90).forEach((s: any) => {
+      const k = String(s.summary_date).slice(0, 7);
+      if (!byMonth.has(k)) byMonth.set(k, []);
+      byMonth.get(k)!.push(s);
+    });
+    return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [summary]);
+
   // 90 days is deliberately a REPORT, not a graph — 90 points at this traffic
   // is unreadable, so it's summarised week by week instead.
   const ninety = useMemo(() => {
@@ -246,7 +259,10 @@ export default function ExecutiveDashboard() {
       {tab === 'trends' && (
         <div className="qa-grid">
           <div className="qa-s12" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <Chips options={RANGES} value={range} onChange={(v) => { setRange(v); setMonthOffset(0); }} />
+            <Chips options={RANGES} value={range} onChange={(v) => { setRange(v); setMonthOffset(0); setTrendReport(false); }} />
+            {trendReport ? (
+              <button type="button" className="qa-morebtn" onClick={() => setTrendReport(false)}>← Back to charts</button>
+            ) : null}
             {range === 'month' && months.length > 1 ? (
               <span className="qa-pager">
                 <button type="button" aria-label="Previous month" disabled={monthOffset >= months.length - 1}
@@ -258,8 +274,64 @@ export default function ExecutiveDashboard() {
             ) : null}
           </div>
 
-          {range === '90' ? (
+          {range === '90' && trendReport ? (
+            <ReportDoc
+              title="Trends Report"
+              subtitle={`${org} · last ${ninety.days} days`}
+              meta={`Generated ${new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })} · QMe Now`}
+              filename={`QMeNow-Trends-Report-${new Date().toISOString().slice(0, 10)}`}
+            >
+              <ReportSection heading="Overview">
+                <ReportKpis items={[
+                  ['Customers served', fmtN(ninety.served)],
+                  ['Completed', pct((ninety.done / Math.max(1, ninety.served)) * 100)],
+                  ['Average wait', `${Math.round(ninety.wait)} min`],
+                  ['No-shows', pct((ninety.ns / Math.max(1, ninety.served)) * 100)],
+                ]} />
+                <p className="blurb">
+                  Over the last {ninety.days} days the business served {fmtN(ninety.served)} customers,
+                  averaging {fmtN(Math.round(ninety.served / Math.max(1, ninety.days)))} a day.
+                  The busiest single day was {ninety.best ? new Date(ninety.best.summary_date).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : '—'}
+                  {ninety.best ? ` with ${fmtN(num(ninety.best.total_visitors))} customers` : ''}; the quietest was
+                  {ninety.quiet ? ` ${new Date(ninety.quiet.summary_date).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}` : ' —'}.
+                  Average wait across the period was {Math.round(ninety.wait)} minutes against a {num(target.target_wait_minutes)}-minute target.
+                </p>
+              </ReportSection>
+
+              {reportMonths.map(([key, rows], i) => {
+                const label = new Date(`${key}-01T00:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' });
+                const vals = rows.map((s: any) => num(s.total_visitors));
+                const labels = rows.map((s: any) => new Date(s.summary_date).toLocaleDateString([], { day: 'numeric' }));
+                const avg = Math.round(vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length));
+                const prev = i > 0 ? reportMonths[i - 1][1] : null;
+                const prevAvg = prev ? Math.round(prev.reduce((t: number, s: any) => t + num(s.total_visitors), 0) / Math.max(1, prev.length)) : 0;
+                const delta = prevAvg ? Math.round(((avg - prevAvg) / prevAvg) * 100) : 0;
+                const trend = !prevAvg ? '' :
+                  ` That is ${Math.abs(delta)}% ${delta >= 0 ? 'up on' : 'down on'} ${new Date(`${reportMonths[i - 1][0]}-01T00:00:00`).toLocaleDateString([], { month: 'long' })}.`;
+                return (
+                  <ReportSection key={key} heading={label} blurb={`${periodBlurb(rows, target, org)}${trend}`}>
+                    <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${fmtN(avg)}`} unitLabel="served" h={210} />
+                  </ReportSection>
+                );
+              })}
+
+              <ReportSection heading="Week by week" blurb="Each row is one week across the period, newest first.">
+                <ReportTable
+                  head={['Week', 'Served', 'Completed', 'No-shows', 'Avg wait']}
+                  rows={ninety.weeks.map((w: any) => [
+                    `${new Date(w.from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${new Date(w.to).toLocaleDateString([], { month: 'short', day: 'numeric' })}`,
+                    fmtN(w.served), pct((w.done / Math.max(1, w.served)) * 100), fmtN(w.ns), `${Math.round(w.wait)} min`,
+                  ])}
+                />
+              </ReportSection>
+            </ReportDoc>
+          ) : range === '90' ? (
             <>
+              <div className="qa-s12" data-noexport>
+                <button type="button" className="qa-update" onClick={() => setTrendReport(true)}>
+                  <FileText size={16} />Generate trends report
+                </button>
+              </div>
               <Kpi span={3} label="Customers Served" value={fmtN(ninety.served)} base={`Across ${ninety.days} Days`} />
               <Kpi span={3} label="Completed" value={pct((ninety.done / Math.max(1, ninety.served)) * 100)} base={`${fmtN(ninety.done)} Visits`} />
               <Kpi span={3} label="Average Wait" value={Math.round(ninety.wait)} unit="min" base={`Target ${num(target.target_wait_minutes)} min`} />
@@ -398,7 +470,10 @@ export default function ExecutiveDashboard() {
       )}
 
       {/* week slice so the report reconciles with every other screen */}
-      {tab === 'reports' && <ReportsTab summary={week} last={last} completed={completed} total={served} noShows={noShows} scope="Company" />}
+      {tab === 'reports' && (
+        <ReportsTab summary={week} last={last} completed={completed} total={served} noShows={noShows} scope="Company"
+          services={d.services} target={target} preds={preds} branches={managers} />
+      )}
 
       {tab === 'settings' && (
         <div className="qa-grid">

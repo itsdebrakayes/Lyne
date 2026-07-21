@@ -288,6 +288,31 @@
 .qa-bigstat b{display:block;font-family:var(--qa-font-head);font-size:22px;font-weight:900;color:var(--qa-text)}
 .qa-bigstat small{display:block;margin-top:5px;color:var(--qa-dim);font-size:13px;font-weight:600}
 
+/* ---------- document-style report preview ---------- */
+.qa-docwrap{grid-column:span 12;display:flex;flex-direction:column;gap:14px;min-width:0}
+.qa-doctools{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.qa-doclabel{display:inline-flex;align-items:center;gap:8px;color:var(--qa-dim);font-size:12.5px;font-weight:700}
+.qa-doclabel svg{color:var(--qa-accent)}
+.qa-docok{color:var(--qa-pos);font-size:12.5px;font-weight:800}
+/* the "page" — deliberately paper-like so it reads as a document, not a screen */
+.qa-page{background:#fff;color:#1F3442;border:1px solid var(--qa-line);border-radius:10px;
+  box-shadow:0 14px 40px -18px rgba(16,32,45,.35);padding:44px 52px 52px;max-width:900px;width:100%;
+  margin:0 auto;font-family:var(--qa-font-body,inherit)}
+.qa-app[data-theme="dark"] .qa-page{background:#fff;color:#1F3442}
+.qa-page h1{font-family:var(--qa-font-head);font-size:27px;font-weight:900;margin:0 0 6px;color:#1F3442;letter-spacing:-.01em}
+.qa-page h2{font-size:16px;font-weight:900;margin:30px 0 8px;padding-bottom:7px;border-bottom:1px solid #D9E4EA;color:#1F3442}
+.qa-page .muted{color:#5A6E7D;font-size:13px;font-weight:600;margin:0 0 4px}
+.qa-page .blurb{color:#33475A;font-size:13.5px;font-weight:500;line-height:1.65;margin:8px 0 14px}
+.qa-page table{border-collapse:collapse;width:100%;margin:10px 0 16px}
+.qa-page th,.qa-page td{border:1px solid #D9E4EA;padding:9px 11px;font-size:12.5px;text-align:left}
+.qa-page th{background:#EEF3F7;font-weight:800}
+.qa-page td.r,.qa-page th.r{text-align:right}
+.qa-page .kpis td{text-align:center}
+.qa-page .kpis .v{font-size:21px;font-weight:900}
+.qa-page .kpis .l{font-size:11px;color:#5A6E7D;font-weight:700;margin-top:3px}
+.qa-page svg{max-width:100%}
+@media (max-width:720px){.qa-page{padding:26px 20px 32px}}
+
 /* help accordions */
 .qa-faq{border-bottom:1px solid var(--qa-line)}
 .qa-faq:last-child{border-bottom:0}
