@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials } from '../../lib/theme';
+import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
@@ -27,7 +27,44 @@ export default function JoinQueueScreen() {
 
   useEffect(() => { if (liveQueue?.id) setError(''); }, [liveQueue?.id]);
 
+  // Tick so the screen unlocks itself the moment the branch opens or the
+  // walk-in buffer expires — the user should never have to back out and return.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const joinState = useMemo(() => remoteJoinInfo(now, hoursFromBranch(branch)), [now, branch]);
+  const queueOpen = !!liveQueue?.id;
+  const canJoin = joinState.allowed && queueOpen;
+
+  // Why the button is off, in the order the user would ask it.
+  const blockedNotice = !branch ? null
+    : !joinState.allowed ? { label: joinState.label, detail: joinState.detail }
+    : !queueOpen ? { label: 'Not taking a line today', detail: `${service?.name || 'This service'} has no queue open at ${branch.name} today. Try another service, or check back tomorrow.` }
+    : null;
+
+  const ctaLabel = canJoin ? 'Confirm & join queue →'
+    : joinState.state === 'closed' ? 'Closed right now'
+    : joinState.state === 'about_to_open' ? 'Opening soon'
+    : joinState.state === 'buffer' ? 'Walk-ins joining first'
+    : 'Not available';
+
+  const noticeIcon = joinState.state === 'closed' ? 'moon-outline'
+    : joinState.state === 'about_to_open' ? 'time-outline'
+    : joinState.state === 'buffer' ? 'walk-outline'
+    : 'information-circle-outline';
+
+  // Only show live counts when there is genuinely a line running. A closed
+  // branch reading "0 ahead · 0m wait" looks like an invitation to join.
+  const statsLive = joinState.state === 'open' || joinState.state === 'buffer';
+
   const joinQueue = async () => {
+    if (!joinState.allowed) {
+      setError(joinState.detail);
+      return;
+    }
     if (!liveQueue?.id || !branch || !service) {
       setError('This queue is not open right now. Please choose another service or try again later.');
       return;
@@ -81,24 +118,33 @@ export default function JoinQueueScreen() {
               </View>
               <View style={{ flexDirection: 'row', marginTop: 22 }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.waiting_count ?? 0}</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{statsLive ? (liveQueue?.waiting_count ?? 0) : '—'}</Text>
                   <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>ahead</Text>
                 </View>
                 <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,.12)' }} />
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.estimated_wait_minutes ?? 0}<Text style={{ fontSize: 13 }}>m</Text></Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{statsLive ? <>{liveQueue?.estimated_wait_minutes ?? 0}<Text style={{ fontSize: 13 }}>m</Text></> : '—'}</Text>
                   <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>est. wait</Text>
                 </View>
               </View>
             </View>
-            {!liveQueue?.id && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 14 }}>This service does not have an open queue today.</Text>}
+
+            {blockedNotice && (
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16, padding: 16, borderRadius: 18, backgroundColor: 'rgba(245,166,35,.10)', borderWidth: 1, borderColor: 'rgba(245,166,35,.28)' }}>
+                <Ionicons name={noticeIcon as any} size={18} color={colors.moderate} style={{ marginTop: 1 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{blockedNotice.label}</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted, lineHeight: 19, marginTop: 3 }}>{blockedNotice.detail}</Text>
+                </View>
+              </View>
+            )}
           </>
         )}
         {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 14 }}>{error}</Text>}
       </ScrollView>
       <View style={{ position: 'absolute', left: 20, right: 20, bottom: 28 }}>
-        <TouchableOpacity disabled={loading || pageLoading || !liveQueue?.id} style={[t.primaryBtn, (!liveQueue?.id || pageLoading) && { opacity: 0.45 }]} onPress={joinQueue}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>Confirm & join queue →</Text>}
+        <TouchableOpacity disabled={loading || pageLoading || !canJoin} style={[t.primaryBtn, (!canJoin || pageLoading) && { opacity: 0.45 }]} onPress={joinQueue}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>{ctaLabel}</Text>}
         </TouchableOpacity>
       </View>
     </View>

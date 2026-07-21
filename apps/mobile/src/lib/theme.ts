@@ -276,6 +276,35 @@ export function branchOpenInfo(now: Date = new Date(), hours: BranchHours = DEFA
   return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day, hours) };
 }
 
+/**
+ * Remote joining opens a few minutes AFTER the doors do. People who travelled to
+ * the branch and are standing there at opening should not be leapfrogged by
+ * someone tapping "join" from home the second the clock ticks over, so the first
+ * few minutes of the day belong to walk-ins.
+ */
+export const REMOTE_JOIN_BUFFER = 5; // minutes
+
+export type RemoteJoinState = OpenState | 'buffer';
+export interface RemoteJoinInfo extends Omit<OpenInfo, 'state'> { allowed: boolean; state: RemoteJoinState; }
+
+/** Whether this branch can be joined FROM THE APP right now, and why not if not. */
+export function remoteJoinInfo(now: Date = new Date(), hours: BranchHours = DEFAULT_HOURS): RemoteJoinInfo {
+  const info = branchOpenInfo(now, hours);
+  if (info.state !== 'open') return { ...info, allowed: false };
+
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const remoteOpensAt = hours.openMin + REMOTE_JOIN_BUFFER;
+  if (mins < remoteOpensAt) {
+    return {
+      allowed: false,
+      state: 'buffer',
+      label: 'Seating walk-ins',
+      detail: `Doors just opened — people already at the branch join first. You can take a spot from here at ${clockLabel(remoteOpensAt)}.`,
+    };
+  }
+  return { ...info, allowed: true };
+}
+
 // Default agency open time as a plain label, for callers without a branch.
 export const openingTimeLabel = clockLabel(OPEN_MIN);
 

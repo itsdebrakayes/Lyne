@@ -427,11 +427,19 @@ ON DUPLICATE KEY UPDATE
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Per-branch opening hours (migration 011) — real Jamaican agency schedules,
--- so the mobile app shows honest per-branch Open / About-to-open / Closed.
+-- Per-branch opening hours (migration 011), so the mobile app shows honest
+-- per-branch Open / About-to-open / Closed and gates joining accordingly.
 -- open_days: CSV of weekday numbers, 0=Sun..6=Sat.
-UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-taj-001';
-UPDATE branches SET opening_time = '08:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-pica-001';
-UPDATE branches SET opening_time = '08:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5' WHERE business_id = 'biz-nht-001';
--- Any remaining branches fall back to a standard weekday schedule.
-UPDATE branches SET opening_time = '08:30:00', closing_time = '16:30:00', open_days = '1,2,3,4,5' WHERE opening_time IS NULL;
+--
+-- DEMO WINDOW, NOT REAL OFFICE HOURS. Real agency hours are 08:00–16:00 Mon–Fri,
+-- but the join gate is enforced for real: outside these hours every branch reads
+-- "Closed" and the customer journey cannot be shown at all. A demo or rehearsal
+-- that runs early, late, or at a weekend would have nothing to demo. So the DEMO
+-- branches carry a deliberately wide, still-plausible schedule.
+-- To show true office hours instead, set these to 08:00:00 / 16:00:00 / '1,2,3,4,5'
+-- and make sure the demo runs inside that window.
+UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-taj-001';
+UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-pica-001';
+UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-nht-001';
+-- Any remaining branches fall back to the same demo window.
+UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE opening_time IS NULL;

@@ -32,6 +32,8 @@ const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('.
 const { sendPushToUser } = require('../utils/pushSender');
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 
+const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
+
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
 const MAX_CALL_TIMEOUT_SECONDS = 30 * 60;
@@ -154,6 +156,21 @@ router.post('/', requireAuth, async (req, res) => {
     }
     const queue = queues[0];
 
+    // Walk-ins first — this route is the customer app (channel 'app'), so remote
+    // joining opens a few minutes after the branch does. See utils/joinWindow.js.
+    const [branchRows] = await conn.query(
+      'SELECT opening_time, open_days FROM branches WHERE id = ?',
+      [queue.branch_id]
+    );
+    const remoteOpensAt = remoteJoinBlockedUntil(branchRows[0]);
+    if (remoteOpensAt) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: `Remote joining opens at ${remoteOpensAt.toTimeString().slice(0, 5)}. `
+          + `The first ${REMOTE_JOIN_BUFFER} minutes are reserved for customers already at the branch.`,
+      });
+    }
+
     // One live ticket per customer — a person cannot hold places in several
     // lines at once, and the apps are built around a single active ticket.
     if (req.dbUser?.id) {
@@ -219,9 +236,11 @@ router.post('/', requireAuth, async (req, res) => {
 
     const ticketId = uuidv4();
     await conn.query(
+      // channel is explicit ('app' is also the column default): this route is the
+      // customer app, and the walk-in buffer above depends on that distinction.
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?)`,
+         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app')`,
       [ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber, verificationCode, position, estimatedWait]
     );
 
