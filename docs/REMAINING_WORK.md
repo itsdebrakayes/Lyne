@@ -80,7 +80,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 
 | Item | Notes |
 |------|-------|
-| Payments — Jamaica processor decision + wire | Stripe unavailable for JM; flow is stubbed. Pilot is free/agency-paid. |
+| Payments — Jamaica processor decision + wire | Stripe unavailable for JM; flow is stubbed. Pilot is free/agency-paid. **Candidates to evaluate:** WiPay (common local gateway), **Amber Pay eLink** (hosted card link — seen on Jamaican services e.g. Carib 5), **PayPal card entry** (typed card, no account needed — low-friction fallback). |
 | PII / data protection | privacy policy, retention/erasure policy, encryption-at-rest confirmation. **A CIO will ask** — have an honest answer for the demo even though the full DPA comes later. |
 | ML hardening | persisted model artifacts + drift monitoring; longer forecast horizon than 7 days; target projection is a trend line, not causal |
 | App Store / Play Store public listings | after TestFlight; review lead times |
@@ -93,5 +93,9 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 - **F** is largely waiting on you to create accounts; I wire up the code/infra side.
 - **G** is genuinely post-pilot and shouldn't block a demo, but is required before a signed paid contract.
 
-_When an item ships it should be checked off here and in the task tracker, so
-this file and the tracker stay in agreement._
+_When an item ships, move it to [COMPLETED_WORK.md](COMPLETED_WORK.md), check it
+off here, and update the task tracker — so all three stay in agreement._
+
+_Deep reference (features, security model, ML rationale, deployment) now lives in
+the exhaustive root [README.md](../README.md), which absorbed the retired
+scattered planning/audit docs._

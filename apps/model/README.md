@@ -51,7 +51,8 @@ insight types (`ops_insights`, `staff_metrics`, `branch_performance`,
 `service_performance`, `resource_recommendations`, `best_time_to_visit`,
 `heatmap_data`, `manager_performance`) through the secured backend API.
 
-See `docs/ML_MODELS.md` for the full model design. Each imported insight
+See the "Machine learning & analytics" section of the root `README.md` for the
+full model design and rationale. Each imported insight
 includes tenant metadata, model version, generated time, and source window
 where available.
 
