@@ -87,7 +87,7 @@ def load_json_insights(business_id: str, manifest: list) -> tuple[list, int]:
 
 
 def load_dashboard_insights(business_id: str) -> list:
-    """Structured model outputs from notebook 07 / scripts/generate_insights.py.
+    """Structured model outputs from notebook 07 / scripts/wait_time_model.py.
 
     These carry the chartable payloads the admin dashboards read directly
     (hourly wait forecast, per-service abandonment thresholds, model quality),

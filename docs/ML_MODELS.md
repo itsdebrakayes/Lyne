@@ -30,7 +30,7 @@ Bold entries were added or rebuilt in the July 2026 review.
 
 ## Model inventory
 
-### 1. Wait-time model + live ETA — `scripts/generate_insights.py` (nb 07)
+### 1. Wait-time model + live ETA — `scripts/wait_time_model.py` (nb 07)
 The one genuine regression model, a `GradientBoostingRegressor` over calendar +
 operational features (dow, hour, month, branch, service, queue length, staff,
 counters, holiday, month-end). Two important changes from the original:

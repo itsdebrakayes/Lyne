@@ -39,7 +39,7 @@ NOTEBOOKS_IN_ORDER = ['05_predictive_model.ipynb', '06_manager_performance.ipynb
 # own phase rather than through the CSV → API import path. Order is dependency
 # free; grouped by role (customer ETA → demand → staffing → risk → executive).
 MODEL_SCRIPTS_IN_ORDER = [
-    'generate_insights.py',              # wait_eta_grid, service_time, wait/abandonment, model_perf
+    'wait_time_model.py',                # wait_eta_grid, service_time, wait/abandonment, model_perf
     'forecast_demand.py',                # demand_forecast
     'recommend_staffing.py',             # staffing_recommendation
     'predict_no_show.py',                # no_show_risk

@@ -4,7 +4,7 @@
  * Historically the customer's "estimated wait" was a flat (position-1) ×
  * base_avg_time — arithmetic that ignored the time of day, how full the line
  * actually is, and how this service really behaves. The analytics pipeline now
- * publishes a `wait_eta_grid` insight (see apps/model/scripts/generate_insights.py):
+ * publishes a `wait_eta_grid` insight (see apps/model/scripts/wait_time_model.py):
  * per service, a surface of expected wait by hour × queue-length bucket, each
  * cell backed by real history where dense and the wait-time model where thin.
  *

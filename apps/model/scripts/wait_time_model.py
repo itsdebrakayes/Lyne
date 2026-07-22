@@ -1,10 +1,9 @@
 """
-generate_insights.py — Train the wait-time model and write dashboard insights.
+wait_time_model.py — Train the wait-time model and write dashboard insights.
 
-This is the canonical, DB-connected model engine. Notebook
-07_dashboard_insights.ipynb is a thin wrapper around it, and the wait-time
-logic here is the one source of truth (build_model.py / notebook 05 is the
-retired standalone prototype).
+This is the canonical, DB-connected wait-time model engine — the single source
+of truth for how long a customer will wait. (The old build_model.py / notebook
+05 was a standalone prototype and is retired.)
 
 Produces the structured, chartable payloads the admin dashboards and the
 customer-facing ETA read:
@@ -22,8 +21,8 @@ Validation is a temporal split (train on the earlier window, test on the
 most recent) — not a random split — so the reported error is trustworthy.
 
 Usage:
-    python scripts/generate_insights.py                # writes JSON to outputs/
-    python scripts/generate_insights.py --write-db     # also upserts into predictive_results
+    python scripts/wait_time_model.py                # writes JSON to outputs/
+    python scripts/wait_time_model.py --write-db     # also upserts into predictive_results
 """
 
 import os
