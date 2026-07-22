@@ -522,6 +522,79 @@ router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manag
   }
 });
 
+// Channel mix — walk-in vs online (app) vs kiosk. Shows how much of the branch's
+// intake now self-serves through the app (the value the online side delivers),
+// plus a weekly trend and the wait each channel experiences.
+router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const days = Math.min(365, Math.max(7, parseInt(req.query.days, 10) || 90));
+
+    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)'];
+    const params = [scopedBusinessId(req, business_id), days];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const where = conditions.join(' AND ');
+
+    const [mix] = await pool.query(
+      `SELECT COALESCE(w.channel, 'walk_in') AS channel,
+              COUNT(*)                        AS count,
+              ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait,
+              ROUND(100 * AVG(w.status IN ('no_show','left','cancelled')), 1) AS abandon_pct
+       FROM wait_time_records w
+       WHERE ${where}
+       GROUP BY COALESCE(w.channel, 'walk_in')`,
+      params
+    );
+    const total = mix.reduce((sum, r) => sum + Number(r.count), 0) || 1;
+    const channels = ['app', 'walk_in', 'kiosk'].map((ch) => {
+      const row = mix.find((m) => m.channel === ch);
+      return {
+        channel: ch,
+        count: row ? Number(row.count) : 0,
+        pct: row ? Math.round((Number(row.count) / total) * 1000) / 10 : 0,
+        avg_wait: row ? Number(row.avg_wait) : null,
+        abandon_pct: row ? Number(row.abandon_pct) : null,
+      };
+    });
+
+    // Weekly self-service share over the window.
+    const [trend] = await pool.query(
+      `SELECT YEARWEEK(w.visit_date, 3) AS yw,
+              MIN(w.visit_date)         AS week_start,
+              COUNT(*)                  AS total,
+              SUM(w.channel = 'app')    AS app,
+              SUM(COALESCE(w.channel,'walk_in') = 'walk_in') AS walk_in,
+              SUM(w.channel = 'kiosk')  AS kiosk
+       FROM wait_time_records w
+       WHERE ${where}
+       GROUP BY YEARWEEK(w.visit_date, 3)
+       ORDER BY yw`,
+      params
+    );
+    const trendRows = trend.map((r) => ({
+      week_start: String(r.week_start).slice(0, 10),
+      total: Number(r.total),
+      app_pct: r.total ? Math.round((Number(r.app) / Number(r.total)) * 1000) / 10 : 0,
+    }));
+
+    const appRow = channels.find((c) => c.channel === 'app');
+    const selfServicePct = appRow ? appRow.pct : 0;
+    res.json({
+      total,
+      channels,
+      trend: trendRows,
+      self_service_pct: selfServicePct,
+      // Walk-ins a clerk had to key in by hand — the counterfactual the app saves.
+      staffed_intake: channels.filter((c) => c.channel !== 'app').reduce((s, c) => s + c.count, 0),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch channel mix.' });
+  }
+});
+
 // Staff performance
 router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {

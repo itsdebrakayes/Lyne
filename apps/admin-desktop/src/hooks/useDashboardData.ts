@@ -61,6 +61,11 @@ export type BalkingData = {
   total_joins: number; total_reneged: number; renege_rate_pct: number; avg_renege_minutes: number | null;
   balk_wait_minutes: number | null; histogram: Array<{ wait_bucket: string; joins: number; reneged: number }>; insight: string;
 };
+export type ChannelMix = {
+  total: number; self_service_pct: number; staffed_intake: number;
+  channels: Array<{ channel: 'app' | 'walk_in' | 'kiosk'; count: number; pct: number; avg_wait: number | null; abandon_pct: number | null }>;
+  trend: Array<{ week_start: string; total: number; app_pct: number }>;
+};
 
 export const DEFAULT_TARGETS: BusinessTargets = {
   business_id: '', target_wait_minutes: 20, target_completion_rate: 80, target_no_show_rate: 10,
@@ -162,6 +167,11 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<BalkingData>(`/analytics/balking?${analyticsQuery}`),
     enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
   });
+  const channels = useQuery({
+    queryKey: ['ops-channels', analyticsQuery],
+    queryFn: () => api.get<ChannelMix>(`/analytics/channels?${analyticsQuery}&days=90`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 120_000,
+  });
 
   return {
     admin, businessId, branchId,
@@ -178,8 +188,9 @@ export function useDashboardData(serviceId = '') {
     predictions: predictions.data || [],
     pipeline: pipeline.data,
     balking: balking.data || null,
+    channels: channels.data || null,
     refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
       branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch()]),
+      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch()]),
   };
 }

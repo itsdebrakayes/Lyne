@@ -10,7 +10,7 @@ import {
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
-import { useDashboardData } from '../hooks/useDashboardData';
+import { useDashboardData, type ChannelMix } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
@@ -131,7 +131,8 @@ export default function ManagerDashboard() {
           </div>
 
           <TrafficCard services={d.services} span={6} />
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={6} />
+          <ChannelMixCard data={d.channels} span={6} />
+          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={12} />
         </div>
       )}
 
@@ -278,6 +279,36 @@ export function ServedChart({ summary }: { summary: any[] }) {
         <div><div className="fl">Period</div><div className="fv qa-num">{rows.length} Days</div></div>
       </div>
     </>
+  );
+}
+
+export function ChannelMixCard({ data, span }: { data: ChannelMix | null; span: number }) {
+  if (!data || !data.total) {
+    return <Card span={span} title="Walk-in vs Online" cap="How Customers Reach The Line"><Empty msg="No channel data yet." /></Card>;
+  }
+  const get = (ch: string) => data.channels.find((c) => c.channel === ch);
+  const app = get('app'); const walk = get('walk_in'); const kiosk = get('kiosk');
+  const legend: Array<[string, typeof app]> = [['Online — the app', app], ['Walk-in — front desk', walk]];
+  if (kiosk && kiosk.count) legend.push(['Kiosk — staff-added', kiosk]);
+  return (
+    <Card span={span} title="Walk-in vs Online" cap="How Customers Reach The Line · Last 90 Days">
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{data.self_service_pct}%</span>
+        <span className="mini">joined online — the other {fmtN(data.staffed_intake)} were keyed in at the counter</span>
+      </div>
+      <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', margin: '12px 0 10px' }}>
+        <i style={{ width: `${app?.pct || 0}%`, background: 'linear-gradient(90deg,var(--qa-accent),var(--qa-accent-2))' }} />
+        <i style={{ width: `${walk?.pct || 0}%`, background: 'var(--qa-surface-3)' }} />
+        {kiosk && kiosk.pct > 0 && <i style={{ width: `${kiosk.pct}%`, background: 'var(--qa-accent-2)' }} />}
+      </div>
+      {legend.map(([label, c]) => (
+        <div key={label} className="qa-svcrow">
+          <span className="nm">{label}</span>
+          <span className="mini">{c?.avg_wait != null ? `~${c.avg_wait}m wait` : ''}</span>
+          <span className="chg up">{c?.pct || 0}%</span>
+        </div>
+      ))}
+    </Card>
   );
 }
 

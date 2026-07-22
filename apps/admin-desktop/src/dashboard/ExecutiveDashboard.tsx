@@ -13,7 +13,7 @@ import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type N
 import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
-  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb,
+  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb, ChannelMixCard,
 } from './ManagerDashboard';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 
@@ -251,6 +251,7 @@ export default function ExecutiveDashboard() {
           </Card>
           <div className="qa-stack4">
             <TargetTrendCard preds={preds} span={12} />
+            <ChannelMixCard data={d.channels} span={12} />
             <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={12} />
           </div>
         </div>
