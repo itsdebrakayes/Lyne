@@ -47,6 +47,20 @@ RNG = np.random.default_rng(42)
 HOUR_WEIGHTS = {8: 0.6, 9: 1.3, 10: 1.4, 11: 1.15, 12: 0.55,
                 13: 0.9, 14: 1.0, 15: 0.75, 16: 0.4}
 
+# A few flagship (Kingston) branches run chronically over capacity — long waits,
+# high no-shows — while the rest are moderate/healthy. This gives the dashboards
+# a real stressed-vs-healthy contrast to show and for the models to explain,
+# instead of every branch reading the same. (Decision 2026-07-22.)
+STRESSED_BRANCHES = {"br-taj-kgn", "br-pica-kgn", "br-nht-kgn"}
+
+# Demand momentum. Daily volume is not independent day-to-day: it carries an
+# AR(1) drift ON TOP OF the calendar pattern (dow / month-end / pre-holiday).
+# Seasonal-naive only sees the day-of-week average, so this persistent drift is
+# exactly the signal the reworked demand model's lag features exploit to beat
+# the naive baseline honestly. Without it, lag features have nothing to learn.
+AR_PHI = 0.8      # how much of recent demand level carries into today
+AR_SIGMA = 0.14   # size of the day-to-day shock
+
 
 def load_scope(conn):
     """Valid (business, branch, service) combos + schedule + base service time."""
@@ -132,22 +146,33 @@ def generate(scope, holiday_set, start, end):
         counters_avail = int(combo["counters"] or 3)
         weights = np.array([HOUR_WEIGHTS[h] for h in hours], dtype=float)
         weights /= weights.sum()
-        daily_base = RNG.uniform(24, 62)         # this service's typical daily footfall
 
+        # Stressed branches see heavier footfall AND let the line outrun the
+        # counters harder (staff lag further behind peak load), so their waits
+        # and abandonment climb well above the moderate branches'.
+        stressed = combo["branch_id"] in STRESSED_BRANCHES
+        daily_base = RNG.uniform(40, 64) if stressed else RNG.uniform(18, 40)
+        counter_lag = 15 if stressed else 10    # bigger = counters lag load more
+
+        # AR(1) demand level, persistent across this combo's days. Seeded off its
+        # own random walk so each branch/service has its own momentum history.
+        level = 1.0
         d = start
         while d <= end:
             schema_dow = (d.weekday() + 1) % 7   # Sun=0..Sat=6
             if schema_dow not in open_days or d in holiday_set:
                 d += timedelta(days=1)
                 continue
-            day_total = max(0, int(RNG.poisson(daily_base * day_factor(d, holiday_set))))
-            per_hour = RNG.multinomial(day_total, weights)
+            # today's level = φ·(recent level) + (1-φ)·baseline + shock, clipped
+            level = float(np.clip(AR_PHI * level + (1 - AR_PHI) + RNG.normal(0, AR_SIGMA), 0.55, 1.7))
+            day_total = max(0, int(RNG.poisson(daily_base * day_factor(d, holiday_set) * level)))
+            per_hour = RNG.multinomial(day_total, weights) if day_total else [0] * len(hours)
             for h, n in zip(hours, per_hour):
                 if n <= 0:
                     continue
                 # Counters lag load (agencies rarely staff to peak), so busy hours
                 # build real queues (10–25) instead of clearing instantly.
-                counters_open = max(1, min(counters_avail, int(round(n / 12)) + 1))
+                counters_open = max(1, min(counters_avail, int(round(n / counter_lag)) + 1))
                 for q, wait, svc in simulate_hour(int(n), base_time, counters_open):
                     is_app = RNG.random() < 0.35
                     channel = "app" if is_app else "walk_in"
@@ -211,6 +236,20 @@ def main():
     abandon = sum(v for k, v in dist.items() if k in ("no_show", "left", "cancelled"))
     print(f"Inserted. status={dist}")
     print(f"avg served wait ≈ {avg_wait} min | abandon rate ≈ {round(abandon/max(1,total)*100,1)}%")
+
+    # Verify the stressed-vs-healthy contrast the demo is meant to show.
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT branch_id,
+                   ROUND(AVG(CASE WHEN status='served' THEN wait_time_minutes END), 1) AS avg_wait,
+                   ROUND(100 * AVG(status IN ('no_show','left','cancelled')), 1) AS abandon_pct,
+                   COUNT(*) AS n
+            FROM wait_time_records GROUP BY branch_id ORDER BY avg_wait DESC
+        """)
+        print("\n  branch                avg_wait  abandon%   rows   tier")
+        for r in cur.fetchall():
+            tier = "STRESSED" if r["branch_id"] in STRESSED_BRANCHES else "moderate"
+            print(f"  {r['branch_id']:<20} {str(r['avg_wait']):>7}  {str(r['abandon_pct']):>7}  {r['n']:>6}   {tier}")
     conn.close()
 
 
