@@ -53,7 +53,7 @@ def load_data(conn):
                    w.branch_id, b.name AS branch_name, b.open_days, b.opening_time, b.closing_time,
                    w.service_id, s.name AS service_name,
                    w.visit_date, w.hour_of_day AS hour,
-                   w.service_time_minutes
+                   w.service_time_minutes, w.wait_time_minutes, w.active_counters_at_time
             FROM wait_time_records w
             JOIN businesses biz ON biz.id = w.business_id
             JOIN branches b     ON b.id = w.branch_id
@@ -61,11 +61,13 @@ def load_data(conn):
             WHERE w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 120 DAY)
         """)
         df = pd.DataFrame(cursor.fetchall())
+        # Per-(branch, service) counters — a counter is a branch×service window, so
+        # staffing is decided per service, not against a branch-wide pool.
         cursor.execute("""
-            SELECT branch_id, COUNT(*) AS counters
-            FROM counters WHERE is_active = TRUE GROUP BY branch_id
+            SELECT branch_id, service_id, COUNT(*) AS counters
+            FROM counters WHERE is_active = TRUE GROUP BY branch_id, service_id
         """)
-        counters = {r["branch_id"]: int(r["counters"]) for r in cursor.fetchall()}
+        counters = {(r["branch_id"], r["service_id"]): int(r["counters"]) for r in cursor.fetchall()}
         cursor.execute("SELECT business_id, target_wait_minutes FROM business_targets")
         targets = {r["business_id"]: int(r["target_wait_minutes"]) for r in cursor.fetchall()}
     if df.empty:
@@ -123,18 +125,23 @@ def build_insights(df, counters, targets):
         branches = []
         for (branch_id, branch_name), gb in dfb.groupby(["branch_id", "branch_name"]):
             days, hours = open_hours(gb["open_days"].iloc[0], gb["opening_time"].iloc[0], gb["closing_time"].iloc[0])
-            available = counters.get(branch_id, MAX_SERVERS)
-            # Per-service service rate (customers/hour/counter)
-            svc_mu = {}
+            # Per service at this branch: counters that EXIST (the ceiling), the
+            # counters TYPICALLY OPEN at peak (from the data — branches rarely
+            # staff to their max), and the service rate.
+            svc_avail, svc_typical, svc_mu, svc_name = {}, {}, {}, {}
             for sid, sg in gb.groupby("service_id"):
+                svc_avail[sid] = counters.get((branch_id, sid), 1)
+                open_obs = pd.to_numeric(sg["active_counters_at_time"], errors="coerce").dropna()
+                svc_typical[sid] = int(round(open_obs.median())) if len(open_obs) else svc_avail[sid]
                 mean_svc = sg["service_time_minutes"].dropna()
-                mean_svc = float(mean_svc.mean()) if len(mean_svc) else 15.0
-                svc_mu[sid] = 60.0 / max(1.0, mean_svc)
+                svc_mu[sid] = 60.0 / max(1.0, float(mean_svc.mean()) if len(mean_svc) else 15.0)
+                svc_name[sid] = sg["service_name"].iloc[0]
+            branch_available = sum(svc_avail.values())
 
             hourly_plan = []
+            # Track the single worst service-hour bottleneck for the "why".
+            worst_gap = None
             for h in hours:
-                # Expected arrivals/hour at this hour on a typical open day:
-                # total arrivals in this hour over open days ÷ number of open weekdays observed.
                 slot = gb[(gb["hour"] == h) & (gb["dow"].isin(days))]
                 per_service = []
                 total_servers = 0
@@ -142,35 +149,58 @@ def build_insights(df, counters, targets):
                 for sid, sg in slot.groupby("service_id"):
                     lam = len(sg) / (n_weeks * len(days))       # arrivals/hour typical open day
                     mu = svc_mu.get(sid, 4.0)
-                    c, wq = recommend_servers(lam, mu, target, available)
+                    avail_s = svc_avail.get(sid, 1)
+                    # Windows usually open AT THIS HOUR, and the wait people
+                    # actually got — both observed from the data (real, bounded).
+                    open_here = pd.to_numeric(sg["active_counters_at_time"], errors="coerce").dropna()
+                    typical = min(avail_s, max(1, int(round(open_here.median())) if len(open_here) else avail_s))
+                    obs_wait = pd.to_numeric(sg["wait_time_minutes"], errors="coerce").dropna()
+                    obs_wait = round(float(obs_wait.mean()), 1) if len(obs_wait) else 0.0
+                    c, wq = recommend_servers(lam, mu, target, avail_s)   # needed, up to the ceiling
                     total_servers += c
-                    if wq is not None:
-                        worst_wait = max(worst_wait, wq)
+                    worst_wait = max(worst_wait, obs_wait)
+                    over_s = c > typical and obs_wait > target   # needs more, and really runs long
                     per_service.append({
                         "service_id": sid,
                         "arrivals_per_hour": round(lam, 1),
+                        "typical_open": typical,
                         "recommended_counters": c,
-                        "expected_wait_minutes": wq,
+                        "available_counters": avail_s,
+                        "observed_wait_minutes": obs_wait,
+                        "expected_wait_if_recommended": wq,
+                        "over_capacity": over_s,
                     })
-                # Keep at least one window open during configured business hours,
-                # even in a lull — a branch never closes every counter mid-day.
-                capped = max(1, min(total_servers, available))
+                    if over_s:
+                        cand = {"hour": h, "service_name": svc_name.get(sid, "a service"),
+                                "arrivals": lam, "typical": typical, "recommended": c,
+                                "gap": c - typical, "wait": obs_wait}
+                        if worst_gap is None or cand["wait"] > worst_gap["wait"]:
+                            worst_gap = cand
+                over_capacity = any(s["over_capacity"] for s in per_service)
                 hourly_plan.append({
                     "hour": h,
-                    "recommended_counters": capped,
-                    "unconstrained_counters": total_servers,
-                    "available_counters": available,
+                    "recommended_counters": max(1, total_servers),
+                    "available_counters": branch_available,
                     "expected_wait_minutes": round(worst_wait, 1),
-                    "over_capacity": total_servers > available,
+                    "over_capacity": over_capacity,
                     "services": per_service,
                 })
             peak = max(hourly_plan, key=lambda x: x["recommended_counters"]) if hourly_plan else None
             understaffed = [p["hour"] for p in hourly_plan if p["over_capacity"]]
+            # Plain-language "why the line forms" — the worst single service bottleneck.
+            if worst_gap:
+                why = (f"Around {worst_gap['hour']}:00, {worst_gap['service_name']} draws about "
+                       f"{worst_gap['arrivals']:.0f} people/hr with only {worst_gap['typical']} window(s) "
+                       f"usually open — waits run ~{worst_gap['wait']:.0f} min. Opening {worst_gap['gap']} "
+                       f"more (to {worst_gap['recommended']}) is enough to hold it under {target} min.")
+            else:
+                why = f"Today's staffing holds waits under {target} min through the whole day."
             branches.append({
                 "branch_id": branch_id,
                 "branch_name": branch_name,
                 "target_wait_minutes": target,
-                "available_counters": available,
+                "available_counters": branch_available,
+                "why": why,
                 "hourly_plan": hourly_plan,
                 "peak_hour": peak["hour"] if peak else None,
                 "peak_counters": peak["recommended_counters"] if peak else None,

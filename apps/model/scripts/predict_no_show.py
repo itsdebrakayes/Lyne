@@ -36,12 +36,66 @@ if BASE_DIR not in sys.path:
 from utils.dbio import connect, upsert_insights          # noqa: E402
 from utils.model_utils import SafeLabelEncoder, temporal_split  # noqa: E402
 
+try:
+    import shap  # explainability — directional per-driver reasons
+except Exception:  # noqa: BLE001 — degrade gracefully if unavailable in dev
+    shap = None
+
 OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs", "admin")
 MODEL_VERSION = "no-show-gbc-v1"
 QUEUE_BUCKETS = [2, 5, 10, 20, 40]
 ABANDON_STATUSES = ("no_show", "left", "cancelled")
 FEATURES = ["dow", "hour", "month", "branch_enc", "service_enc",
             "queue_length", "is_walk_in", "is_holiday", "is_month_end"]
+
+# Plain-language names so the "why" reads for a non-technical manager.
+FEATURE_LABELS = {
+    "is_walk_in": "walking in (vs joining on the app)",
+    "queue_length": "a long line when they joined",
+    "hour": "the time of day",
+    "dow": "the day of the week",
+    "month": "the month",
+    "is_holiday": "public holidays",
+    "is_month_end": "month-end pressure",
+    "branch_enc": "which branch",
+    "service_enc": "which service",
+}
+
+
+def shap_drivers(trained, df):
+    """Directional per-feature drivers of HIGH no-show risk, via SHAP — what
+    actually pushes a ticket's risk up or down, not just which features matter
+    in aggregate. Falls back to impurity importances if SHAP is unavailable."""
+    model = trained["model"]
+    d = df.copy()
+    d["branch_enc"] = trained["enc_b"].transform(d["branch_id"])
+    d["service_enc"] = trained["enc_s"].transform(d["service_id"])
+    X = d[FEATURES].fillna(0)
+    if shap is None or X.empty:
+        return [{"feature": d["feature"], "label": FEATURE_LABELS.get(d["feature"], d["feature"]),
+                 "impact": d["importance"], "direction": "affects"} for d in trained["importances"]]
+    # Explain the highest-risk quartile — the tickets staff actually care about.
+    risk = model.predict_proba(X)[:, 1]
+    hi = X[risk >= np.quantile(risk, 0.75)]
+    if hi.empty:
+        hi = X
+    if len(hi) > 2000:
+        hi = hi.sample(2000, random_state=7)
+    try:
+        values = shap.TreeExplainer(model).shap_values(hi)
+        if isinstance(values, list):        # some versions return [class0, class1]
+            values = values[-1]
+        mean_signed = np.asarray(values).mean(axis=0)
+    except Exception:  # noqa: BLE001
+        return [{"feature": d["feature"], "label": FEATURE_LABELS.get(d["feature"], d["feature"]),
+                 "impact": d["importance"], "direction": "affects"} for d in trained["importances"]]
+    drivers = [{
+        "feature": f,
+        "label": FEATURE_LABELS.get(f, f),
+        "impact": round(float(v), 4),
+        "direction": "raises" if v > 0 else "lowers",
+    } for f, v in zip(FEATURES, mean_signed)]
+    return sorted(drivers, key=lambda d: abs(d["impact"]), reverse=True)
 
 
 def load_records(conn):
@@ -143,18 +197,23 @@ def build_insights(df, trained):
     for business_id, df_biz in df.groupby("business_id"):
         business_name = df_biz["business_name"].iloc[0]
         overall = round(float(df_biz["abandoned"].mean()) * 100, 1)
-        top = trained["importances"][0]["feature"] if trained["importances"] else "n/a"
+        drivers = shap_drivers(trained, df_biz)
+        raises = [d["label"] for d in drivers if d.get("direction") == "raises"][:2]
+        why = " and ".join(raises) if raises else "how long the line is"
         insights.append({
             "business_id": business_id,
             "insight_type": "no_show_risk",
             "insight_data": {
                 "summary": (f"{business_name}: {overall}% of tickets end in no-show/abandonment. "
-                            f"Biggest driver: {top}."),
+                            f"Risk is pushed up most by {why}."),
                 "model": "GradientBoostingClassifier",
                 "validation": "temporal_holdout",
                 "roc_auc": trained["auc"],
                 "test_window": trained["test_window"],
                 "overall_abandon_rate_pct": overall,
+                # SHAP directional drivers (what raises/lowers risk) — the "why".
+                "risk_drivers": drivers[:6],
+                # kept for backward compatibility (global impurity importance).
                 "top_drivers": trained["importances"][:5],
                 "risk_by_service": risk_table(trained, df_biz),
             },
