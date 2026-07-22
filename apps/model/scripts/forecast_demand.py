@@ -49,7 +49,12 @@ HORIZON_DAYS = 7
 HOLDOUT_DAYS = 14
 CAL_FEATURES = ["is_holiday", "is_pre_holiday", "is_post_holiday",
                 "is_month_end", "is_month_start", "is_weekend"]
-FEATURES = ["dow", "hour", "month", "branch_enc", "service_enc"] + CAL_FEATURES
+# Autoregressive lag features — the signal a flat per-weekday naive baseline
+# cannot use. yesterday's volume, and the trailing weekly / monthly averages.
+LAG_FEATURES = ["lag1", "roll7", "roll28"]
+# The demand model works at the DAILY level (where momentum lives); the intraday
+# shape is applied separately. hour is NOT a model feature any more.
+DAILY_FEATURES = ["dow", "month", "branch_enc", "service_enc"] + CAL_FEATURES + LAG_FEATURES
 
 
 def load_arrivals(conn):
@@ -100,68 +105,139 @@ def _add_features(df, holidays):
     return add_calendar_features(df, "visit_date", holidays)
 
 
-def _seasonal_naive(train, key_cols=("branch_id", "service_id", "dow", "hour")):
-    return train.groupby(list(key_cols))["arrivals"].mean().rename("naive").reset_index()
+def to_daily(df, holidays):
+    """Collapse hourly arrivals to one row per (branch, service, OPEN day), with
+    autoregressive lag features (yesterday's volume + trailing weekly/monthly
+    averages). These lags are exactly what a flat per-weekday naive baseline
+    cannot use — and the reason the model can beat it once the demand series has
+    real day-to-day momentum."""
+    keys = ["business_id", "business_name", "branch_id", "branch_name",
+            "service_id", "service_name"]
+    daily = (df.groupby(keys + ["visit_date"])["arrivals"].sum()
+               .rename("arrivals").reset_index()
+               .sort_values(["branch_id", "service_id", "visit_date"]))
+    daily["dow"] = daily["visit_date"].dt.dayofweek.map(lambda d: (d + 1) % 7)
+    daily["month"] = daily["visit_date"].dt.month
+    g = daily.groupby(["branch_id", "service_id"])["arrivals"]
+    daily["lag1"] = g.shift(1)
+    daily["roll7"] = g.transform(lambda s: s.shift(1).rolling(7, min_periods=2).mean())
+    daily["roll28"] = g.transform(lambda s: s.shift(1).rolling(28, min_periods=4).mean())
+    return _add_features(daily, holidays)
 
 
-def backtest(df, holidays):
-    """Temporal holdout: train on all but the last HOLDOUT_DAYS, score both models."""
-    cutoff = df["visit_date"].max() - pd.Timedelta(days=HOLDOUT_DAYS)
-    train, test = df[df["visit_date"] <= cutoff], df[df["visit_date"] > cutoff]
-    if len(train) < 50 or test.empty:
-        return None
+def hourly_shape(df):
+    """Mean fraction of a day's arrivals in each hour, per (branch, service). The
+    intraday shape is stable/seasonal, so it needs no lag model — we forecast the
+    daily total, then spread it across the open hours with this shape."""
+    tot = df.groupby(["branch_id", "service_id", "visit_date"])["arrivals"].transform("sum")
+    fr = df.assign(frac=df["arrivals"] / tot.replace(0, np.nan))
+    return (fr.groupby(["branch_id", "service_id", "hour"])["frac"].mean()
+              .rename("frac").reset_index())
 
+
+def _daily_naive(train):
+    """Seasonal-naive daily baseline: mean daily arrivals per branch/service/weekday."""
+    return (train.groupby(["branch_id", "service_id", "dow"])["arrivals"].mean()
+                 .rename("naive").reset_index())
+
+
+def _fit_gbr(train):
     enc_b = SafeLabelEncoder().fit(train["branch_id"])
     enc_s = SafeLabelEncoder().fit(train["service_id"])
-    tr, te = _add_features(train, holidays), _add_features(test, holidays)
-    tr["branch_enc"], tr["service_enc"] = enc_b.transform(tr["branch_id"]), enc_s.transform(tr["service_id"])
-    te["branch_enc"], te["service_enc"] = enc_b.transform(te["branch_id"]), enc_s.transform(te["service_id"])
+    t = train.copy()
+    t["branch_enc"] = enc_b.transform(t["branch_id"])
+    t["service_enc"] = enc_s.transform(t["service_id"])
+    gbr = GradientBoostingRegressor(n_estimators=300, max_depth=3, learning_rate=0.05,
+                                    subsample=0.85, random_state=17)
+    gbr.fit(t[DAILY_FEATURES].fillna(0), t["arrivals"])
+    return gbr, enc_b, enc_s
 
-    gbr = GradientBoostingRegressor(n_estimators=250, max_depth=3, learning_rate=0.06, random_state=17)
-    gbr.fit(tr[FEATURES].fillna(0), tr["arrivals"])
-    te = te.assign(pred_model=np.clip(gbr.predict(te[FEATURES].fillna(0)), 0, None))
 
-    naive = _seasonal_naive(tr)
-    te = te.merge(naive, on=["branch_id", "service_id", "dow", "hour"], how="left")
-    te["naive"] = te["naive"].fillna(tr["arrivals"].mean())
+def backtest(daily):
+    """Temporal holdout: fit the lag model on the earlier window, compare its MAE
+    on the most recent HOLDOUT_DAYS against the seasonal-naive baseline, and pick
+    whichever actually wins — reporting both, honestly."""
+    cutoff = daily["visit_date"].max() - pd.Timedelta(days=HOLDOUT_DAYS)
+    train = daily[daily["visit_date"] <= cutoff].dropna(subset=LAG_FEATURES).copy()
+    test = daily[daily["visit_date"] > cutoff].copy()
+    if len(train) < 80 or test.empty:
+        return None
 
-    model_mae = round(float(mean_absolute_error(te["arrivals"], te["pred_model"])), 3)
-    naive_mae = round(float(mean_absolute_error(te["arrivals"], te["naive"])), 3)
+    gbr, enc_b, enc_s = _fit_gbr(train)
+    test["branch_enc"] = enc_b.transform(test["branch_id"])
+    test["service_enc"] = enc_s.transform(test["service_id"])
+    test = test.assign(pred_model=np.clip(gbr.predict(test[DAILY_FEATURES].fillna(0)), 0, None))
+
+    naive = _daily_naive(train)
+    test = test.merge(naive, on=["branch_id", "service_id", "dow"], how="left")
+    test["naive"] = test["naive"].fillna(train["arrivals"].mean())
+
+    model_mae = round(float(mean_absolute_error(test["arrivals"], test["pred_model"])), 3)
+    naive_mae = round(float(mean_absolute_error(test["arrivals"], test["naive"])), 3)
     return {
         "gbr_mae": model_mae,
         "seasonal_naive_mae": naive_mae,
-        "chosen": "seasonal_naive" if naive_mae <= model_mae else "gbr",
+        "chosen": "gbr" if model_mae < naive_mae else "seasonal_naive",
+        "improvement_pct": round((naive_mae - model_mae) / naive_mae * 100, 1) if naive_mae else 0.0,
         "holdout_days": HOLDOUT_DAYS,
-        "test_rows": int(len(te)),
+        "test_rows": int(len(test)),
     }
 
 
-def forecast(df, holidays, branch_cal):
-    """Seasonal-naive forecast, masked to each branch's configured schedule and
-    zeroed on public holidays. Returns a per-slot future frame."""
-    naive = _seasonal_naive(df)                       # branch/service/dow/hour mean
-    combos = df[["business_id", "business_name", "branch_id", "branch_name",
-                 "service_id", "service_name"]].drop_duplicates()
-    start = df["visit_date"].max().normalize() + pd.Timedelta(days=1)
-    future_dates = [start + pd.Timedelta(days=i) for i in range(HORIZON_DAYS)]
+def forecast(daily, df, holidays, branch_cal, chosen):
+    """Roll the chosen model forward HORIZON_DAYS, RECURSIVELY — each predicted
+    day becomes the lag for the next — then spread each day's predicted total
+    across the open hours with the stable intraday shape. (The previous version
+    always used naive even when the backtest said the model won; this uses the
+    actual winner.)"""
+    if daily.empty:
+        return pd.DataFrame()
+    gbr, enc_b, enc_s = _fit_gbr(daily.dropna(subset=LAG_FEATURES)) if chosen == "gbr" else (None, None, None)
+    naive = _daily_naive(daily).set_index(["branch_id", "service_id", "dow"])["naive"]
+    shape = hourly_shape(df)
     holiday_set = {pd.Timestamp(h).normalize() for h in holidays}
+    start = daily["visit_date"].max().normalize() + pd.Timedelta(days=1)
 
+    combos = daily[["business_id", "business_name", "branch_id", "branch_name",
+                    "service_id", "service_name"]].drop_duplicates()
     rows = []
     for _, c in combos.iterrows():
-        cal = branch_cal.get(c["branch_id"], {"days": {1, 2, 3, 4, 5}, "hours": list(range(8, 16))})
-        for d in future_dates:
-            schema_dow = (d.dayofweek + 1) % 7                 # Sun=0
+        bid, sid = c["branch_id"], c["service_id"]
+        cal = branch_cal.get(bid, {"days": {1, 2, 3, 4, 5}, "hours": list(range(8, 16))})
+        hist = list(daily[(daily.branch_id == bid) & (daily.service_id == sid)]
+                    .sort_values("visit_date")["arrivals"].astype(float))
+        if not hist:
+            continue
+        b_enc = int(enc_b.transform([bid])[0]) if gbr is not None else 0
+        s_enc = int(enc_s.transform([sid])[0]) if gbr is not None else 0
+        sh = shape[(shape.branch_id == bid) & (shape.service_id == sid)]
+        sh = sh[sh.hour.isin(cal["hours"])]
+
+        for i in range(HORIZON_DAYS):
+            d = start + pd.Timedelta(days=i)
+            schema_dow = (d.dayofweek + 1) % 7
             if schema_dow not in cal["days"] or d.normalize() in holiday_set:
-                continue                                        # closed → no arrivals
-            for h in cal["hours"]:
-                rows.append({**c.to_dict(), "visit_date": d, "hour": h,
-                             "dow": schema_dow, "month": d.month})
+                continue
+            if gbr is not None:
+                feat = _add_features(pd.DataFrame([{
+                    "visit_date": d, "dow": schema_dow, "month": d.month,
+                    "branch_enc": b_enc, "service_enc": s_enc,
+                    "lag1": hist[-1], "roll7": float(np.mean(hist[-7:])),
+                    "roll28": float(np.mean(hist[-28:])),
+                }]), holidays)
+                pred = float(np.clip(gbr.predict(feat[DAILY_FEATURES].fillna(0))[0], 0, None))
+            else:
+                pred = float(naive.get((bid, sid, schema_dow), np.mean(hist)))
+            hist.append(pred)
+            denom = sh["frac"].sum()
+            for _, hr in sh.iterrows():
+                w = (hr["frac"] / denom) if denom else (1.0 / max(1, len(cal["hours"])))
+                rows.append({**c.to_dict(), "visit_date": d, "hour": int(hr["hour"]),
+                             "dow": schema_dow, "month": d.month,
+                             "predicted_arrivals": round(pred * w, 2)})
     if not rows:
         return pd.DataFrame()
-    fut = pd.DataFrame(rows).merge(naive, on=["branch_id", "service_id", "dow", "hour"], how="left")
-    fut = _add_features(fut, holidays)
-    fut["predicted_arrivals"] = fut["naive"].fillna(0).round(1)
-    return fut
+    return _add_features(pd.DataFrame(rows), holidays)
 
 
 def build_insights(df, fut, backtest_result):
@@ -203,13 +279,15 @@ def build_insights(df, fut, backtest_result):
         if surge:
             summary += f" {len(surge)} surge day(s) flagged (month-end / pre-holiday)."
         chosen = (backtest_result or {}).get("chosen", "seasonal_naive")
+        method = ("gradient boosting on autoregressive lags (schedule + holiday aware)"
+                  if chosen == "gbr" else "seasonal-naive (schedule + holiday aware)")
         insights.append({
             "business_id": business_id,
             "insight_type": "demand_forecast",
             "insight_data": {
                 "summary": summary,
                 "horizon_days": HORIZON_DAYS,
-                "method": f"seasonal_naive (schedule + holiday aware); backtest winner: {chosen}",
+                "method": f"{method}; backtest winner: {chosen}",
                 "backtest": backtest_result,
                 "branches": branches,
             },
@@ -231,8 +309,10 @@ def main():
     holidays = load_holidays(conn)
     branch_cal = load_branch_calendar(conn)
 
-    bt = backtest(df, holidays)
-    fut = forecast(df, holidays, branch_cal)
+    daily = to_daily(df, holidays)
+    bt = backtest(daily)
+    chosen = (bt or {}).get("chosen", "seasonal_naive")
+    fut = forecast(daily, df, holidays, branch_cal, chosen)
     insights, generated_at, stale_after = build_insights(df, fut, bt)
 
     os.makedirs(OUTPUTS_DIR, exist_ok=True)
