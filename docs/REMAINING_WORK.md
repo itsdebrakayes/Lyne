@@ -16,9 +16,10 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 
 | # | Item | Notes |
 |---|------|-------|
-| 42 | Model naming + consolidate wait-time duplicate | ✅ rename done; build_model retirement rides with #44 |
-| 43 | Realistic worst-case demo data | **Decision:** 2–3 branches stressed, rest moderate (show contrast) |
-| 44 | Make the model pipeline genuinely live (+ retire build_model + legacy CSV path) | containerize + scheduler; pipeline owns predictive_results |
+| 42 | Model naming + consolidate wait-time duplicate | ✅ done (build_model retirement rides with #44) |
+| 43 | Realistic worst-case demo data | ✅ done — 3 stressed Kingston branches vs moderate; AR(1) momentum (autocorr 0.64/0.61). Reproducible bring-up → #44 |
+| 53 | **Demand forecast rework** — lag/autoregressive features so it beats naive | the real "fix the weakest link"; #43 is its prerequisite (now met). NEXT |
+| 44 | Make the model pipeline genuinely live (+ retire build_model + legacy CSV path + run generator on bring-up) | containerize + scheduler; pipeline owns predictive_results |
 | 45 | SHAP + reasoning "why" layer | per-ticket no-show drivers; demand-vs-capacity line explanations; derive summaries from models |
 | 46 | Walk-in vs online channel analytics | backend query + admin card; the ROI stat |
 | 47 | Kiosk intake role | admin-on-the-user-side; add walk-ins on iPad/phone |

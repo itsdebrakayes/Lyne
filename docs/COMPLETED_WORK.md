@@ -37,6 +37,7 @@ to the session tracker._
 ## ML / model layer
 - **Merged the model overhaul** to demo — 6 models wired to dashboards + the live customer ETA, honest metrics, holiday calendar, temporal validation (#8).
 - **Naming pass** — `generate_insights.py` → `wait_time_model.py` so the live pipeline is self-describing; all references updated (#42).
+- **Realistic worst-case demo history** — enhanced `generate_sample_data.py` with (a) stressed-vs-moderate branch tiers (3 Kingston flagships run over capacity: ~37 min peak waits / 12–20% abandonment vs moderate ~16 min / 7–9%) and (b) an AR(1) demand-momentum term so daily volume carries day-to-day signal beyond the calendar (lag-1 autocorrelation of the dow-residual = 0.64 / 0.61). Regenerated 392k `wait_time_records` and rebuilt analytics so the demo shows a real drowning-vs-healthy contrast — and gives the demand-model rework (#53) genuine signal to beat naive (#43). _Reproducible bring-up rides with #44._
 
 ## Foundations already in place (pre-tracker)
 - Backend: 21 route modules; full queue engine (join → call → serve → notify) with SSE; multi-tenant; Supabase auth; rate/session limiting; audit log; zod validation; immutable payment ledger.
