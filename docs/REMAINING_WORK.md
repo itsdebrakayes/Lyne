@@ -21,7 +21,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | 53 | Demand forecast rework — lag/autoregressive features so it beats naive | ✅ done — GBR now wins its honest backtest 6.88 vs 8.79 naive (+21.7%) and actually forecasts |
 | 44 | Make the model pipeline genuinely live | ✅ done — containerized `model-worker` runs the six models on boot + every 2h, owns predictive_results (all 11 types live, <2 min), legacy CSV/notebook path retired, per-branch best-time now live |
 | 45 | SHAP + reasoning "why" layer | ✅ done — SHAP directional no-show drivers + demand-vs-capacity staffing "why", live in the worker |
-| 46 | Walk-in vs online channel analytics | backend query + admin card; the ROI stat |
+| 46 | Walk-in vs online channel analytics | ✅ done — /analytics/channels endpoint + ChannelMixCard on Manager & Exec (the ROI stat) |
 | 47 | Kiosk intake role | admin-on-the-user-side; add walk-ins on iPad/phone |
 
 ## B · Admin desktop — remaining product work
@@ -36,7 +36,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | 32 | Report formatting — formal preview + cover page on download | **awaiting your reference images** |
 | — | **(verify)** Redesign bug list (§8) | All-Services filter no-op; exec Settings/Support→Operations routing; Operations tab empty; notebook "Review" links; date labels (likely fixed); %-without-base metrics |
 | — | **(untracked)** Mobile-on-the-go admin (W5/P7) | PWA variants of exec screens for the phone; **needs your design refs**; post-screen-stabilization |
-| — | **(verify)** Platform-admin role | `To Do.md` anticipates `platform@test.com` "Q Me Now platform admin" (manage tenants) — confirm whether this surface exists or is still to build |
+| — | Platform-admin **console** (post-pilot) | ✅ verified (#52): the `platform_admin` role exists and is backend-gated — it's the only role that can create businesses (tenant onboarding) + has cross-tenant audit access — but has **no UI**. Fine for the single-tenant pilot (onboard via seed/API); a super-admin console to create/manage tenants + invite executives is needed once Q Me Now onboards multiple tenants itself. |
 
 ## C · Consumer mobile — remaining product work
 
