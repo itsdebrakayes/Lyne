@@ -10,6 +10,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
 const {
   requireStaffRole,
@@ -39,6 +40,13 @@ router.get('/', async (req, res) => {
     const where = 'WHERE ' + conditions.join(' AND ');
     const branchWaitFilter = branch_id ? 'AND q.branch_id = ?' : '';
     const branchWaitParams = branch_id ? [branch_id] : [];
+    // A projected wait only makes sense for one branch — counters and the live
+    // line belong to a specific location. Browsing across branches keeps using
+    // the historical average; a single branch gets the counter-aware estimate.
+    const counterSelect = branch_id
+      ? `(SELECT COUNT(*) FROM counters c WHERE c.service_id = s.id AND c.branch_id = ? AND c.is_active = TRUE)`
+      : 'NULL';
+    const counterParams = branch_id ? [branch_id] : [];
 
     const [rows] = await pool.query(
       `SELECT s.*,
@@ -65,14 +73,36 @@ router.get('/', async (req, res) => {
                   AND qt.completed_at IS NOT NULL
                 ORDER BY qt.completed_at DESC
                 LIMIT 50
-              ), s.base_avg_time_minutes) AS avg_wait_minutes
+              ), s.base_avg_time_minutes) AS avg_wait_minutes,
+              -- per-person SERVICE time (not the full experience), the input to
+              -- the projected ETA — same expression the /queues/live join screen
+              -- uses, so Branch and Join can never disagree.
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(qt.started_serving_at, qt.called_at, qt.joined_at), qt.completed_at))
+                FROM queue_tickets qt
+                JOIN queues q ON qt.queue_id = q.id
+                WHERE q.service_id = s.id
+                  ${branchWaitFilter}
+                  AND q.queue_date = CURDATE()
+                  AND qt.status = 'served'
+                  AND qt.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes,
+              ${counterSelect} AS active_counters
        FROM services s
        JOIN businesses b ON s.business_id = b.id
        ${where}
        ORDER BY s.name`,
-      [...branchWaitParams, ...branchWaitParams, ...params]
+      [...branchWaitParams, ...branchWaitParams, ...branchWaitParams, ...counterParams, ...params]
     );
-    res.json(rows);
+
+    // Attach the counter-aware projected wait for branch-scoped requests.
+    const withEta = rows.map((r) => ({
+      ...r,
+      estimated_wait_minutes: branch_id
+        ? projectedWaitMinutes({ ahead: r.waiting_count, perServiceMinutes: r.service_minutes, counters: r.active_counters })
+        : null,
+    }));
+    res.json(withEta);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch services.' });

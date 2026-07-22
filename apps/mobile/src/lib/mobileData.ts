@@ -26,6 +26,10 @@ export interface ServiceSummary {
   waiting_count: number;
   avg_wait_minutes: number;
   base_avg_time_minutes: number;
+  /** Counter-aware projected wait if you join now — set only for branch-scoped
+   *  requests, matches /queues/live exactly. Null when browsing across branches. */
+  estimated_wait_minutes?: number | null;
+  active_counters?: number | null;
 }
 
 export interface TicketRecord {

@@ -33,6 +33,7 @@ const { sendPushToUser } = require('../utils/pushSender');
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 
 const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
+const { projectedWaitMinutes } = require('../utils/etaMath');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -40,6 +41,23 @@ const MAX_CALL_TIMEOUT_SECONDS = 30 * 60;
 
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
+}
+
+/**
+ * The wait a customer sees on their live ticket, recomputed from the CURRENT
+ * line — not the value frozen at join. It shrinks as people ahead are served,
+ * and is counter-aware (see utils/etaMath.js), so a passport queue that once
+ * read a frozen "245m" now shows the honest, falling estimate. Requires the
+ * waiting_position / active_counters / service_minutes columns to be selected.
+ */
+function liveTicketWait(ticket) {
+  if (ticket.status !== 'waiting') return 0; // called / in service — you're up
+  const ahead = Math.max(0, (Number(ticket.waiting_position) || 1) - 1);
+  return projectedWaitMinutes({
+    ahead,
+    perServiceMinutes: ticket.service_minutes,
+    counters: ticket.active_counters,
+  });
 }
 
 // Lazy-load to avoid circular dependency at startup
@@ -214,15 +232,24 @@ router.post('/', requireAuth, async (req, res) => {
     const prefix  = svcRows[0]?.ticket_prefix || 'Q';
     const avgTime = svcRows[0]?.base_avg_time_minutes || 15;
     const ticketNumber  = `${prefix}-${String(position).padStart(3, '0')}`;
-    // Prefer the model-based ETA (wait_eta_grid); fall back to position × avg
-    // when no grid is published yet for this tenant.
+    // Prefer the model-based ETA (wait_eta_grid); fall back to a counter-aware
+    // estimate — people already WAITING ahead of this ticket (not raw position,
+    // which counts served/left tickets), split across the open counters.
+    const [counterRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
+      [queue.branch_id, queue.service_id]
+    );
     const modelWait = await estimateWaitMinutes({
       branchId: queue.branch_id,
       serviceId: queue.service_id,
       position,
       hour: new Date().getHours(),
     });
-    const estimatedWait = modelWait ?? (position - 1) * avgTime;
+    const estimatedWait = modelWait ?? projectedWaitMinutes({
+      ahead: countRows[0].cnt,
+      perServiceMinutes: avgTime,
+      counters: counterRows[0].cnt,
+    });
     const verificationCode = createVerificationCode();
 
     let intakeFormId = null;
@@ -367,7 +394,14 @@ router.get('/active', requireAuth, async (req, res) => {
               (SELECT COUNT(*)
                FROM queue_tickets t3
                WHERE t3.queue_id = t.queue_id
-                 AND t3.status = 'waiting') AS total_waiting
+                 AND t3.status = 'waiting') AS total_waiting,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t4.started_serving_at, t4.called_at, t4.joined_at), t4.completed_at))
+                FROM queue_tickets t4
+                WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
        JOIN queues   q ON t.queue_id   = q.id
        JOIN branches b ON q.branch_id  = b.id
@@ -384,6 +418,7 @@ router.get('/active', requireAuth, async (req, res) => {
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
     res.json({
       ...ticket,
+      estimated_wait_minutes: liveTicketWait(ticket),
       is_next: isNext,
       status_message: isNext ? "You're next!" : null,
     });
@@ -448,7 +483,14 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
               (SELECT COUNT(*)
                FROM queue_tickets t3
                WHERE t3.queue_id = t.queue_id
-                 AND t3.status = 'waiting') AS total_waiting
+                 AND t3.status = 'waiting') AS total_waiting,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t4.started_serving_at, t4.called_at, t4.joined_at), t4.completed_at))
+                FROM queue_tickets t4
+                WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
        JOIN queues   q ON t.queue_id   = q.id
        JOIN branches b ON q.branch_id  = b.id
@@ -467,6 +509,7 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
 
     res.json({
       ...ticket,
+      estimated_wait_minutes: liveTicketWait(ticket),
       is_next:       isNext,
       status_message: isNext ? "You're next!" : null,
     });

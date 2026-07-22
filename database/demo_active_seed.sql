@@ -116,6 +116,33 @@ ON DUPLICATE KEY UPDATE
   label = VALUES(label),
   is_active = TRUE;
 
+-- Extra windows for the busier services. A real government branch does not run
+-- a single clerk for a service with a dozen people in line, it opens several
+-- windows, and the wait divides across them. The customer ETA is counter-aware
+-- (people ahead over open counters times per-person time), so without this
+-- every projected wait read as a single-file line: a passport queue showed 245
+-- minutes. Slower services get a third window, every service gets a second.
+-- counter_number starts at 200 to stay clear of the base windows in the unique
+-- (branch_id, counter_number) key.
+INSERT INTO counters (id, branch_id, service_id, counter_number, label, is_active)
+SELECT
+  CONCAT('ctr-', REPLACE(br.id, 'br-', ''), '-', REPLACE(REPLACE(REPLACE(s.id, 'svc-taj-', ''), 'svc-pica-', ''), 'svc-nht-', ''), '-w', seq.n) AS id,
+  br.id,
+  s.id,
+  200 + ROW_NUMBER() OVER (PARTITION BY br.id ORDER BY s.name, seq.n) AS counter_number,
+  CONCAT('Window ', s.name, ' - ', seq.n) AS label,
+  TRUE
+FROM branches br
+JOIN services s ON s.business_id = br.business_id AND s.is_active = TRUE
+JOIN (SELECT 2 AS n UNION ALL SELECT 3) seq
+WHERE br.is_active = TRUE
+  AND br.business_id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
+  AND seq.n <= CASE WHEN s.base_avg_time_minutes > 15 THEN 3 ELSE 2 END
+ON DUPLICATE KEY UPDATE
+  service_id = VALUES(service_id),
+  label = VALUES(label),
+  is_active = TRUE;
+
 INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active, availability_status) VALUES
   ('stf-demo-taj-kgn-trn', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-TRN', 'Demo TRN Officer', 'demo.trn@taj.gov.jm', 'svc-taj-trn', TRUE, 'active'),
   ('stf-demo-taj-kgn-pay', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-PAY', 'Demo Payments Officer', 'demo.pay@taj.gov.jm', 'svc-taj-pay', TRUE, 'active'),
@@ -232,7 +259,10 @@ SELECT
     WHEN seq.n = 2 AND MOD(CRC32(q.id), 7) = 0 THEN 'called'
     ELSE 'waiting'
   END,
-  GREATEST(0, (seq.n - 1) * s.base_avg_time_minutes),
+  GREATEST(0, ROUND((seq.n - 1) / GREATEST(1, (
+    SELECT COUNT(*) FROM counters c
+    WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE
+  )) * s.base_avg_time_minutes)),
   DATE_SUB(NOW(), INTERVAL (seq.n * 6 + MOD(CRC32(q.id), 9)) MINUTE),
   CASE
     WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n IN (1, 2) THEN DATE_SUB(NOW(), INTERVAL 4 MINUTE)

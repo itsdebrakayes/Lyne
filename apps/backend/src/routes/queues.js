@@ -10,6 +10,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
 const {
   requireStaffRole,
@@ -111,7 +112,9 @@ router.get('/live', async (req, res) => {
                 SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t.started_serving_at, t.called_at, t.joined_at), t.completed_at))
                 FROM queue_tickets t
                 WHERE t.queue_id = q.id AND t.status = 'served' AND t.completed_at IS NOT NULL
-              ), s.base_avg_time_minutes) AS avg_service_minutes
+              ), s.base_avg_time_minutes) AS avg_service_minutes,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters
        FROM queues q
        JOIN services s ON q.service_id = s.id
        WHERE q.branch_id = ? AND q.service_id = ? AND q.is_active = TRUE AND q.queue_date = CURDATE()
@@ -122,8 +125,19 @@ router.get('/live', async (req, res) => {
       return res.json({ id: null, waiting_count: 0, estimated_wait_minutes: 0 });
     }
     const row = rows[0];
-    const estimated_wait_minutes = Math.round(row.waiting_count * (row.avg_service_minutes || 15));
-    res.json({ id: row.id, waiting_count: row.waiting_count, estimated_wait_minutes });
+    // Counter-aware and IDENTICAL to the /services projection, so the Branch
+    // screen and this pre-join screen never disagree. See utils/etaMath.js.
+    const estimated_wait_minutes = projectedWaitMinutes({
+      ahead: row.waiting_count,
+      perServiceMinutes: row.avg_service_minutes,
+      counters: row.active_counters,
+    });
+    res.json({
+      id: row.id,
+      waiting_count: row.waiting_count,
+      active_counters: row.active_counters,
+      estimated_wait_minutes,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch live queue info.' });

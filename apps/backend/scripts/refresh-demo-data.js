@@ -69,8 +69,7 @@ const SEED_PATH = process.env.DEMO_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_active_seed.sql');
 
 async function refreshDemoData(connection = pool) {
-  const filePath = SEED_PATH;
-  const sql = fs.readFileSync(filePath, 'utf8');
+  const sql = fs.readFileSync(SEED_PATH, 'utf8');
   const statements = splitStatements(sql);
 
   for (const statement of statements) {

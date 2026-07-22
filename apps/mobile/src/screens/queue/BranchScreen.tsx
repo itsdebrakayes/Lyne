@@ -62,11 +62,16 @@ export default function BranchScreen() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['saved-businesses'] }),
   });
 
-  // A live average of 0 (no served visits yet today) falls back to the
-  // service's base estimate so the screen never advertises a 0-minute wait.
-  // The API returns decimals as strings, so "0.0000" must be numerically
-  // compared — a bare || would treat it as truthy and skip the fallback.
+  // The wait we show is the SAME counter-aware projection the Join screen shows
+  // (people ahead ÷ open counters × per-person time), so the two screens can
+  // never contradict each other one tap apart. `estimated_wait_minutes` is set
+  // for branch-scoped requests, which this screen always is; if it is ever
+  // absent we fall back to the historical average, then the base estimate, so
+  // the screen never advertises a bare "0-minute" wait from missing data.
+  // The API returns decimals as strings, so "0.0000" must be compared
+  // numerically — a bare || would treat it as truthy and skip the fallback.
   const svcWait = (s: ServiceSummary) => {
+    if (s.estimated_wait_minutes != null) return Math.round(Number(s.estimated_wait_minutes));
     const live = Number(s.avg_wait_minutes || 0);
     return Math.round(live > 0 ? live : Number(s.base_avg_time_minutes || 0));
   };
