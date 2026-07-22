@@ -63,18 +63,23 @@ AR_SIGMA = 0.14   # size of the day-to-day shock
 
 
 def load_scope(conn):
-    """Valid (business, branch, service) combos + schedule + base service time."""
+    """Valid (business, branch, service) combos + schedule + base service time.
+
+    Derived from the ACTIVE COUNTERS (a counter is a branch×service window), so
+    it works on a fresh volume before any history exists — not from
+    wait_time_records, which would be empty on first bring-up."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT DISTINCT w.business_id, w.branch_id, w.service_id,
+            SELECT s.business_id, c.branch_id, c.service_id,
                    s.base_avg_time_minutes AS base_time,
                    b.open_days, b.opening_time, b.closing_time,
-                   COALESCE(cc.counters, 3) AS counters
-            FROM wait_time_records w
-            JOIN services s ON s.id = w.service_id
-            JOIN branches b ON b.id = w.branch_id
-            LEFT JOIN (SELECT branch_id, COUNT(*) counters FROM counters WHERE is_active=TRUE GROUP BY branch_id) cc
-                   ON cc.branch_id = b.id
+                   COUNT(*) AS counters
+            FROM counters c
+            JOIN services s ON s.id = c.service_id
+            JOIN branches b ON b.id = c.branch_id
+            WHERE c.is_active = TRUE AND b.is_active = TRUE AND s.is_active = TRUE
+            GROUP BY s.business_id, c.branch_id, c.service_id,
+                     s.base_avg_time_minutes, b.open_days, b.opening_time, b.closing_time
         """)
         return cur.fetchall()
 

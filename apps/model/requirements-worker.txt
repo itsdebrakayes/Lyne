@@ -1,0 +1,8 @@
+# Lean runtime for the live model worker — the six model scripts only.
+# No Jupyter / papermill / matplotlib: the legacy notebook + CSV path is retired,
+# and the dashboards compute the descriptive summaries live from the API.
+numpy==2.2.6
+pandas==2.3.0
+scikit-learn==1.7.0
+pymysql==1.1.1
+python-dotenv==1.1.1

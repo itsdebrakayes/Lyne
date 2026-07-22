@@ -62,7 +62,7 @@ The separation is strict and deliberate: **no admin screen ever enters the consu
 - Multi-tenant with per-`business_id`/branch/queue/ticket access checks, Supabase JWT verification, rate + session limiting, zod validation, tenant-scoped audit log, immutable (event-sourced) payment ledger.
 
 ### Model worker (`apps/model`)
-- Six models (see [Machine learning & analytics](#machine-learning--analytics)) run by `run_pipeline.py`, scheduled by `scheduler.py`, each writing to `predictive_results`.
+- Six models (see [Machine learning & analytics](#machine-learning--analytics)) run by the **live worker** (`scripts/live_worker.py`) inside its own container — on boot and every 2h — each writing to `predictive_results`. On a fresh volume it first generates the realistic history (`generate_sample_data.py`).
 
 ---
 
@@ -99,7 +99,7 @@ predictive_results  ◄──  Python model worker (GBM / Erlang-C / z-score)
 
 - **Frontend:** React + TypeScript + Vite; admin wrapped in Electron; mobile in Expo/React Native. React Query for data + cache invalidation.
 - **Backend:** Node/Express, MySQL 8 (Docker), Supabase Auth.
-- **Model layer:** Python 3.12, scikit-learn, pandas; a `run_pipeline.py` + `scheduler.py`.
+- **Model layer:** Python 3.12, scikit-learn, pandas; a containerized live worker (`scripts/live_worker.py`) that runs the six model scripts on a schedule.
 - **Auth split:** Supabase handles authentication only; all queue/staff/analytics/business data lives in MySQL.
 
 ---
@@ -145,7 +145,7 @@ Six models feed the dashboards and the live customer ETA. Four are learned (scik
 
 **Training & honesty.** Models retrain on each pipeline run; there is no persisted artifact or drift monitoring yet, and the forecast horizon is short (7 days). The **demo history is synthetic and near-uniform**, which is why metrics look modest here — the architecture is sound and real accuracy needs a pilot's real operational history. Regenerating a realistic, worst-case-aware seed is in progress.
 
-Full pipeline: `run_pipeline.py` runs each model with `--write-db`; `scheduler.py` re-runs it on a schedule; every model upserts to `predictive_results` with freshness metadata the dashboards display.
+Full pipeline: the containerized **live worker** (`scripts/live_worker.py`) runs each model with `--write-db` on boot and every 2h (and services the admin "Update now" trigger); every model upserts to `predictive_results` with freshness metadata the dashboards display. On a fresh volume the worker first generates the realistic history so the models have signal.
 
 ---
 

@@ -431,29 +431,14 @@ ON DUPLICATE KEY UPDATE
   started_at = VALUES(started_at),
   completed_at = VALUES(completed_at);
 
-INSERT INTO predictive_results
-  (id, business_id, branch_id, service_id, insight_type, insight_data, model_version, source_window_start, source_window_end, records_processed, stale_after, generated_at)
-VALUES
-  ('pred-demo-taj-best', 'biz-taj-001', 'br-taj-kgn', NULL, 'best_time_to_visit',
-   JSON_OBJECT('summary', 'TAJ Kingston is quietest between 10:00 AM and 11:30 AM today.', 'recommended_slots', JSON_ARRAY(JSON_OBJECT('day_name', 'Today', 'hour', 10, 'score', 91), JSON_OBJECT('day_name', 'Tomorrow', 'hour', 14, 'score', 87))), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 3200, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW()),
-  ('pred-demo-taj-ops', 'biz-taj-001', NULL, NULL, 'ops_insights',
-   JSON_OBJECT('summary', 'TAJ has heavy TRN and GCT demand. Add one floating officer to Kingston or Portmore when wait exceeds 35 minutes.'), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 3200, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW()),
-  ('pred-demo-taj-resource', 'biz-taj-001', NULL, NULL, 'resource_recommendations',
-   JSON_OBJECT('summary', 'Shift a payments counter to TRN support from 10:00 AM to noon at Kingston.'), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 3200, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW()),
-  ('pred-demo-pica-best', 'biz-pica-001', 'br-pica-kgn', NULL, 'best_time_to_visit',
-   JSON_OBJECT('summary', 'Passport collection is fastest after 2:00 PM; new applications peak before lunch.'), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 860, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW()),
-  ('pred-demo-nht-best', 'biz-nht-001', 'br-nht-kgn', NULL, 'best_time_to_visit',
-   JSON_OBJECT('summary', 'NHT benefits enquiry is fastest before 9:00 AM; loan application queues need extra coverage mid-morning.'), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 2400, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW()),
-  ('pred-demo-nht-heatmap', 'biz-nht-001', NULL, NULL, 'heatmap_data',
-   JSON_OBJECT('summary', 'NHT branch busyness peaks Tuesday and Thursday at 10:00 AM.', 'peak_hours', JSON_ARRAY(9, 10, 13)), 'demo-v1', DATE_SUB(NOW(), INTERVAL 14 DAY), NOW(), 2400, DATE_ADD(NOW(), INTERVAL 12 HOUR), NOW())
-ON DUPLICATE KEY UPDATE
-  insight_data = VALUES(insight_data),
-  model_version = VALUES(model_version),
-  source_window_start = VALUES(source_window_start),
-  source_window_end = VALUES(source_window_end),
-  records_processed = VALUES(records_processed),
-  stale_after = VALUES(stale_after),
-  generated_at = VALUES(generated_at);
+-- predictive_results is OWNED BY THE LIVE MODEL WORKER (apps/model, #44), not
+-- seeded. The worker runs the six models against this DB on boot and every 2h
+-- and upserts real, fresh insights (wait_eta_grid, best_time_to_visit,
+-- demand_forecast, no_show_risk, staffing_recommendation, target_attainment,
+-- operational_anomalies, …). Seeding canned "demo-v1" rows here only created
+-- stale duplicates alongside the live ones. The reasoning summaries
+-- (ops_insights / resource_recommendations / the "why") are produced by the
+-- reasoning layer (#45); heatmap_data is computed live by the dashboards.
 
 SET FOREIGN_KEY_CHECKS = 1;
 

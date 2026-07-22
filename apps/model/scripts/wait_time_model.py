@@ -320,6 +320,54 @@ def abandonment_by_service(df_biz):
     return sorted(out, key=lambda row: row["threshold_queue_length"])
 
 
+def best_time_per_branch(trained, df_biz):
+    """Per branch: the hours with the LOWEST model-predicted wait tomorrow — the
+    "best time to visit" that powers the mobile Plan-Your-Visit card. Returns a
+    list of (branch_id, branch_name, insight_data). (Previously this only came
+    from the retired build_model.py CSV path — now the live worker produces it.)"""
+    tomorrow_dow = (datetime.now().weekday() + 1 + 1) % 7
+    results = []
+    for (branch_id, branch_name), grp in df_biz.groupby(["branch_id", "branch_name"]):
+        rows = []
+        for hour in BUSINESS_HOURS:
+            hs = grp[grp["hour"] == hour]
+            if hs.empty:
+                continue
+            service_mode = hs["service_id"].mode()
+            if service_mode.empty:
+                continue
+            try:
+                b_enc = int(trained["encoders"]["branch"].transform([branch_id])[0])
+                s_enc = int(trained["encoders"]["service"].transform([service_mode.iloc[0]])[0])
+            except Exception:  # noqa: BLE001
+                continue
+            ctx = _representative_context(hs)
+            sample = pd.DataFrame([{
+                "dow": tomorrow_dow, "hour": hour,
+                "month": int(hs["month"].mode().iloc[0]) if len(hs["month"].mode()) else datetime.now().month,
+                "branch_enc": b_enc, "service_enc": s_enc,
+                "queue_length": float(hs["queue_length"].median()),
+                "staff_count": ctx["staff_count"], "active_counters": ctx["active_counters"],
+                "is_holiday": 0, "is_month_end": 0,
+            }])[trained["features"]]
+            rows.append({"hour": hour, "wait": max(0.0, float(trained["model"].predict(sample)[0]))})
+        if len(rows) < 3:
+            continue
+        worst = max((r["wait"] for r in rows), default=1.0) or 1.0
+        best = sorted(rows, key=lambda r: r["wait"])[:3]
+        slots = [{
+            "day_name": "Tomorrow",
+            "hour": int(r["hour"]),
+            "score": int(round(100 * (1 - r["wait"] / (worst + 1.0)))),
+            "reason": f"~{r['wait']:.0f} min predicted wait",
+        } for r in best]
+        busiest = max(rows, key=lambda r: r["wait"])
+        summary = (f"{branch_name}: shortest waits around {best[0]['hour']}:00 "
+                   f"(~{best[0]['wait']:.0f} min); busiest near {busiest['hour']}:00.")
+        results.append((branch_id, branch_name, {"summary": summary, "recommended_slots": slots}))
+    return results
+
+
 def build_insights(df, trained):
     generated_at = datetime.now(timezone.utc)
     stale_after = generated_at + timedelta(days=1)
@@ -374,6 +422,16 @@ def build_insights(df, trained):
                 },
             })
 
+        # Per-branch "best time to visit" (mobile Plan-Your-Visit) — derived from
+        # the model's own hour-by-hour wait predictions, so it's live not seeded.
+        for branch_id, _branch_name, data in best_time_per_branch(trained, df_biz):
+            insights.append({
+                "business_id": business_id,
+                "branch_id": branch_id,
+                "insight_type": "best_time_to_visit",
+                "insight_data": data,
+            })
+
         insights.append({
             "business_id": business_id,
             "insight_type": "model_performance",
@@ -401,19 +459,30 @@ def write_outputs(insights):
 
 def write_db(conn, insights, generated_at, stale_after, records_processed):
     with conn.cursor() as cursor:
+        # Clear each (business, insight_type) ONCE up front — so multiple
+        # per-branch rows of the same type (e.g. best_time_to_visit) don't delete
+        # each other, and so the worker fully OWNS the type (drops any stale rows
+        # from a previous producer, regardless of model_version).
+        cleared = set()
         for insight in insights:
-            cursor.execute(
-                "DELETE FROM predictive_results WHERE business_id = %s AND insight_type = %s",
-                (insight["business_id"], insight["insight_type"]),
-            )
+            key = (insight["business_id"], insight["insight_type"])
+            if key not in cleared:
+                cursor.execute(
+                    "DELETE FROM predictive_results WHERE business_id = %s AND insight_type = %s",
+                    key,
+                )
+                cleared.add(key)
+        for insight in insights:
             cursor.execute(
                 """INSERT INTO predictive_results
                      (id, business_id, branch_id, service_id, insight_type, insight_data,
                       model_version, records_processed, stale_after, generated_at)
-                   VALUES (%s, %s, NULL, NULL, %s, %s, %s, %s, %s, %s)""",
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (
                     str(uuid.uuid4()),
                     insight["business_id"],
+                    insight.get("branch_id"),
+                    insight.get("service_id"),
                     insight["insight_type"],
                     json.dumps(insight["insight_data"]),
                     MODEL_VERSION,

@@ -73,6 +73,28 @@ services:
     volumes:
       - ./database/demo_active_seed.sql:/seed/demo_active_seed.sql:ro
 
+  # ── Live model worker: runs the six models against the demo DB on boot and
+  #    every 2h, so predictive_results is produced by the models, not seeded.
+  #    On a fresh/thin volume it first generates the realistic #43 history. ──
+  model-worker:
+    build:
+      context: ./apps/model
+    container_name: qmenow_model_worker
+    restart: unless-stopped
+    depends_on:
+      demo-db:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST:            demo-db
+      MYSQL_PORT:            "3306"
+      MYSQL_USER:            ${MYSQL_USER:-qmenow}
+      MYSQL_PASSWORD:        ${MYSQL_PASSWORD:-qmenow_secret}
+      MYSQL_DATABASE:        ${MYSQL_DATABASE:-qme_now}
+      MODEL_REFRESH_SECONDS: "7200"
+      MODEL_HISTORY_DAYS:    "150"
+    networks:
+      - qmenow_net
+
 volumes:
   mysql_demo_data:
     driver: local
