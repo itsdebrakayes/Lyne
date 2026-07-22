@@ -72,13 +72,21 @@ def wait_for_db(attempts=90):
 
 
 def ensure_history():
-    """On a fresh/thin volume, generate the realistic demo history first."""
+    """On a fresh volume, generate the realistic demo history first.
+
+    Regenerate when history is thin OR only covers a couple of branches:
+    seed.sql bootstraps ~1500 rows for just 2 branches, which clears the raw
+    row-count threshold but is NOT the full realistic dataset. Comparing branch
+    coverage against the live branch table catches that case."""
     rows = _scalar("SELECT COUNT(*) AS n FROM wait_time_records")
-    if rows < MIN_HISTORY_ROWS:
-        print(f"[worker] history thin ({rows} rows) — generating {HISTORY_DAYS}d of realistic data", flush=True)
+    covered = _scalar("SELECT COUNT(DISTINCT branch_id) AS n FROM wait_time_records")
+    active = _scalar("SELECT COUNT(*) AS n FROM branches WHERE is_active = TRUE")
+    if rows < MIN_HISTORY_ROWS or covered < active:
+        print(f"[worker] history thin/partial ({rows} rows, {covered}/{active} branches) "
+              f"— generating {HISTORY_DAYS}d of realistic data", flush=True)
         _run("generate_sample_data.py", ["--days", str(HISTORY_DAYS)])
     else:
-        print(f"[worker] history present ({rows} rows) — leaving as-is", flush=True)
+        print(f"[worker] history present ({rows} rows across {covered} branches) — leaving as-is", flush=True)
 
 
 def run_models(label):
