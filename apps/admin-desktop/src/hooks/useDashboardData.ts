@@ -66,6 +66,11 @@ export type ChannelMix = {
   channels: Array<{ channel: 'app' | 'walk_in' | 'kiosk'; count: number; pct: number; avg_wait: number | null; abandon_pct: number | null }>;
   trend: Array<{ week_start: string; total: number; app_pct: number }>;
 };
+export type ProductivitySignals = {
+  generated_at: string;
+  slowdowns: Array<{ counter_label: string; service_name: string; staff_name?: string; current_avg: number; baseline: number; sample: number; message: string }>;
+  idle: Array<{ staff_name: string; counter_label: string; service_name: string; idle_minutes: number; waiting: number; message: string }>;
+};
 
 export const DEFAULT_TARGETS: BusinessTargets = {
   business_id: '', target_wait_minutes: 20, target_completion_rate: 80, target_no_show_rate: 10,
@@ -172,6 +177,13 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<ChannelMix>(`/analytics/channels?${analyticsQuery}&days=90`),
     enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 120_000,
   });
+  // Live productivity signals (idle windows / slowdowns) — refreshes often; it's
+  // a "do something now" board, not a trend.
+  const productivity = useQuery({
+    queryKey: ['ops-productivity', analyticsQuery],
+    queryFn: () => api.get<ProductivitySignals>(`/analytics/productivity?${analyticsQuery}`),
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 25_000,
+  });
 
   return {
     admin, businessId, branchId,
@@ -189,8 +201,9 @@ export function useDashboardData(serviceId = '') {
     pipeline: pipeline.data,
     balking: balking.data || null,
     channels: channels.data || null,
+    productivity: productivity.data || null,
     refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
       branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch()]),
+      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
   };
 }

@@ -13,7 +13,7 @@ import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type N
 import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
-  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb, ChannelMixCard,
+  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb, ChannelMixCard, ProductivityCard,
 } from './ManagerDashboard';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 
@@ -246,6 +246,7 @@ export default function ExecutiveDashboard() {
             <DemandCard preds={preds} span={12} />
           </div>
 
+          <ProductivityCard data={d.productivity} span={12} />
           <Card span={8} title="Busy Times — Branches By Day" cap="Which Branch Is Under The Most Pressure, And When">
             {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No branch busy-times data yet." />}
           </Card>

@@ -595,6 +595,93 @@ router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', '
   }
 });
 
+// Productivity pauses — LIVE, for the ops board. Two signals a manager can act
+// on right now: (A) a window serving much slower than the service normally takes,
+// and (B) a staffed window that has served nobody for a while WHILE people are
+// waiting (the "with demand" clause is what stops it flagging a legitimate lull).
+router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const IDLE_MIN = 45;       // minutes with no customer before a staffed window is "idle"
+    const WAITING_MIN = 3;     // …but only if at least this many people are waiting for it
+    const WINDOW_MIN = 120;    // look-back for the slowdown baseline
+    const SLOW_RATIO = 1.75;   // current avg service time vs the service norm
+    const SLOW_ABS = 10;       // …and at least this many extra minutes
+    const MIN_SAMPLE = 3;      // …over at least this many recent customers
+
+    const scopedBiz = scopedBusinessId(req, business_id);
+    const scopedBranch = scopedBranchId(req, branch_id);
+    const branchClause = scopedBranch ? 'AND c.branch_id = ?' : '';
+    const branchParam = scopedBranch ? [scopedBranch] : [];
+
+    // (A) Slowdowns — a counter serving well above the service's typical time.
+    const [slowRows] = await pool.query(
+      `SELECT c.id AS counter_id, c.label AS counter_label, s.name AS service_name,
+              s.base_avg_time_minutes AS baseline,
+              COUNT(*) AS sample,
+              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS current_avg,
+              MAX(st.full_name) AS staff_name
+       FROM queue_tickets t
+       JOIN queues q   ON q.id = t.queue_id AND q.queue_date = CURDATE()
+       JOIN counters c ON c.id = t.served_at_counter_id
+       JOIN services s ON s.id = c.service_id
+       LEFT JOIN staff st ON st.id = t.served_by_staff_id
+       WHERE t.status = 'served' AND t.started_serving_at IS NOT NULL AND t.completed_at IS NOT NULL
+         AND t.completed_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         AND s.business_id = ? ${branchClause}
+       GROUP BY c.id, c.label, s.name, s.base_avg_time_minutes
+       HAVING sample >= ? AND current_avg >= ? * baseline AND current_avg >= baseline + ?`,
+      [WINDOW_MIN, scopedBiz, ...branchParam, MIN_SAMPLE, SLOW_RATIO, SLOW_ABS]
+    );
+    const slowdowns = slowRows.map((r) => ({
+      counter_label: r.counter_label, service_name: r.service_name, staff_name: r.staff_name,
+      current_avg: Number(r.current_avg), baseline: Number(r.baseline), sample: Number(r.sample),
+      message: `${r.counter_label} (${r.service_name}${r.staff_name ? `, ${r.staff_name}` : ''}) is serving ~${Math.round(r.current_avg)} min per customer — well above the usual ~${Math.round(r.baseline)}. Something is slowing this window down.`,
+    }));
+
+    // (B) Idle-with-demand — staffed window, nobody served lately, people waiting.
+    const [idleRows] = await pool.query(
+      `SELECT st.id AS staff_id, st.full_name AS staff_name, c.label AS counter_label, s.name AS service_name,
+              sa.shift_start,
+              (SELECT MAX(COALESCE(t.completed_at, t.started_serving_at, t.called_at))
+                 FROM queue_tickets t WHERE t.served_by_staff_id = st.id) AS last_activity,
+              (SELECT COUNT(*) FROM queue_tickets w
+                 JOIN queues q ON q.id = w.queue_id
+                WHERE q.branch_id = c.branch_id AND q.service_id = c.service_id
+                  AND q.queue_date = CURDATE() AND w.status = 'waiting') AS waiting
+       FROM staff_assignments sa
+       JOIN staff st  ON st.id = sa.staff_id
+       JOIN counters c ON c.id = sa.counter_id
+       JOIN services s ON s.id = c.service_id
+       WHERE sa.assignment_date = CURDATE()
+         AND (sa.shift_start IS NULL OR sa.shift_start <= CURTIME())
+         AND (sa.shift_end   IS NULL OR sa.shift_end   >= CURTIME())
+         AND s.business_id = ? ${branchClause}`,
+      [scopedBiz, ...branchParam]
+    );
+    const now = Date.now();
+    const idle = idleRows
+      .map((r) => {
+        const since = r.last_activity ? new Date(r.last_activity).getTime() : (r.shift_start ? null : now);
+        const idleMin = since != null ? Math.round((now - since) / 60000) : IDLE_MIN; // never active this shift
+        return { ...r, waiting: Number(r.waiting), idle_minutes: idleMin };
+      })
+      .filter((r) => r.waiting >= WAITING_MIN && r.idle_minutes >= IDLE_MIN)
+      .map((r) => ({
+        staff_name: r.staff_name, counter_label: r.counter_label, service_name: r.service_name,
+        idle_minutes: r.idle_minutes, waiting: r.waiting,
+        message: `${r.counter_label} (${r.staff_name}, ${r.service_name}): no customer called in ${r.idle_minutes} min while ${r.waiting} are waiting — a stalled window during a rush.`,
+      }))
+      .sort((a, b) => (b.waiting * b.idle_minutes) - (a.waiting * a.idle_minutes));
+
+    res.json({ generated_at: new Date().toISOString(), slowdowns, idle, thresholds: { IDLE_MIN, WAITING_MIN, SLOW_RATIO } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to compute productivity signals.' });
+  }
+});
+
 // Staff performance
 router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {

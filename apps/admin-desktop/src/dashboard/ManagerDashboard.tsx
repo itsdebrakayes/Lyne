@@ -10,7 +10,7 @@ import {
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
-import { useDashboardData, type ChannelMix } from '../hooks/useDashboardData';
+import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
@@ -130,6 +130,7 @@ export default function ManagerDashboard() {
             <StaffingCard preds={preds} branchId={d.branchId} span={12} />
           </div>
 
+          <ProductivityCard data={d.productivity} span={12} />
           <TrafficCard services={d.services} span={6} />
           <ChannelMixCard data={d.channels} span={6} />
           <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={12} />
@@ -308,6 +309,28 @@ export function ChannelMixCard({ data, span }: { data: ChannelMix | null; span: 
           <span className="chg up">{c?.pct || 0}%</span>
         </div>
       ))}
+    </Card>
+  );
+}
+
+export function ProductivityCard({ data, span }: { data: ProductivitySignals | null; span: number }) {
+  const idle = data?.idle || [];
+  const slow = data?.slowdowns || [];
+  const has = idle.length + slow.length > 0;
+  return (
+    <Card span={span} title="Windows Needing Attention" cap="Live · Stalled Stations & Slow Windows During A Rush">
+      {has ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {idle.slice(0, 4).map((x, i) => (
+            <Rec key={`i${i}`} tone="crit" title={`${x.counter_label} — stalled`}
+              body={`${x.staff_name} has called no one for ${x.idle_minutes} min while ${x.waiting} wait for ${x.service_name}. Send someone over or reassign.`} />
+          ))}
+          {slow.slice(0, 3).map((x, i) => (
+            <Rec key={`s${i}`} tone="warn" title={`${x.counter_label} — running slow`}
+              body={`Serving ~${Math.round(x.current_avg)} min per customer vs the usual ~${Math.round(x.baseline)} for ${x.service_name}. Check what's holding this window up.`} />
+          ))}
+        </div>
+      ) : <div className="mini" style={{ padding: '6px 2px' }}>Every staffed window is keeping pace with its line.</div>}
     </Card>
   );
 }

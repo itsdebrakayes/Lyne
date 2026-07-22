@@ -327,6 +327,54 @@ ON DUPLICATE KEY UPDATE
   event_timestamp = VALUES(event_timestamp),
   notes = VALUES(notes);
 
+-- Served-today history so the live productivity board has real signal. Most
+-- staffed windows show recent activity, a few counters run deliberately slow
+-- (3x the service norm, picked by a CRC32 hash), and three named staff sit idle
+-- while their line waits. Driven off the staff assignments for today, three
+-- served rows per assignment. Idempotent on re-seed.
+INSERT INTO queue_tickets
+  (id, queue_id, user_id, ticket_number, verification_code, position, status,
+   estimated_wait_minutes, joined_at, called_at, started_serving_at, completed_at,
+   call_timeout_seconds, served_by_staff_id, served_at_counter_id, channel)
+SELECT
+  CONCAT('pt-', SUBSTRING(MD5(CONCAT(sa.id, ':', seq.n)), 1, 27)),
+  q.id,
+  NULL,
+  CONCAT(s.ticket_prefix, '-P', LPAD(seq.n, 2, '0'), SUBSTRING(MD5(sa.id), 1, 2)),
+  UPPER(SUBSTRING(MD5(CONCAT('pv:', sa.id, ':', seq.n)), 1, 8)),
+  900 + seq.n,
+  'served',
+  0,
+  DATE_SUB(NOW(), INTERVAL (100 - seq.n * 10) MINUTE),
+  DATE_SUB(NOW(), INTERVAL (80 - seq.n * 10) MINUTE),
+  CASE
+    WHEN sa.staff_id IN ('stf-nht-002', 'stf-pica-003', 'stf-demo-taj-kgn-enq')
+      THEN DATE_SUB(NOW(), INTERVAL (58 + seq.n * 4 + LEAST(s.base_avg_time_minutes, 25)) MINUTE)
+    ELSE DATE_SUB(NOW(), INTERVAL (seq.n * 8 + LEAST(s.base_avg_time_minutes, 25) * IF(MOD(CRC32(c.id), 20) = 0, 3, 1)) MINUTE)
+  END,
+  CASE
+    WHEN sa.staff_id IN ('stf-nht-002', 'stf-pica-003', 'stf-demo-taj-kgn-enq')
+      THEN DATE_SUB(NOW(), INTERVAL (58 + seq.n * 4) MINUTE)
+    ELSE DATE_SUB(NOW(), INTERVAL (seq.n * 8) MINUTE)
+  END,
+  120,
+  sa.staff_id,
+  sa.counter_id,
+  IF(MOD(seq.n, 3) = 0, 'app', 'walk_in')
+FROM staff_assignments sa
+JOIN counters c ON c.id = sa.counter_id
+JOIN services s ON s.id = c.service_id
+JOIN queues q ON q.branch_id = c.branch_id AND q.service_id = c.service_id
+             AND q.queue_date = CURDATE() AND q.is_active = TRUE
+JOIN (SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3) seq
+WHERE sa.assignment_date = CURDATE()
+ON DUPLICATE KEY UPDATE
+  status = VALUES(status),
+  started_serving_at = VALUES(started_serving_at),
+  completed_at = VALUES(completed_at),
+  served_by_staff_id = VALUES(served_by_staff_id),
+  served_at_counter_id = VALUES(served_at_counter_id);
+
 INSERT INTO wait_time_records
   (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
    wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time, active_counters_at_time)
