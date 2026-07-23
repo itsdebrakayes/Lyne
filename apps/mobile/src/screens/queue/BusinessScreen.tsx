@@ -6,11 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { colors, font, t, initials, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Business'>;
 
 export default function BusinessScreen() {
+  const topPad = useTopPad(12);
   const route = useRoute<Params>();
   const nav = useNavigation<any>();
   const queryClient = useQueryClient();
@@ -31,7 +33,7 @@ export default function BusinessScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <TouchableOpacity onPress={() => nav.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <TouchableOpacity disabled={toggleSave.isPending} onPress={() => toggleSave.mutate()} style={t.iconBtn}>

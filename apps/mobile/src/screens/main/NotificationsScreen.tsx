@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
@@ -34,6 +35,7 @@ function timeAgo(value: string) {
 }
 
 export default function NotificationsScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -61,7 +63,7 @@ export default function NotificationsScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={[t.content, { paddingTop: topPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >

@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
@@ -22,6 +23,7 @@ const TERMINAL_META: Record<string, { label: string; tone: string; note: string 
 };
 
 export default function TicketScreen() {
+  const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const providedTicketId = route.params?.ticketId;
@@ -143,7 +145,7 @@ export default function TicketScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>

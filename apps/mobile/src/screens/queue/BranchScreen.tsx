@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -23,6 +24,7 @@ function ServiceStat({ value, unit, label, accent }: { value: React.ReactNode; u
 }
 
 export default function BranchScreen() {
+  const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const queryClient = useQueryClient();
@@ -96,7 +98,7 @@ export default function BranchScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>

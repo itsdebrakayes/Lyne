@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
@@ -46,16 +47,27 @@ export default function App() {
     setTutorialSeen(true);
   };
 
-  if (launching || tutorialSeen === null || !fontsLoaded) return <LaunchScreen />;
-  if (!tutorialSeen) return <OnboardingScreen onComplete={completeTutorial} />;
-
-  return (
-    <ThemeProvider>
+  // SafeAreaProvider wraps everything — including the launch/onboarding early
+  // returns — so useSafeAreaInsets() is available on every screen from the
+  // first frame (no flash of un-inset layout).
+  let body: React.ReactNode;
+  if (launching || tutorialSeen === null || !fontsLoaded) {
+    body = <LaunchScreen />;
+  } else if (!tutorialSeen) {
+    body = <OnboardingScreen onComplete={completeTutorial} />;
+  } else {
+    body = (
       <QueryClientProvider client={queryClient}>
         <LockGate>
           <AppNavigator />
         </LockGate>
       </QueryClientProvider>
-    </ThemeProvider>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>{body}</ThemeProvider>
+    </SafeAreaProvider>
   );
 }

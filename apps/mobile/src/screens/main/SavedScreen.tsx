@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials, inputReset, waitShort } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -27,6 +28,7 @@ interface VisitRow {
 }
 
 export default function SavedScreen() {
+  const topPad = useTopPad(16);
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -85,7 +87,7 @@ export default function SavedScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 64, paddingBottom: 148 }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 148 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >

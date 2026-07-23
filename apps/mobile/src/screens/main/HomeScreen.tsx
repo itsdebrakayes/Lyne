@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,6 +41,7 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
 }
 
 export default function HomeScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +93,7 @@ export default function HomeScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={[t.content, { paddingTop: topPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >

@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
@@ -13,6 +14,7 @@ type Params = RouteProp<RootStackParamList, 'JoinQueue'>;
 interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_minutes: number; }
 
 export default function JoinQueueScreen() {
+  const topPad = useTopPad(12);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { branchId, serviceId } = route.params;
@@ -95,7 +97,7 @@ export default function JoinQueueScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 18 }]}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
         <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' }}>Join remotely</Text>
         <Text style={[t.h1, { marginTop: 8, marginBottom: 10 }]}>Take your spot{'\n'}from anywhere.</Text>

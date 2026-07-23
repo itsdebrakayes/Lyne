@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
@@ -48,6 +49,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfileScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -117,7 +119,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }]} showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
         </View>

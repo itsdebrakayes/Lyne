@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
@@ -49,6 +50,7 @@ function MotifRow({ tiles }: { tiles: Tile[] }) {
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
 
 export default function SignupScreen() {
+  const topPad = useTopPad(72);
   const navigation = useNavigation<any>();
   const { signUp } = useAuth();
   const [fullName, setFullName] = useState('');
@@ -97,7 +99,7 @@ export default function SignupScreen() {
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* top motif */}
           <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
 
