@@ -21,6 +21,9 @@ to the session tracker._
 - **Supervisor role** — section-scoped manager view (migration 016).
 - **Polish** — stuck error messages now auto-dismiss (#17); breathing-room spacing pass (#18); real, contextual, filterable search bar (#19); empty/awkward spaces solidified (#4).
 
+## Testing & QA
+- **Route-level integration tests — queues + payments (#51)** — extended the route-wiring suite (which asserts each route's middleware chain) to the queue and payment surfaces: the kiosk walk-in authenticates + role-gates and is not an open create, branch-target read/write are branch-scoped, and every payment endpoint requires auth. Added ledger-correctness tests for `mapEvent` (Stripe event → ledger event/status) and the forward-only `advancesStatus` projection — proving a re-delivered or out-of-order lower-ranked webhook can never move a captured payment backwards and a duplicate is a no-op. Extracted that inline rule into a named, exported helper (no behavior change). **46/46 backend tests pass.**
+
 ## Wait-time / ETA correctness
 - **One counter-aware ETA everywhere** (`utils/etaMath.js`): `people ahead ÷ open counters × per-person time`. Branch, Join, and live Ticket screens now agree exactly (verified 15=15, 59=59, 90=90), and the ticket wait recomputes live as the line moves (#38).
 - **Demo waits read sanely** — worst-case projected wait fell from 270 min to ~90 min, the flagship ticket from **245 min → 58 min**, by opening realistic multi-counter windows on busy services (#34).

@@ -42,7 +42,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 
 | # | Item | Notes |
 |---|------|-------|
-| 5 | Mobile finish pass (umbrella) | full bug-sweep + real-device pass |
+| 5 | Mobile finish pass (umbrella) | static half done (typecheck clean, no console/debug/TODO leftovers, native-feel items #39/#40/#41/#49/#50 all shipped); **the real-device bug sweep needs your device** |
 | 39 | Haptics on key moments | ✅ done — expo-haptics + guarded helper; success on join/called/walk-in, warning on leave, error on failures, selection on service pick |
 | 40 | Real safe-area insets | ✅ done — SafeAreaProvider + useTopPad(gap); every content screen + Signup hero now derive top from the device inset |
 | 41 | Pull-to-refresh on queue screens | ✅ done — useRefresh() hook wired into Branch / Business / Join / Ticket |
@@ -63,8 +63,8 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | # | Item | Notes |
 |---|------|-------|
 | 6 | Full end-to-end + standard test phases | |
-| 22 | Full use-case test pass (Playwright, business-person personas) | catalogue exists in TEST_PLAN_USE_CASES.md |
-| — | **(untracked)** Route-level integration tests | queues + payments — "started, not finished"; highest-leverage QA gap |
+| 22 | Full use-case test pass (Playwright, business-person personas) | needs a running stack + linked admin/mobile logins (your Supabase accounts) — on-device / browser pass |
+| 51 | Route-level integration tests | ✅ done — queue (walk-in role-gate, join, branch-target guards) + payments (auth on every endpoint, `mapEvent`, and the forward-only `advancesStatus` ledger guarantee). 46/46 backend tests pass |
 | — | **(untracked)** Analytics job health check / alerting | the 2-hourly refresh has no alerting |
 | — | **(untracked)** Accessibility & i18n assessment | not yet assessed |
 
