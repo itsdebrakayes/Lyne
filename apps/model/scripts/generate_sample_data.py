@@ -53,6 +53,14 @@ HOUR_WEIGHTS = {8: 0.6, 9: 1.3, 10: 1.4, 11: 1.15, 12: 0.55,
 # instead of every branch reading the same. (Decision 2026-07-22.)
 STRESSED_BRANCHES = {"br-taj-kgn", "br-pica-kgn", "br-nht-kgn"}
 
+# A short, deliberate service SLOWDOWN at one otherwise-healthy branch on the
+# most recent couple of days — so the anomaly detector's service-time metric has
+# a real chronic productivity pause to catch (the trend companion to the live
+# "windows needing attention" board).
+SLOW_SERVICE_BRANCH = "br-taj-och"
+SLOW_SERVICE_DAYS = 2
+SLOW_SERVICE_FACTOR = 1.9
+
 # Demand momentum. Daily volume is not independent day-to-day: it carries an
 # AR(1) drift ON TOP OF the calendar pattern (dow / month-end / pre-holiday).
 # Seasonal-naive only sees the day-of-week average, so this persistent drift is
@@ -183,7 +191,10 @@ def generate(scope, holiday_set, start, end):
                     channel = "app" if is_app else "walk_in"
                     status = abandon_status(wait, q, h, not is_app)
                     # a walk-away logs the wait endured; a served visit logs service time
-                    svc_time = svc if status == "served" else None
+                    slow = (SLOW_SERVICE_FACTOR
+                            if combo["branch_id"] == SLOW_SERVICE_BRANCH and (end - d).days < SLOW_SERVICE_DAYS
+                            else 1.0)
+                    svc_time = round(svc * slow, 2) if status == "served" else None
                     rows.append((
                         str(uuid.uuid4()), str(uuid.uuid4()),        # id, orphan ticket_id (matches existing seed)
                         combo["business_id"], combo["branch_id"], combo["service_id"],

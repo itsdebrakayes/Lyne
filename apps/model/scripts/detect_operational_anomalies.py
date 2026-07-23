@@ -44,6 +44,7 @@ def load_daily_branch(conn):
                    w.branch_id, b.name AS branch_name, w.visit_date AS date,
                    COUNT(*) AS volume,
                    AVG(w.wait_time_minutes) AS avg_wait,
+                   AVG(w.service_time_minutes) AS avg_service,
                    AVG(w.status = 'no_show') * 100 AS no_show_rate,
                    AVG(w.status = 'served') * 100 AS completion_rate
             FROM wait_time_records w
@@ -56,13 +57,16 @@ def load_daily_branch(conn):
     if df.empty:
         return df
     df["date"] = pd.to_datetime(df["date"])
-    for c in ["volume", "avg_wait", "no_show_rate", "completion_rate"]:
+    for c in ["volume", "avg_wait", "avg_service", "no_show_rate", "completion_rate"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
 
 
 METRICS = [
     ("avg_wait", "wait time", "higher"),
+    # A branch whose per-customer SERVICE time jumps above its own norm is a
+    # chronic productivity slowdown — the trend companion to the live board.
+    ("avg_service", "service time", "higher"),
     ("no_show_rate", "no-show rate", "higher"),
     ("volume", "visit volume", "either"),
     ("completion_rate", "completion rate", "lower"),
