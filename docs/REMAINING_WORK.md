@@ -29,7 +29,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | # | Item | Notes |
 |---|------|-------|
 | 16 | Branch-level targets for managers | ✅ done — migration 018 `branch_targets`; `GET/PUT /targets/branch` (manager pinned to own branch, exec any; overlay branch→company→default, returns the company target alongside); manager Targets tab gains an editable **Set Your Branch Targets** card showing the company reference, and the branch health score + What-To-Improve now measure against the branch target |
-| 24 | Notifications bell is a dead control | + shake animation + ping sound |
+| 24 | Notifications bell is a dead control | ✅ done — the admin bell is now a live "needs attention" feed (idle-with-demand, slowdowns, anomalies, off-target metrics via `deriveOpsAlerts`), with an unread badge, per-user acknowledgement (localStorage), click-to-jump-to-tab, empty state, and a **shake** on new alerts — on every admin role. Mobile bell already worked (unread dot → NotificationsScreen, mark-all-read). _Deferred: ping sound (browser autoplay policy; would need a user gesture — low value, easily obnoxious in a demo)._ |
 | 29 | Filterable graphs — legend-style toggles per role | Capsule map-key pattern |
 | 30 | Multi-select + select-all on lists | |
 | 31 | Native UX conventions pass | sortable columns, confirm/undo, optimistic UI, skeletons |

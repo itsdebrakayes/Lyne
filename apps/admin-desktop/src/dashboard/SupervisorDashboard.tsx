@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Heatmap, Card, ScoreRing, type NavItem } from './kit';
-import { num, fmtN, pct, insightData, dailyRollup } from './insights';
+import { num, fmtN, pct, insightData, dailyRollup, deriveOpsAlerts } from './insights';
 import {
   Empty, Bar, buildHeatmap, barPct, scoreFromTargets,
   ServedChart, TrafficCard, WaitForecastCard, StaffingCard, TargetsCard, ImproveCard, SupportTab,
@@ -56,6 +56,7 @@ export default function SupervisorDashboard() {
     support: ['Help & Support', 'Common Questions For Supervisors.'],
   };
   const heat = buildHeatmap(d.heatmap);
+  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   return (
     <Shell
@@ -65,6 +66,7 @@ export default function SupervisorDashboard() {
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
       search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : null}
+      alerts={alerts}
     >
       {tab === 'overview' && (
         <div className="qa-grid">

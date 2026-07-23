@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type NavItem } from './kit';
-import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel } from './insights';
+import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
   TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb, ChannelMixCard, ProductivityCard,
@@ -53,6 +53,7 @@ export default function ExecutiveDashboard() {
   const [tab, setTab] = useState('overview');
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const preds = d.predictions as any[];
+  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
   const week = summary.slice(-7);
@@ -210,6 +211,7 @@ export default function ExecutiveDashboard() {
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
+      alerts={alerts}
     >
       {tab === 'overview' && (
         <div className="qa-grid">

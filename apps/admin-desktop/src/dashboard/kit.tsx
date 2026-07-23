@@ -6,8 +6,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { Bell, LogOut, Moon, Search, Sun } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import type { AlertItem } from './insights';
 import '@/styles/admin-kit.css';
 
+export type { AlertItem };
 export type NavItem = { key: string; label: string; icon: ElementType; group?: 'utility' };
 
 /* ---------- initials + hue for avatars ---------- */
@@ -24,7 +26,7 @@ export function hueFor(name?: string) {
 
 /* ---------- Shell ---------- */
 export function Shell({
-  roleLabel, org, eyebrow, title, subtitle, nav, active, onNav, freshness, search, children,
+  roleLabel, org, eyebrow, title, subtitle, nav, active, onNav, freshness, search, alerts, children,
 }: {
   roleLabel: string; org: string; eyebrow: string; title: string; subtitle: string;
   nav: NavItem[]; active: string; onNav: (key: string) => void;
@@ -32,6 +34,8 @@ export function Shell({
   /** Contextual search for the active tab. Omit on tabs with nothing to search
    *  — better no control than a dead one. */
   search?: { value: string; onChange: (v: string) => void; placeholder: string } | null;
+  /** Live operational alerts for the notifications bell. */
+  alerts?: AlertItem[];
   children: ReactNode;
 }) {
   const { admin, logout } = useAdminAuth();
@@ -87,7 +91,7 @@ export function Shell({
             <button className="qa-iconbtn" type="button" aria-label="Toggle light and dark" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <button className="qa-iconbtn" type="button" aria-label="Notifications"><Bell size={17} /></button>
+            <NotificationsBell alerts={alerts || []} onNav={onNav} userKey={admin?.staffRecord.id} />
             <div className="qa-profile"><span className="qa-av" style={{ '--h': hueFor(name) } as CSSProperties}>{initials(name)}</span></div>
           </div>
         </header>
@@ -112,6 +116,103 @@ export function Shell({
 
 function RefreshIcon() {
   return (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1"><path d="M20 11a8 8 0 10-.6 4M20 5v6h-6" /></svg>);
+}
+
+/* ---------- Notifications bell ---------- */
+// A live "needs attention" feed. Staff have no personal notification stream, but
+// the dashboards already compute real operational alerts (idle-with-demand,
+// slowdowns, anomalies, at-risk targets); this collects them behind the bell
+// with an unread badge, acknowledgement, and a jump-to-the-tab click. Read
+// state is per-user in localStorage keyed by the alert's stable id, so
+// acknowledging a persistent condition keeps it quiet while a NEW one re-badges.
+function readKey(userKey?: string) { return `qa-notif-read:${userKey || 'anon'}`; }
+
+function loadRead(userKey?: string): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(readKey(userKey)) || '[]')); }
+  catch { return new Set(); }
+}
+
+export function NotificationsBell({ alerts, onNav, userKey }: { alerts: AlertItem[]; onNav: (key: string) => void; userKey?: string }) {
+  const [open, setOpen] = useState(false);
+  const [read, setRead] = useState<Set<string>>(() => loadRead(userKey));
+  const [shake, setShake] = useState(false);
+  const prevUnread = useRef(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const unread = alerts.filter((a) => !read.has(a.id)).length;
+
+  // Reload the read-set when the signed-in user changes.
+  useEffect(() => { setRead(loadRead(userKey)); }, [userKey]);
+
+  // Shake the bell the moment the unread count grows (a new condition appeared).
+  useEffect(() => {
+    if (unread > prevUnread.current) {
+      setShake(true);
+      const t = window.setTimeout(() => setShake(false), 820);
+      return () => window.clearTimeout(t);
+    }
+    prevUnread.current = unread;
+  }, [unread]);
+  useEffect(() => { prevUnread.current = unread; }, [unread]);
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const persist = (next: Set<string>) => {
+    setRead(new Set(next));
+    try { localStorage.setItem(readKey(userKey), JSON.stringify([...next])); } catch { /* storage full/blocked — badge is best-effort */ }
+  };
+  const markAll = () => { persist(new Set(alerts.map((a) => a.id))); };
+  const clickAlert = (a: AlertItem) => {
+    const next = new Set(read); next.add(a.id); persist(next);
+    if (a.tab) { onNav(a.tab); setOpen(false); }
+  };
+
+  return (
+    <div className="qa-notifwrap" ref={wrapRef}>
+      <button
+        className={`qa-iconbtn qa-bell${shake ? ' shake' : ''}`}
+        type="button"
+        aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Bell size={17} />
+        {unread > 0 ? <span className="qa-bell-badge">{unread > 9 ? '9+' : unread}</span> : null}
+      </button>
+
+      {open ? (
+        <div className="qa-notifpanel" role="dialog" aria-label="Notifications">
+          <div className="qa-notifhead">
+            <b>Notifications</b>
+            {alerts.length ? <button type="button" className="qa-notifmark" onClick={markAll} disabled={unread === 0}>Mark all read</button> : null}
+          </div>
+          <div className="qa-notiflist">
+            {alerts.length === 0 ? (
+              <div className="qa-notifempty">You&apos;re all caught up. Operational alerts show up here.</div>
+            ) : alerts.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className={`qa-notifitem${read.has(a.id) ? ' read' : ''} ${a.tone}${a.tab ? ' clickable' : ''}`}
+                onClick={() => clickAlert(a)}
+              >
+                <span className={`qa-notifdot ${a.tone}`} />
+                <span className="qa-notiftext"><b>{a.title}</b><small>{a.body}</small></span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /* ---------- delta pill ---------- */

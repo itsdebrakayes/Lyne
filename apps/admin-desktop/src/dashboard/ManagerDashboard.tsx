@@ -12,7 +12,7 @@ import {
 import api from '@/lib/apiClient';
 import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
 import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
-import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel } from './insights';
+import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 
 const NAV: NavItem[] = [
@@ -92,6 +92,7 @@ export default function ManagerDashboard() {
     support: ['Help & Support', 'Common Questions For Branch Managers.'],
   };
   const heat = buildHeatmap(d.heatmap);
+  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   return (
     <Shell
@@ -101,6 +102,7 @@ export default function ManagerDashboard() {
       nav={NAV} active={tab} onNav={setTab}
       freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
+      alerts={alerts}
     >
       {tab === 'overview' && (
         <div className="qa-grid">
