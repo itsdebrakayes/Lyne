@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
+import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
@@ -77,6 +78,7 @@ export default function JoinQueueScreen() {
       setLoading(true);
       setError('');
       const ticket = await api.post<TicketRecord>('/tickets', { queue_id: liveQueue.id });
+      haptics.success();
       registerPushNotifications().catch(() => {});
       scheduleDepartureReminder({
         ticketId: ticket.id,
@@ -88,6 +90,7 @@ export default function JoinQueueScreen() {
       }).catch(() => {});
       navigation.navigate('Ticket', { ticketId: ticket.id, businessId: branch.business_id, branchId, serviceId });
     } catch (caught: unknown) {
+      haptics.error();
       setError(caught instanceof Error ? caught.message : 'Could not join this queue. Please try again.');
     } finally {
       setLoading(false);

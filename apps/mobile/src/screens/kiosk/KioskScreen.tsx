@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { colors, font, t, shadow, inputReset, statusFromWait, statusMeta } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
+import { haptics } from '../../lib/haptics';
 import { ServiceSummary } from '../../lib/mobileData';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import { useAuth, KioskActor } from '../../hooks/useAuth';
@@ -102,10 +103,12 @@ export default function KioskScreen() {
       guest_phone: phone.trim() || undefined,
     }),
     onSuccess: (ticket) => {
+      haptics.success();
       setIssued({ ticket, serviceName: selected?.name || 'Service' });
       setName(''); setPhone(''); setServiceId(null);
       queryClient.invalidateQueries({ queryKey: ['kiosk-services', actor.branchId] });
     },
+    onError: () => haptics.error(),
   });
 
   const canSubmit = name.trim().length > 0 && !!serviceId && !addWalkIn.isPending;
@@ -192,7 +195,7 @@ export default function KioskScreen() {
                     <TouchableOpacity
                       key={s.id}
                       activeOpacity={0.9}
-                      onPress={() => setServiceId(s.id)}
+                      onPress={() => { haptics.select(); setServiceId(s.id); }}
                       style={{
                         flexDirection: 'row', alignItems: 'center', gap: 13,
                         padding: 15, borderRadius: 20,
