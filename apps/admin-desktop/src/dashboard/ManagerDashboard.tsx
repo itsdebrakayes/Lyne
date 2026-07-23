@@ -69,7 +69,14 @@ export default function ManagerDashboard() {
   const completed = num(last.completed_count);
   const totalToday = num(last.total_visitors) || completed + num(last.no_show_count);
   const noShows = num(last.no_show_count);
-  const target = d.targets;
+  // The manager measures against their OWN branch target (which overlays the
+  // company target); it falls back to the company target until they set one.
+  const target = d.effectiveTarget;
+  // A view that always carries the company target for reference, even before the
+  // branch-targets query resolves (so the editor never shows "Company: 0").
+  const branchTargetView = d.branchTargets || { ...d.targets, is_default: true, company: d.targets };
+  const hasBranchTarget = Boolean(d.branchTargets && d.branchTargets.is_default === false);
+  const goalNoun = hasBranchTarget ? 'Your target' : 'Company';
 
   const myScore = insightData(preds, 'manager_performance');
   const myManager = (Array.isArray(myScore?.managers) ? myScore.managers : []).find((m: any) => m.branch_id === d.branchId) || (myScore?.managers || [])[0];
@@ -182,8 +189,9 @@ export default function ManagerDashboard() {
 
       {tab === 'targets' && (
         <div className="qa-grid">
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={8} big />
+          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={8} big goalLabel={goalNoun} />
           <TargetTrendCard preds={preds} span={4} />
+          <SetBranchTargetsCard target={branchTargetView} branchId={d.branchId} span={12} />
         </div>
       )}
 
@@ -216,7 +224,7 @@ export default function ManagerDashboard() {
         { q: 'Where do I see how each service is performing?',
           a: 'The Services tab lists every service with its average wait, how many it served, its completion rate, and whether it is under or over your wait target. Anything marked Over is where customers are waiting longest.' },
         { q: 'Who sets my branch targets?',
-          a: 'Your executive sets the company-wide targets that your branch is measured against — you can see them on the Targets tab along with how your branch is tracking. Branch-specific targets that you set yourself are on the way.' },
+          a: 'Your executive sets the company-wide targets. On the Targets tab you can set your own branch targets that refine them — go tighter than the company number where your branch can, or looser where it genuinely cannot — and every score and What-To-Improve item is then measured against your branch target. Leave them and your branch simply inherits the company target.' },
         { q: 'What is in my weekly report?',
           a: 'Reports shows a preview of exactly what your export contains: your KPI summary against target, customers served per day, the service breakdown, busy times and staffing, and your What To Improve list.' },
         { q: 'How do I get more staff onto a busy counter?',
@@ -450,7 +458,7 @@ export function ImproveCard({ preds, span }: { preds: any[]; span: number }) {
   );
 }
 
-export function TargetsCard({ target, last, completed, total, noShows, span, big, title, cap }: { target: any; last: any; completed: number; total: number; noShows: number; span: number; big?: boolean; title?: string; cap?: string }) {
+export function TargetsCard({ target, last, completed, total, noShows, span, big, title, cap, goalLabel = 'Company' }: { target: any; last: any; completed: number; total: number; noShows: number; span: number; big?: boolean; title?: string; cap?: string; goalLabel?: string }) {
   const rows = [
     { label: 'Average Wait', actual: Math.round(num(last.avg_wait_time_minutes)), goal: num(target.target_wait_minutes), unit: ' min', lowerBetter: true },
     { label: 'Completed Visits', actual: Math.round(num(last.completion_rate) || (completed / Math.max(1, total)) * 100), goal: num(target.target_completion_rate), unit: '%', lowerBetter: false },
@@ -463,7 +471,7 @@ export function TargetsCard({ target, last, completed, total, noShows, span, big
         const width = r.lowerBetter ? Math.min(100, (r.goal / Math.max(1, r.actual)) * 100) : Math.min(100, (r.actual / Math.max(1, r.goal)) * 100);
         return (
           <div key={r.label} className="qa-targetrow">
-            <span className="tl">{r.label}<small>Company: {r.goal}{r.unit}</small></span>
+            <span className="tl">{r.label}<small>{goalLabel}: {r.goal}{r.unit}</small></span>
             <span className="qa-tgpill" style={{ background: onTrack ? 'var(--qa-pos-soft)' : 'var(--qa-neg-soft)', color: onTrack ? 'var(--qa-pos)' : 'var(--qa-neg)' }}>{onTrack ? 'On Track' : 'Behind'}</span>
             <div className="qa-tprog"><div className="bar"><i style={{ width: `${width}%`, background: onTrack ? 'var(--qa-accent)' : 'var(--qa-neg)' }} /></div><span className="v">{r.actual}{r.unit} / {r.goal}{r.unit}</span></div>
           </div>
@@ -528,6 +536,70 @@ export function SetTargetsCard({ target, businessId, span }: { target: any; busi
           {save.isPending ? 'Saving…' : 'Save targets'}
         </button>
         {saved ? <span className="ok">Saved — every branch now works toward these.</span> : null}
+        {save.isError ? <span className="bad">Couldn’t save. Check the numbers and try again.</span> : null}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Editable BRANCH targets (managers, for their own branch — the API pins a
+ * manager to their branch and lets executives set any branch). These overlay
+ * the company target the branch inherits, which is shown inline as the
+ * reference so the manager can go tighter or looser with eyes open.
+ */
+export function SetBranchTargetsCard({ target, branchId, span }: { target: any; branchId?: string; span: number }) {
+  const qc = useQueryClient();
+  const [wait, setWait] = useState('');
+  const [done, setDone] = useState('');
+  const [noShow, setNoShow] = useState('');
+  const [saved, setSaved] = useState(false);
+  const company = target?.company || {};
+  const inheriting = target?.is_default !== false; // no branch row yet → inheriting company
+
+  useEffect(() => {
+    setWait(String(num(target.target_wait_minutes) || ''));
+    setDone(String(num(target.target_completion_rate) || ''));
+    setNoShow(String(num(target.target_no_show_rate) || ''));
+  }, [target.target_wait_minutes, target.target_completion_rate, target.target_no_show_rate]);
+
+  const save = useMutation({
+    mutationFn: () => api.put('/targets/branch', {
+      branch_id: branchId,
+      target_wait_minutes: Number(wait),
+      target_completion_rate: Number(done),
+      target_no_show_rate: Number(noShow),
+    }),
+    onSuccess: () => {
+      setSaved(true);
+      qc.invalidateQueries({ queryKey: ['ops-branch-targets', branchId] });
+      window.setTimeout(() => setSaved(false), 2600);
+    },
+  });
+
+  const fields: Array<[string, string, string, string, (v: string) => void, string]> = [
+    ['Average wait', `Company target: ${num(company.target_wait_minutes)} min`, 'minutes', wait, setWait, '1'],
+    ['Completed visits', `Company target: ${num(company.target_completion_rate)}%`, '%', done, setDone, '1'],
+    ['No-show rate', `Company target: ${num(company.target_no_show_rate)}%`, '%', noShow, setNoShow, '0'],
+  ];
+
+  return (
+    <Card span={span} title="Set Your Branch Targets" cap={inheriting ? 'Inheriting The Company Target — Set Your Own To Refine It' : 'Your Branch Works To These, Within The Company Target'}>
+      {fields.map(([label, hint, unit, val, set, min]) => (
+        <div key={label} className="qa-setrow">
+          <span className="sl">{label}<small>{hint}</small></span>
+          <span className="si">
+            <input type="number" min={min} max={unit === '%' ? 100 : 240} value={val}
+              onChange={(e) => set(e.target.value)} aria-label={label} />
+            <i>{unit}</i>
+          </span>
+        </div>
+      ))}
+      <div className="qa-setfoot">
+        <button type="button" className="qa-update" disabled={save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? 'Saving…' : 'Save branch targets'}
+        </button>
+        {saved ? <span className="ok">Saved — your branch now works to these.</span> : null}
         {save.isError ? <span className="bad">Couldn’t save. Check the numbers and try again.</span> : null}
       </div>
     </Card>

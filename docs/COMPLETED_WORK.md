@@ -7,6 +7,7 @@ to the session tracker._
 ---
 
 ## Admin dashboards — the design overhaul
+- **Branch-level targets for managers (#16)** — executives set the company target; a manager can now set their **own branch's** targets that refine it. New `branch_targets` table (migration 018) and `GET/PUT /api/targets/branch`, resolved as an overlay (branch → company → default) that always returns the company target alongside for reference. The backend pins a manager to their own branch (an executive may set any branch in the business). The manager's Targets tab gains an editable **Set Your Branch Targets** card that shows each metric's company reference inline, and the branch health score, KPI deltas, and What-To-Improve list now measure against the branch target instead of the company one — falling back to the company target until the manager sets their own. (Completes the "manager" half of #11's target-setting.)
 - **Established ground truth** and updated the redesign plan to reality (#1, #2).
 - **Real, interactive charts** — every line chart shows live data and lets you hover *any* point for that day's insight, on a custom SVG chart kit (not recharts) (#3, #12).
 - **Executive overhaul** — Trends tab with Day / Week / Month (sliding month pager) / 90-day; the 90-day range renders a **report**, not a graph; gauge-ring scores, demand heatmap, big cards; layout gaps closed (#14, #28).

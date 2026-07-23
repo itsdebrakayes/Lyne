@@ -72,7 +72,7 @@ The separation is strict and deliberate: **no admin screen ever enters the consu
 |---|---|
 | `line_staff` | Assigned queue/counter/service operations only |
 | `supervisor` | A section within a branch — reassign staff between counters; no branch strategy |
-| `manager` | Own branch operations, assignments, and branch analytics |
+| `manager` | Own branch operations, assignments, branch analytics, and **branch-level targets** (refine the company target for their branch) |
 | `executive` | Own business across branches, analytics, targets, manual pipeline triggers |
 | `platform_admin` | Q Me Now internal onboarding/support only (super-admin across tenants) |
 | `kiosk_clerk` | Branch-scoped intake account: logs in on a phone/iPad and adds **walk-in** customers to the line on their behalf. Sees a single-purpose console (no customer tabs, no queue-joining), picks a service offered at its branch, enters the customer's name, and issues a ticket number. Tickets are `channel='kiosk'` guests (no app account) so the walk-in-vs-online analytics can tell them apart. |

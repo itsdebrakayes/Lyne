@@ -28,7 +28,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 
 | # | Item | Notes |
 |---|------|-------|
-| 16 | Branch-level targets for managers | backend + migration + UI |
+| 16 | Branch-level targets for managers | ✅ done — migration 018 `branch_targets`; `GET/PUT /targets/branch` (manager pinned to own branch, exec any; overlay branch→company→default, returns the company target alongside); manager Targets tab gains an editable **Set Your Branch Targets** card showing the company reference, and the branch health score + What-To-Improve now measure against the branch target |
 | 24 | Notifications bell is a dead control | + shake animation + ping sound |
 | 29 | Filterable graphs — legend-style toggles per role | Capsule map-key pattern |
 | 30 | Multi-select + select-all on lists | |

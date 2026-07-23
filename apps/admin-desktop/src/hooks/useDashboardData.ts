@@ -48,6 +48,9 @@ export type BusinessTargets = {
   horizon_months: number; target_date?: string | null; note?: string | null; set_by_name?: string | null;
   updated_at?: string; is_default?: boolean;
 };
+// A branch's effective targets: the three operational metrics resolved as
+// branch → company → default, plus the company target it works within.
+export type BranchTargets = BusinessTargets & { branch_id: string; company: BusinessTargets };
 export type ExecutiveKpis = {
   month: string; total_employees: number; active_employees: number; previous_active_employees: number;
   active_change_pct: number; leave_employees: number; new_employees: number;
@@ -152,6 +155,13 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
     enabled: Boolean(canAnalytics && businessId), refetchInterval: 120_000,
   });
+  // A branch manager/supervisor also measures against their OWN branch target
+  // (which overlays the company target). Executives stay company-scoped.
+  const branchTargets = useQuery({
+    queryKey: ['ops-branch-targets', branchId],
+    queryFn: () => api.get<BranchTargets>(`/targets/branch?branch_id=${branchId}`),
+    enabled: Boolean(branchScoped && branchId), refetchInterval: 120_000,
+  });
   const employeeKpis = useQuery({
     queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
     queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
@@ -196,6 +206,11 @@ export function useDashboardData(serviceId = '') {
     demandHourly: demandHourly.data || [],
     demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
+    branchTargets: branchTargets.data || null,
+    // The target a branch-scoped screen actually measures against: the branch's
+    // own target when set, otherwise the company target. Executive screens just
+    // use `targets`.
+    effectiveTarget: (branchScoped ? branchTargets.data : undefined) || targets.data || DEFAULT_TARGETS,
     employeeKpis: employeeKpis.data,
     predictions: predictions.data || [],
     pipeline: pipeline.data,
@@ -204,6 +219,6 @@ export function useDashboardData(serviceId = '') {
     productivity: productivity.data || null,
     refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
       branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
+      targets.refetch(), branchTargets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
   };
 }
