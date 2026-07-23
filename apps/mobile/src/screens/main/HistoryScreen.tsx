@@ -137,7 +137,7 @@ export default function HistoryScreen() {
                 {/* rail */}
                 <View style={{ width: 18, alignItems: 'center' }}>
                   <View style={{ width: first ? 14 : 10, height: first ? 14 : 10, borderRadius: 7, marginTop: first ? 4 : 8, backgroundColor: first ? colors.dark : 'transparent', borderWidth: first ? 0 : 2, borderColor: colors.chevron }} />
-                  {!last && <View style={{ flex: 1, width: 2, backgroundColor: '#e2e5ea', marginVertical: 4 }} />}
+                  {!last && <View style={{ flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 4 }} />}
                 </View>
 
                 {/* entry */}

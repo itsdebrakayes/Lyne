@@ -93,7 +93,7 @@ export default function NotificationsScreen() {
               onPress={() => n.ticket_id && navigation.navigate('Ticket', { ticketId: n.ticket_id })}
               style={[t.listRow, { padding: 14, alignItems: 'flex-start', opacity: n.is_read ? 0.75 : 1 }]}
             >
-              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: n.notification_type === 'no_show' ? '#fdeceb' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: n.notification_type === 'no_show' ? colors.dangerSoft : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={TYPE_ICON[n.notification_type] || 'notifications-outline'} size={18} color={n.notification_type === 'no_show' ? colors.danger : colors.ink} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>

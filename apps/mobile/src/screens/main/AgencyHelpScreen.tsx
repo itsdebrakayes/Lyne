@@ -36,7 +36,7 @@ function ServiceBucket({ service }: { service: AgencyService }) {
               </View>
             ))}
           </View>
-          <View style={{ flexDirection: 'row', gap: 9, backgroundColor: service.jpRequired ? '#fdf3e7' : '#eef8fb', borderRadius: 14, padding: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 9, backgroundColor: service.jpRequired ? colors.warnSoft : colors.infoSoft, borderRadius: 14, padding: 12 }}>
             <Ionicons name={service.jpRequired ? 'ribbon' : 'checkmark-done'} size={16} color={service.jpRequired ? colors.moderate : colors.accentDeep} style={{ marginTop: 1 }} />
             <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: colors.sub, lineHeight: 19 }}>
               <Text style={{ fontFamily: font.extra, color: colors.ink }}>{service.jpRequired ? 'JP required. ' : 'No JP needed. '}</Text>
@@ -80,7 +80,7 @@ export default function AgencyHelpScreen() {
 
         {/* hours */}
         <View style={[t.cardLg, { padding: 18, flexDirection: 'row', gap: 13, alignItems: 'flex-start' }]}>
-          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="time-outline" size={21} color={colors.accentDeep} />
           </View>
           <View style={{ flex: 1 }}>

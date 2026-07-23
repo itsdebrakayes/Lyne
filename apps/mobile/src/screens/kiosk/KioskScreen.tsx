@@ -37,7 +37,7 @@ function TicketIssued({ ticket, serviceName, onAddAnother }: {
   return (
     <View style={{ flex: 1, justifyContent: 'center' }}>
       <View style={[t.cardLg, { padding: 26, alignItems: 'center' }, shadow.floating]}>
-        <View style={{ width: 58, height: 58, borderRadius: 20, backgroundColor: '#e7f8ef', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 58, height: 58, borderRadius: 20, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="checkmark-circle" size={34} color={colors.light} />
         </View>
         <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, marginTop: 16, letterSpacing: 0.4, textTransform: 'uppercase' }}>

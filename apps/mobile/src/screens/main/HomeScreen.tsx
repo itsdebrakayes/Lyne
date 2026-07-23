@@ -197,7 +197,7 @@ export default function HomeScreen() {
         {/* smart timing — plan your visit */}
         <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
           <GlassView radius={24} intensity={40} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, ...shadow.card }}>
-            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -271,7 +271,7 @@ export default function HomeScreen() {
                     {bOpen ? (
                       <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
                     ) : (
-                      <View style={{ backgroundColor: bSoon ? '#eef8fb' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
+                      <View style={{ backgroundColor: bSoon ? colors.infoSoft : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
                         <Text style={{ fontFamily: font.bold, fontSize: 12, color: bSoon ? colors.accentDeep : colors.muted }}>Opens {openTimeLabel(bHours)}</Text>
                       </View>
                     )}

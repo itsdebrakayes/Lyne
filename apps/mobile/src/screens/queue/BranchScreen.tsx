@@ -221,11 +221,11 @@ export default function BranchScreen() {
 
             {/* When to leave — only meaningful while the branch can actually be
                 joined. Closed, it becomes advice to set off for a locked door. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#eef8fb', borderWidth: 1, borderColor: '#dbeef4', borderRadius: 19, padding: 15, paddingHorizontal: 16, marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.infoSoft, borderWidth: 1, borderColor: '#dbeef4', borderRadius: 19, padding: 15, paddingHorizontal: 16, marginTop: 16 }}>
               <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={joinState.allowed ? 'time-outline' : 'information-circle-outline'} size={17} color={colors.accentDeep} />
               </View>
-              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: '#0d5c6e', lineHeight: 17 }}>
+              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.infoInk, lineHeight: 17 }}>
                 {joinState.allowed
                   ? <>Leave in <Text style={{ fontFamily: font.extra }}>~{leaveIn(selected)} min</Text> to reach the front on time — we&apos;ll remind you once you join.</>
                   : joinState.detail}

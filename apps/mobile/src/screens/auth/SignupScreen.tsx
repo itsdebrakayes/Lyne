@@ -112,7 +112,7 @@ export default function SignupScreen() {
 
           {confirmSent ? (
             <View style={{ alignItems: 'center', paddingVertical: 18 }}>
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#e6f7ee', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <Ionicons name="mail-unread-outline" size={26} color={colors.light} />
               </View>
               <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, textAlign: 'center', letterSpacing: -0.3 }}>Confirm your email</Text>

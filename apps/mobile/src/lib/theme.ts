@@ -53,6 +53,15 @@ const lightColors = {
   busy: '#e5484d',
   danger: '#e5484d',
 
+  // Soft semantic tints for info / success / warn / danger cards, plus the ink
+  // that sits on them. Light keeps the exact hand-picked pastels; dark uses
+  // translucent status colors so the cards read as native dark-theme surfaces
+  // instead of bright light islands.
+  infoSoft: '#eef8fb', infoInk: '#0d5c6e',
+  successSoft: '#e6f7ee', successInk: '#166b41',
+  warnSoft: '#fdf3e7',
+  dangerSoft: '#fdeceb',
+
   onDark: '#ffffff',
 };
 
@@ -92,6 +101,11 @@ const darkColors: Palette = {
   moderate: '#f5b83e',
   busy: '#ef5a5f',
   danger: '#ef5a5f',
+
+  infoSoft: 'rgba(34,201,228,0.13)', infoInk: '#7fdcef',
+  successSoft: 'rgba(63,208,127,0.15)', successInk: '#5fd99a',
+  warnSoft: 'rgba(245,184,62,0.15)',
+  dangerSoft: 'rgba(239,90,95,0.16)',
 
   onDark: '#ffffff',
 };

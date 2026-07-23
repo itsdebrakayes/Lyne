@@ -90,7 +90,7 @@ export default function PrivacySecurityScreen() {
 
         <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 28, marginBottom: 12, marginLeft: 4 }}>Sessions</Text>
         <TouchableOpacity onPress={signOutEverywhere} disabled={signingOut} style={[t.card, { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 13, ...shadow.card }]}>
-          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#fdeceb', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="log-out-outline" size={18} color={colors.danger} />
           </View>
           <View style={{ flex: 1 }}>

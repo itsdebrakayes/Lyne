@@ -191,7 +191,7 @@ export default function ProfileScreen() {
           <>
             <SectionLabel>Demo controls</SectionLabel>
             <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, ...shadow.card }]}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="sparkles" size={17} color={colors.accentDeep} />
               </View>
               <View style={{ flex: 1 }}>
@@ -249,7 +249,7 @@ export default function ProfileScreen() {
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             {emailSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 6 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#e6f7ee', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                   <Ionicons name="mail-unread-outline" size={24} color={colors.light} />
                 </View>
                 <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4, textAlign: 'center' }}>Confirm your new email</Text>

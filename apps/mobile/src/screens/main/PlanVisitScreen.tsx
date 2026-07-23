@@ -37,7 +37,7 @@ interface ServicePlan {
 }
 interface BestTimes { window_days: number; branch_best?: BestSlot | null; services: ServicePlan[] }
 
-const LEVEL_DOT: Record<number, string> = { 0: '#e4e7eb', 1: colors.light, 2: colors.moderate, 3: colors.busy };
+const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 function WeekStrip({ week, compact = false }: { week: WeekDay[]; compact?: boolean }) {
@@ -183,9 +183,9 @@ export default function PlanVisitScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                       <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
                       {service.best && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#e6f7ee', borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.successSoft, borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
                           <Ionicons name="time" size={12} color="#1f9d5f" />
-                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: '#166b41' }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
+                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.successInk }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
                         </View>
                       )}
                     </View>
@@ -217,7 +217,7 @@ export default function PlanVisitScreen() {
                         <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.faint, letterSpacing: 2 }}>••••••· ••:•• ••</Text>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 4 }}>
-                        {[0, 1, 2].map(i => <View key={i} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#e4e7eb' }} />)}
+                        {[0, 1, 2].map(i => <View key={i} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.border }} />)}
                       </View>
                     </View>
                   ))}
