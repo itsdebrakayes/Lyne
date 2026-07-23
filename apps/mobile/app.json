@@ -29,6 +29,14 @@
     },
     "plugins": [
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#101d18",
+          "dark": { "backgroundColor": "#0b1210" },
+          "resizeMode": "contain"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#0a0a0a",
