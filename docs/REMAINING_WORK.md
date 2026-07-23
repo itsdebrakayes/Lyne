@@ -43,11 +43,11 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | # | Item | Notes |
 |---|------|-------|
 | 5 | Mobile finish pass (umbrella) | full bug-sweep + real-device pass |
-| 39 | Haptics on key moments | joined / called / leave / tab switch |
-| 40 | Real safe-area insets | replace hardcoded top padding |
-| 41 | Pull-to-refresh on queue screens | Ticket / Branch / Business / Service |
-| — | **(untracked)** Dark mode | repeatedly flagged TODO |
-| — | **(untracked)** Animated splash | repeatedly flagged TODO |
+| 39 | Haptics on key moments | ✅ done — expo-haptics + guarded helper; success on join/called/walk-in, warning on leave, error on failures, selection on service pick |
+| 40 | Real safe-area insets | ✅ done — SafeAreaProvider + useTopPad(gap); every content screen + Signup hero now derive top from the device inset |
+| 41 | Pull-to-refresh on queue screens | ✅ done — useRefresh() hook wired into Branch / Business / Join / Ticket |
+| 49 | Dark mode | ✅ done — infra + Appearance toggle already shipped; added semantic soft-tint tokens so the info/success/warn/danger cards flip instead of staying light |
+| 50 | Animated splash | ✅ done — expo-splash-screen dark bg for a seamless native→JS handoff; LaunchScreen gains a breathing glow + loading dots |
 | 26 | Onboarding tutorial (mobile half) | |
 
 ## D · Production / "main" (the sellable, empty build)
