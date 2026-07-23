@@ -74,6 +74,15 @@ const joinQueueSchema = z.object({
   form_data: z.record(z.unknown()).optional(),
 });
 
+// A kiosk clerk adds a walk-in (someone at the branch without the app). They
+// pick a service; the branch is the clerk's own. Name is required so line staff
+// have someone to call; phone is optional (used for an SMS follow-up later).
+const walkInSchema = z.object({
+  service_id:  z.string().min(1).max(64),
+  guest_name:  z.string().trim().min(1, 'A name is required to add a walk-in.').max(120),
+  guest_phone: z.string().trim().max(30).optional(),
+});
+
 const updateStatusSchema = z.object({
   new_status: z.enum(['called', 'in_service', 'served', 'left', 'cancelled', 'no_show'], {
     errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
@@ -285,6 +294,128 @@ router.post('/', requireAuth, async (req, res) => {
     await conn.rollback();
     console.error(err);
     res.status(500).json({ error: 'Failed to join queue.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/tickets/walk-in — a kiosk clerk adds a walk-in customer
+//
+// This is the counterpart to POST / (the customer app). It exists so a branch
+// can put someone WITHOUT the app into the same line, on their behalf. Key
+// differences from the app join:
+//   • Actor is a kiosk_clerk, and the branch is theirs — not caller-supplied.
+//   • The ticket is a guest (user_id NULL, name/phone carried on the row).
+//   • channel = 'kiosk', so the walk-in-vs-online analytics can tell them apart.
+//   • The remote-join buffer does NOT apply — walk-ins are physically present;
+//     that buffer exists to protect them, so applying it here would be backwards.
+router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req, res) => {
+  const parsed = walkInSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: validationMessage(parsed.error) });
+  }
+  const branchId = req.dbStaff?.branch_id;
+  if (!branchId) {
+    return res.status(403).json({ error: 'This kiosk account is not assigned to a branch.' });
+  }
+  const { service_id, guest_name, guest_phone } = parsed.data;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // The service must be one this branch actually offers (has an active counter
+    // for) — this both validates the pick and enforces tenant isolation, since
+    // counters are branch-scoped and the branch is the clerk's own.
+    const [svcRows] = await conn.query(
+      `SELECT s.id, s.ticket_prefix, s.base_avg_time_minutes
+       FROM services s
+       WHERE s.id = ?
+         AND EXISTS (
+           SELECT 1 FROM counters c
+           WHERE c.service_id = s.id AND c.branch_id = ? AND c.is_active = TRUE
+         )
+       LIMIT 1`,
+      [service_id, branchId]
+    );
+    if (!svcRows.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'That service is not offered at this branch.' });
+    }
+    const prefix  = svcRows[0].ticket_prefix || 'Q';
+    const avgTime = svcRows[0].base_avg_time_minutes || 15;
+
+    // Ensure today's queue exists for this branch+service, then lock it. Mirrors
+    // the queue-ensure in queues.js so a walk-in can open the day's first line.
+    const today = new Date().toISOString().slice(0, 10);
+    await conn.query(
+      `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity)
+       VALUES (?, ?, ?, ?, 50)
+       ON DUPLICATE KEY UPDATE is_active = TRUE`,
+      [uuidv4(), branchId, service_id, today]
+    );
+    const [queues] = await conn.query(
+      'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = ? FOR UPDATE',
+      [branchId, service_id, today]
+    );
+    const queue = queues[0];
+
+    const [countRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
+      [queue.id]
+    );
+    if (countRows[0].cnt >= queue.max_capacity) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Queue is at full capacity.' });
+    }
+
+    const [posRows] = await conn.query(
+      'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM queue_tickets WHERE queue_id = ?',
+      [queue.id]
+    );
+    const position = posRows[0].next_pos;
+    const ticketNumber = `${prefix}-${String(position).padStart(3, '0')}`;
+
+    // Same counter-aware ETA the app join uses, so a walk-in's estimate agrees
+    // with what the app would show for the same spot in line.
+    const [counterRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
+      [branchId, service_id]
+    );
+    const modelWait = await estimateWaitMinutes({
+      branchId,
+      serviceId: service_id,
+      position,
+      hour: new Date().getHours(),
+    });
+    const estimatedWait = modelWait ?? projectedWaitMinutes({
+      ahead: countRows[0].cnt,
+      perServiceMinutes: avgTime,
+      counters: counterRows[0].cnt,
+    });
+    const verificationCode = createVerificationCode();
+
+    const ticketId = uuidv4();
+    await conn.query(
+      `INSERT INTO queue_tickets
+         (id, queue_id, user_id, guest_name, guest_phone, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk')`,
+      [ticketId, queue.id, guest_name, guest_phone || null, ticketNumber, verificationCode, position, estimatedWait]
+    );
+    await conn.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status)
+       VALUES (?, ?, NULL, 'waiting')`,
+      [uuidv4(), ticketId]
+    );
+
+    await conn.commit();
+    const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
+    broadcast(queue.id, ticket[0]);
+    res.status(201).json(ticket[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add walk-in.' });
   } finally {
     conn.release();
   }

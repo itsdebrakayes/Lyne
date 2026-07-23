@@ -22,7 +22,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | 44 | Make the model pipeline genuinely live | ✅ done — containerized `model-worker` runs the six models on boot + every 2h, owns predictive_results (all 11 types live, <2 min), legacy CSV/notebook path retired, per-branch best-time now live |
 | 45 | SHAP + reasoning "why" layer | ✅ done — SHAP directional no-show drivers + demand-vs-capacity staffing "why", live in the worker |
 | 46 | Walk-in vs online channel analytics | ✅ done — /analytics/channels endpoint + ChannelMixCard on Manager & Exec (the ROI stat) |
-| 47 | Kiosk intake role | admin-on-the-user-side; add walk-ins on iPad/phone |
+| 47 | Kiosk intake role | ✅ done — `kiosk_clerk` role (migration 017) + guest name/phone on tickets; `POST /tickets/walk-in` (branch-scoped, `channel='kiosk'`); mobile accepts the role → dedicated single-purpose KioskScreen (service picker → name → ticket number). Demo login `kiosk@test.com` seeded at TAJ Kingston (**link its Supabase uid** like the other demo staff) |
 
 ## B · Admin desktop — remaining product work
 

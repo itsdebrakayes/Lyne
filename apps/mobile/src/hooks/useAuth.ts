@@ -13,13 +13,38 @@ export interface UserProfile {
   is_premium?: boolean | number;
 }
 
+// The staff record /auth/me returns. Only the kiosk_clerk role is accepted on
+// the mobile app; every other staff role is rejected below.
+interface StaffRecord {
+  id: string;
+  full_name: string;
+  role_name: string;
+  role_label?: string;
+  branch_id?: string;
+  branch_name?: string;
+  business_id?: string;
+  business_name?: string;
+}
+
 interface AuthMe {
   type: 'user' | 'staff';
-  record: UserProfile;
+  record: UserProfile & StaffRecord;
+}
+
+// A logged-in kiosk clerk — the branch intake actor. Distinct from a customer:
+// they don't have a queue ticket of their own, they add walk-ins for others.
+export interface KioskActor {
+  staffId: string;
+  name: string;
+  branchId: string;
+  branchName: string;
+  businessName: string;
+  roleLabel: string;
 }
 
 export const useAuth = () => {
   const [user, setUser]     = useState<UserProfile | null>(null);
+  const [kiosk, setKiosk]   = useState<KioskActor | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Guards against the re-entrant sync loop: track the Supabase uid we have
@@ -33,13 +58,34 @@ export const useAuth = () => {
   const syncMobileUser = useCallback(async (metadata?: Record<string, string>) => {
     await api.post('/auth/sync-user', metadata || {});
     const me = await api.get<AuthMe>('/auth/me');
-    if (me.type !== 'user') {
-      await supabase.auth.signOut();
-      setUser(null);
-      throw new Error('This account is provisioned for admin access, not the mobile app.');
+    if (me.type === 'user') {
+      setKiosk(null);
+      setUser(me.record);
+      return me.record;
     }
-    setUser(me.record);
-    return me.record;
+    // The one staff role the mobile app serves: a kiosk clerk, who logs in here
+    // to add walk-in customers on the branch's behalf. Everyone else (managers,
+    // executives, line staff) belongs on the admin desktop, not the phone.
+    if (me.type === 'staff' && me.record?.role_name === 'kiosk_clerk') {
+      if (!me.record.branch_id) {
+        await supabase.auth.signOut();
+        setUser(null); setKiosk(null);
+        throw new Error('This kiosk account is not assigned to a branch. Ask an administrator to set one.');
+      }
+      setUser(null);
+      setKiosk({
+        staffId:      me.record.id,
+        name:         me.record.full_name,
+        branchId:     me.record.branch_id,
+        branchName:   me.record.branch_name || 'this branch',
+        businessName: me.record.business_name || '',
+        roleLabel:    me.record.role_label || 'Kiosk Clerk',
+      });
+      return me.record;
+    }
+    await supabase.auth.signOut();
+    setUser(null); setKiosk(null);
+    throw new Error('This account is provisioned for admin access, not the mobile app.');
   }, []);
 
   const applySession = useCallback(async (session: Session | null, force = false) => {
@@ -48,6 +94,7 @@ export const useAuth = () => {
     if (!sbUser) {
       syncedUid.current = null;
       setUser(null);
+      setKiosk(null);
       setLoading(false);
       return;
     }
@@ -68,6 +115,7 @@ export const useAuth = () => {
     } catch {
       syncedUid.current = null;
       setUser(null);
+      setKiosk(null);
     } finally {
       inFlight.current = false;
       setLoading(false);
@@ -127,6 +175,7 @@ export const useAuth = () => {
     syncedUid.current = null;
     await supabase.auth.signOut();
     setUser(null);
+    setKiosk(null);
   };
 
   // Re-reads the profile after an edit (e.g. adding a document) so the
@@ -137,5 +186,5 @@ export const useAuth = () => {
     return me.record;
   }, []);
 
-  return { user, loading, signIn, signUp, signOut, refreshProfile };
+  return { user, kiosk, loading, signIn, signUp, signOut, refreshProfile };
 };

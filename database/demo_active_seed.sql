@@ -147,6 +147,7 @@ INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, e
   ('stf-demo-taj-kgn-trn', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-TRN', 'Demo TRN Officer', 'demo.trn@taj.gov.jm', 'svc-taj-trn', TRUE, 'active'),
   ('stf-demo-taj-kgn-pay', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-PAY', 'Demo Payments Officer', 'demo.pay@taj.gov.jm', 'svc-taj-pay', TRUE, 'active'),
   ('stf-demo-taj-kgn-enq', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-ENQ', 'Demo Enquiries Officer', 'demo.enq@taj.gov.jm', 'svc-taj-enq', TRUE, 'active'),
+  ('stf-demo-taj-kgn-kiosk', 'biz-taj-001', 'br-taj-kgn', 'role-kiosk-001', 'TAJ-DEMO-KIOSK', 'Kingston Front-Desk Kiosk', 'kiosk@test.com', NULL, TRUE, 'active'),
   ('stf-demo-taj-mob-mgr', 'biz-taj-001', 'br-taj-mob', 'role-mgr-001', 'TAJ-MOB-MGR', 'Demo Montego Bay Manager', 'demo.mob.manager@taj.gov.jm', NULL, TRUE, 'active'),
   ('stf-demo-taj-man-mgr', 'biz-taj-001', 'br-taj-man', 'role-mgr-001', 'TAJ-MAN-MGR', 'Demo Mandeville Manager', 'demo.man.manager@taj.gov.jm', NULL, TRUE, 'active'),
   ('stf-demo-taj-por-mgr', 'biz-taj-001', 'br-taj-por', 'role-mgr-001', 'TAJ-POR-MGR', 'Demo Portmore Manager', 'demo.por.manager@taj.gov.jm', NULL, TRUE, 'active'),

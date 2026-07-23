@@ -75,7 +75,7 @@ The separation is strict and deliberate: **no admin screen ever enters the consu
 | `manager` | Own branch operations, assignments, and branch analytics |
 | `executive` | Own business across branches, analytics, targets, manual pipeline triggers |
 | `platform_admin` | Q Me Now internal onboarding/support only (super-admin across tenants) |
-| `kiosk_clerk` *(in progress)* | Branch-scoped intake account: log in on a phone/iPad and add **walk-in** customers to the line on their behalf |
+| `kiosk_clerk` | Branch-scoped intake account: logs in on a phone/iPad and adds **walk-in** customers to the line on their behalf. Sees a single-purpose console (no customer tabs, no queue-joining), picks a service offered at its branch, enters the customer's name, and issues a ticket number. Tickets are `channel='kiosk'` guests (no app account) so the walk-in-vs-online analytics can tell them apart. |
 
 ---
 
