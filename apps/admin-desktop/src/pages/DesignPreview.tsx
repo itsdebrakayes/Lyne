@@ -1,219 +1,227 @@
 /**
- * DesignPreview — DEV-ONLY design harness.
+ * DesignPreview — DEV-ONLY design harness for the QX admin system.
  *
- * The real dashboards sit behind ProtectedRoute, so the design could never be
- * looked at without a linked Supabase login. This route renders the REAL Shell
- * and the REAL primitives against mock data, so layout, density and chrome can
- * be judged and iterated directly. It is registered only when import.meta.env.DEV
- * is true, so it can never ship in a production build.
+ * Registered only when import.meta.env.DEV is true, so it can never ship.
+ * Renders the executive overview with mock data so layout, density and colour
+ * can be judged before the system is rolled across the real dashboards.
  */
 import { useMemo, useState } from 'react';
 import {
-  LayoutGrid, TrendingUp, Building2, Users, Waypoints, Grid3x3, Target, FileText,
-  Settings, Headphones, AlertTriangle, Clock,
+  Activity, AlertTriangle, Building2, CalendarDays, CheckCircle2, Clock, FileText,
+  Grid3x3, Headphones, LayoutGrid, MapPin, Settings, Target, TrendingUp, UserX,
+  Users, Waypoints,
 } from 'lucide-react';
-import { AdminAuthContext } from '@/hooks/useAdminAuth';
 import {
-  Shell, Card, Kpi, SummaryStrip, ImpactCard, ListPanel, Area, ScoreRing, Rec,
-  Heatmap, Delta, MoreBtn, greetingFor, type NavItem, type AlertItem,
-} from '@/dashboard/kit';
+  Shell, Head, Pills, Select, Card, Stat, Chart, LegendToggle, Funnel, Donut, Ring,
+  Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap, Chip,
+  RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
+} from '@/design/ui';
 
-const NAV: NavItem[] = [
-  { key: 'overview', label: 'Overview', icon: LayoutGrid },
-  { key: 'trends', label: 'Trends', icon: TrendingUp },
-  { key: 'branches', label: 'Branches', icon: Building2 },
-  { key: 'managers', label: 'Managers', icon: Users },
-  { key: 'services', label: 'Services', icon: Waypoints },
-  { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
-  { key: 'targets', label: 'Targets', icon: Target },
-  { key: 'reports', label: 'Reports', icon: FileText },
-  { key: 'settings', label: 'Settings', icon: Settings, group: 'utility' },
-  { key: 'support', label: 'Help & Support', icon: Headphones, group: 'utility' },
+const NAV: QxNav[] = [
+  { key: 'overview', label: 'Overview', icon: LayoutGrid, group: 'Main' },
+  { key: 'live', label: 'Live Board', icon: Activity, group: 'Main', badge: 2 },
+  { key: 'trends', label: 'Trends', icon: TrendingUp, group: 'Main' },
+  { key: 'branches', label: 'Branches', icon: Building2, group: 'Main' },
+  { key: 'managers', label: 'Managers', icon: Users, group: 'Main' },
+  { key: 'services', label: 'Services', icon: Waypoints, group: 'Analyse' },
+  { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
+  { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
+  { key: 'reports', label: 'Reports', icon: FileText, group: 'Analyse' },
+  { key: 'settings', label: 'Settings', icon: Settings, group: 'Account' },
+  { key: 'support', label: 'Help & Support', icon: Headphones, group: 'Account' },
 ];
 
-const MOCK_ADMIN = {
-  admin: {
-    name: 'Debra Samuels',
-    role: 'executive' as const,
-    staffRecord: {
-      id: 'stf-preview', email: 'debra.samuels@taj.gov.jm', full_name: 'Debra Samuels',
-      staff_code: 'TAJ-EXEC-01', role_name: 'executive' as const, role_label: 'Executive',
-      business_id: 'biz-taj-001', business_name: 'Tax Administration Jamaica',
-      branch_id: 'br-taj-kgn', branch_name: 'Half Way Tree',
-    },
-  },
-  loading: false,
-  error: null,
-  login: async () => ({ error: null }),
-  logout: async () => { /* preview: no-op */ },
-  checkAuth: async () => { /* preview: no-op */ },
-};
-
-const ALERTS: AlertItem[] = [
-  { id: 'idle:Marcia Brown:TRN-3', tone: 'crit', title: 'Marcia Brown idle 62m', body: 'Window TRN-3 — no one called in 62 min while 8 wait.', tab: 'overview' },
-  { id: 'slow:PAY-2:Tax Payments', tone: 'warn', title: 'PAY-2 slower than usual', body: 'Tax Payments ~38m vs usual ~20m.', tab: 'overview' },
-  { id: 'target:avg_wait_minutes', tone: 'warn', title: 'Average Wait at risk', body: 'Now 26 · target 20 · projected 24.', tab: 'targets' },
-];
-
-// A believable week/month of demand so the shapes read like real traffic.
-const SERIES = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
+const SERVED = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
 const PRIOR = [301, 318, 366, 392, 401, 372, 448, 431, 470, 486, 462, 511, 505, 528];
-const LABELS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
+const DAYS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
 
-type BranchRow = { id: string; name: string; parish: string; waiting: number; wait: number; score: number; open: boolean };
-const BRANCHES: BranchRow[] = [
-  { id: 'br-taj-kgn', name: 'Kingston — Half Way Tree', parish: 'Kingston', waiting: 34, wait: 37, score: 62, open: true },
-  { id: 'br-taj-por', name: 'Portmore', parish: 'St. Catherine', waiting: 18, wait: 21, score: 78, open: true },
-  { id: 'br-taj-mob', name: 'Montego Bay', parish: 'St. James', waiting: 12, wait: 16, score: 84, open: true },
-  { id: 'br-taj-man', name: 'Mandeville', parish: 'Manchester', waiting: 9, wait: 14, score: 87, open: true },
-  { id: 'br-taj-och', name: 'Ocho Rios', parish: 'St. Ann', waiting: 22, wait: 39, score: 58, open: false },
+// `code` is the branch's own short code — far more readable in an avatar tile
+// than parish initials, which made Ocho Rios read as "SA".
+type Branch = { id: string; code: string; name: string; parish: string; mgr: string; waiting: number; wait: number; score: number; state: 'open' | 'busy' | 'closed' };
+const BRANCHES: Branch[] = [
+  { id: 'kgn', code: 'HWT', name: 'Kingston — Half Way Tree', parish: 'Kingston', mgr: 'Andre Blake', waiting: 34, wait: 37, score: 62, state: 'busy' },
+  { id: 'och', code: 'OCH', name: 'Ocho Rios', parish: 'St. Ann', mgr: 'Kemar Lewis', waiting: 22, wait: 39, score: 58, state: 'busy' },
+  { id: 'por', code: 'POR', name: 'Portmore', parish: 'St. Catherine', mgr: 'Tanya Reid', waiting: 18, wait: 21, score: 78, state: 'open' },
+  { id: 'mob', code: 'MBJ', name: 'Montego Bay', parish: 'St. James', mgr: 'Simone Clarke', waiting: 12, wait: 16, score: 84, state: 'open' },
+  { id: 'man', code: 'MAN', name: 'Mandeville', parish: 'Manchester', mgr: 'Devon Hall', waiting: 9, wait: 14, score: 87, state: 'open' },
 ];
+
+const BRANCH_GRID = 'minmax(0,2.2fr) minmax(0,1.2fr) 84px 96px 96px';
 
 export default function DesignPreview() {
   const [tab, setTab] = useState('overview');
   const [q, setQ] = useState('');
   const [period, setPeriod] = useState('30');
-  const [showCompare, setShowCompare] = useState(true);
+  const [scope, setScope] = useState('all');
+  const [cur, setCur] = useState(true);
+  const [prev, setPrev] = useState(true);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [bq, setBq] = useState('');
 
-  const compare = useMemo(() => (showCompare ? PRIOR : null), [showCompare]);
+  const shown = useMemo(() => {
+    const n = bq.trim().toLowerCase();
+    return n ? BRANCHES.filter((b) => `${b.name} ${b.parish} ${b.mgr}`.toLowerCase().includes(n)) : BRANCHES;
+  }, [bq]);
 
   return (
-    <AdminAuthContext.Provider value={MOCK_ADMIN as never}>
-      <Shell
-        roleLabel="Executive"
-        org="Tax Administration Jamaica"
-        place="Half Way Tree"
-        eyebrow="Executive · Tax Administration Jamaica"
-        title={tab === 'overview' ? greetingFor('Debra Samuels') : 'Trends'}
-        subtitle={tab === 'overview'
-          ? 'Five branches, 2,847 customers served this month. Two branches need attention.'
-          : 'How the company is tracking against the targets you set.'}
-        nav={NAV}
-        active={tab}
-        onNav={setTab}
-        search={{ value: q, onChange: setQ, placeholder: 'Search branches, staff, services…' }}
-        alerts={ALERTS}
-        period={{
-          value: period,
-          onChange: setPeriod,
-          options: [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days']],
-          rangeLabel: '9 – 22 July 2026',
-        }}
-        freshness={{ stamp: '2 min ago', onUpdate: () => {}, auto: 'Numbers recalculate automatically every 2 hours' }}
-      >
-        <div className="qa-grid">
-          {/* ── KPI row: number on top, trend along the bottom edge ── */}
-          <Kpi span={3} label="Customers Served" value="2,847" base="Across 5 branches"
-            delta={{ dir: 'up', text: '+12.4%' }} spark={{ values: SERIES }} />
-          <Kpi span={3} label="Average Wait" value={26} unit="min" base="Company target: 20 min"
-            delta={{ dir: 'bad', text: '6 over' }} spark={{ values: [31, 29, 30, 27, 28, 26, 26], tone: 'neg' }} />
-          <Kpi span={3} label="Completed Visits" value="91%" base="2,591 of 2,847"
-            delta={{ dir: 'good', text: 'On target' }} spark={{ values: [86, 88, 87, 89, 90, 91, 91] }} />
-          <Kpi span={3} label="No-Show Rate" value="7.2%" base="205 didn't arrive"
-            delta={{ dir: 'neutral', text: 'Steady' }} spark={{ values: [8, 7.6, 7.8, 7.4, 7.3, 7.2, 7.2], tone: 'neutral' }} />
+    <Shell
+      brand="QMe Now"
+      brandSub="Tax Administration Jamaica"
+      nav={NAV}
+      active={tab}
+      onNav={setTab}
+      theme={theme}
+      onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      notifications={3}
+      account={{ name: 'Debra Samuels', role: 'Executive', email: 'debra.samuels@taj.gov.jm' }}
+      search={{ value: q, onChange: setQ }}
+      context={<><MapPin size={13} /><span>Island-wide</span><b>· 5 branches</b></>}
+      railCard={
+        <div className="qx-railcard">
+          <small>Right now</small>
+          <b>95 people are in line</b>
+          <p>Two branches are over capacity at peak. Half Way Tree needs cover.</p>
+          <button type="button" onClick={() => setTab('live')}>Open live board</button>
+        </div>
+      }
+      head={
+        <Head
+          title={<>{greetingFor('Debra Samuels')}<em>.</em></>}
+          sub="Here's how Tax Administration Jamaica is running this month."
+          live="Live · 2 min ago"
+          right={
+            <>
+              <Pills value={period} onChange={setPeriod}
+                options={[['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days']]} />
+              <span className="qx-datechip"><CalendarDays size={14} />9 – 22 July 2026</span>
+              <button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>
+            </>
+          }
+        />
+      }
+    >
+      <div className="qx-grid">
+        {/* ── the four numbers an executive actually opens this for ── */}
+        <Stat span={3} icon={Users} tone="primary" label="Customers Served"
+          value="2,847" chip={{ dir: 'good', text: '12.4%' }}
+          foot={<>Up <b style={{ color: 'var(--c-good)' }}>314</b> on last month</>}
+          spark={{ values: SERVED }} />
+        <Stat span={3} icon={Clock} tone="bad" label="Average Wait"
+          value={26} unit="min" chip={{ dir: 'bad', text: '6 over' }}
+          foot="Company target is 20 minutes"
+          spark={{ values: [31, 29, 30, 27, 28, 26, 26], tone: 'bad' }} />
+        <Stat span={3} icon={CheckCircle2} tone="good" label="Completed Visits"
+          value="91%" chip={{ dir: 'good', text: 'On target' }}
+          foot="2,591 of 2,847 seen and served"
+          spark={{ values: [86, 88, 87, 89, 90, 91, 91], tone: 'good' }} />
+        <Stat span={3} icon={UserX} tone="warn" label="No-Shows"
+          value="7.2%" chip={{ dir: 'flat', text: 'Steady' }}
+          foot="205 people never arrived"
+          spark={{ values: [8, 7.6, 7.8, 7.4, 7.3, 7.2, 7.2], tone: 'warn' }} />
 
-          {/* ── quiet roll-up band under the headline numbers ── */}
-          <SummaryStrip
-            items={[
-              { label: 'This month', value: '2,847 served' },
-              { label: 'Busiest day', value: 'Wed 22 Jul' },
-              { label: 'Best branch', value: 'Mandeville', tone: 'pos' },
-              { label: 'Needs help', value: 'Ocho Rios', tone: 'neg' },
+        {/* ── the trend, with a like-for-like comparison ── */}
+        <Card span={8} title="Customers Served" cap="Each day against the same stretch last month"
+          tools={
+            <>
+              <Select label="Branch scope" value={scope} onChange={setScope}
+                options={[['all', 'All branches'], ['kgn', 'Half Way Tree'], ['por', 'Portmore'], ['mob', 'Montego Bay']]} />
+              <LegendToggle kind="cur" on={cur} onClick={() => setCur((v) => !v)}>This period</LegendToggle>
+              <LegendToggle kind="prev" on={prev} onClick={() => setPrev((v) => !v)}>Last period</LegendToggle>
+            </>
+          }>
+          <Chart values={cur ? SERVED : PRIOR} labels={DAYS} compare={prev && cur ? PRIOR : null} unit="served" h={236} />
+        </Card>
+
+        {/* ── one clear instruction, with the payoff quantified ── */}
+        <Focus
+          span={4}
+          eyebrow="Do this next"
+          title="Open two more TRN windows at Half Way Tree, 11am–2pm"
+          body="TRN draws about 10 people an hour there with only 2 windows open, so the line compounds straight through midday."
+          stats={[{ label: 'Wait time', value: '−12 min', dir: 'good' }, { label: 'Completion', value: '+8%', dir: 'good' }]}
+          action={{ label: 'View staffing plan', onClick: () => setTab('branches') }}
+        />
+
+        {/* ── where people fall out of the queue ── */}
+        <Card span={4} title="Where the queue leaks" cap="This month, island-wide">
+          <Funnel steps={[
+            { label: 'Joined the line', value: 2847, pct: 100, sub: 'App, walk-in and kiosk', tone: 'primary' },
+            { label: 'Called forward', value: 2698, pct: 95, sub: '149 left before being called', tone: 'primary' },
+            { label: 'Actually served', value: 2591, pct: 91, sub: '107 did not answer the call', tone: 'good' },
+            { label: 'Gave up waiting', value: 149, pct: 5, sub: 'Average 23 min before leaving', tone: 'bad' },
+          ]} />
+        </Card>
+
+        {/* ── how people reach the queue (real channel-mix data) ── */}
+        <Card span={4} title="How people join" cap="Self-service is cheaper to run than a counter">
+          <Donut
+            centre={{ value: '61%', label: 'Self-serve' }}
+            data={[
+              { label: 'QMe app', value: 1418, color: 'var(--c-primary)' },
+              { label: 'Kiosk', value: 318, color: 'var(--c-violet)' },
+              { label: 'Walk-in desk', value: 1111, color: 'var(--c-cyan)' },
             ]}
-            note="Two Kingston branches are running over capacity at peak."
-            action={{ label: 'See the breakdown', onClick: () => setTab('branches') }}
           />
+        </Card>
 
-          {/* ── main chart: filters + this-vs-last comparison ── */}
-          <Card span={8} title="Customers Served — All Branches"
-            cap="Each day against the same stretch last period"
-            tools={
-              <div className="qa-cardtools">
-                <button type="button" className={`qa-legendtog${showCompare ? ' on' : ''}`}
-                  aria-pressed={showCompare} onClick={() => setShowCompare((s) => !s)}>
-                  <i className="sw cur" />This period
-                </button>
-                <button type="button" className={`qa-legendtog${showCompare ? ' on' : ''}`}
-                  aria-pressed={showCompare} onClick={() => setShowCompare((s) => !s)}>
-                  <i className="sw prev" />Last period
-                </button>
-                <MoreBtn onClick={() => setTab('trends')} />
-              </div>
-            }
-          >
-            <Area values={SERIES} labels={LABELS} compare={compare} unitLabel="served" h={232} />
-          </Card>
+        {/* ── health + the anomaly worth reading ── */}
+        <Card span={4} title="Company Health" cap="Wait, completion and no-show control">
+          <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 12 }}>
+            <Ring value={74} label="of 100" />
+          </div>
+          <Note icon={AlertTriangle} tone="warn" title="Ocho Rios service time is unusual"
+            body="38.8 min against a typical 20.7 — a chronic slowdown, not a one-off day." />
+        </Card>
 
-          {/* ── What To Improve, as a single confident recommendation ── */}
-          <ImpactCard
-            span={4}
-            tone="accent"
-            eyebrow="What to improve"
-            title="Open two more windows at Half Way Tree, 11am–2pm"
-            body="TRN draws ~10 people an hour there with only 2 windows typically open, so the line compounds through midday."
-            stats={[
-              { label: 'Wait time', value: '−12 min', dir: 'good' },
-              { label: 'Completion', value: '+8%', dir: 'good' },
-            ]}
-            action={{ label: 'View staffing plan', onClick: () => setTab('branches') }}
-          />
-
-          {/* ── searchable list, the "product list" pattern ── */}
-          <ListPanel<BranchRow>
-            span={8}
-            title="Branches"
-            cap="Live queue and health, highest need first"
-            items={BRANCHES}
-            placeholder="Search branches or parish…"
-            onRefresh={() => {}}
-            columns={['Branch', 'Waiting', 'Est. wait', 'Health']}
-            filter={(b, needle) => b.name.toLowerCase().includes(needle) || b.parish.toLowerCase().includes(needle)}
+        {/* ── branches, searchable, worst first ── */}
+        <Card span={12} title={<>Branches<span className="qx-count">{shown.length}</span></>}
+          cap="Worst first, so the problem is the first thing you read"
+          tools={
+            <>
+              <InlineSearch value={bq} onChange={setBq} placeholder="Search branch, parish or manager…" />
+              <IconBtn label="Refresh"><RefreshIcon size={15} /></IconBtn>
+            </>
+          }>
+          <Table
+            grid={BRANCH_GRID}
+            columns={['Branch', 'Manager', 'Waiting', 'Est. wait', 'Health']}
+            items={shown}
+            empty={`No branches match “${bq}”.`}
             renderRow={(b) => (
-              <div className="qa-lrow" key={b.id}>
-                <div className="qa-lmain">
-                  <b>{b.name}</b>
-                  <small>{b.parish} · {b.open ? 'Open now' : 'Closed'}</small>
+              <Row key={b.id} grid={BRANCH_GRID} onClick={() => setTab('branches')}>
+                <div className="qx-cellmain">
+                  <span className="qx-av" style={avatarStyle(b.name)}>{b.code}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{b.name}</b>
+                    <small><Status kind={b.state}>{b.state === 'busy' ? 'Over capacity' : b.state === 'open' ? 'Running well' : 'Closed'}</Status></small>
+                  </div>
                 </div>
-                <div className="qa-lnum">{b.waiting}</div>
-                <div className="qa-lnum">{b.wait}<small> min</small></div>
-                <div className="qa-lend">
-                  <Delta dir={b.score >= 75 ? 'good' : 'bad'}>{b.score}</Delta>
+                <div className="qx-cellmain">
+                  <span className="qx-av" style={avatarStyle(b.mgr)}>{initials(b.mgr)}</span>
+                  <div style={{ minWidth: 0 }}><b>{b.mgr}</b><small>{b.parish}</small></div>
                 </div>
-              </div>
+                <div className="qx-num">{b.waiting}</div>
+                <div className="qx-num">{b.wait}<u> min</u></div>
+                <div className="qx-end"><Chip dir={b.score >= 75 ? 'good' : 'bad'}>{b.score}</Chip></div>
+              </Row>
             )}
           />
+        </Card>
 
-          <Card span={4} title="Company Health" cap="Out of 100, across every branch">
-            <div style={{ display: 'grid', placeItems: 'center', padding: '4px 0 10px' }}>
-              <ScoreRing value={74} max={100} size={132} />
-            </div>
-            <Rec tone="warn" icon={<AlertTriangle size={16} />}
-              title="Ocho Rios service time is unusual"
-              body="38.8 min vs a typical 20.7 — a chronic slowdown, not a one-off." />
-          </Card>
-
-          <Card span={12} title="Busy Times — All Branches"
-            cap="Staff the darkest squares; the pale ones are safe for breaks and training">
-            <Heatmap
-              cols={9}
-              colLabels={['8a', '9a', '10a', '11a', '12p', '1p', '2p', '3p', '4p']}
-              rows={[
-                { label: 'Half Way Tree', levels: [1, 2, 3, 3, 3, 2, 3, 2, 1] },
-                { label: 'Portmore', levels: [1, 2, 2, 3, 2, 1, 2, 1, 1] },
-                { label: 'Montego Bay', levels: [0, 1, 2, 2, 2, 1, 1, 1, 0] },
-                { label: 'Mandeville', levels: [0, 1, 1, 2, 1, 1, 1, 0, 0] },
-                { label: 'Ocho Rios', levels: [1, 2, 3, 3, 2, 2, 2, 1, 1] },
-              ]}
-            />
-          </Card>
-
-          <Card span={12} title="Density check" cap="Nothing below this line should be dead space">
-            <Rec tone="info" icon={<Clock size={16} />}
-              title="Chrome is now ~112px instead of ~196px"
-              body="Top bar (52) + one page head (60) replaces top bar + a 38px title band + a separate freshness strip." />
-          </Card>
-        </div>
-      </Shell>
-    </AdminAuthContext.Provider>
+        {/* ── busy times ── */}
+        <Card span={12} title="Busy Times" cap="Staff the darkest squares; the pale ones are safe for breaks and training">
+          <Heatmap
+            colLabels={['8a', '9a', '10a', '11a', '12p', '1p', '2p', '3p', '4p']}
+            rows={[
+              { label: 'Half Way Tree', levels: [1, 2, 3, 3, 3, 2, 3, 2, 1] },
+              { label: 'Ocho Rios', levels: [1, 2, 3, 3, 2, 2, 2, 1, 1] },
+              { label: 'Portmore', levels: [1, 2, 2, 3, 2, 1, 2, 1, 1] },
+              { label: 'Montego Bay', levels: [0, 1, 2, 2, 2, 1, 1, 1, 0] },
+              { label: 'Mandeville', levels: [0, 1, 1, 2, 1, 1, 1, 0, 0] },
+            ]}
+          />
+        </Card>
+      </div>
+    </Shell>
   );
 }
