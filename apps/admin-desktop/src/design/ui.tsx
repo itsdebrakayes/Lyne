@@ -162,7 +162,10 @@ export function Head({ title, sub, live, right }: { title: ReactNode; sub?: stri
   return (
     <section className="qx-head">
       <div className="qx-headL">
-        <h1>{title}{live ? <> <span className="qx-live"><i />{live}</span></> : null}</h1>
+        <div className="qx-headtop">
+          <h1>{title}</h1>
+          {live ? <span className="qx-live"><i />{live}</span> : null}
+        </div>
         {sub ? <p>{sub}</p> : null}
       </div>
       {right ? <div className="qx-headR">{right}</div> : null}
@@ -262,16 +265,26 @@ export function Spark({ values, tone = 'primary' }: { values: number[]; tone?: T
 }
 
 /* ─────────────────────── area chart ─────────────────────── */
-export function Chart({ values, labels, compare, compareLabel = 'Last period', unit, target, targetLabel, h = 250 }: {
+/**
+ * Two periods, two colours, each named. Period A is the current stretch, period
+ * B is the SAME LENGTH immediately before it (last 7 days vs the 7 before, and
+ * so on), so the two lines are genuinely comparable and each is readable on its
+ * own via the legend. Either can be switched off independently.
+ */
+export function Chart({
+  values, labels, compare, compareLabel = 'Last Period', label = 'This Period',
+  unit, target, targetLabel, h = 250, showA = true, showB = true,
+}: {
   values: number[]; labels?: string[];
-  compare?: number[] | null; compareLabel?: string;
+  compare?: number[] | null; compareLabel?: string; label?: string;
   unit?: string; target?: number; targetLabel?: string; h?: number;
+  showA?: boolean; showB?: boolean;
 }) {
   const w = 720, padT = 18, padR = 12, padB = 28, padL = 12;
   const n = values.length || 1;
   const ref = useRef<SVGSVGElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const ids = useMemo(() => ({ a: nextId('qxa'), g: nextId('qxg') }), []);
+  const ids = useMemo(() => ({ a: nextId('qxa'), b: nextId('qxb'), g: nextId('qxg') }), []);
   const cmp = compare && compare.length > 1 ? compare : null;
 
   let lo = Math.min(...values, ...(cmp || [])), hi = Math.max(...values, ...(cmp || []));
@@ -292,33 +305,45 @@ export function Chart({ values, labels, compare, compareLabel = 'Last period', u
     setHover(Math.max(0, Math.min(n - 1, Math.round((vx - padL) / step))));
   };
 
+  // The tooltip names both periods and colour-codes each value to its line, so
+  // there is never a question about which number belongs to which stretch.
   let tip: ReactNode = null;
-  if (hover != null && values[hover] != null) {
-    const rows = [
-      `${labels?.[hover] ?? `#${hover + 1}`} · ${Math.round(values[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`,
-      cmp?.[hover] != null ? `${compareLabel} · ${Math.round(cmp[hover]).toLocaleString()}` : null,
-    ].filter(Boolean) as string[];
-    const mx = xs(hover), my = ys(values[hover]);
-    const tw = Math.max(...rows.map((s) => s.length)) * 5.8 + 20;
-    const th = 24 + (rows.length - 1) * 14;
-    const bx = Math.min(Math.max(mx - tw / 2, padL), w - padR - tw);
-    const by = my - (th + 11) < 2 ? my + 13 : my - (th + 11);
-    tip = (
-      <g style={{ pointerEvents: 'none' }}>
-        <line x1={mx.toFixed(1)} y1={my.toFixed(1)} x2={mx.toFixed(1)} y2={h - padB} stroke="var(--c-primary)" strokeWidth="1" strokeDasharray="2 3" opacity=".55" />
-        <circle cx={mx.toFixed(1)} cy={my.toFixed(1)} r="7" fill="var(--c-primary)" opacity=".16" />
-        <circle cx={mx.toFixed(1)} cy={my.toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
-        <rect x={bx.toFixed(1)} y={by} width={tw.toFixed(1)} height={th} rx="9" fill="var(--c-surface)" stroke="var(--c-line-2)" />
-        {rows.map((s, i) => (
-          <text key={i} x={(bx + 10).toFixed(1)} y={by + 16 + i * 14}
-            fill={i === 0 ? 'var(--c-text)' : 'var(--c-faint)'} fontSize={i === 0 ? 11.5 : 10.5} fontWeight="700">{s}</text>
-        ))}
-      </g>
-    );
+  if (hover != null) {
+    const rows: Array<{ t: string; c: string; w: number }> = [];
+    rows.push({ t: labels?.[hover] ?? `#${hover + 1}`, c: 'var(--c-text)', w: 700 });
+    if (showA && values[hover] != null) {
+      rows.push({ t: `${label} · ${Math.round(values[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-primary)', w: 800 });
+    }
+    if (showB && cmp?.[hover] != null) {
+      rows.push({ t: `${compareLabel} · ${Math.round(cmp[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-second)', w: 800 });
+    }
+    const anchorV = showA && values[hover] != null ? values[hover] : cmp?.[hover];
+    if (anchorV != null && rows.length > 1) {
+      const mx = xs(hover), my = ys(anchorV);
+      const tw = Math.max(...rows.map((r) => r.t.length)) * 5.9 + 20;
+      const th = 12 + rows.length * 15;
+      const bx = Math.min(Math.max(mx - tw / 2, padL), w - padR - tw);
+      const by = my - (th + 11) < 2 ? my + 13 : my - (th + 11);
+      tip = (
+        <g style={{ pointerEvents: 'none' }}>
+          <line x1={mx.toFixed(1)} y1={padT} x2={mx.toFixed(1)} y2={h - padB} stroke="var(--c-faint)" strokeWidth="1" strokeDasharray="2 3" opacity=".5" />
+          {showA && values[hover] != null ? (
+            <circle cx={mx.toFixed(1)} cy={ys(values[hover]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
+          ) : null}
+          {showB && cmp?.[hover] != null ? (
+            <circle cx={mx.toFixed(1)} cy={ys(cmp[hover]).toFixed(1)} r="4" fill="var(--c-second)" stroke="var(--c-surface)" strokeWidth="2" />
+          ) : null}
+          <rect x={bx.toFixed(1)} y={by} width={tw.toFixed(1)} height={th} rx="10" fill="var(--c-surface)" stroke="var(--c-line-2)" />
+          {rows.map((r, i) => (
+            <text key={i} x={(bx + 10).toFixed(1)} y={by + 17 + i * 15} fill={r.c} fontSize={i === 0 ? 11 : 11.5} fontWeight={r.w}>{r.t}</text>
+          ))}
+        </g>
+      );
+    }
   }
 
   return (
-    <svg ref={ref} viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="none"
+    <svg ref={ref} viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" preserveAspectRatio="none"
       onPointerMove={onMove} onPointerLeave={() => setHover(null)}
       style={{ display: 'block', overflow: 'visible', cursor: 'crosshair', touchAction: 'none' }}>
       <rect x="0" y="0" width={w} height={h} fill="transparent" />
@@ -326,6 +351,10 @@ export function Chart({ values, labels, compare, compareLabel = 'Last period', u
         <linearGradient id={ids.a} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--c-primary)" stopOpacity="0.28" />
           <stop offset="100%" stopColor="var(--c-primary)" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={ids.b} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--c-second)" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="var(--c-second)" stopOpacity="0" />
         </linearGradient>
         <filter id={ids.g} x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter>
       </defs>
@@ -336,11 +365,18 @@ export function Chart({ values, labels, compare, compareLabel = 'Last period', u
         <line x1={padL} y1={ys(target).toFixed(1)} x2={w - padR} y2={ys(target).toFixed(1)} stroke="var(--c-warn)" strokeWidth="1.5" strokeDasharray="6 4" />
         {targetLabel ? <text x={w - padR} y={(ys(target) - 5).toFixed(1)} textAnchor="end" fill="var(--c-warn)" fontSize="10.5" fontWeight="700">{targetLabel}</text> : null}
       </>) : null}
-      <path d={area} fill={`url(#${ids.a})`} />
-      {cmpLine ? <path d={cmpLine} fill="none" stroke="var(--c-faint)" strokeWidth="1.8" strokeDasharray="5 4" strokeLinecap="round" opacity=".8" vectorEffect="non-scaling-stroke" /> : null}
-      <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" filter={`url(#${ids.g})`} opacity=".45" vectorEffect="non-scaling-stroke" />
-      <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={xs(n - 1).toFixed(1)} cy={ys(values[n - 1]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
+      {/* period B — its own colour and its own soft fill, not a grey ghost */}
+      {showB && cmpLine ? (<>
+        <path d={`${cmpLine} L${xs(n - 1).toFixed(1)} ${h - padB} L${xs(0).toFixed(1)} ${h - padB} Z`} fill={`url(#${ids.b})`} />
+        <path d={cmpLine} fill="none" stroke="var(--c-second)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </>) : null}
+      {/* period A — the subject, with the glow */}
+      {showA ? (<>
+        <path d={area} fill={`url(#${ids.a})`} />
+        <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" filter={`url(#${ids.g})`} opacity=".45" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={xs(n - 1).toFixed(1)} cy={ys(values[n - 1]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
+      </>) : null}
       {tip}
       {labels ? labels.map((l, i) => {
         if (n > 16 && i % 2) return null;
@@ -350,10 +386,13 @@ export function Chart({ values, labels, compare, compareLabel = 'Last period', u
   );
 }
 
-export function LegendToggle({ on, onClick, kind, children }: { on: boolean; onClick: () => void; kind: 'cur' | 'prev'; children: ReactNode }) {
+/** One named series in its own colour — click to show/hide that period. */
+export function LegendToggle({ on, onClick, series, children }: {
+  on: boolean; onClick: () => void; series: 'a' | 'b'; children: ReactNode;
+}) {
   return (
-    <button type="button" className={`qx-legtog${on ? ' on' : ''}`} aria-pressed={on} onClick={onClick}>
-      <i className={kind} />{children}
+    <button type="button" className="qx-legtog" aria-pressed={on} onClick={onClick}>
+      <i className={series} />{children}
     </button>
   );
 }
@@ -521,26 +560,107 @@ export function Note({ icon: Icon, tone, title, body }: { icon: ElementType; ton
 }
 
 /* ─────────────────────── heatmap ─────────────────────── */
-export function Heatmap({ colLabels, rows }: { colLabels: string[]; rows: Array<{ label: string; levels: number[] }> }) {
-  const style = { '--cols': colLabels.length } as CSSProperties;
+/**
+ * Ported from the reference implementation she approved: a real table with
+ * separated cells, an alpha-scaled single hue, and — the part that was missing —
+ * THE VALUE PRINTED IN EACH CELL, so the grid can be read exactly and not just
+ * eyeballed. `data` is 0..1 intensity; `display` optionally supplies what to
+ * print (e.g. actual visit counts) instead of the percentage.
+ */
+export function Heatmap({ colLabels, rowLabels, data, display, unit = '%' }: {
+  colLabels: string[];
+  rowLabels: string[];
+  /** rows × cols, each 0..1 */
+  data: number[][];
+  /** rows × cols of what to print; defaults to the rounded percentage */
+  display?: (string | number)[][];
+  unit?: string;
+}) {
+  const bg = (v: number) => {
+    const s = Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+    return `color-mix(in oklab, var(--c-primary) ${Math.round((0.08 + s * 0.80) * 100)}%, transparent)`;
+  };
   return (
     <>
-      <div className="qx-heat">
-        <div className="qx-heatrow" style={style}>
-          <span />
-          {colLabels.map((c) => <span key={c} className="ch">{c}</span>)}
-        </div>
-        {rows.map((r) => (
-          <div className="qx-heatrow" style={style} key={r.label}>
-            <span className="rl">{r.label}</span>
-            {r.levels.map((l, i) => <span key={i} className={`qx-cell l${Math.max(0, Math.min(3, l))}`} />)}
+      <div className="qx-heatscroll">
+        <table className="qx-heattable">
+          <thead>
+            <tr>
+              <th />
+              {colLabels.map((c) => <th key={c}>{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rowLabels.map((r, i) => (
+              <tr key={r}>
+                <td className="rl">{r}</td>
+                {colLabels.map((c, j) => {
+                  const v = Math.max(0, Math.min(1, data[i]?.[j] ?? 0));
+                  const shown = display?.[i]?.[j] ?? `${Math.round(v * 100)}`;
+                  return (
+                    <td key={c}>
+                      <div className="qx-hcell" style={{ background: bg(v) }}
+                        title={`${r} · ${c}: ${Math.round(v * 100)}${unit}`}>{shown}</div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="qx-heatleg">
+        Quiet
+        <span>
+          {[0, 0.33, 0.66, 1].map((v) => <i key={v} style={{ background: bg(v) }} />)}
+        </span>
+        Busiest
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────── channel split ─────────────────────── */
+/**
+ * Two real channels only — the QMe app and the branch kiosk. Those are the only
+ * two ways a ticket can be created in this product, so a donut (which implies a
+ * whole pie of many slices) is the wrong form. A split bar reads the share at a
+ * glance and stays honest at n=2.
+ */
+export function Split({ segments, note }: {
+  segments: Array<{ label: string; value: number; color: string; sub?: string }>;
+  note?: string;
+}) {
+  const total = segments.reduce((t, s) => t + s.value, 0) || 1;
+  return (
+    <div className="qx-split">
+      <div className="qx-splitbar">
+        {segments.map((s) => {
+          const pct = (s.value / total) * 100;
+          return (
+            <i key={s.label} style={{ background: s.color, width: `${pct}%` }}>
+              {pct >= 12 ? `${Math.round(pct)}%` : null}
+            </i>
+          );
+        })}
+      </div>
+      <div className="qx-splitrows">
+        {segments.map((s) => (
+          <div className="qx-splitrow" key={s.label}>
+            <span className="sw" style={{ background: s.color }} />
+            <div style={{ minWidth: 0 }}>
+              <b>{s.label}</b>
+              {s.sub ? <small>{s.sub}</small> : null}
+            </div>
+            <div className="n">
+              <b>{s.value.toLocaleString()}</b>
+              <small>{Math.round((s.value / total) * 100)}% of tickets</small>
+            </div>
           </div>
         ))}
       </div>
-      <div className="qx-heatleg">
-        Quiet<span><i className="qx-cell l0" style={{ height: 9 }} /><i className="qx-cell l1" style={{ height: 9 }} /><i className="qx-cell l2" style={{ height: 9 }} /><i className="qx-cell l3" style={{ height: 9 }} /></span>Busiest
-      </div>
-    </>
+      {note ? <div style={{ color: 'var(--c-dim)', fontSize: 11.5, fontWeight: 500 }}>{note}</div> : null}
+    </div>
   );
 }
 
