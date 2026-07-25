@@ -35,7 +35,9 @@ interface AdminAuthContextValue {
   checkAuth: () => Promise<void>;
 }
 
-const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
+// Exported so the DEV-only design preview can inject a mock account and render
+// the real Shell without a Supabase session. Production code uses the provider.
+export const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 function timeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
   return Promise.race([

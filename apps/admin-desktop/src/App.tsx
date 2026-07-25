@@ -6,6 +6,7 @@ import SupervisorDashboard from './pages/SupervisorDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import LoadingScreen from './components/LoadingScreen';
+import DesignPreview from './pages/DesignPreview';
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { admin, loading } = useAdminAuth();
@@ -32,6 +33,10 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RoleRouter />} />
+
+      {/* Design harness — dev builds only, so it can never ship. Lets the layout
+          be reviewed without a linked Supabase login. */}
+      {import.meta.env.DEV ? <Route path="/design-preview" element={<DesignPreview />} /> : null}
 
       <Route
         path="/staff"
