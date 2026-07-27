@@ -425,3 +425,11 @@
 /* The chart measures this box and draws at its real pixel size, so nothing is
    stretched and the axis text stays crisp. */
 .qx-chartbox { flex: 1 1 auto; min-width: 0; }
+
+/* table footer — totals pinned to the base of the card */
+.qx-tfoot { display: grid; gap: 10px; align-items: center; margin-top: auto; padding: 13px 4px 2px;
+  border-top: 1.5px solid var(--c-line-2); }
+.qx-tfoot > span:first-child { color: var(--c-dim); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.qx-tfoot b { font-size: 14px; font-weight: 800; color: var(--c-text); }
+.qx-tfoot b u { text-decoration: none; font-size: 10.5px; color: var(--c-faint); font-weight: 700; }
+.qx-tfootnote { color: var(--c-warn); font-size: 11.5px; font-weight: 700; }
