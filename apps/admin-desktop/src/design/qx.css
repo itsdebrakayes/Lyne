@@ -433,3 +433,70 @@
 .qx-tfoot b { font-size: 14px; font-weight: 800; color: var(--c-text); }
 .qx-tfoot b u { text-decoration: none; font-size: 10.5px; color: var(--c-faint); font-weight: 700; }
 .qx-tfootnote { color: var(--c-warn); font-size: 11.5px; font-weight: 700; }
+
+/* ═══════════ Supervisor desk board ═══════════ */
+.qs-board { display: flex; flex-direction: column; gap: 18px; }
+.qs-lanehead { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--c-dim); margin-bottom: 9px; }
+/* narrow enough that a 4-desk service fits one row instead of wrapping a
+   single card onto its own line and stranding the space beside it */
+.qs-desks { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.qs-desk {
+  min-height: 88px; border-radius: 15px; padding: 11px 12px; cursor: default;
+  border: 1.5px dashed var(--c-line-2); background: var(--c-surface-2);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.qs-desk.filled { border-style: solid; border-color: var(--glass-line); background: var(--glass); }
+/* while someone is picked, every desk advertises itself as a drop target */
+.qs-desk.target { border-color: var(--c-primary); background: var(--c-primary-soft); cursor: pointer; }
+.qs-desklabel { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-dim); }
+.qs-empty { flex: 1; display: grid; place-items: center; color: var(--c-faint); font-size: 12.5px; font-weight: 700; }
+.qs-desk.target .qs-empty { color: var(--c-primary); }
+.qs-person {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  border: 1px solid var(--glass-line); background: var(--c-surface); border-radius: 12px; padding: 8px 9px;
+}
+.qs-person.on { cursor: grab; }
+.qs-person .qx-av { width: 30px; height: 30px; font-size: 11px; }
+.qs-person b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-person small { display: block; color: var(--c-faint); font-size: 10.5px; }
+.qs-remove { margin-left: auto; border: 0; background: transparent; color: var(--c-faint); font-size: 17px; line-height: 1; padding: 0 3px; }
+.qs-remove:hover { color: var(--c-bad); }
+.qs-pool { display: flex; flex-direction: column; gap: 8px; }
+.qs-person.pick { cursor: pointer; }
+.qs-person.pick:hover { border-color: var(--c-primary); }
+.qs-person.pick.on { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+
+/* ═══════════ Line staff — the window ═══════════ */
+.ql-now {
+  border-radius: var(--r); padding: 24px; color: #E9EEF6; position: relative; overflow: hidden;
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 70%);
+  box-shadow: var(--sh-lift); border: 1px solid rgba(255,255,255,.07);
+  display: flex; flex-direction: column;
+}
+.ql-now::after { content: ''; position: absolute; inset: -45% -25% auto auto; width: 66%; height: 150%;
+  background: radial-gradient(circle at 72% 28%, color-mix(in oklab, var(--c-primary-bright) 40%, transparent), transparent 62%); pointer-events: none; }
+.ql-now > * { position: relative; }
+.ql-nowtop { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ql-badge { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.ql-timer { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; opacity: .8; }
+.ql-nowno { font-size: clamp(46px, 6vw, 70px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin-top: 18px; }
+.ql-nowname { font-size: 22px; font-weight: 600; opacity: .88; margin-top: 6px; }
+.ql-nowsvc { font-size: 13.5px; font-weight: 600; opacity: .6; margin-top: 3px; }
+.ql-actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.ql-act {
+  flex: 1 1 0; min-width: 130px; min-height: 54px; border-radius: 14px; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.10); color: #fff; font-size: 14.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+}
+.ql-act:hover { background: rgba(255,255,255,.16); }
+.ql-act.done { background: #fff; color: #12203A; border-color: #fff; }
+.ql-act.warn { background: rgba(220,74,80,.22); border-color: rgba(220,74,80,.45); color: #FFD9D9; }
+.ql-next { display: flex; align-items: center; gap: 10px; padding: 11px; border-radius: 13px; background: var(--c-surface-2); border: 1px solid var(--c-line); margin-bottom: 10px; }
+.ql-next .qx-av { width: 34px; height: 34px; }
+.ql-next b { display: block; font-size: 14px; font-weight: 800; }
+.ql-next small { display: block; color: var(--c-dim); font-size: 11.5px; }
+/* ticket number carries its state as colour, so the line is scannable */
+.ql-tno { display: inline-block; padding: 5px 11px; border-radius: 9px; font-size: 13px; font-weight: 800; letter-spacing: .01em; }
+.ql-tno.waiting { background: var(--c-primary-soft); color: var(--c-primary); }
+.ql-tno.called { background: var(--c-warn-soft); color: var(--c-warn); }
+.ql-tno.noresponse { background: var(--c-bad-soft); color: var(--c-bad); }

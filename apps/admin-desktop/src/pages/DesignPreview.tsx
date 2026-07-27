@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarDays, CheckCircle2, Clock, FileText, Grid3x3,
   Headphones, LayoutGrid, MapPin, Settings, Target, TrendingUp, UserX, Users, Waypoints,
-  UserCheck, Timer, PauseCircle,
+  UserCheck, Activity, ClipboardList, Gauge, History, PhoneOff, SkipForward, Check, Hand,
 } from 'lucide-react';
 import {
   Shell, Head, Pills, Select, Card, Stat, Chart, LegendToggle, Funnel, Split, Ring,
@@ -106,7 +106,10 @@ const heatData = (counts: number[][]) => {
 };
 
 /* ══════════════════════ preview shell ══════════════════════ */
-type Role = 'executive' | 'manager';
+type Role = 'executive' | 'manager' | 'supervisor' | 'linestaff';
+const ROLE_LABEL: Record<Role, string> = {
+  linestaff: 'Line Staff', supervisor: 'Supervisor', manager: 'Branch Manager', executive: 'Executive',
+};
 
 export default function DesignPreview() {
   const [role, setRole] = useState<Role>('manager');
@@ -114,7 +117,19 @@ export default function DesignPreview() {
   const [q, setQ] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  const isExec = role === 'executive';
+  const NAV_FOR: Record<Role, QxNav[]> = { executive: EXEC_NAV, manager: MGR_NAV, supervisor: SUP_NAV, linestaff: LINE_NAV };
+  const ACCOUNT: Record<Role, { name: string; role: string }> = {
+    executive: { name: 'Debra Samuels', role: 'Executive' },
+    manager: { name: 'Andre Blake', role: 'Branch Manager' },
+    supervisor: { name: 'Tanya Reid', role: 'Supervisor' },
+    linestaff: { name: 'Marcia Brown', role: 'Line Staff' },
+  };
+  const CONTEXT: Record<Role, React.ReactNode> = {
+    executive: <><MapPin size={13} /><span>Island-Wide</span><b>· 5 Branches</b></>,
+    manager: <><MapPin size={13} /><span>Kingston</span><b>· Half Way Tree</b></>,
+    supervisor: <><MapPin size={13} /><span>Half Way Tree</span><b>· Registrations Section</b></>,
+    linestaff: <><MapPin size={13} /><span>Half Way Tree</span><b>· Window TRN-3</b></>,
+  };
 
   return (
     <>
@@ -123,13 +138,13 @@ export default function DesignPreview() {
         position: 'fixed', zIndex: 200, right: 16, bottom: 16, display: 'flex', gap: 6,
         background: '#12203A', padding: 6, borderRadius: 14, boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)',
       }}>
-        {(['manager', 'executive'] as Role[]).map((r) => (
+        {(['linestaff', 'supervisor', 'manager', 'executive'] as Role[]).map((r) => (
           <button key={r} type="button" onClick={() => { setRole(r); setTab('overview'); }}
             style={{
-              border: 0, borderRadius: 10, padding: '7px 13px', fontSize: 12, fontWeight: 700,
+              border: 0, borderRadius: 10, padding: '7px 12px', fontSize: 11.5, fontWeight: 700,
               background: role === r ? '#2E6FC7' : 'transparent', color: role === r ? '#fff' : '#93A3BC',
             }}>
-            {r === 'manager' ? 'Branch Manager' : 'Executive'}
+            {ROLE_LABEL[r]}
           </button>
         ))}
       </div>
@@ -137,37 +152,25 @@ export default function DesignPreview() {
       <Shell
         brand="QMe Now"
         brandSub="Tax Administration Jamaica"
-        nav={isExec ? EXEC_NAV : MGR_NAV}
+        nav={NAV_FOR[role]}
         active={tab}
         onNav={setTab}
         theme={theme}
         onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-        notifications={isExec ? 3 : 2}
-        account={isExec
-          ? { name: 'Debra Samuels', role: 'Executive' }
-          : { name: 'Andre Blake', role: 'Branch Manager' }}
-        search={{ value: q, onChange: setQ, placeholder: isExec ? 'Search branches, staff, services…' : 'Search staff, counters, services…' }}
-        context={isExec
-          ? <><MapPin size={13} /><span>Island-Wide</span><b>· 5 Branches</b></>
-          : <><MapPin size={13} /><span>Kingston</span><b>· Half Way Tree</b></>}
-        railCard={isExec ? (
-          <div className="qx-railcard">
-            <small>Right Now</small>
-            <b>95 People Are In Line</b>
-            <p>Two branches are over capacity at peak. Half Way Tree needs cover.</p>
-            <button type="button" onClick={() => setTab('branches')}>See Which Branches</button>
-          </div>
-        ) : (
-          <div className="qx-railcard">
-            <small>Right Now</small>
-            <b>34 People Are Waiting</b>
-            <p>TRN is the pressure point — 14 waiting on 2 of 4 windows.</p>
-            <button type="button" onClick={() => setTab('staff')}>Open Staff &amp; Counters</button>
-          </div>
-        )}
-        head={isExec ? <ExecHead /> : <MgrHead />}
+        notifications={role === 'executive' ? 3 : 2}
+        account={ACCOUNT[role]}
+        search={{ value: q, onChange: setQ, placeholder: 'Search…' }}
+        context={CONTEXT[role]}
+        railCard={<RailCard role={role} onNav={setTab} />}
+        head={role === 'executive' ? <ExecHead />
+          : role === 'manager' ? <MgrHead />
+          : role === 'supervisor' ? <SupHead />
+          : <LineHead />}
       >
-        {isExec ? <ExecOverview onNav={setTab} /> : <ManagerOverview onNav={setTab} />}
+        {role === 'executive' ? <ExecOverview onNav={setTab} />
+          : role === 'manager' ? <ManagerOverview onNav={setTab} />
+          : role === 'supervisor' ? <SupervisorBoard />
+          : <LineStaffBoard />}
       </Shell>
     </>
   );
@@ -459,6 +462,332 @@ function ManagerOverview({ onNav }: { onNav: (k: string) => void }) {
       <Card span={12} title="Busy Times" cap="Visits per hour by service. Staff the darkest cells; the pale ones are safe for breaks and training.">
         <Heatmap rowLabels={MGR_HEAT_ROWS} colLabels={HOURS} data={heatData(MGR_HEAT)} display={MGR_HEAT} />
       </Card>
+    </div>
+  );
+}
+
+/* ══════════════════════ SUPERVISOR ══════════════════════ */
+const SUP_NAV: QxNav[] = [
+  { key: 'overview', label: 'Section Board', icon: LayoutGrid, group: 'Main' },
+  { key: 'desks', label: 'Desk Assignment', icon: Hand, group: 'Main' },
+  { key: 'staff', label: 'Staff', icon: Users, group: 'Main', badge: 1 },
+  { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
+  { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
+  { key: 'support', label: 'Help & Support', icon: Headphones, group: 'Account' },
+];
+
+type Desk = { id: string; label: string; svc: string };
+const DESKS: Desk[] = [
+  { id: 'trn1', label: 'TRN-1', svc: 'TRN Registration' },
+  { id: 'trn2', label: 'TRN-2', svc: 'TRN Registration' },
+  { id: 'trn3', label: 'TRN-3', svc: 'TRN Registration' },
+  { id: 'trn4', label: 'TRN-4', svc: 'TRN Registration' },
+  { id: 'gct1', label: 'GCT-1', svc: 'GCT Registration' },
+  { id: 'gct2', label: 'GCT-2', svc: 'GCT Registration' },
+];
+type Person = { id: string; name: string; skill: string };
+const PEOPLE: Person[] = [
+  { id: 'p1', name: 'Sandra Williams', skill: 'TRN, GCT' },
+  { id: 'p2', name: 'Marcia Brown', skill: 'TRN' },
+  { id: 'p3', name: 'Kayla Grant', skill: 'GCT' },
+  { id: 'p4', name: 'Omar Bennett', skill: 'TRN, GCT' },
+  { id: 'p5', name: 'Rohan Case', skill: 'TRN' },
+];
+
+function SupHead() {
+  const [period, setPeriod] = useState('today');
+  return (
+    <Head title={greetingFor('Tanya Reid')}
+      sub="Registrations Section — six desks, five people on shift."
+      live="Live · Just Now"
+      right={<>
+        <Pills value={period} onChange={setPeriod} options={[['today', 'Today'], ['7', '7 Days']]} />
+        <span className="qx-datechip"><CalendarDays size={14} />Mon 27 July 2026</span>
+        <button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>
+      </>} />
+  );
+}
+
+/**
+ * The desk board. Tap-to-place is the PRIMARY interaction, not drag: these
+ * screens run on lobby tablets and HTML5 drag-and-drop does not work on touch.
+ * Native drag is layered on top for mouse users, and both paths share one
+ * assign() so they can never diverge.
+ */
+function SupervisorBoard() {
+  const [seats, setSeats] = useState<Record<string, string | null>>({
+    trn1: 'p1', trn2: null, trn3: 'p2', trn4: null, gct1: 'p3', gct2: null,
+  });
+  const [picked, setPicked] = useState<string | null>(null);
+
+  const unassigned = PEOPLE.filter((p) => !Object.values(seats).includes(p.id));
+  const personById = (id: string | null) => PEOPLE.find((p) => p.id === id) || null;
+
+  const assign = (deskId: string, personId: string) => {
+    setSeats((prev) => {
+      const next = { ...prev };
+      // A person can only sit at one desk — clear their old seat first.
+      for (const k of Object.keys(next)) if (next[k] === personId) next[k] = null;
+      next[deskId] = personId;
+      return next;
+    });
+    setPicked(null);
+  };
+  const clearSeat = (deskId: string) => setSeats((prev) => ({ ...prev, [deskId]: null }));
+
+  const openDesks = Object.values(seats).filter(Boolean).length;
+
+  return (
+    <div className="qx-grid">
+      <Stat span={3} icon={Users} tone="bad" label="Waiting In Your Section" value={17}
+        chip={{ dir: 'bad', text: 'Over' }} foot="TRN is carrying 14 of them"
+        spark={{ values: [4, 7, 11, 14, 16, 17], tone: 'bad' }} />
+      <Stat span={3} icon={Clock} tone="bad" label="Average Wait" value={41} unit="min"
+        chip={{ dir: 'bad', text: '21 Over' }} foot="Section target is 20 minutes"
+        spark={{ values: [24, 29, 33, 37, 39, 41], tone: 'bad' }} />
+      <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={96}
+        chip={{ dir: 'good', text: '6%' }} foot="Up 6 on the same time yesterday"
+        spark={{ values: [6, 19, 37, 61, 80, 96] }} />
+      <Stat span={3} icon={UserCheck} tone="warn" label="Desks Covered" value={`${openDesks} of 6`}
+        chip={{ dir: 'bad', text: `${6 - openDesks} Empty` }} foot="Two people are unassigned right now"
+        spark={{ values: [5, 5, 4, 4, 3, openDesks], tone: 'warn' }} />
+
+      {/* ── the desk board ── */}
+      <Card span={8} title="Desk Assignment"
+        cap={picked ? 'Now tap the desk you want them on' : 'Tap a person, then tap a desk. You can also drag.'}
+        tools={picked ? (
+          <button type="button" className="qx-btn ghost" style={{ padding: '6px 12px', fontSize: 11.5 }}
+            onClick={() => setPicked(null)}>Cancel</button>
+        ) : undefined}>
+        <div className="qs-board">
+          {['TRN Registration', 'GCT Registration'].map((svc) => (
+            <div className="qs-lane" key={svc}>
+              <div className="qs-lanehead">{svc}</div>
+              <div className="qs-desks">
+                {DESKS.filter((d) => d.svc === svc).map((d) => {
+                  const who = personById(seats[d.id]);
+                  return (
+                    <div key={d.id}
+                      className={`qs-desk${who ? ' filled' : ''}${picked ? ' target' : ''}`}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) assign(d.id, id); }}
+                      onClick={() => { if (picked) assign(d.id, picked); }}
+                      role="button" tabIndex={0}
+                      aria-label={who ? `${d.label}, ${who.name}` : `${d.label}, empty`}
+                      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && picked) { e.preventDefault(); assign(d.id, picked); } }}
+                    >
+                      <span className="qs-desklabel">{d.label}</span>
+                      {who ? (
+                        <span className="qs-person on"
+                          draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', who.id)}>
+                          <span className="qx-av" style={avatarStyle(who.name)}>{initials(who.name)}</span>
+                          <span><b>{who.name}</b><small>{who.skill}</small></span>
+                          <button type="button" className="qs-remove" aria-label={`Remove ${who.name}`}
+                            onClick={(e) => { e.stopPropagation(); clearSeat(d.id); }}>×</button>
+                        </span>
+                      ) : (
+                        <span className="qs-empty">{picked ? 'Tap To Place Here' : 'Empty'}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="qx-stack s4">
+        <Card title={<>Unassigned<span className="qx-count">{unassigned.length}</span></>}
+          cap={unassigned.length ? 'These people are on shift with no desk' : 'Everyone on shift has a desk'}>
+          <div className="qs-pool">
+            {unassigned.length === 0 ? <div className="qx-empty">Everyone is placed.</div> : unassigned.map((p) => (
+              <button type="button" key={p.id}
+                className={`qs-person pick${picked === p.id ? ' on' : ''}`}
+                draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                onClick={() => setPicked((cur) => (cur === p.id ? null : p.id))}
+                aria-pressed={picked === p.id}>
+                <span className="qx-av" style={avatarStyle(p.name)}>{initials(p.name)}</span>
+                <span><b>{p.name}</b><small>Trained on {p.skill}</small></span>
+              </button>
+            ))}
+          </div>
+        </Card>
+        <Focus eyebrow="Do This Next" title="Put Omar On TRN-2"
+          body="TRN has 14 waiting on two desks. Omar is trained on TRN and has no desk."
+          stats={[{ label: 'Wait Time', value: '−15 min', dir: 'good' }, { label: 'Clears By', value: '1:10pm', dir: 'good' }]}
+          action={{ label: 'Place Omar', onClick: () => assign('trn2', 'p4') }} />
+      </div>
+
+      <Card span={6} title="Live Queues In Your Section" cap="Worst first">
+        <Table grid="minmax(0,2fr) 84px 96px 110px" columns={['Service', 'Waiting', 'Est. Wait', 'Desks']}
+          items={SERVICES.filter((s) => ['trn', 'gct'].includes(s.id))}
+          renderRow={(s) => (
+            <Row key={s.id} grid="minmax(0,2fr) 84px 96px 110px">
+              <div className="qx-cellmain">
+                <span className="qx-av" style={avatarStyle(s.name)}>{s.code}</span>
+                <div style={{ minWidth: 0 }}><b>{s.name}</b>
+                  <small><Status kind={s.state}>{s.state === 'busy' ? 'Needs A Desk' : 'Healthy'}</Status></small></div>
+              </div>
+              <div className="qx-num">{s.waiting}</div>
+              <div className="qx-num">{s.wait}<u> min</u></div>
+              <div className="qx-num">{s.open}<u> of {s.counters}</u></div>
+            </Row>
+          )} />
+      </Card>
+
+      <Card span={6} title="Needs Attention" cap="Ranked by how many people it is costing">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Note icon={AlertTriangle} tone="bad" title="Marcia Brown Has Not Called Anyone In 62 Min"
+            body="TRN-3 is staffed but idle while 8 people wait for that service." />
+          <Note icon={Clock} tone="warn" title="Two TRN Desks Are Empty"
+            body="TRN-2 and TRN-4 have nobody on them at the busiest hour of the day." />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ══════════════════════ LINE STAFF ══════════════════════ */
+const LINE_NAV: QxNav[] = [
+  { key: 'overview', label: 'Live Line', icon: Activity, group: 'Main' },
+  { key: 'tickets', label: 'Tickets', icon: ClipboardList, group: 'Main' },
+  { key: 'history', label: 'History', icon: History, group: 'Main' },
+  { key: 'stats', label: 'My Stats', icon: Gauge, group: 'Main' },
+  { key: 'support', label: 'Help & Support', icon: Headphones, group: 'Account' },
+];
+
+type Tkt = { id: string; no: string; name: string; waited: number; state: 'waiting' | 'called' | 'noresponse' };
+const QUEUE: Tkt[] = [
+  { id: 't1', no: 'TRN-014', name: 'Kemar Lewis', waited: 6, state: 'called' },
+  { id: 't2', no: 'TRN-015', name: 'Marcia Grant', waited: 12, state: 'waiting' },
+  { id: 't3', no: 'TRN-016', name: 'Andre Blake', waited: 18, state: 'waiting' },
+  { id: 't4', no: 'TRN-017', name: 'Simone Clarke', waited: 24, state: 'waiting' },
+  { id: 't5', no: 'TRN-018', name: 'Devon Hall', waited: 31, state: 'waiting' },
+];
+const Q_GRID = 'minmax(0,1.6fr) minmax(0,1.6fr) 110px minmax(0,1.4fr)';
+
+function LineHead() {
+  return (
+    <Head title={greetingFor('Marcia Brown')}
+      sub="Window TRN-3 — TRN Registration. 8 people are waiting for you."
+      live="Live · Just Now"
+      right={<button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>} />
+  );
+}
+
+/**
+ * Line staff see ONE thing first: who is at the window right now and what to do
+ * about them. Everything else is secondary. The five-minute no-response marker
+ * is surfaced as a decision, not a warning — skip or call again — because that
+ * is the actual choice in front of the agent.
+ */
+function LineStaffBoard() {
+  const [serving] = useState({ no: 'TRN-013', name: 'Patrick Deans', since: 7, svc: 'TRN Registration' });
+  const [filter, setFilter] = useState('all');
+
+  const shown = useMemo(() => {
+    if (filter === 'waiting') return QUEUE.filter((t) => t.state === 'waiting');
+    if (filter === 'called') return QUEUE.filter((t) => t.state !== 'waiting');
+    return QUEUE;
+  }, [filter]);
+
+  return (
+    <div className="qx-grid">
+      {/* the window itself — the whole job, in one card */}
+      <div className="qx-stack s8">
+      <div className="ql-now">
+        <div className="ql-nowtop">
+          <span className="ql-badge"><Activity size={14} />Now Serving</span>
+          <span className="ql-timer"><Clock size={15} />{serving.since} min at the window</span>
+        </div>
+        <div className="ql-nowno">{serving.no}</div>
+        <div className="ql-nowname">{serving.name}</div>
+        <div className="ql-nowsvc">{serving.svc}</div>
+        <div className="ql-actions">
+          <button type="button" className="ql-act done"><Check size={20} />Complete</button>
+          <button type="button" className="ql-act"><SkipForward size={20} />Skip</button>
+          <button type="button" className="ql-act warn"><PhoneOff size={20} />No Show</button>
+        </div>
+      </div>
+
+      <Card title={<>Your Line<span className="qx-count">{shown.length}</span></>}
+        cap="In order. Colour tells you the state without having to read it."
+        tools={<Select label="Filter" value={filter} onChange={setFilter}
+          options={[['all', 'All Tickets'], ['waiting', 'Waiting Only'], ['called', 'Called Only']]} />}>
+        <Table grid={Q_GRID} columns={['Ticket', 'Customer', 'Waiting', 'Status']} items={shown}
+          renderRow={(t) => (
+            <Row key={t.id} grid={Q_GRID}>
+              <div className="qx-cellmain"><span className={`ql-tno ${t.state}`}>{t.no}</span></div>
+              <div className="qx-cellmain">
+                <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
+                <div style={{ minWidth: 0 }}><b>{t.name}</b></div>
+              </div>
+              <div className="qx-num">{t.waited}<u> min</u></div>
+              <div>
+                {t.state === 'called' ? <Status kind="soon">Called · No Response</Status>
+                  : <Status kind="open">Waiting</Status>}
+              </div>
+            </Row>
+          )} />
+      </Card>
+      </div>
+
+      <div className="qx-stack s4">
+        <Card title="Next Up" cap="Called and on their way to you">
+          <div className="ql-next">
+            <span className="qx-av" style={avatarStyle('Kemar Lewis')}>KL</span>
+            <div style={{ minWidth: 0 }}>
+              <b>TRN-014</b>
+              <small>Kemar Lewis · called 5 min ago</small>
+            </div>
+          </div>
+          {/* The 5-minute rule, framed as the decision the agent actually faces */}
+          <Note icon={AlertTriangle} tone="warn" title="No Response After 5 Minutes"
+            body="Call them again, or skip them and take the next person — they keep their place for one more call." />
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button type="button" className="qx-btn" style={{ flex: 1, minHeight: 42, fontSize: 12 }}>Call Again</button>
+            <button type="button" className="qx-btn ghost" style={{ flex: 1, minHeight: 42, fontSize: 12 }}>Skip Them</button>
+          </div>
+        </Card>
+        <Card title="My Stats Today" cap="Against the branch average">
+          <div className="qx-funnel">
+            {[
+              { label: 'People Served', now: '19', goal: 'Branch average 14', pct: 100, tone: 'good' as const },
+              { label: 'Average Service Time', now: '18 min', goal: 'Branch average 21 min', pct: 86, tone: 'good' as const },
+              { label: 'No-Shows', now: '2', goal: 'Branch average 3', pct: 66, tone: 'good' as const },
+            ].map((m) => (
+              <div className="qx-fstep" key={m.label}>
+                <div className="r">
+                  <div style={{ minWidth: 0 }}><b>{m.label}</b><div className="sub">{m.goal}</div></div>
+                  <span style={{ color: `var(--c-${m.tone})` }}>{m.now}</span>
+                </div>
+                <div className="qx-bar"><i style={{ width: `${m.pct}%`, background: `var(--c-${m.tone})` }} /></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+    </div>
+  );
+}
+
+/* ══════════════════════ rail card ══════════════════════ */
+function RailCard({ role, onNav }: { role: Role; onNav: (k: string) => void }) {
+  const copy: Record<Role, { small: string; big: string; p: string; btn: string; go: string }> = {
+    executive: { small: 'Right Now', big: '95 People Are In Line', p: 'Two branches are over capacity at peak. Half Way Tree needs cover.', btn: 'See Which Branches', go: 'branches' },
+    manager: { small: 'Right Now', big: '34 People Are Waiting', p: 'TRN is the pressure point — 14 waiting on 2 of 4 windows.', btn: 'Open Staff & Counters', go: 'staff' },
+    supervisor: { small: 'Right Now', big: '2 Desks Are Empty', p: 'TRN-2 and TRN-4 have nobody on them at the busiest hour.', btn: 'Assign Someone', go: 'desks' },
+    linestaff: { small: 'Waiting For You', big: '8 People In Your Line', p: 'The longest has been waiting 31 minutes.', btn: 'See Your Line', go: 'overview' },
+  };
+  const c = copy[role];
+  return (
+    <div className="qx-railcard">
+      <small>{c.small}</small>
+      <b>{c.big}</b>
+      <p>{c.p}</p>
+      <button type="button" onClick={() => onNav(c.go)}>{c.btn}</button>
     </div>
   );
 }
