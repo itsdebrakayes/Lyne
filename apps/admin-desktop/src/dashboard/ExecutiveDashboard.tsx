@@ -54,12 +54,22 @@ function branchHeatmap(trends: any[]) {
 export default function ExecutiveDashboard() {
   const d = useDashboardData();
   const [tab, setTab] = useState('overview');
+  const [period, setPeriod] = useState('7');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const preds = d.predictions as any[];
   const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
-  const week = summary.slice(-7);
+  // The period pills drive the reporting window for real — every headline number
+  // below recomputes from it, so the control is never decorative.
+  const windowDays = period === 'today' ? 1 : Number(period) || 7;
+  const week = summary.slice(-windowDays);
+  const rangeLabel = week.length
+    ? (week.length === 1
+      ? new Date(week[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })
+      : `${new Date(week[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${new Date(week[week.length - 1].summary_date).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}`)
+    : 'No data yet';
   const served = week.reduce((t, s) => t + num(s.total_visitors), 0);
   const completed = week.reduce((t, s) => t + num(s.completed_count), 0);
   const noShows = week.reduce((t, s) => t + num(s.no_show_count), 0);
@@ -229,18 +239,25 @@ export default function ExecutiveDashboard() {
           <button type="button" onClick={() => setTab('branches')}>See Which Branches</button>
         </div>
       }
+      theme={theme}
+      onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
       head={
         <QxHead
           title={isOverview ? greetingFor(d.admin?.name) : titles[tab][0]}
-          sub={isOverview ? `Here's how ${org} is running this week.` : titles[tab][1]}
+          sub={isOverview ? `Here's how ${org} is running over the last ${windowDays === 1 ? 'day' : `${windowDays} days`}.` : titles[tab][1]}
           live="Live"
-          right={<button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>}
+          right={<>
+            <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} />
+            <span className="qx-datechip"><CalendarDays size={14} />{rangeLabel}</span>
+            <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
+          </>}
         />
       }
     >
       {isOverview && (
         <ExecutiveOverviewQX
-          summary={summary} week={week} served={served} completed={completed} noShows={noShows}
+          summary={summary} rawSummary={d.summary as any[]} week={week} served={served} completed={completed} noShows={noShows}
           avgWait={avgWait} target={target} managers={managers} branchWeek={branchWeek}
           branchTrends={d.branchTrends} channels={d.channels} balking={d.balking}
           preds={preds} heat={heat}

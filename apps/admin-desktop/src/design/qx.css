@@ -500,3 +500,46 @@
 .ql-tno.waiting { background: var(--c-primary-soft); color: var(--c-primary); }
 .ql-tno.called { background: var(--c-warn-soft); color: var(--c-warn); }
 .ql-tno.noresponse { background: var(--c-bad-soft); color: var(--c-bad); }
+
+/* ═══════════ manager score cards ═══════════ */
+.qm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.qm-card { display: flex; align-items: center; gap: 13px; padding: 13px; border-radius: 15px;
+  border: 1px solid var(--glass-line); background: var(--c-surface-2); min-width: 0; }
+.qm-card b { display: block; font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qm-card small { display: block; color: var(--c-faint); font-size: 11.5px; margin-top: 1px; }
+.qm-stats { display: flex; gap: 12px; margin-top: 8px; }
+.qm-stats span { display: flex; flex-direction: column; }
+.qm-stats i { font-style: normal; color: var(--c-faint); font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.qm-stats b { font-size: 13px; font-weight: 800; }
+.qm-stats b.bad { color: var(--c-bad); }
+
+/* ═══════════ targets form ═══════════ */
+.qt-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--c-line); }
+.qt-row:last-of-type { border-bottom: 0; }
+.qt-lab { font-size: 13px; font-weight: 700; min-width: 0; }
+.qt-lab small { display: block; color: var(--c-faint); font-size: 11.5px; font-weight: 500; margin-top: 2px; }
+.qt-in { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.qt-in input { width: 92px; border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface);
+  color: var(--c-text); font: inherit; font-size: 15px; font-weight: 700; padding: 9px 11px; outline: none; text-align: right; }
+.qt-in input:focus { border-color: var(--c-primary); }
+.qt-in i { font-style: normal; color: var(--c-dim); font-size: 12px; font-weight: 700; width: 46px; }
+.qt-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.qt-ok { color: var(--c-good); font-size: 12px; font-weight: 700; }
+.qt-bad { color: var(--c-bad); font-size: 12px; font-weight: 700; }
+.qt-field { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--c-line); }
+.qt-field:last-child { border-bottom: 0; }
+.qt-field span { color: var(--c-dim); font-size: 12.5px; font-weight: 600; }
+.qt-field b { font-size: 13.5px; font-weight: 700; text-align: right; }
+
+/* ═══════════ help accordions ═══════════ */
+.qh-item { border-bottom: 1px solid var(--c-line); }
+.qh-item:last-child { border-bottom: 0; }
+.qh-item button { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%;
+  border: 0; background: transparent; text-align: left; padding: 14px 2px; font-size: 13.5px; font-weight: 700; color: var(--c-text); }
+.qh-item i { font-style: normal; color: var(--c-primary); font-size: 19px; line-height: 1; flex: none; }
+.qh-item p { margin: 0 2px 14px; color: var(--c-dim); font-size: 13px; line-height: 1.6; max-width: 72ch; }
+.qh-contact { display: block; padding: 13px; border-radius: 13px; border: 1px solid var(--c-line);
+  background: var(--c-surface-2); text-decoration: none; }
+.qh-contact:hover { border-color: var(--c-primary); }
+.qh-contact b { display: block; font-size: 13.5px; font-weight: 700; color: var(--c-primary); }
+.qh-contact small { display: block; color: var(--c-dim); font-size: 11.5px; margin-top: 2px; }

@@ -6,19 +6,34 @@
  * one — a dashboard that quietly fabricates a number is worse than one that
  * admits a gap.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, TrendingUp, UserX, Users } from 'lucide-react';
 import {
   Card, Stat, Chart, LegendToggle, Funnel, Split, Ring, Table, Row, InlineSearch,
-  IconBtn, Status, Focus, Note, Heatmap, Chip, RefreshIcon, avatarStyle, initials,
+  IconBtn, Status, Focus, Note, Heatmap, Chip, Select, RefreshIcon, avatarStyle, initials,
 } from '@/design/ui';
 import { num, fmtN, titleCase, insightData } from '../insights';
 
 const BRANCH_GRID = 'minmax(0,2.2fr) minmax(0,1.2fr) 84px 96px 96px';
 
+/** Roll the raw analytics rows up to one row per day for a single branch. */
+function scopedDaily(rows: any[], branchId: string) {
+  const byDate = new Map<string, any>();
+  for (const r of rows) {
+    if (String(r.branch_id || '') !== branchId) continue;
+    const k = String(r.summary_date).slice(0, 10);
+    const cur = byDate.get(k) || { summary_date: r.summary_date, total_visitors: 0 };
+    cur.total_visitors += num(r.total_visitors);
+    byDate.set(k, cur);
+  }
+  return [...byDate.values()].sort((a, b) => String(a.summary_date).localeCompare(String(b.summary_date)));
+}
+
 export type ExecOverviewData = {
   /** daily rollup rows, oldest → newest */
   summary: any[];
+  /** un-rolled analytics rows, so the chart can re-scope to one branch */
+  rawSummary: any[];
   week: any[];
   served: number;
   completed: number;
@@ -41,8 +56,10 @@ export type ExecOverviewData = {
 };
 
 export function ExecutiveOverviewQX(d: ExecOverviewData) {
+  // Branch scope for the chart — "all" plus every branch we have a score for.
+  const [scope, setScope] = useState('all');
   const {
-    summary, week, served, completed, noShows, avgWait, target, managers,
+    summary, rawSummary, week, served, completed, noShows, avgWait, target, managers,
     branchWeek, channels, balking, preds, heat, search, onSearch,
     showA, setShowA, showB, setShowB, onNav, onRefresh,
   } = d;
@@ -54,7 +71,9 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
   /* Period A = the last 14 days with data. Period B = the 14 immediately before,
      so the two lines are like-for-like. */
   const { valuesA, valuesB, labels, rangeA, rangeB } = useMemo(() => {
-    const rows = summary.slice();
+    // `summary` is already rolled up per day. When a single branch is picked we
+    // re-roll from the raw rows so the line genuinely narrows to that branch.
+    const rows = scope === 'all' ? summary.slice() : scopedDaily(rawSummary, scope);
     const a = rows.slice(-14);
     const b = rows.slice(-28, -14);
     const day = (r: any) => new Date(r.summary_date).toLocaleDateString([], { day: 'numeric' });
@@ -68,7 +87,7 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
       rangeA: span(a),
       rangeB: span(b),
     };
-  }, [summary]);
+  }, [summary, rawSummary, scope]);
 
   /* The queue funnel, from real counts: joined → called → served, and who left. */
   const funnel = useMemo(() => {
@@ -83,18 +102,18 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
     ];
   }, [served, completed, noShows, week, balking]);
 
-  /* Only the two channels the product can actually produce. Anything the API
-     reports as "walk_in" is legacy rows with no channel recorded (see #66), so
-     it is labelled honestly rather than renamed into a service we don't offer. */
+  /* Only the two channels the product can actually produce. Rows the API reports
+     as 'unknown' are legacy tickets with no channel recorded (see #66) — labelled
+     honestly rather than renamed into a channel we don't offer. */
   const channelSegments = useMemo(() => {
     const rows: any[] = Array.isArray(channels?.channels) ? channels.channels : [];
     const get = (k: string) => num(rows.find((r) => r.channel === k)?.count);
-    const app = get('app'); const kiosk = get('kiosk'); const unknown = get('walk_in');
+    const app = get('app'); const kiosk = get('kiosk'); const unknown = get('unknown');
     const segs = [
       { label: 'QMe App', value: app, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
       { label: 'Branch Kiosk', value: kiosk, color: 'var(--c-second)', sub: 'Added at the branch' },
     ];
-    if (unknown > 0) segs.push({ label: 'Not Recorded', value: unknown, color: 'var(--c-line-2)', sub: 'Older tickets from before channel tracking' });
+    if (unknown > 0) segs.push({ label: 'Not Recorded', value: unknown, color: 'color-mix(in oklab, var(--c-second) 45%, var(--c-surface-3))', sub: 'Older tickets from before channel tracking' });
     return segs;
   }, [channels]);
 
@@ -154,6 +173,10 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
       <Card span={8} title="Customers Served"
         cap={valuesB ? 'This period against the same number of days immediately before it' : 'Not enough history yet for a like-for-like comparison'}
         tools={<>
+          <Select label="Branch Scope" value={scope} onChange={setScope}
+            options={[['all', 'All Branches'], ...managers
+              .filter((m: any) => m.branch_id)
+              .map((m: any) => [String(m.branch_id), titleCase(m.branch_name)] as [string, string])]} />
           <LegendToggle series="a" on={showA} onClick={() => setShowA(!showA)}>{rangeA}</LegendToggle>
           {valuesB ? <LegendToggle series="b" on={showB} onClick={() => setShowB(!showB)}>{rangeB}</LegendToggle> : null}
         </>}>
@@ -176,9 +199,9 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
             ]}
             action={{ label: 'View Branches', onClick: () => onNav('branches') }} />
         ) : (
-          <Card title="Do This Next" cap="From the staffing model">
-            <div className="qx-empty">No staffing recommendation yet — the model publishes these every two hours.</div>
-          </Card>
+          <Focus eyebrow="Do This Next" title="Nothing Needs Moving Right Now"
+            body="No branch is short of cover against its demand. The staffing model republishes every two hours."
+            action={{ label: 'View Branches', onClick: () => onNav('branches') }} />
         )}
         <Card title="Needs Attention" cap="Ranked by how many people it is costing">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
