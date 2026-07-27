@@ -9,7 +9,7 @@
  * hover-any-point reading are unchanged) onto the new tokens, plus an optional
  * prior-period series.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, RefreshCw, Search } from 'lucide-react';
 import './qx.css';
@@ -280,22 +280,43 @@ export function Chart({
   unit?: string; target?: number; targetLabel?: string; h?: number;
   showA?: boolean; showB?: boolean;
 }) {
-  const w = 720, padT = 18, padR = 12, padB = 28, padL = 12;
+  // The SVG is drawn at its REAL pixel size (measured), not a fixed viewBox
+  // stretched to fit. Stretching is what distorts axis text and dots, so the
+  // chart measures itself and draws 1:1 instead.
+  const wrap = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 720, h });
+  useEffect(() => {
+    const el = wrap.current; if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setBox({ w: Math.round(r.width), h: Math.round(r.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const w = box.w, H = box.h;
+  const padT = 16, padR = 14, padB = 30, padL = 48; // padL leaves room for value labels
   const n = values.length || 1;
   const ref = useRef<SVGSVGElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const ids = useMemo(() => ({ a: nextId('qxa'), b: nextId('qxb'), g: nextId('qxg') }), []);
   const cmp = compare && compare.length > 1 ? compare : null;
 
-  let lo = Math.min(...values, ...(cmp || [])), hi = Math.max(...values, ...(cmp || []));
+  let lo = Math.min(...values, ...(cmp && showB ? cmp : [])), hi = Math.max(...values, ...(cmp && showB ? cmp : []));
   if (target != null) { lo = Math.min(lo, target); hi = Math.max(hi, target); }
   const sp = (hi - lo) || 1; lo -= sp * 0.16; hi += sp * 0.14;
   const xs = (i: number) => padL + (w - padL - padR) * (n < 2 ? 0.5 : i / (n - 1));
-  const ys = (v: number) => padT + (h - padT - padB) * (1 - (v - lo) / (hi - lo));
+  const ys = (v: number) => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
   const line = smooth(values.map((v, i) => [xs(i), ys(v)]));
-  const area = `${line} L${xs(n - 1).toFixed(1)} ${h - padB} L${xs(0).toFixed(1)} ${h - padB} Z`;
+  const area = `${line} L${xs(n - 1).toFixed(1)} ${H - padB} L${xs(0).toFixed(1)} ${H - padB} Z`;
   const cmpLine = cmp ? smooth(cmp.map((v, i) => [xs(i), ys(v)])) : null;
-  const grids = Array.from({ length: 5 }, (_, g) => padT + (h - padT - padB) * g / 4);
+
+  // Gridlines carry their own value label, so the chart can be read off the axis
+  // instead of only by hovering.
+  const TICKS = 4;
+  const ticks = Array.from({ length: TICKS + 1 }, (_, g) => lo + ((hi - lo) * g) / TICKS);
+  const fmt = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v)));
 
   const onMove = (e: { clientX: number }) => {
     const el = ref.current; if (!el) return;
@@ -305,88 +326,89 @@ export function Chart({
     setHover(Math.max(0, Math.min(n - 1, Math.round((vx - padL) / step))));
   };
 
-  // The tooltip names both periods and colour-codes each value to its line, so
-  // there is never a question about which number belongs to which stretch.
   let tip: ReactNode = null;
   if (hover != null) {
-    const rows: Array<{ t: string; c: string; w: number }> = [];
-    rows.push({ t: labels?.[hover] ?? `#${hover + 1}`, c: 'var(--c-text)', w: 700 });
-    if (showA && values[hover] != null) {
-      rows.push({ t: `${label} · ${Math.round(values[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-primary)', w: 800 });
-    }
-    if (showB && cmp?.[hover] != null) {
-      rows.push({ t: `${compareLabel} · ${Math.round(cmp[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-second)', w: 800 });
-    }
-    const anchorV = showA && values[hover] != null ? values[hover] : cmp?.[hover];
-    if (anchorV != null && rows.length > 1) {
-      const mx = xs(hover), my = ys(anchorV);
-      const tw = Math.max(...rows.map((r) => r.t.length)) * 5.9 + 20;
+    const rows: Array<{ t: string; c: string; wt: number }> = [];
+    rows.push({ t: labels?.[hover] ?? `#${hover + 1}`, c: 'var(--c-dim)', wt: 700 });
+    if (showA && values[hover] != null) rows.push({ t: `${label} · ${Math.round(values[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-primary)', wt: 800 });
+    if (showB && cmp?.[hover] != null) rows.push({ t: `${compareLabel} · ${Math.round(cmp[hover]).toLocaleString()}${unit ? ` ${unit}` : ''}`, c: 'var(--c-second)', wt: 800 });
+    const anchor = showA && values[hover] != null ? values[hover] : (showB ? cmp?.[hover] : undefined);
+    if (anchor != null && rows.length > 1) {
+      const mx = xs(hover), my = ys(anchor);
+      const tw = Math.max(...rows.map((r) => r.t.length)) * 6.1 + 22;
       const th = 12 + rows.length * 15;
       const bx = Math.min(Math.max(mx - tw / 2, padL), w - padR - tw);
-      const by = my - (th + 11) < 2 ? my + 13 : my - (th + 11);
+      const by = my - (th + 12) < 2 ? my + 14 : my - (th + 12);
       tip = (
         <g style={{ pointerEvents: 'none' }}>
-          <line x1={mx.toFixed(1)} y1={padT} x2={mx.toFixed(1)} y2={h - padB} stroke="var(--c-faint)" strokeWidth="1" strokeDasharray="2 3" opacity=".5" />
-          {showA && values[hover] != null ? (
-            <circle cx={mx.toFixed(1)} cy={ys(values[hover]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
-          ) : null}
-          {showB && cmp?.[hover] != null ? (
-            <circle cx={mx.toFixed(1)} cy={ys(cmp[hover]).toFixed(1)} r="4" fill="var(--c-second)" stroke="var(--c-surface)" strokeWidth="2" />
-          ) : null}
+          <line x1={mx.toFixed(1)} y1={padT} x2={mx.toFixed(1)} y2={H - padB} stroke="var(--c-faint)" strokeWidth="1" strokeDasharray="2 3" opacity=".5" />
+          {showA && values[hover] != null ? <circle cx={mx.toFixed(1)} cy={ys(values[hover]).toFixed(1)} r="4.5" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" /> : null}
+          {showB && cmp?.[hover] != null ? <circle cx={mx.toFixed(1)} cy={ys(cmp[hover]).toFixed(1)} r="4.5" fill="var(--c-second)" stroke="var(--c-surface)" strokeWidth="2" /> : null}
           <rect x={bx.toFixed(1)} y={by} width={tw.toFixed(1)} height={th} rx="10" fill="var(--c-surface)" stroke="var(--c-line-2)" />
           {rows.map((r, i) => (
-            <text key={i} x={(bx + 10).toFixed(1)} y={by + 17 + i * 15} fill={r.c} fontSize={i === 0 ? 11 : 11.5} fontWeight={r.w}>{r.t}</text>
+            <text key={i} x={(bx + 11).toFixed(1)} y={by + 17 + i * 15} fill={r.c} fontSize={i === 0 ? 10.5 : 11.5} fontWeight={r.wt}>{r.t}</text>
           ))}
         </g>
       );
     }
   }
 
+  // Thin the x labels so they never collide, whatever the width.
+  const every = Math.max(1, Math.ceil(n / Math.max(4, Math.floor((w - padL - padR) / 64))));
+
   return (
-    <svg ref={ref} viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" preserveAspectRatio="none"
-      onPointerMove={onMove} onPointerLeave={() => setHover(null)}
-      style={{ display: 'block', overflow: 'visible', cursor: 'crosshair', touchAction: 'none' }}>
-      <rect x="0" y="0" width={w} height={h} fill="transparent" />
-      <defs>
-        <linearGradient id={ids.a} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--c-primary)" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="var(--c-primary)" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id={ids.b} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--c-second)" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="var(--c-second)" stopOpacity="0" />
-        </linearGradient>
-        <filter id={ids.g} x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter>
-      </defs>
-      {grids.map((gy, i) => (
-        <line key={i} x1={padL} y1={gy.toFixed(1)} x2={w - padR} y2={gy.toFixed(1)} stroke="var(--c-line)" strokeWidth="1" strokeDasharray="3 4" />
-      ))}
-      {target != null ? (<>
-        <line x1={padL} y1={ys(target).toFixed(1)} x2={w - padR} y2={ys(target).toFixed(1)} stroke="var(--c-warn)" strokeWidth="1.5" strokeDasharray="6 4" />
-        {targetLabel ? <text x={w - padR} y={(ys(target) - 5).toFixed(1)} textAnchor="end" fill="var(--c-warn)" fontSize="10.5" fontWeight="700">{targetLabel}</text> : null}
-      </>) : null}
-      {/* period B — its own colour and its own soft fill, not a grey ghost */}
-      {showB && cmpLine ? (<>
-        <path d={`${cmpLine} L${xs(n - 1).toFixed(1)} ${h - padB} L${xs(0).toFixed(1)} ${h - padB} Z`} fill={`url(#${ids.b})`} />
-        <path d={cmpLine} fill="none" stroke="var(--c-second)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </>) : null}
-      {/* period A — the subject, with the glow */}
-      {showA ? (<>
-        <path d={area} fill={`url(#${ids.a})`} />
-        <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" filter={`url(#${ids.g})`} opacity=".45" vectorEffect="non-scaling-stroke" />
-        <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={xs(n - 1).toFixed(1)} cy={ys(values[n - 1]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
-      </>) : null}
-      {tip}
-      {labels ? labels.map((l, i) => {
-        if (n > 16 && i % 2) return null;
-        return <text key={i} x={xs(i).toFixed(1)} y={h - 7} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fill="var(--c-faint)" fontSize="10.5" fontWeight="600">{l}</text>;
-      }) : null}
-    </svg>
+    <div ref={wrap} className="qx-chartbox" style={{ minHeight: h }}>
+      <svg ref={ref} width={w} height={H} viewBox={`0 0 ${w} ${H}`}
+        onPointerMove={onMove} onPointerLeave={() => setHover(null)}
+        style={{ display: 'block', cursor: 'crosshair', touchAction: 'none' }}>
+        <rect x="0" y="0" width={w} height={H} fill="transparent" />
+        <defs>
+          <linearGradient id={ids.a} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--c-primary)" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="var(--c-primary)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={ids.b} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--c-second)" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="var(--c-second)" stopOpacity="0" />
+          </linearGradient>
+          <filter id={ids.g} x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="2.4" /></filter>
+        </defs>
+
+        {ticks.map((tv, i) => {
+          const y = ys(tv);
+          return (
+            <g key={i}>
+              <line x1={padL} y1={y.toFixed(1)} x2={w - padR} y2={y.toFixed(1)} stroke="var(--c-line)" strokeWidth="1" strokeDasharray="3 4" />
+              <text x={padL - 10} y={(y + 3.5).toFixed(1)} textAnchor="end" fill="var(--c-faint)" fontSize="10.5" fontWeight="600">{fmt(tv)}</text>
+            </g>
+          );
+        })}
+
+        {target != null ? (<>
+          <line x1={padL} y1={ys(target).toFixed(1)} x2={w - padR} y2={ys(target).toFixed(1)} stroke="var(--c-warn)" strokeWidth="1.5" strokeDasharray="6 4" />
+          {targetLabel ? <text x={w - padR} y={(ys(target) - 6).toFixed(1)} textAnchor="end" fill="var(--c-warn)" fontSize="10.5" fontWeight="700">{targetLabel}</text> : null}
+        </>) : null}
+
+        {showB && cmpLine ? (<>
+          <path d={`${cmpLine} L${xs(n - 1).toFixed(1)} ${H - padB} L${xs(0).toFixed(1)} ${H - padB} Z`} fill={`url(#${ids.b})`} />
+          <path d={cmpLine} fill="none" stroke="var(--c-second)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </>) : null}
+        {showA ? (<>
+          <path d={area} fill={`url(#${ids.a})`} />
+          <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" filter={`url(#${ids.g})`} opacity=".40" />
+          <path d={line} fill="none" stroke="var(--c-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={xs(n - 1).toFixed(1)} cy={ys(values[n - 1]).toFixed(1)} r="4" fill="var(--c-primary)" stroke="var(--c-surface)" strokeWidth="2" />
+        </>) : null}
+        {tip}
+        {labels ? labels.map((l, i) => {
+          if (i % every && i !== n - 1) return null;
+          return <text key={i} x={xs(i).toFixed(1)} y={H - 9} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fill="var(--c-faint)" fontSize="10.5" fontWeight="600">{l}</text>;
+        }) : null}
+      </svg>
+    </div>
   );
 }
 
-/** One named series in its own colour — click to show/hide that period. */
 export function LegendToggle({ on, onClick, series, children }: {
   on: boolean; onClick: () => void; series: 'a' | 'b'; children: ReactNode;
 }) {

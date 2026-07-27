@@ -1,65 +1,72 @@
 /* ============================================================
    QMe Now — Admin design system "QX"
-   Liquid-glass surfaces floating on an ambient aurora, in the
-   SAME cyan / forest brand as the approved mobile app, so the
-   two halves of the product finally look like one product.
+   Liquid-glass surfaces floating on an ambient wash.
 
    Scoped under .qx so it cannot collide with the older .qa-app
    system while both exist.
 
-   Palette note: brand tones are cyan + forest. Kelly green and
-   orange are avoided as BRAND colours (Jamaican party colours);
-   green/amber/red appear only as traffic-light status, which is
-   read as a signal, not an allegiance.
+   ── TWO-COLOUR RULE ──────────────────────────────────────────
+   The system is a deep blue plus neutrals. Nothing else is
+   decorative. Where a second series is needed (period A vs B) it
+   is a LIGHTER TINT OF THE SAME BLUE, not a new hue, so the page
+   stays uniform.
+
+   The single exception is red, reserved strictly for a problem.
+   Without it "Over Capacity" and "Running Well" look identical at
+   a glance, which costs an operator real time — so red earns its
+   place as a signal, never as decoration. Green, amber, cyan and
+   violet are gone. (Kelly green and orange were additionally
+   avoided as brand tones: they read as Jamaican party colours.)
    ============================================================ */
 
 .qx {
   /* canvas */
-  --c-canvas: #EFF3F6;
+  --c-canvas: #EFF2F7;
   --c-surface: #FFFFFF;
-  --c-surface-2: #F4F7F9;
-  --c-surface-3: #E7EDF1;
+  --c-surface-2: #F4F6FA;
+  --c-surface-3: #E6EBF3;
 
-  /* forest ink — the rail, matching mobile's hero tone */
-  --c-ink: #101D18;
-  --c-ink-text: #EAF2EF;
-  --c-ink-dim: #8FA39C;
+  /* ink — the rail, the same blue family pushed almost to black */
+  --c-ink: #0E1B2E;
+  --c-ink-text: #E9EEF6;
+  --c-ink-dim: #8B9AB2;
   --c-ink-line: rgba(255, 255, 255, .09);
 
   /* text */
-  --c-text: #10201C;
-  --c-dim: #5A6E68;
-  --c-faint: #8A9C96;
-  --c-line: #E2E9ED;
-  --c-line-2: #CFDAE0;
+  --c-text: #12203A;
+  --c-dim: #5B6A83;
+  --c-faint: #8B99AF;
+  --c-line: #E2E7F0;
+  --c-line-2: #CCD5E3;
 
-  /* brand — mobile's cyan family */
-  --c-primary: #0F8FA8;        /* deep cyan: lines, text, fills */
-  --c-primary-bright: #1FC2DE; /* bright cyan: glows, gradients */
+  /* the one brand colour */
+  --c-primary: #1B4B8F;        /* deep blue: lines, fills, emphasis */
+  --c-primary-bright: #2E6FC7; /* lifted blue: glows, gradients, hover */
   --c-primary-ink: #FFFFFF;
-  --c-primary-soft: #E2F5F9;
-  --c-second: #6C5CE0;         /* the comparison series — distinct, non-political */
-  --c-second-soft: #EDEAFC;
+  --c-primary-soft: #E6EDF8;
+  --c-second: #86A9DB;         /* period B — a TINT of the same blue */
+  --c-second-soft: #EDF2FA;
 
-  /* traffic-light status */
-  --c-good: #17A673;
-  --c-good-soft: #E3F6EE;
-  --c-warn: #C98A16;
-  --c-warn-soft: #FBF2DE;
-  --c-bad: #DC4A50;
-  --c-bad-soft: #FCEAEA;
+  /* "good" is simply the brand blue — a positive state is on-brand */
+  --c-good: #1B4B8F;
+  --c-good-soft: #E6EDF8;
+  /* the one exception: a problem, at two intensities */
+  --c-warn: #B4553F;
+  --c-warn-soft: #F8ECE8;
+  --c-bad: #A62B25;
+  --c-bad-soft: #F9E7E6;
 
   /* liquid glass */
   --glass: rgba(255, 255, 255, .62);
   --glass-strong: rgba(255, 255, 255, .80);
-  --glass-line: rgba(16, 32, 28, .09);
+  --glass-line: rgba(18, 32, 58, .10);
   --glass-hi: rgba(255, 255, 255, .75);
   --blur: blur(22px) saturate(180%);
   --sh-glass:
     inset 0 1px 0 0 var(--glass-hi),
-    0 12px 36px -18px rgba(12, 40, 46, .30),
-    0 2px 6px -2px rgba(12, 40, 46, .10);
-  --sh-lift: 0 22px 54px -22px rgba(8, 30, 34, .34);
+    0 12px 36px -18px rgba(16, 32, 58, .28),
+    0 2px 6px -2px rgba(16, 32, 58, .10);
+  --sh-lift: 0 22px 54px -22px rgba(12, 24, 44, .34);
 
   --r: 18px;
   --r-sm: 12px;
@@ -77,24 +84,26 @@
    behind them, translucent panels have nothing to refract and just look grey. */
 .qx::before {
   content: ''; position: fixed; inset: -20% -10%; z-index: 0; pointer-events: none;
+  /* All three washes are the SAME blue at different strengths — depth without
+     introducing a second hue. */
   background:
     radial-gradient(58% 44% at 10% 6%, color-mix(in oklab, var(--c-primary-bright) 26%, transparent), transparent 62%),
-    radial-gradient(52% 40% at 92% 14%, color-mix(in oklab, var(--c-second) 18%, transparent), transparent 62%),
-    radial-gradient(56% 46% at 76% 94%, color-mix(in oklab, var(--c-good) 14%, transparent), transparent 62%);
-  filter: saturate(115%);
+    radial-gradient(52% 40% at 92% 14%, color-mix(in oklab, var(--c-primary) 16%, transparent), transparent 62%),
+    radial-gradient(56% 46% at 76% 94%, color-mix(in oklab, var(--c-second) 22%, transparent), transparent 62%);
 }
 .qx > * { position: relative; z-index: 1; }
 
 .qx[data-theme="dark"] {
-  --c-canvas: #08110F; --c-surface: #101B18; --c-surface-2: #16241F; --c-surface-3: #1E2F29;
-  --c-ink: #0A1512; --c-ink-text: #EAF2EF; --c-ink-dim: #7E948C; --c-ink-line: rgba(255,255,255,.07);
-  --c-text: #E9F2EF; --c-dim: #9DB2AB; --c-faint: #6C817B; --c-line: #1E2F29; --c-line-2: #2A3F38;
-  --c-primary: #35C9E0; --c-primary-bright: #5FDCEE; --c-primary-ink: #05171A; --c-primary-soft: rgba(53,201,224,.16);
-  --c-second: #9A87F5; --c-second-soft: rgba(154,135,245,.16);
-  --c-good: #34D399; --c-good-soft: rgba(52,211,153,.15);
-  --c-warn: #F0B429; --c-warn-soft: rgba(240,180,41,.15);
-  --c-bad: #F1707A; --c-bad-soft: rgba(241,112,122,.15);
-  --glass: rgba(22, 36, 31, .58); --glass-strong: rgba(22, 36, 31, .78);
+  --c-canvas: #070C15; --c-surface: #0F1626; --c-surface-2: #141D30; --c-surface-3: #1C2740;
+  --c-ink: #080D18; --c-ink-text: #E9EEF6; --c-ink-dim: #7D8CA6; --c-ink-line: rgba(255,255,255,.07);
+  --c-text: #E8EEF8; --c-dim: #9DABC2; --c-faint: #6B7B95; --c-line: #1C2740; --c-line-2: #293755;
+  /* the same single blue, lifted for contrast on a dark canvas */
+  --c-primary: #5A93E8; --c-primary-bright: #7DAEF2; --c-primary-ink: #06101F; --c-primary-soft: rgba(90,147,232,.16);
+  --c-second: #3C5F96; --c-second-soft: rgba(60,95,150,.20);
+  --c-good: #5A93E8; --c-good-soft: rgba(90,147,232,.16);
+  --c-warn: #D98A72; --c-warn-soft: rgba(217,138,114,.15);
+  --c-bad: #E4726B; --c-bad-soft: rgba(228,114,107,.15);
+  --glass: rgba(20, 29, 48, .58); --glass-strong: rgba(20, 29, 48, .78);
   --glass-line: rgba(255, 255, 255, .09); --glass-hi: rgba(255, 255, 255, .06);
   --sh-glass: inset 0 1px 0 0 var(--glass-hi), 0 16px 40px -20px rgba(0,0,0,.7);
   --sh-lift: 0 26px 60px -24px rgba(0,0,0,.8);
@@ -127,9 +136,9 @@
 .qx-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; }
 .qx-brand i {
   width: 33px; height: 33px; border-radius: 11px; font-style: normal; font-weight: 800;
-  display: grid; place-items: center; color: #06201F;
+  display: grid; place-items: center; color: #FFFFFF;
   background: linear-gradient(150deg, var(--c-primary-bright), var(--c-primary));
-  box-shadow: 0 7px 18px -6px rgba(31, 194, 222, .8);
+  box-shadow: 0 7px 18px -6px rgba(27, 75, 143, .55);
 }
 .qx-brand b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
 .qx-brand small { display: block; color: var(--c-ink-dim); font-size: 10.5px; font-weight: 600; }
@@ -153,14 +162,14 @@
 .qx-railspacer { flex: 1; min-height: 12px; }
 
 .qx-railcard {
-  border-radius: 15px; padding: 13px; color: #05201F; position: relative; overflow: hidden;
+  border-radius: 15px; padding: 13px; color: #FFFFFF; position: relative; overflow: hidden;
   background: linear-gradient(152deg, var(--c-primary-bright), var(--c-primary));
-  box-shadow: 0 14px 30px -16px rgba(31, 194, 222, .85);
+  box-shadow: 0 14px 30px -16px rgba(27, 75, 143, .55);
 }
 .qx-railcard small { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .72; }
 .qx-railcard b { display: block; font-size: 14px; font-weight: 800; margin-top: 3px; line-height: 1.3; }
 .qx-railcard p { margin: 5px 0 10px; font-size: 11.5px; line-height: 1.45; opacity: .82; }
-.qx-railcard button { width: 100%; border: 0; border-radius: 10px; background: #05201F; color: #EAF2EF; font-size: 12px; font-weight: 800; padding: 8px 10px; }
+.qx-railcard button { width: 100%; border: 0; border-radius: 10px; background: #FFFFFF; color: var(--c-primary); font-size: 12px; font-weight: 800; padding: 8px 10px; }
 .qx-railfoot { display: flex; align-items: center; gap: 9px; padding: 11px 8px 2px; margin-top: 9px; border-top: 1px solid var(--c-ink-line); }
 .qx-railfoot .qx-av { width: 30px; height: 30px; }
 .qx-railfoot b { font-size: 12px; display: block; }
@@ -209,7 +218,7 @@
 
 .qx-av {
   border-radius: 11px; display: grid; place-items: center; flex: none; color: #fff; font-weight: 700;
-  background: linear-gradient(150deg, hsl(var(--h, 188) 52% 46%), hsl(var(--h, 188) 46% 32%));
+  background: linear-gradient(150deg, hsl(214 46% calc(38% + (var(--h, 214) / 360) * 16%)), hsl(214 52% calc(24% + (var(--h, 214) / 360) * 12%)));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28);
 }
 
@@ -359,13 +368,13 @@
 /* No auto-push on the button: the panel sizes to its content and stacks with a
    sibling instead, which is what stopped it stranding a hole at the bottom. */
 .qx-focus {
-  position: relative; overflow: hidden; border-radius: var(--r); padding: 18px; color: #EAF6F6;
+  position: relative; overflow: hidden; border-radius: var(--r); padding: 18px; color: #E9EEF6;
   display: flex; flex-direction: column; gap: 11px;
-  background: linear-gradient(152deg, #14342F 0%, #0C1D1A 68%);
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
   box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
 }
-.qx-focus.t-bad { background: linear-gradient(152deg, #4A1620 0%, #240A10 70%); }
-.qx-focus.t-warn { background: linear-gradient(152deg, #453105 0%, #221803 70%); }
+.qx-focus.t-bad { background: linear-gradient(152deg, #5A1C18 0%, #2A0C0A 70%); }
+.qx-focus.t-warn { background: linear-gradient(152deg, #4A2A1E 0%, #241310 70%); }
 .qx-focus::after { content: ''; position: absolute; inset: -45% -25% auto auto; width: 68%; height: 150%; background: radial-gradient(circle at 72% 28%, color-mix(in oklab, var(--c-primary-bright) 42%, transparent), transparent 62%); pointer-events: none; }
 .qx-focus > * { position: relative; }
 .qx-focus .eb { font-size: 9.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--c-primary-bright); }
@@ -375,9 +384,9 @@
 .qx-focusstat { flex: 1 1 0; min-width: 92px; border-radius: 13px; padding: 10px 12px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); }
 .qx-focusstat b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
 .qx-focusstat small { display: block; font-size: 10px; font-weight: 700; opacity: .72; margin-top: 1px; }
-.qx-focusstat.good b { color: #6EE7C4; }
+.qx-focusstat.good b { color: #BBD4F5; }
 .qx-focusstat.bad b { color: #FDA4AF; }
-.qx-focus .qx-btn { align-self: flex-start; background: var(--c-primary-bright); color: #05201F; }
+.qx-focus .qx-btn { align-self: flex-start; background: #FFFFFF; color: var(--c-primary); }
 
 /* ── heatmap: ported from the reference — the VALUE sits in the cell ── */
 .qx-heatscroll { width: 100%; overflow-x: auto; }
@@ -409,5 +418,8 @@
 
 /* A chart wrapper that fills whatever height the card row settles at, so the
    graph grows into the space instead of stranding a hole beneath it. */
-.qx-chartfill { flex: 1 1 auto; min-height: 220px; display: flex; }
-.qx-chartfill > svg { flex: 1; }
+.qx-chartfill { flex: 1 1 auto; display: flex; min-height: 0; }
+.qx-chartfill > .qx-chartbox { flex: 1; }
+/* The chart measures this box and draws at its real pixel size, so nothing is
+   stretched and the axis text stays crisp. */
+.qx-chartbox { flex: 1 1 auto; min-width: 0; }
