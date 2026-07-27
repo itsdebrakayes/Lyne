@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type NavItem } from './kit';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
+import { CalendarDays, MapPin } from 'lucide-react';
 import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
 import {
   Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
@@ -111,6 +114,8 @@ export default function ExecutiveDashboard() {
   const shownServices = (d.services as any[]).filter((s) => match(s.service_name));
 
   // ── Trends tab: "at a glance" on Overview, full depth on its own tab ──
+  const [showA, setShowA] = useState(true);
+  const [showB, setShowB] = useState(true);
   const [range, setRange] = useState('week');
   const [monthOffset, setMonthOffset] = useState(0);
   const RANGES: [string, string][] = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['90', '90 Days']];
@@ -203,63 +208,51 @@ export default function ExecutiveDashboard() {
     support: ['Help & Support', 'Common Questions For Executives.'],
   };
 
+  const isOverview = tab === 'overview';
+
   return (
-    <Shell
-      roleLabel="Executive" org={org}
-      eyebrow={`Executive · ${org}`}
-      title={titles[tab][0]} subtitle={titles[tab][1]}
-      nav={NAV} active={tab} onNav={setTab}
-      freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
-      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
-      alerts={alerts}
-    >
-      {tab === 'overview' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Customers Served This Week" value={fmtN(served)} base={`Across ${branchCount} Branches`} delta={{ dir: 'up', text: 'This Week' }} spark={{ values: week.map((s) => num(s.total_visitors)) }} />
-          <Kpi span={3} label="Average Wait" value={avgWait} unit="min" base={`Company Target: ${num(target.target_wait_minutes)} min`} delta={{ dir: avgWait <= num(target.target_wait_minutes) ? 'good' : 'bad', text: avgWait <= num(target.target_wait_minutes) ? 'On Target' : `${avgWait - num(target.target_wait_minutes)} Over` }} />
-          <Kpi span={3} label="Completed Visits" value={fmtN(completed)} base={`${pct((completed / Math.max(1, served)) * 100)} Served Company-Wide`} delta={{ dir: 'up', text: 'This Week' }} spark={{ values: week.map((s) => num(s.completed_count)) }} />
-          <Kpi span={3} label="No-Show Rate" value={pct((noShows / Math.max(1, served)) * 100)} base={`${fmtN(noShows)} Didn't Arrive`} delta={{ dir: 'neutral', text: 'Tracking' }} />
-
-          <Card span={12} title="Branch Performance Score" cap="Out Of 100 · Wait Time, Completion And No-Show Control. Highest First.">
-            {managers.length ? (
-              <div className="qa-grid4">
-                {managers.slice(0, 8).map((m) => (
-                  <div key={m.manager_id || m.branch_name} className="qa-mgrcard">
-                    <ScoreRing value={num(m.manager_score)} max={100} size={64} warn={num(m.manager_score) < 60} />
-                    <div>
-                      <b>{titleCase(m.branch_name)}</b><small>{titleCase(m.manager_name)}</small>
-                      <div className="mstats">
-                        <span><i>Wait</i><b>{Math.round(num(m.avg_wait_minutes))}m</b></span>
-                        <span><i>Done</i><b>{Math.round(num(m.completion_rate))}%</b></span>
-                        <span><i>No-Show</i><b className={num(m.no_show_rate) > num(target.target_no_show_rate) ? 'low' : ''}>{Math.round(num(m.no_show_rate))}%</b></span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : <Empty msg="No branch scores yet — run the analytics refresh." />}
-          </Card>
-
-          <Card span={8} title="Customers Served — All Branches" cap="Each Day Against The Company Daily Target"
-            tools={<MoreBtn onClick={() => setTab('trends')} />}><ServedChartExec summary={summary} /></Card>
-          {/* Stacked beside the tall chart so the column fills instead of leaving a gap */}
-          <div className="qa-stack4">
-            <ImproveCard preds={preds} span={12} />
-            <DemandCard preds={preds} span={12} />
-          </div>
-
-          <ProductivityCard data={d.productivity} span={12} />
-          <Card span={8} title="Busy Times — Branches By Day" cap="Which Branch Is Under The Most Pressure, And When">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No branch busy-times data yet." />}
-          </Card>
-          <div className="qa-stack4">
-            <TargetTrendCard preds={preds} span={12} />
-            <ChannelMixCard data={d.channels} span={12} />
-            <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={12} />
-          </div>
+    <QxShell
+      brand="QMe Now"
+      brandSub={org}
+      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      active={tab}
+      onNav={setTab}
+      notifications={alerts.length}
+      account={{ name: d.admin?.name || 'Executive', role: 'Executive', email: d.admin?.staffRecord.email }}
+      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
+      context={<><MapPin size={13} /><span>{org}</span><b>· {branchCount} Branches</b></>}
+      railCard={
+        <div className="qx-railcard">
+          <small>Right Now</small>
+          <b>{fmtN(managers.reduce((t: number, m: any) => t + num(m.waiting_now), 0))} People Are In Line</b>
+          <p>{worst ? `${titleCase(worst.branch_name)} needs the most help right now.` : 'All branches are running to target.'}</p>
+          <button type="button" onClick={() => setTab('branches')}>See Which Branches</button>
         </div>
+      }
+      head={
+        <QxHead
+          title={isOverview ? greetingFor(d.admin?.name) : titles[tab][0]}
+          sub={isOverview ? `Here's how ${org} is running this week.` : titles[tab][1]}
+          live="Live"
+          right={<button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>}
+        />
+      }
+    >
+      {isOverview && (
+        <ExecutiveOverviewQX
+          summary={summary} week={week} served={served} completed={completed} noShows={noShows}
+          avgWait={avgWait} target={target} managers={managers} branchWeek={branchWeek}
+          branchTrends={d.branchTrends} channels={d.channels} balking={d.balking}
+          preds={preds} heat={heat}
+          search={q} onSearch={setQ}
+          showA={showA} setShowA={setShowA} showB={showB} setShowB={setShowB}
+          onNav={setTab} onRefresh={() => d.refreshAll()}
+        />
       )}
 
+      {/* Tabs not yet ported keep their own .qa-app scope so their styling still
+          applies while the port continues, rather than rendering unstyled. */}
+      <div className="qa-app" style={{ background: 'transparent' }}>
       {tab === 'trends' && (
         <div className="qa-grid">
           <div className="qa-s12" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -509,7 +502,8 @@ export default function ExecutiveDashboard() {
           a: 'Branches, services and staff are configured when your organisation is set up. To add or remove one right now, contact QMe support using the details on this page and we will make the change for you.' },
       ]} />}
 
-    </Shell>
+      </div>
+    </QxShell>
   );
 }
 

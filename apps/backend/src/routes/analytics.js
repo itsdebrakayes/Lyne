@@ -537,18 +537,23 @@ router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', '
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     const where = conditions.join(' AND ');
 
+    // A ticket can only be created two ways in this product: the customer app
+    // (POST /tickets) or the branch kiosk (POST /tickets/walk-in). There is no
+    // "walk-in desk" flow. Rows with a NULL channel are historical, from before
+    // channel tracking existed — they are reported as 'unknown' rather than
+    // being relabelled into a channel the product does not have.
     const [mix] = await pool.query(
-      `SELECT COALESCE(w.channel, 'walk_in') AS channel,
+      `SELECT COALESCE(w.channel, 'unknown') AS channel,
               COUNT(*)                        AS count,
               ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait,
               ROUND(100 * AVG(w.status IN ('no_show','left','cancelled')), 1) AS abandon_pct
        FROM wait_time_records w
        WHERE ${where}
-       GROUP BY COALESCE(w.channel, 'walk_in')`,
+       GROUP BY COALESCE(w.channel, 'unknown')`,
       params
     );
     const total = mix.reduce((sum, r) => sum + Number(r.count), 0) || 1;
-    const channels = ['app', 'walk_in', 'kiosk'].map((ch) => {
+    const channels = ['app', 'kiosk', 'unknown'].map((ch) => {
       const row = mix.find((m) => m.channel === ch);
       return {
         channel: ch,
@@ -565,8 +570,8 @@ router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', '
               MIN(w.visit_date)         AS week_start,
               COUNT(*)                  AS total,
               SUM(w.channel = 'app')    AS app,
-              SUM(COALESCE(w.channel,'walk_in') = 'walk_in') AS walk_in,
-              SUM(w.channel = 'kiosk')  AS kiosk
+              SUM(w.channel = 'kiosk')  AS kiosk,
+              SUM(w.channel IS NULL)    AS unknown
        FROM wait_time_records w
        WHERE ${where}
        GROUP BY YEARWEEK(w.visit_date, 3)

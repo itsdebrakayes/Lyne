@@ -298,8 +298,10 @@ export function ChannelMixCard({ data, span }: { data: ChannelMix | null; span: 
     return <Card span={span} title="Walk-in vs Online" cap="How Customers Reach The Line"><Empty msg="No channel data yet." /></Card>;
   }
   const get = (ch: string) => data.channels.find((c) => c.channel === ch);
-  const app = get('app'); const walk = get('walk_in'); const kiosk = get('kiosk');
-  const legend: Array<[string, typeof app]> = [['Online — the app', app], ['Walk-in — front desk', walk]];
+  // Only two channels exist in the product; 'unknown' is legacy rows with no
+  // channel recorded, never a 'walk-in desk' (see #66).
+  const app = get('app'); const kiosk = get('kiosk'); const unknown = get('unknown');
+  const legend: Array<[string, typeof app]> = [['Online — the app', app], ['Kiosk — at the branch', kiosk]];
   if (kiosk && kiosk.count) legend.push(['Kiosk — staff-added', kiosk]);
   return (
     <Card span={span} title="Walk-in vs Online" cap="How Customers Reach The Line · Last 90 Days">
@@ -309,7 +311,7 @@ export function ChannelMixCard({ data, span }: { data: ChannelMix | null; span: 
       </div>
       <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', margin: '12px 0 10px' }}>
         <i style={{ width: `${app?.pct || 0}%`, background: 'linear-gradient(90deg,var(--qa-accent),var(--qa-accent-2))' }} />
-        <i style={{ width: `${walk?.pct || 0}%`, background: 'var(--qa-surface-3)' }} />
+        <i style={{ width: `${kiosk?.pct || 0}%`, background: 'var(--qa-surface-3)' }} />
         {kiosk && kiosk.pct > 0 && <i style={{ width: `${kiosk.pct}%`, background: 'var(--qa-accent-2)' }} />}
       </div>
       {legend.map(([label, c]) => (

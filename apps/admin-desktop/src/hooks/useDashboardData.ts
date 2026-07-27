@@ -66,7 +66,7 @@ export type BalkingData = {
 };
 export type ChannelMix = {
   total: number; self_service_pct: number; staffed_intake: number;
-  channels: Array<{ channel: 'app' | 'walk_in' | 'kiosk'; count: number; pct: number; avg_wait: number | null; abandon_pct: number | null }>;
+  channels: Array<{ channel: 'app' | 'kiosk' | 'unknown'; count: number; pct: number; avg_wait: number | null; abandon_pct: number | null }>;
   trend: Array<{ week_start: string; total: number; app_pct: number }>;
 };
 export type ProductivitySignals = {
