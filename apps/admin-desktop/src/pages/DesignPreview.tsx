@@ -188,7 +188,7 @@ export default function DesignPreview() {
 
         <Card span={4} title="Company Health" cap="Wait, completion and no-show control">
           <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 12 }}>
-            <Ring value={74} label="Of 100" />
+            <Ring value={74} max={100} />
           </div>
           <Note icon={TrendingUp} title="Up 6 Points This Month"
             body="Montego Bay and Mandeville are carrying the average." />

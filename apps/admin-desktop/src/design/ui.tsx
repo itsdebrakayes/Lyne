@@ -486,21 +486,66 @@ export function Donut({ data, size = 148, thickness = 20, centre }: {
 }
 
 /* ─────────────────────── ring ─────────────────────── */
-export function Ring({ value, max = 100, size = 132, thickness = 11, label = 'Score' }: {
-  value: number; max?: number; size?: number; thickness?: number; label?: string;
+/**
+ * The gauge ring already in the system — a ticked dial around a gradient arc,
+ * with a soft glow on the large size. Kept verbatim in behaviour and re-cut in
+ * the blue palette, because she prefers this over a plain progress ring.
+ * `warn` swaps the gradient to the alert colour for a genuinely bad score.
+ */
+export function Ring({ value, max = 100, size, warn = false, label }: {
+  value: number; max?: number; size?: number; warn?: boolean; label?: string;
 }) {
-  const r = (size - thickness) / 2, c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(1, value / max));
-  const col = pct >= 0.75 ? 'var(--c-good)' : pct >= 0.5 ? 'var(--c-warn)' : 'var(--c-bad)';
+  const large = !size;
+  const S = size || 132;
+  const r = large ? 46 : 25;
+  const sw = large ? 9 : 6;
+  const c = 2 * Math.PI * r;
+  const frac = Math.max(0, Math.min(1, value / (max || 1)));
+  const cx = S / 2, cy = S / 2;
+  const ids = useMemo(() => ({ g: nextId('qxrn'), b: nextId('qxrg') }), []);
+  const c1 = warn ? 'var(--c-bad)' : 'var(--c-primary)';
+  const c2 = warn ? 'var(--c-warn)' : 'var(--c-primary-bright)';
+  const track = 'var(--c-surface-3)';
+  const t1 = r + (large ? 6 : 3), t2 = r + (large ? 11 : 6);
+  const N = large ? 44 : 30, tw = large ? 2 : 1.5;
+  const ticks = Array.from({ length: N }, (_, i) => {
+    const a = (i / N) * 2 * Math.PI - Math.PI / 2;
+    return {
+      x1: cx + Math.cos(a) * t1, y1: cy + Math.sin(a) * t1,
+      x2: cx + Math.cos(a) * t2, y2: cy + Math.sin(a) * t2,
+      on: i / N <= frac,
+    };
+  });
   return (
-    <div className="qx-ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--c-surface-3)" strokeWidth={thickness} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={thickness}
-          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - pct * c} />
-      </svg>
-      <div className="v"><b>{value}</b><small>{label}</small></div>
-    </div>
+    <svg className="qx-gauge" viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img"
+      aria-label={`${Math.round(value)} out of ${max}`}>
+      <defs>
+        <linearGradient id={ids.g} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={c1} /><stop offset="100%" stopColor={c2} />
+        </linearGradient>
+        {large ? <filter id={ids.b} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.5" /></filter> : null}
+      </defs>
+      {ticks.map((t, i) => (
+        <line key={i} x1={t.x1.toFixed(1)} y1={t.y1.toFixed(1)} x2={t.x2.toFixed(1)} y2={t.y2.toFixed(1)}
+          stroke={t.on ? c1 : track} strokeWidth={tw} strokeLinecap="round" opacity={t.on ? 0.9 : 0.5} />
+      ))}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={track} strokeWidth={sw} />
+      {large ? (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${ids.g})`} strokeWidth={sw} strokeLinecap="round"
+          strokeDasharray={c.toFixed(1)} strokeDashoffset={(c * (1 - frac)).toFixed(1)}
+          transform={`rotate(-90 ${cx} ${cy})`} filter={`url(#${ids.b})`} opacity="0.7" />
+      ) : null}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${ids.g})`} strokeWidth={sw} strokeLinecap="round"
+        strokeDasharray={c.toFixed(1)} strokeDashoffset={(c * (1 - frac)).toFixed(1)}
+        transform={`rotate(-90 ${cx} ${cy})`} />
+      <text x={cx} y={cy + (large ? 3 : 5)} textAnchor="middle" fill="var(--c-text)"
+        fontSize={large ? 28 : 16} fontWeight="700" letterSpacing="-0.5">{Math.round(value)}</text>
+      {large ? (
+        <text x={cx} y={cy + 20} textAnchor="middle" fill="var(--c-faint)" fontSize="10.5" fontWeight="600">
+          {label || `of ${max}`}
+        </text>
+      ) : null}
+    </svg>
   );
 }
 
