@@ -48,7 +48,8 @@ function Bars({ items, unit, invert }: {
   /** true when a HIGHER number is the bad one (wait time), so the bar reads as pressure */
   invert?: boolean;
 }) {
-  const max = Math.max(...items.map((i) => i.value)) || 1;
+  const max = (items.length ? Math.max(...items.map((i) => i.value)) : 0) || 1;
+  if (!items.length) return <div className="qx-empty">Nothing to compare yet.</div>;
   return (
     <div className="qx-bars">
       {items.map((i) => (
@@ -60,6 +61,26 @@ function Bars({ items, unit, invert }: {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Every tab below indexes into a list (`branches[0]`, `Math.max(...values)`).
+ * Against live data those lists can legitimately be empty — a new business with
+ * no visits yet, or a measure the model layer does not produce. Reaching into an
+ * empty array is what black-screened the Electron app, so each tab checks first
+ * and says plainly why it has nothing to show.
+ */
+function EmptyTab({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="qx-grid">
+      <Card span={12}>
+        <div className="qx-empty" style={{ padding: '46px 20px' }}>
+          <b style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--c-text)', marginBottom: 6 }}>{title}</b>
+          <span style={{ display: 'block', maxWidth: '58ch', margin: '0 auto', lineHeight: 1.55 }}>{body}</span>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -137,13 +158,23 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
   const [showA, setShowA] = useState(true);
   const [showB, setShowB] = useState(true);
   const m = d.metrics[metric];
+  const hasSeries = Array.isArray(m?.a) && m.a.length > 1;
+  /* No comparison period means no percentage — say "no comparison" rather than
+     printing a change against zero. */
+  const hasCompare = Array.isArray(m?.b) && m.b.length === m.a.length && m.b.length > 1;
 
   const delta = useMemo(() => {
-    const avg = (xs: number[]) => xs.reduce((t, v) => t + v, 0) / (xs.length || 1);
-    const pct = ((avg(m.a) - avg(m.b)) / (avg(m.b) || 1)) * 100;
-    const improved = m.goodWhen === 'up' ? pct > 0 : pct < 0;
+    const avg = (xs: number[]) => (xs?.length ? xs.reduce((t, v) => t + v, 0) / xs.length : 0);
+    const base = avg(m?.b || []);
+    const pct = base ? ((avg(m?.a || []) - base) / base) * 100 : 0;
+    const improved = m?.goodWhen === 'up' ? pct > 0 : pct < 0;
     return { pct, improved };
   }, [m]);
+
+  if (!hasSeries) {
+    return <EmptyTab title="Not Enough History To Show A Trend"
+      body="Trends compare a period against the one immediately before it, so this needs at least a couple of days of visits. It will fill in on its own as tickets are issued." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -158,11 +189,13 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
         </>}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', margin: '2px 0 14px' }}>
           <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-.035em' }}>{m.now}</span>
-          <Chip dir={delta.improved ? 'good' : 'bad'} arrow={delta.pct >= 0 ? 'up' : 'down'}>
-            {Math.abs(delta.pct).toFixed(1)}%
-          </Chip>
+          {hasCompare ? (
+            <Chip dir={delta.improved ? 'good' : 'bad'} arrow={delta.pct >= 0 ? 'up' : 'down'}>
+              {Math.abs(delta.pct).toFixed(1)}%
+            </Chip>
+          ) : <span className="qx-tag">No Comparison Period Yet</span>}
           <span style={{ fontSize: 12.5, color: 'var(--c-dim)', fontWeight: 600 }}>
-            against <b style={{ color: 'var(--c-text)' }}>{m.was}</b> last period — {m.blurb}
+            {hasCompare ? <>against <b style={{ color: 'var(--c-text)' }}>{m.was}</b> last period — </> : null}{m.blurb}
           </span>
         </div>
         <div className="qx-chartfill">
@@ -221,6 +254,7 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
 
 /** A bare 7-point line, sized for a table cell. */
 function MiniSpark({ values, bad }: { values: number[]; bad?: boolean }) {
+  if (!values || values.length < 2) return <span />;
   const w = 100, h = 26, min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
   const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - 3 - ((v - min) / span) * (h - 6)}`).join(' ');
   return (
@@ -263,6 +297,11 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
     return [...list].sort((a, b) => a.score - b.score);
   }, [q]);
   const b = d.branches.find((x) => x.id === sel) || d.branches[0];
+
+  if (!d.branches.length) {
+    return <EmptyTab title="No Branch Data Yet"
+      body="Branch figures are counted from real visits. As soon as tickets are issued at a branch it will appear here with its wait time, completion rate and health score." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -364,6 +403,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
 
 /** A filled 7-point area, sized to whatever cell it is dropped into. */
 function FullSpark({ values, bad }: { values: number[]; bad?: boolean }) {
+  if (!values || values.length < 2) return <div style={{ height: 52 }} />;
   const w = 200, h = 52, min = Math.min(...values) - 3, max = Math.max(...values) + 3, span = max - min || 1;
   const pt = (v: number, i: number) => `${(i / (values.length - 1)) * w},${h - 4 - ((v - min) / span) * (h - 8)}`;
   const line = values.map(pt).join(' ');
@@ -410,7 +450,17 @@ export function ExecManagers() {
     return [...list].sort((a, b) => a.score - b.score);
   }, [q]);
   const m = d.managers.find((x) => x.id === sel) || d.managers[0];
-  const avg = Math.round(d.managers.reduce((t, x) => t + x.score, 0) / d.managers.length);
+  const avg = d.managers.length
+    ? Math.round(d.managers.reduce((t, x) => t + x.score, 0) / d.managers.length)
+    : 0;
+
+  /* Manager scoring depends on a model insight the live pipeline does not
+     currently write, so this is genuinely empty rather than broken. Saying so
+     beats a blank screen, and beats inventing scores for named staff. */
+  if (!m) {
+    return <EmptyTab title="Manager Scores Are Not Available Yet"
+      body="Manager performance is produced by the prediction models, and that measure is not being generated at the moment. Branch-level figures are unaffected — Branches, Services and Busy Times all show live data." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -536,7 +586,8 @@ const FX_SVC_HEAT = [
 ];
 const FX_SVC_HEAT_COLS = ['Half Way Tree', 'Ocho Rios', 'Portmore', 'Montego Bay', 'Mandeville'];
 const heatData = (counts: number[][]) => {
-  const max = Math.max(...counts.flat()) || 1;
+  const flat = counts.flat();
+  const max = (flat.length ? Math.max(...flat) : 0) || 1;
   return counts.map((r) => r.map((v) => v / max));
 };
 
@@ -545,6 +596,11 @@ export function ExecServices() {
   const [view, setView] = useState<'demand' | 'time'>('demand');
   const totalJoined = d.lines.reduce((t, l) => t + l.joined, 0);
   const totalWindows = d.lines.reduce((t, l) => t + l.windows, 0);
+
+  if (!d.lines.length) {
+    return <EmptyTab title="No Service Data Yet"
+      body="Service lines appear here once visits have been recorded against them. Each one will show its share of the queue, its wait, and how long a visit takes at the counter." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -648,9 +704,15 @@ export function ExecBusy() {
   const [view, setView] = useState<'branch' | 'service'>('branch');
   const data = view === 'branch' ? d.branchHeat : d.lineHeat;
   const rows = view === 'branch' ? d.branchHeatRows : d.lines.map((l) => l.name);
-  const perHour = d.hours.map((_, i) => data.reduce((t, r) => t + r[i], 0));
-  const peakIdx = perHour.indexOf(Math.max(...perHour));
-  const quietIdx = perHour.indexOf(Math.min(...perHour.slice(0, 8).filter((v) => v > 0)));
+  const perHour = d.hours.map((_, i) => data.reduce((t, r) => t + (r[i] ?? 0), 0));
+  const open = perHour.filter((v) => v > 0);
+  const peakIdx = open.length ? perHour.indexOf(Math.max(...open)) : -1;
+  const quietIdx = open.length ? perHour.indexOf(Math.min(...open)) : -1;
+
+  if (!data.length || !d.hours.length || peakIdx < 0) {
+    return <EmptyTab title="No Demand Pattern Yet"
+      body="This grid needs a few days of visits before a pattern is worth reading. Once there is enough history it will show which hours carry the pressure and where there is free capacity." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -715,6 +777,11 @@ export function ExecTargets() {
   const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
 
   const met = d.targets.filter((t) => (t.goodWhen === 'down' ? t.now <= vals[t.key] : t.now >= vals[t.key])).length;
+
+  if (!d.targets.length) {
+    return <EmptyTab title="No Targets Set Yet"
+      body="Targets are the numbers every branch, manager and report is judged against. Once your organisation has visit data they can be set here, and everything else in the system measures against them." />;
+  }
 
   return (
     <div className="qx-grid">
@@ -1560,6 +1627,7 @@ function PaperPage({ page, n, total, ctx }: {
 /* Figures for the page. Small, flat, and printable — a report figure does not
    need the glow and hover the dashboard chart has. */
 function MiniLine({ values, target }: { values: number[]; target?: number }) {
+  if (!values || values.length < 2) return <div style={{ height: 40 }} />;
   const w = 300, h = 76, pad = 4;
   const all = target != null ? [...values, target] : values;
   const min = Math.min(...all) * 0.92, max = Math.max(...all) * 1.06, span = max - min || 1;
@@ -1577,6 +1645,7 @@ function MiniLine({ values, target }: { values: number[]; target?: number }) {
 }
 
 function MiniBars({ items }: { items: Array<{ label: string; value: number }> }) {
+  if (!items.length) return <div style={{ height: 40 }} />;
   const w = 300, h = 76, pad = 4, bw = (w - pad * 2) / items.length;
   const max = Math.max(...items.map((i) => i.value)) || 1;
   return (
@@ -1694,7 +1763,9 @@ const FX_FAQ: Array<{ q: string; a: string }> = [
 
 export function ExecSupport() {
   const d = useExecData();
-  const [open, setOpen] = useState<string | null>(d.faq[0].q);
+  // `d.faq[0].q` threw outright when the list was empty, which is the same
+  // black-screen class of bug as the Managers tab.
+  const [open, setOpen] = useState<string | null>(d.faq[0]?.q ?? null);
   const [q, setQ] = useState('');
   const shown = useMemo(() => {
     const n = q.trim().toLowerCase();
@@ -1787,6 +1858,27 @@ export const EXEC_FIXTURES: ExecTabData = {
   lineHeat: FX_LINE_HEAT, targets: FX_TARGETS, recent: FX_RECENT, faq: FX_FAQ,
   org: 'Tax Administration Jamaica', preparedBy: 'Debra Samuels',
   generatedOn: '27 July 2026',
+};
+
+/**
+ * A brand-new business, or a measure the models are not producing. Kept beside
+ * the fixtures so the empty states are something we can actually LOOK at in the
+ * preview — the Electron app black-screened on exactly this shape because the
+ * only data anyone ever rendered was the full fixture set.
+ */
+export const EXEC_EMPTY: ExecTabData = {
+  metrics: {
+    served: { label: 'Customers Served', unit: 'served', goodWhen: 'up', now: '0', was: '—', a: [], b: [], blurb: 'No visits recorded yet.' },
+    wait: { label: 'Average Wait', unit: 'min', goodWhen: 'down', now: '—', was: '—', a: [], b: [], blurb: 'No visits recorded yet.' },
+    done: { label: 'Completed Visits', unit: '%', goodWhen: 'up', now: '—', was: '—', a: [], b: [], blurb: 'No visits recorded yet.' },
+    noshow: { label: 'No-Shows', unit: '%', goodWhen: 'down', now: '—', was: '—', a: [], b: [], blurb: 'No visits recorded yet.' },
+  },
+  days: [], rangeA: '—', rangeB: '—',
+  movers: [], dow: { labels: [], values: [] }, trajectory: [],
+  branches: [], managers: [], lines: [],
+  svcHeat: [], svcHeatCols: [], hours: [], branchHeat: [], branchHeatRows: [], lineHeat: [],
+  targets: [], recent: [], faq: [],
+  org: 'Your Organisation', preparedBy: '—', generatedOn: '—',
 };
 
 const ExecDataCtx = createContext<ExecTabData>(EXEC_FIXTURES);

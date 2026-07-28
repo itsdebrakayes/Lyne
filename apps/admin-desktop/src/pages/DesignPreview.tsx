@@ -16,7 +16,7 @@ import {
   Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap, Chip,
   RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
 } from '@/design/ui';
-import { execTab, EXEC_TAB_HEAD } from '@/dashboard/qx/ExecTabsQX';
+import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
@@ -117,6 +117,9 @@ export default function DesignPreview() {
   const [tab, setTab] = useState('overview');
   const [q, setQ] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // Lets the empty states be inspected on demand — a brand-new business, or a
+  // measure the models are not producing.
+  const [empty, setEmpty] = useState(false);
 
   const NAV_FOR: Record<Role, QxNav[]> = { executive: EXEC_NAV, manager: MGR_NAV, supervisor: SUP_NAV, linestaff: LINE_NAV };
   const ACCOUNT: Record<Role, { name: string; role: string }> = {
@@ -139,6 +142,12 @@ export default function DesignPreview() {
         position: 'fixed', zIndex: 200, right: 16, bottom: 16, display: 'flex', gap: 6,
         background: '#12203A', padding: 6, borderRadius: 14, boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)',
       }}>
+        <button type="button" onClick={() => setEmpty((v) => !v)}
+          title="Render the tabs with no data, to check the empty states"
+          style={{
+            border: 0, borderRadius: 10, padding: '7px 12px', fontSize: 11.5, fontWeight: 700,
+            background: empty ? '#A62B25' : 'transparent', color: empty ? '#fff' : '#93A3BC',
+          }}>No Data</button>
         {(['linestaff', 'supervisor', 'manager', 'executive'] as Role[]).map((r) => (
           <button key={r} type="button" onClick={() => { setRole(r); setTab('overview'); }}
             style={{
@@ -174,7 +183,8 @@ export default function DesignPreview() {
         }
       >
         {role === 'executive'
-          ? (tab === 'overview' ? <ExecOverview onNav={setTab} /> : execTab(tab, setTab))
+          ? (tab === 'overview' ? <ExecOverview onNav={setTab} />
+            : <ExecDataProvider value={empty ? EXEC_EMPTY : EXEC_FIXTURES}>{execTab(tab, setTab)}</ExecDataProvider>)
           : role === 'manager' ? <ManagerOverview onNav={setTab} />
           : role === 'supervisor' ? <SupervisorBoard />
           : <LineStaffBoard />}
