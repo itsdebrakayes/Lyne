@@ -102,29 +102,32 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
   }).sort((x, y) => x.score - y.score);
 
   /* ── managers ──
-     The UI asks the model layer for a 'manager_performance' insight, but the
-     live pipeline does not produce one — predictive_results holds eleven insight
-     types and that is not among them, so managerScores() returns []. Rather than
-     invent scores for named people, this stays empty and the Managers tab shows
-     its own empty state. Restoring it means adding the model, not faking it. */
+     Straight from the manager_performance insight (scripts/score_manager_
+     performance.py). The component scores are the model's own, not recomputed
+     here, so the number a manager sees is the number that was actually scored.
+
+     `measures_used` is 3 rather than 4 where staff attribution is missing for
+     that branch — surfaced in the tenure slot rather than hidden, since a
+     3-of-4 score should not read as a 4-of-4 one. */
   const managers = i.managers.map((m) => {
-    const score = Math.round(num(m.manager_score));
-    const w = i.branchWeek(m.branch_id);
-    const wait = num(m.avg_wait_minutes) || (w.n ? w.waitSum / w.n : 0);
+    const p = m.parts || {};
+    const used = Number(m.measures_used) || 4;
     return {
       id: String(m.manager_id || m.branch_id),
       name: titleCase(m.manager_name) || '—',
       branch: titleCase(m.branch_name) || 'Branch',
-      score,
-      was: Math.round(num(m.manager_score_previous ?? m.manager_score)),
-      tenure: m.tenure ? String(m.tenure) : '—',
+      score: Math.round(num(m.manager_score)),
+      // No previous-period score is stored yet, so movement reads as flat
+      // rather than as an invented change.
+      was: Math.round(num(m.manager_score)),
+      tenure: used < 4 ? `Scored on ${used} of 4 measures` : `Rank ${num(m.rank) || '—'}`,
       parts: {
-        wait: clamp(wait ? (targetWait / wait) * 100 : 0),
-        done: clamp(w.served ? (w.done / w.served) * 100 : 0),
-        noshow: clamp(w.served ? ((num(i.target?.target_no_show_rate) || 10) / Math.max(0.1, (w.ns / w.served) * 100)) * 100 : 0),
-        staffing: clamp(num(m.counters_total) ? (num(m.counters_open) / num(m.counters_total)) * 100 : 0),
+        wait: clamp(num(p.wait)),
+        done: clamp(num(p.done)),
+        noshow: clamp(num(p.noshow)),
+        staffing: p.staffing != null ? clamp(num(p.staffing)) : 0,
       },
-      note: String(m.reason || m.explanation || '—'),
+      note: String(m.reason || '—'),
     };
   });
 

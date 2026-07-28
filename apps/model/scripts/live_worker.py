@@ -34,6 +34,7 @@ MODEL_SCRIPTS = [
     "predict_no_show.py",             # no_show_risk
     "forecast_targets.py",            # target_attainment
     "detect_operational_anomalies.py",  # operational_anomalies
+    "score_manager_performance.py",   # manager_performance
 ]
 
 REFRESH_SECONDS = int(os.getenv("MODEL_REFRESH_SECONDS", str(2 * 60 * 60)))  # every 2h
