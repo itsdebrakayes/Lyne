@@ -36,6 +36,14 @@ export type MgrLiveInput = {
   avgWait: number; completionPct: number; noShowPct: number; avgService: number;
   openFrom: string; openTo: string;
   faq: Array<{ q: string; a: string }>;
+  /* ── overview ── */
+  servedToday: number;
+  /** today's arrivals by hour, and the same hours yesterday */
+  todayByHour: number[];
+  yesterdayByHour: number[];
+  /** balking insight — how many gave up before being called */
+  balking: any;
+  weekServed: number; weekCompleted: number; weekNoShows: number;
 };
 
 export function buildMgrData(i: MgrLiveInput): MgrTabData {
@@ -142,6 +150,21 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     managerName: titleCase(i.managerName) || '—',
     staff, services, hours, svcHeat, dow, targets,
     faq: i.faq,
+    servedToday: i.servedToday,
+    todayByHour: i.todayByHour,
+    yesterdayByHour: i.yesterdayByHour,
+    funnel: (() => {
+      const joined = i.weekServed;
+      const left = Math.round(num(i.balking?.total_reneged));
+      return {
+        joined,
+        called: Math.max(0, joined - left),
+        served: i.weekCompleted,
+        left,
+        avgLeaveMin: i.balking?.avg_renege_minutes != null
+          ? Math.round(num(i.balking.avg_renege_minutes)) : null,
+      };
+    })(),
     openFrom: i.openFrom, openTo: i.openTo,
     generatedOn: new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' }),
   };

@@ -11,9 +11,23 @@ import {
 } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
-import { Shell, Kpi, Sparkline, Area, Heatmap, Card, ScoreRing, Rec, type NavItem } from './kit';
+import { Sparkline, Area, Card, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
+import { CalendarDays, MapPin } from 'lucide-react';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
+import { buildMgrData } from './qx/mgrLiveData';
+
+/* Kept from the Help & Support tab this replaces — written against how the
+   system actually behaves, so not re-guessed. */
+const MGR_FAQ = [
+  { q: 'How Do I Move Someone To A Busier Window?', a: 'Open Staff & Counters, choose the person, and pick the counter you want them on. The change takes effect on their next call — anyone already at their window is not interrupted.' },
+  { q: 'What Does The Idle Flag Actually Mean?', a: 'A counter has called nobody for a sustained stretch while people are waiting for that service. It is not a judgement — a clerk can be legitimately tied up — but it is the first thing to check when a line is not moving.' },
+  { q: 'Why Is My Branch Target Different From The Company One?', a: 'An executive can hold a branch to a stricter or looser number than the company target. Where an override is in force, Targets shows both so you know which one you are measured against.' },
+  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the QMe app and when remote joining opens. Contact your executive or QMe support.' },
+  { q: 'Someone Took A Ticket And Left. What Happens?', a: 'If they do not answer when called they are recorded as a no-show and the queue moves on. If they left before being called at all, they are counted as having given up waiting — that figure is on your Overview.' },
+];
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -55,6 +69,10 @@ export default function ManagerDashboard() {
 
   // Contextual search — only on tabs with a list to filter.
   const [q, setQ] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [period, setPeriod] = useState('today');
+  const org = d.admin?.staffRecord.business_name || 'Your Business';
+  const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   useEffect(() => { setQ(''); }, [tab]);
   const SEARCHABLE: Record<string, string> = {
     staff: 'Search staff by name or code…',
@@ -94,145 +112,68 @@ export default function ManagerDashboard() {
   const heat = buildHeatmap(d.heatmap);
   const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
+  /* Everything the ported manager screens read, mapped from the live layer. */
+  const liveData = useMemo(() => buildMgrData({
+    branchName, org, managerName: d.admin?.name || '',
+    queues: d.queues as any[], services: d.services as any[], staff: d.staff as any[],
+    productivity: d.productivity, demandHourly: d.demandHourly as any[], demandWeekly: d.demandWeekly as any[],
+    target: d.effectiveTarget, companyTarget: d.targets, branchTarget: d.branchTargets,
+    avgWait: liveWait,
+    completionPct: totalToday ? Math.round((completed / totalToday) * 100) : 0,
+    noShowPct: totalToday ? +((noShows / totalToday) * 100).toFixed(1) : 0,
+    avgService: Math.round(num(last.avg_service_time_minutes)),
+    openFrom: '—', openTo: '—', faq: MGR_FAQ,
+    servedToday: completed,
+    todayByHour: [], yesterdayByHour: [],
+    balking: d.balking,
+    weekServed: totalToday, weekCompleted: completed, weekNoShows: noShows,
+  }), [branchName, org, d.admin, d.queues, d.services, d.staff, d.productivity, d.demandHourly,
+       d.demandWeekly, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
+       liveWait, completed, totalToday, noShows, last]);
+
+  const worstLine = [...liveData.services].sort((a, b) => b.wait - a.wait)[0];
+
   return (
-    <Shell
-      roleLabel="Branch Manager" org={branchName}
-      eyebrow={`Branch Manager · ${branchName}`}
-      title={titles[tab][0]} subtitle={titles[tab][1]}
-      nav={NAV} active={tab} onNav={setTab}
-      freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
-      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : null}
-      alerts={alerts}
+    <QxShell
+      brand="QMe Now"
+      brandSub={org}
+      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      active={tab}
+      onNav={setTab}
+      notifications={alerts.length}
+      account={{ name: d.admin?.name || 'Manager', role: 'Branch Manager', email: d.admin?.staffRecord.email }}
+      search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
+      context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.services.length} Services</b></>}
+      railCard={
+        <div className="qx-railcard">
+          <small>Right Now</small>
+          <b>{fmtN(waitingNow)} People Are In Line</b>
+          <p>{worstLine ? `${worstLine.name} needs a window opened.` : 'Every line is inside target.'}</p>
+          <button type="button" onClick={() => setTab('staff')}>Open Staff & Counters</button>
+        </div>
+      }
+      theme={theme}
+      onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      head={
+        <QxHead
+          title={tab === 'overview' ? greetingFor(d.admin?.name) : (MGR_TAB_HEAD[tab]?.title ?? titles[tab]?.[0] ?? '')}
+          sub={tab === 'overview'
+            ? `Here's what's happening on the floor at ${branchName}.`
+            : (MGR_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
+          live="Live"
+          right={<>
+            <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+            <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
+          </>}
+        />
+      }
     >
-      {tab === 'overview' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Waiting Now" value={waitingNow} base="Branch-Wide, All Services" />
-          <Kpi span={3} label="Estimated Wait For Service" value={liveWait} unit="min" base={`Your Target: ${num(target.target_wait_minutes)} min`}
-            delta={{ dir: liveWait <= num(target.target_wait_minutes) ? 'good' : 'bad', text: liveWait <= num(target.target_wait_minutes) ? 'On Target' : `${liveWait - num(target.target_wait_minutes)} Over` }} />
-          <Kpi span={3} label="Completed Visits" value={fmtN(completed)} base={`${pct((completed / Math.max(1, totalToday)) * 100)} Served Today`} spark={{ values: servedSeries.length ? servedSeries : [1, 2, 3] }} delta={{ dir: 'up', text: 'Today' }} />
-          <Kpi span={3} label="No-Shows Today" value={noShows} base={`${pct((noShows / Math.max(1, totalToday)) * 100)} Of Visitors`} delta={{ dir: 'good', text: 'Tracking' }} />
-
-          <Card span={8} title="Customers Served Per Day" cap="Each Day Against The Daily Average">
-            <ServedChart summary={summary} />
-          </Card>
-
-          {/* stacked beside the tall chart so the column fills instead of gapping */}
-          <div className="qa-stack4">
-            <Card span={12} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
-              <div className="qa-scorewrap">
-                <ScoreRing value={num(myManager?.manager_score) || scoreFromTargets(last, target)} max={100} />
-                <div className="qa-scorebreak">
-                  <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
-                  <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
-                  <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
-                </div>
-              </div>
-            </Card>
-            <WaitForecastCard preds={preds} span={12} />
-          </div>
-
-          <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour. Staff The Darkest Squares; Quiet Ones Are For Breaks.">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
-          </Card>
-          <div className="qa-stack4">
-            <ImproveCard preds={preds} span={12} />
-            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
-          </div>
-
-          <ProductivityCard data={d.productivity} span={12} />
-          <TrafficCard services={d.services} span={6} />
-          <ChannelMixCard data={d.channels} span={6} />
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={12} />
-        </div>
-      )}
-
-      {tab === 'staff' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Staff On File" value={d.staff.length} base="At This Branch" />
-          <Kpi span={3} label="Live Queues" value={d.queues.length} base="Open Right Now" />
-          <Kpi span={3} label="Avg Handle Time" value={Math.round(num(last.avg_service_time_minutes)) || '—'} unit="min" base="Across All Counters" />
-          <Kpi span={3} label="Served Today" value={fmtN(completed)} base="Branch-Wide" />
-          <Card span={12} title="Staff Roster" cap={`Today's Activity · ${branchName}`}>
-            <div className="qa-chartwrap"><table className="qa-dtable">
-              <thead><tr><th>Name</th><th>Code</th><th className="r">Handled</th><th className="r">Avg Handle</th></tr></thead>
-              <tbody>
-                {shownStaff.length ? shownStaff.map((s: any) => (
-                  <tr key={s.staff_id || s.full_name}>
-                    <td><span className="qa-tname"><span className="qa-av">{initials(s.full_name)}</span>{titleCase(s.full_name)}</span></td>
-                    <td>{s.staff_code || '—'}</td>
-                    <td className="r qa-num">{fmtN(s.tickets_handled)}</td>
-                    <td className="r qa-num">{s.avg_handle_minutes != null ? `${Math.round(num(s.avg_handle_minutes))}m` : '—'}</td>
-                  </tr>
-                )) : <tr><td colSpan={4}><Empty msg={needle ? `No staff match “${q.trim()}”.` : 'No staff activity yet.'} /></td></tr>}
-              </tbody>
-            </table></div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'services' && (
-        <div className="qa-grid">
-          <ServicesTable services={shownServices} target={num(target.target_wait_minutes)} />
-        </div>
-      )}
-
-      {tab === 'busy' && (
-        <div className="qa-grid">
-          <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour Across The Week">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
-          </Card>
-          {/* pair what's coming with when you're busy, so the column fills */}
-          <div className="qa-stack4">
-            <DemandCard preds={preds} branchId={d.branchId} span={12} />
-            <WaitForecastCard preds={preds} span={12} />
-          </div>
-        </div>
-      )}
-
-      {tab === 'targets' && (
-        <div className="qa-grid">
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={8} big goalLabel={goalNoun} />
-          <TargetTrendCard preds={preds} span={4} />
-          <SetBranchTargetsCard target={branchTargetView} branchId={d.branchId} span={12} />
-        </div>
-      )}
-
-      {/* week slice so the report reconciles with every other screen */}
-      {tab === 'reports' && (
-        <ReportsTab summary={summary.slice(-7)} last={last} completed={completed} total={totalToday} noShows={noShows}
-          scope={branchName} services={d.services} target={target} preds={preds} />
-      )}
-
-      {tab === 'settings' && (
-        <div className="qa-grid">
-          <Card span={7} title="Branch Details" cap="Visible To Customers In The QMe App">
-            <Field label="Branch Name" value={branchName} />
-            <Field label="Services Offered" value={`${d.services.length} Services`} />
-            <Field label="Live Queues" value={`${d.queues.length} Open`} />
-          </Card>
-          <Card span={5} title="At A Glance">
-            <SvcRow nm={`${d.staff.length} Staff On File`} w="This branch" />
-            <SvcRow nm={`${d.services.length} Services`} w={d.services.slice(0, 3).map((s: any) => titleCase(s.service_name)).join(', ')} />
-            <SvcRow nm={`Target ${num(target.target_wait_minutes)}m Wait`} w={`${num(target.target_completion_rate)}% completion`} />
-          </Card>
-        </div>
-      )}
-
-      {tab === 'support' && <SupportTab role="Branch Managers" topics={[
-        { q: 'How do I read the busy-times heatmap?',
-          a: 'Each row is a service and each column is a day or hour. The darker the square, the more customers arrived in that slot. Use it to decide when to put extra people on — the dark blocks are where your queue builds, and the pale ones are where you can safely take breaks or run training.' },
-        { q: 'What does the Branch Health Score mean?',
-          a: 'A score out of 100 blending your wait time against target, your completion rate, and your no-show control. The three bars underneath show which part is pulling the score down, so you know what to work on first rather than guessing.' },
-        { q: 'Where do I see how each service is performing?',
-          a: 'The Services tab lists every service with its average wait, how many it served, its completion rate, and whether it is under or over your wait target. Anything marked Over is where customers are waiting longest.' },
-        { q: 'Who sets my branch targets?',
-          a: 'Your executive sets the company-wide targets. On the Targets tab you can set your own branch targets that refine them — go tighter than the company number where your branch can, or looser where it genuinely cannot — and every score and What-To-Improve item is then measured against your branch target. Leave them and your branch simply inherits the company target.' },
-        { q: 'What is in my weekly report?',
-          a: 'Reports shows a preview of exactly what your export contains: your KPI summary against target, customers served per day, the service breakdown, busy times and staffing, and your What To Improve list.' },
-        { q: 'How do I get more staff onto a busy counter?',
-          a: 'Check Busy Times to confirm the peak window, then use your Staff roster to see who is free and their handling times. Staffing suggestions on the Overview also recommend where extra cover would cut the wait the most.' },
-      ]} />}
-    </Shell>
+      <MgrDataProvider value={liveData}>
+        {tab === 'overview' ? <MgrOverviewQX onNav={setTab} /> : mgrTab(tab, setTab)}
+      </MgrDataProvider>
+    </QxShell>
   );
 }
 

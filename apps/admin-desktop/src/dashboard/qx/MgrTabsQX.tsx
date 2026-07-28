@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap,
+  Funnel, LegendToggle,
   Chip, Select, Ring, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
@@ -58,6 +59,11 @@ export type MgrTabData = {
   faq: Array<{ q: string; a: string }>;
   openFrom: string; openTo: string;
   generatedOn: string;
+  /* ── overview-only ── */
+  servedToday: number;
+  todayByHour: number[];
+  yesterdayByHour: number[];
+  funnel: { joined: number; called: number; served: number; left: number; avgLeaveMin: number | null };
 };
 
 /* ══════════════════════ fixtures ══════════════════════ */
@@ -110,12 +116,18 @@ export const MGR_FIXTURES: MgrTabData = {
   staff: FX_STAFF, services: FX_SERVICES, hours: FX_HOURS, svcHeat: FX_SVC_HEAT, dow: FX_DOW,
   targets: FX_TARGETS, faq: FX_FAQ, openFrom: '8:00am', openTo: '4:00pm',
   generatedOn: '28 July 2026',
+  servedToday: 218,
+  todayByHour: [12, 26, 41, 58, 54, 33, 47, 29, 14],
+  yesterdayByHour: [10, 22, 36, 44, 47, 30, 38, 25, 12],
+  funnel: { joined: 252, called: 234, served: 218, left: 18, avgLeaveMin: 26 },
 };
 
 export const MGR_EMPTY: MgrTabData = {
   branchName: 'Your Branch', org: 'Your Organisation', managerName: '—',
   staff: [], services: [], hours: [], svcHeat: [], dow: { labels: [], values: [] },
   targets: [], faq: [], openFrom: '—', openTo: '—', generatedOn: '—',
+  servedToday: 0, todayByHour: [], yesterdayByHour: [],
+  funnel: { joined: 0, called: 0, served: 0, left: 0, avgLeaveMin: null },
 };
 
 const MgrCtx = createContext<MgrTabData>(MGR_FIXTURES);
@@ -717,3 +729,175 @@ export const MGR_TAB_HEAD: Record<string, { title: string; sub: string }> = {
   settings: { title: 'Settings', sub: "This branch's hours, counters and alerts" },
   support: { title: 'Help & Support', sub: 'Answers, and a person when you need one' },
 };
+
+/* ══════════════════════ OVERVIEW ══════════════════════ */
+/**
+ * The approved manager overview, reading from the same context as the tabs so
+ * the preview and the live app render one component rather than two copies.
+ *
+ * Deliberately now-facing: a manager's horizon is the next hour, so the headline
+ * numbers are "right now" and "today", not the month.
+ */
+const MSVC_OGRID = 'minmax(0,2.4fr) 84px 96px 118px 118px';
+const MSTAFF_OGRID = 'minmax(0,1.8fr) 92px minmax(0,1.4fr) 84px 92px minmax(0,1.5fr)';
+
+export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
+  const d = useMgr();
+  const [showA, setShowA] = useState(true);
+  const [showB, setShowB] = useState(true);
+  const [sq, setSq] = useState('');
+
+  const shownStaff = useMemo(() => {
+    const n = sq.trim().toLowerCase();
+    return n ? d.staff.filter((s) => `${s.name} ${s.counter} ${s.svc}`.toLowerCase().includes(n)) : d.staff;
+  }, [sq, d.staff]);
+
+  const waiting = d.services.reduce((t, s) => t + s.waiting, 0);
+  const open = d.services.reduce((t, s) => t + s.open, 0);
+  const counters = d.services.reduce((t, s) => t + s.counters, 0);
+  const avgWait = d.targets.find((t) => t.key === 'wait')?.now ?? 0;
+  const worst = [...d.services].sort((a, b) => b.wait - a.wait)[0];
+  const free = d.staff.find((s) => s.state === 'break' || s.counter === '—');
+  const targetWait = d.targets.find((t) => t.key === 'wait');
+  const tWait = targetWait ? (targetWait.branch ?? targetWait.company) : 20;
+
+  return (
+    <div className="qx-grid">
+      <Stat span={3} icon={Users} tone={waiting > 25 ? 'bad' : 'primary'} label="Waiting Right Now" value={waiting}
+        chip={waiting > 25 ? { dir: 'bad', text: 'Over' } : { dir: 'flat', text: 'Steady' }}
+        foot={worst ? `Worst line is ${worst.name}` : 'Across every line at this branch'} />
+      <Stat span={3} icon={Clock} tone={avgWait > tWait ? 'bad' : 'primary'} label="Average Wait" value={avgWait} unit="min"
+        chip={avgWait > tWait ? { dir: 'bad', text: `${Math.round(avgWait - tWait)} Over` } : { dir: 'good', text: 'On Target' }}
+        foot={`Your branch target is ${tWait} minutes`} />
+      <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={d.servedToday}
+        foot="Seen and finished at a counter today" />
+      <Stat span={3} icon={Users} tone={open < counters ? 'warn' : 'primary'} label="Windows Open"
+        value={`${open} of ${counters}`}
+        foot={open < counters ? `${counters - open} window free to open` : 'Every window is covered'} />
+
+      <Card span={8} title="The Line Right Now" cap={`Every service at ${d.branchName}, worst first`}>
+        {!d.services.length ? <div className="qx-empty">No services on this branch yet.</div> : (
+          <>
+            <Table grid={MSVC_OGRID} columns={['Service', 'Waiting', 'Est. Wait', 'Windows Open', 'Status']}
+              items={[...d.services].sort((a, b) => b.wait - a.wait)}
+              renderRow={(s) => (
+                <Row key={s.id} grid={MSVC_OGRID} onClick={() => onNav('services')}>
+                  <div className="qx-cellmain">
+                    <span className="qx-av" style={avatarStyle(s.name)}>{s.code}</span>
+                    <div style={{ minWidth: 0 }}><b>{s.name}</b><small>{s.longest} min longest wait</small></div>
+                  </div>
+                  <div className="qx-num">{s.waiting}</div>
+                  <div className="qx-num">{s.wait}<u> min</u></div>
+                  <div className="qx-num">{s.open}<u> of {s.counters}</u></div>
+                  <div><Status kind={s.state}>{s.state === 'busy' ? 'Needs A Window' : 'Healthy'}</Status></div>
+                </Row>
+              )} />
+            <div className="qx-tfoot" style={{ gridTemplateColumns: MSVC_OGRID }}>
+              <span>All Services</span>
+              <b>{waiting}</b>
+              <b>{waiting ? Math.round(d.services.reduce((t, s) => t + s.wait * s.waiting, 0) / waiting) : 0}<u> min avg</u></b>
+              <b>{open}<u> of {counters}</u></b>
+              <span />
+            </div>
+          </>
+        )}
+      </Card>
+
+      <div className="qx-stack s4">
+        {worst ? (
+          <Focus eyebrow="Do This Next"
+            title={free ? `Move ${free.name.split(' ')[0]} Onto ${worst.code}` : `Open Another ${worst.code} Window`}
+            body={`${worst.name} has ${worst.waiting} people waiting on ${worst.open} of ${worst.counters} windows, and the longest wait in that line is ${worst.longest} minutes.`}
+            stats={[{ label: 'Wait Time', value: `−${Math.max(1, Math.round(worst.wait / 3))} min`, dir: 'good' },
+                    { label: 'Waiting', value: String(worst.waiting), dir: 'bad' }]}
+            action={{ label: 'Open Staff & Counters', onClick: () => onNav('staff') }} />
+        ) : null}
+        <Card title="Today Against Your Target" cap="The targets this branch is held to">
+          {!d.targets.length ? <div className="qx-empty">No targets set yet.</div> : (
+            <div className="qx-sbreak">
+              {d.targets.slice(0, 3).map((t) => {
+                const eff = t.branch ?? t.company;
+                const ok = t.goodWhen === 'down' ? t.now <= eff : t.now >= eff;
+                const p = Math.max(0, Math.min(100, t.goodWhen === 'down'
+                  ? (eff / Math.max(0.1, t.now)) * 100
+                  : (t.now / Math.max(0.1, eff)) * 100));
+                return (
+                  <div key={t.key}>
+                    <div className="r">
+                      <span>{t.label}</span>
+                      <b style={{ color: ok ? 'var(--c-good)' : 'var(--c-bad)' }}>
+                        {t.now}{t.unit === '%' ? '%' : ` ${t.unit}`}
+                      </b>
+                    </div>
+                    <div className="qx-bar"><i style={{ width: `${p}%`, background: ok ? 'var(--c-primary)' : 'var(--c-bad)' }} /></div>
+                    <div style={{ fontSize: 10.5, color: 'var(--c-faint)', fontWeight: 700, marginTop: 3 }}>
+                      Target {eff}{t.unit === '%' ? '%' : ` ${t.unit}`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Card span={12} title={<>Staff On Counters<span className="qx-count">{shownStaff.length}</span></>}
+        cap="Anyone idle while people wait, or serving well over their usual, is flagged first"
+        tools={<InlineSearch value={sq} onChange={setSq} placeholder="Search Staff, Counter Or Service…" />}>
+        <Table grid={MSTAFF_OGRID} columns={['Staff', 'Counter', 'Service', 'Seen', 'Avg', 'Status']}
+          items={shownStaff} empty={sq ? `Nobody matches “${sq}”.` : 'No staff on this branch yet.'}
+          renderRow={(s) => (
+            <Row key={s.id} grid={MSTAFF_OGRID} onClick={() => onNav('staff')}>
+              <div className="qx-cellmain">
+                <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
+                <div style={{ minWidth: 0 }}><b>{s.name}</b><small>{s.note || `Since ${s.since}`}</small></div>
+              </div>
+              <div className="qx-num">{s.counter}</div>
+              <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.svc}</div>
+              <div className="qx-num">{s.seen}</div>
+              <div className="qx-num">{s.avg ? s.avg : '—'}{s.avg ? <u> min</u> : null}</div>
+              <div>
+                {s.state === 'idle' ? <Status kind="busy">Idle With Demand</Status>
+                  : s.state === 'slow' ? <Status kind="soon">Slower Than Usual</Status>
+                  : s.state === 'break' ? <Status kind="closed">On Break</Status>
+                  : s.state === 'off' ? <Status kind="closed">Not On Today</Status>
+                  : <Status kind="open">Serving</Status>}
+              </div>
+            </Row>
+          )} />
+      </Card>
+
+      <Card span={8} title="Customers Served Today" cap="By hour, against the same hours yesterday"
+        tools={<>
+          <LegendToggle series="a" on={showA} onClick={() => setShowA((v) => !v)}>Today</LegendToggle>
+          <LegendToggle series="b" on={showB} onClick={() => setShowB((v) => !v)}>Yesterday</LegendToggle>
+        </>}>
+        {d.todayByHour.length > 1 ? (
+          <div className="qx-chartfill">
+            <Chart values={d.todayByHour}
+              compare={d.yesterdayByHour.length === d.todayByHour.length ? d.yesterdayByHour : null}
+              labels={d.hours} label="Today" compareLabel="Yesterday"
+              showA={showA} showB={showB} unit="served" h={236} />
+          </div>
+        ) : <div className="qx-empty">Not enough of today has happened yet to draw an hourly line.</div>}
+      </Card>
+
+      <Card span={4} title="Where Your Queue Leaks" cap="Today, at this branch">
+        {d.funnel.joined ? (
+          <Funnel steps={[
+            { label: 'Joined The Line', value: d.funnel.joined, pct: 100, sub: 'App and kiosk', tone: 'primary' },
+            { label: 'Called Forward', value: d.funnel.called, pct: d.funnel.joined ? (d.funnel.called / d.funnel.joined) * 100 : 0, sub: `${d.funnel.left} left before being called`, tone: 'primary' },
+            { label: 'Actually Served', value: d.funnel.served, pct: d.funnel.joined ? (d.funnel.served / d.funnel.joined) * 100 : 0, sub: `${Math.max(0, d.funnel.called - d.funnel.served)} did not answer the call`, tone: 'good' },
+            { label: 'Gave Up Waiting', value: d.funnel.left, pct: d.funnel.joined ? (d.funnel.left / d.funnel.joined) * 100 : 0, sub: d.funnel.avgLeaveMin != null ? `Average ${d.funnel.avgLeaveMin} min before leaving` : 'Average wait before leaving not yet measured', tone: 'bad' },
+          ]} />
+        ) : <div className="qx-empty">No visits recorded yet today.</div>}
+      </Card>
+
+      <Card span={12} title="Busy Times" cap="Visits per hour by service. Staff the darkest cells; the pale ones are safe for breaks and training.">
+        {d.svcHeat.length && d.hours.length
+          ? <Heatmap rowLabels={d.services.map((s) => s.name)} colLabels={d.hours} data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
+          : <div className="qx-empty">Not enough history yet to show a pattern.</div>}
+      </Card>
+    </div>
+  );
+}
