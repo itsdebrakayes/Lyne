@@ -305,7 +305,7 @@ export function SupDesksTab() {
                         {who ? (
                           <span className="who">
                             <span className="qx-av" style={avatarStyle(who.name)}>{initials(who.name)}</span>
-                            <span title={who.name}>{who.name}</span>
+                            <span className="nm" title={who.name}>{who.name}</span>
                           </span>
                         ) : (
                           <span className="none">{alert ? 'Empty — people waiting' : 'Empty'}</span>

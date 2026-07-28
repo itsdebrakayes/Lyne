@@ -876,11 +876,13 @@
 .qs-slot .lbl small { font-size: 10.5px; font-weight: 700; color: var(--c-faint); }
 .qs-slot .who { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .qs-slot .who .qx-av { width: 30px; height: 30px; border-radius: 10px; font-size: 10px; flex: none; }
-/* `flex: 1` is the part that was missing: without a flex basis the name sized
-   to its content and spilled past the border however much overflow:hidden was
-   set. It now wraps to two lines before clipping, so a long name stays
-   readable instead of being shaved mid-word. */
-.qs-slot .who span { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 700; line-height: 1.25;
+/* Targets the NAME only. This was `.qs-slot .who span`, which also matched the
+   avatar — that span is a .qx-av, and the two-class-plus-element selector beat
+   .qx-av's own `display: grid`, so the initials lost their centring.
+   `flex: 1` is the part the overflow fix actually needed: without a flex basis
+   the name sized to its content and spilled past the border however much
+   overflow:hidden was set. */
+.qs-slot .who .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 700; line-height: 1.25;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   overflow-wrap: anywhere; }
 .qs-slot .none { font-size: 11.5px; font-weight: 600; color: var(--c-faint); }
