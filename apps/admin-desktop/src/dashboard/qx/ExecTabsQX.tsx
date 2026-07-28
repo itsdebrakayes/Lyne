@@ -42,7 +42,7 @@ export function Seg<T extends string>({ value, onChange, options }: {
   );
 }
 
-function Bars({ items, unit, invert }: {
+export function Bars({ items, unit, invert }: {
   items: Array<{ name: string; value: number; bad?: boolean }>;
   unit?: string;
   /** true when a HIGHER number is the bad one (wait time), so the bar reads as pressure */
@@ -72,7 +72,7 @@ function Bars({ items, unit, invert }: {
  * empty array is what black-screened the Electron app, so each tab checks first
  * and says plainly why it has nothing to show.
  */
-function EmptyTab({ title, body }: { title: string; body: string }) {
+export function EmptyTab({ title, body }: { title: string; body: string }) {
   return (
     <div className="qx-grid">
       <Card span={12}>
@@ -85,7 +85,7 @@ function EmptyTab({ title, body }: { title: string; body: string }) {
   );
 }
 
-function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+export function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return <button type="button" className="qx-tog" aria-pressed={on} aria-label={label} onClick={onClick}><i /></button>;
 }
 
@@ -253,7 +253,7 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
 }
 
 /** A bare 7-point line, sized for a table cell. */
-function MiniSpark({ values, bad }: { values: number[]; bad?: boolean }) {
+export function MiniSpark({ values, bad }: { values: number[]; bad?: boolean }) {
   if (!values || values.length < 2) return <span />;
   const w = 100, h = 26, min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
   const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - 3 - ((v - min) / span) * (h - 6)}`).join(' ');

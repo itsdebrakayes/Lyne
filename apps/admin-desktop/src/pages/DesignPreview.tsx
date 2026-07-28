@@ -17,6 +17,7 @@ import {
   RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
 } from '@/design/ui';
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
+import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
@@ -176,6 +177,9 @@ export default function DesignPreview() {
           role === 'executive' && tab !== 'overview' && EXEC_TAB_HEAD[tab]
             ? <TabHead key={tab} {...EXEC_TAB_HEAD[tab]} period="14" date="9 – 22 July 2026"
                 options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} />
+            : role === 'manager' && tab !== 'overview' && MGR_TAB_HEAD[tab]
+              ? <TabHead key={tab} {...MGR_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
+                  options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
             : role === 'executive' ? <ExecHead />
             : role === 'manager' ? <MgrHead />
             : role === 'supervisor' ? <SupHead />
@@ -185,7 +189,9 @@ export default function DesignPreview() {
         {role === 'executive'
           ? (tab === 'overview' ? <ExecOverview onNav={setTab} />
             : <ExecDataProvider value={empty ? EXEC_EMPTY : EXEC_FIXTURES}>{execTab(tab, setTab)}</ExecDataProvider>)
-          : role === 'manager' ? <ManagerOverview onNav={setTab} />
+          : role === 'manager'
+            ? (tab === 'overview' ? <ManagerOverview onNav={setTab} />
+              : <MgrDataProvider value={empty ? MGR_EMPTY : MGR_FIXTURES}>{mgrTab(tab, setTab)}</MgrDataProvider>)
           : role === 'supervisor' ? <SupervisorBoard />
           : <LineStaffBoard />}
       </Shell>
