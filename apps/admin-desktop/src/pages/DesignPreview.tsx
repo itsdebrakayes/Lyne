@@ -18,6 +18,8 @@ import {
 } from '@/design/ui';
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
+import { supTab, SUP_TAB_HEAD, SupDataProvider, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
+import { lineTab, LINE_TAB_HEAD, LineDataProvider, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
@@ -182,6 +184,12 @@ export default function DesignPreview() {
             : role === 'manager' && tab !== 'overview' && MGR_TAB_HEAD[tab]
               ? <TabHead key={tab} {...MGR_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
                   options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            : role === 'supervisor' && tab !== 'overview' && SUP_TAB_HEAD[tab]
+              ? <TabHead key={tab} {...SUP_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
+                  options={[['today', 'Today'], ['7', '7 Days']]} />
+            : role === 'linestaff' && tab !== 'overview' && LINE_TAB_HEAD[tab]
+              ? <TabHead key={tab} {...LINE_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
+                  options={[['today', 'Today'], ['7', '7 Days']]} />
             : role === 'executive' ? <ExecHead />
             : role === 'manager' ? <MgrHead />
             : role === 'supervisor' ? <SupHead />
@@ -194,8 +202,11 @@ export default function DesignPreview() {
           : role === 'manager'
             ? (tab === 'overview' ? <ManagerOverview onNav={setTab} />
               : <MgrDataProvider value={empty ? MGR_EMPTY : MGR_FIXTURES}>{mgrTab(tab, setTab)}</MgrDataProvider>)
-          : role === 'supervisor' ? <SupervisorBoard />
-          : <LineStaffBoard />}
+          : role === 'supervisor'
+            ? (tab === 'overview' ? <SupervisorBoard />
+              : <SupDataProvider value={empty ? SUP_EMPTY : SUP_FIXTURES}>{supTab(tab, setTab)}</SupDataProvider>)
+          : (tab === 'overview' ? <LineStaffBoard />
+            : <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>{lineTab(tab, setTab)}</LineDataProvider>)}
       </Shell>
     </>
   );
