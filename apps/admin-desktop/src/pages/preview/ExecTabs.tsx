@@ -17,10 +17,11 @@
  *
  * Title Case for every title, label and control. Sentence case only for prose.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, Clock,
-  Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, Users, Waypoints, Zap,
+  Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
+  ChevronRight, Clock, Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp,
+  Users, Waypoints, Zap,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, LegendToggle, Ring, Table, Row, InlineSearch, IconBtn, Status,
@@ -826,53 +827,142 @@ const HIST_GRID = '104px minmax(0,1.1fr) 104px 104px minmax(0,1.1fr) minmax(0,1.
 
 /* ══════════════════════ 7 · REPORTS ══════════════════════ */
 /**
- * The output of this tab leaves the building — it goes to a permanent secretary
- * or a minister. So the screen is a builder on the left and a real sheet of
- * paper on the right, with the cover page shown, not a download button and hope.
+ * This output leaves the building — it goes to a permanent secretary, a board,
+ * or a minister, and someone will walk a team through it. So it is a real
+ * document: cover, contents, an executive summary, a page per branch, analysis,
+ * recommendations, methodology and appendix — twenty-odd pages, not a one-pager.
+ *
+ * The preview shows the ACTUAL WORDS, page by page, at document zoom. A stack
+ * of grey placeholder bars tells you nothing about what you are about to send
+ * out under your own name.
  */
 const REPORT_TYPES: Array<[string, string, string]> = [
-  ['performance', 'Performance Summary', 'Every measure against target, by branch, with commentary'],
-  ['trend', 'Trend Report', 'Ninety days of movement with projections'],
+  ['performance', 'Performance Summary', 'Every measure against target, by branch, with written commentary'],
+  ['quarter', 'Quarterly Review', 'The full board pack — trends, branches, services, staffing and recommendations'],
   ['branch', 'Branch Comparison', 'Branches ranked side by side on every measure'],
   ['service', 'Service Line Review', 'Demand, capacity and counter time by service'],
 ];
-const RECENT = [
-  { name: 'Performance Summary — June 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '1.2 MB' },
-  { name: 'Trend Report — Q2 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '2.8 MB' },
-  { name: 'Branch Comparison — May 2026', when: '3 Jun 2026', by: 'Andre Blake', size: '940 KB' },
+
+type Section = { key: string; title: string; blurb: string; pages: number; locked?: boolean };
+const SECTIONS: Section[] = [
+  { key: 'cover', title: 'Cover And Contents', blurb: 'Title page, period, who prepared it, and the table of contents', pages: 2, locked: true },
+  { key: 'summary', title: 'Executive Summary', blurb: 'The findings in plain English, for someone who reads only this', pages: 2, locked: true },
+  { key: 'targets', title: 'Performance Against Targets', blurb: 'Each company target, where the company landed, and the gap', pages: 2 },
+  { key: 'branches', title: 'Branch By Branch', blurb: 'A full page for every branch included, plus a ranking page', pages: 1 },
+  { key: 'services', title: 'Service Line Analysis', blurb: 'Demand against capacity, counter minutes, where lines are mis-staffed', pages: 2 },
+  { key: 'busy', title: 'Demand Patterns', blurb: 'When the pressure lands, by hour, weekday and branch', pages: 2 },
+  { key: 'managers', title: 'Manager Performance', blurb: 'Scores with the four measures behind them, and movement', pages: 2 },
+  { key: 'channels', title: 'How People Join', blurb: 'App against kiosk adoption and what it saves at the counter', pages: 1 },
+  { key: 'anomalies', title: 'Incidents And Anomalies', blurb: 'Anything the system flagged as outside its normal range', pages: 1 },
+  { key: 'actions', title: 'Recommendations', blurb: 'What to do next, ranked by the waiting time it buys back', pages: 2 },
+  { key: 'method', title: 'Methodology And Data Notes', blurb: 'How every figure was counted, and what is excluded', pages: 1 },
+  { key: 'appendix', title: 'Appendix — Full Data Tables', blurb: 'The underlying daily figures, for anyone checking the working', pages: 2 },
 ];
-const RECENT_GRID = 'minmax(0,2.6fr) 118px minmax(0,1.2fr) 88px 96px';
+
+type Page = { kind: string; section: string; title: string; branch?: Branch };
+
+const RECENT = [
+  { name: 'Quarterly Review — Q2 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '4.1 MB', pages: 24 },
+  { name: 'Performance Summary — June 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '1.9 MB', pages: 14 },
+  { name: 'Branch Comparison — May 2026', when: '3 Jun 2026', by: 'Andre Blake', size: '1.2 MB', pages: 11 },
+];
+const RECENT_GRID = 'minmax(0,2.6fr) 104px 112px minmax(0,1.1fr) 80px 88px';
 
 export function ExecReports() {
-  const [type, setType] = useState('performance');
-  const [period, setPeriod] = useState('30');
+  const [type, setType] = useState('quarter');
+  const [period, setPeriod] = useState('q');
   const [branches, setBranches] = useState<string[]>(['all']);
+  const [on, setOn] = useState<string[]>(() => SECTIONS.map((s) => s.key));
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
   const toggle = (id: string) => setBranches((p) => {
     if (id === 'all') return ['all'];
     const next = p.filter((x) => x !== 'all');
-    return next.includes(id) ? (next.filter((x) => x !== id).length ? next.filter((x) => x !== id) : ['all']) : [...next, id];
+    const after = next.includes(id) ? next.filter((x) => x !== id) : [...next, id];
+    return after.length ? after : ['all'];
   });
+  const toggleSection = (k: string) => setOn((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+
+  const included = branches.includes('all') ? BRANCHES : BRANCHES.filter((b) => branches.includes(b.id));
   const typeLabel = REPORT_TYPES.find((t) => t[0] === type)?.[1] || '';
-  const periodLabel = { '30': 'Last 30 Days', '90': 'Last 90 Days', 'q': 'This Quarter', 'y': 'Year To Date' }[period] || '';
+  const periodLabel = ({ '30': 'Last 30 Days', '90': 'Last 90 Days', q: 'Second Quarter 2026', y: 'Year To Date' } as Record<string, string>)[period] || '';
+
+  /* Flatten the chosen sections into actual pages. */
+  const pages = useMemo<Page[]>(() => {
+    const out: Page[] = [];
+    const has = (k: string) => on.includes(k);
+    out.push({ kind: 'cover', section: 'cover', title: 'Cover' });
+    out.push({ kind: 'contents', section: 'cover', title: 'Contents' });
+    if (has('summary')) {
+      out.push({ kind: 'summary', section: 'summary', title: 'Executive Summary' });
+      out.push({ kind: 'summary2', section: 'summary', title: 'Executive Summary' });
+    }
+    if (has('targets')) {
+      out.push({ kind: 'targets', section: 'targets', title: 'Performance Against Targets' });
+      out.push({ kind: 'targets2', section: 'targets', title: 'Performance Against Targets' });
+    }
+    if (has('branches')) {
+      out.push({ kind: 'branchrank', section: 'branches', title: 'Branch By Branch' });
+      included.forEach((b) => out.push({ kind: 'branch', section: 'branches', title: b.name, branch: b }));
+    }
+    if (has('services')) {
+      out.push({ kind: 'services', section: 'services', title: 'Service Line Analysis' });
+      out.push({ kind: 'services2', section: 'services', title: 'Service Line Analysis' });
+    }
+    if (has('busy')) {
+      out.push({ kind: 'busy', section: 'busy', title: 'Demand Patterns' });
+      out.push({ kind: 'busy2', section: 'busy', title: 'Demand Patterns' });
+    }
+    if (has('managers')) {
+      out.push({ kind: 'managers', section: 'managers', title: 'Manager Performance' });
+      out.push({ kind: 'managers2', section: 'managers', title: 'Manager Performance' });
+    }
+    if (has('channels')) out.push({ kind: 'channels', section: 'channels', title: 'How People Join' });
+    if (has('anomalies')) out.push({ kind: 'anomalies', section: 'anomalies', title: 'Incidents And Anomalies' });
+    if (has('actions')) {
+      out.push({ kind: 'actions', section: 'actions', title: 'Recommendations' });
+      out.push({ kind: 'actions2', section: 'actions', title: 'Recommendations' });
+    }
+    if (has('method')) out.push({ kind: 'method', section: 'method', title: 'Methodology And Data Notes' });
+    if (has('appendix')) {
+      out.push({ kind: 'appendix', section: 'appendix', title: 'Appendix — Full Data Tables' });
+      out.push({ kind: 'appendix2', section: 'appendix', title: 'Appendix — Full Data Tables' });
+    }
+    return out;
+  }, [on, included]);
+
+  /* Rebuilding the document takes a moment, and saying so is better than
+     swapping the page under the reader with no explanation. */
+  useEffect(() => {
+    setLoading(true);
+    const id = setTimeout(() => setLoading(false), 550);
+    return () => clearTimeout(id);
+  }, [type, period, branches, on]);
+
+  useEffect(() => { setPage((p) => Math.min(Math.max(1, p), pages.length)); }, [pages.length]);
+
+  const current = pages[page - 1];
+  const ctx = { typeLabel, periodLabel, included, pages, on };
 
   return (
     <div className="qx-grid">
-      <Card span={7} title="Build A Report" cap="Choose what it covers. The preview beside this updates as you go.">
+      <Card span={5} title="Build A Report" cap="Choose what it covers. The document beside this rebuilds as you go.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
-            <div className="qx-navlabel" style={{ marginBottom: 9 }}>Report Type</div>
+            <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Report Type</div>
             <div style={{ display: 'grid', gap: 8 }}>
               {REPORT_TYPES.map(([id, label, blurb]) => (
                 <button key={id} type="button" onClick={() => setType(id)}
                   style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 11, textAlign: 'left', padding: '12px 13px',
+                    display: 'flex', alignItems: 'flex-start', gap: 11, textAlign: 'left', padding: '11px 12px',
                     borderRadius: 13, border: `1px solid ${type === id ? 'var(--c-primary)' : 'var(--c-line-2)'}`,
                     background: type === id ? 'var(--c-primary-soft)' : 'var(--c-surface)', color: 'var(--c-text)',
                   }}>
                   <span style={{
-                    width: 18, height: 18, borderRadius: '50%', flex: 'none', marginTop: 1, display: 'grid', placeItems: 'center',
+                    width: 17, height: 17, borderRadius: '50%', flex: 'none', marginTop: 1, display: 'grid', placeItems: 'center',
                     border: `2px solid ${type === id ? 'var(--c-primary)' : 'var(--c-line-2)'}`,
-                  }}>{type === id ? <i style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--c-primary)' }} /> : null}</span>
+                  }}>{type === id ? <i style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-primary)' }} /> : null}</span>
                   <span style={{ minWidth: 0 }}>
                     <b style={{ display: 'block', fontSize: 12.5, fontWeight: 700 }}>{label}</b>
                     <small style={{ display: 'block', color: 'var(--c-dim)', fontSize: 11.5, marginTop: 2 }}>{blurb}</small>
@@ -883,14 +973,16 @@ export function ExecReports() {
           </div>
 
           <div>
-            <div className="qx-navlabel" style={{ marginBottom: 9 }}>Period</div>
-            <Seg value={period} onChange={setPeriod} options={[['30', 'Last 30 Days'], ['90', 'Last 90 Days'], ['q', 'This Quarter'], ['y', 'Year To Date']]} />
+            <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Period</div>
+            <Seg value={period} onChange={setPeriod}
+              options={[['30', 'Last 30 Days'], ['90', 'Last 90 Days'], ['q', 'This Quarter'], ['y', 'Year To Date']]} />
           </div>
 
           <div>
-            <div className="qx-navlabel" style={{ marginBottom: 9 }}>Branches Included</div>
+            <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Branches Included</div>
             <div className="qx-checks">
-              {[['all', 'All Branches'], ...BRANCHES.map((b) => [b.id, b.name.replace('Kingston — ', '')] as [string, string])].map(([id, label]) => (
+              {[['all', 'All Branches'] as [string, string],
+                ...BRANCHES.map((b) => [b.id, b.name.replace('Kingston — ', '')] as [string, string])].map(([id, label]) => (
                 <button key={id} type="button" className="qx-check" aria-pressed={branches.includes(id)} onClick={() => toggle(id)}>
                   {branches.includes(id) ? <Check size={13} /> : null}{label}
                 </button>
@@ -898,45 +990,59 @@ export function ExecReports() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+          <div>
+            <div className="qx-navlabel" style={{ marginBottom: 4, padding: 0 }}>Sections Included</div>
+            <div>
+              {SECTIONS.map((s) => {
+                const isOn = on.includes(s.key);
+                const n = s.key === 'branches' ? 1 + included.length : s.pages;
+                return (
+                  <div className="qx-secrow" key={s.key}>
+                    <button type="button" className="qx-secbox" aria-pressed={isOn} aria-label={s.title}
+                      disabled={s.locked} onClick={() => !s.locked && toggleSection(s.key)}>
+                      {isOn ? <Check size={12} /> : null}
+                    </button>
+                    <div><b>{s.title}</b><small>{s.blurb}</small></div>
+                    <span className="qx-secpages">{isOn ? `${n} ${n === 1 ? 'page' : 'pages'}` : '—'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
             <button type="button" className="qx-btn"><Download size={14} />Download As Word</button>
             <button type="button" className="qx-btn ghost"><FileText size={14} />Download As PDF</button>
-            <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600, marginLeft: 'auto' }}>Includes a cover page</span>
+            <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 700, marginLeft: 'auto' }}>
+              {pages.length} pages
+            </span>
           </div>
         </div>
       </Card>
 
-      <Card span={5} title="Preview" cap="Cover page, as it will be delivered">
-        <div className="qx-paper">
-          <div className="qx-papercover">
-            <div className="qx-papertop">
-              <span className="qx-av" style={avatarStyle('Tax Administration Jamaica')}>TAJ</span>
-              <span>
-                <b>Tax Administration Jamaica</b>
-                <small>Prepared by QMe Now</small>
-              </span>
-            </div>
-            <h5>{typeLabel}</h5>
-            <div className="meta">
-              {periodLabel} · {branches.includes('all') ? 'All five branches' : `${branches.length} branch${branches.length > 1 ? 'es' : ''}`}<br />
-              Generated 27 July 2026 by Debra Samuels
-            </div>
+      <Card span={7} title="Preview"
+        cap={loading ? 'Preparing the document…' : `Page ${page} of ${pages.length} — ${current?.title}`}
+        tools={<Seg value={String(page)} onChange={(v) => setPage(Number(v))}
+          options={[['1', 'Cover'], ['2', 'Contents'], [String(Math.min(3, pages.length)), 'Summary']]} />}>
+        <div style={{ maxWidth: 520, width: '100%', margin: '0 auto' }}>
+          <div className="qx-paper">
+            {loading ? <PaperSkeleton /> : <PaperPage page={current} n={page} total={pages.length} ctx={ctx} />}
           </div>
-          <div className="qx-paperbody">
-            <div className="qx-paperline m" />
-            <div className="qx-paperline" />
-            <div className="qx-paperline s" />
-            <div className="qx-paperblock" />
-            <div className="qx-paperline m" />
-            <div className="qx-paperline s" />
+          <div className="qx-pagenav">
+            <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <span>{page} of {pages.length}</span>
+            <button type="button" aria-label="Next page" disabled={page >= pages.length} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <div className="qx-paperfoot"><span>QMe Now · Confidential</span><span>Page 1</span></div>
         </div>
       </Card>
 
       <Card span={12} title={<>Recently Generated<span className="qx-count">{RECENT.length}</span></>}
         cap="Kept for ninety days, then removed automatically">
-        <Table grid={RECENT_GRID} columns={['Report', 'Generated', 'By', 'Size', '']}
+        <Table grid={RECENT_GRID} columns={['Report', 'Length', 'Generated', 'By', 'Size', '']}
           items={RECENT}
           renderRow={(r) => (
             <Row key={r.name} grid={RECENT_GRID}>
@@ -944,6 +1050,7 @@ export function ExecReports() {
                 <span className="qx-av" style={avatarStyle(r.name)}><FileText size={14} /></span>
                 <div style={{ minWidth: 0 }}><b>{r.name}</b><small>Word document</small></div>
               </div>
+              <div className="qx-num">{r.pages}<u> pages</u></div>
               <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>{r.when}</div>
               <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>{r.by}</div>
               <div className="qx-num">{r.size}</div>
@@ -955,6 +1062,529 @@ export function ExecReports() {
   );
 }
 
+function PaperSkeleton() {
+  return (
+    <>
+      <div className="qx-paperrun"><span className="qx-skel" style={{ width: 90, height: 7 }} /><span className="qx-skel" style={{ width: 34, height: 7 }} /></div>
+      <div className="qx-skel" style={{ width: '62%', height: 20, marginBottom: 14 }} />
+      {[96, 100, 88, 100, 74].map((w, i) => <div key={i} className="qx-skel" style={{ width: `${w}%`, height: 8, marginBottom: 7 }} />)}
+      <div className="qx-skel" style={{ width: '100%', height: 92, margin: '12px 0' }} />
+      {[100, 92, 68].map((w, i) => <div key={i} className="qx-skel" style={{ width: `${w}%`, height: 8, marginBottom: 7 }} />)}
+    </>
+  );
+}
+
+/** A page of the actual document, rendered at document zoom. */
+function PaperPage({ page, n, total, ctx }: {
+  page?: Page; n: number; total: number;
+  ctx: { typeLabel: string; periodLabel: string; included: Branch[]; pages: Page[]; on: string[] };
+}) {
+  if (!page) return null;
+  const run = (
+    <div className="qx-paperrun">
+      <span>Tax Administration Jamaica · {ctx.typeLabel}</span>
+      <span>{ctx.periodLabel}</span>
+    </div>
+  );
+  const foot = <div className="qx-paperfoot"><span>QMe Now · Confidential</span><span>Page {n} of {total}</span></div>;
+
+  if (page.kind === 'cover') {
+    return (
+      <>
+        <div className="qx-papercover">
+          <div className="qx-papertop">
+            <span className="qx-av" style={avatarStyle('Tax Administration Jamaica')}>TAJ</span>
+            <span><b>Tax Administration Jamaica</b><small>Prepared by QMe Now</small></span>
+          </div>
+          <h5>{ctx.typeLabel}</h5>
+          <div className="meta">
+            {ctx.periodLabel} · {ctx.included.length === BRANCHES.length ? 'All five branches' : `${ctx.included.length} of ${BRANCHES.length} branches`}<br />
+            Generated 27 July 2026 by Debra Samuels · {total} pages
+          </div>
+        </div>
+        <div className="qx-paperbody" style={{ justifyContent: 'flex-end' }}>
+          <p style={{ fontSize: '1.05em', color: '#7C8CA5' }}>
+            This document contains operational data on individual branches and named staff.
+            It is prepared for internal management use and should not be circulated outside
+            the agency without the Commissioner General's approval.
+          </p>
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'contents') {
+    let p = 3;
+    const rows = SECTIONS.filter((s) => s.key !== 'cover' && ctx.on.includes(s.key)).map((s) => {
+      const count = s.key === 'branches' ? 1 + ctx.included.length : s.pages;
+      const start = p; p += count;
+      return { title: s.title, start };
+    });
+    return (
+      <>
+        {run}
+        <h6>Contents</h6>
+        <div className="qx-papertoc">
+          {rows.map((r) => <div key={r.title}><span>{r.title}</span><i /><b>{r.start}</b></div>)}
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'summary') {
+    return (
+      <>
+        {run}
+        <h6>Executive Summary</h6>
+        <p>
+          Across {ctx.periodLabel.toLowerCase()}, Tax Administration Jamaica served <b>2,847 customers</b> through
+          the QMe queueing system, an increase of <b>12.4%</b> on the preceding period. Ninety-one per cent of
+          people who joined a line were seen and served, against a company target of eighty-five.
+        </p>
+        <div className="qx-paperkpis">
+          <div><b>2,847</b><small>Served</small></div>
+          <div><b>26<span style={{ fontSize: '.5em' }}>min</span></b><small>Avg Wait</small></div>
+          <div><b>91%</b><small>Completed</small></div>
+          <div><b>7.2%</b><small>No-Shows</small></div>
+        </div>
+        <p>
+          The headline concern remains <b>waiting time</b>. The company average of twenty-six minutes is six
+          minutes above the target of twenty, and has been above target in every period since the target was
+          set in April. The gap is not evenly distributed: two branches account for almost all of it.
+        </p>
+        <span className="qx-paperh7">Where the pressure sits</span>
+        <p>
+          <b>Half Way Tree</b> handles roughly a third of all national volume on six of its nine windows. Volume
+          grew eleven per cent this period with no corresponding change in staffing, so the midday queue
+          compounds from about eleven in the morning through to two in the afternoon.
+        </p>
+        <p>
+          <b>Ocho Rios</b> presents a different problem. It sees fewer customers than Portmore but records the
+          slowest counters in the company, averaging thirty-nine minutes a customer against a company norm of
+          twenty-one. This is a pace and process issue rather than a volume one.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'summary2') {
+    return (
+      <>
+        {run}
+        <span className="qx-paperh7">What improved</span>
+        <p>
+          <b>Montego Bay</b> reduced its average wait from twenty-four to sixteen minutes after opening a third
+          TRN window on 14 July — the clearest single demonstration this period that counter capacity, not
+          demand, is the binding constraint on waiting time.
+        </p>
+        <p>
+          Adoption of the QMe mobile app rose from seventy-six to <b>eighty-nine per cent</b> of all tickets.
+          Every app join is a ticket a clerk does not key in by hand, and the shift is measurable in reduced
+          front-desk load at all five branches.
+        </p>
+        <span className="qx-paperh7">What this report recommends</span>
+        <ul>
+          <li>Add two TRN windows at Half Way Tree for the 11am – 2pm block.</li>
+          <li>Conduct a counter-pace review at Ocho Rios before any staffing change.</li>
+          <li>Hold the twenty-minute wait target; on current trend it is reachable in September.</li>
+          <li>Move breaks and training into the 8am and 4pm columns company-wide.</li>
+        </ul>
+        <p style={{ color: '#7C8CA5' }}>
+          Each recommendation is set out in full, with the expected effect on waiting time, in the
+          Recommendations section.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'targets' || page.kind === 'targets2') {
+    return (
+      <>
+        {run}
+        <h6>Performance Against Targets</h6>
+        <p>
+          Targets are set by the executive and apply to every branch unless a specific override is recorded.
+          The table below compares the company position with the target in force during the period.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Measure</th><th>Target</th><th>Actual</th><th>Variance</th><th>Status</th></tr></thead>
+          <tbody>
+            {[
+              ['Average Wait', '20 min', '26 min', '+6 min', false],
+              ['Completed Visits', '85%', '91%', '+6 pts', true],
+              ['No-Show Rate', '10%', '7.2%', '−2.8 pts', true],
+              ['Time At The Counter', '20 min', '22 min', '+2 min', false],
+            ].map((r) => (
+              <tr key={String(r[0])}>
+                <td>{r[0]}</td><td className="n">{r[1]}</td><td className="n">{r[2]}</td>
+                <td className={`n${r[4] ? '' : ' bad'}`}>{r[3]}</td>
+                <td className={r[4] ? '' : 'bad'}>{r[4] ? 'Met' : 'Not met'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p>
+          Two of the four company targets were met. Both misses are time-based and both trace to counter
+          capacity rather than to demand, staffing levels or customer behaviour.
+        </p>
+        <div className="qx-paperfig">
+          <MiniLine values={[31, 30, 29, 30, 28, 29, 27, 28, 26, 27, 26, 25, 26, 26]} target={20} />
+          <figcaption>Figure 1 — Average wait against the 20-minute target, daily</figcaption>
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'branchrank') {
+    return (
+      <>
+        {run}
+        <h6>Branch By Branch</h6>
+        <p>
+          Branches are ranked below by health score, a composite of wait-time control, completed visits,
+          no-show control and staffing discipline. A full page follows for each branch included in this report.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Branch</th><th>Served</th><th>Avg Wait</th><th>Completed</th><th>Score</th></tr></thead>
+          <tbody>
+            {[...ctx.included].sort((a, b) => b.score - a.score).map((b) => (
+              <tr key={b.id}>
+                <td>{b.name.replace('Kingston — ', '')}</td>
+                <td className="n">{b.served}</td>
+                <td className={`n${b.wait > 20 ? ' bad' : ''}`}>{b.wait} min</td>
+                <td className="n">{b.done}%</td>
+                <td className={`n${b.score < 75 ? ' bad' : ''}`}>{b.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="qx-paperfig">
+          <MiniBars items={[...ctx.included].sort((a, b) => b.wait - a.wait).map((b) => ({ label: b.code, value: b.wait }))} />
+          <figcaption>Figure 2 — Average wait by branch, minutes</figcaption>
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'branch' && page.branch) {
+    const b = page.branch;
+    return (
+      <>
+        {run}
+        <h6>{b.name}</h6>
+        <p style={{ color: '#7C8CA5' }}>{b.parish} · Branch Manager {b.mgr} · {b.open} of {b.windows} windows in service</p>
+        <div className="qx-paperkpis">
+          <div><b>{b.served}</b><small>Served</small></div>
+          <div><b>{b.wait}<span style={{ fontSize: '.5em' }}>min</span></b><small>Avg Wait</small></div>
+          <div><b>{b.done}%</b><small>Completed</small></div>
+          <div><b>{b.score}</b><small>Score</small></div>
+        </div>
+        <span className="qx-paperh7">Assessment</span>
+        <p>
+          {b.problem
+            ? b.problem
+            : `${b.name.replace('Kingston — ', '')} met every company target during the period and has improved its health score for six consecutive weeks. No intervention is recommended.`}
+        </p>
+        <span className="qx-paperh7">Trend</span>
+        <div className="qx-paperfig">
+          <MiniLine values={b.spark} />
+          <figcaption>Figure — Health score, weekly</figcaption>
+        </div>
+        <table className="qx-papertable">
+          <thead><tr><th>Measure</th><th>This Period</th><th>Target</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Average Wait</td><td className="n">{b.wait} min</td><td className="n">20 min</td><td className={b.wait > 20 ? 'bad' : ''}>{b.wait > 20 ? 'Not met' : 'Met'}</td></tr>
+            <tr><td>Completed Visits</td><td className="n">{b.done}%</td><td className="n">85%</td><td className={b.done < 85 ? 'bad' : ''}>{b.done < 85 ? 'Not met' : 'Met'}</td></tr>
+            <tr><td>No-Show Rate</td><td className="n">{b.noshow}%</td><td className="n">10%</td><td className={b.noshow > 10 ? 'bad' : ''}>{b.noshow > 10 ? 'Not met' : 'Met'}</td></tr>
+          </tbody>
+        </table>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'services' || page.kind === 'services2') {
+    return (
+      <>
+        {run}
+        <h6>Service Line Analysis</h6>
+        <p>
+          A service line is mis-staffed when its share of the queue differs materially from its share of the
+          counters. On that measure, one line stands out.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Service</th><th>Tickets</th><th>Share</th><th>Windows</th><th>Avg Wait</th></tr></thead>
+          <tbody>
+            {LINES.map((l) => (
+              <tr key={l.id}>
+                <td>{l.name}</td><td className="n">{l.joined}</td><td className="n">{l.share}%</td>
+                <td className="n">{l.windows}</td>
+                <td className={`n${l.wait > 20 ? ' bad' : ''}`}>{l.wait} min</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p>
+          <b>TRN Registration</b> generates thirty-nine per cent of the national queue on thirty-three per cent
+          of the counters, and each visit occupies a clerk for more than twice as long as a payment. Every
+          additional TRN window therefore buys back more waiting time than an additional window anywhere else
+          in the estate.
+        </p>
+        <div className="qx-paperfig">
+          <MiniBars items={LINES.map((l) => ({ label: l.code, value: Math.round((l.joined * l.svcMin) / 60) }))} />
+          <figcaption>Figure 3 — Counter hours consumed by service line</figcaption>
+        </div>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'busy' || page.kind === 'busy2') {
+    return (
+      <>
+        {run}
+        <h6>Demand Patterns</h6>
+        <p>
+          Demand is concentrated. The eleven o'clock hour is the single busiest of the working day at every
+          branch, and Half Way Tree's eleven o'clock cell is the busiest in the country by a wide margin.
+        </p>
+        <div className="qx-paperfig">
+          <MiniBars items={HOURS.map((h, i) => ({ label: h.replace('am', '').replace('pm', ''), value: BRANCH_HEAT.reduce((t, r) => t + r[i], 0) }))} />
+          <figcaption>Figure 4 — National arrivals by hour, average weekday</figcaption>
+        </div>
+        <p>
+          The one o'clock dip is consistent across all five branches and represents about a forty per cent fall
+          in arrivals for a single hour. Breaks, training and back-office work should be scheduled into that
+          hour and into the eight and four o'clock columns, where spare capacity is genuinely free.
+        </p>
+        <p>
+          Monday and Friday together account for roughly half of the working week's volume. Saturday operates
+          as a half day and Sunday is closed, so weekday peaks are sharper than a simple daily average implies.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'managers' || page.kind === 'managers2') {
+    return (
+      <>
+        {run}
+        <h6>Manager Performance</h6>
+        <p>
+          Each manager is scored out of one hundred on four equally weighted measures. The table records the
+          component scores so that a low overall score can be traced to the measure that produced it.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Manager</th><th>Wait</th><th>Completed</th><th>No-Show</th><th>Staffing</th><th>Overall</th></tr></thead>
+          <tbody>
+            {[...MANAGERS].sort((a, b) => b.score - a.score).map((m) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
+                {PART_LABEL.map(([k]) => (
+                  <td key={k} className={`n${m.parts[k] < 60 ? ' bad' : ''}`}>{m.parts[k]}</td>
+                ))}
+                <td className={`n${m.score < 75 ? ' bad' : ''}`}>{m.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p>
+          <b>Staffing discipline is the weakest measure company-wide.</b> Every manager scores lower on it than
+          on any other component. That pattern indicates a company-level constraint — rostering rules, cover
+          arrangements or headcount — rather than a shortcoming in any individual.
+        </p>
+        <p>
+          Andre Blake at Half Way Tree records the lowest staffing score while running the busiest branch in
+          the country on two-thirds of its windows. His score should be read in that light.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'channels') {
+    return (
+      <>
+        {run}
+        <h6>How People Join</h6>
+        <p>
+          A ticket can be created in exactly two ways: through the QMe mobile app, or at a branch kiosk.
+          There is no walk-up desk intake in the system, so every figure in this report describes people who
+          entered a queue by one of those two routes.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Channel</th><th>Tickets</th><th>Share</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td>QMe App</td><td className="n">2,529</td><td className="n">89%</td><td className="n">+13 pts</td></tr>
+            <tr><td>Branch Kiosk</td><td className="n">318</td><td className="n">11%</td><td className="n">−13 pts</td></tr>
+          </tbody>
+        </table>
+        <p>
+          App adoption rose thirteen points this period. The operational value is at the counter: an app join
+          arrives with the customer's details already captured, whereas a kiosk join is keyed in on arrival.
+          At current volumes the shift represents a material reduction in front-desk handling time.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'anomalies') {
+    return (
+      <>
+        {run}
+        <h6>Incidents And Anomalies</h6>
+        <p>
+          The system flags any measure that falls well outside its own normal range for that branch. Two were
+          raised during the period.
+        </p>
+        <table className="qx-papertable">
+          <thead><tr><th>Date</th><th>Branch</th><th>What Happened</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>18 Jul</td><td>Ocho Rios</td><td>Service time reached 39 min against a usual 21 min</td><td className="bad">Open</td></tr>
+            <tr><td>11 Jul</td><td>Half Way Tree</td><td>34 people waiting at 11am, two windows short at peak</td><td className="bad">Open</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Both remain open at the date of this report. Neither is a system fault; both describe branch
+          conditions that the recommendations section addresses directly.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'actions' || page.kind === 'actions2') {
+    return (
+      <>
+        {run}
+        <h6>Recommendations</h6>
+        <p>Ranked by the waiting time each is expected to buy back.</p>
+        <span className="qx-paperh7">1 · Open two more TRN windows at Half Way Tree, 11am – 2pm</span>
+        <p>
+          TRN draws roughly ten people an hour at Half Way Tree against two open windows, so the queue
+          compounds through the middle of the day. Two additional windows for that block are expected to
+          reduce the branch's average wait by about twelve minutes and lift completion by eight points.
+          No new hires are required; the one o'clock dip provides the cover.
+        </p>
+        <span className="qx-paperh7">2 · Conduct a counter-pace review at Ocho Rios</span>
+        <p>
+          Ocho Rios averages thirty-nine minutes a customer against a company norm of twenty-one, on lower
+          volume than Portmore. Adding staff to a pace problem will not fix it. A process review should
+          precede any staffing decision.
+        </p>
+        <span className="qx-paperh7">3 · Hold the twenty-minute target</span>
+        <p>
+          Average wait has fallen roughly 1.2 minutes a week over four weeks. Held at that rate, the remaining
+          six-minute gap closes in late September. The target should not be relaxed.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  if (page.kind === 'method') {
+    return (
+      <>
+        {run}
+        <h6>Methodology And Data Notes</h6>
+        <span className="qx-paperh7">What is counted</span>
+        <p>
+          Every figure is counted from individual ticket records: a person joined a line, was called, and was
+          either served or did not answer. Nothing in this report is estimated except items explicitly
+          labelled as a forecast.
+        </p>
+        <span className="qx-paperh7">What is excluded</span>
+        <p>
+          A person who approached a counter without taking a ticket was never in a queue and does not appear
+          in any figure here. Tickets created before channel recording began are reported as "not recorded"
+          rather than assigned to a channel.
+        </p>
+        <span className="qx-paperh7">Definitions</span>
+        <ul>
+          <li><b>Average wait</b> — from joining the line to being called.</li>
+          <li><b>Time at the counter</b> — from being called to the visit ending.</li>
+          <li><b>Completed visit</b> — a person who joined and was served.</li>
+          <li><b>No-show</b> — a person who took a ticket and did not answer the call.</li>
+          <li><b>Health score</b> — four equally weighted measures, scored out of 100.</li>
+        </ul>
+        <span className="qx-paperh7">Comparison periods</span>
+        <p>
+          Every comparison uses the same number of days immediately preceding the reporting period, so the two
+          are like for like.
+        </p>
+        {foot}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {run}
+      <h6>Appendix — Full Data Tables</h6>
+      <p style={{ color: '#7C8CA5' }}>Daily figures for the reporting period, for anyone checking the working.</p>
+      <table className="qx-papertable">
+        <thead><tr><th>Date</th><th>Served</th><th>Avg Wait</th><th>Completed</th><th>No-Shows</th></tr></thead>
+        <tbody>
+          {METRICS.served.a.slice(0, 14).map((v, i) => (
+            <tr key={i}>
+              <td>{9 + i} Jul 2026</td>
+              <td className="n">{v}</td>
+              <td className="n">{METRICS.wait.a[i]} min</td>
+              <td className="n">{METRICS.done.a[i]}%</td>
+              <td className="n">{METRICS.noshow.a[i]}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {foot}
+    </>
+  );
+}
+
+/* Figures for the page. Small, flat, and printable — a report figure does not
+   need the glow and hover the dashboard chart has. */
+function MiniLine({ values, target }: { values: number[]; target?: number }) {
+  const w = 300, h = 76, pad = 4;
+  const all = target != null ? [...values, target] : values;
+  const min = Math.min(...all) * 0.92, max = Math.max(...all) * 1.06, span = max - min || 1;
+  const y = (v: number) => h - pad - ((v - min) / span) * (h - pad * 2);
+  const line = values.map((v, i) => `${pad + (i / (values.length - 1)) * (w - pad * 2)},${y(v)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Figure">
+      {target != null ? (
+        <line x1={pad} y1={y(target)} x2={w - pad} y2={y(target)} stroke="#A62B25" strokeWidth="1" strokeDasharray="4 3" />
+      ) : null}
+      <polygon points={`${pad},${h - pad} ${line} ${w - pad},${h - pad}`} fill="#1B4B8F" opacity="0.09" />
+      <polyline points={line} fill="none" stroke="#1B4B8F" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MiniBars({ items }: { items: Array<{ label: string; value: number }> }) {
+  const w = 300, h = 76, pad = 4, bw = (w - pad * 2) / items.length;
+  const max = Math.max(...items.map((i) => i.value)) || 1;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Figure">
+      {items.map((it, i) => {
+        const bh = (it.value / max) * (h - pad - 12);
+        return (
+          <g key={it.label}>
+            <rect x={pad + i * bw + bw * 0.18} y={h - 12 - bh} width={bw * 0.64} height={bh} rx="1.5" fill="#1B4B8F" opacity={0.86} />
+            <text x={pad + i * bw + bw * 0.5} y={h - 3} textAnchor="middle" fontSize="7" fill="#94A3B8" fontWeight="700">{it.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 /* ══════════════════════ 8 · SETTINGS ══════════════════════ */
 export function ExecSettings() {
   const [tog, setTog] = useState<Record<string, boolean>>({

@@ -662,3 +662,68 @@
 .qx-acc > button svg { margin-left: auto; flex: none; color: var(--c-faint); transition: transform .16s; }
 .qx-acc[data-open="true"] > button svg { transform: rotate(180deg); }
 .qx-acc p { margin: 0 2px 15px; font-size: 12px; line-height: 1.6; color: var(--c-dim); max-width: 74ch; }
+
+/* ── paged report preview ──
+   The page is rendered at a fraction of real size, the way a document viewer
+   zooms out: real headings, real sentences, real tables, just small. Grey
+   placeholder bars told the reader nothing about what they were about to send
+   to a minister. Everything below is sized in em off .qx-paper's font-size so
+   one variable rescales the whole sheet. */
+.qx-paper { font-size: 5.4px; line-height: 1.5; }
+@media (min-width: 1500px) { .qx-paper { font-size: 6px; } }
+
+.qx-paper h6 { margin: 0 0 .9em; font-size: 2.1em; font-weight: 800; letter-spacing: -.02em; color: #16233A; }
+.qx-paper h7 { display: block; margin: 1.6em 0 .5em; font-size: 1.5em; font-weight: 800; color: #1B4B8F; }
+.qx-paper p { margin: 0 0 .85em; font-size: 1.18em; color: #33415A; }
+.qx-paper p b { color: #16233A; }
+.qx-paper ul { margin: 0 0 .9em; padding-left: 1.6em; }
+.qx-paper li { font-size: 1.18em; color: #33415A; margin-bottom: .35em; }
+
+/* running header/footer, as a real document has */
+.qx-paperrun { display: flex; justify-content: space-between; align-items: center;
+  font-size: 1.05em; font-weight: 700; color: #94A3B8; border-bottom: 1px solid #E7EDF6; padding-bottom: .7em; margin-bottom: 1.4em; }
+
+.qx-paperkpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7em; margin: 0 0 1.2em; }
+.qx-paperkpis div { border: 1px solid #E1E9F4; border-radius: .7em; padding: .7em .6em; background: #F7FAFD; }
+.qx-paperkpis b { display: block; font-size: 2.2em; font-weight: 700; letter-spacing: -.03em; color: #16233A; }
+.qx-paperkpis small { display: block; font-size: 1em; font-weight: 700; color: #7C8CA5; text-transform: uppercase; letter-spacing: .06em; margin-top: .2em; }
+
+.qx-papertable { width: 100%; border-collapse: collapse; margin: 0 0 1.1em; }
+.qx-papertable th { text-align: left; font-size: 1em; font-weight: 800; color: #7C8CA5; text-transform: uppercase;
+  letter-spacing: .06em; border-bottom: 1.2px solid #1B4B8F; padding: .5em .4em; }
+.qx-papertable td { font-size: 1.12em; color: #33415A; border-bottom: 1px solid #EEF3F9; padding: .5em .4em; }
+.qx-papertable td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.qx-papertable td.bad { color: #A62B25; font-weight: 700; }
+
+/* a chart's place on the page — the shape matters, the pixels don't at this size */
+.qx-paperfig { border: 1px solid #E1E9F4; border-radius: .6em; background: #FBFDFF; padding: .6em; margin: 0 0 1.1em; }
+.qx-paperfig svg { display: block; width: 100%; height: auto; }
+.qx-paperfig figcaption { font-size: .98em; color: #94A3B8; font-weight: 700; margin-top: .5em; }
+
+/* contents page */
+.qx-papertoc { display: flex; flex-direction: column; gap: .55em; }
+.qx-papertoc div { display: flex; align-items: baseline; gap: .5em; font-size: 1.18em; color: #33415A; }
+.qx-papertoc i { flex: 1; border-bottom: 1px dotted #C7D4E6; font-style: normal; }
+.qx-papertoc b { font-weight: 700; color: #16233A; }
+
+/* page navigation under the sheet */
+.qx-pagenav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+.qx-pagenav button {
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-text); display: grid; place-items: center;
+}
+.qx-pagenav button:disabled { opacity: .35; }
+.qx-pagenav span { font-size: 11.5px; font-weight: 700; color: var(--c-dim); font-variant-numeric: tabular-nums; min-width: 92px; text-align: center; }
+
+/* section rail — what goes in, and how long it makes the document */
+.qx-secrow { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-secrow:last-child { border-bottom: 0; }
+.qx-secrow b { display: block; font-size: 12px; font-weight: 700; }
+.qx-secrow small { display: block; font-size: 11px; color: var(--c-dim); margin-top: 1px; }
+.qx-secbox { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid var(--c-line-2); background: var(--c-surface); display: grid; place-items: center; color: #fff; }
+.qx-secbox[aria-pressed="true"] { background: var(--c-primary); border-color: var(--c-primary); }
+.qx-secpages { font-size: 11px; font-weight: 800; color: var(--c-faint); white-space: nowrap; }
+
+/* preparing-preview skeleton */
+.qx-skel { border-radius: 4px; background: linear-gradient(90deg, #EEF3F9 25%, #E2EAF5 37%, #EEF3F9 63%); background-size: 400% 100%; animation: qx-shim 1.3s ease-in-out infinite; }
+@keyframes qx-shim { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }

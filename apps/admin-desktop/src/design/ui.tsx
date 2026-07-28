@@ -509,8 +509,12 @@ export function Ring({ value, max = 100, size, warn = false, label }: {
 }) {
   const large = !size;
   const S = size || 132;
-  const r = large ? 46 : 25;
-  const sw = large ? 9 : 6;
+  /* The small ring's geometry is derived from S rather than fixed. It used to
+     hardcode r=25 with ticks out to radius 31, so anything under ~64px clipped
+     the tick ring against the viewBox — visible as a shaved-off gauge beside
+     the manager names. Everything now scales from the requested size. */
+  const sw = large ? 9 : S * 0.11;
+  const r = large ? 46 : S * 0.5 - S * 0.115 - sw / 2 - 1;
   const c = 2 * Math.PI * r;
   const frac = Math.max(0, Math.min(1, value / (max || 1)));
   const cx = S / 2, cy = S / 2;
@@ -518,7 +522,8 @@ export function Ring({ value, max = 100, size, warn = false, label }: {
   const c1 = warn ? 'var(--c-bad)' : 'var(--c-primary)';
   const c2 = warn ? 'var(--c-warn)' : 'var(--c-primary-bright)';
   const track = 'var(--c-surface-3)';
-  const t1 = r + (large ? 6 : 3), t2 = r + (large ? 11 : 6);
+  const t1 = large ? r + 6 : r + sw / 2 + S * 0.045;
+  const t2 = large ? r + 11 : S / 2 - 1;
   const N = large ? 44 : 30, tw = large ? 2 : 1.5;
   const ticks = Array.from({ length: N }, (_, i) => {
     const a = (i / N) * 2 * Math.PI - Math.PI / 2;
@@ -550,8 +555,8 @@ export function Ring({ value, max = 100, size, warn = false, label }: {
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${ids.g})`} strokeWidth={sw} strokeLinecap="round"
         strokeDasharray={c.toFixed(1)} strokeDashoffset={(c * (1 - frac)).toFixed(1)}
         transform={`rotate(-90 ${cx} ${cy})`} />
-      <text x={cx} y={cy + (large ? 3 : 5)} textAnchor="middle" fill="var(--c-text)"
-        fontSize={large ? 28 : 16} fontWeight="700" letterSpacing="-0.5">{Math.round(value)}</text>
+      <text x={cx} y={cy + (large ? 3 : S * 0.105)} textAnchor="middle" fill="var(--c-text)"
+        fontSize={large ? 28 : S * 0.3} fontWeight="700" letterSpacing="-0.5">{Math.round(value)}</text>
       {large ? (
         <text x={cx} y={cy + 20} textAnchor="middle" fill="var(--c-faint)" fontSize="10.5" fontWeight="600">
           {label || `of ${max}`}
