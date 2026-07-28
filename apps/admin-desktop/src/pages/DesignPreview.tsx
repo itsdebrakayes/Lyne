@@ -19,7 +19,7 @@ import {
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
 import { supTab, SUP_TAB_HEAD, SupDataProvider, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
-import { lineTab, LINE_TAB_HEAD, LineDataProvider, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
+import { lineTab, LINE_TAB_HEAD, LineDataProvider, LineOverviewQX, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
@@ -205,8 +205,11 @@ export default function DesignPreview() {
           : role === 'supervisor'
             ? (tab === 'overview' ? <SupervisorBoard />
               : <SupDataProvider value={empty ? SUP_EMPTY : SUP_FIXTURES}>{supTab(tab, setTab)}</SupDataProvider>)
-          : (tab === 'overview' ? <LineStaffBoard />
-            : <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>{lineTab(tab, setTab)}</LineDataProvider>)}
+          : (
+            <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>
+              {tab === 'overview' ? <LineOverviewQX /> : lineTab(tab, setTab)}
+            </LineDataProvider>
+          )}
       </Shell>
     </>
   );

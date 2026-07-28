@@ -741,13 +741,15 @@
    glances, so the current customer is the biggest thing on it and the whole
    thing fills the viewport — a hero sized to its content left a third of the
    screen white and pushed the line list up into the middle of nowhere. */
-.ql-station { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 14px;
-  min-height: calc(100vh - 188px); align-items: stretch; }
-@media (max-width: 1100px) { .ql-station { grid-template-columns: 1fr; min-height: 0; } }
+.ql-station { display: flex; flex-direction: column; gap: 14px; }
 .ql-station > * { min-width: 0; }
 
 .ql-stage {
-  position: relative; overflow: hidden; border-radius: var(--r); padding: 26px 28px; color: #E9EEF6;
+  /* Sized so the first few rows of the line clear the fold underneath it —
+     the stage is the point, but you should not have to scroll to see who is
+     coming. Tuned against a 1180px viewport. */
+  min-height: 56vh;
+  position: relative; overflow: hidden; border-radius: var(--r); padding: 22px 26px; color: #E9EEF6;
   display: flex; flex-direction: column;
   background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
   box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
@@ -761,7 +763,7 @@
 .ql-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #93A9CC; }
 
 /* the ticket number is the single biggest thing on the screen */
-.ql-big { font-size: clamp(52px, 7vw, 92px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 14px 0 0; }
+.ql-big { font-size: clamp(44px, 5.4vw, 74px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 10px 0 0; }
 .ql-who { font-size: clamp(17px, 1.6vw, 22px); font-weight: 600; opacity: .86; margin-top: 8px; }
 .ql-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .ql-meta span {
@@ -771,15 +773,18 @@
 }
 
 /* live timers — the number a person actually watches */
-.ql-clocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 22px; }
-.ql-clock { border-radius: 16px; padding: 14px 16px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); }
-.ql-clock b { display: block; font-size: 30px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.ql-clock small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .68; margin-top: 3px; }
+.ql-clocks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+/* Square-ish rather than a wide bar: the number is the content, and a
+   stretched tile left a lot of empty space either side of it. */
+.ql-clock { flex: 0 0 auto; width: 148px; border-radius: 16px; padding: 12px 14px;
+  background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); text-align: center; }
+.ql-clock b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ql-clock small { display: block; font-size: 9.5px; line-height: 1.3; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .68; margin-top: 3px; }
 .ql-clock.warn { background: rgba(228, 114, 107, .20); border-color: rgba(228, 114, 107, .45); }
 .ql-clock.warn b { color: #FFC9C5; }
 
 /* verification code — entered from what the customer shows on their phone */
-.ql-verify { margin-top: 22px; padding: 16px 18px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
+.ql-verify { margin-top: 14px; padding: 13px 16px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
 .ql-verify > b { display: block; font-size: 13px; font-weight: 700; }
 .ql-verify > small { display: block; font-size: 12px; opacity: .7; margin-top: 3px; line-height: 1.45; }
 .ql-code { display: flex; gap: 9px; margin-top: 13px; }
@@ -795,7 +800,7 @@
 .ql-verifymsg.bad { color: #FFC9C5; }
 
 /* actions sit at the base of the stage, so the hero grows into the space */
-.ql-acts { margin-top: auto; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; }
+.ql-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
 .ql-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   min-height: 54px; padding: 0 24px; border: 0; border-radius: 15px;
@@ -811,8 +816,8 @@
 .ql-btn svg { width: 17px; height: 17px; flex: none; }
 
 /* the line beside the stage, scrolling inside its own card */
-.ql-linecard { display: flex; flex-direction: column; min-height: 0; }
-.ql-linescroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+/* the line runs full width beneath the stage */
+.ql-linecard { display: flex; flex-direction: column; }
 
 /* ═══════════════ Supervisor desk assignment ═══════════════
    AVAILABILITY COLOUR — a deliberate, scoped exception to the two-colour rule.
@@ -881,3 +886,13 @@
 .qs-key i { width: 11px; height: 11px; border-radius: 4px; flex: none; }
 .qx-status.free { color: var(--c-free); } .qx-status.free i { background: var(--c-free); }
 .qx-status.neutral { color: var(--c-dim); } .qx-status.neutral i { background: var(--c-line-2); }
+/* "next up" on the desk stage — fills the space above the actions with the
+   thing you want to know before you finish, rather than leaving it blank. */
+.ql-upnext { margin-top: 14px; padding: 13px 16px; border-radius: 18px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
+.ql-upnext .r { display: flex; align-items: center; gap: 12px; margin-top: 11px; }
+.ql-upnext .qx-av { width: 38px; height: 38px; border-radius: 13px; font-size: 12px; flex: none; }
+.ql-upnext b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.ql-upnext small { display: block; font-size: 12.5px; opacity: .72; margin-top: 1px; }
+.ql-upnext .w { font-size: 12.5px; font-weight: 700; opacity: .8; white-space: nowrap; }
+.ql-upnext .more { margin-top: 10px; opacity: .6; font-weight: 600; }

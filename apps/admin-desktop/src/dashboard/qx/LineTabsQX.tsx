@@ -103,9 +103,11 @@ const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy
   transferred: { label: 'Transferred', kind: 'soon' },
 };
 
-/* ══════════════════════ 1 · TICKETS ══════════════════════ */
+/* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
 /**
- * The desk station — the one screen this person actually lives on.
+ * Live Line — the desk station, and the one screen this person lives on.
+ *
+ * This is the OVERVIEW, not Tickets. Tickets is a list; this is the window.
  *
  * It is a STATE MACHINE, not a fixed set of buttons, because what you can do
  * depends entirely on where the customer is:
@@ -135,7 +137,7 @@ const NO_SHOW_AFTER = 5 * 60;
 
 const LQ_GRID = 'minmax(0,1.5fr) 92px 96px';
 
-export function LineTicketsTab() {
+export function LineOverviewQX() {
   const d = useLine();
   const [q, setQ] = useState('');
   const [view, setView] = useState<'line' | 'noanswer'>('line');
@@ -268,6 +270,26 @@ export function LineTicketsTab() {
           </div>
         ) : null}
 
+        {/* Who is coming after this one. It belongs on the stage anyway — you
+            want to know before you finish — and it means the space above the
+            buttons carries information instead of sitting empty. */}
+        {next ? (
+          <div className="ql-upnext">
+            <span className="ql-eyebrow">Next Up</span>
+            <div className="r">
+              <span className="qx-av" style={avatarStyle(next.name)}>{initials(next.name)}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <b>{next.no}</b>
+                <small>{next.name}</small>
+              </div>
+              <span className="w">{next.waited} min waited</span>
+            </div>
+            {waiting.length > 1 ? (
+              <small className="more">{waiting.length - 1} more after them</small>
+            ) : <small className="more">Last one in your line</small>}
+          </div>
+        ) : null}
+
         {/* ── actions, always the next likely thing first ── */}
         <div className="ql-acts">
           {stage === 'idle' ? (
@@ -322,12 +344,12 @@ export function LineTicketsTab() {
         cap={view === 'noanswer'
           ? 'They can be called back without taking a new ticket'
           : 'Longest wait first — the order they will be called in'}
-        tools={<Seg value={view} onChange={setView}
-          options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />}>
-        <div style={{ marginBottom: 10 }}>
+        tools={<>
+          <Seg value={view} onChange={setView}
+            options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
-        </div>
-        <div className="ql-linescroll">
+        </>}>
+        <div>
           <Table grid={LQ_GRID} columns={['Ticket', 'Waiting', '']}
             items={[...list].sort((a, b) => b.waited - a.waited)}
             empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
@@ -355,7 +377,82 @@ export function LineTicketsTab() {
   );
 }
 
-/* ══════════════════════ 2 · HISTORY ══════════════════════ */
+/* ══════════════════════ TICKETS ══════════════════════ */
+/**
+ * Deliberately just a list. Everything you DO with a customer lives on Live
+ * Line, where the person in front of you is. This is for looking one up: who is
+ * in my line, how long have they waited, and who missed their call.
+ */
+const LTK_GRID = 'minmax(0,1.6fr) 108px 108px 96px';
+
+export function LineTicketsTab() {
+  const d = useLine();
+  const [q, setQ] = useState('');
+  const [view, setView] = useState<'line' | 'noanswer'>('line');
+
+  if (!d.queue.length) {
+    return <EmptyTab title="Nobody Is Waiting For You Right Now"
+      body="Everyone in the line for your service appears here, longest wait first. Call them from Live Line when you are ready." />;
+  }
+
+  const waiting = d.queue.filter((t) => t.state === 'waiting');
+  const called = d.queue.filter((t) => t.state === 'called');
+  const noAnswer = d.queue.filter((t) => t.state === 'noresponse');
+  const list = (view === 'noanswer' ? noAnswer : [...called, ...waiting])
+    .filter((t) => !q.trim() || `${t.no} ${t.name}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const longest = waiting.length ? Math.max(...waiting.map((t) => t.waited)) : 0;
+
+  return (
+    <div className="qx-grid">
+      <Stat span={3} icon={Users} label="In Your Line" value={waiting.length}
+        foot={`${d.serviceName} at ${d.counter}`} />
+      <Stat span={3} icon={Clock} tone={longest > 25 ? 'bad' : 'primary'} label="Longest Wait"
+        value={longest} unit="min"
+        chip={longest > 25 ? { dir: 'bad', text: 'Over' } : { dir: 'flat', text: 'Steady' }}
+        foot="The person who has been there the longest" />
+      <Stat span={3} icon={PhoneOff} tone={noAnswer.length ? 'warn' : 'primary'} label="Did Not Answer"
+        value={noAnswer.length} foot="Can be called back without a new ticket" />
+      <Stat span={3} icon={CheckCircle2} label="Seen Today" value={d.servedToday}
+        foot={`On since ${d.onSince}`} />
+
+      <Card span={12}
+        title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Active Tickets'}<span className="qx-count">{list.length}</span></>}
+        cap={view === 'noanswer'
+          ? 'They kept their place — calling them back does not need a new ticket'
+          : 'Longest wait first, which is the order they will be called in'}
+        tools={<>
+          <Seg value={view} onChange={setView}
+            options={[['line', `In Line (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
+          <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
+        </>}>
+        <Table grid={LTK_GRID} columns={['Ticket', 'Waiting', 'Status', 'Joined']}
+          items={[...list].sort((a, b) => b.waited - a.waited)}
+          empty={q ? `Nothing matches “${q}”.` : view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
+          renderRow={(t) => (
+            <Row key={t.id} grid={LTK_GRID}>
+              <div className="qx-cellmain">
+                <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
+                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+              </div>
+              <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
+                {t.waited}<u> min</u>
+              </div>
+              <div>
+                <Status kind={t.state === 'noresponse' ? 'busy' : t.state === 'called' ? 'open' : 'soon'}>
+                  {t.state === 'noresponse' ? 'No Answer' : t.state === 'called' ? 'Called' : 'Waiting'}
+                </Status>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>
+                {t.waited} min ago
+              </div>
+            </Row>
+          )} />
+      </Card>
+    </div>
+  );
+}
+
+/* ══════════════════════ HISTORY ══════════════════════ */
 const LH_GRID = 'minmax(0,1.7fr) 96px 92px 108px';
 
 export function LineHistoryTab() {
