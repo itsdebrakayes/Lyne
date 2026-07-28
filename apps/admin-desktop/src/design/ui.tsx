@@ -53,9 +53,20 @@ function smooth(pts: number[][]) {
 export type Tone = 'primary' | 'good' | 'bad' | 'warn' | 'violet';
 
 /* ─────────────────────── chip ─────────────────────── */
-export function Chip({ dir = 'flat', children }: { dir?: 'good' | 'bad' | 'warn' | 'flat'; children: ReactNode }) {
-  const Icon = dir === 'good' ? ArrowUpRight : dir === 'bad' ? ArrowDownRight : Minus;
-  return <span className={`qx-chip ${dir}`}>{dir !== 'flat' ? <Icon /> : null}{children}</span>;
+/**
+ * `dir` sets the COLOUR (is this good or bad news) and, by default, the arrow.
+ * Those two only agree when up is good. For a falling wait time — good news,
+ * downward movement — pass `arrow` explicitly so the chip doesn't render an up
+ * arrow beside a minus sign. `arrow="none"` is for chips carrying their own icon.
+ */
+export function Chip({ dir = 'flat', arrow, children }: {
+  dir?: 'good' | 'bad' | 'warn' | 'flat'; arrow?: 'up' | 'down' | 'none'; children: ReactNode;
+}) {
+  const fallback = dir === 'good' ? 'up' : dir === 'bad' ? 'down' : 'flat';
+  const which = arrow || fallback;
+  const Icon = which === 'up' ? ArrowUpRight : which === 'down' ? ArrowDownRight : Minus;
+  const show = which !== 'none' && !(dir === 'flat' && !arrow);
+  return <span className={`qx-chip ${dir}`}>{show ? <Icon /> : null}{children}</span>;
 }
 
 /* ─────────────────────── shell ─────────────────────── */
@@ -101,7 +112,8 @@ export function Shell({
               {g.items.map((it) => {
                 const Icon = it.icon;
                 return (
-                  <button key={it.key} type="button" className={active === it.key ? 'on' : ''} onClick={() => onNav(it.key)}>
+                  <button key={it.key} type="button" className={active === it.key ? 'on' : ''}
+                    aria-current={active === it.key ? 'page' : undefined} onClick={() => onNav(it.key)}>
                     <Icon /><span>{it.label}</span>
                     {it.badge ? <span className="badge">{it.badge}</span> : null}
                   </button>

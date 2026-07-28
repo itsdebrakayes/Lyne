@@ -16,6 +16,7 @@ import {
   Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap, Chip,
   RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
 } from '@/design/ui';
+import { execTab, EXEC_TAB_HEAD } from './preview/ExecTabs';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
@@ -162,12 +163,18 @@ export default function DesignPreview() {
         search={{ value: q, onChange: setQ, placeholder: 'Search…' }}
         context={CONTEXT[role]}
         railCard={<RailCard role={role} onNav={setTab} />}
-        head={role === 'executive' ? <ExecHead />
-          : role === 'manager' ? <MgrHead />
-          : role === 'supervisor' ? <SupHead />
-          : <LineHead />}
+        head={
+          role === 'executive' && tab !== 'overview' && EXEC_TAB_HEAD[tab]
+            ? <TabHead key={tab} {...EXEC_TAB_HEAD[tab]} period="14" date="9 – 22 July 2026"
+                options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} />
+            : role === 'executive' ? <ExecHead />
+            : role === 'manager' ? <MgrHead />
+            : role === 'supervisor' ? <SupHead />
+            : <LineHead />
+        }
       >
-        {role === 'executive' ? <ExecOverview onNav={setTab} />
+        {role === 'executive'
+          ? (tab === 'overview' ? <ExecOverview onNav={setTab} /> : execTab(tab, setTab))
           : role === 'manager' ? <ManagerOverview onNav={setTab} />
           : role === 'supervisor' ? <SupervisorBoard />
           : <LineStaffBoard />}
@@ -177,6 +184,30 @@ export default function DesignPreview() {
 }
 
 /* ══════════════════════ heads ══════════════════════ */
+/**
+ * An inner tab gets its OWN head — the greeting belongs to the overview only.
+ * Keeping the period control here means every tab is scoped the same way.
+ */
+function TabHead({ title, sub, period, options, date }: {
+  title: string; sub: string; period: string; options: Array<[string, string]>; date: string;
+}) {
+  const [p, setP] = useState(period);
+  return (
+    <Head
+      title={title}
+      sub={sub}
+      live="Live · 2 Min Ago"
+      right={
+        <>
+          <Pills value={p} onChange={setP} options={options} />
+          <span className="qx-datechip"><CalendarDays size={14} />{date}</span>
+          <button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>
+        </>
+      }
+    />
+  );
+}
+
 function ExecHead() {
   const [period, setPeriod] = useState('14');
   return (

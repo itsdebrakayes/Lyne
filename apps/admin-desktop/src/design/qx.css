@@ -247,6 +247,10 @@
 .qx-datechip svg { color: var(--c-primary); }
 .qx-btn { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 12px; background: var(--c-text); color: var(--c-surface); font-size: 11.5px; font-weight: 700; padding: 8px 14px; white-space: nowrap; }
 .qx-btn:hover { filter: brightness(1.2); }
+/* Without this a disabled action is indistinguishable from a live one — the
+   Save button on Targets looked clickable with nothing to save. */
+.qx-btn:disabled { opacity: .38; cursor: default; filter: none; }
+.qx-btn:disabled:hover { filter: none; }
 .qx-btn.ghost { background: var(--glass); color: var(--c-text); border: 1px solid var(--glass-line); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
 .qx-btn.ghost:hover { background: var(--glass-strong); filter: none; }
 .qx-btn svg { width: 14px; height: 14px; }
@@ -543,3 +547,118 @@
 .qh-contact:hover { border-color: var(--c-primary); }
 .qh-contact b { display: block; font-size: 13.5px; font-weight: 700; color: var(--c-primary); }
 .qh-contact small { display: block; color: var(--c-dim); font-size: 11.5px; margin-top: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB SCREENS
+   Components the inner tabs need. Same two-colour rule as the rest
+   of the system: one deep blue plus neutrals, red only for a problem.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── segmented control — switches the VIEW inside a card ── */
+.qx-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 11px; background: var(--c-surface-3); }
+.qx-seg button {
+  border: 0; background: transparent; color: var(--c-dim); border-radius: 9px;
+  padding: 6px 12px; font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+.qx-seg button[aria-pressed="true"] { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgba(14, 27, 46, .12); }
+
+/* ── movers: what changed, biggest first, in plain English ── */
+.qx-movers { display: flex; flex-direction: column; }
+.qx-mover { display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-mover:last-child { border-bottom: 0; }
+.qx-mover .rk {
+  width: 24px; height: 24px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  background: var(--c-surface-3); color: var(--c-faint); font-size: 11px; font-weight: 800;
+}
+.qx-mover .tx { flex: 1; min-width: 0; }
+.qx-mover .tx b { display: block; font-size: 12.5px; font-weight: 700; }
+.qx-mover .tx small { display: block; color: var(--c-dim); font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+
+/* ── ranking bars — comparing one measure across branches or services ── */
+.qx-bars { display: flex; flex-direction: column; gap: 12px; }
+.qx-barrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; }
+.qx-barrow .nm { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qx-barrow .vl { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.qx-barrow .vl u { text-decoration: none; font-size: 10.5px; color: var(--c-faint); font-weight: 700; margin-left: 2px; }
+.qx-barrow .tr { grid-column: 1 / -1; height: 9px; border-radius: 999px; background: var(--c-surface-3); overflow: hidden; }
+.qx-barrow .tr i { display: block; height: 100%; border-radius: 999px; background: var(--c-primary); }
+.qx-barrow .tr i.b { background: var(--c-second); }
+.qx-barrow .tr i.bad { background: var(--c-bad); }
+
+/* ── key/value block ── */
+/* Two across by default: a four-item block auto-fitting to three columns
+   orphans the fourth cell on its own row. */
+.qx-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.qx-kv.wide { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.qx-kv > div { border-radius: 13px; padding: 11px 12px; background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.qx-kv b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.03em; }
+.qx-kv b u { text-decoration: none; font-size: 11px; color: var(--c-faint); font-weight: 700; margin-left: 2px; }
+.qx-kv small { display: block; color: var(--c-faint); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+
+/* ── detail panel header (master/detail screens) ── */
+.qx-detail { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--c-line); margin-bottom: 14px; }
+.qx-detail .qx-av { width: 44px; height: 44px; border-radius: 14px; font-size: 12px; }
+.qx-detail h4 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.qx-detail small { display: block; color: var(--c-faint); font-size: 11.5px; margin-top: 2px; }
+
+/* ── score breakdown — what actually makes the number ── */
+.qx-sbreak { display: flex; flex-direction: column; gap: 11px; }
+.qx-sbreak .r { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; }
+.qx-sbreak .r span { color: var(--c-dim); font-weight: 600; }
+.qx-sbreak .r b { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ── settings rows ── */
+.qx-setrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-setrow:last-child { border-bottom: 0; }
+.qx-setrow b { display: block; font-size: 12.5px; font-weight: 700; }
+.qx-setrow small { display: block; color: var(--c-dim); font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+.qx-setrow input[type="text"], .qx-setrow input[type="email"], .qx-setrow input[type="tel"] {
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-text);
+  border-radius: 10px; padding: 8px 11px; font-size: 12.5px; font-weight: 600; outline: none; min-width: 230px;
+}
+.qx-setrow input:focus { border-color: var(--c-primary); }
+
+/* toggle */
+.qx-tog { width: 42px; height: 24px; border-radius: 999px; border: 0; background: var(--c-surface-3); position: relative; flex: none; transition: background .16s; }
+.qx-tog i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--c-surface); box-shadow: 0 1px 3px rgba(14,27,46,.28); transition: transform .16s; }
+.qx-tog[aria-pressed="true"] { background: var(--c-primary); }
+.qx-tog[aria-pressed="true"] i { transform: translateX(18px); }
+
+/* ── small neutral tag ── */
+.qx-tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 7px; padding: 3px 7px; background: var(--c-surface-3); color: var(--c-dim); font-size: 10.5px; font-weight: 800; letter-spacing: .04em; }
+
+/* ── report preview: an actual sheet of paper, not another card ── */
+.qx-paper {
+  background: #fff; color: #16233A; border-radius: 10px; padding: 26px 26px 30px;
+  box-shadow: 0 18px 44px -20px rgba(14, 27, 46, .55); border: 1px solid rgba(14, 27, 46, .1);
+  aspect-ratio: 1 / 1.294; overflow: hidden; display: flex; flex-direction: column;
+}
+.qx-papercover { border-bottom: 2px solid #1B4B8F; padding-bottom: 14px; }
+.qx-papercover .qx-av { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
+.qx-papertop { display: flex; align-items: center; gap: 9px; }
+.qx-papertop b { font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
+.qx-papertop small { display: block; font-size: 10px; color: #64748B; font-weight: 700; }
+.qx-paper h5 { margin: 18px 0 0; font-size: 21px; font-weight: 700; letter-spacing: -.03em; line-height: 1.2; }
+.qx-paper .meta { margin-top: 7px; font-size: 11px; color: #64748B; font-weight: 600; }
+.qx-paperbody { flex: 1; margin-top: 18px; display: flex; flex-direction: column; gap: 11px; }
+.qx-paperline { height: 7px; border-radius: 999px; background: #E7EDF6; }
+.qx-paperline.s { width: 62%; } .qx-paperline.m { width: 84%; }
+.qx-paperblock { height: 78px; border-radius: 8px; background: linear-gradient(180deg, #F1F5FB, #E7EDF6); border: 1px solid #E1E9F4; }
+.qx-paperfoot { margin-top: auto; padding-top: 12px; border-top: 1px solid #E7EDF6; font-size: 9.5px; color: #94A3B8; font-weight: 700; display: flex; justify-content: space-between; }
+
+/* ── multi-select chips used by the report builder ── */
+.qx-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.qx-check {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 7px 13px;
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-dim);
+  font-size: 11.5px; font-weight: 700;
+}
+.qx-check[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); color: var(--c-primary); }
+
+/* ── accordion (Help & Support) ── */
+.qx-acc { border-bottom: 1px solid var(--c-line); }
+.qx-acc:last-child { border-bottom: 0; }
+.qx-acc > button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 2px; border: 0; background: transparent; color: var(--c-text); text-align: left; font-size: 12.5px; font-weight: 700; }
+.qx-acc > button svg { margin-left: auto; flex: none; color: var(--c-faint); transition: transform .16s; }
+.qx-acc[data-open="true"] > button svg { transform: rotate(180deg); }
+.qx-acc p { margin: 0 2px 15px; font-size: 12px; line-height: 1.6; color: var(--c-dim); max-width: 74ch; }

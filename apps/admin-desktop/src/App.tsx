@@ -7,7 +7,7 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import LoadingScreen from './components/LoadingScreen';
 import DesignPreview from './pages/DesignPreview';
-import KioskPreview from './pages/KioskPreview';
+import KioskApp from './kiosk/KioskApp';
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { admin, loading } = useAdminAuth();
@@ -38,7 +38,7 @@ export default function App() {
       {/* Design harness — dev builds only, so it can never ship. Lets the layout
           be reviewed without a linked Supabase login. */}
       {import.meta.env.DEV ? <Route path="/design-preview" element={<DesignPreview />} /> : null}
-      {import.meta.env.DEV ? <Route path="/kiosk-preview" element={<KioskPreview />} /> : null}
+      {import.meta.env.DEV ? <Route path="/kiosk-preview" element={<KioskApp />} /> : null}
 
       <Route
         path="/staff"

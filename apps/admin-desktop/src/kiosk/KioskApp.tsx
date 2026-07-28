@@ -1,5 +1,5 @@
 /**
- * KioskPreview — the customer-facing self-service terminal.
+ * KioskApp — the customer-facing self-service terminal.
  *
  * This is the standing kiosk in the branch lobby, operated by the CUSTOMER.
  * It is distinct from the clerk-operated kiosk screen on mobile (#47), but it
@@ -14,7 +14,9 @@
  *    tap away, and the screen resets itself so the next person never inherits
  *    the previous person's half-finished session.
  *
- * DEV-only route for now; wiring to the live API is the next step.
+ * Shipped as its own page (kiosk.html → src/kiosk-main.tsx), not as part of the
+ * Electron admin bundle. Still on fixture services; wiring to the live API is
+ * the next step.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -40,7 +42,7 @@ const BRANCH = { name: 'Half Way Tree', org: 'Tax Administration Jamaica', addre
 /* How long the finished ticket stays up before the terminal resets itself. */
 const RESET_SECONDS = 25;
 
-export default function KioskPreview() {
+export default function KioskApp() {
   const [step, setStep] = useState<Step>('welcome');
   const [svcId, setSvcId] = useState<string | null>(null);
   const [name, setName] = useState('');

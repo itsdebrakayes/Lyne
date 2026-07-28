@@ -1,0 +1,13 @@
+{
+  "name": "QMe Now Kiosk",
+  "short_name": "QMe Kiosk",
+  "description": "Self-service queue terminal for the branch lobby.",
+  "start_url": "./kiosk.html",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#F4F7FC",
+  "theme_color": "#1B4B8F",
+  "icons": [
+    { "src": "./kiosk-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
