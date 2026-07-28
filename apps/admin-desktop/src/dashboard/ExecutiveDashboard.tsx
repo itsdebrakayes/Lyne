@@ -4,21 +4,33 @@
  * Manager dashboard, rendered business-wide.
  */
 import { useEffect, useMemo, useState } from 'react';
-import {
-  LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
-  AlertTriangle, Award, TrendingUp, ChevronLeft, ChevronRight,
-} from 'lucide-react';
+import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { Shell, Kpi, Area, Heatmap, Card, ScoreRing, Rec, Chips, MoreBtn, type NavItem } from './kit';
+import { type NavItem } from './kit';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
 import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
+import { ExecDataProvider, execTab, EXEC_TAB_HEAD } from './qx/ExecTabsQX';
+import { buildExecData } from './qx/execLiveData';
+
+/* Kept verbatim from the Help & Support tab this replaced — these answers were
+   written against how the system actually behaves and should not be re-guessed. */
+const EXEC_FAQ = [
+  { q: 'How Do I Set Company Targets?',
+    a: 'Open Targets and set your average wait in minutes, the share of visits you expect to be completed, and the no-show rate you will tolerate, then save. Every branch, manager and supervisor screen is measured against those numbers straight away.' },
+  { q: 'What Does The Branch Health Score Mean?',
+    a: 'It is a single score out of 100 blending how the branch’s wait time compares to your target, how many visits it completes, how well it controls no-shows, and its staffing discipline. Roughly: 80+ is good, 60–79 is fair, under 60 needs attention. Open a manager to see which of the four is dragging the score down.' },
+  { q: 'How Do I Support An Underperforming Branch?',
+    a: 'Start with Do This Next on the Overview — it ranks issues by how much they cost you against your targets. Then open Managers for that branch’s score breakdown, and Busy Times to see which hours it is under pressure. The usual fix is moving cover to the peak hours shown there.' },
+  { q: 'Where Do These Numbers Come From?',
+    a: 'Every figure is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except items explicitly labelled as a forecast, which come from the prediction models.' },
+  { q: 'Why Does A Branch Show Fewer People Than I Counted?',
+    a: 'The system only knows about people who joined a line, through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
+  { q: 'How Often Do The Numbers Update?',
+    a: 'They recalculate automatically in the background on a schedule, and the timestamp beside Update always tells you how fresh they are. If you need them recalculated immediately — before a meeting, say — press Update.' },
+];
 import { CalendarDays, MapPin } from 'lucide-react';
-import { num, fmtN, pct, titleCase, insightData, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
-import {
-  Empty, Bar, initials, Field, SvcRow, WaitForecastCard, DemandCard, ImproveCard,
-  TargetsCard, TargetTrendCard, SetTargetsCard, ServicesTable, ReportsTab, SupportTab, periodBlurb, ChannelMixCard, ProductivityCard,
-} from './ManagerDashboard';
-import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
+import { num, fmtN, titleCase, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
+import { Empty } from './ManagerDashboard';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -220,6 +232,15 @@ export default function ExecutiveDashboard() {
 
   const isOverview = tab === 'overview';
 
+  /* Everything the ported tabs read, mapped from the live layer once. */
+  const liveTabData = useMemo(() => buildExecData({
+    summary, rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
+    target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
+    channels: d.channels, preds, heat, org, adminName: d.admin?.name,
+    faq: EXEC_FAQ,
+  }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
+       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
+
   return (
     <QxShell
       brand="QMe Now"
@@ -243,8 +264,10 @@ export default function ExecutiveDashboard() {
       onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
       head={
         <QxHead
-          title={isOverview ? greetingFor(d.admin?.name) : titles[tab][0]}
-          sub={isOverview ? `Here's how ${org} is running over the last ${windowDays === 1 ? 'day' : `${windowDays} days`}.` : titles[tab][1]}
+          title={isOverview ? greetingFor(d.admin?.name) : (EXEC_TAB_HEAD[tab]?.title ?? titles[tab]?.[0] ?? '')}
+          sub={isOverview
+            ? `Here's how ${org} is running over the last ${windowDays === 1 ? 'day' : `${windowDays} days`}.`
+            : (EXEC_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live="Live"
           right={<>
             <QxPills value={period} onChange={setPeriod}
@@ -267,285 +290,14 @@ export default function ExecutiveDashboard() {
         />
       )}
 
-      {/* Tabs not yet ported keep their own .qa-app scope so their styling still
-          applies while the port continues, rather than rendering unstyled. */}
-      <div className="qa-app" style={{ background: 'transparent' }}>
-      {tab === 'trends' && (
-        <div className="qa-grid">
-          <div className="qa-s12" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <Chips options={RANGES} value={range} onChange={(v) => { setRange(v); setMonthOffset(0); setTrendReport(false); }} />
-            {trendReport ? (
-              <button type="button" className="qa-morebtn" onClick={() => setTrendReport(false)}>← Back to charts</button>
-            ) : null}
-            {range === 'month' && months.length > 1 ? (
-              <span className="qa-pager">
-                <button type="button" aria-label="Previous month" disabled={monthOffset >= months.length - 1}
-                  onClick={() => setMonthOffset((o) => Math.min(months.length - 1, o + 1))}><ChevronLeft size={16} /></button>
-                <b>{monthName}</b>
-                <button type="button" aria-label="Next month" disabled={monthOffset <= 0}
-                  onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}><ChevronRight size={16} /></button>
-              </span>
-            ) : null}
-          </div>
-
-          {range === '90' && trendReport ? (
-            <ReportDoc
-              title="Trends Report"
-              subtitle={`${org} · last ${ninety.days} days`}
-              meta={`Generated ${new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })} · QMe Now`}
-              filename={`QMeNow-Trends-Report-${new Date().toISOString().slice(0, 10)}`}
-            >
-              <ReportSection heading="Overview">
-                <ReportKpis items={[
-                  ['Customers served', fmtN(ninety.served)],
-                  ['Completed', pct((ninety.done / Math.max(1, ninety.served)) * 100)],
-                  ['Average wait', `${Math.round(ninety.wait)} min`],
-                  ['No-shows', pct((ninety.ns / Math.max(1, ninety.served)) * 100)],
-                ]} />
-                <p className="blurb">
-                  Over the last {ninety.days} days the business served {fmtN(ninety.served)} customers,
-                  averaging {fmtN(Math.round(ninety.served / Math.max(1, ninety.days)))} a day.
-                  The busiest single day was {ninety.best ? new Date(ninety.best.summary_date).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : '—'}
-                  {ninety.best ? ` with ${fmtN(num(ninety.best.total_visitors))} customers` : ''}; the quietest was
-                  {ninety.quiet ? ` ${new Date(ninety.quiet.summary_date).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}` : ' —'}.
-                  Average wait across the period was {Math.round(ninety.wait)} minutes against a {num(target.target_wait_minutes)}-minute target.
-                </p>
-              </ReportSection>
-
-              {reportMonths.map(([key, rows], i) => {
-                const label = new Date(`${key}-01T00:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' });
-                const vals = rows.map((s: any) => num(s.total_visitors));
-                const labels = rows.map((s: any) => new Date(s.summary_date).toLocaleDateString([], { day: 'numeric' }));
-                const avg = Math.round(vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length));
-                const prev = i > 0 ? reportMonths[i - 1][1] : null;
-                const prevAvg = prev ? Math.round(prev.reduce((t: number, s: any) => t + num(s.total_visitors), 0) / Math.max(1, prev.length)) : 0;
-                const delta = prevAvg ? Math.round(((avg - prevAvg) / prevAvg) * 100) : 0;
-                const trend = !prevAvg ? '' :
-                  ` That is ${Math.abs(delta)}% ${delta >= 0 ? 'up on' : 'down on'} ${new Date(`${reportMonths[i - 1][0]}-01T00:00:00`).toLocaleDateString([], { month: 'long' })}.`;
-                return (
-                  <ReportSection key={key} heading={label} blurb={`${periodBlurb(rows, target, org)}${trend}`}>
-                    <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${fmtN(avg)}`} unitLabel="served" h={210} />
-                  </ReportSection>
-                );
-              })}
-
-              <ReportSection heading="Week by week" blurb="Each row is one week across the period, newest first.">
-                <ReportTable
-                  head={['Week', 'Served', 'Completed', 'No-shows', 'Avg wait']}
-                  rows={ninety.weeks.map((w: any) => [
-                    `${new Date(w.from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${new Date(w.to).toLocaleDateString([], { month: 'short', day: 'numeric' })}`,
-                    fmtN(w.served), pct((w.done / Math.max(1, w.served)) * 100), fmtN(w.ns), `${Math.round(w.wait)} min`,
-                  ])}
-                />
-              </ReportSection>
-            </ReportDoc>
-          ) : range === '90' ? (
-            <>
-              <div className="qa-s12" data-noexport>
-                <button type="button" className="qa-update" onClick={() => setTrendReport(true)}>
-                  <FileText size={16} />Generate trends report
-                </button>
-              </div>
-              <Kpi span={3} label="Customers Served" value={fmtN(ninety.served)} base={`Across ${ninety.days} Days`} />
-              <Kpi span={3} label="Completed" value={pct((ninety.done / Math.max(1, ninety.served)) * 100)} base={`${fmtN(ninety.done)} Visits`} />
-              <Kpi span={3} label="Average Wait" value={Math.round(ninety.wait)} unit="min" base={`Target ${num(target.target_wait_minutes)} min`} />
-              <Kpi span={3} label="No-Shows" value={pct((ninety.ns / Math.max(1, ninety.served)) * 100)} base={`${fmtN(ninety.ns)} Didn't Arrive`} />
-              <Card span={12} title="Week By Week" cap="Ninety days is easier to read as a report than as a graph — each row is one week, newest first.">
-                <div className="qa-chartwrap"><table className="qa-dtable">
-                  <thead><tr><th>Week</th><th className="r">Served</th><th className="r">Completed</th><th className="r">No-Shows</th><th className="r">Avg Wait</th></tr></thead>
-                  <tbody>
-                    {ninety.weeks.length ? ninety.weeks.map((w: any) => (
-                      <tr key={w.from}>
-                        <td><b>{new Date(w.from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(w.to).toLocaleDateString([], { month: 'short', day: 'numeric' })}</b></td>
-                        <td className="r qa-num">{fmtN(w.served)}</td>
-                        <td className="r qa-num">{pct((w.done / Math.max(1, w.served)) * 100)}</td>
-                        <td className="r qa-num">{fmtN(w.ns)}</td>
-                        <td className="r qa-num">{Math.round(w.wait)} min</td>
-                      </tr>
-                    )) : <tr><td colSpan={5}><Empty msg="No data for this period yet." /></td></tr>}
-                  </tbody>
-                </table></div>
-              </Card>
-              <Card span={6} title="Busiest Day" cap="The single heaviest day in the period">
-                <div className="qa-bigstat"><b>{ninety.best ? new Date(ninety.best.summary_date).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : '—'}</b>
-                  <small>{ninety.best ? `${fmtN(num(ninety.best.total_visitors))} customers served` : ''}</small></div>
-              </Card>
-              <Card span={6} title="Quietest Day" cap="Your best window for training or maintenance">
-                <div className="qa-bigstat"><b>{ninety.quiet ? new Date(ninety.quiet.summary_date).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : '—'}</b>
-                  <small>{ninety.quiet ? `${fmtN(num(ninety.quiet.total_visitors))} customers served` : ''}</small></div>
-              </Card>
-            </>
-          ) : (
-            <Card span={12} title="Customers Served" cap={drill.caption}>
-              {drill.values.length ? (
-                <>
-                  <div className="qa-chartwrap">
-                    <Area values={drill.values} labels={drill.labels} target={drillAvg} targetLabel={`Avg ${fmtN(drillAvg)}`}
-                      unitLabel={drill.unit}
-                      marker={drillPeak >= 0 ? { i: drillPeak, label: `${drill.labels[drillPeak]} · ${fmtN(drill.values[drillPeak])} ${drill.unit}`, delta: 'Busiest', dir: 'up' } : undefined}
-                      h={250} />
-                  </div>
-                  <div className="qa-cfooter">
-                    <div><div className="fl">Average</div><div className="fv qa-num">{fmtN(drillAvg)}</div></div>
-                    <div><div className="fl">Busiest</div><div className="fv qa-num">{drillPeak >= 0 ? drill.labels[drillPeak] : '—'}</div></div>
-                    <div><div className="fl">Total</div><div className="fv qa-num">{fmtN(drill.values.reduce((a, b) => a + b, 0))}</div></div>
-                    <div><div className="fl">Showing</div><div className="fv qa-num">{drill.values.length} {range === 'day' ? 'hours' : 'days'}</div></div>
-                  </div>
-                  <p className="qa-cap" style={{ marginTop: 12 }}>Hover any point to read that {range === 'day' ? 'hour' : 'day'} exactly.</p>
-                </>
-              ) : <Empty msg="No data for this period yet." />}
-            </Card>
-          )}
-        </div>
+      {/* Every non-overview tab is the approved design, rendering the SAME
+          components as the DEV preview — only the data source differs. */}
+      {!isOverview && (
+        <ExecDataProvider value={liveTabData}>
+          {execTab(tab, setTab)}
+        </ExecDataProvider>
       )}
-
-      {tab === 'branches' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Branches" value={branchCount} base="Across Jamaica" />
-          <Kpi span={3} label="Top Branch" value={<span style={{ fontSize: 22 }}>{titleCase(top?.branch_name) || '—'}</span>} base={top ? `Score ${Math.round(num(top.manager_score))} / 100` : ''} />
-          <Kpi span={3} label="Needs Support" value={<span style={{ fontSize: 22 }}>{titleCase(worst?.branch_name) || '—'}</span>} base={worst ? `Score ${Math.round(num(worst.manager_score))} · Wait ${Math.round(num(worst.avg_wait_minutes))}m` : ''} />
-          <Kpi span={3} label="Company Avg Wait" value={avgWait} unit="min" base={`Target ${num(target.target_wait_minutes)} min`} />
-          <Card span={12} title="All Branches" cap="This Week's Numbers · Ranked By Overall Performance Score">
-            <div className="qa-chartwrap"><table className="qa-dtable">
-              <thead><tr><th>Branch</th><th>Manager</th><th className="r">Served</th><th className="r">Avg Wait</th><th className="r">Completed</th><th className="r">No-Show</th><th className="r">Score</th></tr></thead>
-              <tbody>
-                {shownManagers.length ? shownManagers.map((m) => {
-                  const w = branchWeek(m.branch_id);
-                  return (
-                    <tr key={m.manager_id || m.branch_name}>
-                      <td><b>{titleCase(m.branch_name)}</b></td>
-                      <td>{titleCase(m.manager_name)}</td>
-                      <td className="r qa-num">{fmtN(w.served)}</td>
-                      <td className="r qa-num">{w.n ? Math.round(w.waitSum / w.n) : 0} min</td>
-                      <td className="r qa-num">{pct((w.done / Math.max(1, w.served)) * 100)}</td>
-                      <td className="r qa-num">{pct((w.ns / Math.max(1, w.served)) * 100)}</td>
-                      <td className="r qa-num" style={num(m.manager_score) < 60 ? { color: 'var(--qa-neg)' } : undefined}>{Math.round(num(m.manager_score))}</td>
-                    </tr>
-                  );
-                }) : <tr><td colSpan={7}><Empty msg={needle ? `No branches match “${q.trim()}”.` : 'No branch data yet.'} /></td></tr>}
-              </tbody>
-            </table></div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'managers' && (
-        <div className="qa-grid">
-          <Card span={12} title="Branch Performance Score" cap="Out Of 100 · Wait Time, Completion And No-Show Control">
-            {shownManagers.length ? (
-              <div className="qa-grid4">
-                {shownManagers.map((m) => (
-                  <div key={m.manager_id || m.branch_name} className="qa-mgrcard">
-                    <ScoreRing value={num(m.manager_score)} max={100} size={64} warn={num(m.manager_score) < 60} />
-                    <div><b>{titleCase(m.manager_name)}</b><small>{titleCase(m.branch_name)}</small>
-                      <div className="mstats"><span><i>Wait</i><b>{Math.round(num(m.avg_wait_minutes))}m</b></span><span><i>Done</i><b>{Math.round(num(m.completion_rate))}%</b></span><span><i>No-Show</i><b className={num(m.no_show_rate) > num(target.target_no_show_rate) ? 'low' : ''}>{Math.round(num(m.no_show_rate))}%</b></span></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : <Empty msg={needle ? `No managers match “${q.trim()}”.` : 'No manager scores yet.'} />}
-          </Card>
-          <Card span={8} title="What To Do" cap="Where To Focus Your Attention This Week">
-            {worst && num(worst.manager_score) < 75 ? <Rec tone="crit" icon={<AlertTriangle size={16} />} title={`Support ${titleCase(worst.manager_name)} at ${titleCase(worst.branch_name)}`} body={`Wait ${Math.round(num(worst.avg_wait_minutes))} min and completion at ${Math.round(num(worst.completion_rate))}%. Review staffing and add a counter at peak.`} target={<>Target: <b>{num(target.target_wait_minutes)} min wait · {num(target.target_completion_rate)}% completed</b></>} /> : null}
-            {top ? <Rec tone="info" icon={<Award size={16} />} title={`Recognise ${titleCase(top.manager_name)} at ${titleCase(top.branch_name)}`} body={`Top score at ${Math.round(num(top.manager_score))}/100 — worth sharing what's working.`} /> : null}
-            {!managers.length ? <Empty msg="No recommendations yet." /> : null}
-          </Card>
-          <Card span={4} title="Company Average" cap={`Across ${managers.length} Managers`}>
-            <div className="qa-scorewrap">
-              <ScoreRing value={Math.round(managers.reduce((t, m) => t + num(m.manager_score), 0) / Math.max(1, managers.length))} max={100} />
-              <div className="qa-scorebreak">
-                <Bar label="Wait Time" n={Math.round(managers.reduce((t, m) => t + Math.min(100, (num(target.target_wait_minutes) / Math.max(1, num(m.avg_wait_minutes))) * 100), 0) / Math.max(1, managers.length))} />
-                <Bar label="Completion" n={Math.round(managers.reduce((t, m) => t + num(m.completion_rate), 0) / Math.max(1, managers.length))} accent2 />
-                <Bar label="No-Show Control" n={Math.round(100 - managers.reduce((t, m) => t + num(m.no_show_rate), 0) / Math.max(1, managers.length))} />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'services' && <div className="qa-grid"><ServicesTable services={shownServices} target={num(target.target_wait_minutes)} /></div>}
-
-      {tab === 'busy' && (
-        <div className="qa-grid">
-          <Card span={8} title="Busy Times — Branches By Day" cap="Which Branch Is Under The Most Pressure, And When">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No branch busy-times data yet." />}
-          </Card>
-          <WaitForecastCard preds={preds} span={4} />
-        </div>
-      )}
-
-      {tab === 'targets' && (
-        <div className="qa-grid">
-          <SetTargetsCard target={target} businessId={d.businessId} span={5} />
-          <TargetsCard target={target} last={last} completed={completed} total={served} noShows={noShows} span={4} big
-            title="Progress Against Your Targets" cap="How The Whole Company Is Tracking" />
-          <TargetTrendCard preds={preds} span={3} />
-        </div>
-      )}
-
-      {/* week slice so the report reconciles with every other screen */}
-      {tab === 'reports' && (
-        <ReportsTab summary={week} last={last} completed={completed} total={served} noShows={noShows} scope="Company"
-          services={d.services} target={target} preds={preds} branches={managers} />
-      )}
-
-      {tab === 'settings' && (
-        <div className="qa-grid">
-          <Card span={7} title="Company Details" cap="Shown To Customers In The QMe App">
-            <Field label="Organisation" value={org} />
-            <Field label="Branches" value={`${branchCount} Across Jamaica`} />
-            <Field label="Public Holidays Follow" value="Jamaica National Calendar" />
-          </Card>
-          <Card span={5} title="Overview">
-            <SvcRow nm={`${branchCount} Branches`} w={managers.slice(0, 2).map((m) => titleCase(m.branch_name)).join(', ')} />
-            <SvcRow nm={`${d.services.length} Services`} w={d.services.slice(0, 2).map((s: any) => titleCase(s.service_name)).join(', ')} />
-            <SvcRow nm={`${managers.length} Managers`} w="Analytics on" />
-          </Card>
-        </div>
-      )}
-
-      {tab === 'support' && <SupportTab role="Executives" topics={[
-        { q: 'How do I set company targets?',
-          a: 'Open Targets and use “Set Company Targets”. Enter your average wait in minutes, the share of visits you expect to be completed, and the no-show rate you will tolerate, then press Save targets. Every branch, manager and supervisor screen is measured against those numbers straight away.' },
-        { q: 'What does the Branch Performance Score actually mean?',
-          a: 'It is a single score out of 100 that blends three things: how the branch’s wait time compares to your target, how many visits it completes, and how well it controls no-shows. Roughly: 80+ is good, 60–79 is fair, and under 60 needs attention. The Wait / Done / No-Show figures on each card show you which of the three is dragging the score down.' },
-        { q: 'How do I support an underperforming branch?',
-          a: 'Start with “What To Improve” on the Overview — it ranks issues by how much they cost you against your targets. Then open Managers to see that branch’s score breakdown, and Busy Times to see exactly which days and hours it is under pressure. The usual fix is moving cover to the peak hours shown there.' },
-        { q: 'What is in the company report?',
-          a: 'Reports shows a preview of exactly what the export contains: your KPI summary against targets, customers served per day, a service-by-service breakdown, busy times and staffing, and the What To Improve list.' },
-        { q: 'How often do the numbers update?',
-          a: 'They recalculate automatically in the background on a schedule, and the timestamp beside “Update now” always tells you how fresh they are. If you need them recalculated immediately — for example right before a meeting — press Update now.' },
-        { q: 'How do I add a new branch or manager?',
-          a: 'Branches, services and staff are configured when your organisation is set up. To add or remove one right now, contact QMe support using the details on this page and we will make the change for you.' },
-      ]} />}
-
-      </div>
     </QxShell>
   );
 }
 
-function ServedChartExec({ summary }: { summary: any[] }) {
-  const rows = summary.slice(-7);
-  if (!rows.length) return <Empty msg="No daily data yet." />;
-  const vals = rows.map((s) => num(s.total_visitors));
-  const labels = rows.map((s) => new Date(s.summary_date).toLocaleDateString([], { weekday: 'short' }));
-  const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  const best = vals.indexOf(Math.max(...vals));
-  return (
-    <>
-      <div className="qa-legend" style={{ marginBottom: 6 }}>
-        <span style={{ color: 'var(--qa-accent)' }}><span className="ln" /><span style={{ color: 'var(--qa-dim)' }}>Customers Served</span></span>
-        <span><span className="dash" /><span style={{ color: 'var(--qa-dim)' }}>Daily Average · {fmtN(avg)}</span></span>
-      </div>
-      <div className="qa-chartwrap">
-        <Area values={vals} labels={labels} target={avg} targetLabel={`Avg ${fmtN(avg)}`} unitLabel="served"
-          marker={{ i: best, label: `${labels[best]} · ${fmtN(vals[best])} served`, delta: 'Best Day', dir: 'up' }} h={384} />
-      </div>
-      <div className="qa-cfooter">
-        <div><div className="fl">Avg / Day</div><div className="fv qa-num">{fmtN(avg)}</div></div>
-        <div><div className="fl">Best Day</div><div className="fv pos qa-num">{labels[best]}</div></div>
-        <div><div className="fl">Period</div><div className="fv qa-num">{rows.length} Days</div></div>
-      </div>
-    </>
-  );
-}

@@ -17,7 +17,7 @@
  *
  * Title Case for every title, label and control. Sentence case only for prose.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp,
@@ -77,7 +77,7 @@ function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; labe
  * responsible for it.
  */
 type Metric = 'served' | 'wait' | 'done' | 'noshow';
-const METRICS: Record<Metric, {
+const FX_METRICS: Record<Metric, {
   label: string; unit: string; a: number[]; b: number[]; now: string; was: string;
   /** direction that counts as improvement */
   goodWhen: 'up' | 'down'; blurb: string;
@@ -107,11 +107,11 @@ const METRICS: Record<Metric, {
     blurb: 'Flat. People who book and never arrive are not getting better or worse.',
   },
 };
-const DAYS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
-const RANGE_A = '9 – 22 Jul';
-const RANGE_B = '25 Jun – 8 Jul';
+const FX_DAYS = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
+const FX_RANGE_A = '9 – 22 Jul';
+const FX_RANGE_B = '25 Jun – 8 Jul';
 
-const MOVERS = [
+const FX_MOVERS = [
   { name: 'Montego Bay Cut Its Wait By A Third', detail: 'Average wait fell from 24 to 16 minutes after a third TRN window opened on 14 July.', dir: 'good' as const, arrow: 'down' as const, delta: '8 min Faster' },
   { name: 'Ocho Rios Slowed Down Badly', detail: 'Service time drifted from 21 to 39 minutes a customer. This is the single biggest drag on the company average.', dir: 'bad' as const, arrow: 'up' as const, delta: '18 min Slower' },
   { name: 'App Joins Overtook Kiosk Joins Everywhere', detail: 'Eighty-nine per cent of tickets now start on a phone, up from seventy-six. Every one of those is a clerk not keying in a name.', dir: 'good' as const, arrow: 'up' as const, delta: '13 Points' },
@@ -120,9 +120,9 @@ const MOVERS = [
 
 /* Sunday is closed, so it is described in the note rather than drawn as an
    empty bar — a zero-length bar reads as a rendering fault, not as "shut". */
-const DOW = { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], values: [612, 498, 455, 471, 688, 123] };
+const FX_DOW = { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], values: [612, 498, 455, 471, 688, 123] };
 
-const TRAJECTORY = [
+const FX_TRAJECTORY = [
   { id: 'mob', code: 'MBJ', name: 'Montego Bay', spark: [63, 66, 70, 74, 79, 82, 84], now: 84, was: 71, dir: 'good' as const },
   { id: 'man', code: 'MAN', name: 'Mandeville', spark: [80, 81, 83, 84, 85, 86, 87], now: 87, was: 80, dir: 'good' as const },
   { id: 'por', code: 'POR', name: 'Portmore', spark: [74, 75, 74, 76, 77, 77, 78], now: 78, was: 74, dir: 'good' as const },
@@ -132,10 +132,11 @@ const TRAJECTORY = [
 const TRAJ_GRID = 'minmax(0,2.4fr) 110px 92px 92px 96px';
 
 export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
+  const d = useExecData();
   const [metric, setMetric] = useState<Metric>('served');
   const [showA, setShowA] = useState(true);
   const [showB, setShowB] = useState(true);
-  const m = METRICS[metric];
+  const m = d.metrics[metric];
 
   const delta = useMemo(() => {
     const avg = (xs: number[]) => xs.reduce((t, v) => t + v, 0) / (xs.length || 1);
@@ -147,13 +148,13 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
   return (
     <div className="qx-grid">
       <Card span={12} title="What Changed, And By How Much"
-        cap={`${RANGE_A} measured against ${RANGE_B} — the same number of days immediately before, so it is like for like`}
+        cap={`${d.rangeA} measured against ${d.rangeB} — the same number of days immediately before, so it is like for like`}
         tools={<>
           <Seg value={metric} onChange={setMetric} options={[
             ['served', 'Customers Served'], ['wait', 'Average Wait'], ['done', 'Completed'], ['noshow', 'No-Shows'],
           ]} />
-          <LegendToggle series="a" on={showA} onClick={() => setShowA((v) => !v)}>{RANGE_A}</LegendToggle>
-          <LegendToggle series="b" on={showB} onClick={() => setShowB((v) => !v)}>{RANGE_B}</LegendToggle>
+          <LegendToggle series="a" on={showA} onClick={() => setShowA((v) => !v)}>{d.rangeA}</LegendToggle>
+          <LegendToggle series="b" on={showB} onClick={() => setShowB((v) => !v)}>{d.rangeB}</LegendToggle>
         </>}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', margin: '2px 0 14px' }}>
           <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-.035em' }}>{m.now}</span>
@@ -165,14 +166,14 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
           </span>
         </div>
         <div className="qx-chartfill">
-          <Chart values={m.a} compare={m.b} labels={DAYS} label={RANGE_A} compareLabel={RANGE_B}
+          <Chart values={m.a} compare={m.b} labels={d.days} label={d.rangeA} compareLabel={d.rangeB}
             showA={showA} showB={showB} unit={m.unit} h={268} />
         </div>
       </Card>
 
       <Card span={7} title="Why It Moved" cap="Biggest effect first. Each line is one thing that actually happened.">
         <div className="qx-movers">
-          {MOVERS.map((mv, i) => (
+          {d.movers.map((mv, i) => (
             <div className="qx-mover" key={mv.name}>
               <span className="rk">{i + 1}</span>
               <span className="tx"><b>{mv.name}</b><small>{mv.detail}</small></span>
@@ -184,7 +185,7 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
 
       <div className="qx-stack s5">
         <Card title="Which Day Is Heaviest" cap="Average customers served per weekday across the period">
-          <Bars unit="" items={DOW.labels.map((l, i) => ({ name: l, value: DOW.values[i] }))} />
+          <Bars unit="" items={d.dow.labels.map((l, i) => ({ name: l, value: d.dow.values[i] }))} />
           <div style={{ marginTop: 13 }}>
             <Note icon={Zap} title="Monday And Friday Carry Half The Week"
               body="Branches are shut on Sunday and open a half day on Saturday, so the weekday peaks are sharper than the daily average suggests." />
@@ -199,7 +200,7 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
       <Card span={12} title="Which Branches Are Improving" cap="Health score now against the same point last period. Falling branches first."
         tools={<IconBtn label="Export Trend Report"><Download size={15} /></IconBtn>}>
         <Table grid={TRAJ_GRID} columns={['Branch', 'Direction', 'Was', 'Now', 'Change']}
-          items={[...TRAJECTORY].sort((a, b) => (a.now - a.was) - (b.now - b.was))}
+          items={[...d.trajectory].sort((a, b) => (a.now - a.was) - (b.now - b.was))}
           renderRow={(t) => (
             <Row key={t.id} grid={TRAJ_GRID} onClick={() => onNav('branches')}>
               <div className="qx-cellmain">
@@ -230,7 +231,7 @@ function MiniSpark({ values, bad }: { values: number[]; bad?: boolean }) {
   );
 }
 
-/* ══════════════════════ 2 · BRANCHES ══════════════════════ */
+/* ══════════════════════ 2 · d.branches ══════════════════════ */
 /**
  * Master/detail. The list alone was the old design's failure — it told you WHICH
  * branch was worst and then abandoned you. Picking a row now opens the branch's
@@ -241,7 +242,7 @@ type Branch = {
   waiting: number; wait: number; score: number; served: number; done: number; noshow: number;
   windows: number; open: number; state: 'open' | 'busy'; spark: number[]; problem?: string;
 };
-const BRANCHES: Branch[] = [
+const FX_BRANCHES: Branch[] = [
   { id: 'och', code: 'OCH', name: 'Ocho Rios', parish: 'St. Ann', mgr: 'Kemar Lewis', waiting: 22, wait: 39, score: 58, served: 402, done: 79, noshow: 11.4, windows: 6, open: 4, state: 'busy', spark: [72, 70, 67, 64, 61, 59, 58], problem: 'Service time has drifted to 39 minutes a customer against a usual 21. This is a pace problem at the counter, not a volume problem — Ocho Rios sees fewer people than Portmore.' },
   { id: 'kgn', code: 'HWT', name: 'Kingston — Half Way Tree', parish: 'Kingston', mgr: 'Andre Blake', waiting: 34, wait: 37, score: 62, served: 918, done: 84, noshow: 8.2, windows: 9, open: 6, state: 'busy', spark: [68, 67, 66, 65, 64, 63, 62], problem: 'Volume grew 11% with no change in windows. TRN draws about ten people an hour with only two windows open, so the line compounds straight through midday.' },
   { id: 'por', code: 'POR', name: 'Portmore', parish: 'St. Catherine', mgr: 'Tanya Reid', waiting: 18, wait: 21, score: 78, served: 631, done: 89, noshow: 6.9, windows: 7, open: 6, state: 'open', spark: [74, 75, 74, 76, 77, 77, 78] },
@@ -251,20 +252,21 @@ const BRANCHES: Branch[] = [
 const BR_GRID = 'minmax(0,2.2fr) minmax(0,1.3fr) 80px 92px 88px';
 
 export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
+  const d = useExecData();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState('och');
   const [view, setView] = useState<'wait' | 'served'>('wait');
 
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
-    const list = n ? BRANCHES.filter((b) => `${b.name} ${b.parish} ${b.mgr}`.toLowerCase().includes(n)) : BRANCHES;
+    const list = n ? d.branches.filter((b) => `${b.name} ${b.parish} ${b.mgr}`.toLowerCase().includes(n)) : d.branches;
     return [...list].sort((a, b) => a.score - b.score);
   }, [q]);
-  const b = BRANCHES.find((x) => x.id === sel) || BRANCHES[0];
+  const b = d.branches.find((x) => x.id === sel) || d.branches[0];
 
   return (
     <div className="qx-grid">
-      <Stat span={3} icon={Building2} label="Branches Reporting" value={BRANCHES.length}
+      <Stat span={3} icon={Building2} label="Branches Reporting" value={d.branches.length}
         foot="Across five parishes" />
       <Stat span={3} icon={Award} tone="good" label="Best Performing" value="Mandeville"
         chip={{ dir: 'good', text: '87' }} foot="14 min average wait, 94% completed" />
@@ -324,7 +326,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
         <Card title="Compare Branches" cap="Same measure, side by side"
           tools={<Seg value={view} onChange={setView} options={[['wait', 'Average Wait'], ['served', 'Customers Served']]} />}>
           <Bars unit={view === 'wait' ? ' min' : ''} invert={view === 'wait'}
-            items={[...BRANCHES]
+            items={[...d.branches]
               .sort((x, y) => (view === 'wait' ? y.wait - x.wait : y.served - x.served))
               .map((x) => ({ name: x.name.replace('Kingston — ', ''), value: view === 'wait' ? x.wait : x.served }))} />
         </Card>
@@ -335,7 +337,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
       <Card span={12} title="Seven Weeks, Branch By Branch"
         cap="Health score over time. Same scale on every card, so the shapes are comparable at a glance.">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {BRANCHES.map((br) => {
+          {d.branches.map((br) => {
             const up = br.spark[br.spark.length - 1] >= br.spark[0];
             return (
               <button key={br.id} type="button" onClick={() => setSel(br.id)}
@@ -375,7 +377,7 @@ function FullSpark({ values, bad }: { values: number[]; bad?: boolean }) {
   );
 }
 
-/* ══════════════════════ 3 · MANAGERS ══════════════════════ */
+/* ══════════════════════ 3 · d.managers ══════════════════════ */
 /**
  * People, not places. The score is the point of this screen, so the screen has
  * to show what the score is MADE of — an unexplained number out of 100 is the
@@ -386,7 +388,7 @@ type Mgr = {
   parts: { wait: number; done: number; noshow: number; staffing: number };
   tenure: string; note: string;
 };
-const MANAGERS: Mgr[] = [
+const FX_MANAGERS: Mgr[] = [
   { id: 'm5', name: 'Devon Hall', branch: 'Mandeville', score: 87, was: 80, tenure: '4 years', parts: { wait: 92, done: 94, noshow: 90, staffing: 72 }, note: 'Runs every window open through the midday peak. The only soft spot is training cover.' },
   { id: 'm4', name: 'Simone Clarke', branch: 'Montego Bay', score: 84, was: 71, tenure: '2 years', parts: { wait: 88, done: 93, noshow: 88, staffing: 67 }, note: 'Biggest improver in the company after opening a third TRN window on 14 July.' },
   { id: 'm3', name: 'Tanya Reid', branch: 'Portmore', score: 78, was: 74, tenure: '6 years', parts: { wait: 76, done: 89, noshow: 82, staffing: 65 }, note: 'Steady. Wait time is the one measure still short of target.' },
@@ -399,15 +401,16 @@ const PART_LABEL: Array<[keyof Mgr['parts'], string]> = [
 ];
 
 export function ExecManagers() {
+  const d = useExecData();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState('m2');
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
-    const list = n ? MANAGERS.filter((m) => `${m.name} ${m.branch}`.toLowerCase().includes(n)) : MANAGERS;
+    const list = n ? d.managers.filter((m) => `${m.name} ${m.branch}`.toLowerCase().includes(n)) : d.managers;
     return [...list].sort((a, b) => a.score - b.score);
   }, [q]);
-  const m = MANAGERS.find((x) => x.id === sel) || MANAGERS[0];
-  const avg = Math.round(MANAGERS.reduce((t, x) => t + x.score, 0) / MANAGERS.length);
+  const m = d.managers.find((x) => x.id === sel) || d.managers[0];
+  const avg = Math.round(d.managers.reduce((t, x) => t + x.score, 0) / d.managers.length);
 
   return (
     <div className="qx-grid">
@@ -462,7 +465,7 @@ export function ExecManagers() {
           </div>
         </Card>
 
-        <Card title="Company Average" cap={`Across ${MANAGERS.length} managers`}>
+        <Card title="Company Average" cap={`Across ${d.managers.length} managers`}>
           <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 10 }}>
             <Ring value={avg} max={100} warn={avg < 60} />
           </div>
@@ -478,7 +481,7 @@ export function ExecManagers() {
         cap="Anything under 60 is flagged. A whole column in red is a company problem, not a person problem.">
         <Table grid={MGR_MATRIX_GRID}
           columns={['Manager', 'Wait Time Control', 'Completed Visits', 'No-Show Control', 'Staffing Discipline', 'Overall']}
-          items={[...MANAGERS].sort((a, b) => a.score - b.score)}
+          items={[...d.managers].sort((a, b) => a.score - b.score)}
           renderRow={(r) => (
             <Row key={r.id} grid={MGR_MATRIX_GRID} onClick={() => setSel(r.id)}>
               <div className="qx-cellmain">
@@ -496,7 +499,7 @@ export function ExecManagers() {
         <div className="qx-tfoot" style={{ gridTemplateColumns: MGR_MATRIX_GRID }}>
           <span>Company Average</span>
           {PART_LABEL.map(([k]) => {
-            const v = Math.round(MANAGERS.reduce((t, x) => t + x.parts[k], 0) / MANAGERS.length);
+            const v = Math.round(d.managers.reduce((t, x) => t + x.parts[k], 0) / d.managers.length);
             return <b key={k} style={{ color: v < 60 ? 'var(--c-bad)' : undefined }}>{v}</b>;
           })}
           <b style={{ textAlign: 'right' }}>{avg}</b>
@@ -516,7 +519,7 @@ export function ExecManagers() {
  * the demand it actually generates?
  */
 type Line = { id: string; code: string; name: string; joined: number; wait: number; svcMin: number; windows: number; share: number };
-const LINES: Line[] = [
+const FX_LINES: Line[] = [
   { id: 'trn', code: 'TRN', name: 'TRN Registration', joined: 1104, wait: 41, svcMin: 24, windows: 12, share: 39 },
   { id: 'pay', code: 'PAY', name: 'Tax Payments', joined: 812, wait: 19, svcMin: 9, windows: 9, share: 29 },
   { id: 'inc', code: 'INC', name: 'Income Tax Filing', joined: 449, wait: 23, svcMin: 18, windows: 6, share: 16 },
@@ -524,27 +527,28 @@ const LINES: Line[] = [
   { id: 'prp', code: 'PRP', name: 'Property Tax', joined: 201, wait: 12, svcMin: 11, windows: 3, share: 7 },
 ];
 const LINE_GRID = 'minmax(0,2.2fr) 96px 88px 100px 96px 110px';
-const SVC_HEAT = [
+const FX_SVC_HEAT = [
   [140, 302, 188, 264, 210],
   [96, 214, 141, 198, 163],
   [61, 118, 84, 106, 80],
   [38, 74, 52, 68, 49],
   [27, 51, 38, 47, 38],
 ];
-const SVC_HEAT_COLS = ['Half Way Tree', 'Ocho Rios', 'Portmore', 'Montego Bay', 'Mandeville'];
+const FX_SVC_HEAT_COLS = ['Half Way Tree', 'Ocho Rios', 'Portmore', 'Montego Bay', 'Mandeville'];
 const heatData = (counts: number[][]) => {
   const max = Math.max(...counts.flat()) || 1;
   return counts.map((r) => r.map((v) => v / max));
 };
 
 export function ExecServices() {
+  const d = useExecData();
   const [view, setView] = useState<'demand' | 'time'>('demand');
-  const totalJoined = LINES.reduce((t, l) => t + l.joined, 0);
-  const totalWindows = LINES.reduce((t, l) => t + l.windows, 0);
+  const totalJoined = d.lines.reduce((t, l) => t + l.joined, 0);
+  const totalWindows = d.lines.reduce((t, l) => t + l.windows, 0);
 
   return (
     <div className="qx-grid">
-      <Stat span={3} icon={Waypoints} label="Service Lines" value={LINES.length} foot="Offered across all branches" />
+      <Stat span={3} icon={Waypoints} label="Service Lines" value={d.lines.length} foot="Offered across all branches" />
       <Stat span={3} icon={Users} label="Tickets This Period" value={totalJoined.toLocaleString()}
         chip={{ dir: 'good', text: '12.4%' }} foot="Across every branch and channel" />
       <Stat span={3} icon={Clock} tone="bad" label="Slowest Line" value="TRN" unit="41 min wait"
@@ -557,7 +561,7 @@ export function ExecServices() {
         tools={<Seg value={view} onChange={setView} options={[['demand', 'Share Of Demand'], ['time', 'Counter Minutes']]} />}>
         {view === 'demand' ? (
           <div className="qx-bars">
-            {LINES.map((l) => {
+            {d.lines.map((l) => {
               const capShare = Math.round((l.windows / totalWindows) * 100);
               const starved = l.share - capShare >= 6;
               return (
@@ -575,7 +579,7 @@ export function ExecServices() {
           </div>
         ) : (
           <Bars unit=" hrs" invert
-            items={LINES.map((l) => ({ name: l.name, value: Math.round((l.joined * l.svcMin) / 60) }))} />
+            items={d.lines.map((l) => ({ name: l.name, value: Math.round((l.joined * l.svcMin) / 60) }))} />
         )}
         <Note icon={AlertTriangle} tone="warn" title="TRN Is The One Genuinely Mis-Staffed Line"
           body="It generates 39% of the queue on 33% of the counters, and each visit takes more than twice as long as a payment. Every extra TRN window buys back more waiting time than one anywhere else." />
@@ -590,19 +594,19 @@ export function ExecServices() {
             ]} />
         </Card>
         <Card title="Longest Visits" cap="Average minutes at the counter, once called">
-          <Bars unit=" min" invert items={[...LINES].sort((a, b) => b.svcMin - a.svcMin).map((l) => ({ name: l.name, value: l.svcMin }))} />
+          <Bars unit=" min" invert items={[...d.lines].sort((a, b) => b.svcMin - a.svcMin).map((l) => ({ name: l.name, value: l.svcMin }))} />
         </Card>
       </div>
 
       <Card span={12} title="Every Service, Every Branch" cap="Tickets this period. Read down a column for a branch's mix, across a row for where a service is heaviest.">
-        <Heatmap rowLabels={LINES.map((l) => l.name)} colLabels={SVC_HEAT_COLS}
-          data={heatData(SVC_HEAT)} display={SVC_HEAT} unit="" />
+        <Heatmap rowLabels={d.lines.map((l) => l.name)} colLabels={d.svcHeatCols}
+          data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
       </Card>
 
-      <Card span={12} title={<>Service Lines<span className="qx-count">{LINES.length}</span></>}
+      <Card span={12} title={<>Service Lines<span className="qx-count">{d.lines.length}</span></>}
         cap="Longest wait first">
         <Table grid={LINE_GRID} columns={['Service', 'Tickets', 'Windows', 'Avg Wait', 'At Counter', 'Status']}
-          items={[...LINES].sort((a, b) => b.wait - a.wait)}
+          items={[...d.lines].sort((a, b) => b.wait - a.wait)}
           renderRow={(l) => (
             <Row key={l.id} grid={LINE_GRID}>
               <div className="qx-cellmain">
@@ -622,16 +626,16 @@ export function ExecServices() {
 }
 
 /* ══════════════════════ 5 · BUSY TIMES ══════════════════════ */
-const HOURS = ['8am', '9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'];
-const BRANCH_HEAT = [
+const FX_HOURS = ['8am', '9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'];
+const FX_BRANCH_HEAT = [
   [18, 42, 71, 88, 84, 52, 76, 44, 21],
   [14, 38, 66, 79, 55, 48, 51, 27, 16],
   [11, 31, 44, 68, 47, 26, 39, 22, 12],
   [7, 19, 34, 41, 38, 21, 24, 15, 8],
   [5, 14, 22, 33, 25, 18, 19, 10, 6],
 ];
-const BRANCH_HEAT_ROWS = ['Half Way Tree', 'Ocho Rios', 'Portmore', 'Montego Bay', 'Mandeville'];
-const LINE_HEAT = [
+const FX_BRANCH_HEAT_ROWS = ['Half Way Tree', 'Ocho Rios', 'Portmore', 'Montego Bay', 'Mandeville'];
+const FX_LINE_HEAT = [
   [21, 48, 74, 92, 71, 44, 63, 36, 17],
   [16, 34, 52, 61, 58, 39, 47, 26, 13],
   [9, 22, 33, 44, 31, 19, 27, 16, 8],
@@ -640,18 +644,19 @@ const LINE_HEAT = [
 ];
 
 export function ExecBusy() {
+  const d = useExecData();
   const [view, setView] = useState<'branch' | 'service'>('branch');
-  const data = view === 'branch' ? BRANCH_HEAT : LINE_HEAT;
-  const rows = view === 'branch' ? BRANCH_HEAT_ROWS : LINES.map((l) => l.name);
-  const perHour = HOURS.map((_, i) => data.reduce((t, r) => t + r[i], 0));
+  const data = view === 'branch' ? d.branchHeat : d.lineHeat;
+  const rows = view === 'branch' ? d.branchHeatRows : d.lines.map((l) => l.name);
+  const perHour = d.hours.map((_, i) => data.reduce((t, r) => t + r[i], 0));
   const peakIdx = perHour.indexOf(Math.max(...perHour));
   const quietIdx = perHour.indexOf(Math.min(...perHour.slice(0, 8).filter((v) => v > 0)));
 
   return (
     <div className="qx-grid">
-      <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Hour" value={HOURS[peakIdx]}
+      <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Hour" value={d.hours[peakIdx]}
         chip={{ dir: 'bad', text: 'Peak' }} foot={`${perHour[peakIdx]} people join in that hour company-wide`} />
-      <Stat span={3} icon={Clock} label="Quietest Open Hour" value={HOURS[quietIdx]}
+      <Stat span={3} icon={Clock} label="Quietest Open Hour" value={d.hours[quietIdx]}
         foot="Safest window for breaks, training and stock-taking" />
       <Stat span={3} icon={Building2} tone="bad" label="Most Pressured Branch" value="Half Way Tree"
         chip={{ dir: 'bad', text: '88 At Peak' }} foot="Nearly three times Mandeville's peak" />
@@ -661,12 +666,12 @@ export function ExecBusy() {
       <Card span={12} title="When The Pressure Lands"
         cap="Visits per hour. Staff the darkest cells; the pale ones are safe for breaks and training."
         tools={<Seg value={view} onChange={setView} options={[['branch', 'By Branch'], ['service', 'By Service']]} />}>
-        <Heatmap rowLabels={rows} colLabels={HOURS} data={heatData(data)} display={data} unit="" />
+        <Heatmap rowLabels={rows} colLabels={d.hours} data={heatData(data)} display={data} unit="" />
       </Card>
 
       <Card span={8} title="Company Load Through The Day" cap="Everyone who joins a line, by hour">
         <div className="qx-chartfill">
-          <Chart values={perHour} labels={HOURS} label="Average Weekday" unit="joins" h={230} />
+          <Chart values={perHour} labels={d.hours} label="Average Weekday" unit="joins" h={230} />
         </div>
       </Card>
 
@@ -687,14 +692,14 @@ export function ExecBusy() {
   );
 }
 
-/* ══════════════════════ 6 · TARGETS ══════════════════════ */
+/* ══════════════════════ 6 · d.targets ══════════════════════ */
 /**
  * Executive-settable, never hardcoded — these are the numbers every other screen
  * in the system judges against, so this screen has to feel like the source of
  * truth it is: current value, the target, and the gap, all on one line.
  */
 type TargetRow = { key: string; label: string; unit: string; now: number; target: number; goodWhen: 'up' | 'down'; help: string };
-const TARGETS: TargetRow[] = [
+const FX_TARGETS: TargetRow[] = [
   { key: 'wait', label: 'Average Wait', unit: 'min', now: 26, target: 20, goodWhen: 'down', help: 'How long someone waits from joining the line to being called.' },
   { key: 'done', label: 'Completed Visits', unit: '%', now: 91, target: 85, goodWhen: 'up', help: 'Share of people who join and are actually served.' },
   { key: 'noshow', label: 'No-Show Rate', unit: '%', now: 7.2, target: 10, goodWhen: 'down', help: 'People who take a ticket and never answer the call.' },
@@ -702,19 +707,20 @@ const TARGETS: TargetRow[] = [
 ];
 
 export function ExecTargets() {
+  const d = useExecData();
   const [vals, setVals] = useState<Record<string, number>>(
-    () => Object.fromEntries(TARGETS.map((t) => [t.key, t.target]))
+    () => Object.fromEntries(d.targets.map((t) => [t.key, t.target]))
   );
   const [dirty, setDirty] = useState(false);
   const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
 
-  const met = TARGETS.filter((t) => (t.goodWhen === 'down' ? t.now <= vals[t.key] : t.now >= vals[t.key])).length;
+  const met = d.targets.filter((t) => (t.goodWhen === 'down' ? t.now <= vals[t.key] : t.now >= vals[t.key])).length;
 
   return (
     <div className="qx-grid">
       <Card span={7} title="Company Targets" cap="You set these. Every branch, manager and report in the system is judged against them.">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {TARGETS.map((t) => {
+          {d.targets.map((t) => {
             const ok = t.goodWhen === 'down' ? t.now <= vals[t.key] : t.now >= vals[t.key];
             const gap = Math.abs(+(t.now - vals[t.key]).toFixed(1));
             return (
@@ -749,7 +755,7 @@ export function ExecTargets() {
             <Check size={14} />Save Targets
           </button>
           <button type="button" className="qx-btn ghost" onClick={() => {
-            setVals(Object.fromEntries(TARGETS.map((t) => [t.key, t.target]))); setDirty(false);
+            setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.target]))); setDirty(false);
           }}>Reset</button>
           <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600 }}>
             {dirty ? 'Unsaved changes — nothing is applied until you save.' : 'Last changed 2 July by Debra Samuels.'}
@@ -760,10 +766,10 @@ export function ExecTargets() {
       <div className="qx-stack s5">
         <Card title="Where The Company Stands" cap="Against the targets as they are set right now">
           <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 10 }}>
-            <Ring value={Math.round((met / TARGETS.length) * 100)} max={100} warn={met < TARGETS.length} label="Targets Met" />
+            <Ring value={Math.round((met / d.targets.length) * 100)} max={100} warn={met < d.targets.length} label="Targets Met" />
           </div>
           <div className="qx-sbreak">
-            {TARGETS.map((t) => {
+            {d.targets.map((t) => {
               const ok = t.goodWhen === 'down' ? t.now <= vals[t.key] : t.now >= vals[t.key];
               const pct = Math.max(0, Math.min(100, t.goodWhen === 'down'
                 ? (vals[t.key] / Math.max(0.1, t.now)) * 100
@@ -861,7 +867,7 @@ const SECTIONS: Section[] = [
 
 type Page = { kind: string; section: string; title: string; branch?: Branch };
 
-const RECENT = [
+const FX_RECENT = [
   { name: 'Quarterly Review — Q2 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '4.1 MB', pages: 24 },
   { name: 'Performance Summary — June 2026', when: '1 Jul 2026', by: 'Debra Samuels', size: '1.9 MB', pages: 14 },
   { name: 'Branch Comparison — May 2026', when: '3 Jun 2026', by: 'Andre Blake', size: '1.2 MB', pages: 11 },
@@ -869,6 +875,7 @@ const RECENT = [
 const RECENT_GRID = 'minmax(0,2.6fr) 104px 112px minmax(0,1.1fr) 80px 88px';
 
 export function ExecReports() {
+  const d = useExecData();
   const [type, setType] = useState('quarter');
   const [period, setPeriod] = useState('q');
   const [branches, setBranches] = useState<string[]>(['all']);
@@ -884,7 +891,7 @@ export function ExecReports() {
   });
   const toggleSection = (k: string) => setOn((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
-  const included = branches.includes('all') ? BRANCHES : BRANCHES.filter((b) => branches.includes(b.id));
+  const included = branches.includes('all') ? d.branches : d.branches.filter((b) => branches.includes(b.id));
   const typeLabel = REPORT_TYPES.find((t) => t[0] === type)?.[1] || '';
   const periodLabel = ({ '30': 'Last 30 Days', '90': 'Last 90 Days', q: 'Second Quarter 2026', y: 'Year To Date' } as Record<string, string>)[period] || '';
 
@@ -982,7 +989,7 @@ export function ExecReports() {
             <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Branches Included</div>
             <div className="qx-checks">
               {[['all', 'All Branches'] as [string, string],
-                ...BRANCHES.map((b) => [b.id, b.name.replace('Kingston — ', '')] as [string, string])].map(([id, label]) => (
+                ...d.branches.map((b) => [b.id, b.name.replace('Kingston — ', '')] as [string, string])].map(([id, label]) => (
                 <button key={id} type="button" className="qx-check" aria-pressed={branches.includes(id)} onClick={() => toggle(id)}>
                   {branches.includes(id) ? <Check size={13} /> : null}{label}
                 </button>
@@ -1040,10 +1047,10 @@ export function ExecReports() {
         </div>
       </Card>
 
-      <Card span={12} title={<>Recently Generated<span className="qx-count">{RECENT.length}</span></>}
+      <Card span={12} title={<>Recently Generated<span className="qx-count">{d.recent.length}</span></>}
         cap="Kept for ninety days, then removed automatically">
         <Table grid={RECENT_GRID} columns={['Report', 'Length', 'Generated', 'By', 'Size', '']}
-          items={RECENT}
+          items={d.recent}
           renderRow={(r) => (
             <Row key={r.name} grid={RECENT_GRID}>
               <div className="qx-cellmain">
@@ -1079,6 +1086,7 @@ function PaperPage({ page, n, total, ctx }: {
   page?: Page; n: number; total: number;
   ctx: { typeLabel: string; periodLabel: string; included: Branch[]; pages: Page[]; on: string[] };
 }) {
+  const d = useExecData();
   if (!page) return null;
   const run = (
     <div className="qx-paperrun">
@@ -1098,7 +1106,7 @@ function PaperPage({ page, n, total, ctx }: {
           </div>
           <h5>{ctx.typeLabel}</h5>
           <div className="meta">
-            {ctx.periodLabel} · {ctx.included.length === BRANCHES.length ? 'All five branches' : `${ctx.included.length} of ${BRANCHES.length} branches`}<br />
+            {ctx.periodLabel} · {ctx.included.length === d.branches.length ? 'All five branches' : `${ctx.included.length} of ${d.branches.length} branches`}<br />
             Generated 27 July 2026 by Debra Samuels · {total} pages
           </div>
         </div>
@@ -1321,7 +1329,7 @@ function PaperPage({ page, n, total, ctx }: {
         <table className="qx-papertable">
           <thead><tr><th>Service</th><th>Tickets</th><th>Share</th><th>Windows</th><th>Avg Wait</th></tr></thead>
           <tbody>
-            {LINES.map((l) => (
+            {d.lines.map((l) => (
               <tr key={l.id}>
                 <td>{l.name}</td><td className="n">{l.joined}</td><td className="n">{l.share}%</td>
                 <td className="n">{l.windows}</td>
@@ -1337,7 +1345,7 @@ function PaperPage({ page, n, total, ctx }: {
           in the estate.
         </p>
         <div className="qx-paperfig">
-          <MiniBars items={LINES.map((l) => ({ label: l.code, value: Math.round((l.joined * l.svcMin) / 60) }))} />
+          <MiniBars items={d.lines.map((l) => ({ label: l.code, value: Math.round((l.joined * l.svcMin) / 60) }))} />
           <figcaption>Figure 3 — Counter hours consumed by service line</figcaption>
         </div>
         {foot}
@@ -1355,7 +1363,7 @@ function PaperPage({ page, n, total, ctx }: {
           branch, and Half Way Tree's eleven o'clock cell is the busiest in the country by a wide margin.
         </p>
         <div className="qx-paperfig">
-          <MiniBars items={HOURS.map((h, i) => ({ label: h.replace('am', '').replace('pm', ''), value: BRANCH_HEAT.reduce((t, r) => t + r[i], 0) }))} />
+          <MiniBars items={d.hours.map((h, i) => ({ label: h.replace('am', '').replace('pm', ''), value: d.branchHeat.reduce((t, r) => t + r[i], 0) }))} />
           <figcaption>Figure 4 — National arrivals by hour, average weekday</figcaption>
         </div>
         <p>
@@ -1384,7 +1392,7 @@ function PaperPage({ page, n, total, ctx }: {
         <table className="qx-papertable">
           <thead><tr><th>Manager</th><th>Wait</th><th>Completed</th><th>No-Show</th><th>Staffing</th><th>Overall</th></tr></thead>
           <tbody>
-            {[...MANAGERS].sort((a, b) => b.score - a.score).map((m) => (
+            {[...d.managers].sort((a, b) => b.score - a.score).map((m) => (
               <tr key={m.id}>
                 <td>{m.name}</td>
                 {PART_LABEL.map(([k]) => (
@@ -1533,13 +1541,13 @@ function PaperPage({ page, n, total, ctx }: {
       <table className="qx-papertable">
         <thead><tr><th>Date</th><th>Served</th><th>Avg Wait</th><th>Completed</th><th>No-Shows</th></tr></thead>
         <tbody>
-          {METRICS.served.a.slice(0, 14).map((v, i) => (
+          {d.metrics.served.a.slice(0, 14).map((v, i) => (
             <tr key={i}>
               <td>{9 + i} Jul 2026</td>
               <td className="n">{v}</td>
-              <td className="n">{METRICS.wait.a[i]} min</td>
-              <td className="n">{METRICS.done.a[i]}%</td>
-              <td className="n">{METRICS.noshow.a[i]}%</td>
+              <td className="n">{d.metrics.wait.a[i]} min</td>
+              <td className="n">{d.metrics.done.a[i]}%</td>
+              <td className="n">{d.metrics.noshow.a[i]}%</td>
             </tr>
           ))}
         </tbody>
@@ -1675,7 +1683,7 @@ export function ExecSettings() {
 }
 
 /* ══════════════════════ 9 · HELP & SUPPORT ══════════════════════ */
-const FAQ: Array<{ q: string; a: string }> = [
+const FX_FAQ: Array<{ q: string; a: string }> = [
   { q: 'Where Do These Numbers Come From?', a: 'Every figure on your dashboard is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except the items explicitly labelled as a forecast, which come from the prediction models and are refreshed every two hours.' },
   { q: 'What Is The Health Score Out Of 100?', a: 'Four measures, equally weighted: wait time control, completed visits, no-show control, and staffing discipline. Open any manager under the Managers tab to see the four component scores that produced their number.' },
   { q: 'Why Does A Branch Show Fewer People Than I Counted?', a: 'The system only knows about people who joined a line — through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
@@ -1685,11 +1693,12 @@ const FAQ: Array<{ q: string; a: string }> = [
 ];
 
 export function ExecSupport() {
-  const [open, setOpen] = useState<string | null>(FAQ[0].q);
+  const d = useExecData();
+  const [open, setOpen] = useState<string | null>(d.faq[0].q);
   const [q, setQ] = useState('');
   const shown = useMemo(() => {
     const n = q.trim().toLowerCase();
-    return n ? FAQ.filter((f) => `${f.q} ${f.a}`.toLowerCase().includes(n)) : FAQ;
+    return n ? d.faq.filter((f) => `${f.q} ${f.a}`.toLowerCase().includes(n)) : d.faq;
   }, [q]);
 
   return (
@@ -1739,6 +1748,50 @@ export function ExecSupport() {
     </div>
   );
 }
+
+/* ══════════════════════ data ══════════════════════ */
+/**
+ * The tabs read every figure from this context. The DEFAULT is the fixture set
+ * the designs were built against, so the DEV preview renders with no provider
+ * and the real app wraps the same components in a provider carrying live data.
+ *
+ * The point is that there is exactly ONE copy of the tab markup. A second,
+ * "live" copy is how the period pills, date chip and branch filter went missing
+ * from the Executive overview the first time it was ported.
+ */
+export type ExecTabData = {
+  metrics: typeof FX_METRICS;
+  days: string[]; rangeA: string; rangeB: string;
+  movers: typeof FX_MOVERS;
+  dow: { labels: string[]; values: number[] };
+  trajectory: typeof FX_TRAJECTORY;
+  branches: Branch[];
+  managers: Mgr[];
+  lines: Line[];
+  svcHeat: number[][]; svcHeatCols: string[];
+  hours: string[];
+  branchHeat: number[][]; branchHeatRows: string[]; lineHeat: number[][];
+  targets: TargetRow[];
+  recent: typeof FX_RECENT;
+  faq: Array<{ q: string; a: string }>;
+  /** printed on the report cover and in Settings */
+  org: string; preparedBy: string; generatedOn: string;
+};
+
+export const EXEC_FIXTURES: ExecTabData = {
+  metrics: FX_METRICS, days: FX_DAYS, rangeA: FX_RANGE_A, rangeB: FX_RANGE_B,
+  movers: FX_MOVERS, dow: FX_DOW, trajectory: FX_TRAJECTORY,
+  branches: FX_BRANCHES, managers: FX_MANAGERS, lines: FX_LINES,
+  svcHeat: FX_SVC_HEAT, svcHeatCols: FX_SVC_HEAT_COLS,
+  hours: FX_HOURS, branchHeat: FX_BRANCH_HEAT, branchHeatRows: FX_BRANCH_HEAT_ROWS,
+  lineHeat: FX_LINE_HEAT, targets: FX_TARGETS, recent: FX_RECENT, faq: FX_FAQ,
+  org: 'Tax Administration Jamaica', preparedBy: 'Debra Samuels',
+  generatedOn: '27 July 2026',
+};
+
+const ExecDataCtx = createContext<ExecTabData>(EXEC_FIXTURES);
+export const ExecDataProvider = ExecDataCtx.Provider;
+function useExecData() { return useContext(ExecDataCtx); }
 
 /* ══════════════════════ resolver ══════════════════════ */
 export function execTab(tab: string, onNav: (k: string) => void) {
