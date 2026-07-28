@@ -157,6 +157,10 @@ export function SupDesksTab() {
   const d = useSup();
   const [picked, setPicked] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  /* `assigned` is what has been applied; `moves` is what is pending. Apply used
+     to call the same handler as Undo, so it discarded the pending moves and
+     looked exactly like it had reverted them. */
+  const [assigned, setAssigned] = useState<Record<string, string | null>>({});
   const [moves, setMoves] = useState<Record<string, string | null>>({});
 
   if (!d.desks.length) {
@@ -164,15 +168,16 @@ export function SupDesksTab() {
       body="Desks are configured when the branch is set up. Once they exist you can assign people to them here, and the board will show where the holes are." />;
   }
 
-  /** Current assignment, with any unsaved change applied on top. */
+  /** Who is on a desk: pending move first, then applied, then the original. */
   const staffAt = (deskId: string) => {
-    if (deskId in moves) {
-      const id = moves[deskId];
-      return id ? d.staff.find((s) => s.id === id) || null : null;
-    }
-    const desk = d.desks.find((x) => x.id === deskId);
-    return desk?.staffId ? d.staff.find((s) => s.id === desk.staffId) || null : null;
+    const id = deskId in moves ? moves[deskId]
+      : deskId in assigned ? assigned[deskId]
+      : d.desks.find((x) => x.id === deskId)?.staffId ?? null;
+    return id ? d.staff.find((s) => s.id === id) || null : null;
   };
+
+  const apply = () => { setAssigned((a) => ({ ...a, ...moves })); setMoves({}); };
+  const undo = () => setMoves({});
 
   const place = (deskId: string, staffId: string) => {
     const person = d.staff.find((s) => s.id === staffId);
@@ -240,7 +245,7 @@ export function SupDesksTab() {
                 title={canPlace ? undefined : 'On a break — not available to place'}>
                 <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
                 <span className="nm">
-                  <b>{s.name}</b>
+                  <b title={s.name}>{s.name}</b>
                   <small>{SUP_STATE_LABEL[s.state]}{at ? ` · ${at.label}` : ''}</small>
                 </span>
                 {s.breakDue ? <Chip dir="warn" arrow="none">Break Due</Chip> : null}
@@ -260,8 +265,8 @@ export function SupDesksTab() {
       <Card span={12} title="Every Desk In This Section"
         cap="A desk is only flagged when people are actually waiting for it — an empty desk on a quiet service costs nothing."
         tools={dirty ? <>
-          <button type="button" className="qx-btn" onClick={() => setMoves({})}>Apply Changes</button>
-          <button type="button" className="qx-btn ghost" onClick={() => setMoves({})}>Undo</button>
+          <button type="button" className="qx-btn" onClick={apply}>Apply Changes</button>
+          <button type="button" className="qx-btn ghost" onClick={undo}>Undo</button>
         </> : undefined}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {byService.map(([svc, desks]) => {
@@ -300,7 +305,7 @@ export function SupDesksTab() {
                         {who ? (
                           <span className="who">
                             <span className="qx-av" style={avatarStyle(who.name)}>{initials(who.name)}</span>
-                            <span>{who.name}</span>
+                            <span title={who.name}>{who.name}</span>
                           </span>
                         ) : (
                           <span className="none">{alert ? 'Empty — people waiting' : 'Empty'}</span>

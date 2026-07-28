@@ -864,7 +864,7 @@
 .qs-lanetop .qx-chip { margin-left: auto; }
 .qs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; }
 .qs-slot {
-  min-height: 104px; border-radius: 15px; padding: 12px; text-align: left; width: 100%;
+  min-height: 116px; border-radius: 15px; padding: 12px; text-align: left; width: 100%;
   border: 1.5px dashed var(--c-line-2); background: var(--c-surface);
   display: flex; flex-direction: column; gap: 9px; color: var(--c-text);
 }
@@ -876,7 +876,13 @@
 .qs-slot .lbl small { font-size: 10.5px; font-weight: 700; color: var(--c-faint); }
 .qs-slot .who { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .qs-slot .who .qx-av { width: 30px; height: 30px; border-radius: 10px; font-size: 10px; flex: none; }
-.qs-slot .who span { font-size: 12px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `flex: 1` is the part that was missing: without a flex basis the name sized
+   to its content and spilled past the border however much overflow:hidden was
+   set. It now wraps to two lines before clipping, so a long name stays
+   readable instead of being shaved mid-word. */
+.qs-slot .who span { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 700; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; }
 .qs-slot .none { font-size: 11.5px; font-weight: 600; color: var(--c-faint); }
 .qs-slot.alert .none { color: var(--c-bad); font-weight: 700; }
 
