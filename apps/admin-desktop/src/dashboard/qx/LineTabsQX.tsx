@@ -15,9 +15,9 @@
  *   My Stats — my own numbers, with the section average for context only
  *   Support  — answers for someone on a window, phrased plainly
  */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
+  Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
   PhoneOff, SkipForward, Timer, Users,
 } from 'lucide-react';
 import {
@@ -105,111 +105,251 @@ const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy
 
 /* ══════════════════════ 1 · TICKETS ══════════════════════ */
 /**
- * The one screen this person actually lives on. The next customer is a hero
- * panel, not a table row, because it is read standing up and at a glance — and
- * the three things they can do about it sit directly underneath it.
+ * The desk station — the one screen this person actually lives on.
+ *
+ * It is a STATE MACHINE, not a fixed set of buttons, because what you can do
+ * depends entirely on where the customer is:
+ *
+ *   idle     nobody called      → Call Next Customer
+ *   called   called, not here   → Start Service · Call Again · Skip · No Show
+ *   serving  in front of you    → Complete · Transfer · Requeue
+ *
+ * So the big button is always the thing you are most likely to press next, and
+ * an action that would be wrong right now is not on screen to be pressed by
+ * accident. Two live timers back that up: how long since you called them (which
+ * is what "no show after five minutes" is measured against) and how long this
+ * visit has taken.
+ *
+ * Call Again is deliberate: it re-chimes in the lobby AND pushes to their phone,
+ * warning that they may be skipped. Most no-shows are people who did not hear
+ * the first call, and skipping someone who was standing twenty feet away is the
+ * thing that generates a complaint.
  */
-const LQ_GRID = 'minmax(0,1.6fr) 108px 92px minmax(0,1.1fr)';
+type Stage = 'idle' | 'called' | 'serving';
+
+/** mm:ss from a seconds count. */
+const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+
+/** After this long with no response, marking a no-show is allowed. */
+const NO_SHOW_AFTER = 5 * 60;
+
+const LQ_GRID = 'minmax(0,1.5fr) 92px 96px';
 
 export function LineTicketsTab() {
   const d = useLine();
   const [q, setQ] = useState('');
   const [view, setView] = useState<'line' | 'noanswer'>('line');
 
+  /* Which customer is at this window, and where they are in the flow. */
+  const [stage, setStage] = useState<Stage>(() => (d.queue.some((t) => t.state === 'called') ? 'called' : 'idle'));
+  const [activeId, setActiveId] = useState<string | null>(() => d.queue.find((t) => t.state === 'called')?.id ?? null);
+  const [elapsed, setElapsed] = useState(0);
+  const [calls, setCalls] = useState(1);
+  const [code, setCode] = useState(['', '', '', '']);
+  const [codeState, setCodeState] = useState<'idle' | 'ok' | 'bad'>('idle');
+  const [done, setDone] = useState<string[]>([]);
+
+  /* One ticking clock, reset whenever the stage changes. It drives both the
+     response timer and the service timer — they are the same measurement taken
+     from different starting points. */
+  useEffect(() => {
+    setElapsed(0);
+    if (stage === 'idle') return undefined;
+    const id = setInterval(() => setElapsed((v) => v + 1), 1000);
+    return () => clearInterval(id);
+  }, [stage, activeId]);
+
+  const waiting = d.queue.filter((t) => t.state === 'waiting' && !done.includes(t.id) && t.id !== activeId);
+  const noAnswer = d.queue.filter((t) => t.state === 'noresponse' && !done.includes(t.id));
+  const active = d.queue.find((t) => t.id === activeId) || null;
+  const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
+
+  const reset = (nextStage: Stage, id: string | null) => {
+    setStage(nextStage); setActiveId(id); setCalls(1);
+    setCode(['', '', '', '']); setCodeState('idle');
+  };
+
+  const callNext = () => { if (next) reset('called', next.id); };
+  const finish = () => { if (activeId) setDone((p) => [...p, activeId]); reset('idle', null); };
+
+  const codeReady = code.every((c) => c.length === 1);
+  const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
+
+  const setDigit = (i: number, v: string) => {
+    const digit = v.replace(/\D/g, '').slice(-1);
+    setCode((p) => { const n = [...p]; n[i] = digit; return n; });
+    setCodeState('idle');
+  };
+
+  const verify = () => {
+    // The real check is server-side against the ticket; this is the shape of it.
+    setCodeState(codeReady ? 'ok' : 'bad');
+  };
+
   if (!d.queue.length) {
     return <EmptyTab title="Nobody Is Waiting For You Right Now"
-      body="When someone joins the line for your service they appear here, and the next person to call is shown at the top. Nothing to do until then." />;
+      body="When someone joins the line for your service they appear here, and the next person to call is shown ready to go. Nothing to do until then." />;
   }
 
-  const called = d.queue.find((t) => t.state === 'called');
-  const waiting = d.queue.filter((t) => t.state === 'waiting');
-  const noAnswer = d.queue.filter((t) => t.state === 'noresponse');
-  const next = waiting[0];
   const list = (view === 'noanswer' ? noAnswer : waiting)
     .filter((t) => !q.trim() || `${t.no} ${t.name}`.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
-    <div className="qx-grid">
-      {/* The current customer, then the next one — the two facts that matter. */}
-      <div className="qx-stack s5">
-        <div className="qx-focus">
-          <div className="eb">{called ? 'With You Now' : 'Nobody Called Yet'}</div>
-          <h3 style={{ fontSize: 30, letterSpacing: '-.035em' }}>
-            {called ? called.no : '—'}
-          </h3>
-          {called ? <p style={{ fontSize: 15 }}>{called.name} · waited {called.waited} min</p> : <p>Call the next person when you are ready.</p>}
-          <div className="qx-focusstats">
-            <div className="qx-focusstat"><b>{waiting.length}</b><small>Still Waiting</small></div>
-            <div className="qx-focusstat"><b>{d.servedToday}</b><small>Seen Today</small></div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="qx-btn" style={{ background: '#fff', color: '#12203A' }}>
-              <Check size={14} />Finish And Call Next
-            </button>
-            <button type="button" className="qx-btn ghost" style={{ color: '#E9EEF6', borderColor: 'rgba(255,255,255,.25)' }}>
-              <PhoneOff size={14} />No Answer
-            </button>
-            <button type="button" className="qx-btn ghost" style={{ color: '#E9EEF6', borderColor: 'rgba(255,255,255,.25)' }}>
-              <SkipForward size={14} />Transfer
-            </button>
-          </div>
+    <div className="ql-station">
+      {/* ── the stage: whoever is at this window right now ── */}
+      <section className="ql-stage">
+        <div className="ql-eyebrow">
+          {stage === 'serving' ? 'Serving Now' : stage === 'called' ? 'Called — Waiting For Them' : 'Your Window Is Free'}
         </div>
 
-        <Card title="Next Up" cap="Who you will see after this one">
-          {next ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="qx-av" style={{ ...avatarStyle(next.name), width: 44, height: 44, borderRadius: 14, fontSize: 12 }}>
-                {initials(next.name)}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ display: 'block', fontSize: 16, fontWeight: 700, letterSpacing: '-.02em' }}>{next.no}</b>
-                <small style={{ display: 'block', color: 'var(--c-dim)', fontSize: 12.5 }}>{next.name}</small>
-              </div>
-              <Chip dir={next.waited > 20 ? 'bad' : 'flat'} arrow="none">Waited {next.waited} min</Chip>
+        {active ? (
+          <>
+            <div className="ql-big">{active.no}</div>
+            <div className="ql-who">{active.name}</div>
+            <div className="ql-meta">
+              <span><Users size={14} />Waited {active.waited} min in line</span>
+              <span><Clock size={14} />{d.counter} · {d.serviceName}</span>
+              {stage === 'called' && calls > 1 ? <span><PhoneOff size={14} />Called {calls} times</span> : null}
             </div>
-          ) : <div className="qx-empty">Nobody else is waiting.</div>}
-          {next && next.waited > 20 ? (
-            <div style={{ marginTop: 12 }}>
-              <Note icon={Clock} tone="warn" title="They Have Been Waiting A While"
-                body="Worth acknowledging it when you call them — it costs nothing and it is the single thing people remember." />
+          </>
+        ) : (
+          <>
+            <div className="ql-big">{next ? next.no : '—'}</div>
+            <div className="ql-who">{next ? `${next.name} is next` : 'Nobody is waiting'}</div>
+            <div className="ql-meta">
+              <span><Users size={14} />{waiting.length} in your line</span>
+              <span><CheckCircle2 size={14} />{d.servedToday + done.length} seen today</span>
             </div>
-          ) : null}
-        </Card>
-      </div>
+          </>
+        )}
 
-      <Card span={7} title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Line'}<span className="qx-count">{list.length}</span></>}
+        {/* ── live timers ── */}
+        {stage !== 'idle' ? (
+          <div className="ql-clocks">
+            <div className={`ql-clock${stage === 'called' && elapsed >= NO_SHOW_AFTER ? ' warn' : ''}`}>
+              <b>{clock(elapsed)}</b>
+              <small>{stage === 'called' ? 'Since You Called' : 'This Visit'}</small>
+            </div>
+            {stage === 'called' ? (
+              <div className="ql-clock">
+                <b>{clock(Math.max(0, NO_SHOW_AFTER - elapsed))}</b>
+                <small>Until No Show Allowed</small>
+              </div>
+            ) : (
+              <div className="ql-clock">
+                <b>{d.avgHandle}<span style={{ fontSize: 15 }}> min</span></b>
+                <small>Your Usual Visit</small>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* ── verification code ── */}
+        {stage === 'called' ? (
+          <div className="ql-verify">
+            <b>Check Their Code Before You Start</b>
+            <small>
+              The customer has a four-digit code on their phone or printed on their kiosk ticket.
+              It confirms you have the right person. Tickets issued without a code can be started without one.
+            </small>
+            <div className="ql-code">
+              {code.map((c, i) => (
+                <input key={i} inputMode="numeric" maxLength={1} value={c}
+                  aria-label={`Verification digit ${i + 1}`}
+                  className={codeState === 'bad' ? 'bad' : undefined}
+                  onChange={(e) => setDigit(i, e.target.value)} />
+              ))}
+              <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify} disabled={!codeReady}>
+                <Check size={16} />Check
+              </button>
+            </div>
+            {codeState === 'ok' ? <div className="ql-verifymsg ok">Code matches — this is the right person.</div> : null}
+            {codeState === 'bad' ? <div className="ql-verifymsg bad">That code does not match this ticket. Ask them to read it again.</div> : null}
+          </div>
+        ) : null}
+
+        {/* ── actions, always the next likely thing first ── */}
+        <div className="ql-acts">
+          {stage === 'idle' ? (
+            <button type="button" className="ql-btn primary" onClick={callNext} disabled={!next}>
+              <Users size={18} />{next ? `Call ${next.no}` : 'Nobody To Call'}
+            </button>
+          ) : null}
+
+          {stage === 'called' ? (
+            <>
+              <button type="button" className="ql-btn primary" onClick={() => setStage('serving')}>
+                <Check size={18} />Start Service
+              </button>
+              <button type="button" className="ql-btn" onClick={() => { setCalls((c) => c + 1); setElapsed(0); }}>
+                <Bell size={17} />Call Again
+              </button>
+              <button type="button" className="ql-btn" onClick={() => { if (activeId) setDone((p) => [...p, activeId]); reset('idle', null); }}>
+                <SkipForward size={17} />Skip · Requeue
+              </button>
+              <button type="button" className="ql-btn danger" onClick={finish} disabled={!canNoShow}
+                title={canNoShow ? undefined : 'Available five minutes after you first called them'}>
+                <PhoneOff size={17} />Mark As No Show
+              </button>
+            </>
+          ) : null}
+
+          {stage === 'serving' ? (
+            <>
+              <button type="button" className="ql-btn primary" onClick={finish}>
+                <CheckCircle2 size={18} />Complete And Call Next
+              </button>
+              <button type="button" className="ql-btn" onClick={finish}>
+                <SkipForward size={17} />Transfer
+              </button>
+              <button type="button" className="ql-btn" onClick={finish}>
+                <Timer size={17} />Requeue
+              </button>
+            </>
+          ) : null}
+        </div>
+
+        {stage === 'called' && calls > 1 ? (
+          <div style={{ marginTop: 12, fontSize: 12, opacity: .72, fontWeight: 600 }}>
+            Calling again chimes in the lobby and pushes to their phone, warning they may be skipped.
+          </div>
+        ) : null}
+      </section>
+
+      {/* ── the line beside it ── */}
+      <Card className="ql-linecard"
+        title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Line'}<span className="qx-count">{list.length}</span></>}
         cap={view === 'noanswer'
           ? 'They can be called back without taking a new ticket'
-          : 'Longest wait first — this is the order they will be called in'}
-        tools={<>
-          <Seg value={view} onChange={setView}
-            options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
+          : 'Longest wait first — the order they will be called in'}
+        tools={<Seg value={view} onChange={setView}
+          options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />}>
+        <div style={{ marginBottom: 10 }}>
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
-        </>}>
-        <Table grid={LQ_GRID} columns={['Ticket', 'Waiting', 'Status', '']}
-          items={[...list].sort((a, b) => b.waited - a.waited)}
-          empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
-          renderRow={(t) => (
-            <Row key={t.id} grid={LQ_GRID}>
-              <div className="qx-cellmain">
-                <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
-                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
-              </div>
-              <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
-                {t.waited}<u> min</u>
-              </div>
-              <div>
-                <Status kind={t.state === 'noresponse' ? 'busy' : 'soon'}>
-                  {t.state === 'noresponse' ? 'No Answer' : 'Waiting'}
-                </Status>
-              </div>
-              <div className="qx-end">
-                <button type="button" className="qx-btn ghost">
-                  {t.state === 'noresponse' ? 'Call Back' : 'Call Now'}
-                </button>
-              </div>
-            </Row>
-          )} />
+        </div>
+        <div className="ql-linescroll">
+          <Table grid={LQ_GRID} columns={['Ticket', 'Waiting', '']}
+            items={[...list].sort((a, b) => b.waited - a.waited)}
+            empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
+            renderRow={(t) => (
+              <Row key={t.id} grid={LQ_GRID}>
+                <div className="qx-cellmain">
+                  <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
+                  <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+                </div>
+                <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
+                  {t.waited}<u> min</u>
+                </div>
+                <div className="qx-end">
+                  <button type="button" className="qx-btn ghost" disabled={stage !== 'idle'}
+                    title={stage === 'idle' ? undefined : 'Finish with the person at your window first'}
+                    onClick={() => reset('called', t.id)}>
+                    {t.state === 'noresponse' ? 'Call Back' : 'Call'}
+                  </button>
+                </div>
+              </Row>
+            )} />
+        </div>
       </Card>
     </div>
   );

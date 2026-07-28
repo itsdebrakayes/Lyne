@@ -124,19 +124,39 @@ const SUP_STATE_LABEL: Record<SupStaff['state'], string> = {
   serving: 'Serving', break: 'On Break', idle: 'Idle With People Waiting',
   unassigned: 'Free To Cover', off: 'Not On Today',
 };
-const SUP_STATE_KIND: Record<SupStaff['state'], 'open' | 'busy' | 'soon' | 'closed'> = {
-  serving: 'open', break: 'soon', idle: 'busy', unassigned: 'soon', off: 'closed',
+/* Availability, not sentiment: green can be placed, grey is busy but fine,
+   amber cannot be placed, red needs you now. */
+const SUP_STATE_KIND: Record<SupStaff['state'], 'free' | 'neutral' | 'soon' | 'busy' | 'closed'> = {
+  unassigned: 'free', serving: 'neutral', break: 'soon', idle: 'busy', off: 'closed',
 };
 
 /* ══════════════════════ 1 · DESK ASSIGNMENT ══════════════════════ */
 /**
- * The Section Board on the overview shows the shift as it IS. This screen is
- * for changing it: pick a person, pick a desk. Tap is primary — HTML drag does
- * not work on a touch screen, and this is used on a tablet on the floor.
+ * The full board: every service in this section, every counter that belongs to
+ * it, and everyone who could sit at one. This is the screen a supervisor plans
+ * the shift on, so it gets the width — the desks are the point, not a sidebar.
+ *
+ * BOTH input methods, on purpose. Dragging is what people reach for with a
+ * mouse; tapping is the only thing that works on a tablet on the floor, because
+ * HTML drag-and-drop does not fire on touch. Same outcome either way.
+ *
+ * AVAILABILITY IS COLOUR-CODED, and it answers one question — can I put this
+ * person on a desk?
+ *   green  free to cover    can be placed
+ *   grey   serving          busy, working normally
+ *   amber  on break / due   NOT placeable, and that is the point of the colour
+ *   red    idle with queue  needs attention now
  */
+const PLACEABLE: SupStaff['state'][] = ['unassigned', 'serving', 'idle'];
+
+const STATE_CLASS: Record<SupStaff['state'], string> = {
+  unassigned: 'is-free', serving: 'is-serving', break: 'is-break', idle: 'is-idle', off: 'is-off',
+};
+
 export function SupDesksTab() {
   const d = useSup();
   const [picked, setPicked] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [moves, setMoves] = useState<Record<string, string | null>>({});
 
   if (!d.desks.length) {
@@ -154,29 +174,29 @@ export function SupDesksTab() {
     return desk?.staffId ? d.staff.find((s) => s.id === desk.staffId) || null : null;
   };
 
-  const assign = (deskId: string) => {
-    if (!picked) return;
+  const place = (deskId: string, staffId: string) => {
+    const person = d.staff.find((s) => s.id === staffId);
+    // Someone on a break is not available — the amber is not decoration.
+    if (!person || !PLACEABLE.includes(person.state)) return;
     setMoves((p) => {
       const next = { ...p };
-      // Someone can only be at one desk, so clear them from wherever they were.
-      for (const dk of d.desks) if ((dk.id in next ? next[dk.id] : dk.staffId) === picked) next[dk.id] = null;
-      next[deskId] = picked;
+      for (const dk of d.desks) if ((dk.id in next ? next[dk.id] : dk.staffId) === staffId) next[dk.id] = null;
+      next[deskId] = staffId;
       return next;
     });
     setPicked(null);
+    setDropTarget(null);
   };
 
-  const available = d.staff.filter((s) => s.state !== 'off');
+  const clear = (deskId: string) => setMoves((p) => ({ ...p, [deskId]: null }));
+
+  const roster = d.staff.filter((s) => s.state !== 'off');
   const covered = d.desks.filter((x) => staffAt(x.id)).length;
   const empty = d.desks.length - covered;
   const uncoveredWithQueue = d.desks.filter((x) => !staffAt(x.id) && x.waiting > 0);
+  const placedIds = new Set(d.desks.map((x) => staffAt(x.id)?.id).filter(Boolean));
+  const free = roster.filter((s) => !placedIds.has(s.id) && PLACEABLE.includes(s.state));
   const dirty = Object.keys(moves).length > 0;
-
-  /* "Free to cover" has to account for pending moves too. Reading it off the
-     staff state alone left someone counted as free after they had just been
-     placed on a desk, which contradicted the covered count right beside it. */
-  const placed = new Set(d.desks.map((x) => staffAt(x.id)?.id).filter(Boolean));
-  const free = available.filter((s) => !placed.has(s.id));
 
   const byService = useMemo(() => {
     const m = new Map<string, SupDesk[]>();
@@ -194,83 +214,105 @@ export function SupDesksTab() {
         chip={uncoveredWithQueue.length ? { dir: 'bad', text: 'Now' } : { dir: 'flat', text: 'Clear' }}
         foot={uncoveredWithQueue.length ? uncoveredWithQueue.map((x) => x.label).join(', ') : 'No one is waiting on an empty desk'} />
       <Stat span={3} icon={Coffee} label="Free To Cover" value={free.length}
-        foot={free.length ? 'Not on a desk right now' : 'Everyone available is on a desk'} />
+        foot={free.length ? 'Can be placed on any desk' : 'Everyone available is on a desk'} />
       <Stat span={3} icon={Clock} label="Shift" value={`${d.shiftFrom} – ${d.shiftTo}`}
-        foot={`${d.sectionName} at ${d.branchName}`} />
+        foot={`${d.sectionName} · ${d.branchName}`} />
 
-      <Card span={4} title="Who Is In This Section"
-        cap={picked ? 'Now tap a desk to put them on it' : 'Tap a person, then tap the desk you want them on'}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {available.map((s) => {
+      {/* ── the people ── */}
+      <Card span={12} title={<>Who Is In This Section<span className="qx-count">{roster.length}</span></>}
+        cap={picked
+          ? 'Now choose a desk below — or drag them onto one'
+          : 'Drag someone onto a desk, or tap them and then tap the desk. Green can be placed; amber cannot.'}>
+        <div className="qs-pool">
+          {roster.map((s) => {
+            const canPlace = PLACEABLE.includes(s.state);
             const on = picked === s.id;
+            const at = d.desks.find((dk) => staffAt(dk.id)?.id === s.id);
             return (
-              <button key={s.id} type="button" onClick={() => setPicked(on ? null : s.id)}
+              <button key={s.id} type="button"
+                className={`qs-person ${STATE_CLASS[s.state]}`}
                 aria-pressed={on}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 11, padding: '11px 12px', borderRadius: 14,
-                  border: `1.5px solid ${on ? 'var(--c-primary)' : 'var(--c-line-2)'}`,
-                  background: on ? 'var(--c-primary-soft)' : 'var(--c-surface)', color: 'var(--c-text)',
-                  textAlign: 'left',
-                }}>
+                disabled={!canPlace}
+                draggable={canPlace}
+                onDragStart={(e) => { e.dataTransfer.setData('text/plain', s.id); setPicked(s.id); }}
+                onDragEnd={() => { setPicked(null); setDropTarget(null); }}
+                onClick={() => setPicked(on ? null : s.id)}
+                title={canPlace ? undefined : 'On a break — not available to place'}>
                 <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <b style={{ display: 'block', fontSize: 12.5, fontWeight: 700 }}>{s.name}</b>
-                  <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11 }}>
-                    {SUP_STATE_LABEL[s.state]}{s.desk !== '—' ? ` · ${s.desk}` : ''}
-                  </small>
+                <span className="nm">
+                  <b>{s.name}</b>
+                  <small>{SUP_STATE_LABEL[s.state]}{at ? ` · ${at.label}` : ''}</small>
                 </span>
                 {s.breakDue ? <Chip dir="warn" arrow="none">Break Due</Chip> : null}
               </button>
             );
           })}
         </div>
+        <div className="qs-key">
+          <span><i style={{ background: 'var(--c-free)' }} />Free to cover — can be placed</span>
+          <span><i style={{ background: 'var(--c-line-2)' }} />Serving — working normally</span>
+          <span><i style={{ background: 'var(--c-warn)' }} />On break or due one — cannot be placed</span>
+          <span><i style={{ background: 'var(--c-bad)' }} />Idle while people wait — needs you</span>
+        </div>
       </Card>
 
-      <Card span={8} title="The Desks" cap="Tap a desk to place the person you picked. An empty desk with people waiting is flagged."
+      {/* ── the desks, every service, full width ── */}
+      <Card span={12} title="Every Desk In This Section"
+        cap="A desk is only flagged when people are actually waiting for it — an empty desk on a quiet service costs nothing."
         tools={dirty ? <>
           <button type="button" className="qx-btn" onClick={() => setMoves({})}>Apply Changes</button>
           <button type="button" className="qx-btn ghost" onClick={() => setMoves({})}>Undo</button>
         </> : undefined}>
-        <div className="qs-board">
-          {byService.map(([svc, desks]) => (
-            <div key={svc}>
-              <div className="qs-lanehead">{svc}</div>
-              <div className="qs-desks">
-                {desks.map((dk) => {
-                  const who = staffAt(dk.id);
-                  const alert = !who && dk.waiting > 0;
-                  return (
-                    <button key={dk.id} type="button" onClick={() => assign(dk.id)}
-                      aria-label={who ? `${dk.label}, ${who.name}` : `${dk.label}, empty`}
-                      className="qs-desk"
-                      style={{
-                        borderStyle: who ? 'solid' : 'dashed',
-                        borderColor: picked ? 'var(--c-primary)' : alert ? 'var(--c-bad)' : undefined,
-                        background: picked ? 'var(--c-primary-soft)' : undefined,
-                        cursor: picked ? 'pointer' : 'default',
-                      }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <b style={{ fontSize: 12, fontWeight: 800 }}>{dk.label}</b>
-                        <small style={{ fontSize: 10.5, color: alert ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 700 }}>
-                          {dk.waiting} waiting
-                        </small>
-                      </div>
-                      {who ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span className="qx-av" style={{ ...avatarStyle(who.name), width: 24, height: 24, borderRadius: 8, fontSize: 9 }}>{initials(who.name)}</span>
-                          <span style={{ fontSize: 11.5, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{who.name}</span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: 11.5, color: alert ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 600 }}>
-                          {alert ? 'Empty — people waiting' : 'Empty'}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {byService.map(([svc, desks]) => {
+            const svcCovered = desks.filter((x) => staffAt(x.id)).length;
+            const svcWaiting = desks.reduce((t, x) => t + x.waiting, 0);
+            return (
+              <div className="qs-lane" key={svc}>
+                <div className="qs-lanetop">
+                  <span className="qx-av" style={avatarStyle(svc)}>{initials(svc)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{svc}</b>
+                    <small>{svcCovered} of {desks.length} desks covered · {svcWaiting} waiting</small>
+                  </div>
+                  <Chip dir={svcCovered < desks.length && svcWaiting > 0 ? 'bad' : 'flat'} arrow="none">
+                    {svcCovered}/{desks.length}
+                  </Chip>
+                </div>
+                <div className="qs-grid">
+                  {desks.map((dk) => {
+                    const who = staffAt(dk.id);
+                    const alert = !who && dk.waiting > 0;
+                    const isDrop = dropTarget === dk.id;
+                    return (
+                      <button key={dk.id} type="button"
+                        className={`qs-slot${who ? ' filled' : ''}${alert ? ' alert' : ''}${isDrop ? ' drop' : ''}`}
+                        aria-label={who ? `${dk.label}, ${who.name}` : `${dk.label}, empty`}
+                        onClick={() => (picked ? place(dk.id, picked) : who ? clear(dk.id) : undefined)}
+                        onDragOver={(e) => { e.preventDefault(); setDropTarget(dk.id); }}
+                        onDragLeave={() => setDropTarget((t) => (t === dk.id ? null : t))}
+                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) place(dk.id, id); }}
+                        title={who ? 'Tap to take them off this desk' : picked ? 'Tap to place them here' : undefined}>
+                        <span className="lbl">
+                          <b>{dk.label}</b>
+                          <small style={alert ? { color: 'var(--c-bad)' } : undefined}>{dk.waiting} waiting</small>
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
+                        {who ? (
+                          <span className="who">
+                            <span className="qx-av" style={avatarStyle(who.name)}>{initials(who.name)}</span>
+                            <span>{who.name}</span>
+                          </span>
+                        ) : (
+                          <span className="none">{alert ? 'Empty — people waiting' : 'Empty'}</span>
+                        )}
+                        {who ? <span className="none">{dk.servedToday} seen today</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {dirty ? (
           <div style={{ marginTop: 14 }}>

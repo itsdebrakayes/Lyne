@@ -609,7 +609,13 @@ export function IconBtn({ label, onClick, children }: { label: string; onClick?:
   return <button type="button" className="qx-icon" aria-label={label} onClick={onClick}>{children}</button>;
 }
 
-export function Status({ kind, children }: { kind: 'open' | 'busy' | 'soon' | 'closed'; children: ReactNode }) {
+/**
+ * `free` and `neutral` exist for the supervisor's desk board, where colour
+ * answers "can I place this person" rather than "is this good news".
+ */
+export function Status({ kind, children }: {
+  kind: 'open' | 'busy' | 'soon' | 'closed' | 'free' | 'neutral'; children: ReactNode;
+}) {
   return <span className={`qx-status ${kind}`}><i />{children}</span>;
 }
 

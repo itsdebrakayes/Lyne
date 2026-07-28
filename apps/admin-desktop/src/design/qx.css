@@ -735,3 +735,149 @@
 .qx-railfoot:disabled { cursor: default; }
 .qx-railfoot svg { color: var(--c-ink-dim); }
 .qx-acct:disabled { cursor: default; }
+
+/* ═══════════════ Line staff desk station ═══════════════
+   This screen is a WORKSTATION, not a report. It is read standing up in
+   glances, so the current customer is the biggest thing on it and the whole
+   thing fills the viewport — a hero sized to its content left a third of the
+   screen white and pushed the line list up into the middle of nowhere. */
+.ql-station { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); gap: 14px;
+  min-height: calc(100vh - 188px); align-items: stretch; }
+@media (max-width: 1100px) { .ql-station { grid-template-columns: 1fr; min-height: 0; } }
+.ql-station > * { min-width: 0; }
+
+.ql-stage {
+  position: relative; overflow: hidden; border-radius: var(--r); padding: 26px 28px; color: #E9EEF6;
+  display: flex; flex-direction: column;
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
+  box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
+}
+.ql-stage::after {
+  content: ''; position: absolute; inset: -30% -20% auto auto; width: 62%; height: 130%;
+  background: radial-gradient(circle at 70% 30%, rgba(46, 111, 199, .38), transparent 62%);
+  pointer-events: none;
+}
+.ql-stage > * { position: relative; }
+.ql-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #93A9CC; }
+
+/* the ticket number is the single biggest thing on the screen */
+.ql-big { font-size: clamp(52px, 7vw, 92px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 14px 0 0; }
+.ql-who { font-size: clamp(17px, 1.6vw, 22px); font-weight: 600; opacity: .86; margin-top: 8px; }
+.ql-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.ql-meta span {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;
+  background: rgba(255, 255, 255, .10); border: 1px solid rgba(255, 255, 255, .14);
+  font-size: 12.5px; font-weight: 700;
+}
+
+/* live timers — the number a person actually watches */
+.ql-clocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 22px; }
+.ql-clock { border-radius: 16px; padding: 14px 16px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); }
+.ql-clock b { display: block; font-size: 30px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ql-clock small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .68; margin-top: 3px; }
+.ql-clock.warn { background: rgba(228, 114, 107, .20); border-color: rgba(228, 114, 107, .45); }
+.ql-clock.warn b { color: #FFC9C5; }
+
+/* verification code — entered from what the customer shows on their phone */
+.ql-verify { margin-top: 22px; padding: 16px 18px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
+.ql-verify > b { display: block; font-size: 13px; font-weight: 700; }
+.ql-verify > small { display: block; font-size: 12px; opacity: .7; margin-top: 3px; line-height: 1.45; }
+.ql-code { display: flex; gap: 9px; margin-top: 13px; }
+.ql-code input {
+  width: 46px; height: 56px; border-radius: 13px; text-align: center;
+  font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, .95); color: #12203A; border: 2px solid transparent; outline: none;
+}
+.ql-code input:focus { border-color: #7DAEF2; }
+.ql-code input.bad { border-color: #E4726B; }
+.ql-verifymsg { margin-top: 10px; font-size: 12px; font-weight: 700; }
+.ql-verifymsg.ok { color: #A8E0B4; }
+.ql-verifymsg.bad { color: #FFC9C5; }
+
+/* actions sit at the base of the stage, so the hero grows into the space */
+.ql-acts { margin-top: auto; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; }
+.ql-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 54px; padding: 0 24px; border: 0; border-radius: 15px;
+  font-size: 15px; font-weight: 700; white-space: nowrap;
+  background: rgba(255, 255, 255, .12); color: #E9EEF6; border: 1px solid rgba(255, 255, 255, .2);
+}
+.ql-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .18); }
+.ql-btn:disabled { opacity: .35; cursor: default; }
+.ql-btn.primary { flex: 1 1 260px; background: #fff; color: #12203A; border-color: #fff; font-size: 16.5px; min-height: 60px; }
+.ql-btn.primary:hover:not(:disabled) { background: #EAF1FB; }
+.ql-btn.danger { background: rgba(228, 114, 107, .22); border-color: rgba(228, 114, 107, .5); color: #FFD6D3; }
+.ql-btn.danger:hover:not(:disabled) { background: rgba(228, 114, 107, .32); }
+.ql-btn svg { width: 17px; height: 17px; flex: none; }
+
+/* the line beside the stage, scrolling inside its own card */
+.ql-linecard { display: flex; flex-direction: column; min-height: 0; }
+.ql-linescroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+
+/* ═══════════════ Supervisor desk assignment ═══════════════
+   AVAILABILITY COLOUR — a deliberate, scoped exception to the two-colour rule.
+   On this board colour answers one question: can I put this person on a desk?
+   That is functional, the way red is, not decorative — so it earns its place.
+     green  free to cover   — drag them anywhere
+     grey   serving         — busy, but fine
+     amber  break / due     — NOT available to place
+     red    idle with queue — needs you now
+   Nowhere else in the system uses green. */
+.qx { --c-free: #2E7D4F; --c-free-soft: #E4F2E9; }
+.qx[data-theme="dark"] { --c-free: #63C088; --c-free-soft: rgba(99, 192, 136, .16); }
+
+.qs-pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.qs-person {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  border: 1.5px solid var(--c-line-2); background: var(--c-surface); color: var(--c-text);
+  text-align: left; min-height: 68px; width: 100%;
+}
+/* the avatars were cramped — bigger, rounder, with room to breathe */
+.qs-person .qx-av { width: 40px; height: 40px; border-radius: 13px; font-size: 12.5px; letter-spacing: .04em; flex: none; }
+.qs-person .nm { flex: 1; min-width: 0; }
+.qs-person .nm b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-person .nm small { display: block; font-size: 11.5px; margin-top: 2px; font-weight: 600; }
+.qs-person[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+.qs-person[draggable="true"] { cursor: grab; }
+.qs-person[draggable="true"]:active { cursor: grabbing; }
+.qs-person.is-free { border-color: color-mix(in oklab, var(--c-free) 55%, transparent); background: var(--c-free-soft); }
+.qs-person.is-free .nm small { color: var(--c-free); font-weight: 800; }
+.qs-person.is-serving .nm small { color: var(--c-dim); }
+.qs-person.is-break { border-color: color-mix(in oklab, var(--c-warn) 55%, transparent); background: var(--c-warn-soft); opacity: .96; }
+.qs-person.is-break .nm small { color: var(--c-warn); font-weight: 800; }
+.qs-person.is-idle { border-color: var(--c-bad); background: var(--c-bad-soft); }
+.qs-person.is-idle .nm small { color: var(--c-bad); font-weight: 800; }
+.qs-person.is-off { opacity: .5; }
+.qs-person:disabled { cursor: not-allowed; }
+
+/* a wider board: every service, every counter it owns */
+.qs-lane { border-radius: 18px; border: 1px solid var(--c-line); background: var(--c-surface-2); padding: 14px; }
+.qs-lanetop { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.qs-lanetop .qx-av { width: 32px; height: 32px; border-radius: 11px; font-size: 10.5px; }
+.qs-lanetop b { font-size: 13px; font-weight: 700; }
+.qs-lanetop small { display: block; color: var(--c-dim); font-size: 11.5px; font-weight: 600; }
+.qs-lanetop .qx-chip { margin-left: auto; }
+.qs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; }
+.qs-slot {
+  min-height: 104px; border-radius: 15px; padding: 12px; text-align: left; width: 100%;
+  border: 1.5px dashed var(--c-line-2); background: var(--c-surface);
+  display: flex; flex-direction: column; gap: 9px; color: var(--c-text);
+}
+.qs-slot.filled { border-style: solid; }
+.qs-slot.alert { border-color: var(--c-bad); background: var(--c-bad-soft); }
+.qs-slot.drop { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+.qs-slot .lbl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.qs-slot .lbl b { font-size: 12.5px; font-weight: 800; letter-spacing: .02em; }
+.qs-slot .lbl small { font-size: 10.5px; font-weight: 700; color: var(--c-faint); }
+.qs-slot .who { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.qs-slot .who .qx-av { width: 30px; height: 30px; border-radius: 10px; font-size: 10px; flex: none; }
+.qs-slot .who span { font-size: 12px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qs-slot .none { font-size: 11.5px; font-weight: 600; color: var(--c-faint); }
+.qs-slot.alert .none { color: var(--c-bad); font-weight: 700; }
+
+/* legend so the colours are not a private language */
+.qs-key { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--c-line); }
+.qs-key span { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: var(--c-dim); }
+.qs-key i { width: 11px; height: 11px; border-radius: 4px; flex: none; }
+.qx-status.free { color: var(--c-free); } .qx-status.free i { background: var(--c-free); }
+.qx-status.neutral { color: var(--c-dim); } .qx-status.neutral i { background: var(--c-line-2); }
