@@ -16,7 +16,7 @@ import {
   Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap, Chip,
   RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
 } from '@/design/ui';
-import { execTab, EXEC_TAB_HEAD } from './preview/ExecTabs';
+import { execTab, EXEC_TAB_HEAD } from '@/dashboard/qx/ExecTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
 const THIS_PERIOD = [286, 341, 402, 377, 455, 398, 512, 468, 521, 559, 498, 604, 571, 622];
