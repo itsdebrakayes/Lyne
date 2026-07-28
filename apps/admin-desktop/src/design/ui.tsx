@@ -124,12 +124,19 @@ export function Shell({
         ))}
         <div className="qx-railspacer" />
         {railCard}
-        <div className="qx-railfoot">
+        {/* Both account controls sign out. This one used to be an inert div,
+            and the one in the top bar called an onSignOut nobody passed — so
+            neither of the two places a person would obviously click to leave
+            actually did anything. */}
+        <button type="button" className="qx-railfoot" onClick={account.onSignOut}
+          aria-label={account.onSignOut ? `Sign out of ${account.name}'s account` : undefined}
+          disabled={!account.onSignOut}>
           <span className="qx-av" style={avatarStyle(account.name)}>{initials(account.name)}</span>
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, textAlign: 'left' }}>
             <b>{account.name}</b><small>{account.role}</small>
           </div>
-        </div>
+          {account.onSignOut ? <SignOutIcon /> : null}
+        </button>
       </aside>
 
       <div className="qx-main">
@@ -156,10 +163,12 @@ export function Shell({
               <BellIcon />
               {notifications ? <span className="dot">{notifications > 9 ? '9+' : notifications}</span> : null}
             </button>
-            <button type="button" className="qx-acct" onClick={account.onSignOut}>
+            <button type="button" className="qx-acct" onClick={account.onSignOut}
+              aria-label={account.onSignOut ? `Sign out of ${account.name}'s account` : `Signed in as ${account.name}`}
+              disabled={!account.onSignOut}>
               <span className="qx-av" style={avatarStyle(account.name)}>{initials(account.name)}</span>
               <span className="m"><b>{account.name}</b><small>{account.role}</small></span>
-              <ChevronDown />
+              {account.onSignOut ? <SignOutIcon /> : <ChevronDown />}
             </button>
           </div>
         </header>
@@ -751,6 +760,7 @@ export function Split({ segments, note }: {
 export { RefreshCw as RefreshIcon };
 
 /* tiny inline icons so the shell has no extra imports */
+function SignOutIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', width: 15, height: 15, flex: 'none' }}><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>; }
 function MoonIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" /></svg>; }
 function SunIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></svg>; }
 function BellIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>; }

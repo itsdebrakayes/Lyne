@@ -727,3 +727,11 @@
 /* preparing-preview skeleton */
 .qx-skel { border-radius: 4px; background: linear-gradient(90deg, #EEF3F9 25%, #E2EAF5 37%, #EEF3F9 63%); background-size: 400% 100%; animation: qx-shim 1.3s ease-in-out infinite; }
 @keyframes qx-shim { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* The rail account block is a sign-out control, so it needs button resets and
+   a visible affordance — it was previously an inert div. */
+.qx-railfoot { width: 100%; border: 0; background: transparent; color: inherit; border-radius: 0 0 11px 11px; text-align: left; }
+.qx-railfoot:not(:disabled):hover { background: rgba(255, 255, 255, .07); }
+.qx-railfoot:disabled { cursor: default; }
+.qx-railfoot svg { color: var(--c-ink-dim); }
+.qx-acct:disabled { cursor: default; }

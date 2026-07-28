@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
@@ -65,6 +66,7 @@ function branchHeatmap(trends: any[]) {
 
 export default function ExecutiveDashboard() {
   const d = useDashboardData();
+  const { logout } = useAdminAuth();
   const [tab, setTab] = useState('overview');
   const [period, setPeriod] = useState('7');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -249,7 +251,7 @@ export default function ExecutiveDashboard() {
       active={tab}
       onNav={setTab}
       notifications={alerts.length}
-      account={{ name: d.admin?.name || 'Executive', role: 'Executive', email: d.admin?.staffRecord.email }}
+      account={{ name: d.admin?.name || 'Executive', role: 'Executive', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
       context={<><MapPin size={13} /><span>{org}</span><b>· {branchCount} Branches</b></>}
       railCard={

@@ -10,6 +10,7 @@ import {
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
 import { Sparkline, Area, Card, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
@@ -59,6 +60,7 @@ export function buildHeatmap(cells: any[]) {
 
 export default function ManagerDashboard() {
   const d = useDashboardData();
+  const { logout } = useAdminAuth();
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
   const preds = d.predictions as any[];
@@ -141,7 +143,7 @@ export default function ManagerDashboard() {
       active={tab}
       onNav={setTab}
       notifications={alerts.length}
-      account={{ name: d.admin?.name || 'Manager', role: 'Branch Manager', email: d.admin?.staffRecord.email }}
+      account={{ name: d.admin?.name || 'Manager', role: 'Branch Manager', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
       context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.services.length} Services</b></>}
       railCard={

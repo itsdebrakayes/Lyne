@@ -169,7 +169,9 @@ export default function DesignPreview() {
         theme={theme}
         onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         notifications={role === 'executive' ? 3 : 2}
-        account={ACCOUNT[role]}
+        // Stubbed so the sign-out affordance is inspectable here; the real
+        // dashboards pass useAdminAuth().logout.
+        account={{ ...ACCOUNT[role], onSignOut: () => window.alert('Sign out (preview stub)') }}
         search={{ value: q, onChange: setQ, placeholder: 'Search…' }}
         context={CONTEXT[role]}
         railCard={<RailCard role={role} onNav={setTab} />}
