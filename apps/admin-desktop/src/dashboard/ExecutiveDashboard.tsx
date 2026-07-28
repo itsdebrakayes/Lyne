@@ -281,7 +281,7 @@ export default function ExecutiveDashboard() {
       {isOverview && (
         <ExecutiveOverviewQX
           summary={summary} rawSummary={d.summary as any[]} week={week} served={served} completed={completed} noShows={noShows}
-          avgWait={avgWait} target={target} managers={managers} branchWeek={branchWeek}
+          avgWait={avgWait} target={target} managers={managers} branches={liveTabData.branches} branchWeek={branchWeek}
           branchTrends={d.branchTrends} channels={d.channels} balking={d.balking}
           preds={preds} heat={heat}
           search={q} onSearch={setQ}

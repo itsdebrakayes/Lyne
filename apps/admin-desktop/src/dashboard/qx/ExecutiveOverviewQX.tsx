@@ -41,6 +41,9 @@ export type ExecOverviewData = {
   avgWait: number;
   target: any;
   managers: any[];
+  /** Branches derived from /analytics/branch-trends — the only source that
+      actually returns one row per branch. See the note on branchRows. */
+  branches: Array<{ id: string; name: string; mgr: string; waiting: number; wait: number; score: number }>;
   branchWeek: (id?: string) => { served: number; done: number; ns: number; waitSum: number; n: number };
   branchTrends: any[];
   channels: any;
@@ -59,7 +62,7 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
   // Branch scope for the chart — "all" plus every branch we have a score for.
   const [scope, setScope] = useState('all');
   const {
-    summary, rawSummary, week, served, completed, noShows, avgWait, target, managers,
+    summary, rawSummary, week, served, completed, noShows, avgWait, target, managers, branches,
     branchWeek, channels, balking, preds, heat, search, onSearch,
     showA, setShowA, showB, setShowB, onNav, onRefresh,
   } = d;
@@ -131,23 +134,17 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
     return Math.round(((waitScore + doneScore + nsScore) / 3) * 100);
   }, [avgWait, targetWait, completionPct, noShowPct, target]);
 
+  /* These used to be built from managerScores(), which reads a
+     'manager_performance' insight the live pipeline does not produce — so the
+     table read "nothing to show" and the branch dropdown was empty while the
+     Branches TAB, built on branch-trends, listed them fine. Same missing data,
+     three different symptoms. Both now use the one derived list. */
   const branchRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return managers
-      .map((m) => {
-        const w = branchWeek(m.branch_id);
-        return {
-          id: m.branch_id || m.manager_id,
-          name: titleCase(m.branch_name) || 'Branch',
-          mgr: titleCase(m.manager_name) || '—',
-          waiting: Math.round(num(m.waiting_now)),
-          wait: Math.round(num(m.avg_wait_minutes) || (w.n ? w.waitSum / w.n : 0)),
-          score: Math.round(num(m.manager_score)),
-        };
-      })
+    return branches
       .filter((b) => !needle || `${b.name} ${b.mgr}`.toLowerCase().includes(needle))
       .sort((a, b) => a.score - b.score);
-  }, [managers, branchWeek, search]);
+  }, [branches, search]);
 
   const totalWaiting = branchRows.reduce((t, b) => t + b.waiting, 0);
 
@@ -174,9 +171,8 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
         cap={valuesB ? 'This period against the same number of days immediately before it' : 'Not enough history yet for a like-for-like comparison'}
         tools={<>
           <Select label="Branch Scope" value={scope} onChange={setScope}
-            options={[['all', 'All Branches'], ...managers
-              .filter((m: any) => m.branch_id)
-              .map((m: any) => [String(m.branch_id), titleCase(m.branch_name)] as [string, string])]} />
+            options={[['all', 'All Branches'],
+              ...branches.map((b) => [String(b.id), b.name] as [string, string])]} />
           <LegendToggle series="a" on={showA} onClick={() => setShowA(!showA)}>{rangeA}</LegendToggle>
           {valuesB ? <LegendToggle series="b" on={showB} onClick={() => setShowB(!showB)}>{rangeB}</LegendToggle> : null}
         </>}>
