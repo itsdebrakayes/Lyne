@@ -24,7 +24,13 @@ services:
     image: mysql:8.0
     container_name: qmenow_demo_db
     restart: unless-stopped
+    # The operational day is a LOCAL day. Containers default to UTC, which puts
+    # the database five hours ahead of Jamaica — so from 7pm local every
+    # CURDATE() in the backend (48 of them) rolls to tomorrow and every "today"
+    # query returns nothing. Pinning the timezone fixes all of them at once.
+    command: --default-time-zone=${APP_TZ:-America/Jamaica}
     environment:
+      TZ: ${APP_TZ:-America/Jamaica}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
       MYSQL_USER:          ${MYSQL_USER:-qmenow}
@@ -69,6 +75,7 @@ services:
       demo-db:
         condition: service_healthy
     environment:
+      TZ: ${APP_TZ:-America/Jamaica}
       NODE_ENV:   development
       MYSQL_HOST: demo-db
       # Queues are per-day by design, so a demo box seeded yesterday shows

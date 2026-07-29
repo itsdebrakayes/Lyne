@@ -16,7 +16,13 @@ services:
     image: mysql:8.0
     container_name: qmenow_db
     restart: unless-stopped
+    # The operational day is a LOCAL day. A container defaulting to UTC sits
+    # five hours ahead of Jamaica, so from 7pm local every CURDATE() in the
+    # backend rolls to tomorrow and today's queues, tickets and live screens
+    # come back empty. Set APP_TZ per deployment; it must match the business.
+    command: --default-time-zone=${APP_TZ:-America/Jamaica}
     environment:
+      TZ: ${APP_TZ:-America/Jamaica}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
       MYSQL_USER:          ${MYSQL_USER:-qmenow}
@@ -66,6 +72,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      TZ:                   ${APP_TZ:-America/Jamaica}
       NODE_ENV:             production
       PORT:                 4000
       MYSQL_HOST:           db
