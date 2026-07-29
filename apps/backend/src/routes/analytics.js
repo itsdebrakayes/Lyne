@@ -916,4 +916,70 @@ router.get('/balking', requireAuth, requireStaffRole('supervisor', 'manager', 'e
   }
 });
 
+/**
+ * GET /analytics/counters — the desks in a branch, and who is on them.
+ *
+ * The supervisor's desk board needs this and nothing served it: counters exist
+ * in the schema but no endpoint returned them, so the board could only ever
+ * render its empty state.
+ *
+ * There is no counters.staff_id column — a counter is a place, not an
+ * assignment — so occupancy is inferred from who has actually served at that
+ * counter today. Where nobody has, the desk is reported as unoccupied rather
+ * than guessed at.
+ */
+router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const conditions = ['b.business_id = ?'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('c.branch_id = ?'); params.push(scopedBranch); }
+
+    const [rows] = await pool.query(
+      `SELECT c.id            AS counter_id,
+              c.label         AS counter_label,
+              c.counter_number,
+              c.is_active,
+              c.branch_id,
+              b.name          AS branch_name,
+              s.id            AS service_id,
+              s.name          AS service_name,
+              -- who last served at this counter today, if anyone
+              (SELECT st.full_name
+                 FROM queue_tickets t
+                 JOIN queues q  ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                 JOIN staff  st ON st.id = t.served_by_staff_id
+                WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                LIMIT 1)      AS staff_name,
+              (SELECT t.served_by_staff_id
+                 FROM queue_tickets t
+                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                LIMIT 1)      AS staff_id,
+              (SELECT COUNT(*)
+                 FROM queue_tickets t
+                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                WHERE t.served_at_counter_id = c.id AND t.status = 'served') AS served_today,
+              (SELECT COUNT(*)
+                 FROM queue_tickets t
+                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                WHERE q.service_id = c.service_id AND t.status = 'waiting')  AS service_waiting
+       FROM counters c
+       JOIN branches b  ON b.id = c.branch_id
+       LEFT JOIN services s ON s.id = c.service_id
+       WHERE ${conditions.join(' AND ')} AND c.is_active = 1
+       ORDER BY s.name ASC, c.counter_number ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /analytics/counters failed:', err);
+    res.status(500).json({ error: 'Could not load counters.' });
+  }
+});
+
 module.exports = router;

@@ -18,10 +18,49 @@ const {
   requireQueueAccess,
 } = require('../middleware/tenantAccess');
 
+
+/**
+ * Open today's queues if nobody has yet.
+ *
+ * Queues are keyed by queue_date, and until this existed nothing created them
+ * for a new day — so at midnight every live screen emptied and stayed empty
+ * until a manager manually opened each service. First thing on a Monday that
+ * reads as a broken system, not as "the day hasn't started".
+ *
+ * Done lazily on read rather than by a scheduler: it is self-healing (a missed
+ * cron, a restart, a server that was off overnight all resolve themselves the
+ * first time anyone opens the app) and it costs one cheap INSERT..SELECT that
+ * does nothing once the day is open.
+ *
+ * A branch offers a service if it has a counter for it, so that is the source
+ * of truth for which queues a branch should have.
+ */
+async function ensureQueuesForToday(businessId, branchId) {
+  if (!businessId) return;
+  await pool.query(
+    `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
+     SELECT UUID(), x.branch_id, x.service_id, CURDATE(), 200, TRUE
+       FROM (SELECT DISTINCT c.branch_id, c.service_id
+               FROM counters c
+               JOIN branches b ON b.id = c.branch_id
+               JOIN services s ON s.id = c.service_id
+              WHERE c.is_active = 1 AND s.is_active = 1
+                AND b.business_id = ?
+                AND (? IS NULL OR b.id = ?)) x
+      WHERE NOT EXISTS (
+        SELECT 1 FROM queues q
+         WHERE q.branch_id = x.branch_id AND q.service_id = x.service_id
+           AND q.queue_date = CURDATE())`,
+    [businessId, branchId || null, branchId || null]
+  );
+}
+
 // Staff-scoped queues for the administration dashboard.
 router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), async (req, res) => {
   try {
     const role = req.dbStaff.role_name;
+    // Opens the day on first read so nobody ever meets a blank morning.
+    await ensureQueuesForToday(req.dbStaff.business_id, req.dbStaff.branch_id);
     const conditions = ['q.is_active = TRUE', 'q.queue_date = CURDATE()', 'b.business_id = ?'];
     const params = [req.dbStaff.business_id];
     if (role === 'manager' && req.dbStaff.branch_id) {
@@ -236,3 +275,4 @@ router.put('/:id/close', requireAuth, requireStaffRole('manager', 'executive'), 
 });
 
 module.exports = router;
+module.exports.ensureQueuesForToday = ensureQueuesForToday;
