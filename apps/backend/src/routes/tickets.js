@@ -615,6 +615,7 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
               q.branch_id, q.service_id, q.queue_date,
               b.business_id,
               b.name AS branch_name,
+              biz.name AS business_name,
               s.name AS service_name,
               (SELECT COUNT(*) + 1
                FROM queue_tickets t2
@@ -633,9 +634,10 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
                 WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
               ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
-       JOIN queues   q ON t.queue_id   = q.id
-       JOIN branches b ON q.branch_id  = b.id
-       JOIN services s ON q.service_id = s.id
+       JOIN queues     q   ON t.queue_id   = q.id
+       JOIN branches   b   ON q.branch_id  = b.id
+       JOIN businesses biz ON b.business_id = biz.id
+       JOIN services   s   ON q.service_id = s.id
        WHERE t.id = ?`,
       [req.params.id]
     );

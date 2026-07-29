@@ -87,8 +87,14 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
               <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#fff' }}>
                 {[s.day_name, formatHour(s.hour)].filter(Boolean).join(' · ')}
               </Text>
-              {typeof s.score === 'number' && (
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent }}>{Math.round(s.score)}</Text>
+              {/* The model's own words ("~9 min predicted wait"), not its 0-100
+                  score. A bare "79" beside a sentence promising a 9 minute wait
+                  reads like the number contradicts the sentence — and nobody
+                  can tell whether higher is better. */}
+              {s.reason && (
+                <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent }}>
+                  {s.reason.replace(/\s*predicted wait\s*$/i, '')}
+                </Text>
               )}
             </View>
           ))}

@@ -102,7 +102,7 @@ export default function JoinQueueScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 120 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 148 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 18 }]}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
         <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' }}>Join remotely</Text>
@@ -136,6 +136,51 @@ export default function JoinQueueScreen() {
                 </View>
               </View>
             </View>
+
+            {/* Everything below the card used to be empty — roughly half the
+                screen — right at the moment someone is deciding whether to
+                commit to a queue. This is the answer to "what am I agreeing
+                to?", built from data we already hold. */}
+            {service.description ? (
+              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted, lineHeight: 20, marginTop: 18 }}>
+                {service.description}
+              </Text>
+            ) : null}
+
+            <View style={{ marginTop: 22, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 18 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.ink, marginBottom: 14 }}>What happens next</Text>
+              {[
+                { icon: 'ticket-outline', text: 'You get a ticket number and a six-digit code, straight away.' },
+                { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
+                { icon: 'shield-checkmark-outline', text: 'Show the code at the counter — it is how staff confirm it is you.' },
+              ].map(step => (
+                <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+                  <Ionicons name={step.icon as any} size={16} color={colors.accentDeep} style={{ marginTop: 1 }} />
+                  <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, lineHeight: 18 }}>{step.text}</Text>
+                </View>
+              ))}
+              <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 2 }}>
+                You can leave the queue at any time, and nothing is charged for taking a place in line.
+              </Text>
+            </View>
+
+            {(branch.address || branch.phone) ? (
+              <View style={{ marginTop: 14, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 18, gap: 11 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.ink }}>Where you are going</Text>
+                {branch.address ? (
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                    <Ionicons name="location-outline" size={16} color={colors.muted} style={{ marginTop: 1 }} />
+                    <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, lineHeight: 18 }}>{branch.address}</Text>
+                  </View>
+                ) : null}
+                {branch.phone ? (
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                    <Ionicons name="call-outline" size={16} color={colors.muted} />
+                    <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub }}>{branch.phone}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             {blockedNotice && (
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16, padding: 16, borderRadius: 18, backgroundColor: 'rgba(245,166,35,.10)', borderWidth: 1, borderColor: 'rgba(245,166,35,.28)' }}>

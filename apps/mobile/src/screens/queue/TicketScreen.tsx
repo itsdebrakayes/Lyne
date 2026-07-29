@@ -169,7 +169,7 @@ export default function TicketScreen() {
           {/* dark header */}
           <View style={{ backgroundColor: colors.dark, padding: 16, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(ticket.branch_name)}</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(ticket.business_name || ticket.branch_name)}</Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>

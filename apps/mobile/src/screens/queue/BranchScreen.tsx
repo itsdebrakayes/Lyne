@@ -44,7 +44,18 @@ export default function BranchScreen() {
   const branch = branchQuery.data;
   const services = servicesQuery.data || [];
   const { refreshing, onRefresh } = useRefresh(branchQuery.refetch, servicesQuery.refetch);
-  const selected = useMemo(() => services.find(s => s.id === selectedId) || services[0], [services, selectedId]);
+  /* Until the person picks, show the service they can be seen for soonest.
+     The list arrives alphabetically, and at Constant Spring that put Child
+     Passport Application (58 min) in front of someone who tapped in from a
+     card advertising the shortest wait nearby. */
+  const quickest = useMemo(() => {
+    if (!services.length) return undefined;
+    return [...services].sort((a, b) =>
+      Number(a.estimated_wait_minutes ?? Infinity) - Number(b.estimated_wait_minutes ?? Infinity))[0];
+  }, [services]);
+  const selected = useMemo(
+    () => services.find(s => s.id === selectedId) || quickest,
+    [services, selectedId, quickest]);
   const others = services.filter(s => s.id !== selected?.id);
   const isSaved = saved.some(b => b.id === businessId);
 

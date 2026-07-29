@@ -6,6 +6,8 @@ export interface BranchSummary {
   business_name: string;
   business_slug: string;
   name: string;
+  address?: string | null;
+  phone?: string | null;
   city?: string;
   parish?: string;
   latitude?: number;
@@ -23,6 +25,7 @@ export interface ServiceSummary {
   business_id: string;
   business_name: string;
   name: string;
+  description?: string | null;
   waiting_count: number;
   avg_wait_minutes: number;
   base_avg_time_minutes: number;
@@ -44,6 +47,7 @@ export interface TicketRecord {
   business_id?: string;
   branch_id?: string;
   branch_name?: string;
+  business_name?: string;
   service_id?: string;
   service_name?: string;
   is_next?: boolean;
