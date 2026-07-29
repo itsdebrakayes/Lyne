@@ -172,13 +172,12 @@ const STATE_CLASS: Record<SupStaff['state'], string> = {
 
 export function SupDesksTab() {
   const d = useSup();
+  const staffNow = useStaffWithDesks(d);
   const [picked, setPicked] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  /* `assigned` is what has been applied; `moves` is what is pending. Apply used
-     to call the same handler as Undo, so it discarded the pending moves and
-     looked exactly like it had reverted them. */
-  const [assigned, setAssigned] = useState<Record<string, string | null>>({});
-  const [moves, setMoves] = useState<Record<string, string | null>>({});
+  /* Assignments come from the CONTEXT, which writes them to the database. This
+     board used to keep its own copy, which is why a move made here appeared on
+     the Section Board but never the other way round — two boards, two truths. */
 
   /* Every hook must run on every render — this useMemo used to sit BELOW the
      empty-state guard, so when the guard fired React saw fewer hooks than the
@@ -195,40 +194,31 @@ export function SupDesksTab() {
       body="Desks are configured when the branch is set up. Once they exist you can assign people to them here, and the board will show where the holes are." />;
   }
 
-  /** Who is on a desk: pending move first, then applied, then the original. */
+  /** Who is on a desk, from the shared (database-backed) assignments. */
   const staffAt = (deskId: string) => {
-    const id = deskId in moves ? moves[deskId]
-      : deskId in assigned ? assigned[deskId]
+    const id = deskId in d.assigned ? d.assigned[deskId]
       : d.desks.find((x) => x.id === deskId)?.staffId ?? null;
-    return id ? d.staff.find((s) => s.id === id) || null : null;
+    return id ? staffNow.find((s) => s.id === id) || null : null;
   };
 
-  const apply = () => { setAssigned((a) => ({ ...a, ...moves })); setMoves({}); };
-  const undo = () => setMoves({});
-
   const place = (deskId: string, staffId: string) => {
-    const person = d.staff.find((s) => s.id === staffId);
+    const person = staffNow.find((s) => s.id === staffId);
     // Someone on a break is not available — the amber is not decoration.
     if (!person || !PLACEABLE.includes(person.state)) return;
-    setMoves((p) => {
-      const next = { ...p };
-      for (const dk of d.desks) if ((dk.id in next ? next[dk.id] : dk.staffId) === staffId) next[dk.id] = null;
-      next[deskId] = staffId;
-      return next;
-    });
+    for (const dk of d.desks) if (staffAt(dk.id)?.id === staffId) d.onAssign(dk.id, null);
+    d.onAssign(deskId, staffId);
     setPicked(null);
     setDropTarget(null);
   };
 
-  const clear = (deskId: string) => setMoves((p) => ({ ...p, [deskId]: null }));
+  const clear = (deskId: string) => d.onAssign(deskId, null);
 
-  const roster = d.staff.filter((s) => s.state !== 'off');
+  const roster = staffNow.filter((s) => s.state !== 'off');
   const covered = d.desks.filter((x) => staffAt(x.id)).length;
   const empty = d.desks.length - covered;
   const uncoveredWithQueue = d.desks.filter((x) => !staffAt(x.id) && x.waiting > 0);
   const placedIds = new Set(d.desks.map((x) => staffAt(x.id)?.id).filter(Boolean));
   const free = roster.filter((s) => !placedIds.has(s.id) && PLACEABLE.includes(s.state));
-  const dirty = Object.keys(moves).length > 0;
 
 
   return (
@@ -289,10 +279,7 @@ export function SupDesksTab() {
       {/* ── the desks, every service, full width ── */}
       <Card span={12} title="Every Desk In This Section"
         cap="A desk is only flagged when people are actually waiting for it — an empty desk on a quiet service costs nothing."
-        tools={dirty ? <>
-          <button type="button" className="qx-btn" onClick={apply}>Apply Changes</button>
-          <button type="button" className="qx-btn ghost" onClick={undo}>Undo</button>
-        </> : undefined}>
+        tools={<span className="qx-tag">Saved As You Go</span>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {byService.map(([svc, desks]) => {
             const svcCovered = desks.filter((x) => staffAt(x.id)).length;
@@ -344,12 +331,10 @@ export function SupDesksTab() {
             );
           })}
         </div>
-        {dirty ? (
-          <div style={{ marginTop: 14 }}>
-            <Note icon={Zap} title="Changes Are Not Applied Yet"
-              body="Moves take effect on the person's next call, so nobody mid-conversation is interrupted." />
-          </div>
-        ) : null}
+        <div style={{ marginTop: 14 }}>
+          <Note icon={Zap} title="Changes Save Immediately"
+            body="A move is recorded as you make it and is visible on every screen, including the person's own. It takes effect on their next call, so nobody mid-conversation is interrupted." />
+        </div>
       </Card>
     </div>
   );
@@ -360,6 +345,7 @@ const SUP_STAFF_GRID = 'minmax(0,1.8fr) 90px 80px 88px minmax(0,1.7fr)';
 
 export function SupStaffTab() {
   const d = useSup();
+  const staffNow = useStaffWithDesks(d);
   const [q, setQ] = useState('');
   const [only, setOnly] = useState<'all' | 'flagged'>('all');
 
@@ -368,9 +354,9 @@ export function SupStaffTab() {
       body="Once staff are attached to this section they appear here with the desk they are on, how many they have seen, and anything that needs your attention." />;
   }
 
-  const flagged = d.staff.filter((s) => s.state === 'idle' || s.breakDue);
-  const onFloor = d.staff.filter((s) => s.state !== 'off');
-  const rows = d.staff
+  const flagged = staffNow.filter((s) => s.state === 'idle' || s.breakDue);
+  const onFloor = staffNow.filter((s) => s.state !== 'off');
+  const rows = staffNow
     .filter((s) => (only === 'flagged' ? s.state === 'idle' || s.breakDue : true))
     .filter((s) => !q.trim() || `${s.name} ${s.desk}`.toLowerCase().includes(q.trim().toLowerCase()));
 
@@ -640,8 +626,32 @@ export const SUP_TAB_HEAD: Record<string, { title: string; sub: string }> = {
  *
  * "Worth A Word" lives on the Staff tab, not here.
  */
+/** Staff with their state re-derived from the CURRENT assignments.
+ *
+ *  supLiveData computes "serving" from the counters feed, which only catches up
+ *  after a refetch — so someone you had just placed still read "free to cover"
+ *  with a window beside their name. This applies the assignment you can already
+ *  see, so the card restyles on the tap rather than a second later. */
+function useStaffWithDesks(d: SupTabData) {
+  return useMemo(() => {
+    const deskOf = new Map<string, string>();
+    for (const dk of d.desks) {
+      const id = dk.id in d.assigned ? d.assigned[dk.id] : dk.staffId;
+      if (id) deskOf.set(String(id), dk.label);
+    }
+    return d.staff.map((s) => {
+      const desk = deskOf.get(String(s.id));
+      if (desk) return { ...s, desk, deskId: desk, state: s.state === 'idle' ? 'idle' : 'serving' as SupStaff['state'] };
+      // Off the roster stays off; everyone else without a desk is free to cover.
+      if (s.state === 'off' || s.state === 'break') return s;
+      return { ...s, desk: '—', deskId: null, state: 'unassigned' as SupStaff['state'] };
+    });
+  }, [d.staff, d.desks, d.assigned]);
+}
+
 export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const d = useSup();
+  const staffNow = useStaffWithDesks(d);
   const [picked, setPicked] = useState<string | null>(null);
 
   /* Every hook must run on every render — this useMemo used to sit BELOW the
@@ -665,25 +675,28 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
      the system forgetting the move you had just made. */
   const staffAt = (deskId: string) => {
     const id = deskId in d.assigned ? d.assigned[deskId] : d.desks.find((x) => x.id === deskId)?.staffId ?? null;
-    return id ? d.staff.find((s) => s.id === id) || null : null;
+    return id ? staffNow.find((s) => s.id === id) || null : null;
   };
-  const place = (deskId: string) => {
-    if (!picked) return;
+  /* `who` is passed explicitly for the drop case: setPicked would not have
+     landed yet in the same tick, so reading it from state drops the person. */
+  const place = (deskId: string, who?: string) => {
+    const staffId = who || picked;
+    if (!staffId) return;
     // One person, one desk — clear them off whatever they were on first.
-    for (const dk of d.desks) if (staffAt(dk.id)?.id === picked) d.onAssign(dk.id, null);
-    d.onAssign(deskId, picked);
+    for (const dk of d.desks) if (staffAt(dk.id)?.id === staffId) d.onAssign(dk.id, null);
+    d.onAssign(deskId, staffId);
     setPicked(null);
   };
 
   const covered = d.desks.filter((x) => staffAt(x.id)).length;
   const waiting = d.desks.reduce((t, x) => t + x.waiting, 0);
-  const served = d.staff.reduce((t, s) => t + s.seen, 0);
+  const served = staffNow.reduce((t, s) => t + s.seen, 0);
   const avgWait = d.targets.find((t) => t.key === 'wait')?.now ?? 0;
   const placedIds = new Set(d.desks.map((x) => staffAt(x.id)?.id).filter(Boolean));
-  const unassigned = d.staff.filter((s) => s.state !== 'off' && !placedIds.has(s.id));
+  const unassigned = staffNow.filter((s) => s.state !== 'off' && !placedIds.has(s.id));
   const uncovered = d.desks.filter((x) => !staffAt(x.id) && x.waiting > 0);
   const worst = [...uncovered].sort((a, b) => b.waiting - a.waiting)[0] || null;
-  const flagged = d.staff.filter((s) => s.state === 'idle');
+  const flagged = staffNow.filter((s) => s.state === 'idle');
 
   /* Services worst-first, so the desks that matter are the ones you see first
      without scrolling. */
@@ -720,7 +733,16 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
                   return (
                     <button key={dk.id} type="button" className="qs-desk"
                       aria-label={who ? `${dk.label}, ${who.name}` : `${dk.label}, empty`}
-                      onClick={() => place(dk.id)}
+                      /* Tapping an occupied desk takes that person off it —
+                         there was no way to clear a desk from this board. */
+                      onClick={() => (picked ? place(dk.id) : who ? d.onAssign(dk.id, null) : undefined)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData('text/plain');
+                        if (id) place(dk.id, id);
+                      }}
+                      title={who ? 'Tap to take them off this desk' : picked ? 'Tap to place them here' : undefined}
                       style={{
                         borderStyle: who ? 'solid' : 'dashed',
                         borderColor: picked ? 'var(--c-primary)' : alert ? 'var(--c-bad)' : undefined,
@@ -757,7 +779,11 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
               {/* Whoever can cover the worst queue comes first. */}
               {unassigned.slice(0, 4).map((s) => (
                 <button key={s.id} type="button" className={`qs-person ${STATE_CLASS[s.state]}`}
-                  aria-pressed={picked === s.id} onClick={() => setPicked(picked === s.id ? null : s.id)}>
+                  aria-pressed={picked === s.id}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', s.id); setPicked(s.id); }}
+                  onDragEnd={() => setPicked(null)}
+                  onClick={() => setPicked(picked === s.id ? null : s.id)}>
                   <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
                   <span className="nm"><b>{s.name}</b><small>{SUP_STATE_LABEL[s.state]}</small></span>
                 </button>
