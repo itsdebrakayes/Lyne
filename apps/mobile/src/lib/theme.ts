@@ -381,7 +381,11 @@ export const type = {
 
 const makeT = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
+  // Bottom room for BOTH floating layers: the tab bar (bottom 24 + 50 tall)
+  // and, when a queue is live, the ticket banner above it (bottom 102 +
+  // ~48 tall). At 148 the banner sat exactly on top of whatever the last
+  // control was — on Profile that was Log out.
+  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 196 },
 
   // typography (mirrors the `type` scale — readable floors, consistent ramp)
   h1: { fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.6, lineHeight: 33 },

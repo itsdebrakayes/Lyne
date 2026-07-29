@@ -71,9 +71,11 @@ export default function ProfileScreen() {
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
   const docs: Array<{ key: string; docKey: DocKey; value?: string; tint: { fg: string; bg: string }; icon: keyof typeof Ionicons.glyphMap; ok: string; missing: string }> = [
+    // Phone is a contact detail, not a document — it already has its own row
+    // under Personal Details, and listing it twice under two different
+    // labels ("Not added yet" / "Add phone") read as two separate things.
     { key: 'TRN', docKey: 'trn', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On file', missing: 'Add TRN' },
     { key: 'National ID', docKey: 'national_id', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On file', missing: 'Add ID' },
-    { key: 'Phone', docKey: 'phone', value: user?.phone, tint: categoryTints.orange, icon: 'call-outline', ok: 'On file', missing: 'Add phone' },
   ];
 
   const openDocSheet = (docKey: DocKey, current?: string) => {
