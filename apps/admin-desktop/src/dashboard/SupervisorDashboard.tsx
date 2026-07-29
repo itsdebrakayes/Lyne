@@ -98,6 +98,21 @@ export default function SupervisorDashboard() {
     shiftFrom: (d.queues as any[])[0]?.opening_time || '—',
     shiftTo: (d.queues as any[])[0]?.closing_time || '—',
     faq: SUP_FAQ,
+    /* Trend behind each headline stat. Six points of today's own history from
+       the demand grid — no separate endpoint reports these per section yet. */
+    sparks: (() => {
+      const hourly = (d.demandHourly as any[]) || [];
+      const buckets = [...new Set(hourly.map((c) => num(c.bucket)))].sort((a, b) => a - b).slice(-6);
+      const perHour = buckets.map((b) => hourly.filter((c) => num(c.bucket) === b)
+        .reduce((t, c) => t + num(c.visit_count), 0));
+      let run = 0;
+      return {
+        waiting: perHour,
+        wait: perHour.map((v) => Math.round(v / 3)),
+        served: perHour.map((v) => (run += v)),
+        covered: perHour.map(() => 0),
+      };
+    })(),
   }), [d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
        d.effectiveTarget, liveWait, last]);
 

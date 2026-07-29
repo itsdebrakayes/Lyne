@@ -904,3 +904,10 @@
 .ql-upnext small { display: block; font-size: 12.5px; opacity: .72; margin-top: 1px; }
 .ql-upnext .w { font-size: 12.5px; font-weight: 700; opacity: .8; white-space: nowrap; }
 .ql-upnext .more { margin-top: 10px; opacity: .6; font-weight: 600; }
+/* The overview's desk board scrolls instead of growing — 25 desks would push
+   everything below it off the screen, and this is the glance card, not the
+   planner. */
+.qs-boardscroll { display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+.qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+.qs-boardscroll .qs-desk { min-height: 74px; padding: 9px 10px; }
+.qs-boardscroll .nm { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

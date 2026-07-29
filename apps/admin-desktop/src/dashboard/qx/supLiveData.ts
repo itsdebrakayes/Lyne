@@ -24,6 +24,8 @@ export type SupLiveInput = {
   demandHourly: any[];
   target: any;
   avgWait: number; coverPct: number; avgService: number;
+  /** trend behind the four headline stats, oldest first */
+  sparks: { waiting: number[]; wait: number[]; served: number[]; covered: number[] };
   shiftFrom: string; shiftTo: string;
   faq: Array<{ q: string; a: string }>;
 };
@@ -71,15 +73,30 @@ export function buildSupData(i: SupLiveInput): SupTabData {
      off queue rows meant it collapsed to an empty state exactly when it was
      most needed. The only genuinely empty case is a branch with no counters
      configured at all. */
-  const desks: SupDesk[] = i.counters.map((c) => ({
-    id: String(c.counter_id),
-    label: String(c.counter_label || `Counter ${c.counter_number ?? ''}`).trim(),
-    svc: titleCase(c.service_name) || 'Unassigned',
-    staffId: c.staff_id ? String(c.staff_id) : null,
-    staffName: c.staff_name ? titleCase(c.staff_name) : null,
-    waiting: Math.round(num(c.service_waiting)),
-    servedToday: Math.round(num(c.served_today)),
-  }));
+  /* A queue belongs to the SECTION (the service), not to one desk — the
+     endpoint reports the same service_waiting on every counter of that service.
+     Assigning it to each desk made one queue of 35 read as 140 across four
+     desks, and a branch of 44 people read as 229. Split it across the desks
+     that serve it so the totals reconcile. */
+  const desksPerService = new Map<string, number>();
+  for (const c of i.counters) {
+    const k = String(c.service_id || c.service_name || '');
+    desksPerService.set(k, (desksPerService.get(k) || 0) + 1);
+  }
+
+  const desks: SupDesk[] = i.counters.map((c) => {
+    const k = String(c.service_id || c.service_name || '');
+    const share = Math.max(1, desksPerService.get(k) || 1);
+    return {
+      id: String(c.counter_id),
+      label: String(c.counter_label || `Counter ${c.counter_number ?? ''}`).trim(),
+      svc: titleCase(c.service_name) || 'Unassigned',
+      staffId: c.staff_id ? String(c.staff_id) : null,
+      staffName: c.staff_name ? titleCase(c.staff_name) : null,
+      waiting: Math.round(num(c.service_waiting) / share),
+      servedToday: Math.round(num(c.served_today)),
+    };
+  });
 
   /* ── demand by desk-hour, reused from the branch grid ── */
   const hourLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'am' : 'pm'}`;
@@ -103,6 +120,9 @@ export function buildSupData(i: SupLiveInput): SupTabData {
     supervisorName: titleCase(i.supervisorName) || '—',
     desks, staff, hours, deskHeat, targets,
     faq: i.faq,
+    // Demand rows come back keyed by service, which IS the section.
+    sectionNames: rowNames.map((n) => titleCase(n) || n),
+    sparks: i.sparks,
     shiftFrom: i.shiftFrom, shiftTo: i.shiftTo,
   };
 }
