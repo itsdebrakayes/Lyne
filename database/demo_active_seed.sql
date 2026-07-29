@@ -221,6 +221,19 @@ JOIN businesses b ON b.id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
 WHERE u.id LIKE 'usr-demo-%'
 ON DUPLICATE KEY UPDATE saved_at = saved_at;
 
+-- The API opens the day lazily (ensureQueuesForToday) the moment any staff
+-- member signs in, minting queue rows with UUID ids. Those rows collide with
+-- the deterministic ids below on uk_queue_day (branch, service, date), and the
+-- collision aborted the ENTIRE nightly re-seed — so a demo box that had been
+-- touched after midnight came up with no lines at all.
+--
+-- A lazily-opened queue is empty by definition, so clearing today's empty
+-- non-seed rows lets the seeded day take ownership without losing anything.
+DELETE q FROM queues q
+ WHERE q.queue_date = CURDATE()
+   AND q.id NOT LIKE 'q-%'
+   AND NOT EXISTS (SELECT 1 FROM queue_tickets t WHERE t.queue_id = q.id);
+
 INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
 SELECT
   CONCAT('q-', REPLACE(br.id, 'br-', ''), '-', REPLACE(REPLACE(REPLACE(s.id, 'svc-taj-', ''), 'svc-pica-', ''), 'svc-nht-', '')),
