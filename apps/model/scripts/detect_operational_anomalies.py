@@ -37,6 +37,85 @@ RECENT_DAYS = 14          # only alert on anomalies inside this window
 Z_THRESHOLD = 2.0
 
 
+def friendly_date(iso):
+    """"Last Thursday" beats "2026-07-23" for someone reading an alert."""
+    try:
+        d = pd.Timestamp(iso).date()
+    except Exception:
+        return str(iso)
+    today = datetime.now().date()
+    delta = (today - d).days
+    if delta <= 0:
+        return "today"
+    if delta == 1:
+        return "yesterday"
+    if delta < 7:
+        return f"on {d.strftime('%A')}"
+    if delta < 14:
+        return f"last {d.strftime('%A')}"
+    return f"on {d.strftime('%-d %B')}"
+
+
+# Each measure, written the way somebody would say it out loud. Separate words
+# for the up and down case because the same movement is not equally good in
+# both directions — a wait getting shorter is good news, visits collapsing is
+# not, and calling a 90% drop in customers "better" is worse than saying
+# nothing at all.
+PHRASING = {
+    "avg_wait": {
+        "subject": "the average wait", "unit": " minutes", "plural": False,
+        "up": "longer than usual", "down": "shorter than usual",
+    },
+    "avg_service": {
+        "subject": "the time each visit took at the counter", "unit": " minutes", "plural": False,
+        "up": "longer than usual", "down": "quicker than usual",
+    },
+    "no_show_rate": {
+        "subject": "the no-show rate", "unit": "%", "plural": False,
+        "up": "higher than usual", "down": "lower than usual",
+    },
+    "volume": {
+        # A count, so the gap needs a noun ("363 fewer"), not an adjective —
+        # "363 quieter than usual" is not a sentence anyone would say.
+        "subject": "the number of people served", "unit": "", "plural": False,
+        "up": "more people than usual", "down": "fewer people than usual",
+    },
+    "completion_rate": {
+        "subject": "the share of visits completed", "unit": "%", "plural": False,
+        "up": "higher than usual", "down": "lower than usual",
+    },
+}
+
+
+def plain_message(branch_name, label, col, value, expected, date_iso):
+    """A sentence a branch manager would actually say.
+
+    This used to read "Ocho Rios: service time was 36.8 on 2026-07-23 vs a
+    typical 20.7 (z=2.56)" — a statistics readout rather than an alert. No
+    z-score, no ISO date, no jargon, and the gap stated in the measure's own
+    units. Written as two short sentences because one long one with a dash in
+    the middle is harder to scan.
+    """
+    p = PHRASING.get(col)
+    if not p:
+        return (f"{branch_name}: {label} {friendly_date(date_iso)} was {value:.1f}, "
+                f"against a normal {float(expected):.1f}.")
+
+    value = float(value)
+    expected = float(expected)
+    unit = p["unit"]
+    decimals = 1 if unit == "%" else 0
+    fmt = lambda v: f"{v:.{decimals}f}{unit}"
+
+    gap = abs(value - expected)
+    how = p["up"] if value > expected else p["down"]
+
+    return (f"{branch_name}: {p['subject']} {friendly_date(date_iso)} was "
+            f"{fmt(value)}, against a normal {fmt(expected)}. "
+            f"That is {fmt(gap)} {how}.")
+
+
+
 def load_daily_branch(conn):
     with conn.cursor() as cursor:
         cursor.execute("""
@@ -106,8 +185,8 @@ def build_insights(df):
                         "expected": a["expected"],
                         "z_score": a["z_score"],
                         "severity": a["severity"],
-                        "message": (f"{branch_name}: {label} was {round(a['value'],1)} on {a['date']} "
-                                    f"vs a typical {a['expected']} (z={a['z_score']})."),
+                        "message": plain_message(branch_name, label, col,
+                                                 a["value"], a["expected"], a["date"]),
                     })
         anomalies.sort(key=lambda x: (x["severity"] != "critical", -abs(x["z_score"])))
         summary = (f"{business_name}: {len(anomalies)} operational anomaly(ies) in the last "

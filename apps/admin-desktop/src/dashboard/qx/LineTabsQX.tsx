@@ -15,7 +15,7 @@
  *   My Stats — my own numbers, with the section average for context only
  *   Support  — answers for someone on a window, phrased plainly
  */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
   PhoneOff, SkipForward, Timer, Users,
@@ -147,7 +147,7 @@ export function LineOverviewQX() {
   const [activeId, setActiveId] = useState<string | null>(() => d.queue.find((t) => t.state === 'called')?.id ?? null);
   const [elapsed, setElapsed] = useState(0);
   const [calls, setCalls] = useState(1);
-  const [code, setCode] = useState(['', '', '', '']);
+  const [code, setCode] = useState(['', '', '', '', '', '']);
   const [codeState, setCodeState] = useState<'idle' | 'ok' | 'bad'>('idle');
   const [done, setDone] = useState<string[]>([]);
 
@@ -175,7 +175,7 @@ export function LineOverviewQX() {
 
   const reset = (nextStage: Stage, id: string | null) => {
     setStage(nextStage); setActiveId(id); setCalls(1);
-    setCode(['', '', '', '']); setCodeState('idle');
+    setCode(['', '', '', '', '', '']); setCodeState('idle');
   };
 
   const callNext = () => { if (next) reset('called', next.id); };
@@ -184,10 +184,41 @@ export function LineOverviewQX() {
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
 
-  const setDigit = (i: number, v: string) => {
-    const digit = v.replace(/\D/g, '').slice(-1);
-    setCode((p) => { const n = [...p]; n[i] = digit; return n; });
+  /* One continuous six-digit entry, not six separate fields. Type straight
+     through and focus follows; backspace on an empty box steps back; pasting or
+     an SMS autofill drops the whole code in at once. Anything non-numeric is
+     ignored rather than rejected with an error. */
+  const boxes = useRef<Array<HTMLInputElement | null>>([]);
+
+  const writeFrom = (start: number, digits: string) => {
+    if (!digits) return;
+    setCode((p) => {
+      const n = [...p];
+      for (let k = 0; k < digits.length && start + k < n.length; k += 1) n[start + k] = digits[k];
+      return n;
+    });
+    const landed = Math.min(start + digits.length, code.length - 1);
+    boxes.current[landed]?.focus();
+    boxes.current[landed]?.select();
     setCodeState('idle');
+  };
+
+  const onDigitChange = (i: number, raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) { setCode((p) => { const n = [...p]; n[i] = ''; return n; }); setCodeState('idle'); return; }
+    writeFrom(i, digits);
+  };
+
+  const onDigitKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !code[i] && i > 0) {
+      e.preventDefault();
+      setCode((p) => { const n = [...p]; n[i - 1] = ''; return n; });
+      boxes.current[i - 1]?.focus();
+    } else if (e.key === 'ArrowLeft' && i > 0) {
+      e.preventDefault(); boxes.current[i - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && i < code.length - 1) {
+      e.preventDefault(); boxes.current[i + 1]?.focus();
+    }
   };
 
   const verify = () => {
@@ -271,15 +302,24 @@ export function LineOverviewQX() {
           <div className="ql-verify">
             <b>Check Their Code Before You Start</b>
             <small>
-              The customer has a four-digit code on their phone or printed on their kiosk ticket.
+              The customer has a six-digit code on their phone, or printed on their kiosk ticket.
               It confirms you have the right person. Tickets issued without a code can be started without one.
             </small>
-            <div className="ql-code">
+            <div className="ql-code" onPaste={(e) => {
+              e.preventDefault();
+              writeFrom(0, e.clipboardData.getData('text').replace(/\D/g, '').slice(0, code.length));
+            }}>
               {code.map((c, i) => (
-                <input key={i} inputMode="numeric" maxLength={1} value={c}
-                  aria-label={`Verification digit ${i + 1}`}
+                <input key={i} ref={(el) => { boxes.current[i] = el; }}
+                  inputMode="numeric" autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  // Not maxLength=1: typing through, or an autofill, delivers
+                  // several digits at once and they should spread across boxes.
+                  value={c}
+                  aria-label={`Verification code, digit ${i + 1} of ${code.length}`}
                   className={codeState === 'bad' ? 'bad' : undefined}
-                  onChange={(e) => setDigit(i, e.target.value)} />
+                  onChange={(e) => onDigitChange(i, e.target.value)}
+                  onKeyDown={(e) => onDigitKey(i, e)}
+                  onFocus={(e) => e.currentTarget.select()} />
               ))}
               <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify} disabled={!codeReady}>
                 <Check size={16} />Check

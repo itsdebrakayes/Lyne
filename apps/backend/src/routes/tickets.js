@@ -92,8 +92,18 @@ const updateStatusSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 
+/**
+ * A six-digit numeric code, read off a phone or a printed ticket and typed at
+ * the counter. Digits rather than hex because it is read aloud across a desk,
+ * typed on a numeric keypad, and never has to survive "is that a B or an 8".
+ *
+ * Six digits is 900,000 values, which is not enough to stay unique across every
+ * ticket a branch will ever issue — so uniqueness is scoped to the queue (one
+ * service, one day) by migration 019. Collisions inside that window are
+ * retried at insert.
+ */
 function createVerificationCode() {
-  return crypto.randomBytes(4).toString('hex').toUpperCase();
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function periodCondition(period, month) {

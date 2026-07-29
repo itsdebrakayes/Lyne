@@ -787,9 +787,9 @@
 .ql-verify { margin-top: 14px; padding: 13px 16px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
 .ql-verify > b { display: block; font-size: 13px; font-weight: 700; }
 .ql-verify > small { display: block; font-size: 12px; opacity: .7; margin-top: 3px; line-height: 1.45; }
-.ql-code { display: flex; gap: 9px; margin-top: 13px; }
+.ql-code { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; align-items: center; }
 .ql-code input {
-  width: 46px; height: 56px; border-radius: 13px; text-align: center;
+  width: 44px; height: 54px; border-radius: 13px; text-align: center;
   font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;
   background: rgba(255, 255, 255, .95); color: #12203A; border: 2px solid transparent; outline: none;
 }

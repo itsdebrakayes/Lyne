@@ -58,6 +58,7 @@ services:
       - ./database/migrations/016_supervisor_role.sql:/docker-entrypoint-initdb.d/17_016_supervisor_role.sql:ro
       - ./database/migrations/017_kiosk_role.sql:/docker-entrypoint-initdb.d/18_017_kiosk_role.sql:ro
       - ./database/migrations/018_branch_targets.sql:/docker-entrypoint-initdb.d/19_018_branch_targets.sql:ro
+      - ./database/migrations/019_verification_code_per_queue.sql:/docker-entrypoint-initdb.d/20_019_verification_code_per_queue.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
       - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/21_demo_active_seed.sql:ro
     healthcheck:

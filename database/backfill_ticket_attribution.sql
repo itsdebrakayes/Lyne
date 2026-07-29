@@ -37,7 +37,7 @@ WHERE s.is_active = 1 AND s.branch_id IS NOT NULL;
 DROP TEMPORARY TABLE IF EXISTS tmp_tickets;
 CREATE TEMPORARY TABLE tmp_tickets AS
 SELECT t.id AS ticket_id, q.branch_id, q.service_id,
-       ROW_NUMBER() OVER (PARTITION BY q.branch_id, q.service_id ORDER BY t.created_at, t.id) - 1 AS n
+       ROW_NUMBER() OVER (PARTITION BY q.branch_id, q.service_id ORDER BY t.joined_at, t.id) - 1 AS n
 FROM queue_tickets t
 JOIN queues q ON q.id = t.queue_id
 WHERE q.queue_date = CURDATE()
