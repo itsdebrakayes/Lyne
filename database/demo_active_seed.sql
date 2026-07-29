@@ -166,6 +166,28 @@ ON DUPLICATE KEY UPDATE
   is_active = TRUE,
   availability_status = VALUES(availability_status);
 
+-- Every branch gets a supervisor.
+-- The demo shipped exactly one, at TAJ Kingston, so a manager at any other
+-- branch pressing "Ask Supervisor To Staff It" got "no active supervisor is
+-- assigned to this branch" — a correct answer to a badly-staffed demo.
+-- A branch with a manager and no supervisor is also not a realistic branch.
+INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active, availability_status)
+SELECT
+  CONCAT('stf-demo-sup-', REPLACE(b.id, 'br-', '')),
+  b.business_id,
+  b.id,
+  'role-supervisor-001',
+  CONCAT(UPPER(REPLACE(b.id, 'br-', '')), '-SUP'),
+  CONCAT('Demo ', b.name, ' Supervisor'),
+  CONCAT('demo.sup.', REPLACE(b.id, 'br-', ''), '@qmenow.test'),
+  NULL, TRUE, 'active'
+FROM branches b
+WHERE b.is_active = TRUE
+  AND NOT EXISTS (
+    SELECT 1 FROM staff s
+     WHERE s.branch_id = b.id AND s.role_id = 'role-supervisor-001' AND s.is_active = TRUE)
+ON DUPLICATE KEY UPDATE is_active = TRUE;
+
 INSERT INTO staff_assignments (id, staff_id, counter_id, assignment_date, shift_start, shift_end, created_by)
 SELECT
   CONCAT('asgn-', SUBSTRING(MD5(CONCAT(s.id, c.id, CURDATE())), 1, 30)),

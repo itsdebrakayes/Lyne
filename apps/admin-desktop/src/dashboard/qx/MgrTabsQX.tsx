@@ -222,6 +222,16 @@ export function MgrStaffTab() {
                 disabled: d.askState === 'sending' || d.askState === 'sent' || !d.onAskSupervisor,
               }} />
           ) : null}
+          {/* A send that fails must say so. Previously the button simply never
+              changed, which is indistinguishable from a click that did nothing —
+              and that is precisely how the missing endpoint presented. */}
+          {d.askState === 'error' ? (
+            <Note icon={AlertTriangle} tone="bad" title="The Supervisor Was Not Notified"
+              body={d.askError || 'The request could not be sent. Nothing was changed — try again, or speak to them directly.'} />
+          ) : d.askState === 'sent' ? (
+            <Note icon={CheckCircle2} title="Request Sent"
+              body="Every supervisor on this branch has it in their notifications. You will see the desk filled on the section board once one of them acts." />
+          ) : null}
           <Card title="Needs A Look" cap="Flagged automatically — worth checking, not a judgement">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {flagged.map((s) => (
