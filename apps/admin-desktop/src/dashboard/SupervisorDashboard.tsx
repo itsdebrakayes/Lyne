@@ -12,6 +12,8 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import Spotlight, { TOURS } from '../components/Spotlight';
+import { useTour } from '../hooks/useTour';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
 import { SupDataProvider, supTab, SupOverviewQX, SUP_TAB_HEAD } from './qx/SupTabsQX';
 import { buildSupData } from './qx/supLiveData';
@@ -37,6 +39,7 @@ const NAV: NavItem[] = [
 export default function SupervisorDashboard() {
   const d = useDashboardData();
   const { logout } = useAdminAuth();
+  const tour = useTour('supervisor');
   /* Desks come from counters, which exist whether or not the day has opened —
      a supervisor sets the board up before the doors do. */
   const countersQuery = useQuery({
@@ -185,6 +188,7 @@ export default function SupervisorDashboard() {
         />
       }
     >
+      {tour.running ? <Spotlight steps={TOURS.supervisor} onDone={tour.finish} /> : null}
       <SupDataProvider value={liveData}>
         {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
       </SupDataProvider>

@@ -19,6 +19,8 @@ const LINE_FAQ = [
 import { BarChart3, Clock3, ListChecks, Monitor } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import Spotlight, { TOURS } from '../components/Spotlight';
+import { useTour } from '../hooks/useTour';
 
 type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string };
 type TicketRow = { id: string; ticket_number: string; user_name?: string; status: string; position: number; call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string; service_minutes?: number; service_name?: string };
@@ -41,6 +43,7 @@ const NAV = [
 
 export default function LineStaffDashboard() {
   const { admin, logout } = useAdminAuth();
+  const tour = useTour('line_staff');
   const qc = useQueryClient();
   const [tab, setTab] = useState('live');
   /* History defaults to the WEEK, not today. At 8am nobody has been served
@@ -159,6 +162,7 @@ export default function LineStaffDashboard() {
       }
     >
       {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
+      {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
       <LineDataProvider value={liveData}>
         {tab === 'live' ? <LineOverviewQX /> : lineTab(tab, (k) => setTab(k))}
       </LineDataProvider>

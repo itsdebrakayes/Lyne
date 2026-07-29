@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import Spotlight, { TOURS } from '../components/Spotlight';
+import { useTour } from '../hooks/useTour';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
@@ -67,6 +69,7 @@ function branchHeatmap(trends: any[]) {
 export default function ExecutiveDashboard() {
   const d = useDashboardData();
   const { logout } = useAdminAuth();
+  const tour = useTour('executive');
   const [tab, setTab] = useState('overview');
   const [period, setPeriod] = useState('7');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -294,6 +297,7 @@ export default function ExecutiveDashboard() {
 
       {/* Every non-overview tab is the approved design, rendering the SAME
           components as the DEV preview — only the data source differs. */}
+      {tour.running ? <Spotlight steps={TOURS.executive} onDone={tour.finish} /> : null}
       {!isOverview && (
         <ExecDataProvider value={liveTabData}>
           {execTab(tab, setTab)}

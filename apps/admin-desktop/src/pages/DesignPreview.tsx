@@ -17,6 +17,7 @@ import {
   RefreshIcon, greetingFor, avatarStyle, initials, type QxNav,
 } from '@/design/ui';
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
+import Spotlight, { TOURS } from '@/components/Spotlight';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
 import { supTab, SUP_TAB_HEAD, SupDataProvider, SupOverviewQX, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
 import { lineTab, LINE_TAB_HEAD, LineDataProvider, LineOverviewQX, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
@@ -125,6 +126,8 @@ export default function DesignPreview() {
   const [empty, setEmpty] = useState(false);
   // Mirrors the real dashboard: assignments outlive the tab you made them on.
   const [supAssigned, setSupAssigned] = useState<Record<string, string | null>>({});
+  // Lets the tour be reviewed per role without signing in.
+  const [tourOn, setTourOn] = useState(false);
 
   const NAV_FOR: Record<Role, QxNav[]> = { executive: EXEC_NAV, manager: MGR_NAV, supervisor: SUP_NAV, linestaff: LINE_NAV };
   const ACCOUNT: Record<Role, { name: string; role: string }> = {
@@ -147,6 +150,12 @@ export default function DesignPreview() {
         position: 'fixed', zIndex: 200, right: 16, bottom: 16, display: 'flex', gap: 6,
         background: '#12203A', padding: 6, borderRadius: 14, boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)',
       }}>
+        <button type="button" onClick={() => setTourOn(true)}
+          title="Run this role's spotlight tour"
+          style={{
+            border: 0, borderRadius: 10, padding: '7px 12px', fontSize: 11.5, fontWeight: 700,
+            background: 'transparent', color: '#93A3BC',
+          }}>Tour</button>
         <button type="button" onClick={() => setEmpty((v) => !v)}
           title="Render the tabs with no data, to check the empty states"
           style={{
@@ -163,6 +172,12 @@ export default function DesignPreview() {
           </button>
         ))}
       </div>
+
+      {tourOn ? (
+        <Spotlight
+          steps={TOURS[role === 'linestaff' ? 'line_staff' : role] || []}
+          onDone={() => setTourOn(false)} />
+      ) : null}
 
       <Shell
         brand="QMe Now"

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import Spotlight, { TOURS } from '../components/Spotlight';
+import { useTour } from '../hooks/useTour';
 import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
 import { Sparkline, Area, Card, Rec, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
@@ -61,6 +63,7 @@ export function buildHeatmap(cells: any[]) {
 export default function ManagerDashboard() {
   const d = useDashboardData();
   const { logout } = useAdminAuth();
+  const tour = useTour('manager');
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
   const preds = d.predictions as any[];
@@ -172,6 +175,7 @@ export default function ManagerDashboard() {
         />
       }
     >
+      {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
       <MgrDataProvider value={liveData}>
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} /> : mgrTab(tab, setTab)}
       </MgrDataProvider>
