@@ -18,7 +18,7 @@ import {
 } from '@/design/ui';
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
-import { supTab, SUP_TAB_HEAD, SupDataProvider, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
+import { supTab, SUP_TAB_HEAD, SupDataProvider, SupOverviewQX, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
 import { lineTab, LINE_TAB_HEAD, LineDataProvider, LineOverviewQX, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
 
 /* ══════════════════════ shared mock data ══════════════════════ */
@@ -203,8 +203,14 @@ export default function DesignPreview() {
             ? (tab === 'overview' ? <ManagerOverview onNav={setTab} />
               : <MgrDataProvider value={empty ? MGR_EMPTY : MGR_FIXTURES}>{mgrTab(tab, setTab)}</MgrDataProvider>)
           : role === 'supervisor'
-            ? (tab === 'overview' ? <SupervisorBoard />
-              : <SupDataProvider value={empty ? SUP_EMPTY : SUP_FIXTURES}>{supTab(tab, setTab)}</SupDataProvider>)
+            ? (
+              /* Same component the live dashboard renders — the preview used to
+                 show an older fixture board, which is exactly the drift this
+                 architecture is meant to prevent. */
+              <SupDataProvider value={empty ? SUP_EMPTY : SUP_FIXTURES}>
+                {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
+              </SupDataProvider>
+            )
           : (
             <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>
               {tab === 'overview' ? <LineOverviewQX /> : lineTab(tab, setTab)}

@@ -173,6 +173,16 @@ export function SupDesksTab() {
   const [assigned, setAssigned] = useState<Record<string, string | null>>({});
   const [moves, setMoves] = useState<Record<string, string | null>>({});
 
+  /* Every hook must run on every render — this useMemo used to sit BELOW the
+     empty-state guard, so when the guard fired React saw fewer hooks than the
+     previous render and tore the tree down. That is the black screen: live data
+     arrives after first paint, so the guard fires once and then stops firing. */
+  const byService = useMemo(() => {
+    const m = new Map<string, SupDesk[]>();
+    for (const dk of d.desks) m.set(dk.svc, [...(m.get(dk.svc) || []), dk]);
+    return [...m.entries()];
+  }, [d.desks]);
+
   if (!d.desks.length) {
     return <EmptyTab title="No Desks In This Section Yet"
       body="Desks are configured when the branch is set up. Once they exist you can assign people to them here, and the board will show where the holes are." />;
@@ -213,11 +223,6 @@ export function SupDesksTab() {
   const free = roster.filter((s) => !placedIds.has(s.id) && PLACEABLE.includes(s.state));
   const dirty = Object.keys(moves).length > 0;
 
-  const byService = useMemo(() => {
-    const m = new Map<string, SupDesk[]>();
-    for (const dk of d.desks) m.set(dk.svc, [...(m.get(dk.svc) || []), dk]);
-    return [...m.entries()];
-  }, [d.desks]);
 
   return (
     <div className="qx-grid">
@@ -627,6 +632,17 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [moves, setMoves] = useState<Record<string, string | null>>({});
 
+  /* Every hook must run on every render — this useMemo used to sit BELOW the
+     empty-state guard, so when the guard fired React saw fewer hooks than the
+     previous render and tore the tree down. That is the black screen: live data
+     arrives after first paint, so the guard fires once and then stops firing. */
+  const byService = useMemo(() => {
+    const m = new Map<string, SupDesk[]>();
+    for (const dk of d.desks) m.set(dk.svc, [...(m.get(dk.svc) || []), dk]);
+    return [...m.entries()].sort((a, b) =>
+      b[1].reduce((t, x) => t + x.waiting, 0) - a[1].reduce((t, x) => t + x.waiting, 0));
+  }, [d.desks, moves]);
+
   if (!d.desks.length && !d.staff.length) {
     return <EmptyTab title="This Section Is Not Set Up Yet"
       body="Once desks and staff are attached to this branch they appear here, with coverage per service and anyone who needs your attention." />;
@@ -659,12 +675,6 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
 
   /* Services worst-first, so the desks that matter are the ones you see first
      without scrolling. */
-  const byService = useMemo(() => {
-    const m = new Map<string, SupDesk[]>();
-    for (const dk of d.desks) m.set(dk.svc, [...(m.get(dk.svc) || []), dk]);
-    return [...m.entries()].sort((a, b) =>
-      b[1].reduce((t, x) => t + x.waiting, 0) - a[1].reduce((t, x) => t + x.waiting, 0));
-  }, [d.desks, moves]);
 
   return (
     <div className="qx-grid">
