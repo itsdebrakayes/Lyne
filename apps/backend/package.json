@@ -6,8 +6,6 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "sync:demo-test-accounts": "node scripts/sync-demo-test-accounts.js",
-    "refresh:demo-data": "node scripts/refresh-demo-data.js",
     "test": "node --test"
   },
   "dependencies": {
