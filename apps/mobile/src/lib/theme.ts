@@ -354,29 +354,84 @@ export function personInitials(value?: string) {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
-// Spacing scale — the whole app sits on this rhythm. Sections get xl above
-// and m below their header; cards pad with l; grouped items gap with s/m.
-export const space = { xs: 6, s: 10, m: 14, l: 20, xl: 32, xxl: 44 } as const;
+/* ============================================================
+   THE SCALES.
+
+   A previous version of these existed and was used exactly zero
+   times — every screen hand-set its own numbers instead, which is
+   how the app ended up with 28 font sizes (including half-point
+   steps), 29 corner radii and 15 gap values. Nothing lined up
+   because nothing shared a rhythm.
+
+   These are deliberately SMALL. If a value you want is not here,
+   the answer is almost always the nearest one that is, not a new
+   entry. Scarcity is the feature.
+   ============================================================ */
+
+/** 4pt grid. Everything — padding, margin, gap — comes from here. */
+export const sp = {
+  xs: 4,
+  s: 8,
+  m: 12,
+  l: 16,
+  xl: 20,
+  xxl: 28,
+  section: 36,   // air above a section header
+  screen: 20,    // screen side gutter
+} as const;
+
+/** Five radii and a pill. Anything rounder than xl is a pill, not a radius. */
+export const radius = {
+  s: 10,
+  m: 14,
+  l: 18,
+  xl: 24,
+  xxl: 30,
+  pill: 999,
+} as const;
 
 /**
- * Type scale — one consistent ramp with a readable floor (per the typography
- * spec: Headline 24 · Subheadline 16 · Body 14 · Button 16, no big jumps,
- * nothing below ~13). Card content uses `cardTitle` / `subhead` / `bodySm`;
- * screen titles use `display` / `title`. Never hand-set a fontSize below 13
- * for readable text — use `tag`/`overline` (uppercase, tracked) if smaller.
+ * Type ramp — eight roles, one numeral pair. Every size is a whole number and
+ * every step is perceptible; if two roles are hard to tell apart, one of them
+ * should not exist.
+ *
+ *   display   screen hero ("Take your spot from anywhere.")
+ *   title     screen title
+ *   section   section header
+ *   cardTitle the strongest line inside a card
+ *   body      default reading text
+ *   callout   supporting text under a title
+ *   caption   metadata, timestamps, counts
+ *   overline  tracked uppercase eyebrow
+ *
+ * The numerals are for the two places a number IS the content: the ticket
+ * number and the headline wait.
  */
 export const type = {
-  display:   { fontFamily: font.extra,    fontSize: 28,   letterSpacing: -0.6, lineHeight: 33 },
-  title:     { fontFamily: font.extra,    fontSize: 22,   letterSpacing: -0.5, lineHeight: 27 },
-  section:   { fontFamily: font.extra,    fontSize: 18,   letterSpacing: -0.3, lineHeight: 23 },
-  cardTitle: { fontFamily: font.bold,     fontSize: 16.5, letterSpacing: -0.3, lineHeight: 21 },
-  subhead:   { fontFamily: font.semibold, fontSize: 14,   lineHeight: 19 },
-  body:      { fontFamily: font.medium,   fontSize: 14.5, lineHeight: 21 },
-  bodySm:    { fontFamily: font.medium,   fontSize: 13.5, lineHeight: 19 },
-  callout:   { fontFamily: font.semibold, fontSize: 13,   lineHeight: 17 },
-  button:    { fontFamily: font.bold,     fontSize: 16 },
-  buttonSm:  { fontFamily: font.bold,     fontSize: 14 },
-  tag:       { fontFamily: font.bold,     fontSize: 12,   letterSpacing: 0.2 },
+  display:   { fontFamily: font.extra,    fontSize: 30, letterSpacing: -0.8, lineHeight: 35 },
+  title:     { fontFamily: font.extra,    fontSize: 24, letterSpacing: -0.6, lineHeight: 29 },
+  section:   { fontFamily: font.extra,    fontSize: 19, letterSpacing: -0.4, lineHeight: 24 },
+  cardTitle: { fontFamily: font.bold,     fontSize: 16, letterSpacing: -0.3, lineHeight: 21 },
+  body:      { fontFamily: font.medium,   fontSize: 15, lineHeight: 21 },
+  callout:   { fontFamily: font.semibold, fontSize: 13, lineHeight: 18 },
+  caption:   { fontFamily: font.semibold, fontSize: 12, lineHeight: 16 },
+  overline:  { fontFamily: font.extra,    fontSize: 11, letterSpacing: 1.2, lineHeight: 13, textTransform: 'uppercase' as const },
+  numeral:   { fontFamily: font.extra,    fontSize: 56, letterSpacing: -2.0, lineHeight: 60 },
+  numeralSm: { fontFamily: font.extra,    fontSize: 28, letterSpacing: -0.8, lineHeight: 32 },
+} as const;
+
+/**
+ * Press physics. Opacity alone is the cheapest possible feedback and it is what
+ * all 118 touchables in this app used — it reads flat next to anything from
+ * Apple or Google, where a press has weight. These are the numbers the Press
+ * component springs to.
+ */
+export const press = {
+  scale: 0.97,
+  opacity: 0.92,
+  /** iOS-like: quick to depress, slightly slower to release. */
+  inDuration: 90,
+  outDuration: 160,
 } as const;
 
 const makeT = () => StyleSheet.create({

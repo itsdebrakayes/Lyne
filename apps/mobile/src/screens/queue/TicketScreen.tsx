@@ -3,7 +3,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, initials } from '../../lib/theme';
+import { colors, font, shadow, t, sp, type, initials } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
@@ -11,6 +11,8 @@ import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
+import QueuePosition from '../../components/QueuePosition';
+import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -183,8 +185,8 @@ export default function TicketScreen() {
 
           {/* body */}
           <View style={{ padding: 24, paddingTop: 28, alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
-            <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
+            <Text style={{ ...type.callout, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
+            <Text style={{ ...type.numeral, fontSize: 60, lineHeight: 64, color: colors.ink, marginVertical: sp.s }}>{ticket.ticket_number}</Text>
             <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 15 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 13, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
             </View>
@@ -193,18 +195,26 @@ export default function TicketScreen() {
                 Go to the counter and show the code below before the call window closes.
               </Text>
             )}
-            {active && !called && !inService && (
-              <View style={{ flexDirection: 'row', marginTop: 24, alignSelf: 'stretch' }}>
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ahead}</Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>ahead of you</Text>
-                </View>
-                <View style={{ width: 1, backgroundColor: colors.border }} />
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>est. wait</Text>
-                </View>
-              </View>
+            {active && !inService && (
+              <>
+                {/* The line, drawn. "2 ahead" is a number you have to trust;
+                    watching a dot disappear is the answer to the only question
+                    anyone standing in a queue is actually asking. */}
+                <QueuePosition ahead={ahead} called={called} />
+                {!called && (
+                  <View style={{ flexDirection: 'row', marginTop: sp.l, alignSelf: 'stretch' }}>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ ...type.numeralSm, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ ...type.caption }}>m</Text></Text>
+                      <Text style={{ ...type.caption, color: colors.muted, marginTop: sp.xs }}>estimated wait</Text>
+                    </View>
+                    <View style={{ width: 1, backgroundColor: colors.border }} />
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ ...type.numeralSm, color: colors.ink }}>{ticket.total_waiting ?? ahead + 1}</Text>
+                      <Text style={{ ...type.caption, color: colors.muted, marginTop: sp.xs }}>in this line</Text>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -250,9 +260,12 @@ export default function TicketScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity disabled={leaving} onPress={() => { haptics.warning(); setConfirmLeave(true); }} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
-                {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
-              </TouchableOpacity>
+              <Press disabled={leaving} label="Leave this queue"
+                hint="Gives up your place in line"
+                onPress={() => { haptics.warning(); setConfirmLeave(true); }}
+                style={[t.ghostBtn, { flex: 1, minHeight: 54 }] as never}>
+                {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ ...type.cardTitle, color: colors.danger }}>Leave queue</Text>}
+              </Press>
             </>
           ) : terminal && ticket.status !== 'served' ? (
             <>

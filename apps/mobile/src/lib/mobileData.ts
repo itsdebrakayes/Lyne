@@ -42,6 +42,8 @@ export interface TicketRecord {
   verification_code: string;
   position: number;
   waiting_position?: number | null;
+  /** How many are in this line in total — returned by GET /tickets/:id. */
+  total_waiting?: number | null;
   estimated_wait_minutes: number;
   status: string;
   business_id?: string;

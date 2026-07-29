@@ -3,13 +3,14 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, personInitials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
+import { colors, font, shadow, t, sp, radius, type, initials, personInitials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { GlassView, Sheen } from '../../components/Glass';
+import { Press } from '../../components/Press';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
@@ -29,15 +30,16 @@ function timeGreeting() {
 const QUICK: Array<{
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  tint: keyof typeof categoryTints;
   to: string;
   params?: Record<string, unknown>;
+  /** True for the one action whose colour carries STATE rather than decoration. */
+  stateful?: boolean;
 }> = [
-  { label: 'Open now', icon: 'flash-outline',    tint: 'green',  to: 'Search', params: { openNow: true } },
-  { label: 'Agencies', icon: 'business-outline', tint: 'blue',   to: 'Search' },
-  { label: 'Saved',    icon: 'bookmark-outline', tint: 'pink',   to: 'Saved' },
-  { label: 'Visits',   icon: 'time-outline',     tint: 'purple', to: 'History' },
-  { label: 'Help',     icon: 'help-buoy-outline', tint: 'orange', to: 'Help' },
+  { label: 'Open now', icon: 'flash-outline',     to: 'Search', params: { openNow: true }, stateful: true },
+  { label: 'Agencies', icon: 'business-outline',  to: 'Search' },
+  { label: 'Saved',    icon: 'bookmark-outline',  to: 'Saved' },
+  { label: 'Visits',   icon: 'time-outline',      to: 'History' },
+  { label: 'Help',     icon: 'help-circle-outline', to: 'Help' },
 ];
 
 function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = colors.ink, border = true }: { label: string; size?: number; radius?: number; bg?: string; fg?: string; border?: boolean }) {
@@ -118,8 +120,8 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.sub }}>{timeGreeting()}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3, marginTop: 1 }}>{firstName}</Text>
+            <Text style={{ ...type.callout, color: colors.sub }}>{timeGreeting()}</Text>
+            <Text numberOfLines={1} style={{ ...type.section, color: colors.ink, marginTop: 1 }}>{firstName}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />
@@ -135,25 +137,6 @@ export default function HomeScreen() {
           </GlassView>
         </TouchableOpacity>
 
-        {/* quick actions — glass cards */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 }}>
-          {QUICK.map(q => {
-            const tint = categoryTints[q.tint];
-            return (
-              <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.to as never, q.params as never)} style={{ alignItems: 'center', gap: 10, width: 66 }}>
-                <GlassView radius={20} intensity={38} style={{ width: 58, height: 58, alignItems: 'center', justifyContent: 'center', ...shadow.depth }}>
-                  {/* In dark mode the pastel wash goes translucent so the tile
-                      stays dark and the colored icon carries the identity. */}
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: activeScheme === 'dark' ? 0.14 : 0.55 }} />
-                  <Sheen radius={20} strength={activeScheme === 'dark' ? 0.4 : 0.7} />
-                  <Ionicons name={q.icon} size={22} color={tint.fg} />
-                </GlassView>
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{q.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {/* join hero */}
         <TouchableOpacity
           activeOpacity={0.9}
@@ -166,11 +149,11 @@ export default function HomeScreen() {
               <Ionicons name="time-outline" size={22} color={colors.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>
+              <Text style={{ ...type.section, color: '#fff' }}>
                 {isOpen ? 'Tap to join a queue' : soon ? 'Be first in line' : 'Queues are closed'}
               </Text>
               {!closed && (
-                <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>
+                <Text style={{ ...type.callout, color: 'rgba(255,255,255,.55)', marginTop: sp.xs }}>
                   {isOpen ? 'Live waits at every branch, in one tap' : 'Doors open soon — line up before the rush'}
                 </Text>
               )}
@@ -183,8 +166,8 @@ export default function HomeScreen() {
           {isOpen ? (
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
               <View style={{ flexShrink: 0 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
-                <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
+                <Text style={{ ...type.overline, color: 'rgba(255,255,255,.5)' }}>Shortest wait nearby</Text>
+                <Text style={{ ...type.numeralSm, color: '#fff', marginTop: sp.s }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
               </View>
               {shortest && (
                 <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
@@ -195,7 +178,7 @@ export default function HomeScreen() {
             </View>
           ) : soon ? (
             <View>
-              <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.accent, textTransform: 'uppercase', letterSpacing: 0.8 }}>About to open</Text>
+              <Text style={{ ...type.overline, color: colors.accent }}>About to open</Text>
               <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.4, marginTop: 7 }}>{open.detail}</Text>
             </View>
           ) : (
@@ -206,6 +189,41 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
+        {/* Quick actions.
+
+            These were five pastel hues — blue, green, purple, orange, pink —
+            from a generic category palette, sitting above the primary action.
+            Five colours imply five categories; these are five peer shortcuts,
+            so the colour was decoration pretending to be meaning, and it was
+            the least on-brand thing on the screen.
+
+            One accent now, and it is reserved for the single tile whose colour
+            says something true: "Open now" lights up only when something
+            actually is. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: sp.xxl, marginBottom: sp.xxl }}>
+          {QUICK.map(q => {
+            const live = q.stateful && isOpen;
+            return (
+              <Press
+                key={q.label}
+                label={q.label}
+                onPress={() => navigation.navigate(q.to as never, q.params as never)}
+                style={{ alignItems: 'center', gap: sp.s, width: 62 }}
+              >
+                <View style={{
+                  width: 56, height: 56, borderRadius: radius.l,
+                  backgroundColor: live ? colors.infoSoft : colors.surface,
+                  borderWidth: 1, borderColor: live ? 'transparent' : colors.border,
+                  alignItems: 'center', justifyContent: 'center', ...shadow.card,
+                }}>
+                  <Ionicons name={q.icon} size={21} color={live ? colors.accentDeep : colors.sub} />
+                </View>
+                <Text numberOfLines={1} style={{ ...type.caption, color: colors.sub }}>{q.label}</Text>
+              </Press>
+            );
+          })}
+        </View>
+
         {/* smart timing — plan your visit */}
         <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
           <GlassView radius={24} intensity={40} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, ...shadow.card }}>
@@ -213,8 +231,8 @@ export default function HomeScreen() {
               <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 16, color: colors.ink, letterSpacing: -0.2 }}>Plan your visit</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>Best time for every service</Text>
+              <Text style={{ ...type.cardTitle, color: colors.ink }}>Plan your visit</Text>
+              <Text numberOfLines={1} style={{ ...type.callout, color: colors.muted, marginTop: sp.xs }}>Best time for every service</Text>
             </View>
             <PremiumBadge size="sm" />
             <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
@@ -235,7 +253,7 @@ export default function HomeScreen() {
           <>
             <View style={t.sectionRow}>
               <Text style={t.section}>Top agencies</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>See all</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ ...type.callout, color: colors.accentDeep }}>See all</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 2 }} style={{ marginBottom: 4 }}>
               {agencies.map(a => (
@@ -261,7 +279,7 @@ export default function HomeScreen() {
                 {isOpen && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />}
                 {soon && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />}
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>View all</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ ...type.callout, color: colors.accentDeep }}>View all</Text></TouchableOpacity>
             </View>
             <View style={{ gap: 12 }}>
               {liveNear.map(b => {
