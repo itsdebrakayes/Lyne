@@ -1,76 +1,67 @@
-# Q ME NOW — Production Analytics Pipeline
+# Q ME NOW — Live Model Worker
 
-This app contains the analytics worker for Q ME NOW. It exports live operational data from MySQL, runs the production notebook/model layer, and imports dashboard-ready insights back through the backend API.
+This app is the analytics/ML layer. A single containerized **live worker**
+(`scripts/live_worker.py`) trains and scores six models directly against the
+MySQL database and upserts dashboard-ready insights into `predictive_results` —
+no CSV export, no notebooks, no separate import step.
 
 ## Flow
 
 ```text
 MySQL operational tables
-  -> scripts/export_csv.py
-  -> notebooks/05_predictive_model.ipynb
-  -> scripts/import_predictions.py
-  -> backend API
+  -> scripts/live_worker.py   (on boot + every 2h, in its own container)
+       -> the six model scripts (--write-db)
   -> predictive_results
-  -> dashboards
+  -> dashboard + mobile APIs
 ```
 
-Dashboards should never read local notebook files or CSV files directly.
+On a fresh/thin volume the worker first runs `generate_sample_data.py` to build
+the realistic stressed/moderate history (with day-to-day momentum) so the models
+have honest signal — it is the authoritative demo-history source, not `seed.sql`.
 
-## Inputs
+Dashboards read `predictive_results` (and compute the descriptive summaries —
+branch/service/manager performance, heatmaps — live from the API).
 
-`scripts/export_csv.py` writes tenant-scoped CSVs into `data_exports/`:
+## The models (all write to `predictive_results`)
 
-- `queue_history.csv`
-- `service_performance.csv`
-- `branch_performance.csv`
-- `staff_activity.csv`
-- `queue_events.csv`
+- `wait_time_model.py` — `wait_eta_grid` (powers the live customer ETA),
+  `service_time_predictions`, `wait_time_predictions`, `abandonment_thresholds`,
+  `best_time_to_visit` (per branch — mobile Plan-Your-Visit), `model_performance`
+- `forecast_demand.py` — `demand_forecast` (GBR on autoregressive lags, backtested
+  against seasonal-naive; ships whichever wins, per series)
+- `recommend_staffing.py` — `staffing_recommendation` (Erlang-C / M/M/c)
+- `predict_no_show.py` — `no_show_risk`
+- `forecast_targets.py` — `target_attainment`
+- `detect_operational_anomalies.py` — `operational_anomalies`
 
-Run production exports with a business id:
+Each insight carries tenant metadata, model version, generated time, and source
+window. See the "Machine learning & analytics" section of the root `README.md`
+for the full model design and rationale.
+
+## Running it
+
+Containerized (demo stack) — this is how it runs live:
 
 ```bash
-python scripts/export_csv.py --business-id YOUR_BUSINESS_ID --days 90
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d model-worker
+docker logs -f qmenow_model_worker
 ```
 
-## Outputs
-
-`scripts/import_predictions.py` imports standardized insight types:
-
-- `ops_insights`
-- `staff_metrics`
-- `branch_performance`
-- `service_performance`
-- `resource_recommendations`
-- `best_time_to_visit`
-- `wait_time_predictions`
-- `abandonment_thresholds`
-- `heatmap_data`
-
-Each imported insight includes tenant metadata, model version, generated time, and source window where available.
-
-## Scheduled Worker
-
-The Docker service `analytics-worker` runs under the `analytics` compose profile:
-
-- every 30 minutes during business hours
-- a full nightly refresh
-- queued manual triggers created by authorized executives/platform admins
-
-Required environment variables are documented in `.env.example`.
-
-```bash
-docker compose --profile analytics up -d analytics-worker
-```
-
-## Manual Run
+Locally against a running DB (for development):
 
 ```bash
 cd apps/model
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python scripts/run_pipeline.py --business-id YOUR_BUSINESS_ID --days 90
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-worker.txt          # lean runtime: numpy/pandas/sklearn/pymysql
+python scripts/live_worker.py                    # or a single model, e.g.:
+python scripts/wait_time_model.py --write-db
 ```
 
-For a new empty company, the export may produce empty CSVs and the notebook may not generate insights yet. That is expected until operational queue data exists; dashboards should show empty states and stale/no-data messages instead of mock analytics.
+Environment: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`,
+`MYSQL_DATABASE`; optional `MODEL_REFRESH_SECONDS` (default 7200),
+`MODEL_HISTORY_DAYS` (150).
+
+For a brand-new empty company, the models produce little until real queue data
+accumulates; dashboards show empty/stale states rather than mock analytics.
+Notebooks under `notebooks/` (01–04, 08–12) are exploratory wrappers, not part of
+the live path.

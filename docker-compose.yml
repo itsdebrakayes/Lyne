@@ -16,7 +16,13 @@ services:
     image: mysql:8.0
     container_name: qmenow_db
     restart: unless-stopped
+    # The operational day is a LOCAL day. A container defaulting to UTC sits
+    # five hours ahead of Jamaica, so from 7pm local every CURDATE() in the
+    # backend rolls to tomorrow and today's queues, tickets and live screens
+    # come back empty. Set APP_TZ per deployment; it must match the business.
+    command: --default-time-zone=${APP_TZ:-America/Jamaica}
     environment:
+      TZ: ${APP_TZ:-America/Jamaica}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
       MYSQL_USER:          ${MYSQL_USER:-qmenow}
@@ -36,6 +42,18 @@ services:
       - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
       - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
       - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
+      - ./database/migrations/009_business_targets.sql:/docker-entrypoint-initdb.d/10_009_business_targets.sql:ro
+      - ./database/migrations/010_user_premium.sql:/docker-entrypoint-initdb.d/11_010_user_premium.sql:ro
+      - ./database/migrations/011_branch_hours.sql:/docker-entrypoint-initdb.d/12_011_branch_hours.sql:ro
+      - ./database/migrations/012_payments.sql:/docker-entrypoint-initdb.d/13_012_payments.sql:ro
+      - ./database/migrations/013_public_holidays.sql:/docker-entrypoint-initdb.d/14_013_public_holidays.sql:ro
+      - ./database/migrations/014_ml_data_collection.sql:/docker-entrypoint-initdb.d/15_014_ml_data_collection.sql:ro
+      - ./database/migrations/015_wtr_channel.sql:/docker-entrypoint-initdb.d/16_015_wtr_channel.sql:ro
+      - ./database/migrations/016_supervisor_role.sql:/docker-entrypoint-initdb.d/17_016_supervisor_role.sql:ro
+      - ./database/migrations/017_kiosk_role.sql:/docker-entrypoint-initdb.d/18_017_kiosk_role.sql:ro
+      - ./database/migrations/018_branch_targets.sql:/docker-entrypoint-initdb.d/19_018_branch_targets.sql:ro
+      - ./database/migrations/019_verification_code_per_queue.sql:/docker-entrypoint-initdb.d/20_019_verification_code_per_queue.sql:ro
+      - ./database/migrations/020_subscription_tiers_reference.sql:/docker-entrypoint-initdb.d/21_020_subscription_tiers_reference.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -56,6 +74,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      TZ:                   ${APP_TZ:-America/Jamaica}
       NODE_ENV:             production
       PORT:                 4000
       MYSQL_HOST:           db

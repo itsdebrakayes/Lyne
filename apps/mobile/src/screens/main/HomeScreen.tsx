@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,6 +41,7 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
 }
 
 export default function HomeScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +93,7 @@ export default function HomeScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={[t.content, { paddingTop: topPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
@@ -195,7 +197,7 @@ export default function HomeScreen() {
         {/* smart timing — plan your visit */}
         <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
           <GlassView radius={24} intensity={40} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, ...shadow.card }}>
-            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -269,7 +271,7 @@ export default function HomeScreen() {
                     {bOpen ? (
                       <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
                     ) : (
-                      <View style={{ backgroundColor: bSoon ? '#eef8fb' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
+                      <View style={{ backgroundColor: bSoon ? colors.infoSoft : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
                         <Text style={{ fontFamily: font.bold, fontSize: 12, color: bSoon ? colors.accentDeep : colors.muted }}>Opens {openTimeLabel(bHours)}</Text>
                       </View>
                     )}

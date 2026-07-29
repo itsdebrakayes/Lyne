@@ -57,7 +57,7 @@ export default function PaymentMethodsScreen() {
         </Text>
 
         {!paymentsConfigured() && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fdf3e7', borderRadius: 16, padding: 14, marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.warnSoft, borderRadius: 16, padding: 14, marginTop: 14 }}>
             <Ionicons name="time-outline" size={18} color={colors.moderate} />
             <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: colors.sub, lineHeight: 18 }}>Card payments are launching soon. You can add a card once we go live.</Text>
           </View>

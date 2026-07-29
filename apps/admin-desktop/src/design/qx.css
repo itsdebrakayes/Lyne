@@ -1,0 +1,961 @@
+/* ============================================================
+   QMe Now — Admin design system "QX"
+   Liquid-glass surfaces floating on an ambient wash.
+
+   Scoped under .qx so it cannot collide with the older .qa-app
+   system while both exist.
+
+   ── TWO-COLOUR RULE ──────────────────────────────────────────
+   The system is a deep blue plus neutrals. Nothing else is
+   decorative. Where a second series is needed (period A vs B) it
+   is a LIGHTER TINT OF THE SAME BLUE, not a new hue, so the page
+   stays uniform.
+
+   The single exception is red, reserved strictly for a problem.
+   Without it "Over Capacity" and "Running Well" look identical at
+   a glance, which costs an operator real time — so red earns its
+   place as a signal, never as decoration. Green, amber, cyan and
+   violet are gone. (Kelly green and orange were additionally
+   avoided as brand tones: they read as Jamaican party colours.)
+   ============================================================ */
+
+.qx {
+  /* canvas */
+  --c-canvas: #EFF2F7;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #F4F6FA;
+  --c-surface-3: #E6EBF3;
+
+  /* ink — the rail, the same blue family pushed almost to black */
+  --c-ink: #0E1B2E;
+  --c-ink-text: #E9EEF6;
+  --c-ink-dim: #8B9AB2;
+  --c-ink-line: rgba(255, 255, 255, .09);
+
+  /* text */
+  --c-text: #12203A;
+  --c-dim: #5B6A83;
+  --c-faint: #8B99AF;
+  --c-line: #E2E7F0;
+  --c-line-2: #CCD5E3;
+
+  /* the one brand colour */
+  --c-primary: #1B4B8F;        /* deep blue: lines, fills, emphasis */
+  --c-primary-bright: #2E6FC7; /* lifted blue: glows, gradients, hover */
+  --c-primary-ink: #FFFFFF;
+  --c-primary-soft: #E6EDF8;
+  --c-second: #86A9DB;         /* period B — a TINT of the same blue */
+  --c-second-soft: #EDF2FA;
+
+  /* "good" is simply the brand blue — a positive state is on-brand */
+  --c-good: #1B4B8F;
+  --c-good-soft: #E6EDF8;
+  /* the one exception: a problem, at two intensities */
+  --c-warn: #B4553F;
+  --c-warn-soft: #F8ECE8;
+  --c-bad: #A62B25;
+  --c-bad-soft: #F9E7E6;
+
+  /* liquid glass */
+  --glass: rgba(255, 255, 255, .62);
+  --glass-strong: rgba(255, 255, 255, .80);
+  --glass-line: rgba(18, 32, 58, .10);
+  --glass-hi: rgba(255, 255, 255, .75);
+  --blur: blur(22px) saturate(180%);
+  --sh-glass:
+    inset 0 1px 0 0 var(--glass-hi),
+    0 12px 36px -18px rgba(16, 32, 58, .28),
+    0 2px 6px -2px rgba(16, 32, 58, .10);
+  --sh-lift: 0 22px 54px -22px rgba(12, 24, 44, .34);
+
+  --r: 18px;
+  --r-sm: 12px;
+
+  position: relative;
+  background: var(--c-canvas);
+  color: var(--c-text);
+  font-family: "Plus Jakarta Sans", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ambient aurora — soft colour washes the glass sits on. Without something
+   behind them, translucent panels have nothing to refract and just look grey. */
+.qx::before {
+  content: ''; position: fixed; inset: -20% -10%; z-index: 0; pointer-events: none;
+  /* All three washes are the SAME blue at different strengths — depth without
+     introducing a second hue. */
+  background:
+    radial-gradient(58% 44% at 10% 6%, color-mix(in oklab, var(--c-primary-bright) 26%, transparent), transparent 62%),
+    radial-gradient(52% 40% at 92% 14%, color-mix(in oklab, var(--c-primary) 16%, transparent), transparent 62%),
+    radial-gradient(56% 46% at 76% 94%, color-mix(in oklab, var(--c-second) 22%, transparent), transparent 62%);
+}
+.qx > * { position: relative; z-index: 1; }
+
+.qx[data-theme="dark"] {
+  --c-canvas: #070C15; --c-surface: #0F1626; --c-surface-2: #141D30; --c-surface-3: #1C2740;
+  --c-ink: #080D18; --c-ink-text: #E9EEF6; --c-ink-dim: #7D8CA6; --c-ink-line: rgba(255,255,255,.07);
+  --c-text: #E8EEF8; --c-dim: #9DABC2; --c-faint: #6B7B95; --c-line: #1C2740; --c-line-2: #293755;
+  /* the same single blue, lifted for contrast on a dark canvas */
+  --c-primary: #5A93E8; --c-primary-bright: #7DAEF2; --c-primary-ink: #06101F; --c-primary-soft: rgba(90,147,232,.16);
+  --c-second: #3C5F96; --c-second-soft: rgba(60,95,150,.20);
+  --c-good: #5A93E8; --c-good-soft: rgba(90,147,232,.16);
+  --c-warn: #D98A72; --c-warn-soft: rgba(217,138,114,.15);
+  --c-bad: #E4726B; --c-bad-soft: rgba(228,114,107,.15);
+  --glass: rgba(20, 29, 48, .58); --glass-strong: rgba(20, 29, 48, .78);
+  --glass-line: rgba(255, 255, 255, .09); --glass-hi: rgba(255, 255, 255, .06);
+  --sh-glass: inset 0 1px 0 0 var(--glass-hi), 0 16px 40px -20px rgba(0,0,0,.7);
+  --sh-lift: 0 26px 60px -24px rgba(0,0,0,.8);
+}
+
+.qx * { box-sizing: border-box; }
+.qx h1, .qx h2, .qx h3 { margin: 0; letter-spacing: -.02em; font-weight: 700; }
+.qx button { font: inherit; cursor: pointer; }
+.qx :focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; border-radius: 6px; }
+
+/* the signature surface */
+.qx-glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--sh-glass);
+}
+
+/* ─────────────────────────── shell ─────────────────────────── */
+.qx-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
+
+.qx-rail {
+  background: color-mix(in oklab, var(--c-ink) 88%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border-right: 1px solid var(--c-ink-line);
+  color: var(--c-ink-text);
+  display: flex; flex-direction: column; padding: 15px 12px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.qx-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; }
+.qx-brand i {
+  width: 33px; height: 33px; border-radius: 11px; font-style: normal; font-weight: 800;
+  display: grid; place-items: center; color: #FFFFFF;
+  background: linear-gradient(150deg, var(--c-primary-bright), var(--c-primary));
+  box-shadow: 0 7px 18px -6px rgba(27, 75, 143, .55);
+}
+.qx-brand b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
+.qx-brand small { display: block; color: var(--c-ink-dim); font-size: 10.5px; font-weight: 600; }
+.qx-navlabel { color: var(--c-ink-dim); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; padding: 15px 8px 6px; }
+.qx-nav { display: flex; flex-direction: column; gap: 2px; }
+.qx-nav button {
+  position: relative; display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: 11px; background: transparent;
+  color: var(--c-ink-dim); font-size: 13px; font-weight: 600; text-align: left; transition: .13s;
+}
+.qx-nav button svg { width: 17px; height: 17px; flex: none; }
+.qx-nav button:hover { background: rgba(255, 255, 255, .07); color: var(--c-ink-text); }
+.qx-nav button.on { background: rgba(255, 255, 255, .11); color: #fff; font-weight: 700; }
+.qx-nav button.on svg { color: var(--c-primary-bright); }
+.qx-nav button.on::before {
+  content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--c-primary-bright);
+  box-shadow: 0 0 12px 0 var(--c-primary-bright);
+}
+.qx-nav .badge { margin-left: auto; background: var(--c-bad); color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1px 6px; }
+.qx-railspacer { flex: 1; min-height: 12px; }
+
+.qx-railcard {
+  border-radius: 15px; padding: 13px; color: #FFFFFF; position: relative; overflow: hidden;
+  background: linear-gradient(152deg, var(--c-primary-bright), var(--c-primary));
+  box-shadow: 0 14px 30px -16px rgba(27, 75, 143, .55);
+}
+.qx-railcard small { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; opacity: .72; }
+.qx-railcard b { display: block; font-size: 14px; font-weight: 800; margin-top: 3px; line-height: 1.3; }
+.qx-railcard p { margin: 5px 0 10px; font-size: 11.5px; line-height: 1.45; opacity: .82; }
+.qx-railcard button { width: 100%; border: 0; border-radius: 10px; background: #FFFFFF; color: var(--c-primary); font-size: 12px; font-weight: 800; padding: 8px 10px; }
+.qx-railfoot { display: flex; align-items: center; gap: 9px; padding: 11px 8px 2px; margin-top: 9px; border-top: 1px solid var(--c-ink-line); }
+.qx-railfoot .qx-av { width: 30px; height: 30px; }
+.qx-railfoot b { font-size: 12px; display: block; }
+.qx-railfoot small { color: var(--c-ink-dim); font-size: 10.5px; display: block; }
+
+.qx-main { display: flex; flex-direction: column; min-width: 0; }
+
+/* ── top bar (glass) ── */
+.qx-top {
+  display: flex; align-items: center; gap: 12px; padding: 11px 22px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--glass-line);
+  position: sticky; top: 0; z-index: 30;
+}
+.qx-search {
+  display: flex; align-items: center; gap: 9px; flex: 1 1 auto; max-width: 400px;
+  background: var(--glass); border: 1px solid var(--glass-line);
+  border-radius: 12px; padding: 8px 12px; color: var(--c-faint);
+}
+.qx-search:focus-within { border-color: var(--c-primary); background: var(--c-surface); }
+.qx-search svg { flex: none; width: 15px; height: 15px; }
+.qx-search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 12.5px; color: var(--c-text); }
+.qx-search kbd { flex: none; font-family: inherit; font-size: 10px; font-weight: 700; color: var(--c-faint); border: 1px solid var(--c-line-2); border-radius: 5px; padding: 1px 5px; background: var(--c-surface); }
+.qx-topctx { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--c-dim); white-space: nowrap; }
+.qx-topctx svg { color: var(--c-primary); }
+.qx-topctx b { color: var(--c-text); font-weight: 700; }
+@media (max-width: 1080px) { .qx-topctx { display: none; } }
+.qx-topright { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.qx-icon {
+  position: relative; width: 35px; height: 35px; border-radius: 11px; display: grid; place-items: center;
+  border: 1px solid var(--glass-line); background: var(--glass); color: var(--c-dim);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+.qx-icon:hover { color: var(--c-text); background: var(--glass-strong); }
+.qx-icon svg { width: 16px; height: 16px; }
+.qx-icon .dot { position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--c-bad); color: #fff; font-size: 9.5px; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--c-surface); }
+.qx-acct { display: flex; align-items: center; gap: 8px; padding: 3px 9px 3px 3px; border: 1px solid var(--glass-line); border-radius: 12px; background: var(--glass); color: var(--c-text); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.qx-acct:hover { background: var(--glass-strong); }
+.qx-acct .qx-av { width: 29px; height: 29px; font-size: 11px; }
+.qx-acct .m { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.qx-acct .m b { font-size: 12px; font-weight: 700; }
+.qx-acct .m small { color: var(--c-faint); font-size: 10px; }
+.qx-acct svg { color: var(--c-faint); }
+@media (max-width: 900px) { .qx-acct .m { display: none; } }
+
+.qx-av {
+  border-radius: 11px; display: grid; place-items: center; flex: none; color: #fff; font-weight: 700;
+  background: linear-gradient(150deg, hsl(214 46% calc(38% + (var(--h, 214) / 360) * 16%)), hsl(214 52% calc(24% + (var(--h, 214) / 360) * 12%)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+/* ── page head ── */
+.qx-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px 22px 14px; }
+.qx-headL { min-width: 0; flex: 1 1 380px; }
+.qx-headtop { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.qx-head h1 { font-size: 24px; line-height: 1.2; }
+.qx-head p { margin: 5px 0 0; color: var(--c-dim); font-size: 12.5px; }
+.qx-headR { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; }
+
+/* live pill — deliberately prominent, it is the "this is real" signal */
+.qx-live {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 999px;
+  background: var(--c-good-soft); color: var(--c-good); font-size: 12.5px; font-weight: 800;
+  white-space: nowrap; border: 1px solid color-mix(in oklab, var(--c-good) 24%, transparent);
+}
+.qx-live i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: qx-pulse 2s ease-out infinite; }
+@keyframes qx-pulse { 0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; } 70% { box-shadow: 0 0 0 7px transparent; opacity: .75; } 100% { box-shadow: 0 0 0 0 transparent; opacity: 1; } }
+
+.qx-pills { display: inline-flex; gap: 2px; padding: 3px; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 13px; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--sh-glass); }
+.qx-pills button { border: 0; background: transparent; color: var(--c-dim); font-size: 11.5px; font-weight: 700; padding: 6px 12px; border-radius: 10px; white-space: nowrap; }
+.qx-pills button:hover { color: var(--c-text); }
+.qx-pills button.on { background: var(--c-primary); color: var(--c-primary-ink); box-shadow: 0 5px 14px -6px var(--c-primary); }
+.qx-datechip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--glass-line); border-radius: 12px; background: var(--glass); color: var(--c-dim); font-size: 11.5px; font-weight: 700; white-space: nowrap; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.qx-datechip svg { color: var(--c-primary); }
+.qx-btn { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 12px; background: var(--c-text); color: var(--c-surface); font-size: 11.5px; font-weight: 700; padding: 8px 14px; white-space: nowrap; }
+.qx-btn:hover { filter: brightness(1.2); }
+/* Without this a disabled action is indistinguishable from a live one — the
+   Save button on Targets looked clickable with nothing to save. */
+.qx-btn:disabled { opacity: .38; cursor: default; filter: none; }
+.qx-btn:disabled:hover { filter: none; }
+.qx-btn.ghost { background: var(--glass); color: var(--c-text); border: 1px solid var(--glass-line); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.qx-btn.ghost:hover { background: var(--glass-strong); filter: none; }
+.qx-btn svg { width: 14px; height: 14px; }
+
+/* ── grid ── */
+.qx-body { padding: 0 22px 30px; }
+.qx-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; align-items: stretch; }
+.qx-grid > * { min-width: 0; }
+.s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s5 { grid-column: span 5; }
+.s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; } .s12 { grid-column: span 12; }
+@media (max-width: 1240px) { .s3, .s4 { grid-column: span 6; } }
+@media (max-width: 980px) { .qx-grid > * { grid-column: span 12 !important; } }
+/* a column that stacks cards, so a short panel never leaves a hole */
+.qx-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.qx-stack > * { flex: 0 0 auto; }
+
+/* ── card ── */
+.qx-card {
+  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line); border-radius: var(--r); padding: 17px;
+  box-shadow: var(--sh-glass); display: flex; flex-direction: column; min-width: 0;
+}
+.qx-chead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex: none; }
+.qx-chead h3 { font-size: 14.5px; }
+.qx-chead .cap { color: var(--c-faint); font-size: 11.5px; margin-top: 2px; font-weight: 500; }
+.qx-tools { display: flex; align-items: center; gap: 7px; flex: none; flex-wrap: wrap; }
+.qx-count { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--c-primary-soft); color: var(--c-primary); font-size: 11px; font-weight: 800; vertical-align: middle; }
+
+/* ── stat tile ── */
+.qx-stat {
+  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-line); border-radius: var(--r); box-shadow: var(--sh-glass);
+  padding: 16px 16px 0; display: flex; flex-direction: column; overflow: hidden; min-height: 158px;
+}
+.qx-stat .top { display: flex; align-items: center; gap: 10px; }
+.qx-stat .ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: none; }
+.qx-stat .ic svg { width: 17px; height: 17px; }
+.qx-stat .lbl { color: var(--c-dim); font-size: 11px; font-weight: 700; letter-spacing: -.005em; line-height: 1.3; }
+.qx-stat .val { font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin-top: 12px; }
+.qx-stat .val u { text-decoration: none; font-size: 13px; font-weight: 700; color: var(--c-dim); letter-spacing: 0; }
+.qx-stat .foot { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11.5px; color: var(--c-dim); font-weight: 500; }
+.qx-stat .spark { margin: auto -17px -1px; line-height: 0; }
+.ic.t-primary { background: var(--c-primary-soft); color: var(--c-primary); }
+.ic.t-good { background: var(--c-good-soft); color: var(--c-good); }
+.ic.t-bad { background: var(--c-bad-soft); color: var(--c-bad); }
+.ic.t-warn { background: var(--c-warn-soft); color: var(--c-warn); }
+.ic.t-second { background: var(--c-second-soft); color: var(--c-second); }
+
+.qx-chip { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 800; white-space: nowrap; flex: none; }
+.qx-chip svg { width: 12px; height: 12px; }
+.qx-chip.good { background: var(--c-good-soft); color: var(--c-good); }
+.qx-chip.bad { background: var(--c-bad-soft); color: var(--c-bad); }
+.qx-chip.warn { background: var(--c-warn-soft); color: var(--c-warn); }
+.qx-chip.flat { background: var(--c-surface-3); color: var(--c-dim); }
+
+/* ── funnel ── */
+.qx-funnel { display: flex; flex-direction: column; gap: 13px; }
+.qx-fstep .r { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.qx-fstep .r b { font-size: 12.5px; font-weight: 700; }
+.qx-fstep .r span { font-size: 13.5px; font-weight: 800; }
+.qx-fstep .sub { color: var(--c-faint); font-size: 11px; font-weight: 600; margin-top: 1px; }
+.qx-bar { height: 8px; border-radius: 999px; background: var(--c-surface-3); overflow: hidden; margin-top: 7px; }
+.qx-bar i { display: block; height: 100%; border-radius: 999px; }
+
+/* ── channel split (two real channels; a donut is wrong for n=2) ── */
+.qx-split { display: flex; flex-direction: column; gap: 14px; }
+.qx-splitbar { display: flex; height: 40px; border-radius: 12px; overflow: hidden; gap: 3px; }
+.qx-splitbar i { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800; }
+.qx-splitrows { display: flex; flex-direction: column; gap: 10px; }
+.qx-splitrow { display: flex; align-items: center; gap: 10px; }
+.qx-splitrow .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.qx-splitrow b { font-size: 12.5px; font-weight: 700; }
+.qx-splitrow small { color: var(--c-faint); font-size: 11px; font-weight: 600; display: block; }
+.qx-splitrow .n { margin-left: auto; text-align: right; }
+.qx-splitrow .n b { font-size: 14px; font-weight: 800; }
+.qx-splitrow .n small { font-size: 10.5px; }
+
+/* ── table ── */
+.qx-thead, .qx-trow { display: grid; gap: 10px; align-items: center; }
+.qx-thead { padding: 0 4px 9px; border-bottom: 1px solid var(--c-line); }
+.qx-thead span { color: var(--c-faint); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.qx-trow { padding: 11px 4px; border-bottom: 1px solid var(--c-line); border-radius: 9px; }
+.qx-trow:last-child { border-bottom: 0; }
+.qx-trow:hover { background: var(--c-surface-2); }
+.qx-cellmain { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.qx-cellmain .qx-av { width: 32px; height: 32px; font-size: 9.5px; letter-spacing: .02em; border-radius: 10px; }
+.qx-cellmain b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qx-cellmain small { display: block; color: var(--c-faint); font-size: 11px; }
+.qx-num { font-size: 13.5px; font-weight: 700; }
+.qx-num u { text-decoration: none; font-size: 11px; color: var(--c-faint); font-weight: 700; }
+.qx-end { display: flex; justify-content: flex-end; }
+.qx-empty { padding: 28px 8px; text-align: center; color: var(--c-dim); font-size: 12.5px; font-weight: 600; }
+
+.qx-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.qx-status i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.qx-status.open { color: var(--c-good); } .qx-status.open i { background: var(--c-good); }
+.qx-status.busy { color: var(--c-bad); } .qx-status.busy i { background: var(--c-bad); }
+.qx-status.soon { color: var(--c-warn); } .qx-status.soon i { background: var(--c-warn); }
+.qx-status.closed { color: var(--c-faint); } .qx-status.closed i { background: var(--c-faint); }
+
+.qx-isearch { display: flex; align-items: center; gap: 7px; background: var(--c-surface-2); border: 1px solid var(--c-line); border-radius: 10px; padding: 6px 10px; width: min(230px, 40vw); color: var(--c-faint); }
+.qx-isearch:focus-within { border-color: var(--c-primary); background: var(--c-surface); }
+.qx-isearch svg { flex: none; width: 14px; height: 14px; }
+.qx-isearch input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 12px; color: var(--c-text); }
+.qx-isearch button { border: 0; background: transparent; color: var(--c-faint); font-size: 16px; line-height: 1; padding: 0 1px; }
+
+/* ── legend toggles: two NAMED series, each in its own colour ── */
+.qx-legtog { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--glass-line); background: var(--glass); color: var(--c-text); border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 700; }
+.qx-legtog[aria-pressed="false"] { opacity: .42; }
+.qx-legtog i { width: 14px; height: 4px; border-radius: 2px; flex: none; }
+.qx-legtog i.a { background: var(--c-primary); }
+.qx-legtog i.b { background: var(--c-second); }
+
+.qx-select { position: relative; display: inline-flex; align-items: center; }
+.qx-select select { appearance: none; border: 1px solid var(--glass-line); background: var(--glass); color: var(--c-text); font-size: 11.5px; font-weight: 700; border-radius: 10px; padding: 6px 26px 6px 10px; outline: none; }
+.qx-select svg { position: absolute; right: 8px; pointer-events: none; color: var(--c-faint); width: 13px; height: 13px; }
+
+/* ── focus panel ── */
+/* No auto-push on the button: the panel sizes to its content and stacks with a
+   sibling instead, which is what stopped it stranding a hole at the bottom. */
+.qx-focus {
+  position: relative; overflow: hidden; border-radius: var(--r); padding: 18px; color: #E9EEF6;
+  display: flex; flex-direction: column; gap: 11px;
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
+  box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
+}
+.qx-focus.t-bad { background: linear-gradient(152deg, #5A1C18 0%, #2A0C0A 70%); }
+.qx-focus.t-warn { background: linear-gradient(152deg, #4A2A1E 0%, #241310 70%); }
+.qx-focus::after { content: ''; position: absolute; inset: -45% -25% auto auto; width: 68%; height: 150%; background: radial-gradient(circle at 72% 28%, color-mix(in oklab, var(--c-primary-bright) 42%, transparent), transparent 62%); pointer-events: none; }
+.qx-focus > * { position: relative; }
+.qx-focus .eb { font-size: 9.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--c-primary-bright); }
+.qx-focus h3 { font-size: 16.5px; line-height: 1.32; }
+.qx-focus p { margin: 0; font-size: 12.5px; line-height: 1.5; opacity: .82; }
+.qx-focusstats { display: flex; gap: 8px; flex-wrap: wrap; }
+.qx-focusstat { flex: 1 1 0; min-width: 92px; border-radius: 13px; padding: 10px 12px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); }
+.qx-focusstat b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.qx-focusstat small { display: block; font-size: 10px; font-weight: 700; opacity: .72; margin-top: 1px; }
+.qx-focusstat.good b { color: #BBD4F5; }
+.qx-focusstat.bad b { color: #FDA4AF; }
+.qx-focus .qx-btn { align-self: flex-start; background: #FFFFFF; color: var(--c-primary); }
+
+/* ── heatmap: ported from the reference — the VALUE sits in the cell ── */
+.qx-heatscroll { width: 100%; overflow-x: auto; }
+.qx-heattable { border-collapse: separate; border-spacing: 4px; font-size: 11px; }
+.qx-heattable th { color: var(--c-faint); font-size: 10px; font-weight: 800; letter-spacing: .06em; padding: 0 2px 2px; }
+.qx-heattable td.rl { color: var(--c-dim); font-size: 11.5px; font-weight: 600; text-align: right; white-space: nowrap; padding-right: 6px; }
+.qx-hcell {
+  width: 46px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  border: 1px solid var(--glass-line); font-size: 10.5px; font-weight: 700; color: var(--c-text);
+}
+.qx-heatleg { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--c-faint); font-size: 11px; font-weight: 700; }
+.qx-heatleg span { display: flex; gap: 3px; }
+.qx-heatleg i { width: 17px; height: 10px; border-radius: 3px; border: 1px solid var(--glass-line); }
+
+/* ── note ── */
+.qx-note { display: flex; gap: 11px; align-items: flex-start; border-radius: 14px; padding: 12px; background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.qx-note.t-warn { background: var(--c-warn-soft); border-color: color-mix(in oklab, var(--c-warn) 26%, transparent); }
+.qx-note.t-bad { background: var(--c-bad-soft); border-color: color-mix(in oklab, var(--c-bad) 24%, transparent); }
+.qx-note .ni { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--c-surface); color: var(--c-dim); }
+.qx-note.t-warn .ni { color: var(--c-warn); } .qx-note.t-bad .ni { color: var(--c-bad); }
+.qx-note b { display: block; font-size: 12.5px; font-weight: 700; }
+.qx-note p { margin: 2px 0 0; font-size: 11.5px; color: var(--c-dim); line-height: 1.45; }
+
+/* ── gauge ring (the one already in the system) ── */
+.qx-gauge { flex: none; display: block; }
+/* the donut keeps using this wrapper for its centre stat */
+.qx-ring { position: relative; display: grid; place-items: center; }
+.qx-ring .v { position: absolute; text-align: center; }
+.qx-ring .v b { display: block; font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.qx-ring .v small { display: block; color: var(--c-faint); font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; }
+
+/* A chart wrapper that fills whatever height the card row settles at, so the
+   graph grows into the space instead of stranding a hole beneath it. */
+.qx-chartfill { flex: 1 1 auto; display: flex; min-height: 0; }
+.qx-chartfill > .qx-chartbox { flex: 1; }
+/* The chart measures this box and draws at its real pixel size, so nothing is
+   stretched and the axis text stays crisp. */
+.qx-chartbox { flex: 1 1 auto; min-width: 0; }
+
+/* table footer — totals pinned to the base of the card */
+.qx-tfoot { display: grid; gap: 10px; align-items: center; margin-top: auto; padding: 13px 4px 2px;
+  border-top: 1.5px solid var(--c-line-2); }
+.qx-tfoot > span:first-child { color: var(--c-dim); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.qx-tfoot b { font-size: 14px; font-weight: 800; color: var(--c-text); }
+.qx-tfoot b u { text-decoration: none; font-size: 10.5px; color: var(--c-faint); font-weight: 700; }
+.qx-tfootnote { color: var(--c-warn); font-size: 11.5px; font-weight: 700; }
+
+/* ═══════════ Supervisor desk board ═══════════ */
+.qs-board { display: flex; flex-direction: column; gap: 18px; }
+.qs-lanehead { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--c-dim); margin-bottom: 9px; }
+/* narrow enough that a 4-desk service fits one row instead of wrapping a
+   single card onto its own line and stranding the space beside it */
+.qs-desks { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.qs-desk {
+  min-height: 88px; border-radius: 15px; padding: 11px 12px; cursor: default;
+  border: 1.5px dashed var(--c-line-2); background: var(--c-surface-2);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.qs-desk.filled { border-style: solid; border-color: var(--glass-line); background: var(--glass); }
+/* while someone is picked, every desk advertises itself as a drop target */
+.qs-desk.target { border-color: var(--c-primary); background: var(--c-primary-soft); cursor: pointer; }
+.qs-desklabel { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-dim); }
+.qs-empty { flex: 1; display: grid; place-items: center; color: var(--c-faint); font-size: 12.5px; font-weight: 700; }
+.qs-desk.target .qs-empty { color: var(--c-primary); }
+.qs-person {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  border: 1px solid var(--glass-line); background: var(--c-surface); border-radius: 12px; padding: 8px 9px;
+}
+.qs-person.on { cursor: grab; }
+.qs-person .qx-av { width: 30px; height: 30px; font-size: 11px; }
+.qs-person b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-person small { display: block; color: var(--c-faint); font-size: 10.5px; }
+.qs-remove { margin-left: auto; border: 0; background: transparent; color: var(--c-faint); font-size: 17px; line-height: 1; padding: 0 3px; }
+.qs-remove:hover { color: var(--c-bad); }
+.qs-pool { display: flex; flex-direction: column; gap: 8px; }
+.qs-person.pick { cursor: pointer; }
+.qs-person.pick:hover { border-color: var(--c-primary); }
+.qs-person.pick.on { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+
+/* ═══════════ Line staff — the window ═══════════ */
+.ql-now {
+  border-radius: var(--r); padding: 24px; color: #E9EEF6; position: relative; overflow: hidden;
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 70%);
+  box-shadow: var(--sh-lift); border: 1px solid rgba(255,255,255,.07);
+  display: flex; flex-direction: column;
+}
+.ql-now::after { content: ''; position: absolute; inset: -45% -25% auto auto; width: 66%; height: 150%;
+  background: radial-gradient(circle at 72% 28%, color-mix(in oklab, var(--c-primary-bright) 40%, transparent), transparent 62%); pointer-events: none; }
+.ql-now > * { position: relative; }
+.ql-nowtop { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ql-badge { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.ql-timer { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; opacity: .8; }
+.ql-nowno { font-size: clamp(46px, 6vw, 70px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin-top: 18px; }
+.ql-nowname { font-size: 22px; font-weight: 600; opacity: .88; margin-top: 6px; }
+.ql-nowsvc { font-size: 13.5px; font-weight: 600; opacity: .6; margin-top: 3px; }
+.ql-actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.ql-act {
+  flex: 1 1 0; min-width: 130px; min-height: 54px; border-radius: 14px; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.10); color: #fff; font-size: 14.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+}
+.ql-act:hover { background: rgba(255,255,255,.16); }
+.ql-act.done { background: #fff; color: #12203A; border-color: #fff; }
+.ql-act.warn { background: rgba(220,74,80,.22); border-color: rgba(220,74,80,.45); color: #FFD9D9; }
+.ql-next { display: flex; align-items: center; gap: 10px; padding: 11px; border-radius: 13px; background: var(--c-surface-2); border: 1px solid var(--c-line); margin-bottom: 10px; }
+.ql-next .qx-av { width: 34px; height: 34px; }
+.ql-next b { display: block; font-size: 14px; font-weight: 800; }
+.ql-next small { display: block; color: var(--c-dim); font-size: 11.5px; }
+/* ticket number carries its state as colour, so the line is scannable */
+.ql-tno { display: inline-block; padding: 5px 11px; border-radius: 9px; font-size: 13px; font-weight: 800; letter-spacing: .01em; }
+.ql-tno.waiting { background: var(--c-primary-soft); color: var(--c-primary); }
+.ql-tno.called { background: var(--c-warn-soft); color: var(--c-warn); }
+.ql-tno.noresponse { background: var(--c-bad-soft); color: var(--c-bad); }
+
+/* ═══════════ manager score cards ═══════════ */
+.qm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.qm-card { display: flex; align-items: center; gap: 13px; padding: 13px; border-radius: 15px;
+  border: 1px solid var(--glass-line); background: var(--c-surface-2); min-width: 0; }
+.qm-card b { display: block; font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qm-card small { display: block; color: var(--c-faint); font-size: 11.5px; margin-top: 1px; }
+.qm-stats { display: flex; gap: 12px; margin-top: 8px; }
+.qm-stats span { display: flex; flex-direction: column; }
+.qm-stats i { font-style: normal; color: var(--c-faint); font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.qm-stats b { font-size: 13px; font-weight: 800; }
+.qm-stats b.bad { color: var(--c-bad); }
+
+/* ═══════════ targets form ═══════════ */
+.qt-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--c-line); }
+.qt-row:last-of-type { border-bottom: 0; }
+.qt-lab { font-size: 13px; font-weight: 700; min-width: 0; }
+.qt-lab small { display: block; color: var(--c-faint); font-size: 11.5px; font-weight: 500; margin-top: 2px; }
+.qt-in { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.qt-in input { width: 92px; border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface);
+  color: var(--c-text); font: inherit; font-size: 15px; font-weight: 700; padding: 9px 11px; outline: none; text-align: right; }
+.qt-in input:focus { border-color: var(--c-primary); }
+.qt-in i { font-style: normal; color: var(--c-dim); font-size: 12px; font-weight: 700; width: 46px; }
+.qt-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.qt-ok { color: var(--c-good); font-size: 12px; font-weight: 700; }
+.qt-bad { color: var(--c-bad); font-size: 12px; font-weight: 700; }
+.qt-field { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--c-line); }
+.qt-field:last-child { border-bottom: 0; }
+.qt-field span { color: var(--c-dim); font-size: 12.5px; font-weight: 600; }
+.qt-field b { font-size: 13.5px; font-weight: 700; text-align: right; }
+
+/* ═══════════ help accordions ═══════════ */
+.qh-item { border-bottom: 1px solid var(--c-line); }
+.qh-item:last-child { border-bottom: 0; }
+.qh-item button { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%;
+  border: 0; background: transparent; text-align: left; padding: 14px 2px; font-size: 13.5px; font-weight: 700; color: var(--c-text); }
+.qh-item i { font-style: normal; color: var(--c-primary); font-size: 19px; line-height: 1; flex: none; }
+.qh-item p { margin: 0 2px 14px; color: var(--c-dim); font-size: 13px; line-height: 1.6; max-width: 72ch; }
+.qh-contact { display: block; padding: 13px; border-radius: 13px; border: 1px solid var(--c-line);
+  background: var(--c-surface-2); text-decoration: none; }
+.qh-contact:hover { border-color: var(--c-primary); }
+.qh-contact b { display: block; font-size: 13.5px; font-weight: 700; color: var(--c-primary); }
+.qh-contact small { display: block; color: var(--c-dim); font-size: 11.5px; margin-top: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB SCREENS
+   Components the inner tabs need. Same two-colour rule as the rest
+   of the system: one deep blue plus neutrals, red only for a problem.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── segmented control — switches the VIEW inside a card ── */
+.qx-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 11px; background: var(--c-surface-3); }
+.qx-seg button {
+  border: 0; background: transparent; color: var(--c-dim); border-radius: 9px;
+  padding: 6px 12px; font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+.qx-seg button[aria-pressed="true"] { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgba(14, 27, 46, .12); }
+
+/* ── movers: what changed, biggest first, in plain English ── */
+.qx-movers { display: flex; flex-direction: column; }
+.qx-mover { display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-mover:last-child { border-bottom: 0; }
+.qx-mover .rk {
+  width: 24px; height: 24px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  background: var(--c-surface-3); color: var(--c-faint); font-size: 11px; font-weight: 800;
+}
+.qx-mover .tx { flex: 1; min-width: 0; }
+.qx-mover .tx b { display: block; font-size: 12.5px; font-weight: 700; }
+.qx-mover .tx small { display: block; color: var(--c-dim); font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+
+/* ── ranking bars — comparing one measure across branches or services ── */
+.qx-bars { display: flex; flex-direction: column; gap: 12px; }
+.qx-barrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; }
+.qx-barrow .nm { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qx-barrow .vl { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.qx-barrow .vl u { text-decoration: none; font-size: 10.5px; color: var(--c-faint); font-weight: 700; margin-left: 2px; }
+.qx-barrow .tr { grid-column: 1 / -1; height: 9px; border-radius: 999px; background: var(--c-surface-3); overflow: hidden; }
+.qx-barrow .tr i { display: block; height: 100%; border-radius: 999px; background: var(--c-primary); }
+.qx-barrow .tr i.b { background: var(--c-second); }
+.qx-barrow .tr i.bad { background: var(--c-bad); }
+
+/* ── key/value block ── */
+/* Two across by default: a four-item block auto-fitting to three columns
+   orphans the fourth cell on its own row. */
+.qx-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.qx-kv.wide { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+.qx-kv > div { border-radius: 13px; padding: 11px 12px; background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.qx-kv b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.03em; }
+.qx-kv b u { text-decoration: none; font-size: 11px; color: var(--c-faint); font-weight: 700; margin-left: 2px; }
+.qx-kv small { display: block; color: var(--c-faint); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+
+/* ── detail panel header (master/detail screens) ── */
+.qx-detail { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--c-line); margin-bottom: 14px; }
+.qx-detail .qx-av { width: 44px; height: 44px; border-radius: 14px; font-size: 12px; }
+.qx-detail h4 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.qx-detail small { display: block; color: var(--c-faint); font-size: 11.5px; margin-top: 2px; }
+
+/* ── score breakdown — what actually makes the number ── */
+.qx-sbreak { display: flex; flex-direction: column; gap: 11px; }
+.qx-sbreak .r { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; }
+.qx-sbreak .r span { color: var(--c-dim); font-weight: 600; }
+.qx-sbreak .r b { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ── settings rows ── */
+.qx-setrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-setrow:last-child { border-bottom: 0; }
+.qx-setrow b { display: block; font-size: 12.5px; font-weight: 700; }
+.qx-setrow small { display: block; color: var(--c-dim); font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+.qx-setrow input[type="text"], .qx-setrow input[type="email"], .qx-setrow input[type="tel"] {
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-text);
+  border-radius: 10px; padding: 8px 11px; font-size: 12.5px; font-weight: 600; outline: none; min-width: 230px;
+}
+.qx-setrow input:focus { border-color: var(--c-primary); }
+
+/* toggle */
+.qx-tog { width: 42px; height: 24px; border-radius: 999px; border: 0; background: var(--c-surface-3); position: relative; flex: none; transition: background .16s; }
+.qx-tog i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--c-surface); box-shadow: 0 1px 3px rgba(14,27,46,.28); transition: transform .16s; }
+.qx-tog[aria-pressed="true"] { background: var(--c-primary); }
+.qx-tog[aria-pressed="true"] i { transform: translateX(18px); }
+
+/* ── small neutral tag ── */
+.qx-tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 7px; padding: 3px 7px; background: var(--c-surface-3); color: var(--c-dim); font-size: 10.5px; font-weight: 800; letter-spacing: .04em; }
+
+/* ── report preview: an actual sheet of paper, not another card ── */
+.qx-paper {
+  background: #fff; color: #16233A; border-radius: 10px; padding: 26px 26px 30px;
+  box-shadow: 0 18px 44px -20px rgba(14, 27, 46, .55); border: 1px solid rgba(14, 27, 46, .1);
+  aspect-ratio: 1 / 1.294; overflow: hidden; display: flex; flex-direction: column;
+}
+.qx-papercover { border-bottom: 2px solid #1B4B8F; padding-bottom: 14px; }
+.qx-papercover .qx-av { width: 34px; height: 34px; border-radius: 10px; font-size: 12px; }
+.qx-papertop { display: flex; align-items: center; gap: 9px; }
+.qx-papertop b { font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
+.qx-papertop small { display: block; font-size: 10px; color: #64748B; font-weight: 700; }
+.qx-paper h5 { margin: 18px 0 0; font-size: 21px; font-weight: 700; letter-spacing: -.03em; line-height: 1.2; }
+.qx-paper .meta { margin-top: 7px; font-size: 11px; color: #64748B; font-weight: 600; }
+.qx-paperbody { flex: 1; margin-top: 18px; display: flex; flex-direction: column; gap: 11px; }
+.qx-paperline { height: 7px; border-radius: 999px; background: #E7EDF6; }
+.qx-paperline.s { width: 62%; } .qx-paperline.m { width: 84%; }
+.qx-paperblock { height: 78px; border-radius: 8px; background: linear-gradient(180deg, #F1F5FB, #E7EDF6); border: 1px solid #E1E9F4; }
+.qx-paperfoot { margin-top: auto; padding-top: 12px; border-top: 1px solid #E7EDF6; font-size: 9.5px; color: #94A3B8; font-weight: 700; display: flex; justify-content: space-between; }
+
+/* ── multi-select chips used by the report builder ── */
+.qx-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.qx-check {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 7px 13px;
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-dim);
+  font-size: 11.5px; font-weight: 700;
+}
+.qx-check[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); color: var(--c-primary); }
+
+/* ── accordion (Help & Support) ── */
+.qx-acc { border-bottom: 1px solid var(--c-line); }
+.qx-acc:last-child { border-bottom: 0; }
+.qx-acc > button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 2px; border: 0; background: transparent; color: var(--c-text); text-align: left; font-size: 12.5px; font-weight: 700; }
+.qx-acc > button svg { margin-left: auto; flex: none; color: var(--c-faint); transition: transform .16s; }
+.qx-acc[data-open="true"] > button svg { transform: rotate(180deg); }
+.qx-acc p { margin: 0 2px 15px; font-size: 12px; line-height: 1.6; color: var(--c-dim); max-width: 74ch; }
+
+/* ── paged report preview ──
+   The page is rendered at a fraction of real size, the way a document viewer
+   zooms out: real headings, real sentences, real tables, just small. Grey
+   placeholder bars told the reader nothing about what they were about to send
+   to a minister. Everything below is sized in em off .qx-paper's font-size so
+   one variable rescales the whole sheet. */
+.qx-paper { font-size: 5.4px; line-height: 1.5; }
+@media (min-width: 1500px) { .qx-paper { font-size: 6px; } }
+
+.qx-paper h6 { margin: 0 0 .9em; font-size: 2.1em; font-weight: 800; letter-spacing: -.02em; color: #16233A; }
+.qx-paper h7 { display: block; margin: 1.6em 0 .5em; font-size: 1.5em; font-weight: 800; color: #1B4B8F; }
+.qx-paper p { margin: 0 0 .85em; font-size: 1.18em; color: #33415A; }
+.qx-paper p b { color: #16233A; }
+.qx-paper ul { margin: 0 0 .9em; padding-left: 1.6em; }
+.qx-paper li { font-size: 1.18em; color: #33415A; margin-bottom: .35em; }
+
+/* running header/footer, as a real document has */
+.qx-paperrun { display: flex; justify-content: space-between; align-items: center;
+  font-size: 1.05em; font-weight: 700; color: #94A3B8; border-bottom: 1px solid #E7EDF6; padding-bottom: .7em; margin-bottom: 1.4em; }
+
+.qx-paperkpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7em; margin: 0 0 1.2em; }
+.qx-paperkpis div { border: 1px solid #E1E9F4; border-radius: .7em; padding: .7em .6em; background: #F7FAFD; }
+.qx-paperkpis b { display: block; font-size: 2.2em; font-weight: 700; letter-spacing: -.03em; color: #16233A; }
+.qx-paperkpis small { display: block; font-size: 1em; font-weight: 700; color: #7C8CA5; text-transform: uppercase; letter-spacing: .06em; margin-top: .2em; }
+
+.qx-papertable { width: 100%; border-collapse: collapse; margin: 0 0 1.1em; }
+.qx-papertable th { text-align: left; font-size: 1em; font-weight: 800; color: #7C8CA5; text-transform: uppercase;
+  letter-spacing: .06em; border-bottom: 1.2px solid #1B4B8F; padding: .5em .4em; }
+.qx-papertable td { font-size: 1.12em; color: #33415A; border-bottom: 1px solid #EEF3F9; padding: .5em .4em; }
+.qx-papertable td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.qx-papertable td.bad { color: #A62B25; font-weight: 700; }
+
+/* a chart's place on the page — the shape matters, the pixels don't at this size */
+.qx-paperfig { border: 1px solid #E1E9F4; border-radius: .6em; background: #FBFDFF; padding: .6em; margin: 0 0 1.1em; }
+.qx-paperfig svg { display: block; width: 100%; height: auto; }
+.qx-paperfig figcaption { font-size: .98em; color: #94A3B8; font-weight: 700; margin-top: .5em; }
+
+/* contents page */
+.qx-papertoc { display: flex; flex-direction: column; gap: .55em; }
+.qx-papertoc div { display: flex; align-items: baseline; gap: .5em; font-size: 1.18em; color: #33415A; }
+.qx-papertoc i { flex: 1; border-bottom: 1px dotted #C7D4E6; font-style: normal; }
+.qx-papertoc b { font-weight: 700; color: #16233A; }
+
+/* page navigation under the sheet */
+.qx-pagenav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+.qx-pagenav button {
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-text); display: grid; place-items: center;
+}
+.qx-pagenav button:disabled { opacity: .35; }
+.qx-pagenav span { font-size: 11.5px; font-weight: 700; color: var(--c-dim); font-variant-numeric: tabular-nums; min-width: 92px; text-align: center; }
+
+/* section rail — what goes in, and how long it makes the document */
+.qx-secrow { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--c-line); }
+.qx-secrow:last-child { border-bottom: 0; }
+.qx-secrow b { display: block; font-size: 12px; font-weight: 700; }
+.qx-secrow small { display: block; font-size: 11px; color: var(--c-dim); margin-top: 1px; }
+.qx-secbox { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid var(--c-line-2); background: var(--c-surface); display: grid; place-items: center; color: #fff; }
+.qx-secbox[aria-pressed="true"] { background: var(--c-primary); border-color: var(--c-primary); }
+.qx-secpages { font-size: 11px; font-weight: 800; color: var(--c-faint); white-space: nowrap; }
+
+/* preparing-preview skeleton */
+.qx-skel { border-radius: 4px; background: linear-gradient(90deg, #EEF3F9 25%, #E2EAF5 37%, #EEF3F9 63%); background-size: 400% 100%; animation: qx-shim 1.3s ease-in-out infinite; }
+@keyframes qx-shim { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* The rail account block is a sign-out control, so it needs button resets and
+   a visible affordance — it was previously an inert div. */
+.qx-railfoot { width: 100%; border: 0; background: transparent; color: inherit; border-radius: 0 0 11px 11px; text-align: left; }
+.qx-railfoot:not(:disabled):hover { background: rgba(255, 255, 255, .07); }
+.qx-railfoot:disabled { cursor: default; }
+.qx-railfoot svg { color: var(--c-ink-dim); }
+.qx-acct:disabled { cursor: default; }
+
+/* ═══════════════ Line staff desk station ═══════════════
+   This screen is a WORKSTATION, not a report. It is read standing up in
+   glances, so the current customer is the biggest thing on it and the whole
+   thing fills the viewport — a hero sized to its content left a third of the
+   screen white and pushed the line list up into the middle of nowhere. */
+.ql-station { display: flex; flex-direction: column; gap: 14px; }
+.ql-station > * { min-width: 0; }
+
+.ql-stage {
+  /* Sized so the first few rows of the line clear the fold underneath it —
+     the stage is the point, but you should not have to scroll to see who is
+     coming. Tuned against a 1180px viewport. */
+  min-height: 56vh;
+  position: relative; overflow: hidden; border-radius: var(--r); padding: 22px 26px; color: #E9EEF6;
+  display: flex; flex-direction: column;
+  background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
+  box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
+}
+.ql-stage::after {
+  content: ''; position: absolute; inset: -30% -20% auto auto; width: 62%; height: 130%;
+  background: radial-gradient(circle at 70% 30%, rgba(46, 111, 199, .38), transparent 62%);
+  pointer-events: none;
+}
+.ql-stage > * { position: relative; }
+.ql-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #93A9CC; }
+
+/* the ticket number is the single biggest thing on the screen */
+.ql-big { font-size: clamp(44px, 5.4vw, 74px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 10px 0 0; }
+.ql-who { font-size: clamp(17px, 1.6vw, 22px); font-weight: 600; opacity: .86; margin-top: 8px; }
+.ql-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.ql-meta span {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;
+  background: rgba(255, 255, 255, .10); border: 1px solid rgba(255, 255, 255, .14);
+  font-size: 12.5px; font-weight: 700;
+}
+
+/* live timers — the number a person actually watches */
+.ql-clocks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+/* Square-ish rather than a wide bar: the number is the content, and a
+   stretched tile left a lot of empty space either side of it. */
+.ql-clock { flex: 0 0 auto; width: 148px; border-radius: 16px; padding: 12px 14px;
+  background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .13); text-align: center; }
+.ql-clock b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ql-clock small { display: block; font-size: 9.5px; line-height: 1.3; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .68; margin-top: 3px; }
+.ql-clock.warn { background: rgba(228, 114, 107, .20); border-color: rgba(228, 114, 107, .45); }
+.ql-clock.warn b { color: #FFC9C5; }
+
+/* verification code — entered from what the customer shows on their phone */
+.ql-verify { margin-top: 14px; padding: 13px 16px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
+.ql-verify > b { display: block; font-size: 13px; font-weight: 700; }
+.ql-verify > small { display: block; font-size: 12px; opacity: .7; margin-top: 3px; line-height: 1.45; }
+.ql-code { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; align-items: center; }
+.ql-code input {
+  width: 44px; height: 54px; border-radius: 13px; text-align: center;
+  font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, .95); color: #12203A; border: 2px solid transparent; outline: none;
+}
+.ql-code input:focus { border-color: #7DAEF2; }
+.ql-code input.bad { border-color: #E4726B; }
+.ql-verifymsg { margin-top: 10px; font-size: 12px; font-weight: 700; }
+.ql-verifymsg.ok { color: #A8E0B4; }
+.ql-verifymsg.bad { color: #FFC9C5; }
+
+/* actions sit at the base of the stage, so the hero grows into the space */
+.ql-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+.ql-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 54px; padding: 0 24px; border: 0; border-radius: 15px;
+  font-size: 15px; font-weight: 700; white-space: nowrap;
+  background: rgba(255, 255, 255, .12); color: #E9EEF6; border: 1px solid rgba(255, 255, 255, .2);
+}
+.ql-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .18); }
+.ql-btn:disabled { opacity: .35; cursor: default; }
+.ql-btn.primary { flex: 1 1 260px; background: #fff; color: #12203A; border-color: #fff; font-size: 16.5px; min-height: 60px; }
+.ql-btn.primary:hover:not(:disabled) { background: #EAF1FB; }
+.ql-btn.danger { background: rgba(228, 114, 107, .22); border-color: rgba(228, 114, 107, .5); color: #FFD6D3; }
+.ql-btn.danger:hover:not(:disabled) { background: rgba(228, 114, 107, .32); }
+.ql-btn svg { width: 17px; height: 17px; flex: none; }
+
+/* the line beside the stage, scrolling inside its own card */
+/* the line runs full width beneath the stage */
+.ql-linecard { display: flex; flex-direction: column; }
+
+/* ═══════════════ Supervisor desk assignment ═══════════════
+   AVAILABILITY COLOUR — a deliberate, scoped exception to the two-colour rule.
+   On this board colour answers one question: can I put this person on a desk?
+   That is functional, the way red is, not decorative — so it earns its place.
+     green  free to cover   — drag them anywhere
+     grey   serving         — busy, but fine
+     amber  break / due     — NOT available to place
+     red    idle with queue — needs you now
+   Nowhere else in the system uses green. */
+.qx { --c-free: #2E7D4F; --c-free-soft: #E4F2E9; }
+.qx[data-theme="dark"] { --c-free: #63C088; --c-free-soft: rgba(99, 192, 136, .16); }
+
+.qs-pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.qs-person {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  border: 1.5px solid var(--c-line-2); background: var(--c-surface); color: var(--c-text);
+  text-align: left; min-height: 68px; width: 100%;
+}
+/* the avatars were cramped — bigger, rounder, with room to breathe */
+.qs-person .qx-av { width: 40px; height: 40px; border-radius: 13px; font-size: 12.5px; letter-spacing: .04em; flex: none; }
+.qs-person .nm { flex: 1; min-width: 0; }
+.qs-person .nm b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-person .nm small { display: block; font-size: 11.5px; margin-top: 2px; font-weight: 600; }
+.qs-person[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+.qs-person[draggable="true"] { cursor: grab; }
+.qs-person[draggable="true"]:active { cursor: grabbing; }
+.qs-person.is-free { border-color: color-mix(in oklab, var(--c-free) 55%, transparent); background: var(--c-free-soft); }
+.qs-person.is-free .nm small { color: var(--c-free); font-weight: 800; }
+.qs-person.is-serving .nm small { color: var(--c-dim); }
+.qs-person.is-break { border-color: color-mix(in oklab, var(--c-warn) 55%, transparent); background: var(--c-warn-soft); opacity: .96; }
+.qs-person.is-break .nm small { color: var(--c-warn); font-weight: 800; }
+.qs-person.is-idle { border-color: var(--c-bad); background: var(--c-bad-soft); }
+.qs-person.is-idle .nm small { color: var(--c-bad); font-weight: 800; }
+.qs-person.is-off { opacity: .5; }
+.qs-person:disabled { cursor: not-allowed; }
+
+/* a wider board: every service, every counter it owns */
+.qs-lane { border-radius: 18px; border: 1px solid var(--c-line); background: var(--c-surface-2); padding: 14px; }
+.qs-lanetop { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.qs-lanetop .qx-av { width: 32px; height: 32px; border-radius: 11px; font-size: 10.5px; }
+.qs-lanetop b { font-size: 13px; font-weight: 700; }
+.qs-lanetop small { display: block; color: var(--c-dim); font-size: 11.5px; font-weight: 600; }
+.qs-lanetop .qx-chip { margin-left: auto; }
+.qs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; }
+.qs-slot {
+  min-height: 116px; border-radius: 15px; padding: 12px; text-align: left; width: 100%;
+  border: 1.5px dashed var(--c-line-2); background: var(--c-surface);
+  display: flex; flex-direction: column; gap: 9px; color: var(--c-text);
+}
+.qs-slot.filled { border-style: solid; }
+.qs-slot.alert { border-color: var(--c-bad); background: var(--c-bad-soft); }
+.qs-slot.drop { border-color: var(--c-primary); background: var(--c-primary-soft); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+.qs-slot .lbl { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.qs-slot .lbl b { font-size: 12.5px; font-weight: 800; letter-spacing: .02em; }
+.qs-slot .lbl small { font-size: 10.5px; font-weight: 700; color: var(--c-faint); }
+.qs-slot .who { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.qs-slot .who .qx-av { width: 30px; height: 30px; border-radius: 10px; font-size: 10px; flex: none; }
+/* Targets the NAME only. This was `.qs-slot .who span`, which also matched the
+   avatar — that span is a .qx-av, and the two-class-plus-element selector beat
+   .qx-av's own `display: grid`, so the initials lost their centring.
+   `flex: 1` is the part the overflow fix actually needed: without a flex basis
+   the name sized to its content and spilled past the border however much
+   overflow:hidden was set. */
+.qs-slot .who .nm { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 700; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere; }
+.qs-slot .none { font-size: 11.5px; font-weight: 600; color: var(--c-faint); }
+.qs-slot.alert .none { color: var(--c-bad); font-weight: 700; }
+
+/* legend so the colours are not a private language */
+.qs-key { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--c-line); }
+.qs-key span { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: var(--c-dim); }
+.qs-key i { width: 11px; height: 11px; border-radius: 4px; flex: none; }
+.qx-status.free { color: var(--c-free); } .qx-status.free i { background: var(--c-free); }
+.qx-status.neutral { color: var(--c-dim); } .qx-status.neutral i { background: var(--c-line-2); }
+/* "next up" on the desk stage — fills the space above the actions with the
+   thing you want to know before you finish, rather than leaving it blank. */
+.ql-upnext { margin-top: 14px; padding: 13px 16px; border-radius: 18px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); }
+.ql-upnext .r { display: flex; align-items: center; gap: 12px; margin-top: 11px; }
+.ql-upnext .qx-av { width: 38px; height: 38px; border-radius: 13px; font-size: 12px; flex: none; }
+.ql-upnext b { display: block; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.ql-upnext small { display: block; font-size: 12.5px; opacity: .72; margin-top: 1px; }
+.ql-upnext .w { font-size: 12.5px; font-weight: 700; opacity: .8; white-space: nowrap; }
+.ql-upnext .more { margin-top: 10px; opacity: .6; font-weight: 600; }
+/* The overview's desk board scrolls instead of growing — 25 desks would push
+   everything below it off the screen, and this is the glance card, not the
+   planner. */
+.qs-boardscroll { display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+.qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+.qs-boardscroll .qs-desk { min-height: 74px; padding: 9px 10px; }
+.qs-boardscroll .nm { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── multi-select on lists ── */
+/* Selection checkbox — drawn, not the OS one.
+   `accent-color` on a native box gives you whatever shape the platform feels
+   like, which is why these looked wrong next to everything else. This is a real
+   square with our own radius and our own tick, and it still IS an <input>, so
+   focus, keyboard and screen readers are untouched.
+   NOTE: not `.qx-check` — that class is already the pill-shaped filter chip. */
+.qx-box { display: grid; place-items: center; }
+.qx-box input {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  width: 18px; height: 18px; border-radius: 5px; cursor: pointer;
+  border: 1.5px solid var(--c-line-2); background: var(--c-surface);
+  display: grid; place-items: center; transition: background .12s, border-color .12s;
+}
+.qx-box input:hover { border-color: var(--c-primary); }
+.qx-box input:checked,
+.qx-box input:indeterminate { background: var(--c-primary); border-color: var(--c-primary); }
+.qx-box input:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+
+/* the tick: two borders of a rotated box, so it scales cleanly and needs no asset */
+.qx-box input::after {
+  content: ''; width: 5px; height: 9px; margin-top: -2px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(43deg) scale(0);
+  transition: transform .12s ease-out;
+}
+.qx-box input:checked::after { transform: rotate(43deg) scale(1); }
+/* partial selection reads as a dash, never as a tick */
+.qx-box input:indeterminate::after {
+  width: 9px; height: 0; margin-top: 0; border-width: 0 0 2px 0;
+  border-radius: 1px; transform: none;
+}
+.qx-selrow { display: grid; gap: 10px; align-items: center; border-bottom: 1px solid var(--c-line); border-radius: 9px; }
+.qx-selrow:last-child { border-bottom: 0; }
+.qx-selrow.on { background: var(--c-primary-soft); }
+/* the whole row is a hit target for its box, the way a file list behaves */
+.qx-selrow { cursor: default; }
+/* the row keeps its own grid; this cell only hosts it */
+.qx-selbody { grid-column: 2 / -1; min-width: 0; }
+.qx-selbody .qx-trow { border-bottom: 0; padding-left: 0; }
+
+.qx-selbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 11px 14px; border-radius: 13px;
+  background: var(--c-primary-soft); border: 1px solid color-mix(in oklab, var(--c-primary) 30%, transparent);
+}
+.qx-selbar b { font-size: 12.5px; font-weight: 800; color: var(--c-primary); }
+.qx-selactions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }

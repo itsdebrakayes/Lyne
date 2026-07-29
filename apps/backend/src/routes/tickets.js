@@ -30,6 +30,10 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
+const { estimateWaitMinutes } = require('../utils/waitEstimator');
+
+const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
+const { projectedWaitMinutes } = require('../utils/etaMath');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -37,6 +41,23 @@ const MAX_CALL_TIMEOUT_SECONDS = 30 * 60;
 
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
+}
+
+/**
+ * The wait a customer sees on their live ticket, recomputed from the CURRENT
+ * line — not the value frozen at join. It shrinks as people ahead are served,
+ * and is counter-aware (see utils/etaMath.js), so a passport queue that once
+ * read a frozen "245m" now shows the honest, falling estimate. Requires the
+ * waiting_position / active_counters / service_minutes columns to be selected.
+ */
+function liveTicketWait(ticket) {
+  if (ticket.status !== 'waiting') return 0; // called / in service — you're up
+  const ahead = Math.max(0, (Number(ticket.waiting_position) || 1) - 1);
+  return projectedWaitMinutes({
+    ahead,
+    perServiceMinutes: ticket.service_minutes,
+    counters: ticket.active_counters,
+  });
 }
 
 // Lazy-load to avoid circular dependency at startup
@@ -53,6 +74,15 @@ const joinQueueSchema = z.object({
   form_data: z.record(z.unknown()).optional(),
 });
 
+// A kiosk clerk adds a walk-in (someone at the branch without the app). They
+// pick a service; the branch is the clerk's own. Name is required so line staff
+// have someone to call; phone is optional (used for an SMS follow-up later).
+const walkInSchema = z.object({
+  service_id:  z.string().min(1).max(64),
+  guest_name:  z.string().trim().min(1, 'A name is required to add a walk-in.').max(120),
+  guest_phone: z.string().trim().max(30).optional(),
+});
+
 const updateStatusSchema = z.object({
   new_status: z.enum(['called', 'in_service', 'served', 'left', 'cancelled', 'no_show'], {
     errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
@@ -62,8 +92,18 @@ const updateStatusSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 
+/**
+ * A six-digit numeric code, read off a phone or a printed ticket and typed at
+ * the counter. Digits rather than hex because it is read aloud across a desk,
+ * typed on a numeric keypad, and never has to survive "is that a B or an 8".
+ *
+ * Six digits is 900,000 values, which is not enough to stay unique across every
+ * ticket a branch will ever issue — so uniqueness is scoped to the queue (one
+ * service, one day) by migration 019. Collisions inside that window are
+ * retried at insert.
+ */
 function createVerificationCode() {
-  return crypto.randomBytes(4).toString('hex').toUpperCase();
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function periodCondition(period, month) {
@@ -153,6 +193,21 @@ router.post('/', requireAuth, async (req, res) => {
     }
     const queue = queues[0];
 
+    // Walk-ins first — this route is the customer app (channel 'app'), so remote
+    // joining opens a few minutes after the branch does. See utils/joinWindow.js.
+    const [branchRows] = await conn.query(
+      'SELECT opening_time, open_days FROM branches WHERE id = ?',
+      [queue.branch_id]
+    );
+    const remoteOpensAt = remoteJoinBlockedUntil(branchRows[0]);
+    if (remoteOpensAt) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: `Remote joining opens at ${remoteOpensAt.toTimeString().slice(0, 5)}. `
+          + `The first ${REMOTE_JOIN_BUFFER} minutes are reserved for customers already at the branch.`,
+      });
+    }
+
     // One live ticket per customer — a person cannot hold places in several
     // lines at once, and the apps are built around a single active ticket.
     if (req.dbUser?.id) {
@@ -196,7 +251,24 @@ router.post('/', requireAuth, async (req, res) => {
     const prefix  = svcRows[0]?.ticket_prefix || 'Q';
     const avgTime = svcRows[0]?.base_avg_time_minutes || 15;
     const ticketNumber  = `${prefix}-${String(position).padStart(3, '0')}`;
-    const estimatedWait = (position - 1) * avgTime;
+    // Prefer the model-based ETA (wait_eta_grid); fall back to a counter-aware
+    // estimate — people already WAITING ahead of this ticket (not raw position,
+    // which counts served/left tickets), split across the open counters.
+    const [counterRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
+      [queue.branch_id, queue.service_id]
+    );
+    const modelWait = await estimateWaitMinutes({
+      branchId: queue.branch_id,
+      serviceId: queue.service_id,
+      position,
+      hour: new Date().getHours(),
+    });
+    const estimatedWait = modelWait ?? projectedWaitMinutes({
+      ahead: countRows[0].cnt,
+      perServiceMinutes: avgTime,
+      counters: counterRows[0].cnt,
+    });
     const verificationCode = createVerificationCode();
 
     let intakeFormId = null;
@@ -210,9 +282,11 @@ router.post('/', requireAuth, async (req, res) => {
 
     const ticketId = uuidv4();
     await conn.query(
+      // channel is explicit ('app' is also the column default): this route is the
+      // customer app, and the walk-in buffer above depends on that distinction.
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?)`,
+         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app')`,
       [ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber, verificationCode, position, estimatedWait]
     );
 
@@ -230,6 +304,128 @@ router.post('/', requireAuth, async (req, res) => {
     await conn.rollback();
     console.error(err);
     res.status(500).json({ error: 'Failed to join queue.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/tickets/walk-in — a kiosk clerk adds a walk-in customer
+//
+// This is the counterpart to POST / (the customer app). It exists so a branch
+// can put someone WITHOUT the app into the same line, on their behalf. Key
+// differences from the app join:
+//   • Actor is a kiosk_clerk, and the branch is theirs — not caller-supplied.
+//   • The ticket is a guest (user_id NULL, name/phone carried on the row).
+//   • channel = 'kiosk', so the walk-in-vs-online analytics can tell them apart.
+//   • The remote-join buffer does NOT apply — walk-ins are physically present;
+//     that buffer exists to protect them, so applying it here would be backwards.
+router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req, res) => {
+  const parsed = walkInSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: validationMessage(parsed.error) });
+  }
+  const branchId = req.dbStaff?.branch_id;
+  if (!branchId) {
+    return res.status(403).json({ error: 'This kiosk account is not assigned to a branch.' });
+  }
+  const { service_id, guest_name, guest_phone } = parsed.data;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // The service must be one this branch actually offers (has an active counter
+    // for) — this both validates the pick and enforces tenant isolation, since
+    // counters are branch-scoped and the branch is the clerk's own.
+    const [svcRows] = await conn.query(
+      `SELECT s.id, s.ticket_prefix, s.base_avg_time_minutes
+       FROM services s
+       WHERE s.id = ?
+         AND EXISTS (
+           SELECT 1 FROM counters c
+           WHERE c.service_id = s.id AND c.branch_id = ? AND c.is_active = TRUE
+         )
+       LIMIT 1`,
+      [service_id, branchId]
+    );
+    if (!svcRows.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'That service is not offered at this branch.' });
+    }
+    const prefix  = svcRows[0].ticket_prefix || 'Q';
+    const avgTime = svcRows[0].base_avg_time_minutes || 15;
+
+    // Ensure today's queue exists for this branch+service, then lock it. Mirrors
+    // the queue-ensure in queues.js so a walk-in can open the day's first line.
+    const today = new Date().toISOString().slice(0, 10);
+    await conn.query(
+      `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity)
+       VALUES (?, ?, ?, ?, 50)
+       ON DUPLICATE KEY UPDATE is_active = TRUE`,
+      [uuidv4(), branchId, service_id, today]
+    );
+    const [queues] = await conn.query(
+      'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = ? FOR UPDATE',
+      [branchId, service_id, today]
+    );
+    const queue = queues[0];
+
+    const [countRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
+      [queue.id]
+    );
+    if (countRows[0].cnt >= queue.max_capacity) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Queue is at full capacity.' });
+    }
+
+    const [posRows] = await conn.query(
+      'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM queue_tickets WHERE queue_id = ?',
+      [queue.id]
+    );
+    const position = posRows[0].next_pos;
+    const ticketNumber = `${prefix}-${String(position).padStart(3, '0')}`;
+
+    // Same counter-aware ETA the app join uses, so a walk-in's estimate agrees
+    // with what the app would show for the same spot in line.
+    const [counterRows] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
+      [branchId, service_id]
+    );
+    const modelWait = await estimateWaitMinutes({
+      branchId,
+      serviceId: service_id,
+      position,
+      hour: new Date().getHours(),
+    });
+    const estimatedWait = modelWait ?? projectedWaitMinutes({
+      ahead: countRows[0].cnt,
+      perServiceMinutes: avgTime,
+      counters: counterRows[0].cnt,
+    });
+    const verificationCode = createVerificationCode();
+
+    const ticketId = uuidv4();
+    await conn.query(
+      `INSERT INTO queue_tickets
+         (id, queue_id, user_id, guest_name, guest_phone, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk')`,
+      [ticketId, queue.id, guest_name, guest_phone || null, ticketNumber, verificationCode, position, estimatedWait]
+    );
+    await conn.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status)
+       VALUES (?, ?, NULL, 'waiting')`,
+      [uuidv4(), ticketId]
+    );
+
+    await conn.commit();
+    const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
+    broadcast(queue.id, ticket[0]);
+    res.status(201).json(ticket[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add walk-in.' });
   } finally {
     conn.release();
   }
@@ -339,7 +535,14 @@ router.get('/active', requireAuth, async (req, res) => {
               (SELECT COUNT(*)
                FROM queue_tickets t3
                WHERE t3.queue_id = t.queue_id
-                 AND t3.status = 'waiting') AS total_waiting
+                 AND t3.status = 'waiting') AS total_waiting,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t4.started_serving_at, t4.called_at, t4.joined_at), t4.completed_at))
+                FROM queue_tickets t4
+                WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
        JOIN queues   q ON t.queue_id   = q.id
        JOIN branches b ON q.branch_id  = b.id
@@ -356,6 +559,7 @@ router.get('/active', requireAuth, async (req, res) => {
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
     res.json({
       ...ticket,
+      estimated_wait_minutes: liveTicketWait(ticket),
       is_next: isNext,
       status_message: isNext ? "You're next!" : null,
     });
@@ -420,7 +624,14 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
               (SELECT COUNT(*)
                FROM queue_tickets t3
                WHERE t3.queue_id = t.queue_id
-                 AND t3.status = 'waiting') AS total_waiting
+                 AND t3.status = 'waiting') AS total_waiting,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t4.started_serving_at, t4.called_at, t4.joined_at), t4.completed_at))
+                FROM queue_tickets t4
+                WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
        JOIN queues   q ON t.queue_id   = q.id
        JOIN branches b ON q.branch_id  = b.id
@@ -439,6 +650,7 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
 
     res.json({
       ...ticket,
+      estimated_wait_minutes: liveTicketWait(ticket),
       is_next:       isNext,
       status_message: isNext ? "You're next!" : null,
     });
@@ -588,12 +800,12 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       await conn.query(
         `INSERT INTO wait_time_records
            (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
-            wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time, active_counters_at_time)
+            wait_time_minutes, service_time_minutes, status, channel, staff_count_at_time, queue_length_at_time, active_counters_at_time)
          SELECT ?, ?, b.business_id, b.id, q.service_id, CURDATE(),
                 DAYOFWEEK(NOW())-1, HOUR(NOW()), MONTH(NOW()),
-                ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?
          FROM queues q JOIN branches b ON q.branch_id = b.id WHERE q.id = ?`,
-        [uuidv4(), ticket.id, waitMin, svcMin, new_status, staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
+        [uuidv4(), ticket.id, waitMin, svcMin, new_status, ticket.channel || 'app', staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
       );
 
       if (ticket.user_id) {
@@ -651,7 +863,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       );
     }
 
-    // Recalculate wait times for remaining WAITING tickets after terminal events
+    // Recalculate wait times for remaining WAITING tickets after terminal events.
+    // Prefer the model-based grid (same source as the join-time ETA) so the
+    // number a customer sees doesn't revert to a naive formula on the next
+    // queue update; fall back to position × recent-average service time.
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
       const [avgRows] = await conn.query(
         `SELECT AVG(service_time_minutes) AS avg_svc
@@ -661,25 +876,39 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
          ORDER BY w.created_at DESC LIMIT 20`,
         [ticket.queue_id]
       );
-      const [svcBase] = await conn.query(
-        `SELECT s.base_avg_time_minutes
+      const [qInfo] = await conn.query(
+        `SELECT q.branch_id, q.service_id, s.base_avg_time_minutes
          FROM queues q JOIN services s ON q.service_id = s.id
          WHERE q.id = ?`,
         [ticket.queue_id]
       );
-      const dynamicAvg = avgRows[0]?.avg_svc || svcBase[0]?.base_avg_time_minutes || 15;
+      const dynamicAvg = avgRows[0]?.avg_svc || qInfo[0]?.base_avg_time_minutes || 15;
 
-      await conn.query(
-        `UPDATE queue_tickets t
-         JOIN (
-           SELECT id,
-                  (ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY position) - 1) * ? AS new_wait
-           FROM queue_tickets
-           WHERE queue_id = ? AND status = 'waiting'
-         ) ranked ON t.id = ranked.id
-         SET t.estimated_wait_minutes = ranked.new_wait`,
-        [dynamicAvg, ticket.queue_id]
+      const [waiting] = await conn.query(
+        `SELECT id, position FROM queue_tickets
+         WHERE queue_id = ? AND status = 'waiting' ORDER BY position`,
+        [ticket.queue_id]
       );
+      if (waiting.length) {
+        const hour = new Date().getHours();
+        const updates = [];
+        for (let i = 0; i < waiting.length; i++) {
+          const modelWait = await estimateWaitMinutes({
+            branchId: qInfo[0]?.branch_id,
+            serviceId: qInfo[0]?.service_id,
+            position: i + 1,          // rank among remaining waiters
+            hour,
+          });
+          updates.push({ id: waiting[i].id, wait: modelWait ?? Math.round(i * dynamicAvg) });
+        }
+        const cases = updates.map(() => 'WHEN ? THEN ?').join(' ');
+        const params = updates.flatMap((u) => [u.id, u.wait]);
+        await conn.query(
+          `UPDATE queue_tickets SET estimated_wait_minutes = CASE id ${cases} END
+           WHERE id IN (${updates.map(() => '?').join(',')})`,
+          [...params, ...updates.map((u) => u.id)]
+        );
+      }
     }
 
     await conn.commit();
@@ -869,6 +1098,53 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
     res.status(500).json({ error: 'Failed to skip ticket.' });
   } finally {
     conn.release();
+  }
+});
+
+// POST /api/tickets/:id/rating — customer rates a completed visit.
+// The only place customer-experience data is captured; feeds CX reporting and
+// future satisfaction modelling (see migration 014 / apps/model).
+const ratingSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  wait_ok: z.boolean().optional(),
+  comment: z.string().max(500).optional(),
+});
+
+router.post('/:id/rating', requireAuth, async (req, res) => {
+  const parsed = ratingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: validationMessage(parsed.error) });
+  }
+  const { rating, wait_ok, comment } = parsed.data;
+  try {
+    const [rows] = await pool.query(
+      `SELECT t.id, t.user_id, t.status, q.service_id, b.id AS branch_id, b.business_id
+         FROM queue_tickets t
+         JOIN queues q   ON q.id = t.queue_id
+         JOIN branches b ON b.id = q.branch_id
+        WHERE t.id = ?`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const ticket = rows[0];
+    if (req.dbUser?.id && ticket.user_id && ticket.user_id !== req.dbUser.id) {
+      return res.status(403).json({ error: 'You can only rate your own visit.' });
+    }
+    if (!['served', 'no_show', 'left', 'cancelled'].includes(ticket.status)) {
+      return res.status(409).json({ error: 'You can rate a visit once it is complete.' });
+    }
+    await pool.query(
+      `INSERT INTO ticket_ratings
+         (id, ticket_id, user_id, business_id, branch_id, service_id, rating, wait_ok, comment)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE rating = VALUES(rating), wait_ok = VALUES(wait_ok), comment = VALUES(comment)`,
+      [uuidv4(), ticket.id, req.dbUser?.id || null, ticket.business_id, ticket.branch_id,
+       ticket.service_id, rating, wait_ok ?? null, comment ?? null]
+    );
+    res.status(201).json({ message: 'Thanks for your feedback.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save rating.' });
   }
 });
 

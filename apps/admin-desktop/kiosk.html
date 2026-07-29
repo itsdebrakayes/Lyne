@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Kiosk viewport rules. This screen lives on a wall-mounted or stand-mounted
+      tablet that the public touches, so we deliberately give up the things a
+      normal web page wants:
+        • user-scalable=no  — a pinch-zoomed kiosk is a broken kiosk, and nobody
+          is there to reset it.
+        • viewport-fit=cover — draw under the notch/home indicator; the CSS pads
+          back with env(safe-area-inset-*).
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <!-- Added to the Home Screen, iOS launches this with no Safari chrome. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="QMe Kiosk" />
+    <meta name="theme-color" content="#1B4B8F" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./kiosk.webmanifest" />
+    <link rel="apple-touch-icon" href="./kiosk-icon.png" />
+    <title>QMe Now Kiosk</title>
+  </head>
+  <body>
+    <div id="kiosk-root"></div>
+    <script type="module" src="/src/kiosk-main.tsx"></script>
+  </body>
+</html>

@@ -31,7 +31,7 @@ const INSIGHT_TYPES = new Set([
   'manager_performance',
 ]);
 
-router.get('/status', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+router.get('/status', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const businessId = scopedBusinessId(req, req.query.business_id);
     const [runs] = await pool.query(

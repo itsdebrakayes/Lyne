@@ -1,0 +1,68 @@
+/* ============================================================
+   Kiosk base — the global layer for the STANDALONE kiosk build.
+
+   The admin app's index.css is deliberately not loaded here: it forces a
+   dark colour-scheme and 2,000+ lines of dashboard styling this surface
+   has no use for. The kiosk gets its own minimal base plus qx.css.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #F4F7FC;
+  color-scheme: light;
+  /* A lobby terminal must never rubber-band or pull-to-refresh: both read as
+     "the screen is broken" to someone who has never used it before. */
+  overscroll-behavior: none;
+  overflow: hidden;
+  /* Kills the 300ms double-tap-to-zoom delay and the zoom itself. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#kiosk-root { height: 100%; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* No long-press callout, no text selection, no image drag — all three are
+   ways a curious member of the public can get the terminal into a state
+   nobody is standing there to undo. */
+* {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+/* The kiosk is drawn edge-to-edge under the notch and home indicator
+   (viewport-fit=cover); pad the chrome back into the safe area. */
+.qk-top { padding-top: calc(16px + env(safe-area-inset-top)); }
+.qk-frame,
+.qk-welcome {
+  padding-left: calc(32px + env(safe-area-inset-left));
+  padding-right: calc(32px + env(safe-area-inset-right));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+/* ── Tablet portrait (iPad in a lobby stand) ──
+   The layouts below were sized for a wide landscape terminal. On a portrait
+   tablet the two-column splits have to stack, and the service list drops to
+   a single full-width column so each row stays a comfortable target. */
+@media (orientation: portrait) and (max-width: 1100px) {
+  .qk-svcgrid { grid-template-columns: 1fr; }
+  .qk-confirm { grid-template-columns: 1fr; }
+  .qk-ticketwrap { grid-template-columns: 1fr; align-content: center; }
+  .qk-welcome h1 { font-size: clamp(46px, 9vw, 76px); }
+  .qk-welcomefoot { gap: 32px; }
+}

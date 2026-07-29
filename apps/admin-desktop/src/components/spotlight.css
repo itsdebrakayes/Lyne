@@ -1,0 +1,65 @@
+/* ============================================================
+   Spotlight tour.
+
+   Sits above everything, dims the page, and cuts a hole around
+   the real control being described. Pointer events pass nowhere
+   except the card — the tour is a read, not a place to click
+   things by accident.
+   ============================================================ */
+
+.sl { position: fixed; inset: 0; z-index: 9000; pointer-events: none; }
+
+/* One element does both jobs: the border is the highlight, and the enormous
+   spread shadow is the dimming everywhere else. Cheaper and sharper than four
+   positioned panels, and it animates as one box between steps. */
+.sl-ring {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(9, 16, 28, .62);
+  border: 2px solid #7DAEF2;
+  pointer-events: none;
+  transition: top .22s cubic-bezier(.4, 0, .2, 1), left .22s cubic-bezier(.4, 0, .2, 1),
+              width .22s cubic-bezier(.4, 0, .2, 1), height .22s cubic-bezier(.4, 0, .2, 1);
+}
+
+.sl-card {
+  position: fixed; width: min(360px, calc(100vw - 32px)); pointer-events: auto;
+  background: var(--c-surface, #fff); color: var(--c-text, #12203A);
+  border: 1px solid var(--c-line-2, #CCD5E3); border-radius: 16px;
+  padding: 16px 17px 14px;
+  box-shadow: 0 24px 60px -22px rgba(9, 16, 28, .55);
+  font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+}
+.sl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.sl-count { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #2E6FC7; }
+.sl-x { border: 0; background: transparent; color: var(--c-faint, #8B99AF); padding: 2px; line-height: 0; cursor: pointer; }
+.sl-x:hover { color: var(--c-text, #12203A); }
+
+.sl-card b { display: block; font-size: 15.5px; font-weight: 700; letter-spacing: -.02em; }
+.sl-card p { margin: 7px 0 0; font-size: 13px; line-height: 1.55; color: var(--c-dim, #5B6A83); }
+
+.sl-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; }
+.sl-nav { display: flex; gap: 8px; }
+.sl-skip {
+  border: 0; background: transparent; color: var(--c-faint, #8B99AF);
+  font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 4px 2px;
+}
+.sl-skip:hover { color: var(--c-dim, #5B6A83); }
+.sl-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+  border-radius: 10px; border: 1px solid var(--c-line-2, #CCD5E3);
+  background: var(--c-surface, #fff); color: var(--c-text, #12203A);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.sl-btn.primary { background: #1B4B8F; border-color: #1B4B8F; color: #fff; }
+.sl-btn.primary:hover { filter: brightness(1.1); }
+
+/* a small pointer toward the highlighted control */
+.sl-card::before {
+  content: ''; position: absolute; left: 26px; width: 12px; height: 12px;
+  background: inherit; border: 1px solid var(--c-line-2, #CCD5E3); transform: rotate(45deg);
+}
+.sl-card.bottom::before { top: -7px; border-right: 0; border-bottom: 0; }
+.sl-card.top::before { bottom: -7px; border-left: 0; border-top: 0; }
+
+@media (prefers-reduced-motion: reduce) { .sl-ring { transition: none; } }

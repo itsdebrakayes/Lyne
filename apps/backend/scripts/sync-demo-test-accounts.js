@@ -49,6 +49,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 const roles = [
   ['role-staff-001', 'line_staff', 'Line Staff', 'Assigned queue/counter/service operator'],
+  ['role-supervisor-001', 'supervisor', 'Supervisor', 'Section/branch supervisor — read-only operational view; sees branch targets'],
   ['role-mgr-001', 'manager', 'Manager', 'Branch manager for staff assignments and branch operations'],
   ['role-exec-001', 'executive', 'Executive', 'Business-wide executive dashboard and analytics access'],
   ['role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support'],
@@ -72,6 +73,17 @@ const accounts = [
     branchId: 'br-taj-kgn',
     assignedServiceId: 'svc-taj-trn',
     counterId: 'ctr-taj-kgn-1',
+  },
+  {
+    email: 'supervisor@test.com',
+    kind: 'staff',
+    id: 'staff-sup-taj-kgn',
+    fullName: 'Demo Supervisor',
+    staffCode: 'SUP-KGN-01',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-taj-001',
+    branchId: 'br-taj-kgn',
+    assignedServiceId: null,
   },
   {
     email: 'manager@test.com',

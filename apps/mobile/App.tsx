@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
@@ -18,6 +20,11 @@ import OnboardingScreen from './src/screens/auth/OnboardingScreen';
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
+
+// Hold the native (dark) splash until the JS launch screen is ready to take
+// over, so the handoff is dark→dark with no white flash. Best-effort — a
+// rejection just means the OS already dismissed it.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
   const [launching, setLaunching] = useState(true);
@@ -41,21 +48,39 @@ export default function App() {
     });
   }, []);
 
+  // Reveal the animated JS launch screen once the fonts are ready — until then
+  // the matching-dark native splash stays up, so the brand lockup never flashes
+  // in a fallback system font.
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
+
   const completeTutorial = async () => {
     await AsyncStorage.setItem('qmenow:first-run-tutorial-v1', 'complete').catch(() => {});
     setTutorialSeen(true);
   };
 
-  if (launching || tutorialSeen === null || !fontsLoaded) return <LaunchScreen />;
-  if (!tutorialSeen) return <OnboardingScreen onComplete={completeTutorial} />;
-
-  return (
-    <ThemeProvider>
+  // SafeAreaProvider wraps everything — including the launch/onboarding early
+  // returns — so useSafeAreaInsets() is available on every screen from the
+  // first frame (no flash of un-inset layout).
+  let body: React.ReactNode;
+  if (launching || tutorialSeen === null || !fontsLoaded) {
+    body = <LaunchScreen />;
+  } else if (!tutorialSeen) {
+    body = <OnboardingScreen onComplete={completeTutorial} />;
+  } else {
+    body = (
       <QueryClientProvider client={queryClient}>
         <LockGate>
           <AppNavigator />
         </LockGate>
       </QueryClientProvider>
-    </ThemeProvider>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>{body}</ThemeProvider>
+    </SafeAreaProvider>
   );
 }

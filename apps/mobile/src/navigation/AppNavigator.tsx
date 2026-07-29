@@ -33,9 +33,13 @@ import ServiceScreen    from '../screens/queue/ServiceScreen';
 import JoinQueueScreen  from '../screens/queue/JoinQueueScreen';
 import TicketScreen     from '../screens/queue/TicketScreen';
 
+// Kiosk clerk (branch intake actor — adds walk-ins, not a customer)
+import KioskScreen      from '../screens/kiosk/KioskScreen';
+
 export type RootStackParamList = {
   Auth:       undefined;
   Signup:     undefined;
+  Kiosk:      undefined;
   Main:       undefined;
   History:    undefined;
   Notifications: undefined;
@@ -99,7 +103,7 @@ function AuthStack() {
 }
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, kiosk, loading } = useAuth();
 
   if (loading) {
     return (
@@ -112,7 +116,11 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
+        {kiosk ? (
+          // A kiosk clerk gets a single-purpose console — no customer tabs, no
+          // queue-joining flow. Their whole job is adding walk-ins for others.
+          <Stack.Screen name="Kiosk" component={KioskScreen} />
+        ) : !user ? (
           <>
             <Stack.Screen name="Auth" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
@@ -48,6 +49,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfileScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -117,7 +119,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }]} showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
         </View>
@@ -189,7 +191,7 @@ export default function ProfileScreen() {
           <>
             <SectionLabel>Demo controls</SectionLabel>
             <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, ...shadow.card }]}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="sparkles" size={17} color={colors.accentDeep} />
               </View>
               <View style={{ flex: 1 }}>
@@ -247,7 +249,7 @@ export default function ProfileScreen() {
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             {emailSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 6 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#e6f7ee', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                   <Ionicons name="mail-unread-outline" size={24} color={colors.light} />
                 </View>
                 <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4, textAlign: 'center' }}>Confirm your new email</Text>

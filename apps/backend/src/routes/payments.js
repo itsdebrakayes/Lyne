@@ -37,6 +37,14 @@ function getStripe() {
 
 // Map a Stripe event type → our ledger event_type + projected status.
 const STATUS_RANK = { initialized: 0, authorized: 1, failed: 2, canceled: 2, captured: 3, refunded: 4 };
+
+// The ledger's forward-only guarantee: status may only move to a higher-ranked
+// state. Duplicate or out-of-order webhook deliveries (Stripe is at-least-once)
+// therefore can never move a captured payment back to "authorized", etc.
+function advancesStatus(current, next) {
+  return (STATUS_RANK[next] ?? 0) > (STATUS_RANK[current] ?? 0);
+}
+
 function mapEvent(stripeType) {
   switch (stripeType) {
     case 'payment_intent.created':                   return { event: 'payment_initialized', status: 'initialized' };
@@ -230,7 +238,7 @@ async function webhookHandler(req, res) {
     }
 
     // Forward-only status projection.
-    if ((STATUS_RANK[mapped.status] ?? 0) > (STATUS_RANK[intent.status] ?? 0)) {
+    if (advancesStatus(intent.status, mapped.status)) {
       await conn.query('UPDATE payment_intents SET status = ? WHERE id = ?', [mapped.status, intent.id]);
       if (mapped.status === 'captured') {
         await conn.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [intent.user_id]);
@@ -248,4 +256,4 @@ async function webhookHandler(req, res) {
   }
 }
 
-module.exports = { router, webhookHandler };
+module.exports = { router, webhookHandler, mapEvent, advancesStatus, STATUS_RANK };

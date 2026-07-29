@@ -73,3 +73,7 @@ skills-lock.json
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Expo prebuild output (regenerate with: npx expo prebuild)
+apps/mobile/ios/
+apps/mobile/android/

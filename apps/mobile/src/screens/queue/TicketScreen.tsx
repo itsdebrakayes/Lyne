@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
+import { useRefresh } from '../../lib/useRefresh';
+import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
 import { ErrorCard } from '../../components/Feedback';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -21,10 +25,12 @@ const TERMINAL_META: Record<string, { label: string; tone: string; note: string 
 };
 
 export default function TicketScreen() {
+  const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [error, setError] = useState('');
   const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
   const previous = useRef<{ status?: string; wait?: number }>({});
@@ -54,11 +60,16 @@ export default function TicketScreen() {
     refetchInterval: 5_000,
   });
   const ticket = ticketQuery.data;
+  const { refreshing, onRefresh } = useRefresh(activeTicketQuery.refetch, ticketQuery.refetch);
 
   useEffect(() => {
     if (!ticket) return;
     const liveStatuses = ['waiting', 'called', 'in_service'];
     if (previous.current.status && previous.current.status !== ticket.status) {
+      // Buzz the phone on the two status changes that matter — being called
+      // forward (the whole point of the app) and losing your place.
+      if (ticket.status === 'called') haptics.success();
+      else if (ticket.status === 'no_show') haptics.error();
       const title = ticket.status === 'called' ? "You're being called" : ticket.status === 'no_show' ? 'You lost your place in line' : 'Queue status updated';
       scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
@@ -81,13 +92,18 @@ export default function TicketScreen() {
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket]);
 
+  // Leaving is irreversible — the place in line is released to the next person
+  // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
       setLeaving(true); setError('');
       await api.put(`/tickets/${ticketId}/leave`, {});
+      setConfirmLeave(false);
       navigation.navigate('Main');
     } catch (caught: unknown) {
+      setConfirmLeave(false);
+      haptics.error();
       setError(caught instanceof Error ? caught.message : 'Could not leave this queue.');
     } finally {
       setLeaving(false);
@@ -137,7 +153,8 @@ export default function TicketScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
@@ -233,7 +250,7 @@ export default function TicketScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity disabled={leaving} onPress={leaveQueue} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
+              <TouchableOpacity disabled={leaving} onPress={() => { haptics.warning(); setConfirmLeave(true); }} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
                 {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
               </TouchableOpacity>
             </>
@@ -249,6 +266,18 @@ export default function TicketScreen() {
         {active && alerts === 'on' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
         {active && alerts === 'denied' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
+
+      <ConfirmSheet
+        visible={confirmLeave}
+        title="Leave this queue?"
+        message={`You'll give up place ${ticket.waiting_position ?? ticket.position} for ${ticket.service_name || 'this service'}, and it goes to the next person straight away. If you change your mind you can rejoin, but you'll start again at the back of the line.`}
+        confirmLabel="Leave queue"
+        cancelLabel="Stay in line"
+        icon="exit-outline"
+        busy={leaving}
+        onConfirm={leaveQueue}
+        onCancel={() => setConfirmLeave(false)}
+      />
     </View>
   );
 }

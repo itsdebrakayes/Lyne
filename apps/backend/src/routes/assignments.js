@@ -20,7 +20,7 @@ const {
   isPlatformAdmin,
 } = require('../middleware/tenantAccess');
 
-router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
+router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBranchAccess, async (req, res) => {
   try {
     const { branch_id, date } = req.query;
     const targetDate = date || new Date().toISOString().slice(0, 10);
@@ -56,7 +56,7 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBr
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), auditLog('create_assignment', 'staff_assignment'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), auditLog('create_assignment', 'staff_assignment'), async (req, res) => {
   try {
     const { staff_id, counter_id, assignment_date, shift_start, shift_end } = req.body;
     if (!staff_id || !counter_id) return res.status(400).json({ error: 'staff_id and counter_id are required.' });
@@ -97,7 +97,7 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), auditLog
   }
 });
 
-router.delete('/:id', requireAuth, requireStaffRole('manager', 'executive'), auditLog('delete_assignment', 'staff_assignment'), async (req, res) => {
+router.delete('/:id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), auditLog('delete_assignment', 'staff_assignment'), async (req, res) => {
   try {
     const [existing] = await pool.query(
       `SELECT b.business_id, c.branch_id

@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 
@@ -34,6 +35,7 @@ function timeAgo(value: string) {
 }
 
 export default function NotificationsScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -61,7 +63,7 @@ export default function NotificationsScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={[t.content, { paddingTop: topPad }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
@@ -91,7 +93,7 @@ export default function NotificationsScreen() {
               onPress={() => n.ticket_id && navigation.navigate('Ticket', { ticketId: n.ticket_id })}
               style={[t.listRow, { padding: 14, alignItems: 'flex-start', opacity: n.is_read ? 0.75 : 1 }]}
             >
-              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: n.notification_type === 'no_show' ? '#fdeceb' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: n.notification_type === 'no_show' ? colors.dangerSoft : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={TYPE_ICON[n.notification_type] || 'notifications-outline'} size={18} color={n.notification_type === 'no_show' ? colors.danger : colors.ink} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>

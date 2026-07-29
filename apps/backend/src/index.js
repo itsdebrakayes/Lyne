@@ -115,23 +115,86 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Q ME NOW backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 
-  // Schedule daily analytics summary refresh at 01:00
-  const now   = new Date();
-  const next1am = new Date(now);
-  next1am.setHours(1, 0, 0, 0);
-  if (next1am <= now) next1am.setDate(next1am.getDate() + 1);
-  const msUntil1am = next1am - now;
+  // Analytics summaries refresh EVERY 2 HOURS. The dashboards tell users
+  // "numbers recalculate automatically every 2 hours", so this must actually be
+  // true — it previously ran once daily at 01:00, making that claim false.
+  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+  const runRefresh = (why) =>
+    refreshAnalyticsSummaries()
+      .then(() => console.log(`[Analytics] Refresh complete (${why}).`))
+      .catch(err => console.error(`[Analytics] Refresh failed (${why}):`, err.message));
+
+  // ── Demo boxes only: keep the seeded demo day current ─────────────────────
+  // Queues are per-day BY DESIGN (the app looks for queue_date = CURDATE()), so
+  // demo data seeded yesterday leaves every live screen closed and empty today —
+  // customers cannot join and the line-staff board reads 0. Re-seed just after
+  // midnight so a demo box is always showing "today".
+  //
+  // Double-gated: an explicit opt-in flag AND a hard refusal in production,
+  // because this writes demo businesses, branches, staff and tickets.
+  const demoRefreshEnabled =
+    process.env.ALLOW_DEMO_DATA_REFRESH === 'true' && process.env.NODE_ENV !== 'production';
+
+  // The re-seed script ships on the demo branch only — production builds strip
+  // it. Loading it lazily AND tolerating its absence means a production box
+  // that somehow has the flag set logs a line and carries on serving, instead
+  // of dying at boot on MODULE_NOT_FOUND.
+  const runDemoSeed = (why) => {
+    let refreshDemoData;
+    try {
+      ({ refreshDemoData } = require('../scripts/refresh-demo-data'));
+    } catch {
+      console.warn('[Demo] Re-seed requested but this build has no demo data. Skipping.');
+      return Promise.resolve();
+    }
+    return refreshDemoData()
+      .then((n) => console.log(`[Demo] Re-seeded the demo day (${why}) — ${n} statements.`))
+      .catch((err) => console.error(`[Demo] Re-seed failed (${why}):`, err.message));
+  };
+
+  // Re-seed BEFORE analytics, never alongside it: the two touch the same tables,
+  // and running them concurrently deadlocks. Sequencing is also the correct
+  // order — the summaries should be built from the freshly re-dated day.
+  const bootstrap = (why) =>
+    (demoRefreshEnabled ? runDemoSeed(why) : Promise.resolve()).then(() => runRefresh(why));
+
+  // Refresh once on boot so a freshly started/deployed server is never stale.
+  bootstrap('startup');
+
+  // Then align to the next even hour so runs land at predictable clock times
+  // (00:00, 02:00, 04:00 …) instead of drifting from whenever the process began.
+  const now = new Date();
+  const nextEvenHour = new Date(now);
+  nextEvenHour.setMinutes(0, 0, 0);
+  nextEvenHour.setHours(nextEvenHour.getHours() + 1);
+  if (nextEvenHour.getHours() % 2 !== 0) nextEvenHour.setHours(nextEvenHour.getHours() + 1);
+  const msUntilAligned = nextEvenHour - now;
 
   setTimeout(() => {
-    refreshAnalyticsSummaries().catch(err =>
-      console.error('[Analytics] Scheduled refresh failed:', err.message)
-    );
-    setInterval(() => {
-      refreshAnalyticsSummaries().catch(err =>
-        console.error('[Analytics] Scheduled refresh failed:', err.message)
-      );
-    }, 24 * 60 * 60 * 1000);
-  }, msUntil1am);
+    runRefresh('scheduled');
+    setInterval(() => runRefresh('scheduled'), TWO_HOURS_MS);
+  }, msUntilAligned);
 
-  console.log(`[Analytics] Daily refresh scheduled in ${Math.round(msUntil1am / 60000)} minutes.`);
+  console.log(
+    `[Analytics] Refreshing every 2 hours; next aligned run at ${nextEvenHour.toTimeString().slice(0, 5)} `
+    + `(in ${Math.round(msUntilAligned / 60000)} minutes).`
+  );
+
+  if (demoRefreshEnabled) {
+    // Roll the demo day over just after midnight, then rebuild the summaries so
+    // the dashboards open on the new day already populated.
+    const justAfterMidnight = new Date();
+    justAfterMidnight.setHours(24, 5, 0, 0); // 00:05 tomorrow
+    const msUntilMidnight = justAfterMidnight - new Date();
+
+    setTimeout(() => {
+      bootstrap('daily');
+      setInterval(() => bootstrap('daily'), 24 * 60 * 60 * 1000);
+    }, msUntilMidnight);
+
+    console.log(`[Demo] Daily re-seed scheduled for 00:05 (in ${Math.round(msUntilMidnight / 60000)} minutes).`);
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.log('[Demo] Daily re-seed is OFF (set ALLOW_DEMO_DATA_REFRESH=true on a demo box to enable).');
+  }
 });

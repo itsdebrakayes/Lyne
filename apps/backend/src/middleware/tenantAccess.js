@@ -167,7 +167,8 @@ function scopedBranchId(req, requestedBranchId) {
   if (isPlatformAdmin(req)) return requestedBranchId;
   const role = roleName(req);
   if (role === 'line_staff') return req.dbStaff?.branch_id || requestedBranchId;
-  if (role === 'manager' && req.dbStaff?.branch_id) return req.dbStaff.branch_id;
+  // Managers and supervisors are locked to their own branch.
+  if ((role === 'manager' || role === 'supervisor') && req.dbStaff?.branch_id) return req.dbStaff.branch_id;
   return requestedBranchId;
 }
 

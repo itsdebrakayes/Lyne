@@ -218,7 +218,7 @@ export default function DocumentCaptureScreen() {
 
               {/* Face ID protection */}
               <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, marginTop: 16, ...shadow.card }]}>
-                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name="lock-closed-outline" size={18} color={colors.accentDeep} />
                 </View>
                 <View style={{ flex: 1 }}>

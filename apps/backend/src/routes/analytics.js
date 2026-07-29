@@ -94,7 +94,7 @@ function utilizationScore(utilization) {
 }
 
 // Daily summary
-router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -109,7 +109,10 @@ router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), re
       if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
       if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
       if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
-      else           { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+      // Only fall back to the 30-day window when NEITHER bound was given.
+      // (Previously this `else` hung off `if (to)`, so passing `from` alone was
+      // silently overridden by the 30-day floor.)
+      if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
       const [rows] = await pool.query(
         `SELECT w.visit_date AS summary_date,
@@ -138,7 +141,8 @@ router.get('/summary', requireAuth, requireStaffRole('manager', 'executive'), re
     if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
-    else           { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+    // Only fall back to the 30-day window when NEITHER bound was given.
+    if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
       `SELECT a.*, b.name AS branch_name
@@ -372,7 +376,7 @@ router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusin
 });
 
 // Hourly heatmap
-router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/heatmap', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -405,9 +409,9 @@ router.get('/heatmap', requireAuth, requireStaffRole('manager', 'executive'), re
 });
 
 // Service performance
-router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
-    const { business_id, branch_id } = req.query;
+    const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const conditions = ['w.business_id = ?'];
@@ -416,6 +420,11 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
+    // Date window so per-service totals can be scoped to the same period the
+    // dashboards report (previously this aggregated ALL history, which made the
+    // Services tab wildly disagree with the "this week" numbers elsewhere).
+    if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
+    if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
 
     const [rows] = await pool.query(
       `SELECT s.id AS service_id, s.name AS service_name,
@@ -442,7 +451,7 @@ router.get('/services', requireAuth, requireStaffRole('manager', 'executive'), r
 
 // Demand breakdown — dot-matrix heatmap. Rows are services (manager) or
 // branches (executive); columns are hour-of-day or day-of-week.
-router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -480,7 +489,7 @@ router.get('/demand', requireAuth, requireStaffRole('manager', 'executive'), req
 });
 
 // Weekly busyness per service — day-of-week traffic for each service
-router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -513,8 +522,173 @@ router.get('/service-weekly', requireAuth, requireStaffRole('manager', 'executiv
   }
 });
 
+// Channel mix — walk-in vs online (app) vs kiosk. Shows how much of the branch's
+// intake now self-serves through the app (the value the online side delivers),
+// plus a weekly trend and the wait each channel experiences.
+router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const days = Math.min(365, Math.max(7, parseInt(req.query.days, 10) || 90));
+
+    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)'];
+    const params = [scopedBusinessId(req, business_id), days];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    const where = conditions.join(' AND ');
+
+    // A ticket can only be created two ways in this product: the customer app
+    // (POST /tickets) or the branch kiosk (POST /tickets/walk-in). There is no
+    // "walk-in desk" flow. Rows with a NULL channel are historical, from before
+    // channel tracking existed — they are reported as 'unknown' rather than
+    // being relabelled into a channel the product does not have.
+    const [mix] = await pool.query(
+      `SELECT COALESCE(w.channel, 'unknown') AS channel,
+              COUNT(*)                        AS count,
+              ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait,
+              ROUND(100 * AVG(w.status IN ('no_show','left','cancelled')), 1) AS abandon_pct
+       FROM wait_time_records w
+       WHERE ${where}
+       GROUP BY COALESCE(w.channel, 'unknown')`,
+      params
+    );
+    const total = mix.reduce((sum, r) => sum + Number(r.count), 0) || 1;
+    const channels = ['app', 'kiosk', 'unknown'].map((ch) => {
+      const row = mix.find((m) => m.channel === ch);
+      return {
+        channel: ch,
+        count: row ? Number(row.count) : 0,
+        pct: row ? Math.round((Number(row.count) / total) * 1000) / 10 : 0,
+        avg_wait: row ? Number(row.avg_wait) : null,
+        abandon_pct: row ? Number(row.abandon_pct) : null,
+      };
+    });
+
+    // Weekly self-service share over the window.
+    const [trend] = await pool.query(
+      `SELECT YEARWEEK(w.visit_date, 3) AS yw,
+              MIN(w.visit_date)         AS week_start,
+              COUNT(*)                  AS total,
+              SUM(w.channel = 'app')    AS app,
+              SUM(w.channel = 'kiosk')  AS kiosk,
+              SUM(w.channel IS NULL)    AS unknown
+       FROM wait_time_records w
+       WHERE ${where}
+       GROUP BY YEARWEEK(w.visit_date, 3)
+       ORDER BY yw`,
+      params
+    );
+    const trendRows = trend.map((r) => ({
+      week_start: String(r.week_start).slice(0, 10),
+      total: Number(r.total),
+      app_pct: r.total ? Math.round((Number(r.app) / Number(r.total)) * 1000) / 10 : 0,
+    }));
+
+    const appRow = channels.find((c) => c.channel === 'app');
+    const selfServicePct = appRow ? appRow.pct : 0;
+    res.json({
+      total,
+      channels,
+      trend: trendRows,
+      self_service_pct: selfServicePct,
+      // Walk-ins a clerk had to key in by hand — the counterfactual the app saves.
+      staffed_intake: channels.filter((c) => c.channel !== 'app').reduce((s, c) => s + c.count, 0),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch channel mix.' });
+  }
+});
+
+// Productivity pauses — LIVE, for the ops board. Two signals a manager can act
+// on right now: (A) a window serving much slower than the service normally takes,
+// and (B) a staffed window that has served nobody for a while WHILE people are
+// waiting (the "with demand" clause is what stops it flagging a legitimate lull).
+router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const IDLE_MIN = 45;       // minutes with no customer before a staffed window is "idle"
+    const WAITING_MIN = 3;     // …but only if at least this many people are waiting for it
+    const WINDOW_MIN = 120;    // look-back for the slowdown baseline
+    const SLOW_RATIO = 1.75;   // current avg service time vs the service norm
+    const SLOW_ABS = 10;       // …and at least this many extra minutes
+    const MIN_SAMPLE = 3;      // …over at least this many recent customers
+
+    const scopedBiz = scopedBusinessId(req, business_id);
+    const scopedBranch = scopedBranchId(req, branch_id);
+    const branchClause = scopedBranch ? 'AND c.branch_id = ?' : '';
+    const branchParam = scopedBranch ? [scopedBranch] : [];
+
+    // (A) Slowdowns — a counter serving well above the service's typical time.
+    const [slowRows] = await pool.query(
+      `SELECT c.id AS counter_id, c.label AS counter_label, s.name AS service_name,
+              s.base_avg_time_minutes AS baseline,
+              COUNT(*) AS sample,
+              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS current_avg,
+              MAX(st.full_name) AS staff_name
+       FROM queue_tickets t
+       JOIN queues q   ON q.id = t.queue_id AND q.queue_date = CURDATE()
+       JOIN counters c ON c.id = t.served_at_counter_id
+       JOIN services s ON s.id = c.service_id
+       LEFT JOIN staff st ON st.id = t.served_by_staff_id
+       WHERE t.status = 'served' AND t.started_serving_at IS NOT NULL AND t.completed_at IS NOT NULL
+         AND t.completed_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         AND s.business_id = ? ${branchClause}
+       GROUP BY c.id, c.label, s.name, s.base_avg_time_minutes
+       HAVING sample >= ? AND current_avg >= ? * baseline AND current_avg >= baseline + ?`,
+      [WINDOW_MIN, scopedBiz, ...branchParam, MIN_SAMPLE, SLOW_RATIO, SLOW_ABS]
+    );
+    const slowdowns = slowRows.map((r) => ({
+      counter_label: r.counter_label, service_name: r.service_name, staff_name: r.staff_name,
+      current_avg: Number(r.current_avg), baseline: Number(r.baseline), sample: Number(r.sample),
+      message: `${r.counter_label} (${r.service_name}${r.staff_name ? `, ${r.staff_name}` : ''}) is serving ~${Math.round(r.current_avg)} min per customer — well above the usual ~${Math.round(r.baseline)}. Something is slowing this window down.`,
+    }));
+
+    // (B) Idle-with-demand — staffed window, nobody served lately, people waiting.
+    const [idleRows] = await pool.query(
+      `SELECT st.id AS staff_id, st.full_name AS staff_name, c.label AS counter_label, s.name AS service_name,
+              sa.shift_start,
+              (SELECT MAX(COALESCE(t.completed_at, t.started_serving_at, t.called_at))
+                 FROM queue_tickets t WHERE t.served_by_staff_id = st.id) AS last_activity,
+              (SELECT COUNT(*) FROM queue_tickets w
+                 JOIN queues q ON q.id = w.queue_id
+                WHERE q.branch_id = c.branch_id AND q.service_id = c.service_id
+                  AND q.queue_date = CURDATE() AND w.status = 'waiting') AS waiting
+       FROM staff_assignments sa
+       JOIN staff st  ON st.id = sa.staff_id
+       JOIN counters c ON c.id = sa.counter_id
+       JOIN services s ON s.id = c.service_id
+       WHERE sa.assignment_date = CURDATE()
+         AND (sa.shift_start IS NULL OR sa.shift_start <= CURTIME())
+         AND (sa.shift_end   IS NULL OR sa.shift_end   >= CURTIME())
+         AND s.business_id = ? ${branchClause}`,
+      [scopedBiz, ...branchParam]
+    );
+    const now = Date.now();
+    const idle = idleRows
+      .map((r) => {
+        const since = r.last_activity ? new Date(r.last_activity).getTime() : (r.shift_start ? null : now);
+        const idleMin = since != null ? Math.round((now - since) / 60000) : IDLE_MIN; // never active this shift
+        return { ...r, waiting: Number(r.waiting), idle_minutes: idleMin };
+      })
+      .filter((r) => r.waiting >= WAITING_MIN && r.idle_minutes >= IDLE_MIN)
+      .map((r) => ({
+        staff_name: r.staff_name, counter_label: r.counter_label, service_name: r.service_name,
+        idle_minutes: r.idle_minutes, waiting: r.waiting,
+        message: `${r.counter_label} (${r.staff_name}, ${r.service_name}): no customer called in ${r.idle_minutes} min while ${r.waiting} are waiting — a stalled window during a rush.`,
+      }))
+      .sort((a, b) => (b.waiting * b.idle_minutes) - (a.waiting * a.idle_minutes));
+
+    res.json({ generated_at: new Date().toISOString(), slowdowns, idle, thresholds: { IDLE_MIN, WAITING_MIN, SLOW_RATIO } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to compute productivity signals.' });
+  }
+});
+
 // Staff performance
-router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -547,7 +721,7 @@ router.get('/staff', requireAuth, requireStaffRole('manager', 'executive'), requ
 });
 
 // Branch performance trends — daily aggregates for line charts
-router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, days = 90 } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -582,7 +756,7 @@ router.get('/branch-trends', requireAuth, requireStaffRole('manager', 'executive
 });
 
 // CSV export — returns wait_time_records as CSV for the Jupyter model
-router.get('/export-csv', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+router.get('/export-csv', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const { business_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -598,16 +772,20 @@ router.get('/export-csv', requireAuth, requireStaffRole('manager', 'executive'),
               w.visit_date, w.day_of_week AS dow, w.hour_of_day AS hour,
               w.month_of_year AS month,
               WEEKOFYEAR(w.visit_date) AS week_of_year,
+              DAYOFMONTH(w.visit_date) AS day_of_month,
               CASE WHEN DAYOFWEEK(w.visit_date) IN (1,7) THEN 1 ELSE 0 END AS is_weekend,
-              0 AS is_holiday,
+              CASE WHEN h.holiday_date IS NOT NULL THEN 1 ELSE 0 END AS is_holiday,
+              CASE WHEN DAYOFMONTH(w.visit_date) >= 26 THEN 1 ELSE 0 END AS is_month_end,
               w.wait_time_minutes, w.service_time_minutes, w.status,
               w.queue_length_at_time AS queue_length_at_join,
-              w.staff_count_at_time, 1 AS active_counters
+              w.staff_count_at_time,
+              COALESCE(w.active_counters_at_time, 1) AS active_counters
        FROM wait_time_records w
        JOIN businesses biz ON w.business_id = biz.id
        JOIN branches b     ON w.branch_id   = b.id
        JOIN services s     ON w.service_id  = s.id
        LEFT JOIN queue_tickets t ON w.ticket_id = t.id
+       LEFT JOIN public_holidays h ON h.holiday_date = w.visit_date
        WHERE ${conditions.join(' AND ')}
        ORDER BY w.visit_date, w.hour_of_day`,
       params
@@ -651,7 +829,7 @@ router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, 
 // we infer the balk point from the wait each customer *faced at the moment they
 // joined*: join volume collapses once the quoted wait crosses a threshold.
 // Also returns reneging (people who joined then left) for the full picture.
-router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+router.get('/balking', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
@@ -735,6 +913,92 @@ router.get('/balking', requireAuth, requireStaffRole('manager', 'executive'), re
   } catch (err) {
     console.error('balking:', err);
     res.status(500).json({ error: 'Failed to compute balking analytics.' });
+  }
+});
+
+/**
+ * GET /analytics/counters — the desks in a branch, and who is on them.
+ *
+ * The supervisor's desk board needs this and nothing served it: counters exist
+ * in the schema but no endpoint returned them, so the board could only ever
+ * render its empty state.
+ *
+ * There is no counters.staff_id column — a counter is a place, not an
+ * assignment — so occupancy is inferred from who has actually served at that
+ * counter today. Where nobody has, the desk is reported as unoccupied rather
+ * than guessed at.
+ */
+router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const conditions = ['b.business_id = ?'];
+    const params = [scopedBusinessId(req, business_id)];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('c.branch_id = ?'); params.push(scopedBranch); }
+
+    const [rows] = await pool.query(
+      `SELECT c.id            AS counter_id,
+              c.label         AS counter_label,
+              c.counter_number,
+              c.is_active,
+              c.branch_id,
+              b.name          AS branch_name,
+              s.id            AS service_id,
+              s.name          AS service_name,
+              -- who last served at this counter today, if anyone
+              -- staff_assignments is the SOURCE OF TRUTH for who is on a desk.
+              -- This used to infer it from whoever last served a ticket there,
+              -- which meant a supervisor's assignment was invisible until that
+              -- person had served somebody, and two screens could disagree.
+              -- Ticket history is only a fallback for a desk with no assignment.
+              COALESCE(
+                (SELECT st.full_name FROM staff_assignments sa
+                   JOIN staff st ON st.id = sa.staff_id
+                  WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                  ORDER BY sa.created_at DESC LIMIT 1),
+                (SELECT st.full_name
+                   FROM queue_tickets t
+                   JOIN queues q  ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                   JOIN staff  st ON st.id = t.served_by_staff_id
+                  WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                  ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                  LIMIT 1)
+              )               AS staff_name,
+              COALESCE(
+                (SELECT sa.staff_id FROM staff_assignments sa
+                  WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                  ORDER BY sa.created_at DESC LIMIT 1),
+                (SELECT t.served_by_staff_id
+                   FROM queue_tickets t
+                   JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                  WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                  ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                  LIMIT 1)
+              )               AS staff_id,
+              -- needed so the board can CLEAR a desk, not only fill one
+              (SELECT sa.id FROM staff_assignments sa
+                WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                ORDER BY sa.created_at DESC LIMIT 1) AS assignment_id,
+              (SELECT COUNT(*)
+                 FROM queue_tickets t
+                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                WHERE t.served_at_counter_id = c.id AND t.status = 'served') AS served_today,
+              (SELECT COUNT(*)
+                 FROM queue_tickets t
+                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                WHERE q.service_id = c.service_id AND t.status = 'waiting')  AS service_waiting
+       FROM counters c
+       JOIN branches b  ON b.id = c.branch_id
+       LEFT JOIN services s ON s.id = c.service_id
+       WHERE ${conditions.join(' AND ')} AND c.is_active = 1
+       ORDER BY s.name ASC, c.counter_number ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /analytics/counters failed:', err);
+    res.status(500).json({ error: 'Could not load counters.' });
   }
 });
 

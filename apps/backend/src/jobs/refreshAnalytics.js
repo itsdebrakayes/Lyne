@@ -11,24 +11,24 @@
 
 const pool = require('../db/pool');
 
-const UPSERT_SQL = `
+// One branch-level (service_id = NULL) row per (business, branch, date). Column
+// names must match the analytics_summaries schema exactly — avg_wait_time_minutes
+// / avg_service_time_minutes, NOT avg_wait_minutes.
+const INSERT_SQL = `
   INSERT INTO analytics_summaries
-    (id, business_id, branch_id, summary_date,
+    (id, business_id, branch_id, service_id, summary_date,
      total_visitors, completed_count, cancelled_count, no_show_count, left_count,
-     avg_wait_minutes, avg_service_minutes, peak_hour, completion_rate,
+     avg_wait_time_minutes, avg_service_time_minutes, peak_hour, completion_rate,
      updated_at)
   SELECT
-    UUID()                                                         AS id,
-    w.business_id,
-    w.branch_id,
-    w.visit_date                                                   AS summary_date,
-    COUNT(*)                                                       AS total_visitors,
-    SUM(w.status = 'served')                                       AS completed_count,
-    SUM(w.status = 'cancelled')                                    AS cancelled_count,
-    SUM(w.status = 'no_show')                                      AS no_show_count,
-    SUM(w.status = 'left')                                         AS left_count,
-    ROUND(AVG(w.wait_time_minutes), 2)                             AS avg_wait_minutes,
-    ROUND(AVG(w.service_time_minutes), 2)                          AS avg_service_minutes,
+    UUID(), w.business_id, w.branch_id, NULL, w.visit_date,
+    COUNT(*),
+    SUM(w.status = 'served'),
+    SUM(w.status = 'cancelled'),
+    SUM(w.status = 'no_show'),
+    SUM(w.status = 'left'),
+    ROUND(AVG(w.wait_time_minutes), 2),
+    ROUND(AVG(w.service_time_minutes), 2),
     (
       SELECT h.hour_of_day
       FROM wait_time_records h
@@ -38,47 +38,44 @@ const UPSERT_SQL = `
       GROUP BY h.hour_of_day
       ORDER BY COUNT(*) DESC
       LIMIT 1
-    )                                                              AS peak_hour,
-    ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 2)           AS completion_rate,
-    NOW()                                                          AS updated_at
+    ),
+    ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 2),
+    NOW()
   FROM wait_time_records w
   WHERE w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
     AND w.visit_date <  CURDATE()
   GROUP BY w.business_id, w.branch_id, w.visit_date
-  ON DUPLICATE KEY UPDATE
-    total_visitors      = VALUES(total_visitors),
-    completed_count     = VALUES(completed_count),
-    cancelled_count     = VALUES(cancelled_count),
-    no_show_count       = VALUES(no_show_count),
-    left_count          = VALUES(left_count),
-    avg_wait_minutes    = VALUES(avg_wait_minutes),
-    avg_service_minutes = VALUES(avg_service_minutes),
-    peak_hour           = VALUES(peak_hour),
-    completion_rate     = VALUES(completion_rate),
-    updated_at          = NOW()
 `;
 
 /**
- * Refresh analytics summaries.
+ * Refresh analytics summaries for the trailing window.
+ * Delete-then-insert the window so a re-run is idempotent (no reliance on a
+ * fragile ON DUPLICATE KEY / partial unique index).
  * @param {number} lookbackDays — how many days back to recalculate (default 7)
  */
 async function refreshAnalyticsSummaries(lookbackDays = 7) {
   const start = Date.now();
   console.log(`[Analytics] Refreshing summaries (last ${lookbackDays} days) …`);
 
-  // analytics_summaries needs a unique key on (business_id, branch_id, summary_date)
-  // to support ON DUPLICATE KEY UPDATE. Ensure the index exists.
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uk_summary_biz_branch_date
-    ON analytics_summaries (business_id, branch_id, summary_date)
-  `).catch(() => {
-    // Index may already exist — not fatal
-  });
-
-  const [result] = await pool.query(UPSERT_SQL, [lookbackDays]);
-  const elapsed  = Date.now() - start;
-  console.log(`[Analytics] Done — ${result.affectedRows} rows upserted in ${elapsed}ms`);
-  return result.affectedRows;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(
+      `DELETE FROM analytics_summaries
+       WHERE summary_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND summary_date < CURDATE()`,
+      [lookbackDays]
+    );
+    const [result] = await conn.query(INSERT_SQL, [lookbackDays]);
+    await conn.commit();
+    const elapsed = Date.now() - start;
+    console.log(`[Analytics] Done — ${result.affectedRows} rows rebuilt in ${elapsed}ms`);
+    return result.affectedRows;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 module.exports = { refreshAnalyticsSummaries };

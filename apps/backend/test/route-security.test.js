@@ -11,6 +11,7 @@ const staffRouter = require('../src/routes/staff');
 const assignmentsRouter = require('../src/routes/assignments');
 const staffInviteRouter = require('../src/routes/staff-invite');
 const ocrRouter = require('../src/routes/ocr');
+const targetsRouter = require('../src/routes/targets');
 const { lookupActorBySupabaseUid } = require('../src/middleware/auth');
 
 function routeHandlers(router, method, path) {
@@ -25,6 +26,40 @@ test('customer queue join requires authentication without staff tenant middlewar
   const handlers = routeHandlers(ticketRouter, 'post', '/');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(!handlers.includes('requireQueueAccess'));
+});
+
+test('kiosk walk-in is authenticated and role-gated, not a public or open create', () => {
+  const handlers = routeHandlers(ticketRouter, 'post', '/walk-in');
+  assert.ok(handlers.includes('requireAuth'), 'walk-in must authenticate');
+  // requireStaffRole(...) returns an anonymous middleware, so it can't be named,
+  // but its presence shows as an extra handler between auth and the route body.
+  assert.ok(handlers.length >= 3, 'walk-in must carry auth + a role gate + handler');
+  // It creates a NEW ticket, so it must NOT be gated on an existing ticket/queue.
+  assert.ok(!handlers.includes('requireTicketAccess'));
+  assert.ok(!handlers.includes('requireQueueAccess'));
+});
+
+test('branch targets read is authenticated and branch-scoped', () => {
+  const handlers = routeHandlers(targetsRouter, 'get', '/branch');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.includes('requireBranchAccess'), 'branch targets must verify branch access');
+});
+
+test('branch targets write is authenticated, branch-scoped and audited', () => {
+  const handlers = routeHandlers(targetsRouter, 'put', '/branch');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.includes('requireBranchAccess'));
+  // requireStaffRole('manager','executive') + auditLog(...) are anonymous, so a
+  // handler count confirms the full chain (auth + role + branch + audit + body).
+  assert.ok(handlers.length >= 5, 'branch targets write must carry the full guard chain');
+});
+
+test('company targets write stays authenticated behind the full guard chain', () => {
+  // requireStaffRole('executive') + requireBusinessAccess('body') + auditLog(...)
+  // are all anonymous middleware, so assert auth + a full chain by count.
+  const handlers = routeHandlers(targetsRouter, 'put', '/');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.length >= 4, 'company targets write must carry role + business + audit guards');
 });
 
 test('ticket detail and position routes require ownership checks', () => {

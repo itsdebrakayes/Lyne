@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS roles (
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-staff-001',          'line_staff',     'Line Staff',     'Assigned queue/counter/service operator'),
+('role-supervisor-001',     'supervisor',     'Supervisor',     'Section/branch supervisor — read-only operational view; sees branch targets'),
 ('role-mgr-001',            'manager',        'Manager',        'Branch manager for staff assignments and branch operations'),
 ('role-exec-001',           'executive',      'Executive',      'Business-wide executive dashboard and analytics access'),
 ('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support');
@@ -314,6 +315,7 @@ CREATE TABLE IF NOT EXISTS wait_time_records (
     wait_time_minutes       DECIMAL(10,2),
     service_time_minutes    DECIMAL(10,2),
     status                  VARCHAR(50)   NOT NULL,
+    channel                 ENUM('app','walk_in','kiosk') NULL,  -- join channel (see migration 015)
     staff_count_at_time     INT,
     queue_length_at_time    INT,
     active_counters_at_time INT,
@@ -549,6 +551,51 @@ CREATE TABLE IF NOT EXISTS payment_events (
   UNIQUE KEY uk_stripe_event (stripe_event_id),
   KEY idx_pe_intent (payment_intent_id),
   FOREIGN KEY (payment_intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =============================================================
+-- SECTION 21: TICKET RATINGS (customer experience · see migration 014)
+-- Post-visit satisfaction signal — the only place CX is captured, and the
+-- input to any future satisfaction / churn modelling.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS ticket_ratings (
+    id           CHAR(36)     NOT NULL,
+    ticket_id    CHAR(36)     NOT NULL,
+    user_id      CHAR(36),
+    business_id  CHAR(36)     NOT NULL,
+    branch_id    CHAR(36)     NOT NULL,
+    service_id   CHAR(36)     NOT NULL,
+    rating       TINYINT      NOT NULL,
+    wait_ok      BOOLEAN      NULL,
+    comment      VARCHAR(500) NULL,
+    created_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_rating_ticket (ticket_id),
+    FOREIGN KEY (ticket_id)   REFERENCES queue_tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)     REFERENCES users(id)        ON DELETE SET NULL,
+    FOREIGN KEY (business_id) REFERENCES businesses(id)   ON DELETE CASCADE,
+    FOREIGN KEY (branch_id)   REFERENCES branches(id)     ON DELETE CASCADE,
+    FOREIGN KEY (service_id)  REFERENCES services(id)     ON DELETE CASCADE,
+    CONSTRAINT chk_rating_range CHECK (rating BETWEEN 1 AND 5)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- =============================================================
+-- SECTION 20: PUBLIC HOLIDAY CALENDAR (see migration 013)
+-- Single source of truth for holidays. Drives the is_holiday feature in
+-- the analytics export and the demand forecast's future-date surge signal.
+-- Seeded with Jamaica national holidays via migration 013_public_holidays.sql.
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS public_holidays (
+    holiday_date  DATE         NOT NULL,
+    country       CHAR(2)      NOT NULL DEFAULT 'JM',
+    name          VARCHAR(100) NOT NULL,
+    is_full_day   BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (country, holiday_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

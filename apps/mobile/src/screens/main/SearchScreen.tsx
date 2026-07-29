@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
@@ -33,6 +34,7 @@ async function pushRecent(term: string) {
 }
 
 export default function SearchScreen() {
+  const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   const [recents, setRecents] = useState<string[]>([]);
@@ -81,7 +83,7 @@ export default function SearchScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={t.content}
+        contentContainerStyle={[t.content, { paddingTop: topPad }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}

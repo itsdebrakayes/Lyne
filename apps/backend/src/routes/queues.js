@@ -10,6 +10,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
 const {
   requireStaffRole,
@@ -17,10 +18,49 @@ const {
   requireQueueAccess,
 } = require('../middleware/tenantAccess');
 
+
+/**
+ * Open today's queues if nobody has yet.
+ *
+ * Queues are keyed by queue_date, and until this existed nothing created them
+ * for a new day — so at midnight every live screen emptied and stayed empty
+ * until a manager manually opened each service. First thing on a Monday that
+ * reads as a broken system, not as "the day hasn't started".
+ *
+ * Done lazily on read rather than by a scheduler: it is self-healing (a missed
+ * cron, a restart, a server that was off overnight all resolve themselves the
+ * first time anyone opens the app) and it costs one cheap INSERT..SELECT that
+ * does nothing once the day is open.
+ *
+ * A branch offers a service if it has a counter for it, so that is the source
+ * of truth for which queues a branch should have.
+ */
+async function ensureQueuesForToday(businessId, branchId) {
+  if (!businessId) return;
+  await pool.query(
+    `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
+     SELECT UUID(), x.branch_id, x.service_id, CURDATE(), 200, TRUE
+       FROM (SELECT DISTINCT c.branch_id, c.service_id
+               FROM counters c
+               JOIN branches b ON b.id = c.branch_id
+               JOIN services s ON s.id = c.service_id
+              WHERE c.is_active = 1 AND s.is_active = 1
+                AND b.business_id = ?
+                AND (? IS NULL OR b.id = ?)) x
+      WHERE NOT EXISTS (
+        SELECT 1 FROM queues q
+         WHERE q.branch_id = x.branch_id AND q.service_id = x.service_id
+           AND q.queue_date = CURDATE())`,
+    [businessId, branchId || null, branchId || null]
+  );
+}
+
 // Staff-scoped queues for the administration dashboard.
-router.get('/mine', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), async (req, res) => {
+router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), async (req, res) => {
   try {
     const role = req.dbStaff.role_name;
+    // Opens the day on first read so nobody ever meets a blank morning.
+    await ensureQueuesForToday(req.dbStaff.business_id, req.dbStaff.branch_id);
     const conditions = ['q.is_active = TRUE', 'q.queue_date = CURDATE()', 'b.business_id = ?'];
     const params = [req.dbStaff.business_id];
     if (role === 'manager' && req.dbStaff.branch_id) {
@@ -111,7 +151,9 @@ router.get('/live', async (req, res) => {
                 SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t.started_serving_at, t.called_at, t.joined_at), t.completed_at))
                 FROM queue_tickets t
                 WHERE t.queue_id = q.id AND t.status = 'served' AND t.completed_at IS NOT NULL
-              ), s.base_avg_time_minutes) AS avg_service_minutes
+              ), s.base_avg_time_minutes) AS avg_service_minutes,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters
        FROM queues q
        JOIN services s ON q.service_id = s.id
        WHERE q.branch_id = ? AND q.service_id = ? AND q.is_active = TRUE AND q.queue_date = CURDATE()
@@ -122,8 +164,19 @@ router.get('/live', async (req, res) => {
       return res.json({ id: null, waiting_count: 0, estimated_wait_minutes: 0 });
     }
     const row = rows[0];
-    const estimated_wait_minutes = Math.round(row.waiting_count * (row.avg_service_minutes || 15));
-    res.json({ id: row.id, waiting_count: row.waiting_count, estimated_wait_minutes });
+    // Counter-aware and IDENTICAL to the /services projection, so the Branch
+    // screen and this pre-join screen never disagree. See utils/etaMath.js.
+    const estimated_wait_minutes = projectedWaitMinutes({
+      ahead: row.waiting_count,
+      perServiceMinutes: row.avg_service_minutes,
+      counters: row.active_counters,
+    });
+    res.json({
+      id: row.id,
+      waiting_count: row.waiting_count,
+      active_counters: row.active_counters,
+      estimated_wait_minutes,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch live queue info.' });
@@ -222,3 +275,4 @@ router.put('/:id/close', requireAuth, requireStaffRole('manager', 'executive'), 
 });
 
 module.exports = router;
+module.exports.ensureQueuesForToday = ensureQueuesForToday;

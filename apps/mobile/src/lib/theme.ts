@@ -53,6 +53,15 @@ const lightColors = {
   busy: '#e5484d',
   danger: '#e5484d',
 
+  // Soft semantic tints for info / success / warn / danger cards, plus the ink
+  // that sits on them. Light keeps the exact hand-picked pastels; dark uses
+  // translucent status colors so the cards read as native dark-theme surfaces
+  // instead of bright light islands.
+  infoSoft: '#eef8fb', infoInk: '#0d5c6e',
+  successSoft: '#e6f7ee', successInk: '#166b41',
+  warnSoft: '#fdf3e7',
+  dangerSoft: '#fdeceb',
+
   onDark: '#ffffff',
 };
 
@@ -92,6 +101,11 @@ const darkColors: Palette = {
   moderate: '#f5b83e',
   busy: '#ef5a5f',
   danger: '#ef5a5f',
+
+  infoSoft: 'rgba(34,201,228,0.13)', infoInk: '#7fdcef',
+  successSoft: 'rgba(63,208,127,0.15)', successInk: '#5fd99a',
+  warnSoft: 'rgba(245,184,62,0.15)',
+  dangerSoft: 'rgba(239,90,95,0.16)',
 
   onDark: '#ffffff',
 };
@@ -274,6 +288,35 @@ export function branchOpenInfo(now: Date = new Date(), hours: BranchHours = DEFA
     return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day, hours) };
   }
   return { state: 'closed', label: 'Closed', detail: nextOpenLabel(day, hours) };
+}
+
+/**
+ * Remote joining opens a few minutes AFTER the doors do. People who travelled to
+ * the branch and are standing there at opening should not be leapfrogged by
+ * someone tapping "join" from home the second the clock ticks over, so the first
+ * few minutes of the day belong to walk-ins.
+ */
+export const REMOTE_JOIN_BUFFER = 5; // minutes
+
+export type RemoteJoinState = OpenState | 'buffer';
+export interface RemoteJoinInfo extends Omit<OpenInfo, 'state'> { allowed: boolean; state: RemoteJoinState; }
+
+/** Whether this branch can be joined FROM THE APP right now, and why not if not. */
+export function remoteJoinInfo(now: Date = new Date(), hours: BranchHours = DEFAULT_HOURS): RemoteJoinInfo {
+  const info = branchOpenInfo(now, hours);
+  if (info.state !== 'open') return { ...info, allowed: false };
+
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const remoteOpensAt = hours.openMin + REMOTE_JOIN_BUFFER;
+  if (mins < remoteOpensAt) {
+    return {
+      allowed: false,
+      state: 'buffer',
+      label: 'Seating walk-ins',
+      detail: `Doors just opened — people already at the branch join first. You can take a spot from here at ${clockLabel(remoteOpensAt)}.`,
+    };
+  }
+  return { ...info, allowed: true };
 }
 
 // Default agency open time as a plain label, for callers without a branch.

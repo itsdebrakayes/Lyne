@@ -1,26 +1,32 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { colors, font, t, initials, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
+import { useRefresh } from '../../lib/useRefresh';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Business'>;
 
 export default function BusinessScreen() {
+  const topPad = useTopPad(12);
   const route = useRoute<Params>();
   const nav = useNavigation<any>();
   const queryClient = useQueryClient();
   const { businessId, businessName } = route.params;
 
-  const { data: branches = [], isLoading } = useQuery({
+  const branchesQuery = useQuery({
     queryKey: ['branches', businessId],
     queryFn: () => api.get<BranchSummary[]>(`/branches?business_id=${businessId}`, false),
     refetchInterval: 30_000,
   });
+  const branches = branchesQuery.data ?? [];
+  const isLoading = branchesQuery.isLoading;
+  const { refreshing, onRefresh } = useRefresh(branchesQuery.refetch);
   const { data: saved = [] } = useQuery({ queryKey: ['saved-businesses'], queryFn: () => api.get<SavedBusiness[]>('/saved') });
   const isSaved = saved.some(business => business.id === businessId);
 
@@ -31,7 +37,8 @@ export default function BusinessScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 40 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <TouchableOpacity onPress={() => nav.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <TouchableOpacity disabled={toggleSave.isPending} onPress={() => toggleSave.mutate()} style={t.iconBtn}>
