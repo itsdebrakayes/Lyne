@@ -28,6 +28,9 @@ export type SupLiveInput = {
   sparks: { waiting: number[]; wait: number[]; served: number[]; covered: number[] };
   shiftFrom: string; shiftTo: string;
   faq: Array<{ q: string; a: string }>;
+  /** Session assignments, owned by the dashboard so they survive tab changes. */
+  assigned: Record<string, string | null>;
+  onAssign: (deskId: string, staffId: string | null) => void;
 };
 
 export function buildSupData(i: SupLiveInput): SupTabData {
@@ -121,6 +124,8 @@ export function buildSupData(i: SupLiveInput): SupTabData {
     desks, staff, hours, deskHeat, targets,
     faq: i.faq,
     // Demand rows come back keyed by service, which IS the section.
+    assigned: i.assigned,
+    onAssign: i.onAssign,
     sectionNames: rowNames.map((n) => titleCase(n) || n),
     sparks: i.sparks,
     shiftFrom: i.shiftFrom, shiftTo: i.shiftTo,

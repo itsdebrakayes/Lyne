@@ -47,6 +47,12 @@ export default function SupervisorDashboard() {
   });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [period, setPeriod] = useState('today');
+  /* Desk assignments belong to the DASHBOARD, not to a tab. Held in a tab they
+     reset the moment you look at Staff and come back, which read as the system
+     forgetting what you just did. */
+  const [assigned, setAssigned] = useState<Record<string, string | null>>({});
+  const onAssign = (deskId: string, staffId: string | null) =>
+    setAssigned((p) => ({ ...p, [deskId]: staffId }));
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
@@ -98,6 +104,7 @@ export default function SupervisorDashboard() {
     shiftFrom: (d.queues as any[])[0]?.opening_time || '—',
     shiftTo: (d.queues as any[])[0]?.closing_time || '—',
     faq: SUP_FAQ,
+    assigned, onAssign,
     /* Trend behind each headline stat. Six points of today's own history from
        the demand grid — no separate endpoint reports these per section yet. */
     sparks: (() => {
@@ -113,7 +120,7 @@ export default function SupervisorDashboard() {
         covered: perHour.map(() => 0),
       };
     })(),
-  }), [d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
+  }), [assigned, d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
        d.effectiveTarget, liveWait, last]);
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;

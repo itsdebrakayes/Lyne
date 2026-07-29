@@ -123,6 +123,8 @@ export default function DesignPreview() {
   // Lets the empty states be inspected on demand — a brand-new business, or a
   // measure the models are not producing.
   const [empty, setEmpty] = useState(false);
+  // Mirrors the real dashboard: assignments outlive the tab you made them on.
+  const [supAssigned, setSupAssigned] = useState<Record<string, string | null>>({});
 
   const NAV_FOR: Record<Role, QxNav[]> = { executive: EXEC_NAV, manager: MGR_NAV, supervisor: SUP_NAV, linestaff: LINE_NAV };
   const ACCOUNT: Record<Role, { name: string; role: string }> = {
@@ -207,7 +209,11 @@ export default function DesignPreview() {
               /* Same component the live dashboard renders — the preview used to
                  show an older fixture board, which is exactly the drift this
                  architecture is meant to prevent. */
-              <SupDataProvider value={empty ? SUP_EMPTY : SUP_FIXTURES}>
+              <SupDataProvider value={{
+                ...(empty ? SUP_EMPTY : SUP_FIXTURES),
+                assigned: supAssigned,
+                onAssign: (deskId, staffId) => setSupAssigned((p) => ({ ...p, [deskId]: staffId })),
+              }}>
                 {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
               </SupDataProvider>
             )

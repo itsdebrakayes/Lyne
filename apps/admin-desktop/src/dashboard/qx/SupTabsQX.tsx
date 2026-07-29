@@ -52,6 +52,11 @@ export type SupTabData = {
   targets: SupTargetRow[];
   faq: Array<{ q: string; a: string }>;
   shiftFrom: string; shiftTo: string;
+  /** Desk -> staff assignments made in this session. Held here rather than
+      inside a tab so moving someone on the Section Board is still there when
+      you come back from Staff or Busy Times. */
+  assigned: Record<string, string | null>;
+  onAssign: (deskId: string, staffId: string | null) => void;
   /** The sections (services) this branch runs — the rows of the busy grid.
       A section is a service; a desk is one counter within it. */
   sectionNames: string[];
@@ -108,6 +113,7 @@ export const SUP_FIXTURES: SupTabData = {
   sectionName: 'Registrations Section', branchName: 'Half Way Tree', supervisorName: 'Tanya Reid',
   desks: FX_DESKS, staff: FX_STAFF, hours: FX_HOURS, deskHeat: FX_DESK_HEAT,
   targets: FX_TARGETS, faq: FX_FAQ, shiftFrom: '8:00am', shiftTo: '4:00pm',
+  assigned: {}, onAssign: () => {},
   sectionNames: [...new Set(FX_DESKS.map((x) => x.svc))],
   sparks: { waiting: [4, 7, 11, 14, 16, 17], wait: [24, 29, 33, 37, 39, 41], served: [6, 19, 37, 61, 80, 96], covered: [5, 5, 4, 4, 3, 3] },
 };
@@ -116,6 +122,7 @@ export const SUP_EMPTY: SupTabData = {
   sectionName: 'Your Section', branchName: 'Your Branch', supervisorName: '—',
   desks: [], staff: [], hours: [], deskHeat: [], targets: [], faq: [],
   shiftFrom: '—', shiftTo: '—',
+  assigned: {}, onAssign: () => {},
   sectionNames: [],
   sparks: { waiting: [], wait: [], served: [], covered: [] },
 };
@@ -381,8 +388,11 @@ export function SupStaffTab() {
         value={d.staff.filter((s) => s.state === 'break').length}
         foot="Back on their desk shortly" />
 
-      {flagged.length ? (
-        <Card span={12} title="Worth A Word" cap="Flagged automatically. These are prompts, not judgements.">
+      {/* Always on the page. Hiding it when nobody is flagged made the section
+          look like it had gone missing, and "nothing needs you" is itself
+          worth saying on a supervisor's screen. */}
+      <Card span={12} title="Worth A Word" cap="Flagged automatically. These are prompts, not judgements.">
+        {flagged.length ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
             {flagged.map((s) => (
               <Note key={s.id} icon={s.breakDue ? Coffee : Clock} tone={s.state === 'idle' ? 'bad' : 'warn'}
@@ -390,8 +400,11 @@ export function SupStaffTab() {
                 body={s.note || (s.breakDue ? 'Due a break.' : SUP_STATE_LABEL[s.state])} />
             ))}
           </div>
-        </Card>
-      ) : null}
+        ) : (
+          <Note icon={CheckCircle2} title="Nobody Needs A Word Right Now"
+            body="No counter has stalled with people waiting, and nobody is long overdue a break. Anyone who does will appear here." />
+        )}
+      </Card>
 
       <Card span={12} title={<>This Section<span className="qx-count">{rows.length}</span></>}
         cap="Everyone attached to this section today"
@@ -630,7 +643,6 @@ export const SUP_TAB_HEAD: Record<string, { title: string; sub: string }> = {
 export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const d = useSup();
   const [picked, setPicked] = useState<string | null>(null);
-  const [moves, setMoves] = useState<Record<string, string | null>>({});
 
   /* Every hook must run on every render — this useMemo used to sit BELOW the
      empty-state guard, so when the guard fired React saw fewer hooks than the
@@ -641,25 +653,25 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
     for (const dk of d.desks) m.set(dk.svc, [...(m.get(dk.svc) || []), dk]);
     return [...m.entries()].sort((a, b) =>
       b[1].reduce((t, x) => t + x.waiting, 0) - a[1].reduce((t, x) => t + x.waiting, 0));
-  }, [d.desks, moves]);
+  }, [d.desks, d.assigned]);
 
   if (!d.desks.length && !d.staff.length) {
     return <EmptyTab title="This Section Is Not Set Up Yet"
       body="Once desks and staff are attached to this branch they appear here, with coverage per service and anyone who needs your attention." />;
   }
 
+  /* Reads and writes the SHARED assignments on the context, not local state.
+     Held locally they reset the moment you looked at another tab, which read as
+     the system forgetting the move you had just made. */
   const staffAt = (deskId: string) => {
-    const id = deskId in moves ? moves[deskId] : d.desks.find((x) => x.id === deskId)?.staffId ?? null;
+    const id = deskId in d.assigned ? d.assigned[deskId] : d.desks.find((x) => x.id === deskId)?.staffId ?? null;
     return id ? d.staff.find((s) => s.id === id) || null : null;
   };
   const place = (deskId: string) => {
     if (!picked) return;
-    setMoves((p) => {
-      const n = { ...p };
-      for (const dk of d.desks) if ((dk.id in n ? n[dk.id] : dk.staffId) === picked) n[dk.id] = null;
-      n[deskId] = picked;
-      return n;
-    });
+    // One person, one desk — clear them off whatever they were on first.
+    for (const dk of d.desks) if (staffAt(dk.id)?.id === picked) d.onAssign(dk.id, null);
+    d.onAssign(deskId, picked);
     setPicked(null);
   };
 
