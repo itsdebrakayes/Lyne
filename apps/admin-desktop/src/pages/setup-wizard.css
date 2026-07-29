@@ -1,0 +1,135 @@
+/* ============================================================
+   First-run setup.
+
+   Deliberately NOT the dashboard shell: there is no data to
+   navigate yet, so a sidebar of empty screens would be noise.
+   One column of progress, one column of the question being
+   asked, and the action pinned to the bottom.
+   ============================================================ */
+
+.sw { min-height: 100vh; }
+.sw-shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh; }
+@media (max-width: 900px) { .sw-shell { grid-template-columns: 1fr; } .sw-rail { display: none; } }
+
+/* ── progress rail ── */
+.sw-rail {
+  background: color-mix(in oklab, var(--c-ink) 92%, transparent);
+  color: var(--c-ink-text); padding: 22px 18px;
+  display: flex; flex-direction: column; gap: 26px;
+  border-right: 1px solid var(--c-ink-line);
+}
+.sw-brand { display: flex; align-items: center; gap: 11px; }
+.sw-brand i {
+  width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center;
+  font-style: normal; font-weight: 800; color: #fff;
+  background: linear-gradient(150deg, var(--c-primary-bright), var(--c-primary));
+}
+.sw-brand b { display: block; font-size: 15px; font-weight: 700; }
+.sw-brand small { display: block; color: var(--c-ink-dim); font-size: 11.5px; font-weight: 600; }
+
+.sw-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sw-steps li {
+  display: flex; align-items: center; gap: 11px; padding: 10px 11px; border-radius: 12px;
+  color: var(--c-ink-dim); font-size: 13px; font-weight: 600;
+}
+.sw-steps li i {
+  width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  background: rgba(255, 255, 255, .08); font-style: normal;
+}
+.sw-steps li.on { background: rgba(255, 255, 255, .11); color: #fff; font-weight: 700; }
+.sw-steps li.on i { background: var(--c-primary-bright); color: #fff; }
+.sw-steps li.done { color: var(--c-ink-text); }
+.sw-steps li.done i { background: var(--c-primary); color: #fff; }
+.sw-railfoot { margin-top: auto; }
+.sw-railfoot .qx-note { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .1); }
+.sw-railfoot .qx-note b { color: #fff; }
+.sw-railfoot .qx-note p { color: var(--c-ink-dim); }
+.sw-railfoot .qx-note .ni { background: rgba(255, 255, 255, .1); color: var(--c-ink-text); }
+
+/* ── main column ── */
+.sw-main { display: flex; flex-direction: column; padding: 30px 34px 24px; max-width: 900px; width: 100%; }
+.sw-eyebrow { font-size: 11.5px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--c-primary); }
+.sw-head { flex: none; margin-bottom: 20px; }
+.sw-head h2 { margin: 9px 0 0; font-size: 30px; letter-spacing: -.03em; }
+.sw-body { flex: 1; min-height: 0; }
+.sw-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 22px; }
+
+.sw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 50px; padding: 0 24px; border: 0; border-radius: 14px;
+  font-size: 15px; font-weight: 700; white-space: nowrap;
+  background: var(--c-surface); color: var(--c-text); border: 1px solid var(--c-line-2);
+}
+.sw-btn.primary { background: var(--c-primary); color: #fff; border-color: var(--c-primary); }
+.sw-btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.sw-btn.ghost { background: transparent; }
+.sw-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── welcome ── */
+.sw-welcome { max-width: 640px; margin: auto 0; }
+.sw-welcome h1 { margin: 12px 0 0; font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -.035em; }
+.sw-welcome p { margin: 16px 0 0; font-size: 16px; line-height: 1.6; color: var(--c-dim); }
+.sw-cards { display: grid; gap: 10px; margin: 26px 0 30px; }
+.sw-cards div { display: flex; align-items: center; gap: 14px; padding: 13px 15px; border-radius: 14px; background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.sw-cards b {
+  width: 28px; height: 28px; border-radius: 9px; flex: none; display: grid; place-items: center;
+  background: var(--c-primary-soft); color: var(--c-primary); font-size: 13px; font-weight: 800;
+}
+.sw-cards span { font-size: 13.5px; font-weight: 600; color: var(--c-text); }
+
+/* ── forms ── */
+.sw-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.sw-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sw-field.wide { grid-column: 1 / -1; }
+.sw-field > span { font-size: 12px; font-weight: 700; }
+.sw-field input, .sw-field select {
+  min-height: 46px; border-radius: 12px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-text);
+  padding: 0 13px; font: inherit; font-size: 14px; outline: none;
+}
+.sw-field input:focus, .sw-field select:focus { border-color: var(--c-primary); }
+.sw-field small { color: var(--c-faint); font-size: 11.5px; font-weight: 600; }
+
+/* ── service picker ── */
+.sw-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 10px; }
+.sw-pick {
+  display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 15px;
+  border: 1.5px solid var(--c-line-2); background: var(--c-surface); color: var(--c-text); text-align: left;
+}
+.sw-pick .qx-av { width: 38px; height: 38px; border-radius: 12px; font-size: 11.5px; flex: none; }
+.sw-pick .t { flex: 1; min-width: 0; }
+.sw-pick .t b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-pick .t small { display: block; font-size: 11.5px; color: var(--c-faint); margin-top: 1px; }
+.sw-pick[aria-pressed="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); }
+.sw-pick[aria-pressed="true"] svg { color: var(--c-primary); flex: none; }
+.sw-add { display: flex; gap: 9px; margin-top: 14px; }
+.sw-add input {
+  flex: 1; min-height: 46px; border-radius: 12px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-text); padding: 0 13px; font: inherit; font-size: 14px; outline: none;
+}
+.sw-add input:focus { border-color: var(--c-primary); }
+
+/* ── stepper rows (windows and targets share this) ── */
+.sw-counters, .sw-targets { display: flex; flex-direction: column; }
+.sw-counter, .sw-target {
+  display: flex; align-items: center; gap: 13px; padding: 13px 2px; border-bottom: 1px solid var(--c-line);
+}
+.sw-counter:last-child, .sw-target:last-child { border-bottom: 0; }
+.sw-counter .qx-av { width: 36px; height: 36px; border-radius: 12px; font-size: 11px; flex: none; }
+.sw-counter .t, .sw-target .t { flex: 1; min-width: 0; }
+.sw-counter .t b, .sw-target .t b { display: block; font-size: 13px; font-weight: 700; }
+.sw-counter .t small, .sw-target .t small { display: block; font-size: 11.5px; color: var(--c-dim); margin-top: 1px; }
+.sw-counter .n, .sw-target .n { display: flex; align-items: center; gap: 10px; flex: none; }
+.sw-counter .n button, .sw-target .n button {
+  width: 36px; height: 36px; border-radius: 11px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-text); font-size: 18px; font-weight: 700; line-height: 1;
+}
+.sw-counter .n b, .sw-target .n b { min-width: 62px; text-align: center; font-size: 19px; font-weight: 700; letter-spacing: -.03em; }
+.sw-counter .n b u, .sw-target .n b u { text-decoration: none; font-size: 11px; color: var(--c-faint); margin-left: 2px; }
+
+/* ── review ── */
+.sw-review { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.sw-review div { border-radius: 14px; padding: 14px; background: var(--c-surface-2); border: 1px solid var(--c-line); }
+.sw-review span { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-faint); }
+.sw-review b { display: block; font-size: 21px; font-weight: 700; letter-spacing: -.03em; margin-top: 5px; }
+.sw-review small { display: block; font-size: 11.5px; color: var(--c-dim); margin-top: 4px; line-height: 1.45; }
