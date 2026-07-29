@@ -136,10 +136,22 @@ app.listen(PORT, () => {
   const demoRefreshEnabled =
     process.env.ALLOW_DEMO_DATA_REFRESH === 'true' && process.env.NODE_ENV !== 'production';
 
-  const runDemoSeed = (why) =>
-    require('../scripts/refresh-demo-data').refreshDemoData()
+  // The re-seed script ships on the demo branch only — production builds strip
+  // it. Loading it lazily AND tolerating its absence means a production box
+  // that somehow has the flag set logs a line and carries on serving, instead
+  // of dying at boot on MODULE_NOT_FOUND.
+  const runDemoSeed = (why) => {
+    let refreshDemoData;
+    try {
+      ({ refreshDemoData } = require('../scripts/refresh-demo-data'));
+    } catch {
+      console.warn('[Demo] Re-seed requested but this build has no demo data. Skipping.');
+      return Promise.resolve();
+    }
+    return refreshDemoData()
       .then((n) => console.log(`[Demo] Re-seeded the demo day (${why}) — ${n} statements.`))
       .catch((err) => console.error(`[Demo] Re-seed failed (${why}):`, err.message));
+  };
 
   // Re-seed BEFORE analytics, never alongside it: the two touch the same tables,
   // and running them concurrently deadlocks. Sequencing is also the correct
