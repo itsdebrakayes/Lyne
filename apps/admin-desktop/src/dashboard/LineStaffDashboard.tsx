@@ -3,7 +3,7 @@
  * Live queue + tickets + analytics via the existing API; real call / verify /
  * complete / skip / no-show mutations.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
@@ -102,6 +102,37 @@ export default function LineStaffDashboard() {
   const branch = activeQueue?.branch_name || admin?.staffRecord.branch_name || 'Your branch';
   const service = activeQueue?.service_name || admin?.staffRecord.assigned_service_name;
 
+  /* ── DESK ACTIONS ──
+     The desk station made no API calls at all: every button moved local React
+     state, so nothing survived leaving the tab and the six-digit code check
+     passed on any six digits. These put the ticket status through the API,
+     which is where the real rules live — including the code check, which the
+     server answers with a 403 when it does not match.
+
+     Every action refetches, so what the desk shows is what the database says. */
+  const refetchDesk = useCallback(async () => {
+    await qc.invalidateQueries({ queryKey: ['line-tickets'] });
+    await qc.invalidateQueries({ queryKey: ['line-history'] });
+  }, [qc]);
+
+  /* Deliberately a direct awaited call rather than the `action` mutation above:
+     that one funnels failures into onError, and the desk needs a wrong code to
+     REJECT so the six-box entry can show "does not match". */
+  const deskStatus = useCallback(async (ticketId: string, body: Record<string, unknown>) => {
+    await api.put(`/tickets/${ticketId}/status`, body);
+    await refetchDesk();
+  }, [refetchDesk]);
+
+  const deskActions = useMemo(() => ({
+    onCall: (id: string) => deskStatus(id, { new_status: 'called' }),
+    // The code travels to the server; a wrong one throws and the UI says so.
+    onStartServing: (id: string, code: string) =>
+      deskStatus(id, { new_status: 'in_service', verification_code: code }),
+    onComplete: (id: string) => deskStatus(id, { new_status: 'served' }),
+    onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
+    onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
+  }), [deskStatus]);
+
   const liveData = useMemo(() => buildLineData({
     staffName: admin?.name || '',
     // The queue endpoint reports the service, not which counter this person is
@@ -168,7 +199,7 @@ export default function LineStaffDashboard() {
     >
       {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
       {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
-      <LineDataProvider value={liveData}>
+      <LineDataProvider value={{ ...liveData, ...deskActions }}>
         {tab === 'live' ? <LineOverviewQX /> : lineTab(tab, (k) => setTab(k))}
       </LineDataProvider>
     </QxShell>

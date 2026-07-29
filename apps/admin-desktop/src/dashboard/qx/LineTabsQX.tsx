@@ -50,6 +50,20 @@ export type LineTabData = {
   sectionAvgServed: number; sectionAvgHandle: number;
   onSince: string;
   faq: Array<{ q: string; a: string }>;
+
+  /* ── ACTIONS ──
+     This screen used to make no API calls at all. Every button changed local
+     state only, which is why nothing survived leaving the tab and why the code
+     check always passed. Each of these writes the ticket status through
+     PUT /tickets/:id/status. */
+  onCall?: (ticketId: string) => Promise<void> | void;
+  /** Starts the service. The code goes to the SERVER, which is what checks it. */
+  onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
+  onComplete?: (ticketId: string) => Promise<void> | void;
+  onNoShow?: (ticketId: string) => Promise<void> | void;
+  onCallAgain?: (ticketId: string) => Promise<void> | void;
+  /** How many times the person at the window has been called. */
+  callCount?: number;
 };
 
 /* ══════════════════════ fixtures ══════════════════════ */
@@ -146,44 +160,73 @@ export function LineOverviewQX() {
   const [q, setQ] = useState('');
   const [view, setView] = useState<'line' | 'noanswer'>('line');
 
-  /* Which customer is at this window, and where they are in the flow. */
-  const [rawStage, setStage] = useState<Stage>(() => (d.queue.some((t) => t.state === 'called') ? 'called' : 'idle'));
-  const [activeId, setActiveId] = useState<string | null>(() => d.queue.find((t) => t.state === 'called')?.id ?? null);
-  const [elapsed, setElapsed] = useState(0);
-  const [calls, setCalls] = useState(1);
+  /* ── WHERE THE STATE LIVES ──
+     All of this used to be local React state seeded from the queue on mount:
+
+         useState(() => queue.some(t => t.state === 'called') ? 'called' : 'idle')
+
+     Which meant the desk forgot everything the moment you left the tab, and
+     re-derived a stage from whoever happened to be 'called' in the data. Three
+     things followed, all of which were reported:
+
+       · You had not pressed Call, but somebody in the seed was already
+         'called', so coming back showed them as called by you.
+       · 'serving' existed ONLY here, so a customer you were serving — timer
+         running — reverted to "check their code" on every return.
+       · Which customer was at the window was a local guess, so it changed.
+
+     The ticket status in the database is the truth. The stage is now READ from
+     it, so leaving the tab cannot change anything, and the actions WRITE to it
+     so the truth moves when you act. */
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [codeState, setCodeState] = useState<'idle' | 'ok' | 'bad'>('idle');
-  const [done, setDone] = useState<string[]>([]);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  /* One ticking clock, reset whenever the stage changes. It drives both the
-     response timer and the service timer — they are the same measurement taken
-     from different starting points. */
-  /* The stage follows the DATA, not just the last button pressed. Without this
-     an emptied queue kept whatever stage it was left in, so a window with
-     nobody at it still read "Called — Waiting For Them" and offered to start a
-     service on a customer who does not exist. */
-  const activeTicket = d.queue.find((t) => t.id === activeId) || null;
-  const stage: Stage = activeTicket ? rawStage : 'idle';
+  // Whoever the DATABASE says is at this window. Serving outranks called: if a
+  // service is under way that is who is in front of you.
+  const activeTicket = useMemo(
+    () => d.queue.find((t) => t.state === 'serving') ?? d.queue.find((t) => t.state === 'called') ?? null,
+    [d.queue],
+  );
+  const activeId = activeTicket?.id ?? null;
+  const stage: Stage = activeTicket?.state === 'serving' ? 'serving'
+    : activeTicket?.state === 'called' ? 'called'
+    : 'idle';
 
+  /* The timer counts from when the call or the service actually started, taken
+     from the record — so it survives a remount instead of restarting at 0:00
+     and under-reporting how long somebody has been kept waiting. */
+  const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    setElapsed(0);
+    const startedAt = activeTicket?.startedAt ? Date.parse(activeTicket.startedAt) : null;
+    const from = startedAt && Number.isFinite(startedAt) ? startedAt : Date.now();
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - from) / 1000)));
+    tick();
     if (stage === 'idle') return undefined;
-    const id = setInterval(() => setElapsed((v) => v + 1), 1000);
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [stage, activeId]);
+  }, [stage, activeId, activeTicket?.startedAt]);
 
-  const waiting = d.queue.filter((t) => t.state === 'waiting' && !done.includes(t.id) && t.id !== activeId);
-  const noAnswer = d.queue.filter((t) => t.state === 'noresponse' && !done.includes(t.id));
+  // Reset the code boxes when the person at the window changes.
+  useEffect(() => {
+    setCode(['', '', '', '', '', '']); setCodeState('idle'); setCodeError(null);
+  }, [activeId]);
+
+  const waiting = d.queue.filter((t) => t.state === 'waiting' && t.id !== activeId);
+  const noAnswer = d.queue.filter((t) => t.state === 'noresponse');
   const active = activeTicket;
   const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
+  const calls = d.callCount ?? 1;
 
-  const reset = (nextStage: Stage, id: string | null) => {
-    setStage(nextStage); setActiveId(id); setCalls(1);
-    setCode(['', '', '', '', '', '']); setCodeState('idle');
+  const run = async (fn?: () => Promise<void> | void) => {
+    if (!fn || busy) return;
+    setBusy(true);
+    try { await fn(); } finally { setBusy(false); }
   };
 
-  const callNext = () => { if (next) reset('called', next.id); };
-  const finish = () => { if (activeId) setDone((p) => [...p, activeId]); reset('idle', null); };
+  const callNext = () => { if (next) run(() => d.onCall?.(next.id)); };
+  const finish = () => { if (activeId) run(() => d.onComplete?.(activeId)); };
 
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
@@ -225,9 +268,24 @@ export function LineOverviewQX() {
     }
   };
 
+  /* The code is checked by the SERVER, against the code stored on the ticket.
+     This used to be `setCodeState(codeReady ? 'ok' : 'bad')` — it passed if six
+     digits were present, whatever they were, so any six digits started a
+     service on someone else's ticket. PUT /tickets/:id/status refuses the
+     transition with a 403 unless the code matches, so starting the service IS
+     the check: if it succeeds the code was right. */
   const verify = () => {
-    // The real check is server-side against the ticket; this is the shape of it.
-    setCodeState(codeReady ? 'ok' : 'bad');
+    if (!activeId || !codeReady) { setCodeState('bad'); return; }
+    run(async () => {
+      setCodeError(null);
+      try {
+        await d.onStartServing?.(activeId, code.join(''));
+        setCodeState('ok');
+      } catch (err) {
+        setCodeState('bad');
+        setCodeError(err instanceof Error ? err.message : 'That code does not match this ticket.');
+      }
+    });
   };
 
   const list = (view === 'noanswer' ? noAnswer : waiting)
@@ -262,7 +320,7 @@ export function LineOverviewQX() {
             </div>
             <div className="ql-meta">
               <span><Users size={14} />{waiting.length} in your line</span>
-              <span><CheckCircle2 size={14} />{d.servedToday + done.length} seen today</span>
+              <span><CheckCircle2 size={14} />{d.servedToday} seen today</span>
               <span><Clock size={14} />{d.counter} · {d.serviceName}</span>
             </div>
           </>
@@ -330,7 +388,7 @@ export function LineOverviewQX() {
               </button>
             </div>
             {codeState === 'ok' ? <div className="ql-verifymsg ok">Code matches — this is the right person.</div> : null}
-            {codeState === 'bad' ? <div className="ql-verifymsg bad">That code does not match this ticket. Ask them to read it again.</div> : null}
+            {codeState === 'bad' ? <div className="ql-verifymsg bad">{codeError || 'That code does not match this ticket. Ask them to read it again.'}</div> : null}
           </div>
         ) : null}
 
@@ -378,16 +436,23 @@ export function LineOverviewQX() {
 
           {stage === 'called' ? (
             <>
-              <button type="button" className="ql-btn primary" onClick={() => setStage('serving')}>
-                <Check size={18} />Start Service
+              {/* Starting a service IS the code check — the server refuses the
+                  transition unless the code matches, so there is no way to
+                  start one without a verified customer. */}
+              <button type="button" className="ql-btn primary" onClick={verify} disabled={!codeReady || busy}
+                title={codeReady ? undefined : 'Enter their six-digit code first'}>
+                <Check size={18} />{busy ? 'Checking…' : 'Start Service'}
               </button>
-              <button type="button" className="ql-btn" onClick={() => { setCalls((c) => c + 1); setElapsed(0); }}>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { if (activeId) run(() => d.onCallAgain?.(activeId)); }}>
                 <Bell size={17} />Call Again
               </button>
-              <button type="button" className="ql-btn" onClick={() => { if (activeId) setDone((p) => [...p, activeId]); reset('idle', null); }}>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}>
                 <SkipForward size={17} />Skip · Requeue
               </button>
-              <button type="button" className="ql-btn danger" onClick={finish} disabled={!canNoShow}
+              <button type="button" className="ql-btn danger" disabled={!canNoShow || busy}
+                onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}
                 title={canNoShow ? undefined : 'Available five minutes after you first called them'}>
                 <PhoneOff size={17} />Mark As No Show
               </button>
@@ -443,7 +508,7 @@ export function LineOverviewQX() {
                 <div className="qx-end">
                   <button type="button" className="qx-btn ghost" disabled={stage !== 'idle'}
                     title={stage === 'idle' ? undefined : 'Finish with the person at your window first'}
-                    onClick={() => reset('called', t.id)}>
+                    onClick={() => run(() => d.onCall?.(t.id))}>
                     {t.state === 'noresponse' ? 'Call Back' : 'Call'}
                   </button>
                 </div>
