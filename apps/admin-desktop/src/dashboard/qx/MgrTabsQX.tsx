@@ -70,6 +70,15 @@ export type MgrTabData = {
   onAskSupervisor?: (message: string) => Promise<void> | void;
   askState?: 'idle' | 'sending' | 'sent' | 'error';
   askError?: string | null;
+
+  /* A branch manager sets THIS BRANCH's targets; an executive sets the company
+     ones. The tab used to be read-only and told managers to "speak to your
+     executive", which is not how this is supposed to work. */
+  onSaveBranchTargets?: (values: Record<string, number>) => Promise<void> | void;
+  targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
+  targetsSaveError?: string | null;
+  targetsSetBy?: string | null;
+  targetsSetAt?: string | null;
 };
 
 /* ══════════════════════ fixtures ══════════════════════ */
@@ -431,21 +440,39 @@ export function MgrBusyTab() {
  * on their branch, and how far off they are. So this screen reads rather than
  * edits, and shows both numbers wherever they differ.
  */
+
+/** "Last changed 4 July by Andre Blake." — or a plain line if we do not know. */
+function mgrLastChanged(who?: string | null, when?: string | null) {
+  if (!who && !when) return 'This branch currently follows the company targets.';
+  const d = when ? new Date(when) : null;
+  const day = d && !Number.isNaN(d.getTime())
+    ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : null;
+  return `Last changed${day ? ` ${day}` : ''}${who ? ` by ${who}` : ''}.`;
+}
+
 export function MgrTargetsTab() {
   const d = useMgr();
+  /* Draft values start from whatever this branch is actually held to — its own
+     override where one exists, otherwise the company number it inherits. */
+  const [vals, setVals] = useState<Record<string, number>>(
+    () => Object.fromEntries(d.targets.map((t) => [t.key, t.branch ?? t.company]))
+  );
+  const [dirty, setDirty] = useState(false);
+  const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
+
   if (!d.targets.length) {
     return <EmptyTab title="No Targets Set Yet"
       body="Targets are set by your executive and apply to every branch unless yours has a specific override. Once they are in place, this shows what you are held to and how far off you are." />;
   }
 
-  const effective = (t: MgrTargetRow) => (t.branch ?? t.company);
+  const effective = (t: MgrTargetRow) => (vals[t.key] ?? t.branch ?? t.company);
   const isMet = (t: MgrTargetRow) => (t.goodWhen === 'down' ? t.now <= effective(t) : t.now >= effective(t));
   const met = d.targets.filter(isMet).length;
 
   return (
     <div className="qx-grid">
       <Card span={7} title="What This Branch Is Held To"
-        cap="Set by your executive. Where a target has been adjusted for this branch, both numbers are shown.">
+        cap="You set these for this branch. Where you do not, the company target applies.">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {d.targets.map((t) => {
             const ok = isMet(t);
@@ -467,22 +494,47 @@ export function MgrTargetsTab() {
                     {t.branch != null ? <span className="qx-tag">Branch Override</span> : null}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.03em' }}>
-                    {eff}<u style={{ textDecoration: 'none', fontSize: 11, color: 'var(--c-faint)', marginLeft: 2 }}>{t.unit}</u>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button type="button" className="qx-btn ghost" aria-label={`Lower ${t.label} target`}
+                    onClick={() => set(t.key, +(eff - 1).toFixed(1))}>−</button>
+                  <div style={{ textAlign: 'center', minWidth: 84 }}>
+                    <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.03em' }}>
+                      {eff}<u style={{ textDecoration: 'none', fontSize: 11, color: 'var(--c-faint)', marginLeft: 2 }}>{t.unit}</u>
+                    </div>
+                    {eff !== t.company ? (
+                      <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
+                        Company {t.company}{t.unit === '%' ? '%' : ` ${t.unit}`}
+                      </small>
+                    ) : null}
                   </div>
-                  {t.branch != null ? (
-                    <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
-                      Company {t.company}{t.unit === '%' ? '%' : ` ${t.unit}`}
-                    </small>
-                  ) : null}
+                  <button type="button" className="qx-btn ghost" aria-label={`Raise ${t.label} target`}
+                    onClick={() => set(t.key, +(eff + 1).toFixed(1))}>+</button>
                 </div>
               </div>
             );
           })}
         </div>
-        <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600 }}>
-          Targets are set company-wide. To discuss an adjustment for this branch, speak to your executive.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button type="button" className="qx-btn"
+            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveBranchTargets}
+            onClick={async () => { await d.onSaveBranchTargets?.(vals); setDirty(false); }}>
+            {d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Branch Targets'}
+          </button>
+          <button type="button" className="qx-btn ghost" onClick={() => {
+            setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.branch ?? t.company]))); setDirty(false);
+          }}>Reset</button>
+          <button type="button" className="qx-btn ghost" onClick={() => {
+            /* Explicitly hand a target back to the company number, rather than
+               leaving people to guess what value "no override" is. */
+            setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.company]))); setDirty(true);
+          }}>Use Company Targets</button>
+          <span style={{ fontSize: 11.5, color: d.targetsSaveState === 'error' ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 600 }}>
+            {d.targetsSaveState === 'error'
+              ? (d.targetsSaveError || 'Could not save. Nothing was changed.')
+              : dirty ? 'Unsaved changes — nothing is applied until you save.'
+              : d.targetsSaveState === 'saved' ? 'Saved. This branch is measured against these from now on.'
+              : mgrLastChanged(d.targetsSetBy, d.targetsSetAt)}
+          </span>
         </div>
       </Card>
 

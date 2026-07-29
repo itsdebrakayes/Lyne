@@ -778,6 +778,17 @@ const FX_TARGETS: TargetRow[] = [
   { key: 'svc', label: 'Time At The Counter', unit: 'min', now: 22, target: 20, goodWhen: 'down', help: 'How long a visit takes once the customer reaches the clerk.' },
 ];
 
+
+/** "Last changed 4 July by Debra Samuels." — or nothing if we do not know. */
+export function lastChanged(who?: string | null, when?: string | null) {
+  if (!who && !when) return 'Set for the whole company.';
+  const date = when ? new Date(when) : null;
+  const day = date && !Number.isNaN(date.getTime())
+    ? date.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+    : null;
+  return `Last changed${day ? ` ${day}` : ''}${who ? ` by ${who}` : ''}.`;
+}
+
 export function ExecTargets() {
   const d = useExecData();
   const [vals, setVals] = useState<Record<string, number>>(
@@ -828,14 +839,20 @@ export function ExecTargets() {
           })}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <button type="button" className="qx-btn" disabled={!dirty} onClick={() => setDirty(false)}>
-            <Check size={14} />Save Targets
+          <button type="button" className="qx-btn"
+            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveTargets}
+            onClick={async () => { await d.onSaveTargets?.(vals); setDirty(false); }}>
+            <Check size={14} />{d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Targets'}
           </button>
           <button type="button" className="qx-btn ghost" onClick={() => {
             setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.target]))); setDirty(false);
           }}>Reset</button>
-          <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600 }}>
-            {dirty ? 'Unsaved changes — nothing is applied until you save.' : 'Last changed 2 July by Debra Samuels.'}
+          <span style={{ fontSize: 11.5, color: d.targetsSaveState === 'error' ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 600 }}>
+            {d.targetsSaveState === 'error'
+              ? (d.targetsSaveError || 'Could not save. Nothing was changed.')
+              : dirty ? 'Unsaved changes — nothing is applied until you save.'
+              : d.targetsSaveState === 'saved' ? 'Saved. Every branch is measured against this from now on.'
+              : lastChanged(d.targetsSetBy, d.targetsSetAt)}
           </span>
         </div>
       </Card>
@@ -1857,6 +1874,15 @@ export type ExecTabData = {
   faq: Array<{ q: string; a: string }>;
   /** printed on the report cover and in Settings */
   org: string; preparedBy: string; generatedOn: string;
+
+  /* Saving used to be `setDirty(false)` — the button cleared its own dirty flag
+     and wrote nothing at all. These make it real. */
+  onSaveTargets?: (values: Record<string, number>) => Promise<void> | void;
+  targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
+  targetsSaveError?: string | null;
+  /** Who last changed them and when. Was hardcoded to a name and a date. */
+  targetsSetBy?: string | null;
+  targetsSetAt?: string | null;
 };
 
 export const EXEC_FIXTURES: ExecTabData = {

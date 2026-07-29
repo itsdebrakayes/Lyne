@@ -156,6 +156,28 @@ export default function ManagerDashboard() {
     }
   }, [d.admin]);
 
+  /* A branch manager sets this branch's targets. The tab was read-only and told
+     them to ask their executive; the API has always allowed it. */
+  const qc = useQueryClient();
+  const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [tgtError, setTgtError] = useState<string | null>(null);
+  const saveBranchTargets = useCallback(async (vals: Record<string, number>) => {
+    setTgtState('saving'); setTgtError(null);
+    try {
+      await api.put('/targets/branch', {
+        branch_id: d.admin?.staffRecord?.branch_id,
+        target_wait_minutes: Math.round(vals.wait),
+        target_completion_rate: Math.round(vals.done),
+        target_no_show_rate: Math.round(vals.noshow),
+      });
+      await qc.invalidateQueries({ queryKey: ['branch-targets'] });
+      setTgtState('saved');
+    } catch (err) {
+      setTgtState('error');
+      setTgtError(err instanceof Error ? err.message : 'Could not save these targets.');
+    }
+  }, [d.admin, qc]);
+
   const worstLine = [...liveData.services].sort((a, b) => b.wait - a.wait)[0];
 
   const notify = useNotifications();
@@ -199,7 +221,9 @@ export default function ManagerDashboard() {
       }
     >
       {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
-      <MgrDataProvider value={{ ...liveData, onAskSupervisor: askSupervisor, askState, askError }}>
+      <MgrDataProvider value={{ ...liveData, onAskSupervisor: askSupervisor, askState, askError,
+        onSaveBranchTargets: saveBranchTargets, targetsSaveState: tgtState, targetsSaveError: tgtError,
+        targetsSetBy: d.branchTargets?.set_by_name ?? null, targetsSetAt: d.branchTargets?.updated_at ?? null }}>
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} /> : mgrTab(tab, setTab)}
       </MgrDataProvider>
     </QxShell>

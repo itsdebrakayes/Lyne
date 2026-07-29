@@ -3,7 +3,9 @@
  * Reuses the shared useDashboardData() layer and the same sub-cards as the
  * Manager dashboard, rendered business-wide.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import api from '@/lib/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '@/hooks/useNotifications';
 import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
@@ -247,6 +249,27 @@ export default function ExecutiveDashboard() {
   }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
        d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
 
+  const qcExec = useQueryClient();
+  /* The Save Targets button used to just clear its own dirty flag. */
+  const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [tgtError, setTgtError] = useState<string | null>(null);
+  const saveCompanyTargets = useCallback(async (vals: Record<string, number>) => {
+    setTgtState('saving'); setTgtError(null);
+    try {
+      await api.put('/targets', {
+        business_id: d.admin?.staffRecord?.business_id,
+        target_wait_minutes: Math.round(vals.wait),
+        target_completion_rate: Math.round(vals.done),
+        target_no_show_rate: Math.round(vals.noshow),
+      });
+      await qcExec.invalidateQueries({ queryKey: ['targets'] });
+      setTgtState('saved');
+    } catch (err) {
+      setTgtState('error');
+      setTgtError(err instanceof Error ? err.message : 'Could not save these targets.');
+    }
+  }, [d.admin, qcExec]);
+
   const notify = useNotifications();
 
   return (
@@ -303,7 +326,9 @@ export default function ExecutiveDashboard() {
           components as the DEV preview — only the data source differs. */}
       {tour.running ? <Spotlight steps={TOURS.executive} onDone={tour.finish} /> : null}
       {!isOverview && (
-        <ExecDataProvider value={liveTabData}>
+        <ExecDataProvider value={{ ...liveTabData, onSaveTargets: saveCompanyTargets,
+          targetsSaveState: tgtState, targetsSaveError: tgtError,
+          targetsSetBy: d.targets?.set_by_name ?? null, targetsSetAt: d.targets?.updated_at ?? null }}>
           {execTab(tab, setTab)}
         </ExecDataProvider>
       )}
