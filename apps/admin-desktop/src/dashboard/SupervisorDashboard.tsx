@@ -7,12 +7,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { Shell, Kpi, Heatmap, Card, ScoreRing, type NavItem } from './kit';
-import { num, fmtN, pct, insightData, dailyRollup, deriveOpsAlerts } from './insights';
-import {
-  Empty, Bar, buildHeatmap, barPct, scoreFromTargets,
-  ServedChart, TrafficCard, WaitForecastCard, StaffingCard, TargetsCard, ImproveCard, SupportTab,
-} from './ManagerDashboard';
+import { type NavItem } from './kit';
+import { CalendarDays, MapPin } from 'lucide-react';
+import { useAdminAuth } from '../hooks/useAdminAuth';
+import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh } from '@/design/ui';
+import { SupDataProvider, supTab, SUP_TAB_HEAD } from './qx/SupTabsQX';
+import { buildSupData } from './qx/supLiveData';
+
+const SUP_FAQ = [
+  { q: 'How Do I Put Someone On A Desk?', a: 'On Desk Assignment, tap the person and then tap the desk. Dragging works the same way, but tapping is the reliable one on a tablet. The change takes effect on their next call, so nobody mid-conversation is interrupted.' },
+  { q: 'Why Is Someone Marked Idle?', a: 'Their desk has called nobody for a sustained stretch while people wait for that service. Usually there is a good reason — it is simply the first thing worth checking when a line stops moving.' },
+  { q: 'Can I Leave A Desk Uncovered?', a: 'Yes, and sometimes you should. An empty desk on a quiet service costs nothing, so the board only flags one when people are actually waiting for it.' },
+  { q: 'Who Sees What I Change Here?', a: 'Desk assignments are visible to your branch manager and appear on the customer-facing screens straight away. Nothing here changes anyone’s roster or pay.' },
+];
+import { num, fmtN, insightData, dailyRollup, deriveOpsAlerts } from './insights';
+import { buildHeatmap } from './ManagerDashboard';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid },
@@ -24,6 +33,9 @@ const NAV: NavItem[] = [
 
 export default function SupervisorDashboard() {
   const d = useDashboardData();
+  const { logout } = useAdminAuth();
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
   const preds = d.predictions as any[];
@@ -58,119 +70,58 @@ export default function SupervisorDashboard() {
   const heat = buildHeatmap(d.heatmap);
   const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
+  const liveData = useMemo(() => buildSupData({
+    /* Sections are not modelled on the staff record — a supervisor is attached
+       to a branch. Labelled by branch rather than inventing a section name. */
+    sectionName: branchName,
+    branchName, supervisorName: d.admin?.name || '',
+    queues: d.queues as any[], staff: d.staff as any[], productivity: d.productivity,
+    demandHourly: d.demandHourly as any[], target: d.effectiveTarget,
+    avgWait: liveWait,
+    coverPct: 0,
+    avgService: Math.round(num(last.avg_service_time_minutes)),
+    shiftFrom: '—', shiftTo: '—', faq: SUP_FAQ,
+  }), [d.admin, branchName, d.queues, d.staff, d.productivity, d.demandHourly,
+       d.effectiveTarget, liveWait, last]);
+
+  const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;
+
   return (
-    <Shell
-      roleLabel="Supervisor" org={branchName}
-      eyebrow={`Supervisor · ${branchName}`}
-      title={titles[tab][0]} subtitle={titles[tab][1]}
-      nav={NAV} active={tab} onNav={setTab}
-      freshness={{ stamp: 'live', onUpdate: () => d.refreshAll(), auto: 'Numbers recalculate automatically every 2 hours' }}
-      search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : null}
-      alerts={alerts}
+    <QxShell
+      brand="QMe Now"
+      brandSub={branchName}
+      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      active={tab === 'overview' ? 'desks' : tab}
+      onNav={setTab}
+      notifications={alerts.length}
+      account={{ name: d.admin?.name || 'Supervisor', role: 'Supervisor', email: d.admin?.staffRecord.email, onSignOut: logout }}
+      search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : undefined}
+      context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.desks.length} Desks</b></>}
+      railCard={
+        <div className="qx-railcard">
+          <small>Right Now</small>
+          <b>{fmtN(waitingNow)} People Are In Line</b>
+          <p>{uncovered ? `${uncovered.label} is empty with people waiting.` : 'Every desk with a queue is covered.'}</p>
+          <button type="button" onClick={() => setTab('desks')}>Open Desk Assignment</button>
+        </div>
+      }
+      theme={theme}
+      onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      head={
+        <QxHead
+          title={SUP_TAB_HEAD[tab === 'overview' ? 'desks' : tab]?.title ?? titles[tab]?.[0] ?? ''}
+          sub={SUP_TAB_HEAD[tab === 'overview' ? 'desks' : tab]?.sub ?? titles[tab]?.[1] ?? ''}
+          live="Live"
+          right={<>
+            <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+            <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
+          </>}
+        />
+      }
     >
-      {tab === 'overview' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Waiting Now" value={waitingNow} base="Across The Branch" />
-          <Kpi span={3} label="Estimated Wait For Service" value={liveWait} unit="min" base={`Branch Target: ${num(target.target_wait_minutes)} min`}
-            delta={{ dir: liveWait <= num(target.target_wait_minutes) ? 'good' : 'bad', text: liveWait <= num(target.target_wait_minutes) ? 'On Target' : `${liveWait - num(target.target_wait_minutes)} Over` }} />
-          <Kpi span={3} label="Completed Visits" value={fmtN(completed)} base={`${pct((completed / Math.max(1, totalToday)) * 100)} Served Today`} />
-          <Kpi span={3} label="No-Shows Today" value={noShows} base={`${pct((noShows / Math.max(1, totalToday)) * 100)} Of Visitors`} />
-
-          <Card span={8} title="Customers Served Per Day" cap="Each Day Against The Daily Average">
-            <ServedChart summary={summary} />
-          </Card>
-
-          {/* stacked beside the tall chart so the column fills instead of gapping */}
-          <div className="qa-stack4">
-            <Card span={12} title="Branch Health Score" cap={`${branchName}, Out Of 100`}>
-              <div className="qa-scorewrap">
-                <ScoreRing value={num(myBranch?.manager_score) || scoreFromTargets(last, target)} max={100} />
-                <div className="qa-scorebreak">
-                  <Bar label="Wait Time" n={Math.round(barPct(num(last.avg_wait_time_minutes), num(target.target_wait_minutes), true))} />
-                  <Bar label="Completion" n={Math.round(num(last.completion_rate) || (completed / Math.max(1, totalToday)) * 100)} accent2 />
-                  <Bar label="No-Show Control" n={Math.round(100 - (noShows / Math.max(1, totalToday)) * 100)} />
-                </div>
-              </div>
-            </Card>
-            <WaitForecastCard preds={preds} span={12} />
-          </div>
-
-          <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour. Staff The Darkest Squares; The Quiet Ones Are For Breaks.">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
-          </Card>
-          <div className="qa-stack4">
-            <ImproveCard preds={preds} span={12} />
-            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
-          </div>
-
-          <TrafficCard services={d.services} span={12} />
-        </div>
-      )}
-
-      {tab === 'staff' && (
-        <div className="qa-grid">
-          <Kpi span={3} label="Staff On File" value={d.staff.length} base="At This Branch" />
-          <Kpi span={3} label="Live Queues" value={d.queues.length} base="Open Right Now" />
-          <Kpi span={3} label="Avg Handle Time" value={Math.round(num(last.avg_service_time_minutes)) || '—'} unit="min" base="Across All Counters" />
-          <Kpi span={3} label="Served Today" value={fmtN(completed)} base="Branch-Wide" />
-          <Card span={12} title="Staff Roster" cap={`Today's Activity · ${branchName}`}>
-            <div className="qa-chartwrap"><table className="qa-dtable">
-              <thead><tr><th>Name</th><th>Code</th><th className="r">Handled</th><th className="r">Avg Handle</th></tr></thead>
-              <tbody>
-                {shownStaff.length ? shownStaff.map((s: any) => (
-                  <tr key={s.staff_id || s.full_name}>
-                    <td>{s.full_name}</td>
-                    <td>{s.staff_code || '—'}</td>
-                    <td className="r qa-num">{fmtN(s.tickets_handled)}</td>
-                    <td className="r qa-num">{s.avg_handle_minutes != null ? `${Math.round(num(s.avg_handle_minutes))}m` : '—'}</td>
-                  </tr>
-                )) : <tr><td colSpan={4}><Empty msg={needle ? `No staff match “${q.trim()}”.` : 'No staff activity yet.'} /></td></tr>}
-              </tbody>
-            </table></div>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'busy' && (
-        <div className="qa-grid">
-          <Card span={8} title={`Busy Times — ${branchName}`} cap="Services By Hour Across The Week">
-            {heat.rows.length ? <Heatmap cols={heat.cols} colLabels={heat.colLabels} rows={heat.rows} /> : <Empty msg="No busy-times data yet." />}
-          </Card>
-          {/* pair staffing with the forecast so the column fills */}
-          <div className="qa-stack4">
-            <StaffingCard preds={preds} branchId={d.branchId} span={12} />
-            <WaitForecastCard preds={preds} span={12} />
-          </div>
-        </div>
-      )}
-
-      {tab === 'targets' && (
-        <div className="qa-grid">
-          {/* full width each — a short note beside a tall card just leaves a hole */}
-          <TargetsCard target={target} last={last} completed={completed} total={totalToday} noShows={noShows} span={12} big />
-          <Card span={12} title="Note" cap="Who Sets These">
-            <p style={{ color: 'var(--qa-dim)', fontSize: 13, fontWeight: 600, lineHeight: 1.5 }}>
-              These branch targets are set by your branch manager, within the company-wide targets the executive sets.
-              As a supervisor you see them for reference — reach out to your manager to change them.
-            </p>
-          </Card>
-        </div>
-      )}
-
-      {tab === 'support' && <SupportTab role="Supervisors" topics={[
-        { q: 'How do I read the busy-times heatmap?',
-          a: 'Each row is a service and each column is a day or hour. The darker the square, the busier that slot was. It tells you at a glance when your floor gets pressure, so you can be standing in the right place before the queue builds.' },
-        { q: 'What does the Branch Health Score mean?',
-          a: 'A score out of 100 blending wait time against target, completion rate, and no-show control. The three bars underneath show which of the three is pulling it down.' },
-        { q: 'How do I plan cover and breaks around the peaks?',
-          a: 'Use Busy Times to find the pale slots — those are your safe windows for breaks, handovers and training. Keep your fullest counter coverage on the dark slots. The wait forecast on the Section Board tells you what is coming in the next few hours.' },
-        { q: 'What is the wait forecast telling me?',
-          a: 'It is the wait time the system expects for the rest of the day, learned from how your branch has actually run — not a simple average. Treat it as an early warning: if it climbs above your branch target, act before the queue gets long.' },
-        { q: 'Who sets the branch targets I see?',
-          a: 'Your branch manager sets them, within the company-wide targets your executive sets. You see them here for reference so you know what you are working toward — if one looks wrong, speak to your manager.' },
-        { q: 'A customer says they were skipped — what do I do?',
-          a: 'Ask for their ticket number and check it on the line staff screen. Every ticket keeps its status and timestamps, so you can see whether it was called, skipped or marked as a no-show, and re-call it if it was missed.' },
-      ]} />}
-    </Shell>
+      <SupDataProvider value={liveData}>
+        {supTab(tab === 'overview' ? 'desks' : tab, setTab)}
+      </SupDataProvider>
+    </QxShell>
   );
 }

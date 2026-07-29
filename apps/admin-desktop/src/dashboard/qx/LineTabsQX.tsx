@@ -523,17 +523,20 @@ export function LineStatsTab() {
       body="This shows how your day is going — how many you have seen and how long a visit takes with you. The section average is shown alongside for context, not as a ranking." />;
   }
 
+  /* No section average available means no comparison — showing "vs 0" would
+     read as the whole section having served nobody. */
+  const hasSection = d.sectionAvgServed > 0 || d.sectionAvgHandle > 0;
   const vsServed = d.sectionAvgServed ? d.servedToday - d.sectionAvgServed : 0;
   const vsHandle = d.sectionAvgHandle ? d.avgHandle - d.sectionAvgHandle : 0;
 
   return (
     <div className="qx-grid">
       <Stat span={3} icon={Users} label="Seen Today" value={d.servedToday}
-        chip={vsServed >= 0 ? { dir: 'good', text: `+${vsServed}` } : { dir: 'flat', text: String(vsServed) }}
-        foot={`Section average is ${d.sectionAvgServed}`} />
+        chip={hasSection ? (vsServed >= 0 ? { dir: 'good', text: `+${vsServed}` } : { dir: 'flat', text: String(vsServed) }) : undefined}
+        foot={hasSection ? `Section average is ${d.sectionAvgServed}` : 'Finished with and closed off'} />
       <Stat span={3} icon={Timer} label="Your Average Visit" value={d.avgHandle} unit="min"
-        chip={vsHandle <= 0 ? { dir: 'good', text: 'Quicker' } : { dir: 'flat', text: 'Steadier' }}
-        foot={`Section average is ${d.sectionAvgHandle} min`} />
+        chip={hasSection ? (vsHandle <= 0 ? { dir: 'good', text: 'Quicker' } : { dir: 'flat', text: 'Steadier' }) : undefined}
+        foot={hasSection ? `Section average is ${d.sectionAvgHandle} min` : 'How long a visit takes with you'} />
       <Stat span={3} icon={Clock} label="On Since" value={d.onSince}
         foot={`${d.counter} · ${d.serviceName}`} />
       <Stat span={3} icon={CheckCircle2} label="Busiest Hour"
@@ -550,10 +553,14 @@ export function LineStatsTab() {
 
       <div className="qx-stack s4">
         <Card title="You And The Section" cap="Context, not a ranking — nobody else sees your figures">
-          <Bars items={[
-            { name: 'You', value: d.servedToday },
-            { name: 'Section Average', value: d.sectionAvgServed },
-          ]} />
+          {hasSection ? (
+            <Bars items={[
+              { name: 'You', value: d.servedToday },
+              { name: 'Section Average', value: d.sectionAvgServed },
+            ]} />
+          ) : (
+            <div className="qx-empty">A section average is not being reported yet, so there is nothing to compare against.</div>
+          )}
           <div style={{ marginTop: 13 }}>
             <Note icon={CheckCircle2}
               title={vsServed >= 0 ? 'A Solid Day' : 'A Steady Day'}

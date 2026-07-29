@@ -3,12 +3,22 @@
  * Live queue + tickets + analytics via the existing API; real call / verify /
  * complete / skip / no-show mutations.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowRight, ArrowUp, BarChart3, Check, Clock3, ListChecks, Monitor, RotateCw, X } from 'lucide-react';
+import { CalendarDays, MapPin } from 'lucide-react';
+import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { LineDataProvider, LineOverviewQX, lineTab, LINE_TAB_HEAD } from './qx/LineTabsQX';
+import { buildLineData } from './qx/lineLiveData';
+
+const LINE_FAQ = [
+  { q: 'Someone Did Not Answer When I Called Them', a: 'Mark them as no answer. They drop out of your line and the next person comes up. If they turn up later they can be called back from the No Answer list — they do not need a new ticket.' },
+  { q: 'This Customer Needs A Different Service', a: 'Use Transfer. They keep their place in time rather than going to the back of another line, and whoever takes them sees what you have already done.' },
+  { q: 'Can I Take A Break Mid-Queue?', a: 'Finish whoever is in front of you, then set yourself to break. Your window stops taking new calls and your supervisor sees it straight away, so cover can be moved.' },
+  { q: 'What Do My Numbers Get Used For?', a: 'They show your supervisor how the section is running so cover can be moved where it is needed. They are not a ranking, and nobody else on the floor sees your individual figures.' },
+];
+import { BarChart3, Clock3, ListChecks, Monitor } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { Kpi, Shell } from './kit';
 
 type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string };
 type TicketRow = { id: string; ticket_number: string; user_name?: string; status: string; position: number; call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string; service_minutes?: number; service_name?: string };
@@ -28,17 +38,9 @@ const NAV = [
   { key: 'stats', label: 'My stats', icon: BarChart3 },
 ];
 
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, [string, string]> = {
-    waiting: ['Waiting', 'idle'], called: ['Called', 'warn'], in_service: ['Serving', 'live'],
-    served: ['Served', 'good'], no_show: ['No-show', 'over'],
-  };
-  const [text, kind] = map[status] || [status, 'idle'];
-  return <span className={`qa-tag ${kind}`}>{text}</span>;
-}
 
 export default function LineStaffDashboard() {
-  const { admin } = useAdminAuth();
+  const { admin, logout } = useAdminAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('live');
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
@@ -75,6 +77,9 @@ export default function LineStaffDashboard() {
   const countdown = secUntil(called?.call_expires_at);
   const elapsed = secSince(serving?.started_serving_at);
   const a = analytics.data;
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+
 
   const action = useMutation({
     mutationFn: async ({ id, kind, body }: { id: string; kind: 'status' | 'skip' | 'move-up' | 'move-down'; body?: Record<string, unknown> }) =>
@@ -88,6 +93,17 @@ export default function LineStaffDashboard() {
 
   const branch = activeQueue?.branch_name || admin?.staffRecord.branch_name || 'Your branch';
   const service = activeQueue?.service_name || admin?.staffRecord.assigned_service_name;
+
+  const liveData = useMemo(() => buildLineData({
+    staffName: admin?.name || '',
+    // The queue endpoint reports the service, not which counter this person is
+    // sat at, so the window is labelled by service rather than guessed.
+    counter: service || '—',
+    serviceName: service || '—',
+    branchName: branch,
+    tickets, history: history.data || [], analytics: a,
+    onSince: '—', faq: LINE_FAQ,
+  }), [admin, service, branch, tickets, history.data, a]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';
@@ -100,148 +116,49 @@ export default function LineStaffDashboard() {
   };
 
   return (
-    <Shell
-      roleLabel="Line Staff" org={branch}
-      eyebrow={`Line Staff${service ? ` · ${service}` : ''}`}
-      title={titles[tab][0]} subtitle={titles[tab][1]}
-      nav={NAV} active={tab} onNav={setTab} freshness={null}
+    <QxShell
+      brand="QMe Now"
+      brandSub={branch}
+      nav={NAV.map((n) => ({ key: n.key === 'live' ? 'overview' : n.key, label: n.label, icon: n.icon, group: 'Main' }))}
+      active={tab === 'live' ? 'overview' : tab}
+      onNav={(k) => setTab(k === 'overview' ? 'live' : k)}
+      account={{ name: admin?.name || 'Line Staff', role: 'Line Staff', email: admin?.staffRecord.email, onSignOut: logout }}
       search={tab === 'tickets' || tab === 'history'
         ? { value: q, onChange: setQ, placeholder: 'Search by ticket number or customer…' }
-        : null}
+        : undefined}
+      context={<><MapPin size={13} /><span>{branch}</span><b>· {liveData.counter}</b></>}
+      railCard={
+        <div className="qx-railcard">
+          <small>Right Now</small>
+          <b>{waiting.length} {waiting.length === 1 ? 'Person' : 'People'} Waiting</b>
+          <p>{next ? `${next.ticket_number} is next up.` : 'Nobody is waiting for you.'}</p>
+          <button type="button" onClick={() => setTab('live')}>Open Live Line</button>
+        </div>
+      }
+      theme={theme}
+      onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      head={
+        <QxHead
+          title={tab === 'live' ? greetingFor(admin?.name) : (LINE_TAB_HEAD[tab]?.title ?? titles[tab]?.[0] ?? '')}
+          sub={tab === 'live'
+            ? `${branch}${service ? ` · ${service}` : ''} — here's your line.`
+            : (LINE_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
+          live="Live"
+          right={<>
+            <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+            <button type="button" className="qx-btn ghost"
+              onClick={() => { queues.refetch(); ticketsQuery.refetch(); analytics.refetch(); history.refetch(); }}>
+              <QxRefresh size={14} />Update
+            </button>
+          </>}
+        />
+      }
     >
-      {msg ? <div className="qa-msg">{msg}</div> : null}
-
-      {tab === 'live' && (
-        <div className="qa-grid">
-          <div className="qa-s12">
-            <div className="qa-command">
-              <div className="qa-ctop">
-                <div>
-                  <span className="qa-k">Now serving · {branch}</span>
-                  <div className="qa-tkt qa-num">{nowTicket}</div>
-                  <div className="qa-who">{nowWho}</div>
-                </div>
-                <div className="qa-tmrs">
-                  <div className="qa-tmr"><small>Serving for</small><b className="qa-timer qa-num">{serving ? clock(elapsed) : '—'}</b></div>
-                  <div className="qa-tmr"><small>Call timer</small><b className="qa-num">{called ? clock(countdown) : '—'}</b></div>
-                  <div className="qa-tmr"><small>In line</small><b className="qa-num">{waiting.length}</b></div>
-                </div>
-              </div>
-              <div className="qa-crow">
-                <div className="qa-verify">
-                  {called ? (
-                    <>
-                      <label>Enter customer code</label>
-                      <div className="qa-codewrap">
-                        <input className="qa-codeinput" value={code} maxLength={12} autoComplete="off" onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Enter code" />
-                        <button className="qa-btn primary" disabled={!code.trim() || action.isPending} onClick={() => setStatus(called, 'in_service', { verification_code: code.trim() })}>Start service</button>
-                      </div>
-                      <span className="qa-vhint">Ask the customer to read the code on their ticket.</span>
-                    </>
-                  ) : (
-                    <>
-                      <label>Verify customer code</label>
-                      <div className="qa-vfield"><span className="ph" /><span className="ph" /><span className="ph" /><span className="ph" /><span className="ph" /><span className="ph" /></div>
-                      <span className="qa-vhint">The code confirms who you're serving once a customer is called.</span>
-                    </>
-                  )}
-                </div>
-                <div className="qa-actions">
-                  <button className="qa-btn primary" disabled={!next || !!called || !!serving || action.isPending} onClick={() => setStatus(next, 'called', { call_timeout_seconds: 120 })}><ArrowRight size={18} />Call next</button>
-                  <button className="qa-btn" disabled={!serving || action.isPending} onClick={() => setStatus(serving, 'served')}><Check size={18} />Complete</button>
-                  <button className="qa-btn" disabled={!next || action.isPending} onClick={() => next && action.mutate({ id: next.id, kind: 'skip', body: { disposition: 'requeue' } })}><RotateCw size={18} />Skip</button>
-                  <button className="qa-btn bad" disabled={!called || countdown > 0 || action.isPending} onClick={() => setStatus(called, 'no_show')}><X size={18} />No-show</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Kpi span={3} label="In line now" value={waiting.length} base={next ? `next up ${next.ticket_number}` : 'no one waiting'} />
-          <Kpi span={3} label="Average wait" value={Math.round(num(activeQueue?.avg_wait_minutes))} unit="min" base="live estimate" />
-          <Kpi span={3} label="Served today" value={num(a?.served_count)} base="completed" />
-          <Kpi span={3} label="No-shows today" value={num(a?.no_show_count)} base="skipped after call" />
-
-          <div className="qa-card qa-s12">
-            <div className="qa-chead"><div><h3>Up next in your line</h3><div className="qa-cap">Call them in order</div></div></div>
-            <div className="qa-qlist">
-              {waiting.length ? waiting.slice(0, 10).map((t) => (
-                <div className="qa-qitem" key={t.id}>
-                  <span className="no qa-num">{t.ticket_number}</span>
-                  <span className="nm">{t.user_name || 'Customer'}</span>
-                  <span className="sv">{t.service_name || service || ''}</span>
-                  <span className="w">Position {t.position}</span>
-                  <span />
-                </div>
-              )) : <div className="qa-empty">{ticketsQuery.isLoading ? 'Loading your line…' : 'No one is waiting right now.'}</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'tickets' && (
-        <div className="qa-grid">
-          <div className="qa-card qa-s12">
-            <div className="qa-chead"><div><h3>Queue tickets</h3><div className="qa-cap">Waiting, called and in service · move a ticket up or down</div></div><button className="qa-qcall" onClick={() => ticketsQuery.refetch()}>Refresh</button></div>
-            <div className="qa-qlist">
-              {tickets.filter((t) => ['waiting', 'called', 'in_service'].includes(t.status) && tmatch(t)).length ? tickets
-                .filter((t) => ['waiting', 'called', 'in_service'].includes(t.status) && tmatch(t))
-                .map((t) => (
-                  <div className="qa-qitem" key={t.id}>
-                    <span className="no qa-num">{t.ticket_number}</span>
-                    <span className="nm">{t.user_name || 'Customer'}</span>
-                    <StatusPill status={t.status} />
-                    <span className="w">Position {t.position}</span>
-                    <span className="qa-rowact">
-                      <button disabled={t.status !== 'waiting' || action.isPending} onClick={() => action.mutate({ id: t.id, kind: 'move-up' })} aria-label="Move up"><ArrowUp size={15} /></button>
-                      <button disabled={t.status !== 'waiting' || action.isPending} onClick={() => action.mutate({ id: t.id, kind: 'move-down' })} aria-label="Move down"><ArrowDown size={15} /></button>
-                    </span>
-                  </div>
-                )) : <div className="qa-empty">{ticketsQuery.isLoading ? 'Loading…' : needle ? `No tickets match “${q.trim()}”.` : 'No active tickets right now.'}</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'history' && (
-        <div className="qa-grid">
-          <div className="qa-s12"><PeriodChips value={period} onChange={setPeriod} /></div>
-          <div className="qa-card qa-s12">
-            <div className="qa-chead"><div><h3>History</h3><div className="qa-cap">Served and no-show, {period === 'today' ? 'today' : `this ${period}`}</div></div></div>
-            <div className="qa-qlist">
-              {(history.data || []).filter(tmatch).length ? (history.data || []).filter(tmatch).map((t) => (
-                <div className="qa-qitem" key={t.id}>
-                  <span className="no qa-num">{t.ticket_number}</span>
-                  <span className="nm">{t.user_name || 'Customer'}</span>
-                  <StatusPill status={t.status} />
-                  <span className="w">{t.status === 'served' ? `${Math.round(num(t.service_minutes))}m` : 'skipped'}</span>
-                  <span className="w">{when(t.completed_at || t.called_at)}</span>
-                </div>
-              )) : <div className="qa-empty">{needle ? `No tickets match “${q.trim()}”.` : 'Nothing for this period yet.'}</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'stats' && (
-        <div className="qa-grid">
-          <div className="qa-s12"><PeriodChips value={period} onChange={setPeriod} /></div>
-          <Kpi span={3} label="Served" value={num(a?.served_count)} base={period === 'today' ? 'today' : `this ${period}`} />
-          <Kpi span={3} label="No-shows" value={num(a?.no_show_count)} base="skipped after call" />
-          <Kpi span={3} label="Average wait" value={Math.round(num(a?.avg_wait_minutes))} unit="min" base="joined to service" />
-          <Kpi span={3} label="Service time" value={Math.round(num(a?.avg_service_minutes))} unit="min" base="start to complete" />
-          <Kpi span={3} label="Call response" value={Math.round(num(a?.avg_call_response_minutes))} unit="min" base="called to verified" />
-          <Kpi span={3} label="Handled" value={num(a?.total_handled)} base="served and no-show" />
-        </div>
-      )}
-    </Shell>
+      {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
+      <LineDataProvider value={liveData}>
+        {tab === 'live' ? <LineOverviewQX /> : lineTab(tab, (k) => setTab(k))}
+      </LineDataProvider>
+    </QxShell>
   );
 }
 
-function PeriodChips({ value, onChange }: { value: string; onChange: (p: 'today' | 'week' | 'month') => void }) {
-  const opts: ['today' | 'week' | 'month', string][] = [['today', 'Today'], ['week', 'This week'], ['month', 'Month']];
-  return (
-    <div className="qa-chips">
-      {opts.map(([k, l]) => <button key={k} className={`qa-chip ${value === k ? 'on' : ''}`} onClick={() => onChange(k)}>{l}</button>)}
-    </div>
-  );
-}
