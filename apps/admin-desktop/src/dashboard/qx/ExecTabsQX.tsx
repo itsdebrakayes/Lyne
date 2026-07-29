@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import {
   Card, Stat, Chart, LegendToggle, Ring, Table, Row, InlineSearch, IconBtn, Status,
-  Focus, Note, Heatmap, Chip, Select, Split, avatarStyle, initials,
+  Focus, Note, Heatmap, Chip, Select, Split, Selection, avatarStyle, initials,
 } from '@/design/ui';
 
 /* ══════════════════════ small shared pieces ══════════════════════ */
@@ -290,6 +290,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState('och');
   const [view, setView] = useState<'wait' | 'served'>('wait');
+  const [picked, setPicked] = useState<string[]>([]);
 
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
@@ -317,8 +318,17 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
       <Card span={7} title={<>All Branches<span className="qx-count">{rows.length}</span></>}
         cap="Worst first. Select a branch to see what is actually wrong with it."
         tools={<InlineSearch value={q} onChange={setQ} placeholder="Search Branch, Parish Or Manager…" />}>
+        <Selection count={picked.length} noun="branch" onClear={() => setPicked([])}>
+          <button type="button" className="qx-btn" onClick={() => onNav('reports')}>
+            <FileText size={14} />Report On These
+          </button>
+          <button type="button" className="qx-btn ghost" onClick={() => onNav('managers')}>
+            Compare Managers
+          </button>
+        </Selection>
         <Table grid={BR_GRID} columns={['Branch', 'Manager', 'Waiting', 'Est. Wait', 'Health']}
           items={rows} empty={`No branches match “${q}”.`}
+          select={{ idOf: (b) => b.id, selected: picked, onChange: setPicked }}
           renderRow={(r) => (
             <Row key={r.id} grid={BR_GRID} onClick={() => setSel(r.id)}>
               <div className="qx-cellmain">

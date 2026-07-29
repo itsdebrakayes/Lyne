@@ -576,15 +576,100 @@ export function Ring({ value, max = 100, size, warn = false, label }: {
 }
 
 /* ─────────────────────── table ─────────────────────── */
-export function Table<T>({ columns, grid, items, renderRow, empty = 'Nothing to show yet.' }: {
+/**
+ * `select` turns any list into a multi-select one: a checkbox column appears,
+ * the header gets select-all (indeterminate when partial), and the caller
+ * renders whatever bulk actions make sense via <Selection>.
+ *
+ * Built into Table rather than per-list so selection behaves identically
+ * everywhere — select-all meaning "everything I can currently see" (the
+ * filtered rows, not the whole dataset) is the part people get wrong.
+ */
+export type TableSelect<T> = {
+  idOf: (item: T) => string;
+  selected: string[];
+  onChange: (ids: string[]) => void;
+};
+
+export function Table<T>({ columns, grid, items, renderRow, empty = 'Nothing to show yet.', select }: {
   columns: string[]; grid: string; items: T[]; renderRow: (item: T, i: number) => ReactNode; empty?: string;
+  select?: TableSelect<T>;
 }) {
+  const ids = select ? items.map(select.idOf) : [];
+  const chosen = select ? ids.filter((id) => select.selected.includes(id)) : [];
+  const allOn = ids.length > 0 && chosen.length === ids.length;
+  const some = chosen.length > 0 && !allOn;
+
+  const toggleAll = () => {
+    if (!select) return;
+    // Select-all covers what is on screen NOW — the filtered rows, not the
+    // whole dataset. Selecting rows a search is hiding is how people act on
+    // records they never looked at.
+    const others = select.selected.filter((id) => !ids.includes(id));
+    select.onChange(allOn ? others : [...others, ...ids]);
+  };
+  const toggleOne = (id: string) => {
+    if (!select) return;
+    select.onChange(select.selected.includes(id)
+      ? select.selected.filter((x) => x !== id)
+      : [...select.selected, id]);
+  };
+
+  const gridCols = select ? `34px ${grid}` : grid;
+
   return (
     <div className="qx-table">
-      <div className="qx-thead" style={{ gridTemplateColumns: grid }}>
+      <div className="qx-thead" style={{ gridTemplateColumns: gridCols }}>
+        {select ? (
+          <span className="qx-box">
+            <input type="checkbox" checked={allOn}
+              ref={(el) => { if (el) el.indeterminate = some; }}
+              onChange={toggleAll}
+              aria-label={allOn ? 'Clear selection' : `Select all ${ids.length}`} />
+          </span>
+        ) : null}
         {columns.map((c) => <span key={c}>{c}</span>)}
       </div>
-      {items.length === 0 ? <div className="qx-empty">{empty}</div> : items.map(renderRow)}
+      {items.length === 0 ? <div className="qx-empty">{empty}</div> : items.map((item, i) => {
+        if (!select) return renderRow(item, i);
+        const id = select.idOf(item);
+        const on = select.selected.includes(id);
+        return (
+          <div key={id} className={`qx-selrow${on ? ' on' : ''}`} style={{ gridTemplateColumns: gridCols }}>
+            <span className="qx-box">
+              <input type="checkbox" checked={on} onChange={() => toggleOne(id)}
+                aria-label={`Select row ${i + 1}`} />
+            </span>
+            <div className="qx-selbody">{renderRow(item, i)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The bar that appears once something is selected. Says how many, and offers
+ * the way out FIRST — a bulk action with no obvious escape is how people act
+ * on records they meant to leave alone.
+ */
+/* Enough English to keep "branch" from becoming "branchs". Callers with a real
+   irregular ("person" → "people") pass `plural` and skip the guessing. */
+function pluralise(noun: string) {
+  if (/(s|x|z|ch|sh)$/i.test(noun)) return `${noun}es`;
+  if (/[^aeiou]y$/i.test(noun)) return `${noun.slice(0, -1)}ies`;
+  return `${noun}s`;
+}
+
+export function Selection({ count, noun = 'item', plural, onClear, children }: {
+  count: number; noun?: string; plural?: string; onClear: () => void; children?: ReactNode;
+}) {
+  if (!count) return null;
+  return (
+    <div className="qx-selbar">
+      <b>{count} {count === 1 ? noun : plural ?? pluralise(noun)} selected</b>
+      <button type="button" className="qx-btn ghost" onClick={onClear}>Clear</button>
+      <span className="qx-selactions">{children}</span>
     </div>
   );
 }

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Focus, Note, Heatmap,
-  Chip, Ring, avatarStyle, initials,
+  Chip, Ring, Selection, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 
@@ -348,6 +348,7 @@ export function SupStaffTab() {
   const staffNow = useStaffWithDesks(d);
   const [q, setQ] = useState('');
   const [only, setOnly] = useState<'all' | 'flagged'>('all');
+  const [picked, setPicked] = useState<string[]>([]);
 
   if (!d.staff.length) {
     return <EmptyTab title="Nobody Assigned To This Section Yet"
@@ -398,8 +399,18 @@ export function SupStaffTab() {
           <Seg value={only} onChange={setOnly} options={[['all', 'Everyone'], ['flagged', 'Need A Look']]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Name Or Desk…" />
         </>}>
+        <Selection count={picked.length} noun="person" plural="people" onClear={() => setPicked([])}>
+          <button type="button" className="qx-btn ghost"
+            onClick={() => { picked.forEach((id) => {
+              const desk = d.desks.find((x) => (x.id in d.assigned ? d.assigned[x.id] : x.staffId) === id);
+              if (desk) d.onAssign(desk.id, null);
+            }); setPicked([]); }}>
+            Take Off Desks
+          </button>
+        </Selection>
         <Table grid={SUP_STAFF_GRID} columns={['Staff', 'Desk', 'Seen', 'Avg', 'Status']}
           items={rows} empty={q ? `Nobody matches “${q}”.` : 'Nobody to show.'}
+          select={{ idOf: (s) => s.id, selected: picked, onChange: setPicked }}
           renderRow={(s) => (
             <Row key={s.id} grid={SUP_STAFF_GRID}>
               <div className="qx-cellmain">

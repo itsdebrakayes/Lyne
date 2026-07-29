@@ -911,3 +911,51 @@
 .qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .qs-boardscroll .qs-desk { min-height: 74px; padding: 9px 10px; }
 .qs-boardscroll .nm { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── multi-select on lists ── */
+/* Selection checkbox — drawn, not the OS one.
+   `accent-color` on a native box gives you whatever shape the platform feels
+   like, which is why these looked wrong next to everything else. This is a real
+   square with our own radius and our own tick, and it still IS an <input>, so
+   focus, keyboard and screen readers are untouched.
+   NOTE: not `.qx-check` — that class is already the pill-shaped filter chip. */
+.qx-box { display: grid; place-items: center; }
+.qx-box input {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  width: 18px; height: 18px; border-radius: 5px; cursor: pointer;
+  border: 1.5px solid var(--c-line-2); background: var(--c-surface);
+  display: grid; place-items: center; transition: background .12s, border-color .12s;
+}
+.qx-box input:hover { border-color: var(--c-primary); }
+.qx-box input:checked,
+.qx-box input:indeterminate { background: var(--c-primary); border-color: var(--c-primary); }
+.qx-box input:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+
+/* the tick: two borders of a rotated box, so it scales cleanly and needs no asset */
+.qx-box input::after {
+  content: ''; width: 5px; height: 9px; margin-top: -2px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(43deg) scale(0);
+  transition: transform .12s ease-out;
+}
+.qx-box input:checked::after { transform: rotate(43deg) scale(1); }
+/* partial selection reads as a dash, never as a tick */
+.qx-box input:indeterminate::after {
+  width: 9px; height: 0; margin-top: 0; border-width: 0 0 2px 0;
+  border-radius: 1px; transform: none;
+}
+.qx-selrow { display: grid; gap: 10px; align-items: center; border-bottom: 1px solid var(--c-line); border-radius: 9px; }
+.qx-selrow:last-child { border-bottom: 0; }
+.qx-selrow.on { background: var(--c-primary-soft); }
+/* the whole row is a hit target for its box, the way a file list behaves */
+.qx-selrow { cursor: default; }
+/* the row keeps its own grid; this cell only hosts it */
+.qx-selbody { grid-column: 2 / -1; min-width: 0; }
+.qx-selbody .qx-trow { border-bottom: 0; padding-left: 0; }
+
+.qx-selbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 11px 14px; border-radius: 13px;
+  background: var(--c-primary-soft); border: 1px solid color-mix(in oklab, var(--c-primary) 30%, transparent);
+}
+.qx-selbar b { font-size: 12.5px; font-weight: 800; color: var(--c-primary); }
+.qx-selactions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
