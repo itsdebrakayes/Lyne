@@ -5,7 +5,7 @@
  * and SEES the branch targets, but does not set them.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -47,12 +47,35 @@ export default function SupervisorDashboard() {
   });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [period, setPeriod] = useState('today');
-  /* Desk assignments belong to the DASHBOARD, not to a tab. Held in a tab they
-     reset the moment you look at Staff and come back, which read as the system
-     forgetting what you just did. */
+  /* Desk assignments are WRITTEN THROUGH to staff_assignments, not held in
+     React. Local state meant a move survived changing tabs but vanished on
+     refresh, and the two boards disagreed because each held its own copy. The
+     database is the one place both screens — and the line staff app — read
+     from. Local state here is only an optimistic overlay until the refetch
+     lands, so the board does not visibly lag a tap. */
   const [assigned, setAssigned] = useState<Record<string, string | null>>({});
-  const onAssign = (deskId: string, staffId: string | null) =>
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ deskId, staffId }: { deskId: string; staffId: string | null }) => {
+      if (staffId) {
+        return api.post('/assignments', {
+          staff_id: staffId,
+          counter_id: deskId,
+          assignment_date: new Date().toISOString().slice(0, 10),
+        });
+      }
+      // Clearing a desk: remove today's assignment for it.
+      const existing = (countersQuery.data || []).find((c: any) => String(c.counter_id) === deskId);
+      if (existing?.assignment_id) return api.delete(`/assignments/${existing.assignment_id}`);
+      return null;
+    },
+    onSettled: () => { countersQuery.refetch(); },
+  });
+
+  const onAssign = (deskId: string, staffId: string | null) => {
     setAssigned((p) => ({ ...p, [deskId]: staffId }));
+    assignMutation.mutate({ deskId, staffId });
+  };
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';

@@ -947,19 +947,39 @@ router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', '
               s.id            AS service_id,
               s.name          AS service_name,
               -- who last served at this counter today, if anyone
-              (SELECT st.full_name
-                 FROM queue_tickets t
-                 JOIN queues q  ON q.id = t.queue_id AND q.queue_date = CURDATE()
-                 JOIN staff  st ON st.id = t.served_by_staff_id
-                WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
-                ORDER BY t.completed_at DESC, t.started_serving_at DESC
-                LIMIT 1)      AS staff_name,
-              (SELECT t.served_by_staff_id
-                 FROM queue_tickets t
-                 JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
-                WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
-                ORDER BY t.completed_at DESC, t.started_serving_at DESC
-                LIMIT 1)      AS staff_id,
+              -- staff_assignments is the SOURCE OF TRUTH for who is on a desk.
+              -- This used to infer it from whoever last served a ticket there,
+              -- which meant a supervisor's assignment was invisible until that
+              -- person had served somebody, and two screens could disagree.
+              -- Ticket history is only a fallback for a desk with no assignment.
+              COALESCE(
+                (SELECT st.full_name FROM staff_assignments sa
+                   JOIN staff st ON st.id = sa.staff_id
+                  WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                  ORDER BY sa.created_at DESC LIMIT 1),
+                (SELECT st.full_name
+                   FROM queue_tickets t
+                   JOIN queues q  ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                   JOIN staff  st ON st.id = t.served_by_staff_id
+                  WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                  ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                  LIMIT 1)
+              )               AS staff_name,
+              COALESCE(
+                (SELECT sa.staff_id FROM staff_assignments sa
+                  WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                  ORDER BY sa.created_at DESC LIMIT 1),
+                (SELECT t.served_by_staff_id
+                   FROM queue_tickets t
+                   JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()
+                  WHERE t.served_at_counter_id = c.id AND t.served_by_staff_id IS NOT NULL
+                  ORDER BY t.completed_at DESC, t.started_serving_at DESC
+                  LIMIT 1)
+              )               AS staff_id,
+              -- needed so the board can CLEAR a desk, not only fill one
+              (SELECT sa.id FROM staff_assignments sa
+                WHERE sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                ORDER BY sa.created_at DESC LIMIT 1) AS assignment_id,
               (SELECT COUNT(*)
                  FROM queue_tickets t
                  JOIN queues q ON q.id = t.queue_id AND q.queue_date = CURDATE()

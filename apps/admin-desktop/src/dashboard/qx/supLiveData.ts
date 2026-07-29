@@ -45,18 +45,30 @@ export function buildSupData(i: SupLiveInput): SupTabData {
     if (r.staff_name) { idle.set(String(r.staff_name), String(r.message || '')); if (r.counter_label) atCounter.set(String(r.staff_name), String(r.counter_label)); }
   }
 
+  /* Who is actually ON a desk, from the counters feed — which now reads
+     staff_assignments. This is what decides "serving" vs "free to cover". */
+  const onDesk = new Map<string, string>();
+  for (const c of i.counters) {
+    if (c.staff_id) onDesk.set(String(c.staff_id), String(c.counter_label || ''));
+    if (c.staff_name) onDesk.set(String(c.staff_name), String(c.counter_label || ''));
+  }
+
   const staff: SupStaff[] = i.staff.map((s) => {
     const name = titleCase(s.full_name) || '—';
     const seen = Math.round(num(s.tickets_handled));
-    const counter = atCounter.get(s.full_name) || '—';
+    const desk = onDesk.get(String(s.staff_id)) || onDesk.get(String(s.full_name)) || '';
+    const counter = desk || atCounter.get(s.full_name) || '—';
+    /* Serving means AT A DESK serving people — not "has handled a ticket at
+       some point today". Reading it off tickets_handled marked everyone in the
+       branch as serving, including people with no window at all. Anyone in the
+       branch without a desk is free to cover. */
     const state: SupStaff['state'] = idle.has(s.full_name) ? 'idle'
-      : slow.has(s.full_name) ? 'serving'
-      : seen > 0 ? 'serving'
+      : desk ? 'serving'
       : 'unassigned';
     return {
       id: String(s.staff_id || s.full_name),
       name,
-      deskId: counter !== '—' ? counter : null,
+      deskId: desk || null,
       desk: counter,
       seen,
       avg: Math.round(num(s.avg_handle_minutes)),
