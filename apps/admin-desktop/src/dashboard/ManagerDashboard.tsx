@@ -3,7 +3,8 @@
  * Reuses the shared useDashboardData() layer (live queues, summary, services,
  * targets, heatmap and every ML insight) and renders it in the qa-* design.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
@@ -136,7 +137,28 @@ export default function ManagerDashboard() {
        d.demandWeekly, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
        liveWait, completed, totalToday, noShows, last]);
 
+  /* The manager asks; the supervisor acts. Sending lands in the bell of every
+     active supervisor at this branch. */
+  const [askState, setAskState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [askError, setAskError] = useState<string | null>(null);
+  const askSupervisor = useCallback(async (message: string) => {
+    setAskState('sending'); setAskError(null);
+    try {
+      await api.post('/notifications/staff-request', {
+        branch_id: d.admin?.staffRecord?.branch_id,
+        request_type: 'assignment',
+        message,
+      });
+      setAskState('sent');
+    } catch (err) {
+      setAskState('error');
+      setAskError(err instanceof Error ? err.message : 'Could not reach the supervisor.');
+    }
+  }, [d.admin]);
+
   const worstLine = [...liveData.services].sort((a, b) => b.wait - a.wait)[0];
+
+  const notify = useNotifications();
 
   return (
     <QxShell
@@ -145,7 +167,8 @@ export default function ManagerDashboard() {
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
-      notifications={alerts.length}
+      notifications={notify.unread}
+      notify={notify}
       account={{ name: d.admin?.name || 'Manager', role: 'Branch Manager', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
       context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.services.length} Services</b></>}
@@ -176,7 +199,7 @@ export default function ManagerDashboard() {
       }
     >
       {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
-      <MgrDataProvider value={liveData}>
+      <MgrDataProvider value={{ ...liveData, onAskSupervisor: askSupervisor, askState, askError }}>
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} /> : mgrTab(tab, setTab)}
       </MgrDataProvider>
     </QxShell>

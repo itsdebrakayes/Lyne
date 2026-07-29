@@ -29,7 +29,11 @@ import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 /* ══════════════════════ types ══════════════════════ */
 export type LineTicket = {
   id: string; no: string; name: string; waited: number;
-  state: 'waiting' | 'called' | 'noresponse';
+  /* 'serving' is the customer at the window right now. It used to exist only in
+     this component's local state, so it could not survive leaving the tab. */
+  state: 'waiting' | 'called' | 'serving' | 'noresponse';
+  /** ISO time service (or the call) started — the timer resumes from this. */
+  startedAt?: string | null;
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;

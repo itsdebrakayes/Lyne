@@ -33,16 +33,25 @@ const waitedMinutes = (t: any) =>
   || minsSince(t.joined_at || t.created_at || t.issued_at);
 
 export function buildLineData(i: LineLiveInput): LineTabData {
+  /* in_service MUST be here. It was filtered out, so the customer actually
+     being served vanished from the queue the desk station reads — which is why
+     leaving the tab and coming back lost them and dropped the window back to
+     "check their code". The desk stage is derived from this status, so the
+     status has to survive the trip. */
   const queue: LineTicket[] = i.tickets
-    .filter((t) => ['waiting', 'called', 'no_show'].includes(String(t.status)))
+    .filter((t) => ['waiting', 'called', 'in_service', 'no_show'].includes(String(t.status)))
     .map((t) => ({
       id: String(t.id),
       no: String(t.ticket_number || '—'),
       name: String(t.user_name || 'Guest'),
       waited: waitedMinutes(t),
       state: (t.status === 'called' ? 'called'
+        : t.status === 'in_service' ? 'serving'
         : t.status === 'no_show' ? 'noresponse'
         : 'waiting') as LineTicket['state'],
+      /* When service actually started, so the timer resumes from the real
+         elapsed time instead of restarting at 0:00 on every remount. */
+      startedAt: t.started_serving_at || t.called_at || null,
     }));
 
   const history: LineDone[] = i.history.map((t) => ({

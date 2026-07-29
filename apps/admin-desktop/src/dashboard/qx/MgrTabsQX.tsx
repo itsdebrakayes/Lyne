@@ -64,6 +64,12 @@ export type MgrTabData = {
   todayByHour: number[];
   yesterdayByHour: number[];
   funnel: { joined: number; called: number; served: number; left: number; avgLeaveMin: number | null };
+  /* A manager does not move people onto desks — the section board is the
+     supervisor's, and two people rearranging one floor is how a queue stalls.
+     So the manager asks, and the ask lands in the supervisor's bell. */
+  onAskSupervisor?: (message: string) => Promise<void> | void;
+  askState?: 'idle' | 'sending' | 'sent' | 'error';
+  askError?: string | null;
 };
 
 /* ══════════════════════ fixtures ══════════════════════ */
@@ -198,7 +204,14 @@ export function MgrStaffTab() {
               body={`${busiest.name} has ${busiest.waiting} people waiting on ${busiest.open} of ${busiest.counters} windows. The longest wait in that line is ${busiest.longest} minutes.`}
               stats={[{ label: 'Waiting', value: String(busiest.waiting), dir: 'bad' },
                       { label: 'Windows Free', value: String(busiest.counters - busiest.open) }]}
-              action={{ label: 'Assign A Counter', onClick: () => undefined }} />
+              action={{
+                label: d.askState === 'sent' ? 'Supervisor Notified'
+                  : d.askState === 'sending' ? 'Sending…'
+                  : 'Ask Supervisor To Staff It',
+                onClick: () => d.onAskSupervisor?.(
+                  `${busiest.name} has ${busiest.waiting} waiting on ${busiest.open} of ${busiest.counters} windows — longest wait ${busiest.longest} min. Please put someone on ${busiest.code}.`),
+                disabled: d.askState === 'sending' || d.askState === 'sent' || !d.onAskSupervisor,
+              }} />
           ) : null}
           <Card title="Needs A Look" cap="Flagged automatically — worth checking, not a judgement">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

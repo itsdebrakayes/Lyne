@@ -4,6 +4,7 @@
  * Manager dashboard, rendered business-wide.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import Spotlight, { TOURS } from '../components/Spotlight';
@@ -246,6 +247,8 @@ export default function ExecutiveDashboard() {
   }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
        d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
 
+  const notify = useNotifications();
+
   return (
     <QxShell
       brand="QMe Now"
@@ -253,7 +256,8 @@ export default function ExecutiveDashboard() {
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
-      notifications={alerts.length}
+      notifications={notify.unread}
+      notify={notify}
       account={{ name: d.admin?.name || 'Executive', role: 'Executive', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
       context={<><MapPin size={13} /><span>{org}</span><b>· {branchCount} Branches</b></>}

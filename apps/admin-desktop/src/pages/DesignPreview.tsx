@@ -116,6 +116,24 @@ const ROLE_LABEL: Record<Role, string> = {
   linestaff: 'Line Staff', supervisor: 'Supervisor', manager: 'Branch Manager', executive: 'Executive',
 };
 
+
+/* Fixture notifications so the bell's panel is reviewable here. Mirrors the
+   real shape: newest first, a couple unread, one that needs action. */
+const PREVIEW_NOTIFY = {
+  items: [
+    { id: 'n1', title: 'Counter assignment requested', kind: 'warn' as const, read: false, when: '4 min ago',
+      body: 'Andre Blake: TRN has 14 waiting on 2 of 4 windows — longest wait 61 min. Please put someone on TRN.' },
+    { id: 'n2', title: 'A line needs more staff', kind: 'warn' as const, read: false, when: '22 min ago',
+      body: 'Passport Collection at Constant Spring is over its 20 minute target.' },
+    { id: 'n3', title: 'A customer was called', kind: 'info' as const, read: true, when: '1 hr ago',
+      body: 'Ticket TRN-014 · Kemar Lewis' },
+    { id: 'n4', title: 'Marked as a no-show', kind: 'warn' as const, read: true, when: 'Yesterday',
+      body: 'Ticket PAY-208 never arrived after two calls.' },
+  ],
+  onRead: () => undefined,
+  onReadAll: () => undefined,
+};
+
 export default function DesignPreview() {
   const [role, setRole] = useState<Role>('manager');
   const [tab, setTab] = useState('overview');
@@ -187,7 +205,8 @@ export default function DesignPreview() {
         onNav={setTab}
         theme={theme}
         onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-        notifications={role === 'executive' ? 3 : 2}
+        notifications={PREVIEW_NOTIFY.items.filter((n) => !n.read).length}
+        notify={PREVIEW_NOTIFY}
         // Stubbed so the sign-out affordance is inspectable here; the real
         // dashboards pass useAdminAuth().logout.
         account={{ ...ACCOUNT[role], onSignOut: () => window.alert('Sign out (preview stub)') }}

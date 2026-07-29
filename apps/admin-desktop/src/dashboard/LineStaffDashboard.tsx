@@ -4,6 +4,7 @@
  * complete / skip / no-show mutations.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
@@ -122,8 +123,12 @@ export default function LineStaffDashboard() {
     stats: ['My stats', 'How your counter is performing.'],
   };
 
+  const notify = useNotifications();
+
   return (
     <QxShell
+      notifications={notify.unread}
+      notify={notify}
       brand="QMe Now"
       brandSub={branch}
       nav={NAV.map((n) => ({ key: n.key === 'live' ? 'overview' : n.key, label: n.label, icon: n.icon, group: 'Main' }))}

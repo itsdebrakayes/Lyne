@@ -5,6 +5,7 @@
  * and SEES the branch targets, but does not set them.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand } from 'lucide-react';
@@ -151,6 +152,8 @@ export default function SupervisorDashboard() {
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;
 
+  const notify = useNotifications();
+
   return (
     <QxShell
       brand="QMe Now"
@@ -158,7 +161,8 @@ export default function SupervisorDashboard() {
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
-      notifications={alerts.length}
+      notifications={notify.unread}
+      notify={notify}
       account={{ name: d.admin?.name || 'Supervisor', role: 'Supervisor', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : undefined}
       context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.desks.length} Desks</b></>}

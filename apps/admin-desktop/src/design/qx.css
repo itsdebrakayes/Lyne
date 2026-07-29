@@ -959,3 +959,51 @@
 }
 .qx-selbar b { font-size: 12.5px; font-weight: 800; color: var(--c-primary); }
 .qx-selactions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+/* ── notifications popover ──
+   The bell was a badge with no click handler on all four dashboards. This is
+   the panel behind it. Anchored to the bell rather than a route, because
+   checking who needs you should not cost you the screen you were on. */
+.qx-notify { position: relative; }
+
+.qx-notifypanel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 60;
+  /* Fixed. This is a desktop window — it is never 380px wide — and making
+     the width depend on 100vw meant any host that reported a zero
+     viewport collapsed the panel to nothing. */
+  width: 380px;
+  background: var(--c-surface); border: 1px solid var(--c-line-2);
+  border-radius: 16px; box-shadow: var(--sh-lift); overflow: hidden;
+}
+.qx-notifypanel > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 15px; border-bottom: 1px solid var(--c-line);
+}
+.qx-notifypanel > header b { font-size: 13.5px; font-weight: 800; }
+
+/* Fixed for the same reason as the width — a zero-viewport host collapsed
+   the list to nothing, hiding every notification behind a header. */
+.qx-notifylist { max-height: 420px; overflow-y: auto; }
+
+.qx-notifyrow {
+  width: 100%; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 11px; align-items: start; text-align: left;
+  padding: 13px 15px; border: 0; border-bottom: 1px solid var(--c-line);
+  background: transparent; cursor: pointer; color: var(--c-text);
+}
+.qx-notifyrow:last-child { border-bottom: 0; }
+.qx-notifyrow:hover { background: var(--c-surface-2); }
+/* the unread marker is the dot AND the weight — colour alone is not a signal */
+.qx-notifyrow i { width: 8px; height: 8px; border-radius: 50%; background: transparent; margin-top: 5px; }
+.qx-notifyrow.unread i { background: var(--c-primary); }
+.qx-notifyrow.unread.warn i { background: var(--c-warn, #B4791F); }
+.qx-notifyrow.unread.urgent i { background: var(--c-bad); }
+.qx-notifyrow .tx { min-width: 0; }
+.qx-notifyrow .tx b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.45; }
+.qx-notifyrow.unread .tx b { font-weight: 800; }
+.qx-notifyrow .tx small { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.5; color: var(--c-dim); }
+.qx-notifyrow em { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--c-faint); white-space: nowrap; }
+
+.qx-notifyempty { padding: 26px 20px; text-align: center; }
+.qx-notifyempty b { display: block; font-size: 13px; font-weight: 800; margin-bottom: 5px; }
+.qx-notifyempty span { display: block; font-size: 11.5px; line-height: 1.6; color: var(--c-dim); max-width: 30ch; margin: 0 auto; }
