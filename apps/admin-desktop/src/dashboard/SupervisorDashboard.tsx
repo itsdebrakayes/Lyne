@@ -7,13 +7,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
-import { LayoutGrid, Users, Grid3x3, Target, Headphones } from 'lucide-react';
+import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
-import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh } from '@/design/ui';
-import { SupDataProvider, supTab, SUP_TAB_HEAD } from './qx/SupTabsQX';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { SupDataProvider, supTab, SupOverviewQX, SUP_TAB_HEAD } from './qx/SupTabsQX';
 import { buildSupData } from './qx/supLiveData';
 
 const SUP_FAQ = [
@@ -27,6 +27,7 @@ import { buildHeatmap } from './ManagerDashboard';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid },
+  { key: 'desks', label: 'Desk Assignment', icon: Hand },
   { key: 'staff', label: 'Staff', icon: Users },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
@@ -45,6 +46,7 @@ export default function SupervisorDashboard() {
     refetchInterval: 30_000,
   });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [period, setPeriod] = useState('today');
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
@@ -91,7 +93,11 @@ export default function SupervisorDashboard() {
     avgWait: liveWait,
     coverPct: 0,
     avgService: Math.round(num(last.avg_service_time_minutes)),
-    shiftFrom: '—', shiftTo: '—', faq: SUP_FAQ,
+    // The staff record carries no opening hours, so these come from the branch
+    // rows the queues report. Left as dashes rather than invented when absent.
+    shiftFrom: (d.queues as any[])[0]?.opening_time || '—',
+    shiftTo: (d.queues as any[])[0]?.closing_time || '—',
+    faq: SUP_FAQ,
   }), [d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
        d.effectiveTarget, liveWait, last]);
 
@@ -102,7 +108,7 @@ export default function SupervisorDashboard() {
       brand="QMe Now"
       brandSub={branchName}
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
-      active={tab === 'overview' ? 'desks' : tab}
+      active={tab}
       onNav={setTab}
       notifications={alerts.length}
       account={{ name: d.admin?.name || 'Supervisor', role: 'Supervisor', email: d.admin?.staffRecord.email, onSignOut: logout }}
@@ -120,10 +126,14 @@ export default function SupervisorDashboard() {
       onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
       head={
         <QxHead
-          title={SUP_TAB_HEAD[tab === 'overview' ? 'desks' : tab]?.title ?? titles[tab]?.[0] ?? ''}
-          sub={SUP_TAB_HEAD[tab === 'overview' ? 'desks' : tab]?.sub ?? titles[tab]?.[1] ?? ''}
+          title={tab === 'overview' ? greetingFor(d.admin?.name) : (SUP_TAB_HEAD[tab]?.title ?? titles[tab]?.[0] ?? '')}
+          sub={tab === 'overview'
+            ? `Here's how ${branchName} is covered right now.`
+            : (SUP_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live="Live"
           right={<>
+            <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
             <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
@@ -131,7 +141,7 @@ export default function SupervisorDashboard() {
       }
     >
       <SupDataProvider value={liveData}>
-        {supTab(tab === 'overview' ? 'desks' : tab, setTab)}
+        {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
       </SupDataProvider>
     </QxShell>
   );

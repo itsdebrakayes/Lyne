@@ -9,6 +9,8 @@ import LoadingScreen from './components/LoadingScreen';
 import DesignPreview from './pages/DesignPreview';
 import KioskApp from './kiosk/KioskApp';
 import SetupWizard from './pages/SetupWizard';
+import DesktopSetup from './pages/DesktopSetup';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 
@@ -48,6 +50,22 @@ function RoleRouter() {
 }
 
 export default function App() {
+  /* Desktop first-launch setup runs BEFORE anything else — it is about this
+     machine (licence, where downloads go, start-with-the-computer), not about
+     a signed-in user, so it sits outside the auth routes entirely. Web builds
+     have no electronAPI and skip it. */
+  const [needsDesktopSetup, setNeedsDesktopSetup] = useState<boolean | null>(null);
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.getSettings) { setNeedsDesktopSetup(false); return; }
+    api.getSettings()
+      .then((s: any) => setNeedsDesktopSetup(!s?.setupCompleted))
+      .catch(() => setNeedsDesktopSetup(false));
+  }, []);
+
+  if (needsDesktopSetup === null) return <LoadingScreen />;
+  if (needsDesktopSetup) return <DesktopSetup onFinish={() => setNeedsDesktopSetup(false)} />;
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -68,6 +86,9 @@ export default function App() {
       {/* First-run setup is auth-gated and only appears for a business with no
           branches, so it is otherwise impossible to review. */}
       {import.meta.env.DEV ? <Route path="/setup-preview" element={<SetupWizard />} /> : null}
+      {/* The desktop wizard only runs on first launch in Electron, so this is
+          the only way to review it in a browser. */}
+      {import.meta.env.DEV ? <Route path="/desktop-setup-preview" element={<DesktopSetup />} /> : null}
 
       <Route
         path="/staff"

@@ -217,7 +217,10 @@ export function SupDesksTab() {
       <Stat span={3} icon={AlertTriangle} tone={uncoveredWithQueue.length ? 'bad' : 'primary'}
         label="Empty With A Queue" value={uncoveredWithQueue.length}
         chip={uncoveredWithQueue.length ? { dir: 'bad', text: 'Now' } : { dir: 'flat', text: 'Clear' }}
-        foot={uncoveredWithQueue.length ? uncoveredWithQueue.map((x) => x.label).join(', ') : 'No one is waiting on an empty desk'} />
+        foot={uncoveredWithQueue.length
+          // Naming every desk overflowed the card once a branch had 25 of them.
+          ? `${uncoveredWithQueue.slice(0, 2).map((x) => x.label).join(', ')}${uncoveredWithQueue.length > 2 ? ` and ${uncoveredWithQueue.length - 2} more` : ''}`
+          : 'No one is waiting on an empty desk'} />
       <Stat span={3} icon={Coffee} label="Free To Cover" value={free.length}
         foot={free.length ? 'Can be placed on any desk' : 'Everyone available is on a desk'} />
       <Stat span={3} icon={Clock} label="Shift" value={`${d.shiftFrom} – ${d.shiftTo}`}
@@ -585,9 +588,106 @@ export function supTab(tab: string, onNav: (k: string) => void) {
 }
 
 export const SUP_TAB_HEAD: Record<string, { title: string; sub: string }> = {
+  overview: { title: 'Section Board', sub: 'How your section is covered right now' },
   desks: { title: 'Desk Assignment', sub: 'Who sits where this shift, and where the holes are' },
   staff: { title: 'Staff', sub: 'Everyone in this section, and anyone who needs a word' },
   busy: { title: 'Busy Times', sub: 'When this section is under pressure, and when a break costs nothing' },
   targets: { title: 'Targets', sub: 'What this section is held to' },
   support: { title: 'Help & Support', sub: 'Answers, and a person when you need one' },
 };
+
+/* ══════════════════════ SECTION BOARD (overview) ══════════════════════ */
+/**
+ * The at-a-glance version. Desk Assignment is the full board you plan a shift
+ * on; this is the one you glance at — coverage per service, who needs a word,
+ * and the single thing to do next. Aliasing the two together made the overview
+ * a wall of 25 desks, which is not an overview.
+ */
+export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
+  const d = useSup();
+
+  if (!d.desks.length && !d.staff.length) {
+    return <EmptyTab title="This Section Is Not Set Up Yet"
+      body="Once desks and staff are attached to this branch they appear here, with coverage per service and anyone who needs your attention." />;
+  }
+
+  const covered = d.desks.filter((x) => x.staffId).length;
+  const waiting = d.desks.reduce((t, x) => t + x.waiting, 0);
+  const uncovered = d.desks.filter((x) => !x.staffId && x.waiting > 0);
+  const worst = [...uncovered].sort((a, b) => b.waiting - a.waiting)[0] || null;
+  const flagged = d.staff.filter((s) => s.state === 'idle' || s.breakDue);
+  const free = d.staff.filter((s) => s.state === 'unassigned');
+
+  /* Coverage per service — the shape of the whole section in one card. */
+  const lanes = useMemo(() => {
+    const m = new Map<string, { total: number; on: number; waiting: number }>();
+    for (const dk of d.desks) {
+      const cur = m.get(dk.svc) || { total: 0, on: 0, waiting: 0 };
+      cur.total += 1; cur.on += dk.staffId ? 1 : 0; cur.waiting += dk.waiting;
+      m.set(dk.svc, cur);
+    }
+    return [...m.entries()].sort((a, b) => b[1].waiting - a[1].waiting);
+  }, [d.desks]);
+
+  return (
+    <div className="qx-grid">
+      <Stat span={3} icon={Users} tone={waiting > 60 ? 'bad' : 'primary'} label="Waiting Right Now" value={waiting}
+        foot={`Across ${d.desks.length} desks in this section`} />
+      <Stat span={3} icon={CheckCircle2} tone={covered < d.desks.length ? 'warn' : 'primary'}
+        label="Desks Covered" value={`${covered} of ${d.desks.length}`}
+        foot={covered < d.desks.length ? `${d.desks.length - covered} sitting empty` : 'Every desk has someone on it'} />
+      <Stat span={3} icon={AlertTriangle} tone={uncovered.length ? 'bad' : 'primary'} label="Empty With A Queue"
+        value={uncovered.length}
+        chip={uncovered.length ? { dir: 'bad', text: 'Now' } : { dir: 'flat', text: 'Clear' }}
+        foot={worst ? `Worst is ${worst.label}` : 'Nobody waiting on an empty desk'} />
+      <Stat span={3} icon={Coffee} label="Free To Cover" value={free.length}
+        foot={free.length ? 'Can be placed on any desk' : 'Everyone available is on a desk'} />
+
+      <Card span={7} title="Coverage By Service" cap="Where the section is thin. Open Desk Assignment to change it.">
+        <div className="qx-sbreak">
+          {lanes.map(([svc, v]) => {
+            const short = v.on < v.total && v.waiting > 0;
+            return (
+              <div key={svc}>
+                <div className="r">
+                  <span>{svc}</span>
+                  <b style={{ color: short ? 'var(--c-bad)' : undefined }}>{v.on} / {v.total} · {v.waiting} waiting</b>
+                </div>
+                <div className="qx-bar">
+                  <i style={{ width: `${(v.on / Math.max(1, v.total)) * 100}%`, background: short ? 'var(--c-bad)' : 'var(--c-primary)' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="qx-stack s5">
+        {worst ? (
+          <Focus eyebrow="Do This Next" title={`Put Someone On ${worst.label}`}
+            body={`${worst.waiting} people are waiting on ${worst.svc} and that desk is empty.${free.length ? ` ${free[0].name} is free to cover it.` : ''}`}
+            stats={[{ label: 'Waiting', value: String(worst.waiting), dir: 'bad' },
+                    { label: 'Free To Cover', value: String(free.length) }]}
+            action={{ label: 'Open Desk Assignment', onClick: () => onNav('desks') }} />
+        ) : (
+          <Card title="Every Queue Is Covered" cap="Nothing needs moving right now">
+            <Note icon={CheckCircle2} title="The Section Is Running Normally"
+              body="No desk with people waiting is sitting empty." />
+          </Card>
+        )}
+        <Card title={<>Needs A Word<span className="qx-count">{flagged.length}</span></>}
+          cap="Flagged automatically — prompts, not judgements">
+          {flagged.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {flagged.slice(0, 3).map((s) => (
+                <Note key={s.id} icon={s.breakDue ? Coffee : Clock} tone={s.state === 'idle' ? 'bad' : 'warn'}
+                  title={`${s.name}${s.desk !== '—' ? ` · ${s.desk}` : ''}`}
+                  body={s.note || SUP_STATE_LABEL[s.state]} />
+              ))}
+            </div>
+          ) : <div className="qx-empty">Nobody needs your attention right now.</div>}
+        </Card>
+      </div>
+    </div>
+  );
+}
