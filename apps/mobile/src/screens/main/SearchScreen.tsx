@@ -8,11 +8,11 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
+import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitShort, branchOpenInfo, hoursFromBranch, openTimeLabel } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -36,10 +36,14 @@ async function pushRecent(term: string) {
 export default function SearchScreen() {
   const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
+  // Home's quick actions arrive here with a filter already chosen, so "Open now"
+  // lands on open branches rather than on an unfiltered list the person then
+  // has to filter themselves.
+  const route = useRoute<any>();
   const [search, setSearch] = useState('');
   const [recents, setRecents] = useState<string[]>([]);
-  const [bizFilter, setBizFilter] = useState<string | null>(null);
-  const [openOnly, setOpenOnly] = useState(false);
+  const [bizFilter, setBizFilter] = useState<string | null>(route.params?.businessId ?? null);
+  const [openOnly, setOpenOnly] = useState(Boolean(route.params?.openNow));
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: branches = [], isLoading, error, refetch } = useQuery({
@@ -69,7 +73,14 @@ export default function SearchScreen() {
     let list = branches;
     if (term) list = list.filter(b => [b.name, b.business_name, b.city, b.parish].some(v => v?.toLowerCase().includes(term)));
     if (bizFilter) list = list.filter(b => b.business_id === bizFilter);
-    if (openOnly) list = list.filter(b => Number(b.open_queues) > 0);
+    // "Open" means the same thing here as everywhere else: the branch is inside
+    // its own opening hours AND has a live queue. Filtering on open_queues alone
+    // called Half Way Tree open at 2am, directly contradicting the Home screen.
+    if (openOnly) {
+      const now = new Date();
+      list = list.filter(b =>
+        branchOpenInfo(now, hoursFromBranch(b)).state === 'open' && Number(b.open_queues) > 0);
+    }
     return list;
   }, [branches, term, bizFilter, openOnly]);
 
@@ -187,7 +198,19 @@ export default function SearchScreen() {
               <ErrorCard title="Search is offline" message="Live branch data could not be loaded. Pull down or tap to retry." onRetry={() => refetch()} />
             )}
             {!isLoading && !error && results.length === 0 && (
-              <EmptyCard icon="search-outline" title={`No matches for “${search.trim() || 'these filters'}”`} message="Try a different agency, branch, or parish name — or clear a filter." />
+              /* Say what actually came up empty. Quoting the words "these
+                 filters" back at someone who never typed them reads like the
+                 screen lost their search. */
+              search.trim() ? (
+                <EmptyCard icon="search-outline" title={`No matches for “${search.trim()}”`}
+                  message="Try a different agency, branch, or parish name — or clear a filter." />
+              ) : openOnly ? (
+                <EmptyCard icon="time-outline" title="Nothing is open right now"
+                  message={`Agencies open at ${openTimeLabel}. Turn off Open now to see every branch and plan ahead.`} />
+              ) : (
+                <EmptyCard icon="funnel-outline" title="No branches match these filters"
+                  message="Clear a filter to widen the search." />
+              )
             )}
 
             <View style={{ gap: 14 }}>

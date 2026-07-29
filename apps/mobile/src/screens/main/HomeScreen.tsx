@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, personInitials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -20,12 +20,24 @@ function timeGreeting() {
   return 'Good evening,';
 }
 
-const QUICK: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; tint: keyof typeof categoryTints }> = [
-  { label: 'Nearby', icon: 'location-outline', tint: 'blue' },
-  { label: "Gov't", icon: 'business-outline', tint: 'green' },
-  { label: 'Banks', icon: 'card-outline', tint: 'purple' },
-  { label: 'Utilities', icon: 'flash-outline', tint: 'orange' },
-  { label: 'Saved', icon: 'bookmark-outline', tint: 'pink' },
+/* Quick actions, each going somewhere DIFFERENT and real.
+   These were Nearby / Gov't / Banks / Utilities / Saved — but there is no
+   category on a business, so four of the five dropped you on the same
+   unfiltered search, and two of them advertised bank and utility queues that
+   this product does not serve. Every row below is backed by something the
+   system actually knows. */
+const QUICK: Array<{
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: keyof typeof categoryTints;
+  to: string;
+  params?: Record<string, unknown>;
+}> = [
+  { label: 'Open now', icon: 'flash-outline',    tint: 'green',  to: 'Search', params: { openNow: true } },
+  { label: 'Agencies', icon: 'business-outline', tint: 'blue',   to: 'Search' },
+  { label: 'Saved',    icon: 'bookmark-outline', tint: 'pink',   to: 'Saved' },
+  { label: 'Visits',   icon: 'time-outline',     tint: 'purple', to: 'History' },
+  { label: 'Help',     icon: 'help-buoy-outline', tint: 'orange', to: 'Help' },
 ];
 
 function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = colors.ink, border = true }: { label: string; size?: number; radius?: number; bg?: string; fg?: string; border?: boolean }) {
@@ -102,7 +114,7 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ borderRadius: 23, ...shadow.depth }}>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <Sheen radius={23} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'Q')}</Text>
+              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{personInitials(user?.full_name || 'Q')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -128,7 +140,7 @@ export default function HomeScreen() {
           {QUICK.map(q => {
             const tint = categoryTints[q.tint];
             return (
-              <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
+              <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.to as never, q.params as never)} style={{ alignItems: 'center', gap: 10, width: 66 }}>
                 <GlassView radius={20} intensity={38} style={{ width: 58, height: 58, alignItems: 'center', justifyContent: 'center', ...shadow.depth }}>
                   {/* In dark mode the pastel wash goes translucent so the tile
                       stays dark and the colored icon carries the identity. */}
@@ -227,9 +239,13 @@ export default function HomeScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 2 }} style={{ marginBottom: 4 }}>
               {agencies.map(a => (
-                <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 9, width: 64 }}>
+                <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 9, width: 78 }}>
                   <Monogram label={a.business_slug?.toUpperCase().slice(0, 4) || initials(a.business_name)} />
-                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{a.business_slug?.toUpperCase() || initials(a.business_name)}</Text>
+                  {/* the NAME, not the acronym again — the circle above already
+                      says TAJ, and "TAJ / TAJ" tells nobody what TAJ is */}
+                  <Text numberOfLines={2} style={{ fontFamily: font.bold, fontSize: 11.5, lineHeight: 14, textAlign: 'center', color: colors.sub }}>
+                    {(a.business_name || '').replace(/\s*\([^)]*\)\s*$/, '') || a.business_slug?.toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>

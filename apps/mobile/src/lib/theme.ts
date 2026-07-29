@@ -322,14 +322,36 @@ export function remoteJoinInfo(now: Date = new Date(), hours: BranchHours = DEFA
 // Default agency open time as a plain label, for callers without a branch.
 export const openingTimeLabel = clockLabel(OPEN_MIN);
 
+/* Words that are never part of an organisation's acronym. Taking the first
+   letter of every word regardless is how "Passport Office of Jamaica" came out
+   on screen as POO — next to that agency's real name, in a product we sell to
+   that agency. */
+const CONNECTORS = new Set(['of', 'the', 'and', 'for', 'de', 'la', 'du', 'a', 'an']);
+
+/** A monogram for an ORGANISATION. For a person use personInitials. */
 export function initials(value?: string) {
-  return (value || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(part => part[0])
-    .join('')
-    .toUpperCase() || 'Q';
+  const raw = (value || '').trim();
+  if (!raw) return 'Q';
+
+  // An organisation that states its own acronym gets to keep it. Ours is a
+  // guess; theirs is their name.
+  const stated = raw.match(/\(([A-Za-z]{2,5})\)/);
+  if (stated) return stated[1].toUpperCase();
+
+  const words = raw.split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
+  const solid = words.filter(w => !CONNECTORS.has(w.toLowerCase()));
+  const use = solid.length ? solid : words;
+  if (!use.length) return 'Q';
+  return use.slice(0, 3).map(w => w[0]).join('').toUpperCase();
+}
+
+/** A person's monogram: first and last initial, the way every contacts app does
+    it. Three letters starts reading as a word rather than as initials. */
+export function personInitials(value?: string) {
+  const words = (value || '').trim().split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
+  if (!words.length) return 'Q';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
 // Spacing scale — the whole app sits on this rhythm. Sections get xl above

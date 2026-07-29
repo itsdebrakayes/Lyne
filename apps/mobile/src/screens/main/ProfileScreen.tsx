@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api, { supabase } from '../../lib/apiClient';
-import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
+import { colors, font, shadow, t, categoryTints, initials, personInitials, inputReset, depthText } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
@@ -129,7 +129,7 @@ export default function ProfileScreen() {
           <View style={{ borderRadius: 44, ...shadow.depth }}>
             <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
               <Sheen radius={44} />
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{personInitials(name)}</Text>
             </View>
           </View>
           <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>

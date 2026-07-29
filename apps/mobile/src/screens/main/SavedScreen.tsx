@@ -10,7 +10,7 @@ import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } f
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, initials, inputReset, waitShort } from '../../lib/theme';
+import { colors, font, shadow, t, initials, personInitials, inputReset, waitShort } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
@@ -99,7 +99,7 @@ export default function SavedScreen() {
               <Text style={{ fontFamily: font.extra, fontSize: 22, lineHeight: 27, color: '#fff', letterSpacing: -0.5, marginTop: 4 }}>Let’s find your{'\n'}favorite line.</Text>
             </View>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 15 }}>{initials(user?.full_name || 'Q')}</Text>
+              <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 15 }}>{personInitials(user?.full_name || 'Q')}</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: 'rgba(255,255,255,.09)', borderRadius: 18, height: 48, paddingHorizontal: 16, marginTop: 18 }}>
