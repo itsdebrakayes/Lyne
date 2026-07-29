@@ -43,7 +43,11 @@ export default function LineStaffDashboard() {
   const { admin, logout } = useAdminAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('live');
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+  /* History defaults to the WEEK, not today. At 8am nobody has been served
+     yet, and a blank History reads as broken rather than as "the day has not
+     started". Yesterday's record is the useful thing to see first; today's
+     entries appear at the top as they happen. */
+  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
   // Status messages are transient — auto-clear so an error can never sit on

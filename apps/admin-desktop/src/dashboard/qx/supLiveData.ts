@@ -12,8 +12,11 @@ import { num, titleCase } from '../insights';
 
 export type SupLiveInput = {
   sectionName: string; branchName: string; supervisorName: string;
-  /** live queue rows, one per service */
+  /** live queue rows, one per service — used only for live waiting counts */
   queues: any[];
+  /** /analytics/counters — the desks themselves, which exist independently of
+      whether a queue has been opened or anyone has joined it */
+  counters: any[];
   /** /analytics/staff — full_name, tickets_handled, avg_handle_minutes */
   staff: any[];
   /** productivity insight: { slowdowns: [], idle: [] } */
@@ -62,32 +65,21 @@ export function buildSupData(i: SupLiveInput): SupTabData {
   });
 
   /* ── desks ──
-     Counters come off the live queue rows. Where a queue reports its counters
-     we list them; the occupant is whoever the productivity insight places at
-     that counter label, and unknown otherwise. */
-  const desks: SupDesk[] = [];
-  for (const q of i.queues) {
-    const svc = titleCase(q.service_name) || 'Service';
-    const total = Math.max(0, Math.round(num(q.counters_total)));
-    const waiting = Math.round(num(q.waiting_count));
-    const labels: string[] = Array.isArray(q.counters)
-      ? q.counters.map((c: any) => String(c.label || c.counter_label || ''))
-      : Array.from({ length: total }, (_, n) => `${(q.service_code || svc.slice(0, 3)).toUpperCase()}-${n + 1}`);
-    labels.filter(Boolean).forEach((label, n) => {
-      const who = staff.find((s) => s.desk === label) || null;
-      desks.push({
-        id: `${q.service_id || svc}-${n}`,
-        label,
-        svc,
-        staffId: who?.id ?? null,
-        staffName: who?.name ?? null,
-        // Queue depth belongs to the service, not one counter — split evenly so
-        // the flag reflects pressure on that line rather than a made-up figure.
-        waiting: labels.length ? Math.round(waiting / labels.length) : waiting,
-        servedToday: who?.seen ?? 0,
-      });
-    });
-  }
+     From counters, NOT from queues. Desk assignment is work a supervisor does
+     BEFORE the day starts — setting up at 8am for an 8:30 open — so the board
+     has to be fully usable with no queues open and nobody waiting. Building it
+     off queue rows meant it collapsed to an empty state exactly when it was
+     most needed. The only genuinely empty case is a branch with no counters
+     configured at all. */
+  const desks: SupDesk[] = i.counters.map((c) => ({
+    id: String(c.counter_id),
+    label: String(c.counter_label || `Counter ${c.counter_number ?? ''}`).trim(),
+    svc: titleCase(c.service_name) || 'Unassigned',
+    staffId: c.staff_id ? String(c.staff_id) : null,
+    staffName: c.staff_name ? titleCase(c.staff_name) : null,
+    waiting: Math.round(num(c.service_waiting)),
+    servedToday: Math.round(num(c.served_today)),
+  }));
 
   /* ── demand by desk-hour, reused from the branch grid ── */
   const hourLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'am' : 'pm'}`;

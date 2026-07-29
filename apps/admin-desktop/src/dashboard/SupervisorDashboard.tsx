@@ -5,6 +5,8 @@
  * and SEES the branch targets, but does not set them.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
@@ -34,6 +36,14 @@ const NAV: NavItem[] = [
 export default function SupervisorDashboard() {
   const d = useDashboardData();
   const { logout } = useAdminAuth();
+  /* Desks come from counters, which exist whether or not the day has opened —
+     a supervisor sets the board up before the doors do. */
+  const countersQuery = useQuery({
+    queryKey: ['sup-counters', d.businessId, d.branchId],
+    queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${d.businessId}${d.branchId ? `&branch_id=${d.branchId}` : ''}`),
+    enabled: !!d.businessId,
+    refetchInterval: 30_000,
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
@@ -75,13 +85,14 @@ export default function SupervisorDashboard() {
        to a branch. Labelled by branch rather than inventing a section name. */
     sectionName: branchName,
     branchName, supervisorName: d.admin?.name || '',
-    queues: d.queues as any[], staff: d.staff as any[], productivity: d.productivity,
+    queues: d.queues as any[], counters: countersQuery.data || [],
+    staff: d.staff as any[], productivity: d.productivity,
     demandHourly: d.demandHourly as any[], target: d.effectiveTarget,
     avgWait: liveWait,
     coverPct: 0,
     avgService: Math.round(num(last.avg_service_time_minutes)),
     shiftFrom: '—', shiftTo: '—', faq: SUP_FAQ,
-  }), [d.admin, branchName, d.queues, d.staff, d.productivity, d.demandHourly,
+  }), [d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
        d.effectiveTarget, liveWait, last]);
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;

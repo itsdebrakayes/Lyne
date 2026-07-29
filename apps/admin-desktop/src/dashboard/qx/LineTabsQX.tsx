@@ -143,7 +143,7 @@ export function LineOverviewQX() {
   const [view, setView] = useState<'line' | 'noanswer'>('line');
 
   /* Which customer is at this window, and where they are in the flow. */
-  const [stage, setStage] = useState<Stage>(() => (d.queue.some((t) => t.state === 'called') ? 'called' : 'idle'));
+  const [rawStage, setStage] = useState<Stage>(() => (d.queue.some((t) => t.state === 'called') ? 'called' : 'idle'));
   const [activeId, setActiveId] = useState<string | null>(() => d.queue.find((t) => t.state === 'called')?.id ?? null);
   const [elapsed, setElapsed] = useState(0);
   const [calls, setCalls] = useState(1);
@@ -154,6 +154,13 @@ export function LineOverviewQX() {
   /* One ticking clock, reset whenever the stage changes. It drives both the
      response timer and the service timer — they are the same measurement taken
      from different starting points. */
+  /* The stage follows the DATA, not just the last button pressed. Without this
+     an emptied queue kept whatever stage it was left in, so a window with
+     nobody at it still read "Called — Waiting For Them" and offered to start a
+     service on a customer who does not exist. */
+  const activeTicket = d.queue.find((t) => t.id === activeId) || null;
+  const stage: Stage = activeTicket ? rawStage : 'idle';
+
   useEffect(() => {
     setElapsed(0);
     if (stage === 'idle') return undefined;
@@ -163,7 +170,7 @@ export function LineOverviewQX() {
 
   const waiting = d.queue.filter((t) => t.state === 'waiting' && !done.includes(t.id) && t.id !== activeId);
   const noAnswer = d.queue.filter((t) => t.state === 'noresponse' && !done.includes(t.id));
-  const active = d.queue.find((t) => t.id === activeId) || null;
+  const active = activeTicket;
   const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
 
   const reset = (nextStage: Stage, id: string | null) => {
@@ -188,11 +195,6 @@ export function LineOverviewQX() {
     setCodeState(codeReady ? 'ok' : 'bad');
   };
 
-  if (!d.queue.length) {
-    return <EmptyTab title="Nobody Is Waiting For You Right Now"
-      body="When someone joins the line for your service they appear here, and the next person to call is shown ready to go. Nothing to do until then." />;
-  }
-
   const list = (view === 'noanswer' ? noAnswer : waiting)
     .filter((t) => !q.trim() || `${t.no} ${t.name}`.toLowerCase().includes(q.trim().toLowerCase()));
 
@@ -216,16 +218,34 @@ export function LineOverviewQX() {
           </>
         ) : (
           <>
-            <div className="ql-big">{next ? next.no : '—'}</div>
-            <div className="ql-who">{next ? `${next.name} is next` : 'Nobody is waiting'}</div>
+            {/* Dashes rather than a hidden panel: before the doors open there is
+                genuinely nobody, and the station should still read as a working
+                screen that is simply empty — not as something that failed. */}
+            <div className="ql-big" style={next ? undefined : { opacity: .45 }}>{next ? next.no : '— —'}</div>
+            <div className="ql-who">
+              {next ? `${next.name} is next` : 'This is where the first person in the line will appear'}
+            </div>
             <div className="ql-meta">
               <span><Users size={14} />{waiting.length} in your line</span>
               <span><CheckCircle2 size={14} />{d.servedToday + done.length} seen today</span>
+              <span><Clock size={14} />{d.counter} · {d.serviceName}</span>
             </div>
           </>
         )}
 
         {/* ── live timers ── */}
+        {stage === 'idle' ? (
+          <div className="ql-clocks">
+            <div className="ql-clock" style={{ opacity: .55 }}>
+              <b>—:—</b><small>Since You Called</small>
+            </div>
+            <div className="ql-clock" style={{ opacity: .55 }}>
+              <b>{d.avgHandle ? d.avgHandle : '—'}<span style={{ fontSize: 15 }}> min</span></b>
+              <small>Your Usual Visit</small>
+            </div>
+          </div>
+        ) : null}
+
         {stage !== 'idle' ? (
           <div className="ql-clocks">
             <div className={`ql-clock${stage === 'called' && elapsed >= NO_SHOW_AFTER ? ' warn' : ''}`}>
@@ -273,6 +293,20 @@ export function LineOverviewQX() {
         {/* Who is coming after this one. It belongs on the stage anyway — you
             want to know before you finish — and it means the space above the
             buttons carries information instead of sitting empty. */}
+        {!next && stage === 'idle' ? (
+          <div className="ql-upnext" style={{ opacity: .6 }}>
+            <span className="ql-eyebrow">Next Up</span>
+            <div className="r">
+              <span className="qx-av" style={{ background: 'rgba(255,255,255,.14)' }}>—</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <b>— —</b>
+                <small>Nobody has joined the line yet</small>
+              </div>
+            </div>
+            <small className="more">They will show here the moment someone joins</small>
+          </div>
+        ) : null}
+
         {next ? (
           <div className="ql-upnext">
             <span className="ql-eyebrow">Next Up</span>
@@ -461,8 +495,8 @@ export function LineHistoryTab() {
   const [only, setOnly] = useState<'all' | 'served' | 'no_show'>('all');
 
   if (!d.history.length) {
-    return <EmptyTab title="Nothing To Show Yet Today"
-      body="Everyone you see today appears here with how long they took and how it ended, so you can look something up if a customer comes back." />;
+    return <EmptyTab title="No Record Yet"
+      body="Everyone you see appears here with how long they took and how it ended, so you can look someone up if they come back. Your most recent days show first." />;
   }
 
   const rows = d.history
@@ -484,8 +518,8 @@ export function LineHistoryTab() {
         value={d.history.filter((h) => h.outcome === 'transferred').length}
         foot="Sent to another service" />
 
-      <Card span={12} title={<>Everyone You Saw Today<span className="qx-count">{rows.length}</span></>}
-        cap="Most recent first"
+      <Card span={12} title={<>Everyone You Have Seen<span className="qx-count">{rows.length}</span></>}
+        cap="Most recent first — today appears at the top as you go, with earlier days beneath"
         tools={<>
           <Seg value={only} onChange={setOnly}
             options={[['all', 'Everyone'], ['served', 'Served'], ['no_show', 'No Answer']]} />
