@@ -55,6 +55,8 @@ services:
       - ./database/migrations/019_verification_code_per_queue.sql:/docker-entrypoint-initdb.d/20_019_verification_code_per_queue.sql:ro
       - ./database/migrations/020_subscription_tiers_reference.sql:/docker-entrypoint-initdb.d/21_020_subscription_tiers_reference.sql:ro
       - ./database/migrations/021_staff_notifications.sql:/docker-entrypoint-initdb.d/22_021_staff_notifications.sql:ro
+      - ./database/migrations/022_staff_service_competency.sql:/docker-entrypoint-initdb.d/23_022_staff_service_competency.sql:ro
+      - ./database/migrations/023_public_web_join.sql:/docker-entrypoint-initdb.d/24_023_public_web_join.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
