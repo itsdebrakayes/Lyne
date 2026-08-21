@@ -1,23 +1,27 @@
 /**
- * SearchScreen — three states, reference-driven:
+ * SearchScreen — v5, built on the job-finder results layout from the reference
+ * set: query field carrying mic + avatar, Filters / Sort dropdowns, agency
+ * chips with a blue selection, a found-count, then result cards with a bookmark
+ * in the corner and the wait where the salary used to be.
  *
- *  1. First use            → centered "Need anything?" prompt + suggestions
- *  2. Idle with history    → recent-search tiles (stored on device)
- *  3. Searching            → removable filter chips + result count +
- *                            alternating light/dark result cards
+ * Three states are preserved from the previous version:
+ *   1. First use         → suggestions
+ *   2. Idle with history → recent searches
+ *   3. Searching         → chips + count + results
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, font, t, initials, inputReset, statusFromWait, statusMeta, waitShort, branchOpenInfo, hoursFromBranch, openTimeLabel } from '../../lib/theme';
+import { colors, font, shadow, t, initials, inputReset, personInitials, waitShort, branchOpenInfo, hoursFromBranch, openTimeLabel, TAB_BAR_CLEARANCE } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
-import { BranchSummary } from '../../lib/mobileData';
+import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
+import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
-import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import Icon from '../../components/Icon';
 
 const RECENTS_KEY = 'qme.recent-searches';
 const SUGGESTIONS = ['Passport renewal', 'TRN registration', 'Tax payments', 'NHT benefits'];
@@ -33,17 +37,32 @@ async function pushRecent(term: string) {
   await AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(next)).catch(() => {});
 }
 
+
+/**
+ * A short tag for an organisation chip.
+ *
+ * The slug was uppercased straight through, which is fine for an agency whose
+ * slug is already an acronym (TAJ, PICA, NHT) but rendered the credit union as
+ * "COMMUNITY-FIRST" — a URL fragment shown to a customer. A slug is only a good
+ * tag when it already reads like one.
+ */
+const orgTag = (slug?: string, name?: string) => {
+  const sl = (slug || '').trim();
+  if (sl && sl.length <= 5 && !sl.includes('-')) return sl.toUpperCase();
+  return initials(name || '') || sl.toUpperCase().slice(0, 4);
+};
+
 export default function SearchScreen() {
-  const topPad = useTopPad(24);
+  const topPad = useTopPad(10);
   const navigation = useNavigation<any>();
-  // Home's quick actions arrive here with a filter already chosen, so "Open now"
-  // lands on open branches rather than on an unfiltered list the person then
-  // has to filter themselves.
   const route = useRoute<any>();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [recents, setRecents] = useState<string[]>([]);
   const [bizFilter, setBizFilter] = useState<string | null>(route.params?.businessId ?? null);
   const [openOnly, setOpenOnly] = useState(Boolean(route.params?.openNow));
+  const [nearestFirst, setNearestFirst] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: branches = [], isLoading, error, refetch } = useQuery({
@@ -51,6 +70,7 @@ export default function SearchScreen() {
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
+  const { data: saved = [] } = useQuery({ queryKey: ['saved-businesses'], queryFn: () => api.get<SavedBusiness[]>('/saved') });
 
   useEffect(() => { loadRecents().then(setRecents); }, []);
 
@@ -60,9 +80,26 @@ export default function SearchScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  // Optimistic bookmark, same rule as the branch screen: it fills instantly and
+  // rolls back only if the request actually fails.
+  const toggleSave = useMutation({
+    mutationFn: (input: { businessId: string; isSaved: boolean; name: string }) =>
+      (input.isSaved ? api.delete(`/saved/${input.businessId}`) : api.post(`/saved/${input.businessId}`, {})),
+    onMutate: async ({ businessId, isSaved, name }) => {
+      await queryClient.cancelQueries({ queryKey: ['saved-businesses'] });
+      const previous = queryClient.getQueryData<SavedBusiness[]>(['saved-businesses']) || [];
+      queryClient.setQueryData<SavedBusiness[]>(['saved-businesses'], isSaved
+        ? previous.filter(b => b.id !== businessId)
+        : [...previous, { id: businessId, name, slug: '', saved_at: new Date().toISOString() }]);
+      return { previous };
+    },
+    onError: (_e, _v, context) => { if (context?.previous) queryClient.setQueryData(['saved-businesses'], context.previous); },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['saved-businesses'] }),
+  });
+
   const businesses = useMemo(() => {
     const seen = new Map<string, string>();
-    branches.forEach(b => { if (!seen.has(b.business_id)) seen.set(b.business_id, b.business_slug?.toUpperCase() || initials(b.business_name)); });
+    branches.forEach(b => { if (!seen.has(b.business_id)) seen.set(b.business_id, orgTag(b.business_slug, b.business_name)); });
     return Array.from(seen.entries()).map(([id, tag]) => ({ id, tag }));
   }, [branches]);
 
@@ -81,181 +118,186 @@ export default function SearchScreen() {
       list = list.filter(b =>
         branchOpenInfo(now, hoursFromBranch(b)).state === 'open' && Number(b.open_queues) > 0);
     }
-    return list;
-  }, [branches, term, bizFilter, openOnly]);
+    return [...list].sort((a, b) => (nearestFirst
+      ? Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
+      : (a.name || '').localeCompare(b.name || '')));
+  }, [branches, term, bizFilter, openOnly, nearestFirst]);
 
   const openBranch = (b: BranchSummary) => {
     pushRecent(search).then(() => loadRecents().then(setRecents));
     navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
   };
 
-  const filtersActive = searching || bizFilter || openOnly;
+  const filtersActive = searching || !!bizFilter || openOnly;
 
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={[t.content, { paddingTop: topPad }]}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
-        {/* search bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <View style={[t.search, { flex: 1, height: 50 }]}>
-            <Ionicons name="search-outline" size={17} color={searching ? colors.ink : colors.muted} />
-            <TextInput
-              autoFocus={false}
-              value={search}
-              onChangeText={setSearch}
-              onSubmitEditing={() => pushRecent(search).then(() => loadRecents().then(setRecents))}
-              returnKeyType="search"
-              style={[{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.ink }, inputReset]}
-              placeholder="Search agencies & branches"
-              placeholderTextColor={colors.muted}
-            />
-            {searching && (
-              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
-                <Ionicons name="close-circle" size={17} color={colors.faint} />
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* query field */}
+        <View style={{ height: 56, borderRadius: 18, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 16, paddingRight: 8, marginTop: 10, ...shadow.card }}>
+          <Icon name="search" size={20} color={colors.muted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search agencies & branches"
+            placeholderTextColor={colors.muted}
+            returnKeyType="search"
+            onSubmitEditing={() => pushRecent(search).then(() => loadRecents().then(setRecents))}
+            style={[{ flex: 1, fontFamily: font.bold, fontSize: 14.5, color: colors.ink }, inputReset]}
+          />
+          {searching ? (
+            <TouchableOpacity onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="Clear search"
+              style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="close" size={18} color={colors.sub} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentInk }}>{personInitials(user?.full_name || 'Q')}</Text>
+            </View>
+          )}
         </View>
 
-        {!filtersActive ? (
-          /* ── Idle states ── */
-          <View>
-            {recents.length === 0 ? (
-              /* first use — the "Need anything?" moment */
-              <View style={{ alignItems: 'center', paddingTop: 64, paddingBottom: 28 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.8 }}>Need anything?</Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 20, color: colors.muted, textAlign: 'center', marginTop: 10, maxWidth: 290 }}>
-                  Search any agency, branch, or service — and see the live wait before you go.
-                </Text>
-              </View>
-            ) : (
-              <>
-                <View style={[t.sectionRow, { marginTop: 8 }]}>
-                  <Text style={t.section}>Recent searches</Text>
-                  <TouchableOpacity onPress={() => { AsyncStorage.removeItem(RECENTS_KEY).catch(() => {}); setRecents([]); }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>Clear</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  {recents.map(item => (
-                    <TouchableOpacity key={item} onPress={() => setSearch(item)} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 15 }}>
-                      <Ionicons name="time-outline" size={14} color={colors.muted} />
-                      <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.ink }}>{item}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            )}
+        {/* filters / sort */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+          <TouchableOpacity onPress={() => setOpenOnly(v => !v)} accessibilityRole="button"
+            accessibilityLabel={openOnly ? 'Showing open branches only. Tap to show all.' : 'Showing all branches. Tap to show open only.'}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Icon name="filter" size={17} color={openOnly ? colors.accent : colors.ink} />
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: openOnly ? colors.accent : colors.ink }}>{openOnly ? 'Open now' : 'Filters'}</Text>
+            <Icon name="chevronDown" size={12} color={openOnly ? colors.accent : colors.ink} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setNearestFirst(v => !v)} accessibilityRole="button" accessibilityLabel="Change sort order"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.ink }}>{nearestFirst ? 'Shortest wait' : 'A–Z'}</Text>
+            <Icon name="chevronDown" size={12} color={colors.ink} />
+          </TouchableOpacity>
+        </View>
 
-            {/* suggestions — always available when idle */}
-            <View style={[t.sectionRow, recents.length === 0 && { marginTop: 4 }]}>
-              <Text style={recents.length === 0 ? { fontFamily: font.extra, fontSize: 12, color: colors.muted, letterSpacing: 1, textTransform: 'uppercase' } : t.section}>
-                {recents.length === 0 ? 'Try searching for' : 'Popular right now'}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: recents.length === 0 ? 'center' : 'flex-start' }}>
-              {SUGGESTIONS.map(item => (
-                <TouchableOpacity key={item} onPress={() => setSearch(item.split(' ')[0])} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 15 }}>
-                  <Ionicons name="sparkles-outline" size={13} color={colors.accentDeep} />
-                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.sub }}>{item}</Text>
+        {/* agency chips */}
+        {businesses.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingVertical: 2 }} style={{ marginTop: 16 }}>
+            {businesses.map(b => {
+              const on = bizFilter === b.id;
+              return (
+                <TouchableOpacity key={b.id} onPress={() => setBizFilter(on ? null : b.id)} accessibilityRole="button"
+                  style={{ borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: on ? colors.accent : colors.surface, ...shadow.card }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? colors.accentInk : colors.muted }}>{b.tag}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* idle: suggestions or recents */}
+        {!filtersActive && (
+          <View style={{ marginTop: 24 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3, marginBottom: 12 }}>
+              {recents.length ? 'Recent searches' : 'Try one of these'}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
+              {(recents.length ? recents : SUGGESTIONS).map(item => (
+                <TouchableOpacity key={item} onPress={() => setSearch(item)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 15, ...shadow.card }}>
+                  <Icon name={recents.length ? 'clock' : 'search'} size={15} color={colors.muted} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.ink }}>{item}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-        ) : (
-          /* ── Results state ── */
-          <View>
-            {/* filter chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingBottom: 4 }} style={{ marginBottom: 18 }}>
-              {businesses.map(biz => {
-                const on = bizFilter === biz.id;
-                return (
-                  <TouchableOpacity key={biz.id} onPress={() => setBizFilter(on ? null : biz.id)} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 15, paddingVertical: 9, paddingHorizontal: 14 }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: on ? '#fff' : colors.ink }}>{biz.tag}</Text>
-                    {on && <Ionicons name="close" size={13} color="rgba(255,255,255,.7)" />}
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity onPress={() => setOpenOnly(o => !o)} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: openOnly ? colors.dark : colors.surface, borderWidth: 1, borderColor: openOnly ? colors.dark : colors.border, borderRadius: 15, paddingVertical: 9, paddingHorizontal: 14 }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-                <Text style={{ fontFamily: font.extra, fontSize: 12, color: openOnly ? '#fff' : colors.ink }}>Open now</Text>
-                {openOnly && <Ionicons name="close" size={13} color="rgba(255,255,255,.7)" />}
+        )}
+
+        {isLoading && <SkeletonRows count={4} />}
+        {!!error && !isLoading && (
+          <ErrorCard title="Search unavailable" message="We couldn't reach the queue service. Check your connection and try again." onRetry={() => refetch()} />
+        )}
+
+        {/* found count */}
+        {!isLoading && !error && filtersActive && (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 22, marginBottom: 12 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 }}>
+              {results.length} branch{results.length === 1 ? '' : 'es'} found
+            </Text>
+            {(bizFilter || openOnly) && (
+              <TouchableOpacity onPress={() => { setBizFilter(null); setOpenOnly(false); }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.accent }}>Clear filters</Text>
               </TouchableOpacity>
-            </ScrollView>
-
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Text style={t.section}>Search results</Text>
-              <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{results.length} {results.length === 1 ? 'branch' : 'branches'} found</Text>
-            </View>
-
-            {isLoading && <SkeletonRows count={5} />}
-            {!!error && !isLoading && (
-              <ErrorCard title="Search is offline" message="Live branch data could not be loaded. Pull down or tap to retry." onRetry={() => refetch()} />
             )}
-            {!isLoading && !error && results.length === 0 && (
-              /* Say what actually came up empty. Quoting the words "these
-                 filters" back at someone who never typed them reads like the
-                 screen lost their search. */
-              search.trim() ? (
-                <EmptyCard icon="search-outline" title={`No matches for “${search.trim()}”`}
-                  message="Try a different agency, branch, or parish name — or clear a filter." />
-              ) : openOnly ? (
-                <EmptyCard icon="time-outline" title="Nothing is open right now"
-                  message={`Agencies open at ${openTimeLabel}. Turn off Open now to see every branch and plan ahead.`} />
-              ) : (
-                <EmptyCard icon="funnel-outline" title="No branches match these filters"
-                  message="Clear a filter to widen the search." />
-              )
-            )}
-
-            <View style={{ gap: 14 }}>
-              {results.map((b, index) => {
-                const wait = Math.round(Number(b.avg_wait_minutes || 0));
-                const meta = statusMeta(statusFromWait(wait));
-                const dark = index === 0;
-                const ink = dark ? '#fff' : colors.ink;
-                const muted = dark ? 'rgba(255,255,255,.55)' : colors.muted;
-                return (
-                  <TouchableOpacity
-                    key={b.id}
-                    activeOpacity={0.9}
-                    onPress={() => openBranch(b)}
-                    style={{ backgroundColor: dark ? colors.dark : colors.surface, borderWidth: dark ? 0 : 1, borderColor: colors.border, borderRadius: 24, padding: 18 }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: dark ? '#fff' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{initials(b.business_name)}</Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 14, color: ink }}>{b.business_name}</Text>
-                        <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: muted, marginTop: 2 }}>{[b.city, b.parish].filter(Boolean).join(', ') || 'Location'}</Text>
-                      </View>
-                      <Ionicons name="bookmark-outline" size={17} color={dark ? 'rgba(255,255,255,.5)' : colors.chevron} />
-                    </View>
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 19, color: ink, letterSpacing: -0.4, marginTop: 16 }}>{b.name}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
-                      <View style={{ backgroundColor: dark ? colors.accent : colors.dark, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 11 }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: dark ? colors.accentInk : '#fff' }}>{waitShort(wait)} wait</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: dark ? 'rgba(255,255,255,.1)' : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 11 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: dark ? '#fff' : colors.sub }}>{meta.label}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-                        <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: muted }}>{Number(b.total_waiting || 0)} in line</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
           </View>
         )}
+
+        {/* no matches */}
+        {!isLoading && !error && filtersActive && results.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 34 }}>
+            <View style={{ width: 132, height: 132, borderRadius: 44, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 26, ...shadow.card }}>
+              <Icon name="search" size={58} color={colors.faint} />
+            </View>
+            <Text style={{ fontFamily: font.extra, fontSize: 24, color: colors.ink, letterSpacing: -0.8 }}>No branches match</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 280 }}>
+              {searching ? `Nothing here for “${search.trim()}”. Check the spelling, or browse every agency instead.` : 'No branches match these filters.'}
+            </Text>
+            <TouchableOpacity onPress={() => { setSearch(''); setBizFilter(null); setOpenOnly(false); }}
+              style={{ backgroundColor: colors.accent, borderRadius: 17, paddingVertical: 16, paddingHorizontal: 26, marginTop: 24 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Browse all agencies</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* results */}
+        {filtersActive && results.map(b => {
+          const wait = Math.round(Number(b.avg_wait_minutes || 0));
+          const hours = hoursFromBranch(b);
+          const info = branchOpenInfo(new Date(), hours);
+          const isOpen = info.state === 'open';
+          const isSaved = saved.some(s => s.id === b.business_id);
+          return (
+            <TouchableOpacity key={b.id} activeOpacity={0.9} onPress={() => openBranch(b)}
+              style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, marginBottom: 12, ...shadow.card }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 12, color: '#fff' }}>{orgTag(b.business_slug, b.business_name)}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>
+                      {(b.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
+                    </Text>
+                    <Icon name="check" size={14} color={colors.accent} />
+                  </View>
+                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink, letterSpacing: -0.5, marginTop: 3 }}>{b.name}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => toggleSave.mutate({ businessId: b.business_id, isSaved, name: b.business_name })}
+                  accessibilityRole="button" accessibilityLabel={isSaved ? `Remove ${b.business_name} from saved` : `Save ${b.business_name}`}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Icon name={isSaved ? 'bookmarkFilled' : 'bookmark'} size={21} color={isSaved ? colors.accent : colors.chevron} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 }}>
+                {[b.city, `${Number(b.open_queues || 0)} open`, isOpen ? info.detail : `Opens ${openTimeLabel(hours)}`]
+                  .filter(Boolean).map((chip, i) => (
+                    <Text key={i} style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted, backgroundColor: colors.surfaceAlt, borderRadius: 9, paddingVertical: 6, paddingHorizontal: 11 }}>{chip}</Text>
+                  ))}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 13, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>
+                  {isOpen ? <><Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink }}>{waitShort(wait)}</Text> · {Number(b.total_waiting || 0)} in line</> : 'Closed right now'}
+                </Text>
+                <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.infoSoft, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent }}>{isOpen ? 'Join' : 'View'}</Text>
+                  <Icon name="arrowUpRight" size={15} color={colors.accent} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
       <TabBar active="Search" />
     </View>

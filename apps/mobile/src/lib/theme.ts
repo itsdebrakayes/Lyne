@@ -1,51 +1,52 @@
 import { Platform, StyleSheet } from 'react-native';
 
 /**
- * QME Now — mobile design system (v4 · fintech style)
+ * QME Now — mobile design system (v5 · boarding-pass style)
  *
- * Ported from the approved Claude Design "QMe Mobile App v4" handoff.
- * Light canvas, white cards with hairline borders, Plus Jakarta Sans,
- * a forest-dark hero tone and a cyan accent. Status/efficiency semantics
- * use green → amber → red.
+ * Ported from the approved v5 preview, which was built literally against
+ * Debra's reference set: a deep navy ground for the "your place in line"
+ * screens (ticket, queue map, service pick), a light paper canvas for
+ * browsing, and one electric blue carrying every primary action.
  *
- * Accent note: v4 ships cyan (#1fc2de) as the default accent. The design's
- * own token set also offers #7a5cf0 (purple) to align with the marketing
- * site — swap `accent` below to change it everywhere.
+ * v5 replaces v4's cyan/forest pairing. The two tokens that moved the whole
+ * app are `dark` (forest → navy) and `accent` (cyan → blue); `accentInk` had
+ * to flip from near-black to white, because blue is a dark accent where cyan
+ * was a light one. Status semantics (green → amber → red) are unchanged.
  */
 
 const lightColors = {
   // surfaces
-  bg: '#f2f3f5',
-  bgSoft: '#e9eaee',
+  bg: '#f1f3f7',
+  bgSoft: '#e6e9ef',
   surface: '#ffffff',
-  surfaceAlt: '#f3f4f6',
-  fieldBg: '#f6f7f9',
+  surfaceAlt: '#f2f4f8',
+  fieldBg: '#f2f4f8',
 
   // ink + text
-  ink: '#101418',
-  text: '#101418',
-  muted: '#8a919b',
-  faint: '#b0b6be',
-  sub: '#5c636d',
-  chevron: '#c2c8d0',
+  ink: '#0c1826',
+  text: '#0c1826',
+  muted: '#7a8699',
+  faint: '#a8b1bf',
+  sub: '#5c6779',
+  chevron: '#c7cdd8',
 
   // borders
-  border: '#eceef1',
-  borderSoft: '#f1f2f4',
+  border: '#e7eaf0',
+  borderSoft: '#eef1f6',
 
   // glass materials (Apple liquid-glass): translucent fills + hairline
   // highlight borders that sit over the ambient wash / content behind.
   glass: 'rgba(255,255,255,0.55)',
   glassStrong: 'rgba(255,255,255,0.72)',
   glassBorder: 'rgba(255,255,255,0.75)',
-  glassDark: 'rgba(16,29,24,0.55)',
+  glassDark: 'rgba(12,24,38,0.62)',
   glassDarkBorder: 'rgba(255,255,255,0.12)',
 
   // brand
-  dark: '#101d18', // forest hero tone (--dk)
-  accent: '#1fc2de', // cyan (--acc)
-  accentInk: '#08110f', // ink on accent
-  accentDeep: '#0f97b3',
+  dark: '#0c1826', // navy hero tone — the boarding-pass ground
+  accent: '#2e6bff', // electric blue (--acc)
+  accentInk: '#ffffff', // ink on accent — white, because blue is a DARK accent
+  accentDeep: '#2f42e8', // deeper promo blue (premium card)
 
   // status (green → amber → red)
   light: '#2fbf71',
@@ -67,42 +68,44 @@ const lightColors = {
 
 export type Palette = typeof lightColors;
 
-// Dark palette — same keys, forest-dark surfaces with light ink and a brighter
-// cyan so the brand still pops. Status greens/ambers/reds lifted for contrast.
+// Dark palette — same keys, navy surfaces with light ink and a lifted blue so
+// the accent still carries on a dark ground. Status greens/ambers/reds lifted
+// for contrast. `dark` is a RAISED surface here, not the canvas: on a dark
+// theme the hero has to sit above the background, not below it.
 const darkColors: Palette = {
-  bg: '#0b1210',
-  bgSoft: '#131c18',
-  surface: '#151f1a',
-  surfaceAlt: '#1c2822',
-  fieldBg: '#1c2822',
+  bg: '#080e16',
+  bgSoft: '#0d1622',
+  surface: '#111c2a',
+  surfaceAlt: '#182536',
+  fieldBg: '#182536',
 
-  ink: '#eef2f0',
-  text: '#eef2f0',
-  muted: '#8b978f',
-  faint: '#5c665f',
-  sub: '#b7c0b9',
-  chevron: '#3a453f',
+  ink: '#eef2f8',
+  text: '#eef2f8',
+  muted: '#8d9aae',
+  faint: '#5c687a',
+  sub: '#b6c0ce',
+  chevron: '#3a4658',
 
-  border: '#243029',
-  borderSoft: '#1c2822',
+  border: '#1f2c3d',
+  borderSoft: '#182536',
 
-  glass: 'rgba(28,40,34,0.55)',
-  glassStrong: 'rgba(28,40,34,0.75)',
+  glass: 'rgba(24,37,54,0.55)',
+  glassStrong: 'rgba(24,37,54,0.75)',
   glassBorder: 'rgba(255,255,255,0.10)',
-  glassDark: 'rgba(6,12,10,0.6)',
+  glassDark: 'rgba(5,10,17,0.62)',
   glassDarkBorder: 'rgba(255,255,255,0.10)',
 
-  dark: '#1e2e27', // raised dark surface (heroes / primary buttons)
-  accent: '#22c9e4',
-  accentInk: '#06100e',
-  accentDeep: '#4fd3ea',
+  dark: '#16243a', // raised navy surface (heroes / primary buttons)
+  accent: '#4c82ff',
+  accentInk: '#ffffff',
+  accentDeep: '#5b6cf0',
 
   light: '#3fd07f',
   moderate: '#f5b83e',
   busy: '#ef5a5f',
   danger: '#ef5a5f',
 
-  infoSoft: 'rgba(34,201,228,0.13)', infoInk: '#7fdcef',
+  infoSoft: 'rgba(76,130,255,0.14)', infoInk: '#9dbaff',
   successSoft: 'rgba(63,208,127,0.15)', successInk: '#5fd99a',
   warnSoft: 'rgba(245,184,62,0.15)',
   dangerSoft: 'rgba(239,90,95,0.16)',
@@ -407,6 +410,16 @@ export const radius = {
  * The numerals are for the two places a number IS the content: the ticket
  * number and the headline wait.
  */
+/**
+ * How much room a scrolling screen must leave at the bottom so the FLOATING tab
+ * bar never sits on top of the last row.
+ *
+ * A named constant because it was being guessed per screen: Home, Saved and
+ * Search used 150, the shared content style used 196, and History used 56 — so
+ * on History the tab bar covered the final entry. One number, one place.
+ */
+export const TAB_BAR_CLEARANCE = 150;
+
 export const type = {
   display:   { fontFamily: font.extra,    fontSize: 30, letterSpacing: -0.8, lineHeight: 35 },
   title:     { fontFamily: font.extra,    fontSize: 24, letterSpacing: -0.6, lineHeight: 29 },
@@ -440,7 +453,7 @@ const makeT = () => StyleSheet.create({
   // and, when a queue is live, the ticket banner above it (bottom 102 +
   // ~48 tall). At 148 the banner sat exactly on top of whatever the last
   // control was — on Profile that was Log out.
-  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 196 },
+  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: TAB_BAR_CLEARANCE },
 
   // typography (mirrors the `type` scale — readable floors, consistent ramp)
   h1: { fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.6, lineHeight: 33 },

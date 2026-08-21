@@ -17,6 +17,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
@@ -170,6 +171,19 @@ export default function PlanVisitScreen() {
               <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
             </View>
 
+            {/* A branch with no served history yet has nothing to forecast from.
+                That is a real state on day one of a pilot, and saying so beats
+                rendering an empty "Best time by service" heading over nothing. */}
+            {plan.services.length === 0 ? (
+              <EmptyState
+                icon="clock"
+                title="Not enough visits yet"
+                body="Smart Timing needs a few days of real visits at this branch before it can tell you when it's quiet. Check back shortly."
+                actionLabel="See live waits instead"
+                onAction={() => navigation.goBack()}
+              />
+            ) : (
+            <>
             {/* per-service planner */}
             <View style={t.sectionRow}>
               <Text style={t.section}>Best time by service</Text>
@@ -256,6 +270,8 @@ export default function PlanVisitScreen() {
                   <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
                 </View>
               </>
+            )}
+            </>
             )}
           </>
         )}

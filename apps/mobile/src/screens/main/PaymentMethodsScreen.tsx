@@ -12,7 +12,8 @@ import api from '../../lib/apiClient';
 import { paymentsConfigured, brandLabel, TokenizedCard } from '../../lib/stripe';
 import { CardSheet } from '../../components/CardSheet';
 import { Sheen } from '../../components/Glass';
-import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 
 interface Card { id: string; brand?: string; last4?: string; exp_month?: number; exp_year?: number; is_default?: boolean }
 
@@ -67,7 +68,12 @@ export default function PaymentMethodsScreen() {
           {isLoading && <SkeletonRows count={2} />}
           {!!error && !isLoading && <ErrorCard title="Couldn’t load cards" message="Your saved cards couldn’t be loaded right now." onRetry={() => refetch()} />}
           {!isLoading && !error && cards.length === 0 && (
-            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock QMe Premium in one tap." />
+            <EmptyState
+              compact
+              icon="financial"
+              title="No cards saved"
+              body="Add a card once and Premium is a single tap from anywhere in the app. Your card details never touch our servers."
+            />
           )}
 
           {cards.map(card => (

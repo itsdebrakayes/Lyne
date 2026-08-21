@@ -16,6 +16,11 @@ import {
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
+import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
+
+// Before anything else renders, so a crash during boot is still reported.
+// No-ops entirely until a DSN is configured.
+initMonitoring();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -26,7 +31,7 @@ const queryClient = new QueryClient({
 // rejection just means the OS already dismissed it.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function App() {
+function App() {
   const [launching, setLaunching] = useState(true);
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null);
 
@@ -84,3 +89,12 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+// Sentry.wrap adds the error boundary and touch/navigation breadcrumbs that make
+// a stack trace readable — without it you get the crash but not the path to it.
+//
+// Only applied when monitoring is actually on. Wrapping without a preceding
+// init warns on every reload ("App Start Span could not be finished"), and a
+// permanent warning toast in development is worse than useless — it sits on top
+// of the UI and trains you to ignore warnings that might matter.
+export default monitoringEnabled ? Sentry.wrap(App) : App;

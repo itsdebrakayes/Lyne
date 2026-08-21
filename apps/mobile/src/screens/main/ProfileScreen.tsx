@@ -5,12 +5,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import api, { supabase } from '../../lib/apiClient';
-import { colors, font, shadow, t, categoryTints, initials, personInitials, inputReset, depthText } from '../../lib/theme';
+import { colors, font, shadow, t, personInitials, inputReset, depthText } from '../../lib/theme';
+import Icon, { IconName } from '../../components/Icon';
 import { useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { paymentsConfigured } from '../../lib/stripe';
+import { isDemoBuild } from '../../lib/sectorTerms';
 import { getPremiumPreview, setPremiumPreview } from '../../lib/premiumPreview';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
@@ -21,23 +23,30 @@ const DOC_SHEET: Record<DocKey, { title: string; hint: string; placeholder: stri
   phone: { title: 'Add your phone', hint: 'Used for queue updates if push notifications are unavailable.', placeholder: '876-000-0000', keyboard: 'phone-pad' },
 };
 
-type Row = { icon: keyof typeof Ionicons.glyphMap; label: string; sub: string; onPress?: () => void; badge?: string };
+type Row = { icon: IconName; label: string; sub: string; onPress?: () => void; badge?: string };
 
 function ListCard({ rows }: { rows: Row[] }) {
   return (
-    <View style={[t.card, { overflow: 'hidden', ...shadow.card }]}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 22, overflow: 'hidden', ...shadow.card }}>
       {rows.map((r, i) => (
-        <TouchableOpacity key={r.label} disabled={!r.onPress} onPress={r.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
-          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={r.icon} size={17} color={colors.ink} />
+        <TouchableOpacity
+          key={r.label}
+          disabled={!r.onPress}
+          onPress={r.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${r.label}. ${r.sub}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 17, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}
+        >
+          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={r.icon} size={20} color={colors.ink} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{r.label}</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{r.sub}</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.3 }}>{r.label}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>{r.sub}</Text>
           </View>
           {r.badge
-            ? <View style={{ minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentInk }}>{r.badge}</Text></View>
-            : <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.chevron }}>›</Text>}
+            ? <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.accentInk }}>{r.badge}</Text></View>
+            : <Icon name="chevronRight" size={18} color={colors.chevron} />}
         </TouchableOpacity>
       ))}
     </View>
@@ -45,7 +54,7 @@ function ListCard({ rows }: { rows: Row[] }) {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 32, marginBottom: 13, marginLeft: 4 }}>{children}</Text>;
+  return <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 30, marginBottom: 13, marginLeft: 4 }}>{children}</Text>;
 }
 
 export default function ProfileScreen() {
@@ -67,15 +76,22 @@ export default function ProfileScreen() {
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
-  const docs: Array<{ key: string; docKey: DocKey; value?: string; tint: { fg: string; bg: string }; icon: keyof typeof Ionicons.glyphMap; ok: string; missing: string }> = [
+  // v5 is one blue and neutrals, so the old per-category pastels (blue TRN,
+  // green ID) are gone — two documents are not two categories, and the colour
+  // was carrying no meaning.
+  const docs: Array<{ key: string; docKey: DocKey; value?: string; icon: IconName; ok: string; missing: string }> = [
     // Phone is a contact detail, not a document — it already has its own row
     // under Personal Details, and listing it twice under two different
     // labels ("Not added yet" / "Add phone") read as two separate things.
-    { key: 'TRN', docKey: 'trn', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On file', missing: 'Add TRN' },
-    { key: 'National ID', docKey: 'national_id', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On file', missing: 'Add ID' },
+    { key: 'TRN', docKey: 'trn', value: user?.trn, icon: 'document', ok: 'On file', missing: 'Add TRN' },
+    { key: 'National ID', docKey: 'national_id', value: user?.national_id, icon: 'financial', ok: 'On file', missing: 'Add ID' },
   ];
 
   const openDocSheet = (docKey: DocKey, current?: string) => {
@@ -96,6 +112,29 @@ export default function ProfileScreen() {
       setDocError(caught instanceof Error ? caught.message : 'Could not save. Try again.');
     } finally {
       setDocSaving(false);
+    }
+  };
+
+  // Deletion is permanent and immediate, so it is gated on typing the word
+  // rather than on a single tap — the same bar the rest of the industry uses for
+  // actions that cannot be undone.
+  const deleteAccount = async () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'DELETE') {
+      setDeleteError('Type DELETE to confirm.');
+      return;
+    }
+    try {
+      setDeleting(true);
+      setDeleteError('');
+      await api.delete('/auth/account');
+      setDeleteOpen(false);
+      // Sign out locally so the app cannot keep acting as an account that no
+      // longer exists on the server.
+      await signOut();
+    } catch (caught: unknown) {
+      setDeleteError(caught instanceof Error ? caught.message : 'Could not delete your account. Nothing was removed.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -141,8 +180,8 @@ export default function ProfileScreen() {
         {/* personal details */}
         <SectionLabel>Personal details</SectionLabel>
         <ListCard rows={[
-          { icon: 'call-outline', label: 'Phone', sub: user?.phone || 'Not added yet', onPress: () => openDocSheet('phone', user?.phone) },
-          { icon: 'mail-outline', label: 'Email', sub: email, onPress: openEmailSheet },
+          { icon: 'phone', label: 'Phone', sub: user?.phone || 'Not added yet', onPress: () => openDocSheet('phone', user?.phone) },
+          { icon: 'mail', label: 'Email', sub: email, onPress: openEmailSheet },
         ]} />
 
         {/* documents */}
@@ -155,11 +194,11 @@ export default function ProfileScreen() {
               onPress={() => d.docKey === 'phone' ? openDocSheet('phone', user?.phone) : navigation.navigate('DocumentCapture', { field: d.docKey as 'national_id' | 'trn' })}
               style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}
             >
-              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: d.tint.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 11, overflow: 'hidden' }}>
-                <Sheen radius={12} strength={0.6} />
-                <Ionicons name={d.icon} size={17} color={d.tint.fg} />
+              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: d.value ? colors.infoSoft : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden' }}>
+                <Sheen radius={14} strength={0.6} />
+                <Icon name={d.icon} size={20} color={d.value ? colors.accent : colors.muted} />
               </View>
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{d.key}</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{d.key}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 }}>
                 <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.value ? colors.light : colors.moderate }} />
                 <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{d.value ? d.ok : d.missing}</Text>
@@ -174,27 +213,29 @@ export default function ProfileScreen() {
           onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture — with secure, Face ID-protected storage — are on the way. For now you can add your National ID and TRN above.')}
           style={{ marginTop: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surfaceAlt, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         >
-          <Ionicons name="add-circle-outline" size={18} color={colors.muted} />
+          <Icon name="plus" size={19} color={colors.muted} />
           <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Add another document</Text>
         </TouchableOpacity>
 
         {/* account & activity */}
         <SectionLabel>Account & activity</SectionLabel>
         <ListCard rows={[
-          { icon: 'time-outline', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
-          { icon: 'notifications-outline', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
-          { icon: 'contrast-outline', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
-          { icon: 'card-outline', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
-          { icon: 'shield-checkmark-outline', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
-          { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
+          { icon: 'clock', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
+          { icon: 'bell', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
+          { icon: 'appearance', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
+          { icon: 'financial', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
+          { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
+          { icon: 'help', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 
-        {!paymentsConfigured() && (
+        {/* Demo-only. Gated on the release flag, not on payments being
+            unconfigured — see isDemoBuild(). */}
+        {isDemoBuild() && !paymentsConfigured() && (
           <>
             <SectionLabel>Demo controls</SectionLabel>
             <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, ...shadow.card }]}>
               <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="sparkles" size={17} color={colors.accentDeep} />
+                <Icon name="sparkle" size={19} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Preview Premium</Text>
@@ -205,11 +246,71 @@ export default function ProfileScreen() {
           </>
         )}
 
-        <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: '#f3d3d5', borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Log out</Text>
+        <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Log out</Text>
         </TouchableOpacity>
+
+        {/* Danger zone. Deliberately last, visually separated, and worded so the
+            consequence is unmissable BEFORE the sheet opens — someone should
+            never reach the confirmation unsure of what it does. */}
+        <SectionLabel>Delete account</SectionLabel>
+        <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border }}>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, lineHeight: 19 }}>
+            Deleting your account is permanent. We erase your profile, your saved agencies, your visit history,
+            your notifications, your saved cards, and every document you scanned — including any TRN, National ID
+            or passport details we hold. Any line you are currently in is given up.
+          </Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, lineHeight: 19, marginTop: 10 }}>
+            Agencies keep an anonymous record that a visit happened, for their own service statistics. It carries
+            nothing that identifies you.
+          </Text>
+          <TouchableOpacity
+            onPress={() => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); }}
+            accessibilityRole="button"
+            accessibilityLabel="Delete my account permanently"
+            style={{ backgroundColor: colors.dangerSoft, borderRadius: 15, paddingVertical: 15, alignItems: 'center', marginTop: 16 }}
+          >
+            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Delete my account</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
       <TabBar active="Profile" />
+
+      {/* delete confirmation */}
+      <Modal visible={deleteOpen} transparent animationType="slide" onRequestClose={() => setDeleteOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => !deleting && setDeleteOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(6,12,20,.55)' }} />
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.5 }}>Delete your account?</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.sub, marginTop: 10, lineHeight: 20 }}>
+              This cannot be undone. Everything listed above is erased straight away, and you will be signed out.
+              To confirm, type <Text style={{ fontFamily: font.extra, color: colors.ink }}>DELETE</Text> below.
+            </Text>
+            <TextInput
+              value={deleteConfirm}
+              onChangeText={(v) => { setDeleteConfirm(v); if (deleteError) setDeleteError(''); }}
+              placeholder="DELETE"
+              placeholderTextColor={colors.faint}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={[{ backgroundColor: colors.fieldBg, borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, marginTop: 18, fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: 2 }, inputReset]}
+            />
+            {!!deleteError && <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 10 }}>{deleteError}</Text>}
+            <TouchableOpacity
+              onPress={deleteAccount}
+              disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+              style={{ backgroundColor: colors.danger, borderRadius: 17, paddingVertical: 17, alignItems: 'center', marginTop: 18, opacity: deleting || deleteConfirm.trim().toUpperCase() !== 'DELETE' ? 0.45 : 1 }}
+            >
+              {deleting
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>Delete everything</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setDeleteOpen(false)} disabled={deleting} style={{ paddingVertical: 15, alignItems: 'center', marginTop: 4 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Keep my account</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* document edit sheet */}
       <Modal visible={!!editingDoc} transparent animationType="slide" onRequestClose={() => setEditingDoc(null)}>
@@ -252,7 +353,7 @@ export default function ProfileScreen() {
             {emailSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 6 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                  <Ionicons name="mail-unread-outline" size={24} color={colors.light} />
+                  <Icon name="mail" size={26} color={colors.light} />
                 </View>
                 <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4, textAlign: 'center' }}>Confirm your new email</Text>
                 <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 8, lineHeight: 19, textAlign: 'center' }}>We sent a confirmation link to {emailValue.trim().toLowerCase()}. Your email updates once you tap it.</Text>
@@ -308,7 +409,7 @@ export default function ProfileScreen() {
                   <TouchableOpacity key={o.key} activeOpacity={0.85} onPress={() => setThemeMode(o.key)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 16, borderWidth: 1.5, borderColor: sel ? colors.accent : colors.border, backgroundColor: sel ? colors.fieldBg : colors.surface }}>
                     <Ionicons name={o.icon} size={19} color={sel ? colors.accentDeep : colors.ink} />
                     <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 15, color: colors.ink }}>{o.label}</Text>
-                    {sel && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                    {sel && <Icon name="check" size={21} color={colors.accent} />}
                   </TouchableOpacity>
                 );
               })}

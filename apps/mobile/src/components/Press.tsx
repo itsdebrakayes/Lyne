@@ -59,16 +59,33 @@ export function Press({
   const to = (value: number, duration: number) =>
     Animated.timing(anim, { toValue: value, duration, useNativeDriver: true }).start();
 
+  const flat = useMemo(
+    () => (Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : (style as any) || {}),
+    [style],
+  );
+
   // A control smaller than the HIG minimum gets its tappable area padded out
   // without changing how it looks.
   const slop = useMemo(() => {
-    const flat = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : (style as any) || {};
     const w = Number(flat.width) || minTarget;
     const h = Number(flat.height) || minTarget;
     const x = Math.max(0, Math.ceil((minTarget - w) / 2));
     const y = Math.max(0, Math.ceil((minTarget - h) / 2));
     return x || y ? { top: y, bottom: y, left: x, right: x } : undefined;
-  }, [style, minTarget]);
+  }, [flat, minTarget]);
+
+  // The style lands on the inner Animated.View, so anything the PARENT needs to
+  // lay this out — flex above all — never reached the Pressable, and a
+  // `flex: 1` Press sized itself to its text instead of taking its share of the
+  // row. Forward just the layout-participation props; everything visual stays
+  // inside, where the press transform applies to it.
+  const outer = useMemo(() => ({
+    flex: flat.flex,
+    flexGrow: flat.flexGrow,
+    flexShrink: flat.flexShrink,
+    flexBasis: flat.flexBasis,
+    alignSelf: flat.alignSelf,
+  }), [flat]);
 
   return (
     <Pressable
@@ -76,6 +93,7 @@ export function Press({
       onLongPress={onLongPress}
       disabled={disabled}
       hitSlop={slop}
+      style={outer}
       accessible
       accessibilityRole={role}
       accessibilityLabel={label}

@@ -33,6 +33,19 @@ export interface ServiceSummary {
    *  requests, matches /queues/live exactly. Null when browsing across branches. */
   estimated_wait_minutes?: number | null;
   active_counters?: number | null;
+  readiness_count?: number;
+  readiness?: ServiceReadinessItem[];
+}
+
+export interface ServiceReadinessItem {
+  id: string;
+  service_id: string;
+  kind: 'bring' | 'prepare';
+  seq: number;
+  label: string;
+  detail?: string | null;
+  is_mandatory: boolean;
+  lead_minutes?: number | null;
 }
 
 export interface TicketRecord {
@@ -54,6 +67,9 @@ export interface TicketRecord {
   service_name?: string;
   is_next?: boolean;
   status_message?: string | null;
+  readiness_shown_at?: string | null;
+  readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
+  readiness_note?: string | null;
 }
 
 export interface SavedBusiness {

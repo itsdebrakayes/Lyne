@@ -31,6 +31,7 @@ import BusinessScreen   from '../screens/queue/BusinessScreen';
 import BranchScreen     from '../screens/queue/BranchScreen';
 import ServiceScreen    from '../screens/queue/ServiceScreen';
 import JoinQueueScreen  from '../screens/queue/JoinQueueScreen';
+import QueueMapScreen   from '../screens/queue/QueueMapScreen';
 import TicketScreen     from '../screens/queue/TicketScreen';
 
 // Kiosk clerk (branch intake actor — adds walk-ins, not a customer)
@@ -53,6 +54,7 @@ export type RootStackParamList = {
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
   JoinQueue:  { businessId: string; branchId: string; serviceId: string; serviceName?: string };
+  QueueMap:   { businessId: string; branchId: string; serviceId: string; serviceName?: string };
   Ticket:     { ticketId?: string; businessId?: string; branchId?: string; serviceId?: string };
 };
 
@@ -115,7 +117,12 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* One transition for the whole stack. The native stack default varies by
+          platform and by how a screen is pushed, so screens arrived
+          inconsistently — some sliding, some fading. `slide_from_right` is the
+          iOS convention and, crucially, it is the gesture users already expect
+          to reverse with a swipe back. */}
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         {kiosk ? (
           // A kiosk clerk gets a single-purpose console — no customer tabs, no
           // queue-joining flow. Their whole job is adding walk-ins for others.
@@ -139,6 +146,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />
+            <Stack.Screen name="QueueMap"  component={QueueMapScreen}  />
             <Stack.Screen name="JoinQueue" component={JoinQueueScreen} />
             <Stack.Screen name="Ticket"    component={TicketScreen}    options={{ gestureEnabled: false }} />
           </>

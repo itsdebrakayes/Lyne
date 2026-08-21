@@ -320,50 +320,74 @@ def abandonment_by_service(df_biz):
     return sorted(out, key=lambda row: row["threshold_queue_length"])
 
 
-def best_time_per_branch(trained, df_biz):
-    """Per branch: the hours with the LOWEST model-predicted wait tomorrow — the
+def best_time_per_branch(trained, df_biz, empirical_min=30):
+    """Per branch: the hours with the LOWEST expected wait tomorrow — the
     "best time to visit" that powers the mobile Plan-Your-Visit card. Returns a
-    list of (branch_id, branch_name, insight_data). (Previously this only came
-    from the retired build_model.py CSV path — now the live worker produces it.)"""
+    list of (branch_id, branch_name, insight_data).
+
+    Someone asking "when should I come?" wants the wait they can expect to walk
+    into at that hour — the average over the queue lengths the hour actually
+    sees. Scoring the model at each hour's *median* queue length answers a
+    different question ("what if I arrive to an empty line?"), and since most
+    hours sit at a median of 0-1 people every hour came back at ~1 minute: all
+    three slots scored ~95, read as identical, and the premium card had nothing
+    to say. So lead with the hour's real mean wait wherever history is dense,
+    and fall back to the model only for thin hours — the same empirical-first
+    rule wait_eta_grid follows, and for the same reason.
+    """
     tomorrow_dow = (datetime.now().weekday() + 1 + 1) % 7
     results = []
     for (branch_id, branch_name), grp in df_biz.groupby(["branch_id", "branch_name"]):
+        served = grp[grp["wait_time_minutes"].notna() & (grp["wait_time_minutes"] >= 0)]
+        if served.empty:
+            continue
         rows = []
         for hour in BUSINESS_HOURS:
-            hs = grp[grp["hour"] == hour]
+            hs = served[served["hour"] == hour]
             if hs.empty:
                 continue
-            service_mode = hs["service_id"].mode()
-            if service_mode.empty:
-                continue
-            try:
-                b_enc = int(trained["encoders"]["branch"].transform([branch_id])[0])
-                s_enc = int(trained["encoders"]["service"].transform([service_mode.iloc[0]])[0])
-            except Exception:  # noqa: BLE001
-                continue
-            ctx = _representative_context(hs)
-            sample = pd.DataFrame([{
-                "dow": tomorrow_dow, "hour": hour,
-                "month": int(hs["month"].mode().iloc[0]) if len(hs["month"].mode()) else datetime.now().month,
-                "branch_enc": b_enc, "service_enc": s_enc,
-                "queue_length": float(hs["queue_length"].median()),
-                "staff_count": ctx["staff_count"], "active_counters": ctx["active_counters"],
-                "is_holiday": 0, "is_month_end": 0,
-            }])[trained["features"]]
-            rows.append({"hour": hour, "wait": max(0.0, float(trained["model"].predict(sample)[0]))})
+            if len(hs) >= empirical_min:
+                wait, source = float(hs["wait_time_minutes"].mean()), "history"
+            else:
+                service_mode = hs["service_id"].mode()
+                if service_mode.empty:
+                    continue
+                try:
+                    b_enc = int(trained["encoders"]["branch"].transform([branch_id])[0])
+                    s_enc = int(trained["encoders"]["service"].transform([service_mode.iloc[0]])[0])
+                except Exception:  # noqa: BLE001
+                    continue
+                ctx = _representative_context(hs)
+                sample = pd.DataFrame([{
+                    "dow": tomorrow_dow, "hour": hour,
+                    "month": int(hs["month"].mode().iloc[0]) if len(hs["month"].mode()) else datetime.now().month,
+                    "branch_enc": b_enc, "service_enc": s_enc,
+                    # Mean, not median: the median is 0 for most hours, which is
+                    # exactly the flattening this function exists to avoid.
+                    "queue_length": float(hs["queue_length"].mean()),
+                    "staff_count": ctx["staff_count"], "active_counters": ctx["active_counters"],
+                    "is_holiday": 0, "is_month_end": 0,
+                }])[trained["features"]]
+                wait, source = max(0.0, float(trained["model"].predict(sample)[0])), "model"
+            rows.append({"hour": hour, "wait": wait, "source": source})
         if len(rows) < 3:
             continue
-        worst = max((r["wait"] for r in rows), default=1.0) or 1.0
         best = sorted(rows, key=lambda r: r["wait"])[:3]
+        busiest = max(rows, key=lambda r: r["wait"])
+        quietest = min(rows, key=lambda r: r["wait"])
+        # Score each slot against this branch's own best-to-worst spread, so 100
+        # means "the calmest hour here" rather than "close to zero minutes".
+        span = busiest["wait"] - quietest["wait"]
         slots = [{
             "day_name": "Tomorrow",
             "hour": int(r["hour"]),
-            "score": int(round(100 * (1 - r["wait"] / (worst + 1.0)))),
+            "score": int(round(100 * (busiest["wait"] - r["wait"]) / span)) if span > 0.5 else 100,
             "reason": f"~{r['wait']:.0f} min predicted wait",
+            "source": r["source"],
         } for r in best]
-        busiest = max(rows, key=lambda r: r["wait"])
         summary = (f"{branch_name}: shortest waits around {best[0]['hour']}:00 "
-                   f"(~{best[0]['wait']:.0f} min); busiest near {busiest['hour']}:00.")
+                   f"(~{best[0]['wait']:.0f} min); busiest near {busiest['hour']}:00 "
+                   f"(~{busiest['wait']:.0f} min).")
         results.append((branch_id, branch_name, {"summary": summary, "recommended_slots": slots}))
     return results
 
