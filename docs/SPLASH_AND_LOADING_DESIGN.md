@@ -117,6 +117,38 @@ engineering work, and it will look engineered.
 
 ---
 
+## 4a · Where the figures stand today, and the honest ceiling
+
+**Updated 2026-08-21 after Debra's review: "it's a stick man, I want it to look
+like a real person."** She is right, and the correction went in two stages.
+
+The first attempt drew a circle on a rounded rectangle — a blob. The second drew
+the `walk` icon, a circle on a stick, and translated it across the screen at a
+constant rate. Neither had limbs that moved, so neither read as *walking*; they
+read as a shape being moved, which is what they were.
+
+`components/WalkingFigure.tsx` now articulates: head, tapered torso, two arms
+rotating about the shoulders, two legs rotating about the hips, and a vertical
+bob. Four moving joints is the minimum that reads as gait, and the cue the eye
+actually uses is the **counter-swing** — right arm forward with the left leg —
+not anatomical detail.
+
+One thing worth recording, because it cost a pass: the first version drew the
+arms on the centreline, where the torso covered them completely. A figure with
+invisible arms is a pin figure no matter how well the joints are rigged.
+
+**The ceiling is real.** This is a well-drawn pictogram in motion. It is not the
+Parcel character, and no arrangement of SVG primitives will become one — that
+needs commissioned artwork: a rigged character with proportions, clothing,
+weight and follow-through, authored in Rive. What the current work buys is a
+figure that unmistakably reads as a person walking, today, at no cost, and a
+motion language the commissioned version would inherit rather than replace.
+
+**To commission it, an animator needs:** the walk cycle, three or four idle
+poses (hands on hips, checking a watch, weight shift), a "step out of frame"
+exit, and a Rive state machine with one `ready` input. That is a small brief and
+the sizes and timings in this document define it.
+
 ## 5 · What this needs before it can be built
 
 1. **A character set** — one walker plus three or four idle poses (hands on hips,

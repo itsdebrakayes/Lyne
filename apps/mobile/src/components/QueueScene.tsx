@@ -19,57 +19,14 @@
 import React from 'react';
 import { View } from 'react-native';
 import { colors } from '../lib/theme';
-
-type Pose = 'waiting' | 'checking' | 'leaving';
+import { WalkingFigure } from './WalkingFigure';
 
 /**
- * One person. The head sits slightly off-centre for `checking` so the figure
- * reads as looking down at a watch — one pixel of characterisation, which is
- * what stops a row of identical shapes reading as a progress bar.
+ * The figures were a circle on a rounded rectangle — a blob, not a person.
+ * They now use WalkingFigure, which has a torso that tapers at the waist and
+ * limbs that can hold a pose, so a standing figure reads as someone waiting
+ * rather than as a shape.
  */
-function Figure({
-  pose = 'waiting',
-  tint,
-  scale = 1,
-  opacity = 1,
-}: {
-  pose?: Pose;
-  tint: string;
-  scale?: number;
-  opacity?: number;
-}) {
-  const head = 13 * scale;
-  const bodyW = 20 * scale;
-  const bodyH = 30 * scale;
-
-  return (
-    <View style={{ alignItems: 'center', opacity }}>
-      <View
-        style={{
-          width: head,
-          height: head,
-          borderRadius: head / 2,
-          backgroundColor: tint,
-          marginBottom: 3 * scale,
-          // The tilt is the whole characterisation. Kept small on purpose.
-          transform: [{ translateX: pose === 'checking' ? 2 * scale : 0 }],
-        }}
-      />
-      <View
-        style={{
-          width: bodyW,
-          height: bodyH,
-          backgroundColor: tint,
-          borderTopLeftRadius: bodyW / 2,
-          borderTopRightRadius: bodyW / 2,
-          borderBottomLeftRadius: 4 * scale,
-          borderBottomRightRadius: 4 * scale,
-        }}
-      />
-    </View>
-  );
-}
-
 export function QueueScene({
   height = 190,
   /** Light surfaces need darker figures than a near-black ground does. */
@@ -87,16 +44,18 @@ export function QueueScene({
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 24, gap: 15 }}>
         {/* The back of the line fades out rather than ending in a hard edge, so
             it reads as continuing off-screen instead of being exactly 5 people. */}
-        <Figure tint={waiting} scale={0.92} opacity={0.4} />
-        <Figure tint={waiting} scale={1.0} pose="checking" opacity={0.62} />
-        <Figure tint={waiting} scale={1.06} />
-        <Figure tint={nearFront} scale={1.12} pose="checking" />
+        <View style={{ opacity: 0.4 }}><WalkingFigure size={40} tint={waiting} still /></View>
+        <View style={{ opacity: 0.62 }}><WalkingFigure size={44} tint={waiting} still checkingWatch /></View>
+        <View><WalkingFigure size={47} tint={waiting} still /></View>
+        <View><WalkingFigure size={50} tint={nearFront} still checkingWatch /></View>
 
         {/* The one being served: full accent, stepped forward. This is the only
             element carrying brand colour, so the eye lands on the payoff rather
             than on the queue. */}
+        {/* The one being served is the only figure actually walking — they are
+            stepping up to the counter while the rest stand. */}
         <View style={{ marginLeft: 18 }}>
-          <Figure tint={colors.accent} scale={1.18} pose="leaving" />
+          <WalkingFigure size={54} tint={colors.accent} cycleMs={1100} />
         </View>
 
         {/* The counter they are stepping up to. Same row as the figures, so it

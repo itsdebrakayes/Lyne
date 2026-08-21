@@ -228,7 +228,7 @@ export default function TicketScreen() {
               </View>
             </View>
 
-            {active && !called && <Walkers />}
+            {active && !called && <Walkers waiting={ticket.total_waiting ?? ahead + 1} />}
 
             <View style={{ flexDirection: 'row', marginTop: active && !called ? 20 : 26 }}>
               <Cell label="EST. WAIT" value={active ? `${ticket.estimated_wait_minutes}m` : '—'} />
