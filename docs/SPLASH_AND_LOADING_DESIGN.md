@@ -149,6 +149,21 @@ poses (hands on hips, checking a watch, weight shift), a "step out of frame"
 exit, and a Rive state machine with one `ready` input. That is a small brief and
 the sizes and timings in this document define it.
 
+### Two traps worth writing down
+
+**Reanimated does not reach react-native-svg.** Two attempts animated limb `<G>`
+elements with `useAnimatedProps` — first a React Native `transform: [{rotate}]`
+array, then the `rotation` prop react-native-svg documents. Neither applied.
+Inspecting the rendered output showed `transform-origin` set and no rotation at
+all. The figure is now built from plain Views with plain transforms, which
+animate on native and on web. If a future version goes back to SVG, verify the
+motion by sampling the transform twice — not by reading the code.
+
+**`expo start --web` does not run Reanimated 4 animations.** Sampling every
+transform on the page 500ms apart showed zero of twenty changing. So the web
+preview can prove LAYOUT but never MOTION; motion has to be checked on a
+simulator or device.
+
 ## 5 · What this needs before it can be built
 
 1. **A character set** — one walker plus three or four idle poses (hands on hips,
