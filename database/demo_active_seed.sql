@@ -1,7 +1,20 @@
+-- The connection charset must be declared before any non-ASCII data.
+-- Without it, mysql's docker-entrypoint import runs as latin1, so every
+-- em-dash and curly quote in this file is read one byte at a time and
+-- re-encoded — 'Sitting — Camp Road' lands in a utf8mb4 column as
+-- 'Sitting â€" Camp Road'. The columns were never wrong; the pipe was.
+SET NAMES utf8mb4;
+
 -- =============================================================
 -- Q ME NOW — Demo Branch Active Data Refresh
 -- Creates a living demo sandbox for TAJ, Passport Office/PICA, and NHT.
 -- Safe to rerun on the demo branch to refresh today's queues/tickets.
+--
+-- PICA and NHT stay. They were briefly cut on 2026-08-17 as "not named targets"
+-- after the sector pivot; that was wrong. Both are public-procurement prospects
+-- precisely BECAUSE neither runs a queue system today — which is the opposite of
+-- the TAJ situation, where an incumbent CFMS already exists. Do not remove them
+-- without checking the procurement pipeline first.
 -- =============================================================
 
 USE qme_now;
@@ -47,7 +60,7 @@ ON DUPLICATE KEY UPDATE
   is_active = TRUE;
 
 INSERT INTO branches (id, business_id, name, address, city, parish, phone, latitude, longitude, is_main_branch, is_active) VALUES
-  ('br-taj-kgn', 'biz-taj-001', 'Kingston - Half Way Tree', '2 Constant Spring Road, Kingston 10', 'Kingston', 'Kingston', '876-922-3470', 18.017900, -76.796900, TRUE, TRUE),
+  ('br-taj-kgn', 'biz-taj-001', 'Kingston - Half Way Tree', '1 Half Way Tree Road, Kingston 5', 'Kingston', 'Kingston', '876-922-3470', 18.017900, -76.796900, TRUE, TRUE),
   ('br-taj-mob', 'biz-taj-001', 'Montego Bay', '31 Market Street, Montego Bay', 'Montego Bay', 'St. James', '876-952-5002', 18.476200, -77.893900, FALSE, TRUE),
   ('br-taj-man', 'biz-taj-001', 'Mandeville', '4 Ward Avenue, Mandeville', 'Mandeville', 'Manchester', '876-962-2420', 18.041700, -77.507100, FALSE, TRUE),
   ('br-taj-por', 'biz-taj-001', 'Portmore', 'Portmore Mall, Portmore', 'Portmore', 'St. Catherine', '876-988-1234', 17.950500, -76.879500, FALSE, TRUE),
@@ -144,19 +157,19 @@ ON DUPLICATE KEY UPDATE
   is_active = TRUE;
 
 INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, is_active, availability_status) VALUES
-  ('stf-demo-taj-kgn-trn', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-TRN', 'Demo TRN Officer', 'demo.trn@taj.gov.jm', 'svc-taj-trn', TRUE, 'active'),
-  ('stf-demo-taj-kgn-pay', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-PAY', 'Demo Payments Officer', 'demo.pay@taj.gov.jm', 'svc-taj-pay', TRUE, 'active'),
-  ('stf-demo-taj-kgn-enq', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-ENQ', 'Demo Enquiries Officer', 'demo.enq@taj.gov.jm', 'svc-taj-enq', TRUE, 'active'),
+  ('stf-demo-taj-kgn-trn', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-TRN', 'Alicia Bennett', 'demo.trn@taj.gov.jm', 'svc-taj-trn', TRUE, 'active'),
+  ('stf-demo-taj-kgn-pay', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-PAY', 'Kemar Livingston', 'demo.pay@taj.gov.jm', 'svc-taj-pay', TRUE, 'active'),
+  ('stf-demo-taj-kgn-enq', 'biz-taj-001', 'br-taj-kgn', 'role-staff-001', 'TAJ-DEMO-ENQ', 'Simone Barrett', 'demo.enq@taj.gov.jm', 'svc-taj-enq', TRUE, 'active'),
   ('stf-demo-taj-kgn-kiosk', 'biz-taj-001', 'br-taj-kgn', 'role-kiosk-001', 'TAJ-DEMO-KIOSK', 'Kingston Front-Desk Kiosk', 'kiosk@test.com', NULL, TRUE, 'active'),
-  ('stf-demo-taj-mob-mgr', 'biz-taj-001', 'br-taj-mob', 'role-mgr-001', 'TAJ-MOB-MGR', 'Demo Montego Bay Manager', 'demo.mob.manager@taj.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-taj-man-mgr', 'biz-taj-001', 'br-taj-man', 'role-mgr-001', 'TAJ-MAN-MGR', 'Demo Mandeville Manager', 'demo.man.manager@taj.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-taj-por-mgr', 'biz-taj-001', 'br-taj-por', 'role-mgr-001', 'TAJ-POR-MGR', 'Demo Portmore Manager', 'demo.por.manager@taj.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-taj-och-mgr', 'biz-taj-001', 'br-taj-och', 'role-mgr-001', 'TAJ-OCH-MGR', 'Demo Ocho Rios Manager', 'demo.och.manager@taj.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-pica-kgn-mgr', 'biz-pica-001', 'br-pica-kgn', 'role-mgr-001', 'PICA-KGN-MGR', 'Demo Passport Manager', 'demo.manager@pica.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-nht-kgn-mgr', 'biz-nht-001', 'br-nht-kgn', 'role-mgr-001', 'NHT-KGN-MGR', 'Demo NHT Kingston Manager', 'demo.kgn.manager@nht.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-nht-mob-mgr', 'biz-nht-001', 'br-nht-mob', 'role-mgr-001', 'NHT-MOB-MGR', 'Demo NHT Montego Bay Manager', 'demo.mob.manager@nht.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-nht-may-mgr', 'biz-nht-001', 'br-nht-may', 'role-mgr-001', 'NHT-MAY-MGR', 'Demo NHT May Pen Manager', 'demo.may.manager@nht.gov.jm', NULL, TRUE, 'active'),
-  ('stf-demo-nht-man-mgr', 'biz-nht-001', 'br-nht-man', 'role-mgr-001', 'NHT-MAN-MGR', 'Demo NHT Mandeville Manager', 'demo.man.manager@nht.gov.jm', NULL, TRUE, 'active')
+  ('stf-demo-taj-mob-mgr', 'biz-taj-001', 'br-taj-mob', 'role-mgr-001', 'TAJ-MOB-MGR', 'Racquel Gayle', 'demo.mob.manager@taj.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-taj-man-mgr', 'biz-taj-001', 'br-taj-man', 'role-mgr-001', 'TAJ-MAN-MGR', 'Trevor Hylton', 'demo.man.manager@taj.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-taj-por-mgr', 'biz-taj-001', 'br-taj-por', 'role-mgr-001', 'TAJ-POR-MGR', 'Camille Ellis', 'demo.por.manager@taj.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-taj-och-mgr', 'biz-taj-001', 'br-taj-och', 'role-mgr-001', 'TAJ-OCH-MGR', 'Dwayne Pryce', 'demo.och.manager@taj.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-pica-kgn-mgr', 'biz-pica-001', 'br-pica-kgn', 'role-mgr-001', 'PICA-KGN-MGR', 'Yvonne Chambers', 'demo.manager@pica.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-nht-kgn-mgr', 'biz-nht-001', 'br-nht-kgn', 'role-mgr-001', 'NHT-KGN-MGR', 'Garfield Whyte', 'demo.kgn.manager@nht.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-nht-mob-mgr', 'biz-nht-001', 'br-nht-mob', 'role-mgr-001', 'NHT-MOB-MGR', 'Latoya Sinclair', 'demo.mob.manager@nht.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-nht-may-mgr', 'biz-nht-001', 'br-nht-may', 'role-mgr-001', 'NHT-MAY-MGR', 'Oneil Bryan', 'demo.may.manager@nht.gov.jm', NULL, TRUE, 'active'),
+  ('stf-demo-nht-man-mgr', 'biz-nht-001', 'br-nht-man', 'role-mgr-001', 'NHT-MAN-MGR', 'Sheryl Grant', 'demo.man.manager@nht.gov.jm', NULL, TRUE, 'active')
 ON DUPLICATE KEY UPDATE
   business_id = VALUES(business_id),
   branch_id = VALUES(branch_id),
@@ -178,7 +191,12 @@ SELECT
   b.id,
   'role-supervisor-001',
   CONCAT(UPPER(REPLACE(b.id, 'br-', '')), '-SUP'),
-  CONCAT('Demo ', b.name, ' Supervisor'),
+  -- A person's name, picked deterministically per branch. "Demo <Branch>
+  -- Supervisor" is a role description in a full_name column, and it read as
+  -- placeholder data on every board that lists people.
+  ELT(1 + MOD(CRC32(b.id), 8),
+      'Andre Campbell', 'Nadine Foster', 'Rohan Peart', 'Kerry-Ann Brown',
+      'Damion Stewart', 'Shanice Miller', 'Tarik Palmer', 'Janelle Rose'),
   CONCAT('demo.sup.', REPLACE(b.id, 'br-', ''), '@qmenow.test'),
   NULL, TRUE, 'active'
 FROM branches b
@@ -533,12 +551,16 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- DEMO WINDOW, NOT REAL OFFICE HOURS. Real agency hours are 08:00–16:00 Mon–Fri,
 -- but the join gate is enforced for real: outside these hours every branch reads
 -- "Closed" and the customer journey cannot be shown at all. A demo or rehearsal
--- that runs early, late, or at a weekend would have nothing to demo. So the DEMO
--- branches carry a deliberately wide, still-plausible schedule.
--- To show true office hours instead, set these to 08:00:00 / 16:00:00 / '1,2,3,4,5'
--- and make sure the demo runs inside that window.
-UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-taj-001';
-UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-pica-001';
-UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-nht-001';
+-- that runs early, late, or at a weekend would have nothing to demo.
+--
+-- The window was 07:00–20:00, which still failed the case that matters most:
+-- investor and stakeholder calls land in the evening, and at 9pm every screen
+-- in the app read "Closed" with a dash for every wait. The demo box is a
+-- showroom, not a branch, so it is now open around the clock — the gate logic
+-- is unchanged and still enforced, there is simply never an hour when there is
+-- nothing to show. Production tenants set their own real hours through the
+-- admin app; this file only ever touches the demo database.
+-- To rehearse the closed state on purpose, set a narrow window here and re-seed.
+UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-taj-001';
 -- Any remaining branches fall back to the same demo window.
-UPDATE branches SET opening_time = '07:00:00', closing_time = '20:00:00', open_days = '0,1,2,3,4,5,6' WHERE opening_time IS NULL;
+UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE opening_time IS NULL;

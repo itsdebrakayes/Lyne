@@ -60,13 +60,13 @@ const accounts = [
     email: 'user@test.com',
     kind: 'user',
     id: 'usr-test-mobile',
-    fullName: 'Demo Mobile User',
+    fullName: 'Shanique Powell',
   },
   {
     email: 'staff@test.com',
     kind: 'staff',
     id: 'stf-test-line',
-    fullName: 'Demo Line Staff',
+    fullName: 'Marlon Chin',
     staffCode: 'TEST-STAFF',
     roleId: 'role-staff-001',
     businessId: 'biz-taj-001',
@@ -78,7 +78,7 @@ const accounts = [
     email: 'supervisor@test.com',
     kind: 'staff',
     id: 'staff-sup-taj-kgn',
-    fullName: 'Demo Supervisor',
+    fullName: 'Paulette Grant',
     staffCode: 'SUP-KGN-01',
     roleId: 'role-supervisor-001',
     businessId: 'biz-taj-001',
@@ -89,7 +89,7 @@ const accounts = [
     email: 'manager@test.com',
     kind: 'staff',
     id: 'stf-test-manager',
-    fullName: 'Demo Branch Manager',
+    fullName: 'Andrea Salmon',
     staffCode: 'TEST-MANAGER',
     roleId: 'role-mgr-001',
     businessId: 'biz-taj-001',
@@ -100,7 +100,7 @@ const accounts = [
     email: 'executive@test.com',
     kind: 'staff',
     id: 'stf-test-executive',
-    fullName: 'Demo Executive',
+    fullName: 'Everton Blake',
     staffCode: 'TEST-EXEC',
     roleId: 'role-exec-001',
     businessId: 'biz-taj-001',
@@ -111,10 +111,111 @@ const accounts = [
     email: 'platform@test.com',
     kind: 'staff',
     id: 'stf-test-platform',
-    fullName: 'Demo Platform Admin',
+    fullName: 'QMe Platform Admin',
     staffCode: 'TEST-PLATFORM',
     roleId: 'role-platform-admin-001',
     businessId: 'biz-taj-001',
+    branchId: null,
+    assignedServiceId: null,
+  },
+
+  /* ── PICA — every admin level ──────────────────────────────────────────
+     The TAJ block above could only ever demo one sector. These exist so the
+     government-revenue wording ("Customers", "Officers") can be shown on a
+     tenant that is an actual procurement prospect, and so tenant isolation can
+     be exercised by logging in as two different agencies rather than asserted. */
+  {
+    email: 'staff-pica@test.com',
+    kind: 'staff',
+    id: 'stf-test-pica-line',
+    fullName: 'Kadeen Wright',
+    staffCode: 'TEST-PICA-STAFF',
+    roleId: 'role-staff-001',
+    businessId: 'biz-pica-001',
+    branchId: 'br-pica-kgn',
+    assignedServiceId: 'svc-pica-new',
+    counterId: 'ctr-pica-kgn-1',
+  },
+  {
+    email: 'supervisor-pica@test.com',
+    kind: 'staff',
+    id: 'stf-test-pica-sup',
+    fullName: 'Delroy McKenzie',
+    staffCode: 'TEST-PICA-SUP',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-pica-001',
+    branchId: 'br-pica-kgn',
+    assignedServiceId: null,
+  },
+  {
+    email: 'manager-pica@test.com',
+    kind: 'staff',
+    id: 'stf-test-pica-mgr',
+    fullName: 'Marcia Hoilett',
+    staffCode: 'TEST-PICA-MGR',
+    roleId: 'role-mgr-001',
+    businessId: 'biz-pica-001',
+    branchId: 'br-pica-kgn',
+    assignedServiceId: null,
+  },
+  {
+    email: 'executive-pica@test.com',
+    kind: 'staff',
+    id: 'stf-test-pica-exec',
+    fullName: 'Patrick Gordon',
+    staffCode: 'TEST-PICA-EXEC',
+    roleId: 'role-exec-001',
+    businessId: 'biz-pica-001',
+    branchId: null,
+    assignedServiceId: null,
+  },
+
+  /* ── Community First — every admin level ───────────────────────────────
+     The credit union is the other half of the sector story: the SAME screens
+     have to read "Members" and "Loan Officers" here while reading "Customers"
+     and "Officers" at PICA. Without a login on both, that is untestable. */
+  {
+    email: 'staff-creditunion@test.com',
+    kind: 'staff',
+    id: 'stf-test-cfcu-line',
+    fullName: 'Tashana Reid',
+    staffCode: 'TEST-CFCU-STAFF',
+    roleId: 'role-staff-001',
+    businessId: 'biz-cfcu-001',
+    branchId: 'br-cfcu-hwt',
+    assignedServiceId: 'svc-cfcu-member',
+    counterId: 'ctr-cfcu-member-1',
+  },
+  {
+    email: 'supervisor-creditunion@test.com',
+    kind: 'staff',
+    id: 'stf-test-cfcu-sup',
+    fullName: 'Ricardo Bent',
+    staffCode: 'TEST-CFCU-SUP',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-cfcu-001',
+    branchId: 'br-cfcu-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'manager-creditunion@test.com',
+    kind: 'staff',
+    id: 'stf-test-cfcu-mgr',
+    fullName: 'Suzette Clarke',
+    staffCode: 'TEST-CFCU-MGR',
+    roleId: 'role-mgr-001',
+    businessId: 'biz-cfcu-001',
+    branchId: 'br-cfcu-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'executive-creditunion@test.com',
+    kind: 'staff',
+    id: 'stf-test-cfcu-exec',
+    fullName: 'Michael Aarons',
+    staffCode: 'TEST-CFCU-EXEC',
+    roleId: 'role-exec-001',
+    businessId: 'biz-cfcu-001',
     branchId: null,
     assignedServiceId: null,
   },
@@ -173,8 +274,30 @@ async function syncRoles(connection) {
   );
 }
 
+/**
+ * Make sure the demo services have a queue open today.
+ *
+ * The point is "a queue exists for this branch+service today", NOT "a queue with
+ * this particular id exists". Those are different, and conflating them broke the
+ * whole script: demo_active_seed.sql opens today's lines as q-taj-kgn-trn, while
+ * the ids below are the older q-taj-trn-today. Both name the same
+ * (branch, service) pair, so re-dating the second onto today collided with the
+ * first on uk_queue_day (branch, service, date) — and because that fires after
+ * the PRIMARY-key match, ON DUPLICATE KEY UPDATE could not absorb it. The sync
+ * aborted before linking a single account.
+ */
 async function syncTodayQueues(connection) {
   for (const [id, branchId, serviceId, maxCapacity] of demoQueues) {
+    const [existing] = await connection.query(
+      `SELECT id FROM queues
+        WHERE branch_id = ? AND service_id = ? AND queue_date = CURDATE()
+        LIMIT 1`,
+      [branchId, serviceId]
+    );
+    // Somebody already opened this line today (usually the demo seed). Leave it
+    // alone — a second row for the same line is exactly what the key forbids.
+    if (existing.length) continue;
+
     await connection.query(
       `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
        VALUES (?, ?, ?, CURDATE(), ?, TRUE)
@@ -202,9 +325,9 @@ async function syncMobileUser(connection, account, supabaseUser) {
 
   await connection.query(
     `INSERT INTO saved_businesses (user_id, business_id)
-     VALUES (?, 'biz-taj-001'), (?, 'biz-pica-001'), (?, 'biz-nht-001')
+     VALUES (?, 'biz-cfcu-001'), (?, 'biz-taj-001'), (?, 'biz-pica-001'), (?, 'biz-nht-001')
      ON DUPLICATE KEY UPDATE saved_at = saved_at`,
-    [account.id, account.id, account.id]
+    [account.id, account.id, account.id, account.id]
   );
 }
 
@@ -237,18 +360,38 @@ async function syncStaff(connection, account, supabaseUser) {
   );
 
   if (account.counterId) {
-    await connection.query(
-      `INSERT INTO staff_assignments
-         (id, staff_id, counter_id, assignment_date, shift_start, shift_end, created_by)
-       VALUES (?, ?, ?, CURDATE(), '08:30:00', '16:30:00', ?)
-       ON DUPLICATE KEY UPDATE
-         counter_id = VALUES(counter_id),
-         assignment_date = VALUES(assignment_date),
-         shift_start = VALUES(shift_start),
-         shift_end = VALUES(shift_end),
-         created_by = VALUES(created_by)`,
-      ['asgn-test-line-current', account.id, account.counterId, null]
+    /* staff_assignments is keyed (staff_id, assignment_date) — one desk per
+       person per day. Two things used to break here:
+
+       1. The row id was the hard-coded literal 'asgn-test-line-current', so
+          every counter-holding account fought over a single row. That was
+          invisible while TAJ was the only tenant with one; it is not now.
+       2. The insert assumed no other assignment existed for that person today.
+          The demo seed makes one, so the natural key fired before the primary
+          key and ON DUPLICATE KEY UPDATE could not catch it — aborting the sync.
+
+       Seat by the natural key instead: move whoever is already assigned today,
+       otherwise create the row. */
+    const [seated] = await connection.query(
+      'SELECT id FROM staff_assignments WHERE staff_id = ? AND assignment_date = CURDATE() LIMIT 1',
+      [account.id]
     );
+
+    if (seated.length) {
+      await connection.query(
+        `UPDATE staff_assignments
+            SET counter_id = ?, shift_start = '08:30:00', shift_end = '16:30:00'
+          WHERE id = ?`,
+        [account.counterId, seated[0].id]
+      );
+    } else {
+      await connection.query(
+        `INSERT INTO staff_assignments
+           (id, staff_id, counter_id, assignment_date, shift_start, shift_end, created_by)
+         VALUES (?, ?, ?, CURDATE(), '08:30:00', '16:30:00', NULL)`,
+        [`asgn-${account.id}-current`, account.id, account.counterId]
+      );
+    }
   }
 }
 

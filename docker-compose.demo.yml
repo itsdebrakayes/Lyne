@@ -65,8 +65,15 @@ services:
       - ./database/migrations/023_public_web_join.sql:/docker-entrypoint-initdb.d/24_023_public_web_join.sql:ro
       - ./database/migrations/024_sector_identity.sql:/docker-entrypoint-initdb.d/25_024_sector_identity.sql:ro
       - ./database/migrations/025_service_readiness.sql:/docker-entrypoint-initdb.d/26_025_service_readiness.sql:ro
+      - ./database/migrations/026_microfinance_and_judiciary_sectors.sql:/docker-entrypoint-initdb.d/27_026_microfinance_and_judiciary_sectors.sql:ro
+      - ./database/migrations/027_scheduled_sessions.sql:/docker-entrypoint-initdb.d/28_027_scheduled_sessions.sql:ro
+      - ./database/migrations/028_branch_settings_and_alert_prefs.sql:/docker-entrypoint-initdb.d/29_028_branch_settings_and_alert_prefs.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
-      - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/21_demo_active_seed.sql:ro
+      # Active pilot fixtures use readiness/scheduling columns, so load them
+      # only after the numbered migrations have finished.
+      - ./database/demo_active_seed.sql:/docker-entrypoint-initdb.d/29_demo_active_seed.sql:ro
+      - ./database/demo_credit_union_seed.sql:/docker-entrypoint-initdb.d/30_demo_credit_union_seed.sql:ro
+      - ./database/demo_sector_seed.sql:/docker-entrypoint-initdb.d/31_demo_sector_seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -90,8 +97,10 @@ services:
       # Demo overlay only — the production stack never sets this.
       ALLOW_DEMO_DATA_REFRESH: "true"
       DEMO_SEED_PATH: /seed/demo_active_seed.sql
+      DEMO_CREDIT_UNION_SEED_PATH: /seed/demo_credit_union_seed.sql
     volumes:
       - ./database/demo_active_seed.sql:/seed/demo_active_seed.sql:ro
+      - ./database/demo_credit_union_seed.sql:/seed/demo_credit_union_seed.sql:ro
 
   # ── Live model worker: runs the six models against the demo DB on boot and
   #    every 2h, so predictive_results is produced by the models, not seeded.

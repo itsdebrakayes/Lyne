@@ -13,7 +13,7 @@ into production data:
 | Service   | Host port | Contents                                            |
 |-----------|-----------|-----------------------------------------------------|
 | `db`      | 3307      | Clean production schema + migrations. Real data.    |
-| `demo-db` | 3308      | Same schema + multi-business demo seed (TAJ, NHT, PICA). |
+| `demo-db` | 3308      | Same schema + multi-business fixtures, including the fictional credit-union pilot. |
 
 With the demo overlay active, the API points at `demo-db`. Without the
 overlay (`docker compose up -d`), the API points at the clean `db` — exactly
@@ -29,8 +29,9 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 The demo overlay loads into `demo-db`:
 
 - `database/schema.sql` + all migrations
-- `database/seed.sql` (3 businesses, 11 branches, staff, queue history)
+- `database/seed.sql` (legacy TAJ, NHT, and PICA fixtures)
 - `database/demo_active_seed.sql` (live queues and tickets)
+- `database/demo_credit_union_seed.sql` (fictional Community First pilot, approved-style readiness lists, and incomplete-visit outcomes)
 
 Then link the Supabase test accounts and refresh the queue dates to today:
 

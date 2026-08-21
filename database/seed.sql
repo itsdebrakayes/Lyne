@@ -1,3 +1,10 @@
+-- The connection charset must be declared before any non-ASCII data.
+-- Without it, mysql's docker-entrypoint import runs as latin1, so every
+-- em-dash and curly quote in this file is read one byte at a time and
+-- re-encoded — 'Sitting — Camp Road' lands in a utf8mb4 column as
+-- 'Sitting â€" Camp Road'. The columns were never wrong; the pipe was.
+SET NAMES utf8mb4;
+
 -- =============================================================
 -- Q ME NOW — Seed Data
 -- 3 Demo Businesses + Staff + Sample Queue Activity
@@ -38,7 +45,7 @@ INSERT INTO businesses (id, name, slug, description, logo_url, subscription_tier
 
 -- Branches
 INSERT INTO branches (id, business_id, name, address, city, parish, phone, is_main_branch, is_active) VALUES
-('br-taj-kgn', 'biz-taj-001', 'Kingston - Half Way Tree',  '2 Constant Spring Road, Kingston 10',    'Kingston',   'Kingston',       '876-922-3470', TRUE,  TRUE),
+('br-taj-kgn', 'biz-taj-001', 'Kingston - Half Way Tree',  '1 Half Way Tree Road, Kingston 5',    'Kingston',   'Kingston',       '876-922-3470', TRUE,  TRUE),
 ('br-taj-mob', 'biz-taj-001', 'Montego Bay',               '31 Market Street, Montego Bay',           'Montego Bay','St. James',      '876-952-5002', FALSE, TRUE),
 ('br-taj-man', 'biz-taj-001', 'Mandeville',                '4 Ward Avenue, Mandeville',               'Mandeville', 'Manchester',     '876-962-2420', FALSE, TRUE),
 ('br-taj-por', 'biz-taj-001', 'Portmore',                  'Portmore Mall, Portmore',                 'Portmore',   'St. Catherine',  '876-988-1234', FALSE, TRUE);

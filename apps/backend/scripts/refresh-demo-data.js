@@ -10,10 +10,18 @@
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
-const pool = require('../src/db/pool');
 
+/* Load the environment BEFORE anything that reads it at module scope.
+   `src/db/pool` calls mysql.createPool() the moment it is required, reading
+   MYSQL_USER/PASSWORD there and then. It used to be required on the line above
+   these two, so the pool was built from an empty environment and connected as
+   root with no password — the documented command in README.demo.md failed with
+   "Access denied for user 'root'@... (using password: NO)" every time, on a
+   clean checkout, for everybody. Keep the pool require below this block. */
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env'), override: false });
+
+const pool = require('../src/db/pool');
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Refusing to refresh demo data while NODE_ENV=production.');
@@ -67,10 +75,12 @@ function splitStatements(sql) {
 // and its location comes from the environment.
 const SEED_PATH = process.env.DEMO_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_active_seed.sql');
+const CREDIT_UNION_SEED_PATH = process.env.DEMO_CREDIT_UNION_SEED_PATH
+  || path.resolve(__dirname, '../../../database/demo_credit_union_seed.sql');
 
 async function refreshDemoData(connection = pool) {
-  const sql = fs.readFileSync(SEED_PATH, 'utf8');
-  const statements = splitStatements(sql);
+  const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH].filter(seedPath => fs.existsSync(seedPath));
+  const statements = seedPaths.flatMap(seedPath => splitStatements(fs.readFileSync(seedPath, 'utf8')));
 
   for (const statement of statements) {
     await connection.query(statement);
