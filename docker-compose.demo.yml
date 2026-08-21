@@ -68,6 +68,10 @@ services:
       - ./database/migrations/026_microfinance_and_judiciary_sectors.sql:/docker-entrypoint-initdb.d/27_026_microfinance_and_judiciary_sectors.sql:ro
       - ./database/migrations/027_scheduled_sessions.sql:/docker-entrypoint-initdb.d/28_027_scheduled_sessions.sql:ro
       - ./database/migrations/028_branch_settings_and_alert_prefs.sql:/docker-entrypoint-initdb.d/29_028_branch_settings_and_alert_prefs.sql:ro
+      # 29b, not 30 — the demo seeds occupy 29/30/31 and 31_demo_sector_seed
+      # inserts requires_eligibility, which this migration adds. Renaming this
+      # to anything sorting after 31 breaks that seed on a fresh database.
+      - ./database/migrations/029_session_eligibility.sql:/docker-entrypoint-initdb.d/29b_029_session_eligibility.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/20_demo_seed.sql:ro
       # Active pilot fixtures use readiness/scheduling columns, so load them
       # only after the numbered migrations have finished.

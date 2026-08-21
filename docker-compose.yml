@@ -59,6 +59,10 @@ services:
       - ./database/migrations/023_public_web_join.sql:/docker-entrypoint-initdb.d/24_023_public_web_join.sql:ro
       - ./database/migrations/024_sector_identity.sql:/docker-entrypoint-initdb.d/25_024_sector_identity.sql:ro
       - ./database/migrations/025_service_readiness.sql:/docker-entrypoint-initdb.d/26_025_service_readiness.sql:ro
+      - ./database/migrations/026_microfinance_and_judiciary_sectors.sql:/docker-entrypoint-initdb.d/27_026_microfinance_and_judiciary_sectors.sql:ro
+      - ./database/migrations/027_scheduled_sessions.sql:/docker-entrypoint-initdb.d/28_027_scheduled_sessions.sql:ro
+      - ./database/migrations/028_branch_settings_and_alert_prefs.sql:/docker-entrypoint-initdb.d/29_028_branch_settings_and_alert_prefs.sql:ro
+      - ./database/migrations/029_session_eligibility.sql:/docker-entrypoint-initdb.d/30_029_session_eligibility.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
