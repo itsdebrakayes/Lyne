@@ -248,7 +248,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: 'rgba(255,255,255,.16)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sparkle" size={38} color="#fff" />
+            <Icon name="clock" size={38} color="#fff" />
           </View>
         </TouchableOpacity>
 

@@ -20,7 +20,7 @@ export type IconName =
   | 'person' | 'chevronDown' | 'chevronRight' | 'pin' | 'back' | 'dots' | 'share'
   | 'clock' | 'counter' | 'arrowDown' | 'arrowRight' | 'arrowUpRight' | 'mic'
   | 'government' | 'financial' | 'education' | 'health' | 'grid'
-  | 'check' | 'ticket' | 'ticketOutline' | 'walk' | 'sparkle' | 'close'
+  | 'check' | 'ticket' | 'ticketOutline' | 'walk' | 'close'
   | 'phone' | 'mail' | 'shield' | 'help' | 'appearance' | 'document' | 'plus' | 'trash';
 
 interface Props {
@@ -150,8 +150,6 @@ export default function Icon({ name, size = 22, color, weight = 1.8, knockout = 
           <Circle cx={12} cy={12} r={9.6} fill={c} />
           <Path d="m7.8 12 3 3 5.4-6" stroke={knockout} strokeWidth={2.3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </>;
-      case 'sparkle':
-        return <Path d="M12 3.5 14.4 10 21 12.4 14.4 14.8 12 21.4 9.6 14.8 3 12.4 9.6 10 12 3.5Z" fill={c} />;
       case 'ticket':
         return (
           <G rotation={-45} origin="12, 12">

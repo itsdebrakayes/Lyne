@@ -22,7 +22,6 @@ import {
   Star,
   Radio,
   Layers,
-  Sparkles,
   Users,
   MapPin,
 } from "lucide-react";
@@ -226,7 +225,7 @@ function TheOldWay() {
           >
             <div className="mb-6 flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl border border-lyne-purple/30 bg-lyne-purple/15 text-lyne-lavender">
-                <Sparkles className="h-5 w-5" />
+                <Users className="h-5 w-5" />
               </span>
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lyne-lavender/70">With Lyne</div>

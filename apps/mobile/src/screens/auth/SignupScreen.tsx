@@ -19,33 +19,6 @@ import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 
-type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
-const TOP_TILES: Tile[] = [
-  { icon: 'ticket', bg: colors.dark, fg: colors.accent },
-  { icon: 'time-outline', bg: '#ffffff', fg: colors.accentDeep },
-  { icon: 'barcode-outline', bg: colors.accent, fg: colors.accentInk },
-  { icon: 'location', bg: colors.dark, fg: '#ffffff' },
-  { icon: 'notifications', bg: '#ffffff', fg: colors.accentDeep },
-];
-const BOTTOM_TILES: Tile[] = [
-  { icon: 'qr-code-outline', bg: colors.dark, fg: '#ffffff' },
-  { icon: 'people-outline', bg: colors.accent, fg: colors.accentInk },
-  { icon: 'sparkles', bg: '#ffffff', fg: colors.accentDeep },
-  { icon: 'navigate', bg: colors.dark, fg: colors.accent },
-  { icon: 'checkmark-done', bg: colors.accent, fg: colors.accentInk },
-];
-
-function MotifRow({ tiles }: { tiles: Tile[] }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 13, transform: [{ rotate: '-7deg' }] }}>
-      {tiles.map((tile, index) => (
-        <View key={index} style={{ width: 78, height: 78, borderRadius: 23, backgroundColor: tile.bg, alignItems: 'center', justifyContent: 'center', borderWidth: tile.bg === '#ffffff' ? 1 : 0, borderColor: colors.border, ...shadow.card }}>
-          <Ionicons name={tile.icon} size={29} color={tile.fg} />
-        </View>
-      ))}
-    </View>
-  );
-}
 
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
 
@@ -101,11 +74,9 @@ export default function SignupScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* top motif */}
-          <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
-
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+            <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
             <Text style={styles.brand}>Create your account</Text>
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
@@ -174,9 +145,7 @@ export default function SignupScreen() {
           </>
           )}
 
-          {/* bottom motif */}
-          <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
-        </ScrollView>
+          {/* bottom motif */}        </ScrollView>
       </KeyboardAvoidingView>
 
       <CalendarSheet visible={calendarOpen} value={dob} onClose={() => setCalendarOpen(false)} onSelect={(d) => { setDob(d); setCalendarOpen(false); }} />
@@ -187,9 +156,6 @@ export default function SignupScreen() {
 const makeStyles = () => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 40 },
-
-  topMotif: { position: 'absolute', top: -30, left: -30, right: -30, alignItems: 'center', opacity: 0.9 },
-  bottomMotif: { alignItems: 'center', marginTop: 30, opacity: 0.9 },
 
   logo: {
     width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
