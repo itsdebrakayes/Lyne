@@ -5,23 +5,26 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
-  AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone,
+  AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone, ClipboardCheck, CalendarClock,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import { useSectorTerms, lower } from '../hooks/useSectorTerms';
 import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { useDashboardData, type ChannelMix, type ProductivitySignals } from '../hooks/useDashboardData';
-import { Sparkline, Area, Card, Rec, type NavItem } from './kit';
-import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
+import { Sparkline, Area, Card, Rec, Empty, type NavItem } from './kit';
+import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, timeLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
+import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
+import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -37,6 +40,8 @@ const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
   { key: 'staff', label: 'Staff & Counters', icon: Users },
   { key: 'services', label: 'Services', icon: Waypoints },
+  { key: 'readiness', label: 'Readiness', icon: ClipboardCheck },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
   { key: 'reports', label: 'Reports', icon: FileText },
@@ -62,6 +67,7 @@ export function buildHeatmap(cells: any[]) {
 }
 
 export default function ManagerDashboard() {
+  const terms = useSectorTerms();
   const d = useDashboardData();
   const { logout } = useAdminAuth();
   const tour = useTour('manager');
@@ -88,8 +94,21 @@ export default function ManagerDashboard() {
   const match = (...vals: any[]) => !needle || vals.some((v) => String(v ?? '').toLowerCase().includes(needle));
   const shownStaff = (d.staff as any[]).filter((s) => match(s.full_name, s.staff_code));
   const shownServices = (d.services as any[]).filter((s) => match(s.service_name));
+  const readinessServices = useQuery({
+    queryKey: ['readiness-services', d.businessId, d.branchId],
+    queryFn: () => api.get<ReadinessService[]>(`/services?business_id=${d.businessId}&branch_id=${d.branchId}`),
+    enabled: Boolean(d.businessId && d.branchId),
+    refetchInterval: 60_000,
+  });
   const waitingNow = d.queues.reduce((t, q: any) => t + num(q.waiting_count), 0);
-  const liveWait = Math.round(d.queues.reduce((t, q: any) => t + num(q.avg_wait_minutes), 0) / Math.max(1, d.queues.length)) || Math.round(num(last.avg_wait_time_minutes));
+  /* What people who have already been served ACTUALLY waited today.
+     This is the number a branch is held to, so it has to be the experience that
+     happened, not a forecast. It used to average estimated_wait_minutes across
+     the open queues — the ETA frozen onto each ticket at the moment it was
+     issued — which is neither the achieved wait nor the current projection, and
+     it was quietly powering both the Overview headline and the Targets tab.
+     The forward-looking number now lives on the floor board, where it belongs. */
+  const achievedWait = Math.round(num(last.avg_wait_time_minutes));
   const completed = num(last.completed_count);
   const totalToday = num(last.total_visitors) || completed + num(last.no_show_count);
   const noShows = num(last.no_show_count);
@@ -109,6 +128,8 @@ export default function ManagerDashboard() {
     overview: ['Your Week At A Glance', `How ${branchName} Is Doing Against The Targets You Set.`],
     staff: ['Staff & Counters', 'Who Is On Each Counter Right Now.'],
     services: ['Services', `This Week At ${branchName}, Against Your Wait Target.`],
+    readiness: ['Readiness', `See why ${lower(terms.visitor.many)} could not finish, and keep every service checklist current.`],
+    sessions: ['Sessions', `A capped day ${lower(terms.visitor.many)} register for in advance, then check in on arrival.`],
     busy: ['Busy Times', 'When To Add A Counter, And When To Train.'],
     targets: ['Targets', 'Your Branch Targets, Within The Company Target.'],
     reports: ['Reports', 'A Preview Of What The Export Will Contain.'],
@@ -116,26 +137,36 @@ export default function ManagerDashboard() {
     support: ['Help & Support', 'Common Questions For Branch Managers.'],
   };
   const heat = buildHeatmap(d.heatmap);
-  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
+  // The bell honours this manager's own "Alerts To Me" choices, so turning a
+  // threshold up genuinely quietens the feed rather than only being remembered.
+  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity, {
+    prefs: {
+      idleAfterMinutes: d.branchSettings?.alerts.idle_after_minutes,
+      lineOverTarget: d.branchSettings?.alerts.line_over_target,
+    },
+  }), [preds, d.productivity, d.branchSettings]);
 
   /* Everything the ported manager screens read, mapped from the live layer. */
   const liveData = useMemo(() => buildMgrData({
     branchName, org, managerName: d.admin?.name || '',
     queues: d.queues as any[], services: d.services as any[], staff: d.staff as any[],
-    productivity: d.productivity, demandHourly: d.demandHourly as any[], demandWeekly: d.demandWeekly as any[],
+    productivity: d.productivity, counters: d.counters as any[], demandHourly: d.demandHourly as any[], demandWeekly: d.demandWeekly as any[],
     target: d.effectiveTarget, companyTarget: d.targets, branchTarget: d.branchTargets,
-    avgWait: liveWait,
+    avgWait: achievedWait,
     completionPct: totalToday ? Math.round((completed / totalToday) * 100) : 0,
     noShowPct: totalToday ? +((noShows / totalToday) * 100).toFixed(1) : 0,
     avgService: Math.round(num(last.avg_service_time_minutes)),
-    openFrom: '—', openTo: '—', faq: MGR_FAQ,
+    openFrom: timeLabel(d.branchSettings?.hours?.opening_time) || '—',
+    openTo: timeLabel(d.branchSettings?.hours?.closing_time) || '—',
+    faq: MGR_FAQ,
     servedToday: completed,
     todayByHour: [], yesterdayByHour: [],
     balking: d.balking,
-    weekServed: totalToday, weekCompleted: completed, weekNoShows: noShows,
+    todayJoined: totalToday, todayCompleted: completed, todayNoShows: noShows,
+    todayLeft: num(last.left_count),
   }), [branchName, org, d.admin, d.queues, d.services, d.staff, d.productivity, d.demandHourly,
        d.demandWeekly, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
-       liveWait, completed, totalToday, noShows, last]);
+       achievedWait, completed, totalToday, noShows, last]);
 
   /* The manager asks; the supervisor acts. Sending lands in the bell of every
      active supervisor at this branch. */
@@ -178,6 +209,46 @@ export default function ManagerDashboard() {
     }
   }, [d.admin, qc]);
 
+  /* Settings tab. Saves optimistically-but-honestly: the control moves only
+     after the server confirms, so a failed save cannot leave a manager believing
+     a policy is in force when it is not. That was the whole complaint about this
+     tab — controls that moved and changed nothing. */
+  const [setState, setSetState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [setError, setSetError] = useState<string | null>(null);
+  const saveBranchSettings = useCallback(async (patch: { allow_overflow?: boolean }) => {
+    setSetState('saving'); setSetError(null);
+    try {
+      await api.put('/settings/branch', {
+        branch_id: d.admin?.staffRecord?.branch_id,
+        allow_overflow: patch.allow_overflow,
+      });
+      await qc.invalidateQueries({ queryKey: ['ops-branch-settings'] });
+      setSetState('saved');
+    } catch (err) {
+      setSetState('error');
+      setSetError(err instanceof Error ? err.message : 'Could not save this setting.');
+    }
+  }, [d.admin, qc]);
+
+  const saveAlertPrefs = useCallback(async (patch: { idle_after_minutes?: number | null; line_over_target?: 'on' | 'off' }) => {
+    setSetState('saving'); setSetError(null);
+    try {
+      await api.put('/settings/alerts', {
+        // undefined would be dropped by JSON.stringify and read as "unchanged";
+        // null is a real value here ("never"), so send the current one explicitly.
+        idle_after_minutes: patch.idle_after_minutes === undefined
+          ? (d.branchSettings?.alerts.idle_after_minutes ?? null)
+          : patch.idle_after_minutes,
+        line_over_target: patch.line_over_target ?? d.branchSettings?.alerts.line_over_target ?? 'on',
+      });
+      await qc.invalidateQueries({ queryKey: ['ops-branch-settings'] });
+      setSetState('saved');
+    } catch (err) {
+      setSetState('error');
+      setSetError(err instanceof Error ? err.message : 'Could not save this preference.');
+    }
+  }, [d.branchSettings, qc]);
+
   const worstLine = [...liveData.services].sort((a, b) => b.wait - a.wait)[0];
 
   const notify = useNotifications();
@@ -212,8 +283,16 @@ export default function ManagerDashboard() {
             : (MGR_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live="Live"
           right={<>
-            <QxPills value={period} onChange={setPeriod}
-              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            {/* Only show the period pill on tabs it actually drives.
+                  · readiness — has its own Today/Week/Month control
+                  · busy      — a 90-day PATTERN by design; one day of data is not
+                                a pattern, and the pill sat there implying the
+                                heatmap was today's while it never changed
+                  · reports   — the report carries its own PERIOD selector, so two
+                                controls disagreed on screen (header said Today,
+                                the pack said Last 30 Days) */}
+            {!['readiness', 'sessions', 'busy', 'reports'].includes(tab) ? <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
             <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
@@ -223,15 +302,21 @@ export default function ManagerDashboard() {
       {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
       <MgrDataProvider value={{ ...liveData, onAskSupervisor: askSupervisor, askState, askError,
         onSaveBranchTargets: saveBranchTargets, targetsSaveState: tgtState, targetsSaveError: tgtError,
-        targetsSetBy: d.branchTargets?.set_by_name ?? null, targetsSetAt: d.branchTargets?.updated_at ?? null }}>
-        {tab === 'overview' ? <MgrOverviewQX onNav={setTab} /> : mgrTab(tab, setTab)}
+        targetsSetBy: d.branchTargets?.set_by_name ?? null, targetsSetAt: d.branchTargets?.updated_at ?? null,
+        settings: d.branchSettings, onSaveBranchSettings: saveBranchSettings, onSaveAlertPrefs: saveAlertPrefs,
+        settingsSaveState: setState, settingsSaveError: setError }}>
+        {tab === 'overview' ? <MgrOverviewQX onNav={setTab} />
+          : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
+            : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : mgrTab(tab, setTab)}
       </MgrDataProvider>
     </QxShell>
   );
 }
 
 /* ---------- shared sub-cards (used by both dashboards) ---------- */
-export function Empty({ msg }: { msg: string }) { return <div className="qa-empty">{msg}</div>; }
+// Empty now lives in the shared kit; re-exported so existing importers keep working.
+export { Empty };
 export function initials(name?: string) { const p = (name || 'Q').trim().split(/\s+/); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || 'Q'; }
 export function Bar({ label, n, accent2 }: { label: string; n: number; accent2?: boolean }) {
   const v = Math.max(0, Math.min(100, n));

@@ -17,7 +17,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
+  AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
   PhoneOff, SkipForward, Timer, Users,
 } from 'lucide-react';
 import {
@@ -25,6 +25,19 @@ import {
   avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
+import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
+
+/* Counter labels are written as "Window 17 - TRN Registration", so pairing one
+   with its own service produced "TRN Registration · TRN Registration". Say the
+   service only when the desk label does not already carry it. */
+function deskLabel(counter?: string, service?: string): string {
+  const c = (counter || '').trim();
+  const sv = (service || '').trim();
+  if (!c || c === '—') return sv || '—';
+  if (!sv || sv === '—') return c;
+  return c.toLowerCase().includes(sv.toLowerCase()) ? c : `${c} · ${sv}`;
+}
+
 
 /* ══════════════════════ types ══════════════════════ */
 export type LineTicket = {
@@ -34,6 +47,10 @@ export type LineTicket = {
   state: 'waiting' | 'called' | 'serving' | 'noresponse';
   /** ISO time service (or the call) started — the timer resumes from this. */
   startedAt?: string | null;
+  readinessExpected?: boolean;
+  readinessShown?: boolean;
+  readinessOutcome?: 'ready' | 'incomplete' | 'not_checked';
+  readinessNote?: string | null;
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
@@ -59,7 +76,7 @@ export type LineTabData = {
   onCall?: (ticketId: string) => Promise<void> | void;
   /** Starts the service. The code goes to the SERVER, which is what checks it. */
   onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
-  onComplete?: (ticketId: string) => Promise<void> | void;
+  onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string) => Promise<void> | void;
   onNoShow?: (ticketId: string) => Promise<void> | void;
   onCallAgain?: (ticketId: string) => Promise<void> | void;
   /** How many times the person at the window has been called. */
@@ -148,7 +165,21 @@ const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy
 type Stage = 'idle' | 'called' | 'serving';
 
 /** mm:ss from a seconds count. */
-const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+/**
+ * A running timer, readable at any length.
+ *
+ * This was plain `mm:ss`, so a visit that ran past an hour rendered as "302:09"
+ * and one left open overnight as "1008:30" — a clerk cannot tell at a glance
+ * whether that is minutes, hours, or a fault. Anything an hour or longer now
+ * carries the hour explicitly.
+ */
+const clock = (secs: number) => {
+  const s = Math.max(0, Math.floor(secs));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+};
 
 /** After this long with no response, marking a no-show is allowed. */
 const NO_SHOW_AFTER = 5 * 60;
@@ -156,6 +187,7 @@ const NO_SHOW_AFTER = 5 * 60;
 const LQ_GRID = 'minmax(0,1.5fr) 92px 96px';
 
 export function LineOverviewQX() {
+  const terms = useSectorTerms();
   const d = useLine();
   const [q, setQ] = useState('');
   const [view, setView] = useState<'line' | 'noanswer'>('line');
@@ -182,6 +214,9 @@ export function LineOverviewQX() {
   const [codeState, setCodeState] = useState<'idle' | 'ok' | 'bad'>('idle');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [readinessChoice, setReadinessChoice] = useState<'ready' | 'incomplete' | null>(null);
+  const [readinessNote, setReadinessNote] = useState('');
+  const [readinessError, setReadinessError] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
   // service is under way that is who is in front of you.
@@ -211,6 +246,7 @@ export function LineOverviewQX() {
   // Reset the code boxes when the person at the window changes.
   useEffect(() => {
     setCode(['', '', '', '', '', '']); setCodeState('idle'); setCodeError(null);
+    setReadinessChoice(null); setReadinessNote(''); setReadinessError(null);
   }, [activeId]);
 
   const waiting = d.queue.filter((t) => t.state === 'waiting' && t.id !== activeId);
@@ -226,7 +262,19 @@ export function LineOverviewQX() {
   };
 
   const callNext = () => { if (next) run(() => d.onCall?.(next.id)); };
-  const finish = () => { if (activeId) run(() => d.onComplete?.(activeId)); };
+  const finish = () => {
+    if (!activeId) return;
+    if (active?.readinessExpected && !readinessChoice) {
+      setReadinessError('Choose Ready or Missing something before closing the visit.');
+      return;
+    }
+    if (readinessChoice === 'incomplete' && readinessNote.trim().length < 3) {
+      setReadinessError('Add a short note so the manager can see what needs fixing.');
+      return;
+    }
+    setReadinessError(null);
+    run(() => d.onComplete?.(activeId, readinessChoice || undefined, readinessNote.trim() || undefined));
+  };
 
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
@@ -305,7 +353,7 @@ export function LineOverviewQX() {
             <div className="ql-who">{active.name}</div>
             <div className="ql-meta">
               <span><Users size={14} />Waited {active.waited} min in line</span>
-              <span><Clock size={14} />{d.counter} · {d.serviceName}</span>
+              <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
               {stage === 'called' && calls > 1 ? <span><PhoneOff size={14} />Called {calls} times</span> : null}
             </div>
           </>
@@ -321,7 +369,7 @@ export function LineOverviewQX() {
             <div className="ql-meta">
               <span><Users size={14} />{waiting.length} in your line</span>
               <span><CheckCircle2 size={14} />{d.servedToday} seen today</span>
-              <span><Clock size={14} />{d.counter} · {d.serviceName}</span>
+              <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
             </div>
           </>
         )}
@@ -389,6 +437,44 @@ export function LineOverviewQX() {
             </div>
             {codeState === 'ok' ? <div className="ql-verifymsg ok">Code matches — this is the right person.</div> : null}
             {codeState === 'bad' ? <div className="ql-verifymsg bad">{codeError || 'That code does not match this ticket. Ask them to read it again.'}</div> : null}
+          </div>
+        ) : null}
+
+        {stage === 'serving' && active?.readinessExpected ? (
+          <div className="ql-readycheck">
+            <div className="ql-readyhead">
+              <div>
+                <b>Could this visit be completed?</b>
+                <small>
+                  Record what was true at the desk. {active.readinessShown
+                    ? `This ${lower(terms.visitor.one)} saw the checklist before joining.`
+                    : 'This ticket was issued without a recorded checklist view.'}
+                </small>
+              </div>
+              <span className={active.readinessShown ? 'seen' : 'notseen'}>
+                {active.readinessShown ? 'Checklist shown' : 'Not shown'}
+              </span>
+            </div>
+            <div className="ql-readychoices">
+              <button type="button" className={readinessChoice === 'ready' ? 'on ready' : ''}
+                onClick={() => { setReadinessChoice('ready'); setReadinessNote(''); setReadinessError(null); }}>
+                <CheckCircle2 size={17} />Ready — had everything
+              </button>
+              <button type="button" className={readinessChoice === 'incomplete' ? 'on incomplete' : ''}
+                onClick={() => { setReadinessChoice('incomplete'); setReadinessError(null); }}>
+                <AlertTriangle size={17} />Missing something
+              </button>
+            </div>
+            {readinessChoice === 'incomplete' ? (
+              <div className="ql-readynote">
+                <label htmlFor="readiness-note">What was missing or not prepared?</label>
+                <textarea id="readiness-note" maxLength={255} value={readinessNote}
+                  onChange={(e) => { setReadinessNote(e.target.value); setReadinessError(null); }}
+                  placeholder="e.g. Proof of address was older than three months" />
+                <small>{readinessNote.length}/255 · Do not enter account balances or sensitive financial details.</small>
+              </div>
+            ) : null}
+            {readinessError ? <div className="ql-verifymsg bad">{readinessError}</div> : null}
           </div>
         ) : null}
 
@@ -461,8 +547,9 @@ export function LineOverviewQX() {
 
           {stage === 'serving' ? (
             <>
-              <button type="button" className="ql-btn primary" onClick={finish}>
-                <CheckCircle2 size={18} />Complete And Call Next
+              <button type="button" className="ql-btn primary" onClick={finish}
+                disabled={busy || Boolean(active?.readinessExpected && !readinessChoice)}>
+                <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete And Call Next'}
               </button>
               <button type="button" className="ql-btn" onClick={finish}>
                 <SkipForward size={17} />Transfer
@@ -548,7 +635,7 @@ export function LineTicketsTab() {
   return (
     <div className="qx-grid">
       <Stat span={3} icon={Users} label="In Your Line" value={waiting.length}
-        foot={`${d.serviceName} at ${d.counter}`} />
+        foot={deskLabel(d.counter, d.serviceName)} />
       <Stat span={3} icon={Clock} tone={longest > 25 ? 'bad' : 'primary'} label="Longest Wait"
         value={longest} unit="min"
         chip={longest > 25 ? { dir: 'bad', text: 'Over' } : { dir: 'flat', text: 'Steady' }}

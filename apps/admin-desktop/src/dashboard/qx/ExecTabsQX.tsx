@@ -85,8 +85,17 @@ export function EmptyTab({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
-  return <button type="button" className="qx-tog" aria-pressed={on} aria-label={label} onClick={onClick}><i /></button>;
+export function Toggle({ on, onClick, label, disabled, title }: {
+  on: boolean; onClick: () => void; label: string;
+  /** For a control whose FEATURE does not exist yet. Pass `title` with the
+   *  reason — a dead toggle with no explanation is what this tab had before. */
+  disabled?: boolean; title?: string;
+}) {
+  return (
+    <button type="button" className="qx-tog" aria-pressed={on} aria-label={label}
+      onClick={onClick} disabled={disabled} title={title}
+      aria-disabled={disabled || undefined}><i /></button>
+  );
 }
 
 /* ══════════════════════ 1 · TRENDS ══════════════════════ */

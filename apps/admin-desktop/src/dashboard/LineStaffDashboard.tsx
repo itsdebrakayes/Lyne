@@ -17,14 +17,22 @@ const LINE_FAQ = [
   { q: 'Can I Take A Break Mid-Queue?', a: 'Finish whoever is in front of you, then set yourself to break. Your window stops taking new calls and your supervisor sees it straight away, so cover can be moved.' },
   { q: 'What Do My Numbers Get Used For?', a: 'They show your supervisor how the section is running so cover can be moved where it is needed. They are not a ranking, and nobody else on the floor sees your individual figures.' },
 ];
-import { BarChart3, Clock3, ListChecks, Monitor } from 'lucide-react';
+import { BarChart3, ClipboardCheck, Clock3, ListChecks, Monitor } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
+import { StaffReadinessWorkspace } from '../components/dashboard/ReadinessWorkspace';
 
 type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string };
-type TicketRow = { id: string; ticket_number: string; user_name?: string; status: string; position: number; call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string; service_minutes?: number; service_name?: string };
+type TicketRow = {
+  id: string; ticket_number: string; user_name?: string; status: string; position: number;
+  call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string;
+  service_minutes?: number; service_name?: string; readiness_shown_at?: string | null;
+  readiness_outcome?: 'ready' | 'incomplete' | 'not_checked'; readiness_note?: string | null;
+  readiness_item_count?: number;
+};
 type Analytics = { total_handled?: number; served_count?: number; no_show_count?: number; avg_service_minutes?: number; avg_wait_minutes?: number; avg_call_response_minutes?: number };
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -37,12 +45,14 @@ function useNow(ms = 1000) { const [, set] = useState(0); useEffect(() => { cons
 const NAV = [
   { key: 'live', label: 'Live line', icon: Monitor },
   { key: 'tickets', label: 'Tickets', icon: ListChecks },
+  { key: 'readiness', label: 'Service checklist', icon: ClipboardCheck },
   { key: 'history', label: 'History', icon: Clock3 },
   { key: 'stats', label: 'My stats', icon: BarChart3 },
 ];
 
 
 export default function LineStaffDashboard() {
+  const terms = useSectorTerms();
   const { admin, logout } = useAdminAuth();
   const tour = useTour('line_staff');
   const qc = useQueryClient();
@@ -101,6 +111,7 @@ export default function LineStaffDashboard() {
 
   const branch = activeQueue?.branch_name || admin?.staffRecord.branch_name || 'Your branch';
   const service = activeQueue?.service_name || admin?.staffRecord.assigned_service_name;
+  const readinessServiceId = admin?.staffRecord.assigned_service_id || activeQueue?.service_id;
 
   /* ── DESK ACTIONS ──
      The desk station made no API calls at all: every button moved local React
@@ -128,16 +139,21 @@ export default function LineStaffDashboard() {
     // The code travels to the server; a wrong one throws and the UI says so.
     onStartServing: (id: string, code: string) =>
       deskStatus(id, { new_status: 'in_service', verification_code: code }),
-    onComplete: (id: string) => deskStatus(id, { new_status: 'served' }),
+    onComplete: (id: string, outcome?: 'ready' | 'incomplete', note?: string) => deskStatus(id, {
+      new_status: 'served',
+      ...(outcome ? { readiness_outcome: outcome } : {}),
+      ...(note ? { readiness_note: note } : {}),
+    }),
     onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
     onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
   }), [deskStatus]);
 
   const liveData = useMemo(() => buildLineData({
     staffName: admin?.name || '',
-    // The queue endpoint reports the service, not which counter this person is
-    // sat at, so the window is labelled by service rather than guessed.
-    counter: service || '—',
+    /* The QUEUE endpoint does not carry the desk — but /auth/me does, from
+       staff_assignments. Standing the service name in for the counter is what
+       made the header chip read "TRN Registration · TRN Registration". */
+    counter: admin?.staffRecord?.counter_label || service || '—',
     serviceName: service || '—',
     branchName: branch,
     tickets, history: history.data || [], analytics: a,
@@ -150,6 +166,7 @@ export default function LineStaffDashboard() {
   const titles: Record<string, [string, string]> = {
     live: ["Run today’s line", `${branch} · ${waiting.length} ${waiting.length === 1 ? 'person' : 'people'} waiting right now.`],
     tickets: ['Tickets', 'Everyone currently in your queue.'],
+    readiness: ['Service checklist', `Keep the ${lower(terms.visitor.one)}-facing list for your assigned service clear and current.`],
     history: ['History', 'Your served and no-show record.'],
     stats: ['My stats', 'How your counter is performing.'],
   };
@@ -200,9 +217,10 @@ export default function LineStaffDashboard() {
       {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
       {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
       <LineDataProvider value={{ ...liveData, ...deskActions }}>
-        {tab === 'live' ? <LineOverviewQX /> : lineTab(tab, (k) => setTab(k))}
+        {tab === 'live' ? <LineOverviewQX />
+          : tab === 'readiness' ? <StaffReadinessWorkspace service={readinessServiceId ? { id: readinessServiceId, name: service || 'Assigned service' } : null} />
+            : lineTab(tab, (k) => setTab(k))}
       </LineDataProvider>
     </QxShell>
   );
 }
-

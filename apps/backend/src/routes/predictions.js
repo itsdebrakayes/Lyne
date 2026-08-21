@@ -82,6 +82,17 @@ function quietLevel(avgWait, min, max) {
   return ratio <= 0.33 ? 1 : ratio <= 0.66 ? 2 : 3; // 1 quiet · 2 busy · 3 peak
 }
 
+// A "best time" drawn from a 2-visit cell is noise sold as insight: two lucky
+// quiet visits will always undercut a genuinely calm hour backed by hundreds,
+// so the headline ends up on whichever slot happens to be thinnest. Rank only
+// cells with a real sample behind them — but fall back to the full set for a
+// branch too new to have one, so a fresh tenant still sees something.
+const MIN_CELL_VISITS = 8;
+function wellEvidenced(slots) {
+  const solid = slots.filter((slot) => slot.visits >= MIN_CELL_VISITS);
+  return solid.length ? solid : slots;
+}
+
 router.get('/best-times', async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
@@ -119,8 +130,9 @@ router.get('/best-times', async (req, res) => {
 
     const services = Array.from(byService.values()).map((service) => {
       const slots = service.slots;
-      const best = [...slots].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0];
-      const busiest = [...slots].sort((a, b) => b.avg_wait - a.avg_wait || b.visits - a.visits)[0];
+      const ranked = wellEvidenced(slots);
+      const best = [...ranked].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0];
+      const busiest = [...ranked].sort((a, b) => b.avg_wait - a.avg_wait || b.visits - a.visits)[0];
 
       // Day-of-week averages → the 7-day quietness strip.
       const dayTotals = Array.from({ length: 7 }, () => ({ waitTotal: 0, weight: 0 }));
@@ -153,8 +165,30 @@ router.get('/best-times', async (req, res) => {
     }).sort((a, b) => a.service_name.localeCompare(b.service_name));
 
     // Branch-level rollup for the free tier: one honest headline window.
-    const allSlots = rows.map((row) => ({ dow: Number(row.dow), hour: Number(row.hour), visits: Number(row.visits), avg_wait: Number(row.avg_wait) }));
-    const branchBest = decorate([...allSlots].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]);
+    // The card promises a "typical wait" for the whole branch, so average every
+    // service running in that (day, hour) cell, weighted by how many visits each
+    // contributed. Taking the single lowest *service* cell instead answered a
+    // different question — it surfaced the quietest corner of the quietest
+    // service, and reported a 1-minute headline on a branch whose services
+    // average 5-11 minutes, which reads as broken rather than impressive.
+    const branchCells = new Map();
+    rows.forEach((row) => {
+      const key = `${row.dow}:${row.hour}`;
+      const cell = branchCells.get(key)
+        || { dow: Number(row.dow), hour: Number(row.hour), waitTotal: 0, visits: 0 };
+      cell.waitTotal += Number(row.avg_wait) * Number(row.visits);
+      cell.visits += Number(row.visits);
+      branchCells.set(key, cell);
+    });
+    const branchSlots = Array.from(branchCells.values()).map((cell) => ({
+      dow: cell.dow,
+      hour: cell.hour,
+      visits: cell.visits,
+      avg_wait: Math.round((cell.waitTotal / cell.visits) * 10) / 10,
+    }));
+    const branchBest = decorate(
+      [...wellEvidenced(branchSlots)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
+    );
 
     res.json({
       window_days: 90,

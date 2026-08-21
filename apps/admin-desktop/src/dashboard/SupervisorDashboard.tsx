@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
-import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand } from 'lucide-react';
+import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
 import { CalendarDays, MapPin } from 'lucide-react';
@@ -17,6 +17,7 @@ import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
 import { SupDataProvider, supTab, SupOverviewQX, SUP_TAB_HEAD } from './qx/SupTabsQX';
+import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { buildSupData } from './qx/supLiveData';
 
 const SUP_FAQ = [
@@ -32,6 +33,7 @@ const NAV: NavItem[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid },
   { key: 'desks', label: 'Desk Assignment', icon: Hand },
   { key: 'staff', label: 'Staff', icon: Users },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
   { key: 'support', label: 'Help & Support', icon: Headphones, group: 'utility' },
@@ -108,6 +110,7 @@ export default function SupervisorDashboard() {
   const titles: Record<string, [string, string]> = {
     overview: ['Your Floor, Right Now', `${branchName} — Live Queues, Waits And What Needs Attention.`],
     staff: ['Staff', `Who's Serving At ${branchName} And How Today Is Going.`],
+    sessions: ['Sessions', 'A Capped Day People Registered For — Check Them In As They Arrive.'],
     busy: ['Busy Times', 'When The Branch Is Busiest — Plan Cover And Breaks.'],
     targets: ['Targets', 'The Branch Targets Your Manager Set — For Reference.'],
     support: ['Help & Support', 'Common Questions For Supervisors.'],
@@ -184,8 +187,10 @@ export default function SupervisorDashboard() {
             : (SUP_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live="Live"
           right={<>
-            <QxPills value={period} onChange={setPeriod}
-              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            {/* A session is one fixed DAY — a period pill over it would drive
+                nothing and imply the screen below is a period view. */}
+            {tab !== 'sessions' ? <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
             <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
@@ -194,7 +199,9 @@ export default function SupervisorDashboard() {
     >
       {tour.running ? <Spotlight steps={TOURS.supervisor} onDone={tour.finish} /> : null}
       <SupDataProvider value={liveData}>
-        {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
+        {tab === 'overview' ? <SupOverviewQX onNav={setTab} />
+          : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} />
+            : supTab(tab, setTab)}
       </SupDataProvider>
     </QxShell>
   );

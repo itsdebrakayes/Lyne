@@ -419,7 +419,15 @@ export function Chart({
 
   let lo = Math.min(...values, ...(cmp && showB ? cmp : [])), hi = Math.max(...values, ...(cmp && showB ? cmp : []));
   if (target != null) { lo = Math.min(lo, target); hi = Math.max(hi, target); }
+  // Everything this product charts — people, minutes, visits — has a real floor
+  // at zero. Remember whether the data does, BEFORE the headroom padding below
+  // pushes the axis past it.
+  const nonNegative = lo >= 0;
   const sp = (hi - lo) || 1; lo -= sp * 0.16; hi += sp * 0.14;
+  // The 16% breathing room under the lowest point is what put "-525" on an axis
+  // counting customers served. Padding is a layout nicety; it must not invent a
+  // quantity that cannot exist.
+  if (nonNegative && lo < 0) lo = 0;
   const xs = (i: number) => padL + (w - padL - padR) * (n < 2 ? 0.5 : i / (n - 1));
   const ys = (v: number) => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
   const line = smooth(values.map((v, i) => [xs(i), ys(v)]));

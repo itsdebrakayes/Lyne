@@ -51,6 +51,15 @@ export type BusinessTargets = {
 // A branch's effective targets: the three operational metrics resolved as
 // branch → company → default, plus the company target it works within.
 export type BranchTargets = BusinessTargets & { branch_id: string; company: BusinessTargets };
+
+/** GET /settings/branch — everything the manager Settings tab renders.
+ *  `idle_after_minutes: null` means "never alert me", not "unset". */
+export type BranchSettings = {
+  branch_id: string;
+  branch: { allow_overflow: boolean; updated_by_name?: string | null; updated_at?: string | null };
+  alerts: { idle_after_minutes: number | null; line_over_target: 'on' | 'off' };
+  hours: { name: string; opening_time: string | null; closing_time: string | null; open_days: string | null } | null;
+};
 export type ExecutiveKpis = {
   month: string; total_employees: number; active_employees: number; previous_active_employees: number;
   active_change_pct: number; leave_employees: number; new_employees: number;
@@ -162,6 +171,24 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<BranchTargets>(`/targets/branch?branch_id=${branchId}`),
     enabled: Boolean(branchScoped && branchId), refetchInterval: 120_000,
   });
+  /* Who is actually sat at a desk. The manager's floor view used to infer this
+     from tickets_handled, which marked anyone who had touched a ticket all day
+     as "Serving" — including people with no window at all. staff_assignments is
+     the source of truth, and the supervisor board already reads it, so the two
+     roles must read the same thing or they will contradict each other. */
+  const counters = useQuery({
+    queryKey: ['ops-counters', businessId, branchId],
+    queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+  });
+  // Settings tab: branch policy + this person's own alert thresholds + the
+  // read-only hours. Not polled — these change when somebody saves them, not on
+  // their own, and a poll would fight a manager mid-edit.
+  const branchSettings = useQuery({
+    queryKey: ['ops-branch-settings', branchId],
+    queryFn: () => api.get<BranchSettings>(`/settings/branch?branch_id=${branchId}`),
+    enabled: Boolean(branchScoped && branchId),
+  });
   const employeeKpis = useQuery({
     queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
     queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
@@ -207,6 +234,8 @@ export function useDashboardData(serviceId = '') {
     demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
     branchTargets: branchTargets.data || null,
+    branchSettings: branchSettings.data || null,
+    counters: counters.data || [],
     // The target a branch-scoped screen actually measures against: the branch's
     // own target when set, otherwise the company target. Executive screens just
     // use `targets`.
@@ -219,6 +248,6 @@ export function useDashboardData(serviceId = '') {
     productivity: productivity.data || null,
     refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
       branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), branchTargets.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
+      targets.refetch(), branchTargets.refetch(), branchSettings.refetch(), counters.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
   };
 }

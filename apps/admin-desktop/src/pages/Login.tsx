@@ -43,10 +43,13 @@ export default function LoginPage() {
           <div className="eyebrow">Dashboard Console</div>
           <h1>Run queues, staff, and branch performance from one place.</h1>
           <p>Sign in to access the workspace for your assigned role.</p>
+          {/* These were "Wait times / Accurate" and "Insights / Fresh" — claims
+              nobody can check, on a screen the same staff open every morning.
+              What they need is which workspace they are about to land in. */}
           <div className="qa-login-metrics" aria-hidden="true">
-            <div className="qa-login-metric"><Users size={18} /><span>Live queues</span><b>Real-time</b></div>
-            <div className="qa-login-metric"><Timer size={18} /><span>Wait times</span><b>Accurate</b></div>
-            <div className="qa-login-metric"><BarChart3 size={18} /><span>Insights</span><b>Fresh</b></div>
+            <div className="qa-login-metric"><Users size={18} /><span>Front desk</span><b>Run the line</b></div>
+            <div className="qa-login-metric"><Timer size={18} /><span>Branch manager</span><b>Staff the floor</b></div>
+            <div className="qa-login-metric"><BarChart3 size={18} /><span>Executive</span><b>See every branch</b></div>
           </div>
         </div>
       </section>
@@ -66,7 +69,7 @@ export default function LoginPage() {
             <label>
               <span>Email</span>
               <div className="qa-login-input">
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@agency.gov.jm" autoComplete="email" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourorganisation.com" autoComplete="email" />
               </div>
             </label>
             <label>
@@ -84,7 +87,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="qa-login-help">Use the credentials provided by your administrator.</p>
+          <p className="qa-login-help">
+            Forgotten your password? Your branch manager or IT administrator can reset it —
+            accounts are created for you, so there is no self-service reset.
+          </p>
         </div>
       </section>
     </div>

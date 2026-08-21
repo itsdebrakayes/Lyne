@@ -2,6 +2,9 @@ import { createContext, createElement, useCallback, useContext, useEffect, useMe
 import type { ReactNode } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import { API_URL, supabase } from '@/lib/apiClient';
+// Type-only: erased at build time, so this does not create a runtime import
+// cycle with useSectorTerms, which imports this module for real.
+import type { SectorTerms } from './useSectorTerms';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
@@ -18,6 +21,13 @@ export interface StaffRecord {
   branch_name?: string;
   assigned_service_id?: string;
   assigned_service_name?: string;
+  /** Today's desk, from staff_assignments via /auth/me. Absent when unassigned. */
+  counter_label?: string;
+  counter_number?: number;
+  /** What this tenant's sector calls people, places and services. Read it
+   *  through useSectorTerms(), which supplies the government fallback rather
+   *  than letting an absent profile reach the screen. */
+  terms?: SectorTerms;
 }
 
 interface AdminData {

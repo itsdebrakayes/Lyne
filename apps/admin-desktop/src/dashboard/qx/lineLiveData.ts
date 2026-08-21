@@ -52,6 +52,10 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       /* When service actually started, so the timer resumes from the real
          elapsed time instead of restarting at 0:00 on every remount. */
       startedAt: t.started_serving_at || t.called_at || null,
+      readinessExpected: num(t.readiness_item_count) > 0,
+      readinessShown: Boolean(t.readiness_shown_at),
+      readinessOutcome: t.readiness_outcome || 'not_checked',
+      readinessNote: t.readiness_note || null,
     }));
 
   const history: LineDone[] = i.history.map((t) => ({

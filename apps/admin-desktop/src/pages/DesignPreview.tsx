@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarDays, CheckCircle2, Clock, FileText, Grid3x3,
   Headphones, LayoutGrid, MapPin, Settings, Target, TrendingUp, UserX, Users, Waypoints,
-  UserCheck, Activity, ClipboardList, Gauge, History, PhoneOff, SkipForward, Check, Hand,
+  UserCheck, Activity, ClipboardList, Gauge, History, PhoneOff, SkipForward, Check, Hand, CalendarClock,
 } from 'lucide-react';
 import {
   Shell, Head, Pills, Select, Card, Stat, Chart, LegendToggle, Funnel, Split, Ring,
@@ -19,6 +19,7 @@ import {
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 import Spotlight, { TOURS } from '@/components/Spotlight';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
+import { SessionsScreen, SessionsDataProvider, SESSIONS_EMPTY, SESSIONS_FIXTURES } from '@/components/dashboard/SessionsWorkspace';
 import { supTab, SUP_TAB_HEAD, SupDataProvider, SupOverviewQX, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
 import { lineTab, LINE_TAB_HEAD, LineDataProvider, LineOverviewQX, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
 
@@ -66,6 +67,7 @@ const MGR_NAV: QxNav[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid, group: 'Main' },
   { key: 'staff', label: 'Staff & Counters', icon: Users, group: 'Main', badge: 2 },
   { key: 'services', label: 'Services', icon: Waypoints, group: 'Main' },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock, group: 'Main' },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
   { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
   { key: 'reports', label: 'Reports', icon: FileText, group: 'Analyse' },
@@ -220,6 +222,8 @@ export default function DesignPreview() {
             : role === 'manager' && tab !== 'overview' && MGR_TAB_HEAD[tab]
               ? <TabHead key={tab} {...MGR_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
                   options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            : (role === 'supervisor' || role === 'manager') && tab === 'sessions'
+              ? <TabHead key={tab} title="Sessions" sub="A capped day people register for in advance, then check in on arrival" date="Today" />
             : role === 'supervisor' && tab !== 'overview' && SUP_TAB_HEAD[tab]
               ? <TabHead key={tab} {...SUP_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
                   options={[['today', 'Today'], ['7', '7 Days']]} />
@@ -237,9 +241,18 @@ export default function DesignPreview() {
             : <ExecDataProvider value={empty ? EXEC_EMPTY : EXEC_FIXTURES}>{execTab(tab, setTab)}</ExecDataProvider>)
           : role === 'manager'
             ? (tab === 'overview' ? <ManagerOverview onNav={setTab} />
+              : tab === 'sessions'
+                ? <SessionsDataProvider value={empty ? SESSIONS_EMPTY : SESSIONS_FIXTURES}><SessionsScreen /></SessionsDataProvider>
               : <MgrDataProvider value={empty ? MGR_EMPTY : MGR_FIXTURES}>{mgrTab(tab, setTab)}</MgrDataProvider>)
           : role === 'supervisor'
-            ? (
+            ? (tab === 'sessions'
+              /* canEdit=false, exactly as the live supervisor dashboard passes
+                 it: a supervisor checks people in but does not create or close
+                 a day. Rendering it here is what keeps the two from drifting. */
+              ? <SessionsDataProvider value={{ ...(empty ? SESSIONS_EMPTY : SESSIONS_FIXTURES), canEdit: false }}>
+                  <SessionsScreen />
+                </SessionsDataProvider>
+              : (
               /* Same component the live dashboard renders — the preview used to
                  show an older fixture board, which is exactly the drift this
                  architecture is meant to prevent. */
@@ -250,7 +263,7 @@ export default function DesignPreview() {
               }}>
                 {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
               </SupDataProvider>
-            )
+            ))
           : (
             <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>
               {tab === 'overview' ? <LineOverviewQX /> : lineTab(tab, setTab)}
@@ -267,9 +280,12 @@ export default function DesignPreview() {
  * Keeping the period control here means every tab is scoped the same way.
  */
 function TabHead({ title, sub, period, options, date }: {
-  title: string; sub: string; period: string; options: Array<[string, string]>; date: string;
+  title: string; sub: string; date: string;
+  /* Optional together: a screen showing ONE fixed day (a session) has no period
+     to pick, and a pill above it would drive nothing. */
+  period?: string; options?: Array<[string, string]>;
 }) {
-  const [p, setP] = useState(period);
+  const [p, setP] = useState(period ?? 'today');
   return (
     <Head
       title={title}
@@ -277,7 +293,7 @@ function TabHead({ title, sub, period, options, date }: {
       live="Live · 2 Min Ago"
       right={
         <>
-          <Pills value={p} onChange={setP} options={options} />
+          {options ? <Pills value={p} onChange={setP} options={options} /> : null}
           <span className="qx-datechip"><CalendarDays size={14} />{date}</span>
           <button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>
         </>
@@ -580,6 +596,7 @@ const SUP_NAV: QxNav[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid, group: 'Main' },
   { key: 'desks', label: 'Desk Assignment', icon: Hand, group: 'Main' },
   { key: 'staff', label: 'Staff', icon: Users, group: 'Main', badge: 1 },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock, group: 'Main' },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
   { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
   { key: 'support', label: 'Help & Support', icon: Headphones, group: 'Account' },

@@ -20,6 +20,18 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
+const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
+
+// Service-role client, used for exactly one thing: removing the auth identity
+// when someone deletes their account. It is created only if the service key is
+// configured, and every caller must tolerate it being null — a deployment
+// without the key should degrade, not crash at boot.
+const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
+const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
+  ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  : null;
 
 async function getStaffProfile(staffId) {
   const [rows] = await pool.query(
@@ -28,6 +40,8 @@ async function getStaffProfile(staffId) {
        r.name AS role_name,
        r.label AS role_label,
        b.name AS business_name,
+       b.sector AS sector,
+       ${SECTOR_COLUMNS},
        br.name AS branch_name,
        svc.name AS assigned_service_name,
        sa.id AS assignment_id,
@@ -37,6 +51,7 @@ async function getStaffProfile(staffId) {
      FROM staff s
      LEFT JOIN roles r ON r.id = s.role_id
      LEFT JOIN businesses b ON b.id = s.business_id
+     ${SECTOR_JOIN}
      LEFT JOIN branches br ON br.id = s.branch_id
      LEFT JOIN services svc ON svc.id = s.assigned_service_id
      LEFT JOIN staff_assignments sa
@@ -49,7 +64,10 @@ async function getStaffProfile(staffId) {
     [staffId]
   );
 
-  return rows[0] || null;
+  // Staff learn their organisation's vocabulary at sign-in, so every admin
+  // screen can be worded correctly on first paint rather than saying "Customer"
+  // and then correcting itself once a business lookup returns.
+  return rows[0] ? withTerms(rows[0]) : null;
 }
 
 // ── POST /api/auth/sync-user ──────────────────────────────────
@@ -202,6 +220,99 @@ router.post('/logout', requireAuth, async (req, res) => {
     console.error('logout error:', err);
     res.status(500).json({ error: 'Failed to logout.' });
   }
+});
+
+// ── DELETE /api/auth/account ───────────────────────────────────
+// Permanent account deletion, initiated by the account holder.
+//
+// Required by App Store guideline 5.1.1(v) and by the Jamaican Data Protection
+// Act's erasure right, but the reason it is written this carefully is that the
+// schema does NOT delete everything on its own.
+//
+// Seven tables cascade from `users` (device_push_tokens, notifications,
+// payment_intents, payment_methods, saved_businesses, user_sessions,
+// visit_history) — those look after themselves. Five others are ON DELETE SET
+// NULL, which orphans the row but KEEPS the contents:
+//
+//   • ocr_results        — extracted_national_id, extracted_trn,
+//                          extracted_passport, extracted_dob, raw_text.
+//                          The most sensitive data in the system. Hard-deleted.
+//   • intake_forms       — free-form submitted data. Hard-deleted.
+//   • queue_tickets      — guest_name / guest_phone survive. Scrubbed, then the
+//                          row is allowed to anonymise: the agency keeps its
+//                          operational record of "a person was served at 10:04",
+//                          with nothing left tying it to a human.
+//   • ticket_ratings,
+//     session_registrations — anonymise cleanly; no personal columns.
+//
+// Telling someone their data is gone while their scanned passport number sits
+// in a table with a null user_id would be a lie, and under the DPA an offence.
+router.delete('/account', requireAuth, async (req, res) => {
+  // Staff accounts are provisioned by their agency and are not the account
+  // holder's to delete — a customer must never be able to remove a staff row.
+  if (req.dbStaff) {
+    return res.status(403).json({ error: 'Staff accounts are managed by your organisation and cannot be deleted here.' });
+  }
+  if (!req.dbUser) {
+    return res.status(403).json({ error: 'User account required.' });
+  }
+
+  const userId = req.dbUser.id;
+  const uid = req.supabaseUser?.id;
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // Order matters: scrub the SET NULL tables BEFORE the users row goes, while
+    // user_id still identifies which rows are ours.
+    const [ocr] = await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
+    const [intake] = await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
+    await conn.query(
+      'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL WHERE user_id = ?',
+      [userId]
+    );
+
+    // Cascades take the remaining seven tables with it.
+    await conn.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    await conn.commit();
+    console.log(`[Account] Deleted user ${userId} — ${ocr.affectedRows} document scans, ${intake.affectedRows} intake forms removed.`);
+  } catch (err) {
+    await conn.rollback();
+    console.error('account deletion error:', err);
+    return res.status(500).json({ error: 'Could not delete your account. Nothing was removed — please try again.' });
+  } finally {
+    conn.release();
+  }
+
+  // The auth identity goes last and OUTSIDE the transaction: if this fails the
+  // application data is already gone, and leaving a login that resolves to
+  // nothing is a far better failure than rolling the data back and telling the
+  // person their deletion did not happen when most of it did.
+  let authRemoved = true;
+  try {
+    if (uid && supabaseAdmin) {
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
+      if (delErr) throw delErr;
+    } else {
+      authRemoved = false;
+    }
+  } catch (err) {
+    authRemoved = false;
+    console.error(`[Account] Data for ${userId} deleted but Supabase user ${uid} remains:`, err.message);
+  }
+
+  // Kill the session either way, so the app cannot keep acting as a user who no
+  // longer exists.
+  try {
+    await createRevocation(uid, null, 'account_deleted', new Date(Date.now() + 24 * 60 * 60 * 1000));
+  } catch { /* non-fatal */ }
+
+  res.json({
+    message: 'Your account and personal data have been deleted.',
+    auth_identity_removed: authRemoved,
+  });
 });
 
 // ── POST /api/auth/force-signout ───────────────────────────────

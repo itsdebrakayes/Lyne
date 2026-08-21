@@ -190,13 +190,25 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
             title={titleCase(`Open ${num(rec.extra_counters) || 1} More ${rec.service_name || ''} Window${num(rec.extra_counters) > 1 ? 's' : ''} At ${rec.branch_name || ''}`)}
             body={rec.why || 'The model flagged this line as the biggest source of waiting time.'}
             stats={[
-              { label: 'Wait Time', value: rec.projected_wait_minutes != null ? `${Math.round(num(rec.current_wait_minutes) - num(rec.projected_wait_minutes))} min` : '—', dir: 'good' },
+              // "Wait Time: 18 min" beside a staffing recommendation reads as
+              // the wait, not the saving. Name the effect.
+              { label: 'Saves About', value: rec.projected_wait_minutes != null ? `${Math.round(num(rec.current_wait_minutes) - num(rec.projected_wait_minutes))} min` : '—', dir: 'good' },
               { label: 'Windows', value: `+${num(rec.extra_counters) || 1}`, dir: 'good' },
             ]}
             action={{ label: 'View Branches', onClick: () => onNav('branches') }} />
         ) : (
-          <Focus eyebrow="Do This Next" title="Nothing Needs Moving Right Now"
-            body="No branch is short of cover against its demand. The staffing model republishes every two hours."
+          /* This card answers ONE question — is any branch short of cover? — but
+             it used to answer it as "Nothing Needs Moving Right Now", which
+             reads as an all-clear for the whole company. It sat directly beside
+             a Needs Attention panel naming a branch in trouble, so the executive
+             overview appeared to contradict itself on first glance.
+             The claim is now scoped to what the staffing model actually checked,
+             and when something else IS flagged the card says so instead of
+             implying calm. */
+          <Focus eyebrow="Do This Next" title="No Staffing Change Needed"
+            body={worstAnomaly || (branchRows[0] && totalWaiting > 0)
+              ? 'Cover matches demand at every branch — but something else is flagged. See Needs Attention, just below.'
+              : 'No branch is short of cover against its demand. The staffing model republishes every two hours.'}
             action={{ label: 'View Branches', onClick: () => onNav('branches') }} />
         )}
         <Card title="Needs Attention" cap="Ranked by how many people it is costing">
@@ -219,7 +231,10 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
         <Funnel steps={funnel} />
       </Card>
 
-      <Card span={4} title="How People Join" cap="The only two ways a ticket gets created">
+      {/* The window matters: this is a 90-day trend sitting beside a week-scoped
+          funnel. Unlabelled, the two cards looked like they disagreed — 34,382
+          joins here against 7,799 there. */}
+      <Card span={4} title="How People Join" cap="Last 90 days · the only two ways a ticket gets created">
         {channelSegments.some((s) => s.value > 0)
           ? <Split segments={channelSegments} note="Every app join is one less person a clerk has to key in." />
           : <div className="qx-empty">No channel data for this period yet.</div>}
