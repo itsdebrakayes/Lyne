@@ -24,12 +24,18 @@ export default {
       colors: {
         /* QME Now brand palette (from the design specification) */
         qme: {
-          purple: "#7b5fff",
-          "purple-deep": "#6b4eff",
-          violet: "#533483",
-          lavender: "#c4b5fd",
-          "lavender-dim": "#a78bfa",
-          navy: "#1a1a2e",
+          /* One blue across the product — these mirror the admin QX tokens and
+             the mobile theme, so the site, the phone and the staff desktop are
+             the same colour. The token NAMES are kept (purple/lavender) purely
+             so 100+ call sites do not all have to change in one commit; the
+             VALUES are the blue family. Rename them when the site is next
+             touched properly. Was #7b5fff / #533483 / #c4b5fd. */
+          purple: "#5a93e8",        /* accent on a dark ground = admin dark --c-primary */
+          "purple-deep": "#2e6fc7", /* lifted, for hover and glow  = --c-primary-bright */
+          violet: "#1b4b8f",        /* deep fill                   = admin light --c-primary */
+          lavender: "#b9c8dc",      /* muted body text on dark — blue-grey, not violet */
+          "lavender-dim": "#8fa3bd",
+          navy: "#0c1826",          /* matches the mobile app ground exactly */
           surface: "#16213e",
           mid: "#0f3460",
           yellow: "#f5a623",
@@ -39,7 +45,7 @@ export default {
           ink: "#1c1c1e",
           paper: "#f8f8f8",
           soft: "#f0f0f0",
-          night: "#0d0d1a",
+          night: "#08111c",   /* blue-black, was violet-black #0d0d1a */
           black: "#0d0d0d",
         },
         border: "var(--border)",

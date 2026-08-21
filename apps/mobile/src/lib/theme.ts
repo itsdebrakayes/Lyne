@@ -44,9 +44,13 @@ const lightColors = {
 
   // brand
   dark: '#0c1826', // navy hero tone — the boarding-pass ground
-  accent: '#2e6bff', // electric blue (--acc)
-  accentInk: '#ffffff', // ink on accent — white, because blue is a DARK accent
-  accentDeep: '#2f42e8', // deeper promo blue (premium card)
+  /* One blue across the whole product. These are the ADMIN QX values verbatim
+     (--c-primary / --c-primary-bright), so the phone, the staff desktop and the
+     website are the same colour rather than three shades of nearly-blue.
+     Was #2e6bff electric blue. */
+  accent: '#1b4b8f', // deep blue — CTAs, links, active states
+  accentInk: '#ffffff', // ink on accent — white; this blue is dark
+  accentDeep: '#143a6e', // deeper still: promo/premium ground, icons on white
 
   // status (green → amber → red)
   light: '#2fbf71',
@@ -96,9 +100,13 @@ const darkColors: Palette = {
   glassDarkBorder: 'rgba(255,255,255,0.10)',
 
   dark: '#16243a', // raised navy surface (heroes / primary buttons)
-  accent: '#4c82ff',
-  accentInk: '#ffffff',
-  accentDeep: '#5b6cf0',
+  /* Same hue, lifted — matching the admin's dark theme (--c-primary #5A93E8).
+     A deep navy accent on a near-black ground fails contrast and stops reading
+     as "press me", so the VALUE changes with the theme while the HUE does not.
+     accentDeep stays dark because it is used as ink on white tiles. */
+  accent: '#5a93e8',
+  accentInk: '#0b1220', // dark ink now, because this accent is light
+  accentDeep: '#1b4b8f',
 
   light: '#3fd07f',
   moderate: '#f5b83e',

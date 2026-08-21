@@ -222,7 +222,7 @@ function TheOldWay() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="panel-elev p-7 ring-1 ring-qme-purple/40 shadow-[0_0_70px_-24px_rgba(123,95,255,0.65)]"
+            className="panel-elev p-7 ring-1 ring-qme-purple/40 shadow-[0_0_70px_-24px_rgba(90,147,232,0.65)]"
           >
             <div className="mb-6 flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl border border-qme-purple/30 bg-qme-purple/15 text-qme-lavender">
@@ -427,7 +427,7 @@ function Pricing() {
               transition={{ duration: 0.5, delay: i * 0.08 }}
               className={`flex flex-col p-7 ${
                 plan.highlighted
-                  ? "panel-elev shadow-[0_0_70px_-20px_rgba(123,95,255,0.7)] ring-1 ring-qme-purple/40"
+                  ? "panel-elev shadow-[0_0_70px_-20px_rgba(90,147,232,0.7)] ring-1 ring-qme-purple/40"
                   : "panel"
               }`}
             >
