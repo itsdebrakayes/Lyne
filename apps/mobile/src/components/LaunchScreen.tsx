@@ -127,7 +127,7 @@ export default function LaunchScreen() {
       </View>
 
       <Animated.Text style={[{ color: 'rgba(255,255,255,.55)', fontFamily: font.semibold, fontSize: 13.5 }, tailStyle]}>
-        Skip the line, not your day.
+        Take your place before you arrive.
       </Animated.Text>
 
       <Animated.View style={[{ flexDirection: 'row', gap: 7, marginTop: 6 }, tailStyle]}>

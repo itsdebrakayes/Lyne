@@ -103,7 +103,7 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
 
       {onPlan && (
         <TouchableOpacity onPress={onPlan} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Plan your visit — every service, every branch</Text>
+          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Plan your visit. Every service, every branch</Text>
           <Ionicons name="arrow-forward" size={14} color={colors.accent} />
         </TouchableOpacity>
       )}

@@ -316,7 +316,7 @@ export default function BranchScreen() {
             </View>
             <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)', lineHeight: 17 }}>
               {joinState.allowed
-                ? <>Leave in <Text style={{ fontFamily: font.extra, color: '#fff' }}>~{leaveIn(selected)} min</Text> to reach the front on time — we&apos;ll remind you once you join.</>
+                ? <>Leave in <Text style={{ fontFamily: font.extra, color: '#fff' }}>~{leaveIn(selected)} min</Text> to reach the front on time. We&apos;ll remind you once you join.</>
                 : joinState.detail}
             </Text>
           </View>

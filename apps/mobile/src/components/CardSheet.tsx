@@ -70,13 +70,13 @@ export function CardSheet({
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <Ionicons name="lock-closed" size={13} color={colors.muted} />
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted }}>Encrypted and sent straight to Stripe — we never see your card.</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted }}>Encrypted and sent straight to Stripe. We never see your card.</Text>
           </View>
 
           {!paymentsConfigured() && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fdf3e7', borderRadius: 12, padding: 12, marginTop: 14 }}>
               <Ionicons name="time-outline" size={16} color={colors.moderate} />
-              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub }}>Card payments are launching soon — you can’t be charged yet.</Text>
+              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub }}>Card payments are launching soon. You can’t be charged yet.</Text>
             </View>
           )}
 

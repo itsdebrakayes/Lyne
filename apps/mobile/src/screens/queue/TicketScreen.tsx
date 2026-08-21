@@ -174,7 +174,7 @@ export default function TicketScreen() {
   const inService = ticket.status === 'in_service';
   const terminal = TERMINAL_META[ticket.status];
   const statusLabel = called
-    ? "It's your turn — head to the counter"
+    ? "It's your turn. Head to the counter"
     : inService
       ? 'You are being served now'
       : ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '));

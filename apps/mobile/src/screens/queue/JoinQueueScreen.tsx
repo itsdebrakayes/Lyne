@@ -242,7 +242,7 @@ export default function JoinQueueScreen() {
                   />
                   <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 12, color: readinessConfirmed ? colors.ink : colors.muted }}>
                     {readinessConfirmed
-                      ? 'Required items confirmed — you can join when the line is open.'
+                      ? 'Required items confirmed. You can join when the line is open.'
                       : `${requiredReadiness.filter(item => !checkedReadiness.includes(item.id)).length} required item${requiredReadiness.filter(item => !checkedReadiness.includes(item.id)).length === 1 ? '' : 's'} left to confirm.`}
                   </Text>
                 </View>
@@ -254,7 +254,7 @@ export default function JoinQueueScreen() {
               {[
                 { icon: 'ticket-outline', text: 'You get a ticket number and a six-digit code, straight away.' },
                 { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
-                { icon: 'shield-checkmark-outline', text: 'Show the code at the counter — it is how staff confirm it is you.' },
+                { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
               ].map(step => (
                 <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
                   <Ionicons name={step.icon as any} size={16} color={colors.accentDeep} style={{ marginTop: 1 }} />

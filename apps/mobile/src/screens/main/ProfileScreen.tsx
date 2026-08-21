@@ -210,7 +210,7 @@ export default function ProfileScreen() {
         {/* add another document — grayed placeholder for extra doc types */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture — with secure, Face ID-protected storage — are on the way. For now you can add your National ID and TRN above.')}
+          onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture is on the way, with secure Face ID-protected storage. For now you can add your National ID and TRN above.')}
           style={{ marginTop: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surfaceAlt, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         >
           <Icon name="plus" size={19} color={colors.muted} />

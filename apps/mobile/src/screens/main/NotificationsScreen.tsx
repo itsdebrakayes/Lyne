@@ -81,7 +81,7 @@ export default function NotificationsScreen() {
           <EmptyState
             icon="bell"
             title="Nothing to catch up on"
-            body="When you're called forward, when a wait changes, or when it's time to set off — it lands here."
+            body="When you're called forward, when a wait changes, or when it's time to set off, it lands here."
           />
         )}
 

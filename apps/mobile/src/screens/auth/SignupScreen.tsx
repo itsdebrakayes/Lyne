@@ -48,7 +48,7 @@ export default function SignupScreen() {
     if (!password) { setError('Create a password to secure your account.'); return; }
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
-    if (!trn.trim()) { setError('Add your TRN — branches use it to verify you.'); return; }
+    if (!trn.trim()) { setError('Add your TRN. Branches use it to verify you.'); return; }
     setLoading(true); setError(null);
     try {
       const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {

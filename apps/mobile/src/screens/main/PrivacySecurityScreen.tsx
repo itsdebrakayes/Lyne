@@ -83,7 +83,7 @@ export default function PrivacySecurityScreen() {
           <Row
             icon="finger-print-outline"
             title="Protect documents"
-            sub="Saved ID/TRN can require Face ID to view — toggle it when you add each document"
+            sub="Saved ID/TRN can require Face ID to view. Toggle it when you add each document"
             right={<Ionicons name="checkmark-circle" size={20} color={colors.light} />}
           />
         </View>
