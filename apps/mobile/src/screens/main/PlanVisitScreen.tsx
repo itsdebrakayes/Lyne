@@ -151,7 +151,7 @@ export default function PlanVisitScreen() {
             <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="sparkles" size={20} color={colors.accent} />
+                  <Ionicons name="time-outline" size={21} color={colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
@@ -240,7 +240,7 @@ export default function PlanVisitScreen() {
                 {/* upsell */}
                 <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="sparkles" size={15} color={colors.accent} />
+                    <Ionicons name="time-outline" size={16} color={colors.accent} />
                     <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>QME PREMIUM</Text>
                   </View>
                   <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>

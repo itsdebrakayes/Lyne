@@ -67,7 +67,7 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
     <View style={{ backgroundColor: colors.dark, borderRadius: 20, padding: 16, marginTop: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
         <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="sparkles" size={19} color={colors.accent} />
+          <Ionicons name="time-outline" size={20} color={colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM · SMART TIMING</Text>

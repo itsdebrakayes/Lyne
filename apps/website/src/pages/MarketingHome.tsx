@@ -433,7 +433,7 @@ function Pricing() {
             >
               {plan.highlighted && (
                 <span className="chip mb-4 w-fit">
-                  <Sparkles className="h-3 w-3" /> Most popular
+                  Most popular
                 </span>
               )}
               <p className="text-sm text-qme-lavender/65">{plan.name}</p>

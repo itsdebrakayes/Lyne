@@ -1828,7 +1828,7 @@ export function ExecSupport() {
         <Card title="Still Stuck?" cap="We answer within one business day">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Start A Conversation</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@qmenow.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />support@qme-now.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
           </div>
           <div style={{ marginTop: 13 }}>

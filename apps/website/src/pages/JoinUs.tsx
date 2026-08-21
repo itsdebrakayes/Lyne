@@ -71,7 +71,7 @@ const JoinUs = () => {
     const phone = String(data.get("phone") || "");
     const body = encodeURIComponent([`Name: ${name}`, `Email: ${email}`, `Phone: ${phone}`, "", message].join("\n"));
     setSubmitted(true);
-    window.location.href = `mailto:support@quemenow.com?subject=QME%20Now%20Quote%20Request&body=${body}`;
+    window.location.href = `mailto:support@qme-now.com?subject=QME%20Now%20Quote%20Request&body=${body}`;
   };
 
   return (
@@ -288,7 +288,7 @@ const JoinUs = () => {
                 <h2 className="mb-6 text-2xl font-bold tracking-tight">Contact information</h2>
                 <div className="space-y-5">
                   {[
-                    { icon: Mail, label: "Email", value: "support@quemenow.com" },
+                    { icon: Mail, label: "Email", value: "support@qme-now.com" },
                     { icon: Phone, label: "Phone", value: "+1 (876) 000-0000" },
                     { icon: MapPin, label: "Location", value: "Kingston, Jamaica" },
                   ].map(({ icon: Icon, label, value }) => (

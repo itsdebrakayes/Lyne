@@ -235,7 +235,7 @@ export default function ProfileScreen() {
             <SectionLabel>Demo controls</SectionLabel>
             <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, ...shadow.card }]}>
               <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="sparkle" size={19} color={colors.accent} />
+                <Ionicons name="eye-outline" size={20} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Preview Premium</Text>

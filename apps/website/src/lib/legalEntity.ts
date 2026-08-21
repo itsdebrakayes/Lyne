@@ -48,8 +48,8 @@ export const LEGAL_ENTITY: LegalEntity = {
   businessRegistrationNumber: "",
   registeredAddress: "",
   // These two are already used in the product, so they are not guesses.
-  privacyEmail: "privacy@qmenow.com",
-  supportEmail: "support@qmenow.com",
+  privacyEmail: "privacy@qme-now.com",
+  supportEmail: "support@qme-now.com",
   oicRegistration: "",
 };
 
