@@ -10,7 +10,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
-from build_qmenow_dossier import (
+from build_lyne_dossier import (
     DARK,
     LIGHT_GREY,
     MID_GREY,
@@ -39,9 +39,9 @@ OUTPUTS = ROOT / "outputs"
 
 DOCS = [
     {
-        "source": RESEARCH / "QMeNow_App_Only_Budget_2026-07-31.md",
-        "output": OUTPUTS / "QMeNow_App_Only_Budget_2026-07-31.docx",
-        "title": "QMeNow App-Only\nLaunch Budget",
+        "source": RESEARCH / "Lyne_App_Only_Budget_2026-07-31.md",
+        "output": OUTPUTS / "Lyne_App_Only_Budget_2026-07-31.docx",
+        "title": "Lyne App-Only\nLaunch Budget",
         "subtitle": "What the software costs, why every line is necessary, and what can wait",
         "short_title": "App-Only Launch Budget",
         "document_type": "FAMILY FUNDING BRIEF",
@@ -54,9 +54,9 @@ DOCS = [
         "one_page": False,
     },
     {
-        "source": RESEARCH / "QMeNow_Granular_Feasibility_Study_2026-07-31.md",
-        "output": OUTPUTS / "QMeNow_Granular_Feasibility_Study_2026-07-31.docx",
-        "title": "QMeNow Granular\nFeasibility Study",
+        "source": RESEARCH / "Lyne_Granular_Feasibility_Study_2026-07-31.md",
+        "output": OUTPUTS / "Lyne_Granular_Feasibility_Study_2026-07-31.docx",
+        "title": "Lyne Granular\nFeasibility Study",
         "subtitle": "Cost, price, customer capacity, break-even, delivery risk and go/no-go gates",
         "short_title": "Granular Feasibility Study",
         "document_type": "INVESTMENT DECISION",
@@ -69,9 +69,9 @@ DOCS = [
         "one_page": False,
     },
     {
-        "source": RESEARCH / "QMeNow_Feasibility_One_Page_Decision_2026-07-31.md",
-        "output": OUTPUTS / "QMeNow_Feasibility_One_Page_Decision_2026-07-31.docx",
-        "title": "QMeNow: One-Page Investment Decision",
+        "source": RESEARCH / "Lyne_Feasibility_One_Page_Decision_2026-07-31.md",
+        "output": OUTPUTS / "Lyne_Feasibility_One_Page_Decision_2026-07-31.docx",
+        "title": "Lyne: One-Page Investment Decision",
         "subtitle": "The cost, commercial test and clear answer",
         "short_title": "One-Page Investment Decision",
         "document_type": "DECISION IN ONE PAGE",
@@ -80,7 +80,7 @@ DOCS = [
             "YES—conditionally. Proceed in stages, win a paid private pilot, and do not spend "
             "J$11M before customer proof."
         ),
-        "subject": "One-page QMeNow feasibility decision",
+        "subject": "One-page Lyne feasibility decision",
         "one_page": True,
     },
 ]
@@ -249,7 +249,7 @@ def add_header_footer(section, short_title: str, first_page_blank: bool) -> None
     p = header.paragraphs[0]
     p.clear()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run = p.add_run(f"QMeNow  •  {short_title}")
+    run = p.add_run(f"Lyne  •  {short_title}")
     run.font.name = "Arial"
     run.font.size = Pt(8)
     run.font.bold = True
@@ -287,7 +287,7 @@ def add_masthead(doc: Document, document_type: str, compact: bool = False) -> No
     for cell in (left, right):
         set_cell_margins(cell, 25 if compact else 40, 20, 25 if compact else 40, 20)
     p = left.paragraphs[0]
-    run = p.add_run("QMeNow")
+    run = p.add_run("Lyne")
     run.font.name = "Arial"
     run.font.size = Pt(15 if compact else 18)
     run.font.bold = True
@@ -543,8 +543,8 @@ def set_properties(doc: Document, spec: dict) -> None:
     props = doc.core_properties
     props.title = spec["title"].replace("\n", " ")
     props.subject = spec["subject"]
-    props.author = "QMeNow"
-    props.keywords = "QMeNow, Jamaica, budget, feasibility, queue management"
+    props.author = "Lyne"
+    props.keywords = "Lyne, Jamaica, budget, feasibility, queue management"
     props.comments = "Evidence cut-off 31 July 2026"
 
 

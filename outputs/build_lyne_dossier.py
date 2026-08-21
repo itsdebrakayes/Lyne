@@ -14,8 +14,8 @@ from docx.shared import Cm, Inches, Pt, RGBColor
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "research" / "QMeNow_Next_Step_Decision_and_Funding_Dossier_2026-07-31.md"
-OUTPUT = ROOT / "outputs" / "QMeNow_Next_Step_Decision_and_Funding_Dossier_2026-07-31.docx"
+SOURCE = ROOT / "research" / "Lyne_Next_Step_Decision_and_Funding_Dossier_2026-07-31.md"
+OUTPUT = ROOT / "outputs" / "Lyne_Next_Step_Decision_and_Funding_Dossier_2026-07-31.docx"
 
 # decision_memo preset: Arial, compact professional hierarchy, 6 pt body spacing,
 # H1 12/6 and H2 10/5 before/after, restrained color.
@@ -266,7 +266,7 @@ def add_header_footer(section, first=False) -> None:
     p = header.paragraphs[0]
     p.clear()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run = p.add_run("QMeNow  •  Decision & Funding Dossier")
+    run = p.add_run("Lyne  •  Decision & Funding Dossier")
     run.font.name = "Arial"
     run.font.size = Pt(8)
     run.font.bold = True
@@ -303,7 +303,7 @@ def add_cover(doc: Document, bottom_line: str) -> None:
     for cell in (left, right):
         set_cell_margins(cell, 40, 20, 40, 20)
     p = left.paragraphs[0]
-    run = p.add_run("QMeNow")
+    run = p.add_run("Lyne")
     run.font.name = "Arial"
     run.font.size = Pt(18)
     run.font.bold = True
@@ -318,7 +318,7 @@ def add_cover(doc: Document, bottom_line: str) -> None:
 
     doc.add_paragraph().paragraph_format.space_after = Pt(60)
     title = doc.add_paragraph(style="Title")
-    title.add_run("QMeNow:\nNext-Step Decision\nand Funding Dossier")
+    title.add_run("Lyne:\nNext-Step Decision\nand Funding Dossier")
     subtitle = doc.add_paragraph(style="Subtitle")
     subtitle.add_run("Market choice, court positioning, product readiness, funding routes and launch budgets")
 
@@ -329,7 +329,7 @@ def add_cover(doc: Document, bottom_line: str) -> None:
     meta.columns[1].width = Cm(13.8)
     values = [
         ("DECISION DATE", "31 July 2026"),
-        ("PREPARED FOR", "QMeNow founder and family funding discussion"),
+        ("PREPARED FOR", "Lyne founder and family funding discussion"),
         ("GEOGRAPHY", "Jamaica, with regional-scale architecture"),
     ]
     for row, (label, value) in zip(meta.rows, values):
@@ -562,10 +562,10 @@ def render_markdown(doc: Document, source_text: str) -> None:
 
 def add_document_properties(doc: Document) -> None:
     props = doc.core_properties
-    props.title = "QMeNow: Next-Step Decision and Funding Dossier"
+    props.title = "Lyne: Next-Step Decision and Funding Dossier"
     props.subject = "Jamaica market strategy, funding, procurement and launch budget"
-    props.author = "QMeNow"
-    props.keywords = "QMeNow, Jamaica, queue management, credit unions, courts, grants, budget"
+    props.author = "Lyne"
+    props.keywords = "Lyne, Jamaica, queue management, credit unions, courts, grants, budget"
     props.comments = "Evidence cut-off 31 July 2026"
 
 

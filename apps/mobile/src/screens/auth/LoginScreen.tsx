@@ -2,7 +2,7 @@
  * LoginScreen — brand-framed sign in.
  *
  * Carries the welcome screen's visual language onto auth: a white canvas with
- * the QMe brand-tile mosaic bleeding in from the top and bottom edges (you see
+ * the Lyne brand-tile mosaic bleeding in from the top and bottom edges (you see
  * half of it at each end), fading into white around a centred Lyne lockup,
  * the sign-in form, and one black button — the same forest button as the
  * intro's "Start queuing".

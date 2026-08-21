@@ -162,18 +162,18 @@ Use “member check-in,” “service request,” “loan officer,” “advisor
 
 | Prospect | Public service-flow evidence | Public maturity signal | Best first service |
 |---|---|---|---|
-| **Access Financial** | Online/mobile loan application, telephone/email/social contact, 16 branches, published document requirements and branch-based exception requests | **A/Unknown:** no public virtual queue or queue-connected appointment tool was identified; verify internally | **QMe Branch Flow:** join/check in for loan application, disbursement, payment/query or loan-officer service; live wait and manager view |
-| **LASCO Microfinance** | Online application captures preferred branch and documents; a representative responds within 24–48 hours; nine branches; loan disbursement stated as 1–5 working days when documents are provided | **A/Unknown:** no public virtual queue was identified; verify internally | **QMe Loan Visit:** staff/remote check-in, service reason, document-ready indicator, live wait and branch-demand report |
-| **JPS & Partners Credit Union** | Online member/loan information and branch/ATM finder | **A/Unknown:** no public appointment/live queue was identified, but public evidence of actual waiting demand is limited | **QMe Member Service:** one-branch pilot for loan officer, membership and account-service visits |
+| **Access Financial** | Online/mobile loan application, telephone/email/social contact, 16 branches, published document requirements and branch-based exception requests | **A/Unknown:** no public virtual queue or queue-connected appointment tool was identified; verify internally | **Lyne Branch Flow:** join/check in for loan application, disbursement, payment/query or loan-officer service; live wait and manager view |
+| **LASCO Microfinance** | Online application captures preferred branch and documents; a representative responds within 24–48 hours; nine branches; loan disbursement stated as 1–5 working days when documents are provided | **A/Unknown:** no public virtual queue was identified; verify internally | **Lyne Loan Visit:** staff/remote check-in, service reason, document-ready indicator, live wait and branch-demand report |
+| **JPS & Partners Credit Union** | Online member/loan information and branch/ATM finder | **A/Unknown:** no public appointment/live queue was identified, but public evidence of actual waiting demand is limited | **Lyne Member Service:** one-branch pilot for loan officer, membership and account-service visits |
 | **First Heritage Credit Union** | Online form can request a consultation/callback and preferred date/time | **B:** partial scheduling already exists; not the first greenfield target | Add live arrival/wait and in-branch flow only if discovery identifies a gap |
 | **JMMB** | Publicly documented QMS, digital kiosks and waiting-experience data | **C** | Deprioritise |
 | **NCB** | Public branch appointments and queue-connected visit journey | **C** | Deprioritise |
 
 ### Minimum finance service package
 
-Call it **QMe Branch Flow**, not an AI transformation platform.
+Call it **Lyne Branch Flow**, not an AI transformation platform.
 
-A separate app-first implementation brief is available at [QMe Financial Services Prototype Brief](./QMe_Financial_Services_Prototype_Brief.md).
+A separate app-first implementation brief is available at [Lyne Financial Services Prototype Brief](./Lyne_Financial_Services_Prototype_Brief.md).
 
 - Join/check in by branch and service reason
 - Staff-assisted walk-in
@@ -269,15 +269,15 @@ Elite is a particularly useful discovery target because its public process expli
 
 | Prospect | Public service-flow evidence | Public maturity signal | Best first service |
 |---|---|---|---|
-| **Ultra Medical Services** | Patient journey begins with a call; walk-ins are welcome; online referrals trigger staff scheduling follow-up; two modalities | **A/Unknown:** no public live queue or self-service appointment system was identified | **QMe Imaging Wait:** walk-in X-ray/ultrasound arrival, live wait, privacy-safe approach notification and modality view |
-| **Pines Imaging Centre** | Public contact uses telephone, WhatsApp/contact form and “Schedule a Visit”; emphasis on turnaround and patient care | **A/Unknown:** no public live virtual queue was identified | **QMe Patient Arrival:** check-in, referral/preparation confirmation, live wait and front-desk worklist |
+| **Ultra Medical Services** | Patient journey begins with a call; walk-ins are welcome; online referrals trigger staff scheduling follow-up; two modalities | **A/Unknown:** no public live queue or self-service appointment system was identified | **Lyne Imaging Wait:** walk-in X-ray/ultrasound arrival, live wait, privacy-safe approach notification and modality view |
+| **Pines Imaging Centre** | Public contact uses telephone, WhatsApp/contact form and “Schedule a Visit”; emphasis on turnaround and patient care | **A/Unknown:** no public live virtual queue was identified | **Lyne Patient Arrival:** check-in, referral/preparation confirmation, live wait and front-desk worklist |
 | **Elite Diagnostic** | Appointment is required; appointment form, phone and WhatsApp are public; patients arrive early with referral, ID and insurance | **B:** appointment intake exists, but no public live-wait layer was identified | Add appointment arrival, live waiting and readiness status—not a replacement booking system |
 | **PRIME Medical** | Public appointment, doctor check-in and coordinated multi-service pathways | **B/Unknown:** more digitally mature public journey | Only pursue after learning what its current check-in flow does not solve |
 | **Private hospitals** | Multiple clinical/outpatient/emergency paths | **Unknown/high risk** | Defer; begin only with a non-clinical outpatient department after clinical-safety review |
 
 ### Minimum diagnostic service package
 
-Call it **QMe Patient Arrival & Wait**.
+Call it **Lyne Patient Arrival & Wait**.
 
 - One location and one or two non-emergency services/modalities
 - Remote join through the Lyne mobile app
@@ -374,10 +374,10 @@ Do not say Lyne fixes registration if the failure is in the student portal, cour
 
 | Prospect | Public service-flow evidence | Public maturity signal | Best first service |
 |---|---|---|---|
-| **NCU** | Aeorion supports online registration, but the published process still directs some students to physical Student Finance registration; add/drop, SLB and adviser dependencies remain | **A/Unknown:** no public virtual queue identified | **QMe Registration Support:** issue selection, Student Finance/Records/adviser routing, live wait and peak-period report |
-| **UCC** | Registration portal, live chat, phone/email and direct assistance through Student Financial Services or the closest campus | **A–B/Unknown:** multichannel support exists, but no public live virtual queue identified | **QMe Multi-Campus Support:** one line by issue and campus, with wait visibility and transfer |
-| **UTech** | Automated financial clearance and portal In-Tray; support is required for exceptions; 2025 disruption produced long in-person admissions lines | **B/Unknown:** mature core portal, no public support-queue tool identified | **QMe Registration Exception Hub:** route portal/payment/module exceptions to the correct support team |
-| **UWI Mona** | SAS portal plus SASS online, phone, live chat and face-to-face service; in-person RIS support during orientation | **B/Unknown:** strong multichannel service, no public live queue identified | **QMe SASS/Orientation Support:** issue-first virtual line and office transfers |
+| **NCU** | Aeorion supports online registration, but the published process still directs some students to physical Student Finance registration; add/drop, SLB and adviser dependencies remain | **A/Unknown:** no public virtual queue identified | **Lyne Registration Support:** issue selection, Student Finance/Records/adviser routing, live wait and peak-period report |
+| **UCC** | Registration portal, live chat, phone/email and direct assistance through Student Financial Services or the closest campus | **A–B/Unknown:** multichannel support exists, but no public live virtual queue identified | **Lyne Multi-Campus Support:** one line by issue and campus, with wait visibility and transfer |
+| **UTech** | Automated financial clearance and portal In-Tray; support is required for exceptions; 2025 disruption produced long in-person admissions lines | **B/Unknown:** mature core portal, no public support-queue tool identified | **Lyne Registration Exception Hub:** route portal/payment/module exceptions to the correct support team |
+| **UWI Mona** | SAS portal plus SASS online, phone, live chat and face-to-face service; in-person RIS support during orientation | **B/Unknown:** strong multichannel service, no public live queue identified | **Lyne SASS/Orientation Support:** issue-first virtual line and office transfers |
 
 #### NCU: best immediate university fit
 
@@ -419,11 +419,11 @@ A warm introduction materially changes the order of attack. If the founder can r
 
 The product to build is not “university registration.” It is:
 
-> **QMe Campus Support Queue — one digital front door for students whose registration, payment, financial-clearance or module-selection issue needs human help.**
+> **Lyne Campus Support Queue — one digital front door for students whose registration, payment, financial-clearance or module-selection issue needs human help.**
 
 The existing portal remains the system of record. Lyne organises the assistance around it.
 
-A separate implementation-ready brief is available at [QMe Campus Support Prototype Brief](./QMe_Campus_Support_Prototype_Brief.md).
+A separate implementation-ready brief is available at [Lyne Campus Support Prototype Brief](./Lyne_Campus_Support_Prototype_Brief.md).
 
 ### Concrete UWI example: SASS and registration-support flow
 

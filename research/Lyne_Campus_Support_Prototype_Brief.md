@@ -1,4 +1,4 @@
-# QMe Campus Support
+# Lyne Campus Support
 
 ## App-first prototype brief for UWI Mona and UTech Jamaica
 

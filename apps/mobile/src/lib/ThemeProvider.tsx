@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyScheme, ThemeScheme } from './theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-const STORAGE_KEY = 'qme.theme-mode';
+const STORAGE_KEY = 'lyne.theme-mode';
 
 interface ThemeCtx { mode: ThemeMode; scheme: ThemeScheme; setMode: (m: ThemeMode) => void; }
 const Ctx = createContext<ThemeCtx>({ mode: 'system', scheme: 'light', setMode: () => {} });

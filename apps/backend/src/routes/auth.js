@@ -174,7 +174,7 @@ router.patch('/profile', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/auth/start-trial ───────────────────────────────
-// Unlocks QMe Premium (Smart Timing / visit planner) for this user.
+// Unlocks Lyne Premium (Smart Timing / visit planner) for this user.
 // Billing comes later — for now a trial start simply flips the flag.
 router.post('/start-trial', requireAuth, async (req, res) => {
   if (!req.dbUser) {

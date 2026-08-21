@@ -20,7 +20,7 @@ def connect():
         port=int(os.getenv("MYSQL_PORT", "3308")),
         user=os.getenv("MYSQL_USER", "lyne"),
         password=os.getenv("MYSQL_PASSWORD", "lyne_secret"),
-        database=os.getenv("MYSQL_DATABASE", "qme_now"),
+        database=os.getenv("MYSQL_DATABASE", "lyne"),
         cursorclass=pymysql.cursors.DictCursor,
     )
 

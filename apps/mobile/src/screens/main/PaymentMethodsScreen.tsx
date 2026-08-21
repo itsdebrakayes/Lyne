@@ -54,7 +54,7 @@ export default function PaymentMethodsScreen() {
         </View>
 
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, lineHeight: 21, marginBottom: 6 }}>
-          Cards you save here are used for QMe Premium. Your card details are held securely by Stripe — never on our servers.
+          Cards you save here are used for Lyne Premium. Your card details are held securely by Stripe — never on our servers.
         </Text>
 
         {!paymentsConfigured() && (

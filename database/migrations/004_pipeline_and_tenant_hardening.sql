@@ -3,4 +3,4 @@
 -- =============================================================
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES
-('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support');
+('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal Lyne operator for onboarding and support');

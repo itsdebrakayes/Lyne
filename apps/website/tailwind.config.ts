@@ -23,7 +23,7 @@ export default {
       },
       colors: {
         /* Lyne brand palette (from the design specification) */
-        qme: {
+        lyne: {
           /* One blue across the product — these mirror the admin QX tokens and
              the mobile theme, so the site, the phone and the staff desktop are
              the same colour. The token NAMES are kept (purple/lavender) purely

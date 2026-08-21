@@ -8,7 +8,7 @@
 -- Populated from queue_tickets.channel when a visit completes.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

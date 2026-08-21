@@ -3,7 +3,7 @@ import type { ElementType, ReactNode } from 'react';
 const SPECIAL_DISPLAY_WORDS: Record<string, string> = {
   avg: 'Avg',
   id: 'ID',
-  qme: 'QMe',
+  lyne: 'Lyne',
 };
 
 export function displayLabel(value?: string | number | null) {

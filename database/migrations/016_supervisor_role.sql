@@ -5,7 +5,7 @@
 -- staff, busy times) and can VIEW targets, but not set them.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-supervisor-001', 'supervisor', 'Supervisor',

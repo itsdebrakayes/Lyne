@@ -1,5 +1,5 @@
 /**
- * PremiumBadge — QMe's premium marker, styled after the JamAI subscription
+ * PremiumBadge — Lyne's premium marker, styled after the JamAI subscription
  * badge: a rounded-full pill with a tier icon, a gradient fill, and white
  * text. One component so every "Premium" marker in the app reads the same.
  */
@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../lib/theme';
 
-// Cyan → blue, echoing JamAI's "Plus" gradient but on QMe's brand cyan.
+// Cyan → blue, echoing JamAI's "Plus" gradient but on Lyne's brand cyan.
 const GRADIENT = ['#1fc2de', '#2b6fe3'] as const;
 
 export function PremiumBadge({

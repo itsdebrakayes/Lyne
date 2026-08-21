@@ -3,7 +3,7 @@
  *
  * Best time to visit, per service, per branch — computed from the last 90
  * days of real visit history. Free tier sees the branch-level headline and a
- * locked preview; QMe Premium unlocks the per-service planner. The trial
+ * locked preview; Lyne Premium unlocks the per-service planner. The trial
  * button flips the flag server-side so both states are real, not mocked.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -241,7 +241,7 @@ export default function PlanVisitScreen() {
                 <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Ionicons name="time-outline" size={16} color={colors.accent} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>QME PREMIUM</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
                   </View>
                   <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
                   {[
@@ -277,7 +277,7 @@ export default function PlanVisitScreen() {
         )}
       </ScrollView>
 
-      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get QMe Premium" submitLabel="Subscribe" />
+      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get Lyne Premium" submitLabel="Subscribe" />
     </View>
   );
 }

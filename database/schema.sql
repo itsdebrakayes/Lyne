@@ -5,11 +5,11 @@
 -- Data: All application data stored in MySQL
 -- =============================================================
 
-CREATE DATABASE IF NOT EXISTS qme_now
+CREATE DATABASE IF NOT EXISTS lyne
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE qme_now;
+USE lyne;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -160,7 +160,7 @@ INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-supervisor-001',     'supervisor',     'Supervisor',     'Section/branch supervisor — read-only operational view; sees branch targets'),
 ('role-mgr-001',            'manager',        'Manager',        'Branch manager for staff assignments and branch operations'),
 ('role-exec-001',           'executive',      'Executive',      'Business-wide executive dashboard and analytics access'),
-('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support');
+('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal Lyne operator for onboarding and support');
 
 
 -- =============================================================

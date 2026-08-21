@@ -10,7 +10,7 @@
 -- operational numbers — so only the three operational metrics live here.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS branch_targets (
   branch_id              CHAR(36)  NOT NULL PRIMARY KEY,

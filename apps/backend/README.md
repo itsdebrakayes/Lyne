@@ -15,7 +15,7 @@ Supabase Auth Service ──► issues JWT
         │
         │  All data requests (Bearer JWT)
         ▼
-  This Express API  ──► MySQL (qme_now database)
+  This Express API  ──► MySQL (lyne database)
 ```
 
 Supabase is used **only** for authentication. All application data (queues, tickets, staff, analytics, predictions, etc.) lives in MySQL.

@@ -664,7 +664,7 @@ export function ExecServices() {
         <Card title="How People Join" cap="The only two ways a ticket gets created">
           <Split note="Every app join is one less person a clerk has to key in at the counter."
             segments={[
-              { label: 'QMe App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+              { label: 'Lyne App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
               { label: 'Branch Kiosk', value: 318, color: 'var(--c-second)', sub: 'Added at the branch' },
             ]} />
         </Card>
@@ -1251,7 +1251,7 @@ function PaperPage({ page, n, total, ctx }: {
         <h6>Executive Summary</h6>
         <p>
           Across {ctx.periodLabel.toLowerCase()}, Tax Administration Jamaica served <b>2,847 customers</b> through
-          the QMe queueing system, an increase of <b>12.4%</b> on the preceding period. Ninety-one per cent of
+          the Lyne queueing system, an increase of <b>12.4%</b> on the preceding period. Ninety-one per cent of
           people who joined a line were seen and served, against a company target of eighty-five.
         </p>
         <div className="qx-paperkpis">
@@ -1292,7 +1292,7 @@ function PaperPage({ page, n, total, ctx }: {
           demand, is the binding constraint on waiting time.
         </p>
         <p>
-          Adoption of the QMe mobile app rose from seventy-six to <b>eighty-nine per cent</b> of all tickets.
+          Adoption of the Lyne mobile app rose from seventy-six to <b>eighty-nine per cent</b> of all tickets.
           Every app join is a ticket a clerk does not key in by hand, and the shift is measurable in reduced
           front-desk load at all five branches.
         </p>
@@ -1526,14 +1526,14 @@ function PaperPage({ page, n, total, ctx }: {
         {run}
         <h6>How People Join</h6>
         <p>
-          A ticket can be created in exactly two ways: through the QMe mobile app, or at a branch kiosk.
+          A ticket can be created in exactly two ways: through the Lyne mobile app, or at a branch kiosk.
           There is no walk-up desk intake in the system, so every figure in this report describes people who
           entered a queue by one of those two routes.
         </p>
         <table className="qx-papertable">
           <thead><tr><th>Channel</th><th>Tickets</th><th>Share</th><th>Change</th></tr></thead>
           <tbody>
-            <tr><td>QMe App</td><td className="n">2,529</td><td className="n">89%</td><td className="n">+13 pts</td></tr>
+            <tr><td>Lyne App</td><td className="n">2,529</td><td className="n">89%</td><td className="n">+13 pts</td></tr>
             <tr><td>Branch Kiosk</td><td className="n">318</td><td className="n">11%</td><td className="n">−13 pts</td></tr>
           </tbody>
         </table>
@@ -1707,7 +1707,7 @@ export function ExecSettings() {
 
   return (
     <div className="qx-grid">
-      <Card span={7} title="Company Details" cap="Shown to customers in the QMe app and printed on every report">
+      <Card span={7} title="Company Details" cap="Shown to customers in the Lyne app and printed on every report">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {[
             ['Organisation Name', 'Tax Administration Jamaica'],
@@ -1791,7 +1791,7 @@ export function ExecSettings() {
 const FX_FAQ: Array<{ q: string; a: string }> = [
   { q: 'Where Do These Numbers Come From?', a: 'Every figure on your dashboard is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except the items explicitly labelled as a forecast, which come from the prediction models and are refreshed every two hours.' },
   { q: 'What Is The Health Score Out Of 100?', a: 'Four measures, equally weighted: wait time control, completed visits, no-show control, and staffing discipline. Open any manager under the Managers tab to see the four component scores that produced their number.' },
-  { q: 'Why Does A Branch Show Fewer People Than I Counted?', a: 'The system only knows about people who joined a line — through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
+  { q: 'Why Does A Branch Show Fewer People Than I Counted?', a: 'The system only knows about people who joined a line — through the Lyne app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
   { q: 'Can I Change The Targets?', a: 'Yes. Targets are yours to set under the Targets tab, and every branch, manager score and report in the system is judged against whatever you set there. You can also hold an individual branch to a stricter or looser number using a branch override.' },
   { q: 'How Do I Add A New Branch?', a: 'Create the manager account first under Settings, then attach the branch to that manager. A branch cannot exist without someone accountable for it.' },
   { q: 'Who Can See This Dashboard?', a: 'Only executive accounts see island-wide figures. A branch manager sees their own branch, a supervisor sees their section, and line staff see only their own window and queue.' },
@@ -1839,7 +1839,7 @@ export function ExecSupport() {
         <Card title="System Status" cap="Live">
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {[
-              ['Dashboard', 'open'], ['QMe Mobile App', 'open'], ['Branch Kiosks', 'open'], ['Prediction Models', 'open'],
+              ['Dashboard', 'open'], ['Lyne Mobile App', 'open'], ['Branch Kiosks', 'open'], ['Prediction Models', 'open'],
             ].map(([name, state]) => (
               <div className="qx-setrow" key={name}>
                 <div><b>{name}</b></div>

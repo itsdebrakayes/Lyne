@@ -12,7 +12,7 @@
 -- (3rd Monday in October) are pre-computed per year.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS public_holidays (
     holiday_date  DATE         NOT NULL,

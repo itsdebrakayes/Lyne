@@ -31,7 +31,7 @@ const EXEC_FAQ = [
   { q: 'Where Do These Numbers Come From?',
     a: 'Every figure is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except items explicitly labelled as a forecast, which come from the prediction models.' },
   { q: 'Why Does A Branch Show Fewer People Than I Counted?',
-    a: 'The system only knows about people who joined a line, through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
+    a: 'The system only knows about people who joined a line, through the Lyne app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
   { q: 'How Often Do The Numbers Update?',
     a: 'They recalculate automatically in the background on a schedule, and the timestamp beside Update always tells you how fresh they are. If you need them recalculated immediately — before a meeting, say — press Update.' },
 ];

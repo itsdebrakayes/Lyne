@@ -1,7 +1,7 @@
 /**
  * OnboardingScreen — the welcome moment (single screen, GoMart-style).
  *
- * A brand mosaic fills the top: rounded tiles in QMe forest/cyan carrying the
+ * A brand mosaic fills the top: rounded tiles in Lyne forest/cyan carrying the
  * product's icons, on a soft cyan-tinted canvas (the dark tiles are what
  * "gradient into black" becomes in a future dark mode). Below: the welcome,
  * the slogan, and one verb — Start queuing.

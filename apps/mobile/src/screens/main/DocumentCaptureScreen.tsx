@@ -72,7 +72,7 @@ async function attemptOcr(_field: Field, _uri: string): Promise<string | null> {
   return null;
 }
 
-const protectKey = (field: Field) => `qme.doc-protected.${field}`;
+const protectKey = (field: Field) => `lyne.doc-protected.${field}`;
 
 export default function DocumentCaptureScreen() {
   const navigation = useNavigation<any>();

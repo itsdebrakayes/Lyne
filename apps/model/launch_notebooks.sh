@@ -31,7 +31,7 @@ PORT="${JUPYTER_PORT:-8888}"
 echo "Starting JupyterLab on http://localhost:${PORT} …"
 jupyter lab --port "${PORT}" --no-browser \
   --ServerApp.token='' --ServerApp.password='' \
-  --ServerApp.root_dir="$(pwd)" > /tmp/qme_jupyter.log 2>&1 &
+  --ServerApp.root_dir="$(pwd)" > /tmp/lyne_jupyter.log 2>&1 &
 sleep 5
 
 open_cmd="open"; command -v xdg-open >/dev/null 2>&1 && open_cmd="xdg-open"
@@ -51,4 +51,4 @@ echo
 echo "JupyterLab is running at:  http://localhost:${PORT}/lab"
 echo "Each notebook opened as a tab. In each: Run ▸ Run All Cells."
 echo "Set WRITE_DB=1 before launching to also upsert insights into predictive_results."
-echo "Server log: /tmp/qme_jupyter.log   ·   Stop it with: jupyter lab stop ${PORT}"
+echo "Server log: /tmp/lyne_jupyter.log   ·   Stop it with: jupyter lab stop ${PORT}"

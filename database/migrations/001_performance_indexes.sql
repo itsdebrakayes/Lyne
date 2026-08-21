@@ -4,7 +4,7 @@
 -- Run AFTER schema.sql.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-USE qme_now;
+USE lyne;
 
 -- ── queue_tickets ────────────────────────────────────────────────────────────
 -- Most-queried table: staff dashboard, live position, wait-time calc

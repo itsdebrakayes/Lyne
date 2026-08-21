@@ -3,7 +3,7 @@
 -- Adds staff availability tracking for honest leave counts.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

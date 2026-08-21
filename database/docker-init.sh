@@ -22,21 +22,21 @@
 # safer and easier to reason about.
 set -euo pipefail
 
-SQL_DIR=/qme-sql
-DB="${MYSQL_DATABASE:-qme_now}"
+SQL_DIR=/lyne-sql
+DB="${MYSQL_DATABASE:-lyne}"
 
 run() {
-  echo "[qme-init] $(basename "$1")"
+  echo "[lyne-init] $(basename "$1")"
   # --force is deliberately NOT used: a migration that fails should stop the
   # build loudly, not leave a half-built database that looks fine until a
   # customer's first query.
   mysql --default-character-set=utf8mb4 -uroot -p"$MYSQL_ROOT_PASSWORD" "$DB" < "$1"
 }
 
-echo "[qme-init] schema"
+echo "[lyne-init] schema"
 run "$SQL_DIR/schema.sql"
 
-echo "[qme-init] migrations"
+echo "[lyne-init] migrations"
 shopt -s nullglob
 for f in "$SQL_DIR"/migrations/*.sql; do
   run "$f"
@@ -44,11 +44,11 @@ done
 
 # Demo seeds are opt-in. Production never sets this, which is what keeps a
 # customer's first database empty and sellable (see the branch invariants).
-if [ "${QME_LOAD_DEMO_SEEDS:-false}" = "true" ]; then
-  echo "[qme-init] demo seeds"
+if [ "${LYNE_LOAD_DEMO_SEEDS:-false}" = "true" ]; then
+  echo "[lyne-init] demo seeds"
   for name in seed.sql demo_active_seed.sql demo_credit_union_seed.sql demo_sector_seed.sql; do
     [ -f "$SQL_DIR/$name" ] && run "$SQL_DIR/$name"
   done
 fi
 
-echo "[qme-init] done"
+echo "[lyne-init] done"

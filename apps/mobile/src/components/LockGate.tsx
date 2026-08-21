@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
 
-export const APP_LOCK_KEY = 'qme.app-lock';
+export const APP_LOCK_KEY = 'lyne.app-lock';
 
 export function LockGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<'checking' | 'locked' | 'open'>('checking');

@@ -408,7 +408,7 @@ function ExecOverview({ onNav }: { onNav: (k: string) => void }) {
       <Card span={4} title="How People Join" cap="The only two ways a ticket gets created">
         <Split note="Every app join is one less person a clerk has to key in."
           segments={[
-            { label: 'QMe App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+            { label: 'Lyne App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
             { label: 'Branch Kiosk', value: 318, color: 'var(--c-second)', sub: 'Added at the branch by a clerk' },
           ]} />
       </Card>

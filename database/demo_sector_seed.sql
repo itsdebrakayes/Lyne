@@ -27,7 +27,7 @@ SET NAMES utf8mb4;
 -- Safe to rerun: every row has a deterministic id.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =============================================================

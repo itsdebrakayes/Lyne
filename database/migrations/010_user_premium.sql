@@ -4,7 +4,7 @@
 -- simply flips the flag; billing integration comes later.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

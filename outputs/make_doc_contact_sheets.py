@@ -41,7 +41,7 @@ def make_sheet(folder_name: str, output_name: str, columns: int = 3) -> None:
     sheet.save(ROOT / output_name, quality=92)
 
 
-make_sheet("qmenow_budget_render", "qmenow_budget_contact.png")
-make_sheet("qmenow_feasibility_render", "qmenow_feasibility_contact.png")
-make_sheet("qmenow_budget_render_final", "qmenow_budget_contact_final.png")
-make_sheet("qmenow_feasibility_render_final", "qmenow_feasibility_contact_final.png")
+make_sheet("lyne_budget_render", "lyne_budget_contact.png")
+make_sheet("lyne_feasibility_render", "lyne_feasibility_contact.png")
+make_sheet("lyne_budget_render_final", "lyne_budget_contact_final.png")
+make_sheet("lyne_feasibility_render_final", "lyne_feasibility_contact_final.png")

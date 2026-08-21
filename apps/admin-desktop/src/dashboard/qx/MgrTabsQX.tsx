@@ -155,7 +155,7 @@ const FX_FAQ = [
   { q: 'How Do I Move Someone To A Busier Window?', a: 'Open Staff & Counters, choose the person, and pick the counter you want them on. The change takes effect on their next call — anyone already at their window is not interrupted.' },
   { q: 'What Does The Idle Flag Actually Mean?', a: 'It means a counter has called nobody for a sustained stretch while people are waiting for that service. It is not a judgement — a clerk can be legitimately tied up — but it is the first thing to check when a line is not moving.' },
   { q: 'Why Is My Branch Target Different From The Company One?', a: 'An executive can hold a branch to a stricter or looser number than the company target, usually temporarily. Where an override is in force, Targets shows both so you know which one you are being measured against.' },
-  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the QMe app and when remote joining opens. Contact your executive or QMe support to change them.' },
+  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the Lyne app and when remote joining opens. Contact your executive or Lyne support to change them.' },
   { q: 'Someone Took A Ticket And Left. What Happens?', a: 'If they do not answer when called they are recorded as a no-show, and the queue moves on automatically. If they left before being called at all, they are counted as having given up waiting — that figure is on your Overview.' },
 ];
 
@@ -775,7 +775,7 @@ export function MgrSettingsTab() {
 
   return (
     <div className="qx-grid">
-      <Card span={7} title="This Branch" cap="Shown to customers in the QMe app and on the lobby kiosk">
+      <Card span={7} title="This Branch" cap="Shown to customers in the Lyne app and on the lobby kiosk">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="qx-setrow"><div><b>Branch Name</b><small>How customers see it when choosing where to go.</small></div><span className="qx-tag">{d.branchName}</span></div>
           <div className="qx-setrow"><div><b>Opening Hours</b><small>Also decides when remote joining opens, five minutes before the doors.</small></div><span className="qx-tag">{d.openFrom} – {d.openTo}</span></div>

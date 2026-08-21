@@ -6,7 +6,7 @@
 --   open_days: CSV of weekday numbers open, 0=Sun..6=Sat (e.g. '1,2,3,4,5')
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

@@ -17,7 +17,7 @@ SET NAMES utf8mb4;
 -- without checking the procurement pipeline first.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 SET FOREIGN_KEY_CHECKS = 0;
 
 INSERT INTO subscription_tiers
@@ -42,7 +42,7 @@ INSERT INTO roles (id, name, label, description) VALUES
   ('role-staff-001', 'line_staff', 'Line Staff', 'Assigned queue/counter/service operator'),
   ('role-mgr-001', 'manager', 'Manager', 'Branch manager for staff assignments and branch operations'),
   ('role-exec-001', 'executive', 'Executive', 'Business-wide executive dashboard and analytics access'),
-  ('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support')
+  ('role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal Lyne operator for onboarding and support')
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   label = VALUES(label),

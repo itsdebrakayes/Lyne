@@ -52,7 +52,7 @@ const roles = [
   ['role-supervisor-001', 'supervisor', 'Supervisor', 'Section/branch supervisor — read-only operational view; sees branch targets'],
   ['role-mgr-001', 'manager', 'Manager', 'Branch manager for staff assignments and branch operations'],
   ['role-exec-001', 'executive', 'Executive', 'Business-wide executive dashboard and analytics access'],
-  ['role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal QMe operator for onboarding and support'],
+  ['role-platform-admin-001', 'platform_admin', 'Platform Admin', 'Internal Lyne operator for onboarding and support'],
 ];
 
 const accounts = [
@@ -111,7 +111,7 @@ const accounts = [
     email: 'platform@test.com',
     kind: 'staff',
     id: 'stf-test-platform',
-    fullName: 'QMe Platform Admin',
+    fullName: 'Lyne Platform Admin',
     staffCode: 'TEST-PLATFORM',
     roleId: 'role-platform-admin-001',
     businessId: 'biz-taj-001',

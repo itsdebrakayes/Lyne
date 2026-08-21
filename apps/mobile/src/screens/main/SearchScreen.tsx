@@ -23,7 +23,7 @@ import { TabBar } from '../../components/TabBar';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 
-const RECENTS_KEY = 'qme.recent-searches';
+const RECENTS_KEY = 'lyne.recent-searches';
 const SUGGESTIONS = ['Passport renewal', 'TRN registration', 'Tax payments', 'NHT benefits'];
 
 async function loadRecents(): Promise<string[]> {

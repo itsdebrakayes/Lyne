@@ -9,7 +9,7 @@
 --      the ticket so the no-show model and channel analytics are trustworthy.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

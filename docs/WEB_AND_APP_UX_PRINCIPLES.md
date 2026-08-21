@@ -148,7 +148,7 @@ Audited `apps/website` against the above. These are real, not hypothetical.
 
 ### The footer is the exact thing clip 4 mocks
 
-`src/components/qme/Marketing.tsx:130` —
+`src/components/lyne/Marketing.tsx:130` —
 
 ```tsx
 <Link to="/about">Terms</Link>

@@ -9,7 +9,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'qme.premium-preview';
+const KEY = 'lyne.premium-preview';
 
 export async function getPremiumPreview(): Promise<boolean> {
   return (await AsyncStorage.getItem(KEY)) === '1';

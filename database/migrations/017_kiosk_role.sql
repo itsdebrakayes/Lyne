@@ -6,7 +6,7 @@
 -- name/phone to display to line staff and to notify the customer.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-kiosk-001', 'kiosk_clerk', 'Kiosk Clerk',

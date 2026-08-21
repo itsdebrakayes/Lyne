@@ -1,4 +1,4 @@
-# QMe Financial Services
+# Lyne Financial Services
 
 ## App-first prototype brief for credit unions and microfinance institutions
 

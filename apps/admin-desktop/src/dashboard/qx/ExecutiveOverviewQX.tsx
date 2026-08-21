@@ -113,7 +113,7 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
     const get = (k: string) => num(rows.find((r) => r.channel === k)?.count);
     const app = get('app'); const kiosk = get('kiosk'); const unknown = get('unknown');
     const segs = [
-      { label: 'QMe App', value: app, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+      { label: 'Lyne App', value: app, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
       { label: 'Branch Kiosk', value: kiosk, color: 'var(--c-second)', sub: 'Added at the branch' },
     ];
     if (unknown > 0) segs.push({ label: 'Not Recorded', value: unknown, color: 'color-mix(in oklab, var(--c-second) 45%, var(--c-surface-3))', sub: 'Older tickets from before channel tracking' });

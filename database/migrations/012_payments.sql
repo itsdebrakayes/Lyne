@@ -9,7 +9,7 @@
 --   • payment_events is immutable (BEFORE UPDATE/DELETE triggers block changes)
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

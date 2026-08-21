@@ -907,7 +907,7 @@ export function Heatmap({ colLabels, rowLabels, data, display, unit = '%' }: {
 
 /* ─────────────────────── channel split ─────────────────────── */
 /**
- * Two real channels only — the QMe app and the branch kiosk. Those are the only
+ * Two real channels only — the Lyne app and the branch kiosk. Those are the only
  * two ways a ticket can be created in this product, so a donut (which implies a
  * whole pie of many slices) is the wrong form. A split bar reads the share at a
  * glance and stays honest at n=2.

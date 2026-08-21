@@ -32,7 +32,7 @@ const MGR_FAQ = [
   { q: 'How Do I Move Someone To A Busier Window?', a: 'Open Staff & Counters, choose the person, and pick the counter you want them on. The change takes effect on their next call — anyone already at their window is not interrupted.' },
   { q: 'What Does The Idle Flag Actually Mean?', a: 'A counter has called nobody for a sustained stretch while people are waiting for that service. It is not a judgement — a clerk can be legitimately tied up — but it is the first thing to check when a line is not moving.' },
   { q: 'Why Is My Branch Target Different From The Company One?', a: 'An executive can hold a branch to a stricter or looser number than the company target. Where an override is in force, Targets shows both so you know which one you are measured against.' },
-  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the QMe app and when remote joining opens. Contact your executive or QMe support.' },
+  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the Lyne app and when remote joining opens. Contact your executive or Lyne support.' },
   { q: 'Someone Took A Ticket And Left. What Happens?', a: 'If they do not answer when called they are recorded as a no-show and the queue moves on. If they left before being called at all, they are counted as having given up waiting — that figure is on your Overview.' },
 ];
 
@@ -869,7 +869,7 @@ export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[]
           </div>
         ))}
       </Card>
-      <Card span={5} title="Contact QMe Support" cap="We Reply Within One Business Day">
+      <Card span={5} title="Contact Lyne Support" cap="We Reply Within One Business Day">
         <a className="qa-contact" href="mailto:support@uselyne.com">
           <i><Mail size={16} /></i><span><b>support@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
         </a>

@@ -24,7 +24,7 @@ services:
     environment:
       TZ: ${APP_TZ:-America/Jamaica}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-lyne}
       MYSQL_USER:          ${MYSQL_USER:-lyne}
       MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-lyne_secret}
     ports:
@@ -35,8 +35,8 @@ services:
       # Demo seed data belongs on the demo branch only.
       # One mount, not thirty. database/docker-init.sh walks migrations/ in
       # order, so a new migration needs no compose change. See that file.
-      - ./database:/qme-sql:ro
-      - ./database/docker-init.sh:/docker-entrypoint-initdb.d/00-qme-init.sh:ro
+      - ./database:/lyne-sql:ro
+      - ./database/docker-init.sh:/docker-entrypoint-initdb.d/00-lyne-init.sh:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -64,7 +64,7 @@ services:
       MYSQL_PORT:           3306
       MYSQL_USER:           ${MYSQL_USER:-lyne}
       MYSQL_PASSWORD:       ${MYSQL_PASSWORD:-lyne_secret}
-      MYSQL_DATABASE:       ${MYSQL_DATABASE:-qme_now}
+      MYSQL_DATABASE:       ${MYSQL_DATABASE:-lyne}
       SUPABASE_URL:         ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
@@ -93,7 +93,7 @@ services:
       MYSQL_PORT:             3306
       MYSQL_USER:             ${MYSQL_USER:-lyne}
       MYSQL_PASSWORD:         ${MYSQL_PASSWORD:-lyne_secret}
-      MYSQL_DATABASE:         ${MYSQL_DATABASE:-qme_now}
+      MYSQL_DATABASE:         ${MYSQL_DATABASE:-lyne}
       API_URL:                http://api:4000/api
       SUPABASE_URL:           ${SUPABASE_URL}
       SUPABASE_ANON_KEY:      ${SUPABASE_PUBLISHABLE_KEY}

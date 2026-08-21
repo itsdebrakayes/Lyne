@@ -234,7 +234,7 @@ export function waitShort(minutes?: number | string | null) {
 /**
  * Branch open/closed by the wall clock. The demo seeds queues for the whole
  * day, so "open_queues > 0" is NOT a truthful "open now" signal — a branch
- * can carry a stale low wait at midnight. Every QMe business here is a
+ * can carry a stale low wait at midnight. Every Lyne business here is a
  * Jamaican government agency (TAJ · PICA · NHT) on standard Mon–Fri
  * 8:30am–4:30pm hours, so we gate live waits on the clock and surface a
  * clear Closed / About-to-open state instead of a fake "Now / Light".

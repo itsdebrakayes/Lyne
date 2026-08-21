@@ -5,7 +5,7 @@
 -- instead of hardcoded values.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS business_targets (
   business_id            CHAR(36)  NOT NULL PRIMARY KEY,

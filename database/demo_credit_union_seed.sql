@@ -12,7 +12,7 @@ SET NAMES utf8mb4;
 -- member data is used. Safe to rerun: every row has a deterministic id.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 INSERT INTO businesses
   (id, name, slug, sector, description, logo_url, subscription_tier_id, is_active)

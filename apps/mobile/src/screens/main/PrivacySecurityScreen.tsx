@@ -1,6 +1,6 @@
 /**
  * PrivacySecurityScreen — app lock (Face ID), session control, and a plain
- * statement of how QMe handles data. Built for a market where digital trust is
+ * statement of how Lyne handles data. Built for a market where digital trust is
  * the whole sell.
  */
 import React, { useEffect, useState } from 'react';
