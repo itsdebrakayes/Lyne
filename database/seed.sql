@@ -16,7 +16,12 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- SUBSCRIPTION TIERS
 -- =============================================================
 
-INSERT INTO subscription_tiers (id, name, label, description, can_view_analytics, can_view_predictions, can_view_multi_branch, can_view_executive_reports, max_branches, max_staff) VALUES
+-- INSERT IGNORE, matching migration 020, which owns these rows as reference
+-- data. Both sides being idempotent means the order the two run in stops
+-- mattering — which it did not used to: seed.sql was mounted at slot 20 and
+-- happened to run first, so flipping to migrations-then-seeds broke the
+-- build on a duplicate primary key.
+INSERT IGNORE INTO subscription_tiers (id, name, label, description, can_view_analytics, can_view_predictions, can_view_multi_branch, can_view_executive_reports, max_branches, max_staff) VALUES
 ('tier-basic-001',      'basic',        'Basic',          'Live queue display only.',                                         FALSE, FALSE, FALSE, FALSE, 1,  5),
 ('tier-adv-001',        'advanced',     'Advanced',       'Live queues + historical analytics dashboards.',                   TRUE,  FALSE, FALSE, FALSE, 3,  20),
 ('tier-pred-001',       'predictions',  'Predictions',    'Advanced + AI-powered best-time predictions.',                     TRUE,  TRUE,  FALSE, FALSE, 5,  50),
