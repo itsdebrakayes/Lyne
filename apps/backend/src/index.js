@@ -10,6 +10,7 @@ const {
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
+  sessionLookupLimiter,
   generalLimiter,
 } = require('./middleware/rateLimiter');
 const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
@@ -65,11 +66,21 @@ app.use('/api/queues',         require('./routes/queues'));
 app.post('/api/tickets',       queueJoinLimiter);
 app.use('/api/tickets',        require('./routes/tickets'));
 
+// Scheduled sessions — a queue you had to be entitled to join. The /public
+// half takes no token at all (a motorist under a court deadline will not create
+// an account first), so the two write paths that an anonymous caller can reach
+// carry their own limiter: eligibility because it answers "does this reference
+// exist", register because it consumes a capped place.
+app.post('/api/sessions/public/:id/eligibility', sessionLookupLimiter);
+app.post('/api/sessions/public/:id/register',    sessionLookupLimiter);
+app.use('/api/sessions',       require('./routes/sessions'));
+
 app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));
 app.use('/api/counters',       require('./routes/counters'));
 app.use('/api/analytics',      require('./routes/analytics'));
 app.use('/api/targets',        require('./routes/targets'));
+app.use('/api/settings',       require('./routes/settings'));
 app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
@@ -197,4 +208,71 @@ app.listen(PORT, () => {
   } else if (process.env.NODE_ENV !== 'production') {
     console.log('[Demo] Daily re-seed is OFF (set ALLOW_DEMO_DATA_REFRESH=true on a demo box to enable).');
   }
+
+  // ── Close off the lines after each branch shuts ───────────────────────────
+  // Runs every 15 minutes rather than nightly: branches close at their own
+  // local times, and each should be tidied shortly after its own grace window
+  // instead of waiting for some global small-hours pass. Cheap query, indexed.
+  const { runTicketExpiry, GRACE_MINUTES } = require('./jobs/expireStaleTickets');
+  const expire = (why) =>
+    runTicketExpiry()
+      .then((out) => {
+        if (!out.enabled) return;
+        if (out.cancelled || out.noShow) {
+          console.log(
+            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, ${out.noShow} called but absent.`
+          );
+        }
+        // Surfaced every pass, because it means a clerk left somebody at a
+        // counter overnight. Silence here would hide a real floor problem.
+        if (out.stuckInService) {
+          console.warn(
+            `[TicketExpiry] ${out.stuckInService} ticket(s) still IN SERVICE past closing at: `
+            + `${out.stuckBranches.join(', ')} — a clerk did not finish them.`
+          );
+        }
+      })
+      .catch((err) => console.error(`[TicketExpiry] Failed (${why}):`, err.message));
+
+  expire('startup');
+  setInterval(() => expire('interval'), 15 * 60 * 1000);
+  console.log(
+    `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `
+    + `tickets close ${GRACE_MINUTES} min after each branch's closing time.`
+  );
+
+  // ── Retention sweep ───────────────────────────────────────────────────────
+  // The Privacy Policy publishes retention periods; this is what makes them
+  // true. Runs at 03:00, away from the midnight demo re-seed and the even-hour
+  // analytics runs so three jobs never contend for the same tables.
+  //
+  // Defaults to DRY RUN: a fresh deployment reports what it would remove and
+  // removes nothing until RETENTION_ENABLED=true is set deliberately.
+  const { runRetentionSweep } = require('./jobs/retention');
+  const sweep = (why) =>
+    runRetentionSweep()
+      .then((out) => {
+        if (out.dryRun) return;
+        const total = out.results.reduce((sum, r) => sum + r.rows, 0);
+        console.log(`[Retention] Enforced (${why}) — ${total} rows.`);
+      })
+      .catch((err) => console.error(`[Retention] Sweep failed (${why}):`, err.message));
+
+  // Once on boot so the first log line tells you where you stand.
+  sweep('startup');
+
+  const nextThreeAM = new Date();
+  nextThreeAM.setHours(3, 0, 0, 0);
+  if (nextThreeAM <= new Date()) nextThreeAM.setDate(nextThreeAM.getDate() + 1);
+  const msUntilThree = nextThreeAM - new Date();
+
+  setTimeout(() => {
+    sweep('daily');
+    setInterval(() => sweep('daily'), 24 * 60 * 60 * 1000);
+  }, msUntilThree);
+
+  console.log(
+    `[Retention] ${process.env.RETENTION_ENABLED === 'true' ? 'ENFORCING' : 'Dry run'}; `
+    + `next sweep at 03:00 (in ${Math.round(msUntilThree / 60000)} minutes).`
+  );
 });

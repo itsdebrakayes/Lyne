@@ -61,10 +61,28 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again later.' },
 });
 
+// ── Session eligibility portal ────────────────────────────────
+// POST /api/sessions/public/:id/eligibility answers "is this reference listed
+// today", from an UNAUTHENTICATED browser. That is an enumeration oracle by
+// nature: given enough attempts it confirms which ticket numbers exist. The
+// second factor raises the cost per guess; this caps the number of guesses.
+//
+// 15 in 15 minutes is deliberately tight. The honest user checks once, maybe
+// mistypes twice, then registers. Nobody legitimately needs a sixteenth attempt,
+// and a court's own staff use the authenticated staff route, not this one.
+const sessionLookupLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              15,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message: { error: 'Too many lookup attempts. Please wait 15 minutes, or contact the office directly.' },
+});
+
 module.exports = {
   authLimiter,
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
+  sessionLookupLimiter,
   generalLimiter,
 };

@@ -12,6 +12,7 @@ const assignmentsRouter = require('../src/routes/assignments');
 const staffInviteRouter = require('../src/routes/staff-invite');
 const ocrRouter = require('../src/routes/ocr');
 const targetsRouter = require('../src/routes/targets');
+const servicesRouter = require('../src/routes/services');
 const { lookupActorBySupabaseUid } = require('../src/middleware/auth');
 
 function routeHandlers(router, method, path) {
@@ -37,6 +38,25 @@ test('kiosk walk-in is authenticated and role-gated, not a public or open create
   // It creates a NEW ticket, so it must NOT be gated on an existing ticket/queue.
   assert.ok(!handlers.includes('requireTicketAccess'));
   assert.ok(!handlers.includes('requireQueueAccess'));
+});
+
+test('the guest ticket lookup is public, and the TOKEN is the only key to it', () => {
+  const handlers = routeHandlers(ticketRouter, 'get', '/guest/:token');
+  // Deliberately unauthenticated: a person who joined from a browser has no
+  // account by design. Possession of the 43-char token is the authorisation.
+  assert.ok(!handlers.includes('requireAuth'), 'a guest has no account to authenticate with');
+  assert.ok(!handlers.includes('requireTicketAccess'), 'there is no actor to scope against');
+  assert.equal(handlers.length, 1, 'nothing but the handler — any added gate would lock guests out');
+});
+
+test('the guest ticket lookup is declared before /:id, or it can never be reached', () => {
+  // '/guest/abc' would otherwise be swallowed by an earlier one-segment route,
+  // and Express resolves in declaration order, so this ordering IS the contract.
+  const paths = ticketRouter.stack.filter((l) => l.route?.methods?.get).map((l) => l.route.path);
+  assert.ok(
+    paths.indexOf('/guest/:token') < paths.indexOf('/:id'),
+    'GET /guest/:token must be declared before GET /:id'
+  );
 });
 
 test('branch targets read is authenticated and branch-scoped', () => {
@@ -125,6 +145,19 @@ test('ticket status updates remain authenticated and tenant scoped', () => {
   const handlers = routeHandlers(ticketRouter, 'put', '/:id/status');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(handlers.includes('requireTicketAccess'));
+});
+
+test('readiness authoring is authenticated and staff-role gated', () => {
+  const handlers = routeHandlers(servicesRouter, 'put', '/:id/readiness');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.length >= 3, 'readiness writes must include a staff role gate');
+});
+
+test('readiness outcomes are manager-only analytics with tenant guards', () => {
+  const handlers = routeHandlers(analyticsRouter, 'get', '/readiness');
+  assert.ok(handlers.includes('requireAuth'));
+  assert.ok(handlers.includes('requireBranchAccess'));
+  assert.ok(handlers.length >= 5, 'readiness analytics must enforce role, business, and branch access');
 });
 
 test('private predictions require staff authentication and public predictions are isolated', () => {
