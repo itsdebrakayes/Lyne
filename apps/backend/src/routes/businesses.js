@@ -12,6 +12,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, assertBusinessAccess } = require('../middleware/tenantAccess');
+const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
 // List all active businesses — public
 router.get('/', async (_req, res) => {
@@ -19,13 +20,15 @@ router.get('/', async (_req, res) => {
     const [rows] = await pool.query(
       `SELECT b.*, t.name AS tier_name, t.label AS tier_label,
               t.can_view_analytics, t.can_view_predictions,
-              t.can_view_multi_branch, t.can_view_executive_reports
+              t.can_view_multi_branch, t.can_view_executive_reports,
+              ${SECTOR_COLUMNS}
        FROM businesses b
        JOIN subscription_tiers t ON b.subscription_tier_id = t.id
+       ${SECTOR_JOIN}
        WHERE b.is_active = TRUE
        ORDER BY b.name`
     );
-    res.json(rows);
+    res.json(rows.map(withTerms));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch businesses.' });
@@ -38,14 +41,16 @@ router.get('/:slug', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT b.*, t.name AS tier_name, t.label AS tier_label,
               t.can_view_analytics, t.can_view_predictions,
-              t.can_view_multi_branch, t.can_view_executive_reports
+              t.can_view_multi_branch, t.can_view_executive_reports,
+              ${SECTOR_COLUMNS}
        FROM businesses b
        JOIN subscription_tiers t ON b.subscription_tier_id = t.id
+       ${SECTOR_JOIN}
        WHERE b.slug = ? AND b.is_active = TRUE`,
       [req.params.slug]
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
-    res.json(rows[0]);
+    res.json(withTerms(rows[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch business.' });
