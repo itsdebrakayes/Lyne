@@ -17,13 +17,17 @@ Described from the clip:
 4. The whole thing plays inside a **circular spotlight** sitting under the
    wordmark.
 
-The reason it reads as expensive rather than decorative: **the camera is a
-character.** Each turn should take the subject off-axis, and instead the world
-rotates to keep them centred. That is a deliberate, hand-authored choice — it is
-the opposite of a stock spinner, and it is why it does not look generated.
+The reason it works: **the camera is a character.** Each turn should take the
+subject off-axis, and instead the world rotates to keep them centred.
 
-It is also a **loop with no natural end**, so it can run for as long as loading
-takes without ever looking like it has frozen.
+It is also a **loop with no natural end**, so it can run as long as loading takes
+without looking frozen.
+
+**It does not need to hide that it is a loop.** Confirmed 2026-08-21: the target
+is the kind of short looping animation people post on Twitter — obviously a cycle
+through a fixed set of poses, obviously drawn, and good precisely because of
+that. Nobody expects a splash screen to be a real person. So the bar is
+*characterful*, not *seamless*, which also makes it far cheaper to commission.
 
 ---
 
@@ -42,9 +46,9 @@ A delivery app shows a delivery. A queue app should show **a queue**.
 ```
 
 **The cast.** The people in the line are not identical silhouettes — one has
-hands on hips, one checks their watch, one shifts their weight. That is what
-sells it as a queue rather than a progress bar made of dots, and it is the
-detail that is hardest to fake.
+hands on hips, one checks their watch, one shifts their weight. A small fixed set
+of poses, cycled. That is what sells it as a queue rather than a progress bar
+made of dots.
 
 **The loop.** Front of line steps forward → steps out of frame → everyone
 shuffles up → repeat. Each cycle is one "person served".
@@ -61,10 +65,21 @@ principles applies directly.
 
 | Actual load | What the animation does |
 |---|---|
-| **Under ~1s** | **Do not show it at all.** Straight to the app. A splash that flashes for 300ms is worse than no splash — it reads as a stutter. |
-| **~1–3s** | **One** person steps out, then the logo sweep. Nobody sees a loop. |
-| **3s+** | The loop continues — a second person, a third — until the app is ready, then the logo sweep. |
-| **Failed** | The line does **not** keep shuffling forever. It stops, and the screen says what went wrong and offers Retry. |
+| **Under ~1s** | The person **steps into the line**, and the logo comes straight out over them. No idle, no exit — just arrival and mark. |
+| **~1–3s** | Steps into the line, **one idle beat**, checks their watch, then the person at the **front** steps out and the logo sweeps. |
+| **3s+** | The loop continues — another idle, another person served — until ready, then the same exit. |
+| **Failed** | The line **stops**. It does not keep shuffling. The screen says what went wrong and offers Retry. |
+
+Note the change from the general rule in the UX principles: a launch splash is
+**not** the same as a spinner over an operation. A spinner that flashes for 300ms
+is a stutter, but an app that opens with nothing has no moment of brand at all.
+So the sub-second case shows the shortest possible complete beat rather than
+being skipped. Debra's call, and it is the right one for a launch.
+
+**First open of the day gets the full version.** The OS distinguishes a cold
+start from a warm resume, and so should we: the first launch of the day plays the
+whole thing, subsequent resumes do the sub-second beat or nothing. Charm on every
+single app-switch stops being charm.
 
 So the animation has to expose a **"wrap up now" signal**, not a fixed duration.
 The loop runs; when readiness fires, it finishes the person currently mid-step
