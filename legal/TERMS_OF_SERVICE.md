@@ -1,7 +1,8 @@
 # Terms of Service
 
 **Q Me Now**
-**Last updated:** 13 August 2026
+
+**Last updated:** 21 August 2026
 
 > **DRAFT — requires review by a Jamaican attorney before publication.** See `COMPLIANCE_NOTES.md`. Placeholders in `[SQUARE BRACKETS]` must be completed.
 
@@ -9,7 +10,7 @@
 
 ## 1. Agreement
 
-These Terms are between you and **[REGISTERED COMPANY NAME]** ("Q Me Now", "we", "us"), a company registered in Jamaica.
+These Terms are between you and **[REGISTERED COMPANY NAME]** ("Q Me Now", "we", "us"), a business registered in Jamaica under the Registration of Business Names Act and operated as a sole trader.
 
 By creating an account or using Q Me Now you accept these Terms and our [Privacy Policy](./PRIVACY_POLICY.md). **If you do not accept them, do not use the service.**
 
@@ -95,7 +96,40 @@ Subject to that:
 - Q Me Now is provided **"as is"**. We make no warranty that estimates will be accurate, that you will be served, or that the service will be uninterrupted or error-free.
 - **We are not liable for the acts or omissions of any agency or business**, including refusal of service, waiting time, staff conduct, or their document requirements.
 - We are not liable for indirect or consequential loss, or for lost time, income, opportunity or data.
-- Where liability cannot be excluded, our total liability to you in any 12-month period is limited to the greater of **[the amount you paid us in that period]** and **[JMD 10,000]**.
+- Where liability cannot be excluded, our **aggregate** liability to you for all
+  claims arising in any 12-month period — however they arise, whether in
+  contract, negligence or otherwise — is limited to the greater of **[the amount
+  you paid us in that period]** and **[JMD 10,000]**.
+
+### 9.1 Claims must be brought promptly
+
+Any claim arising out of your use of Q Me Now must be brought within **12
+months** of the date you became aware, or reasonably should have become aware,
+of the circumstances giving rise to it. After that it is time-barred, except
+where law does not permit such a limit.
+
+### 9.2 What we are specifically not answerable for
+
+For the avoidance of doubt, and without limiting section 2:
+
+- the decision of any organisation to serve you, refuse you, reorder its queue,
+  close early, or require documents you do not have;
+- the accuracy or completeness of any list an organisation supplies to us,
+  including a list used to decide who may attend a session — we match against
+  what we are given, and **we are not the record of who is entitled to be
+  served**;
+- any loss arising because you relied on an estimated wait time. Estimates are
+  forecasts and are labelled as such throughout the product;
+- any consequence of the service being unreachable, where the organisation was
+  able to continue serving people by its normal means;
+- the conduct of any staff member of any organisation.
+
+### 9.3 Your consumer rights are unaffected
+
+Nothing in this section removes or reduces a right you have under the Consumer
+Protection Act or other mandatory Jamaican law. Where any part of this section
+conflicts with such a right, that right prevails and the rest of this section
+continues to apply.
 
 ## 10. Indemnity
 
@@ -137,3 +171,158 @@ Please contact us first at **[SUPPORT EMAIL]** — most things are resolved quic
 **[REGISTERED COMPANY NAME]**
 [ADDRESS]
 [SUPPORT EMAIL]
+
+---
+
+# Part B — Terms for organisations
+
+Part A above governs individuals using the Q Me Now app. This part governs an
+organisation — a court, agency, campus, credit union or business — that licenses
+Q Me Now to run its own queues. Where the two conflict for an organisation, this
+part prevails.
+
+## 16. The licence
+
+We grant the organisation a non-exclusive, non-transferable right, for the term
+of its subscription, to use Q Me Now to operate queues at the locations and for
+the number of staff accounts agreed in its order.
+
+The organisation may not sublicense, resell, or provide the service to a third
+party as a bureau service without our written agreement.
+
+## 17. Who owns what
+
+- **Your data is yours.** All records of your visitors, staff, queues, services
+  and configuration remain the organisation's property. We claim no ownership.
+- **The platform is ours.** The software, its design, and our name and marks
+  remain ours.
+- **Aggregate insight.** We may use data that has been aggregated and
+  irreversibly anonymised — so that neither the organisation nor any individual
+  can be identified — to improve forecasting and to publish benchmarks. We will
+  not publish anything attributable to a named organisation without permission.
+
+## 18. Data protection — our role
+
+For visitor and staff records processed on the organisation's behalf, **the
+organisation is the data controller and we are the processor**. We will:
+
+- process only on the organisation's documented instructions;
+- ensure our personnel are bound by confidentiality;
+- apply the security measures described in the Privacy Policy, §11;
+- engage sub-processors only as listed in the Privacy Policy, §7.2, and give
+  reasonable advance notice of any change so the organisation may object;
+- assist the organisation with data-subject requests, impact assessments and
+  regulator enquiries;
+- notify the organisation of a personal data breach **without undue delay**;
+- on termination, delete or return the data at the organisation's choice, save
+  where law requires us to keep it.
+
+Where the organisation is a public body, we acknowledge that its obligations
+under the Data Protection Act and the Access to Information Act sit with it, and
+we will not obstruct compliance with either.
+
+## 19. What the organisation is responsible for
+
+- The lawfulness of what it asks us to process, and the basis for it.
+- The accuracy of any list it uploads — including a daily list used to decide
+  who may attend a session. We match against what we are given; we do not verify
+  it, and we are not the record of who is entitled to be served.
+- Keeping staff accounts current, and withdrawing access when someone leaves.
+- Telling its own visitors what it does with their data.
+- Deciding its own order of service. Q Me Now records and displays the order; it
+  does not determine who is seen first, and it does not confer priority on
+  anyone.
+
+## 20. Availability and support
+
+We aim for **99.5% monthly availability** of the hosted service, measured
+excluding scheduled maintenance notified at least 48 hours in advance and
+excluding failures of the organisation's own network or devices.
+
+Support is available on business days, [09:00–17:00 Jamaica time]. Where the
+service is fully unavailable we will begin work immediately on becoming aware
+and keep the organisation informed until it is restored.
+
+**Degraded operation is designed in.** If our service is unreachable, counters
+continue to work on paper, and no visitor is prevented from being served. This
+is a deliberate property of the product, not a promise about uptime.
+
+## 21. Fees
+
+Fees, the billing period and any minimum term are set out in the order. Unless
+that says otherwise: fees are payable in advance, quoted exclusive of GCT and
+any other applicable tax, and we may adjust them at renewal with at least
+**[60] days'** notice.
+
+We may suspend service for undisputed fees more than **[30] days** overdue,
+after written notice and a reasonable chance to put it right.
+
+## 22. Confidentiality
+
+Each party will keep the other's non-public information confidential, use it
+only for the purposes of the agreement, and protect it as it would its own. This
+does not apply to information that is public through no breach, was already
+known, or must be disclosed by law — and in that last case the disclosing party
+will give notice where it lawfully can.
+
+## 23. Term and termination
+
+The agreement runs for the term stated in the order and renews for successive
+equal periods unless either party gives **[30] days'** notice before renewal.
+
+Either party may terminate immediately for material breach not cured within
+**[30] days** of written notice, or on the other's insolvency.
+
+On termination we will make the organisation's data available for export for
+**[30] days**, then delete it in accordance with §18.
+
+## 23A. Organisation's indemnity
+
+The organisation will indemnify us against claims, losses and reasonable costs
+arising from:
+
+- the content or accuracy of any data or list it supplies to us, including a
+  list determining who may attend a session;
+- its instructions to us, where following them caused the loss;
+- its own breach of data-protection law in respect of data we process for it;
+- its use of the service in a way these Terms do not permit.
+
+This does not apply to the extent the loss was caused by our own breach of
+section 18 or our negligence.
+
+## 24. Publicity
+
+Neither party will use the other's name or marks publicly without written
+consent. Consent for a customer reference or case study is asked for separately
+and may be withdrawn.
+
+## 25. Compliance and integrity
+
+We do not offer or accept bribes, facilitation payments or improper inducements,
+and we comply with applicable anti-corruption law. Where an organisation is a
+public body, we will comply with its procurement and conduct requirements and
+will disclose any conflict of interest we become aware of.
+
+## 26. Liability between us and an organisation
+
+Nothing limits liability that cannot be limited by law.
+
+Subject to that, neither party is liable for indirect or consequential loss, and
+each party's total liability in any 12-month period is limited to the fees paid
+or payable by the organisation in that period. This limit does not apply to a
+party's breach of confidentiality, to the organisation's payment obligations, or
+to our obligations as a processor under §18.
+
+## 27. Force majeure
+
+Neither party is liable for a failure caused by something outside its reasonable
+control — including natural disaster, hurricane, national emergency, failure of
+a utility or telecommunications provider, or governmental action — provided it
+tells the other promptly and works to resume.
+
+## 28. Notices
+
+Contractual notices to us: **[SUPPORT EMAIL]**, and to the address in §15.
+Notices to the organisation go to the contact in its order. Email is sufficient
+for everything except termination for breach, which must also be sent in writing
+to the registered address.

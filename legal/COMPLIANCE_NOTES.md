@@ -7,6 +7,49 @@ I've drafted a Privacy Policy and Terms of Service in this folder. Three things 
 
 ---
 
+## 0. Read this first — a sole trader has unlimited personal liability
+
+**Updated 21 August 2026, after you told me DKS Technologies is a sole trader.**
+
+You asked me to make the legalities so that you are "un-sueable". I have
+strengthened the documents as far as wording legitimately can, and I have to be
+straight with you about the rest, because believing you are covered when you are
+not is the expensive outcome.
+
+**No document makes anyone un-sueable.** Anyone can bring a claim. What good
+terms do is (a) make a claim harder to win, (b) cap what it can cost you, and
+(c) push risk onto the party that actually caused it. All three are now in the
+Terms. What they cannot do is change *who* pays if a claim succeeds.
+
+**As a sole trader, that is you personally.** There is no separate legal person
+between the business and your own assets — your savings, your car, your home.
+A limited company is the thing that creates that separation, and it is the only
+one of these four measures that changes who is on the hook:
+
+| Measure | What it does | Status |
+|---|---|---|
+| **Incorporate a limited company** | Puts a legal person between a claim and your personal assets. **This is the actual protection.** | Not done — sole trader |
+| **Professional indemnity + cyber insurance** | Pays the claim and the defence costs. Cyber cover matters most: you hold TRNs and passport numbers, and a breach is the realistic claim. | Not in place as far as I know |
+| **Liability caps and exclusions in the Terms** | Limits exposure per claim, time-bars stale claims, and excludes what organisations do | **Done — see §9, §9.1–9.3, §23A, §26** |
+| **Actually doing what the policies say** | An accurate policy you follow is a defence; one you don't follow is evidence against you | Ongoing |
+
+**Two things specific to your position:**
+
+1. **You are heading into government procurement**, and public bodies routinely
+   require a supplier to carry insurance and, often, to be incorporated. This is
+   likely to become a commercial blocker before it becomes a legal one.
+2. **You process sensitive personal data** — TRN, National ID, passport. The DPA
+   carries criminal penalties for some breaches, and **criminal liability
+   attaches to the individual regardless of business structure.** Incorporating
+   protects your assets from civil claims; it does not protect you from that.
+   Following the security commitments in §11 of the Privacy Policy is what does.
+
+**My recommendation, in order:** get a quote for cyber and professional
+indemnity cover this month; ask the attorney reviewing these documents what
+incorporating would cost and whether to do it before the first public-sector
+contract; and do not sign anything that makes you liable for a customer's own
+data decisions — §18 and §23A are drafted to prevent exactly that.
+
 ## 1. I'm not a lawyer, and this specifically needs a Jamaican one
 
 The drafts are thorough and specific to what this app actually does — I wrote them against the real schema, not from a template. But the Data Protection Act, 2020 carries **criminal penalties** for some breaches, and a data controller handling TRN, National ID and passport numbers is squarely in its strictest category.

@@ -102,7 +102,7 @@ const footerCols: Array<{ title: string; items: Array<{ label: string; href: str
     items: [
       { label: "Get a quote", href: "/join-us" },
       { label: "How it works", href: "/#features" },
-      { label: "Help center", href: "/join-us" },
+      { label: "Contact support", href: "/join-us" },
     ],
   },
 ];
@@ -127,9 +127,12 @@ export function MarketingFooter() {
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-qme-lavender/45 sm:flex-row">
           <span>© {new Date().getFullYear()} QME Now. All rights reserved.</span>
           <div className="flex gap-6">
-            <Link to="/about" className="hover:text-white">Terms</Link>
-            <Link to="/about" className="hover:text-white">Privacy</Link>
-            <Link to="/about" className="hover:text-white">Security</Link>
+            {/* These pointed at /about until 21 Aug 2026 — the site advertised
+                three legal pages and delivered a marketing page. Security has
+                no page of its own, so it is not claimed; the security
+                commitments live in the Privacy Policy. */}
+            <Link to="/terms" className="hover:text-white">Terms</Link>
+            <Link to="/privacy" className="hover:text-white">Privacy</Link>
           </div>
         </div>
       </div>

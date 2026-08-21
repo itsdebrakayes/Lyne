@@ -10,6 +10,8 @@ import MarketingHome from './pages/MarketingHome';
 
 import About from './pages/About';
 import JoinUs from './pages/JoinUs';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -23,6 +25,8 @@ function App() {
             <Route path="/" element={<MarketingHome />} />
             <Route path="/about" element={<About />} />
             <Route path="/join-us" element={<JoinUs />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
