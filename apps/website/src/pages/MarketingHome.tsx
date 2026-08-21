@@ -73,21 +73,11 @@ function Hero() {
       <FloatingSquares />
 
       <div className="lux-container relative z-20 text-center">
-        <motion.span
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="chip mx-auto"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-qme-green blink-dot" />
-          Built for Jamaica's leading institutions
-        </motion.span>
-
         <motion.h1
           initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mt-7 max-w-4xl text-balance text-6xl font-bold leading-[1.02] tracking-tight text-white sm:text-7xl lg:text-8xl xl:max-w-5xl xl:text-[6.5rem] 2xl:text-[7rem]"
+          className="mx-auto max-w-4xl text-balance text-6xl font-bold leading-[1.02] tracking-tight text-white sm:text-7xl lg:text-8xl xl:max-w-5xl xl:text-[6.5rem] 2xl:text-[7rem]"
         >
           The calm{" "}
           <span

@@ -55,7 +55,6 @@ const About = () => {
             transition={{ duration: 0.6 }}
             className="mx-auto max-w-3xl text-center"
           >
-            <div className="chip chip-mute mx-auto mb-5">About us</div>
             <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               The story behind <span className="serif accent-text">the calm.</span>
             </h1>

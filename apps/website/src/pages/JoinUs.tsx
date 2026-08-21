@@ -93,9 +93,6 @@ const JoinUs = () => {
             transition={{ duration: 0.6 }}
             className="mx-auto max-w-3xl text-center"
           >
-            <div className="chip mx-auto mb-5">
-              <Building2 className="h-3.5 w-3.5" /> Partner with us
-            </div>
             <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               Bring the calm to <span className="serif accent-text">your business.</span>
             </h1>
