@@ -6,7 +6,7 @@
 SET NAMES utf8mb4;
 
 -- =============================================================
--- Q ME NOW — Seed Data
+-- LYNE — Seed Data
 -- 3 Demo Businesses + Staff + Sample Queue Activity
 -- =============================================================
 

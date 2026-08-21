@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Q Me Now**
+**Lyne**
 
 **Last updated:** 21 August 2026
 
@@ -10,15 +10,15 @@
 
 ## 1. Agreement
 
-These Terms are between you and **[REGISTERED COMPANY NAME]** ("Q Me Now", "we", "us"), a business registered in Jamaica under the Registration of Business Names Act and operated as a sole trader.
+These Terms are between you and **[REGISTERED COMPANY NAME]** ("Lyne", "we", "us"), a business registered in Jamaica under the Registration of Business Names Act and operated as a sole trader.
 
-By creating an account or using Q Me Now you accept these Terms and our [Privacy Policy](./PRIVACY_POLICY.md). **If you do not accept them, do not use the service.**
+By creating an account or using Lyne you accept these Terms and our [Privacy Policy](./PRIVACY_POLICY.md). **If you do not accept them, do not use the service.**
 
 You must be **18 or over**, or have the consent of a parent or guardian who accepts these Terms on your behalf.
 
-## 2. What Q Me Now is — and what it is not
+## 2. What Lyne is — and what it is not
 
-Q Me Now is a **queue management and scheduling platform**. We let you see how busy a branch is, take a place in a queue remotely, and receive updates about it.
+Lyne is a **queue management and scheduling platform**. We let you see how busy a branch is, take a place in a queue remotely, and receive updates about it.
 
 **We are not the agency or business you are queueing for.** We do not provide their services, employ their staff, control their opening hours, set their priorities, or decide how quickly they serve. We are a third-party technology provider between you and them.
 
@@ -61,7 +61,7 @@ If you choose to add identity details or scans (TRN, National ID, passport):
 - you can remove them at any time;
 - we handle them as described in the Privacy Policy.
 
-You are never required to provide them to use Q Me Now.
+You are never required to provide them to use Lyne.
 
 ## 6. Premium
 
@@ -77,7 +77,7 @@ Premium unlocks additional features, currently including detailed best-time-to-v
 
 ## 7. Availability
 
-We work to keep Q Me Now available, but we do not guarantee uninterrupted service. We may suspend it for maintenance, updates, or reasons outside our control, including failures at an agency, a network operator or a hosting provider.
+We work to keep Lyne available, but we do not guarantee uninterrupted service. We may suspend it for maintenance, updates, or reasons outside our control, including failures at an agency, a network operator or a hosting provider.
 
 We may change, add or withdraw features. For changes that materially reduce what you get from a paid subscription, we'll give notice and, where appropriate, a pro-rata refund.
 
@@ -93,7 +93,7 @@ Nothing here limits liability that cannot be limited by law, including for death
 
 Subject to that:
 
-- Q Me Now is provided **"as is"**. We make no warranty that estimates will be accurate, that you will be served, or that the service will be uninterrupted or error-free.
+- Lyne is provided **"as is"**. We make no warranty that estimates will be accurate, that you will be served, or that the service will be uninterrupted or error-free.
 - **We are not liable for the acts or omissions of any agency or business**, including refusal of service, waiting time, staff conduct, or their document requirements.
 - We are not liable for indirect or consequential loss, or for lost time, income, opportunity or data.
 - Where liability cannot be excluded, our **aggregate** liability to you for all
@@ -103,7 +103,7 @@ Subject to that:
 
 ### 9.1 Claims must be brought promptly
 
-Any claim arising out of your use of Q Me Now must be brought within **12
+Any claim arising out of your use of Lyne must be brought within **12
 months** of the date you became aware, or reasonably should have become aware,
 of the circumstances giving rise to it. After that it is time-barred, except
 where law does not permit such a limit.
@@ -137,7 +137,7 @@ You agree to indemnify us against claims arising from your misuse of the service
 
 ## 11. Ending it
 
-**You** may stop using Q Me Now at any time and delete your account in the app (Profile → Delete my account).
+**You** may stop using Lyne at any time and delete your account in the app (Profile → Delete my account).
 
 **We** may suspend or end your access for breach of these Terms, for unlawful use, or if we cease operating — in which case we'll give reasonable notice and refund any unused paid period.
 
@@ -147,7 +147,7 @@ Sections that by their nature should survive termination (8, 9, 10, 13) do.
 
 We will update these Terms as the service develops. For **material** changes we'll give notice in the app or by email at least **[14] days** before they take effect.
 
-Continuing to use Q Me Now after that is acceptance. If you don't accept, stop using the service and delete your account — that is always available to you.
+Continuing to use Lyne after that is acceptance. If you don't accept, stop using the service and delete your account — that is always available to you.
 
 We will not use this clause to introduce a materially different use of your personal data without asking for consent separately, where the law requires it.
 
@@ -155,7 +155,7 @@ We will not use this clause to introduce a materially different use of your pers
 
 These Terms are governed by the **laws of Jamaica**, and the courts of Jamaica have exclusive jurisdiction.
 
-Where Q Me Now operates in another Caribbean jurisdiction, local mandatory consumer-protection and data-protection law continues to apply to you, and nothing here removes a right you have under it.
+Where Lyne operates in another Caribbean jurisdiction, local mandatory consumer-protection and data-protection law continues to apply to you, and nothing here removes a right you have under it.
 
 Please contact us first at **[SUPPORT EMAIL]** — most things are resolved quickly that way.
 
@@ -176,15 +176,15 @@ Please contact us first at **[SUPPORT EMAIL]** — most things are resolved quic
 
 # Part B — Terms for organisations
 
-Part A above governs individuals using the Q Me Now app. This part governs an
+Part A above governs individuals using the Lyne app. This part governs an
 organisation — a court, agency, campus, credit union or business — that licenses
-Q Me Now to run its own queues. Where the two conflict for an organisation, this
+Lyne to run its own queues. Where the two conflict for an organisation, this
 part prevails.
 
 ## 16. The licence
 
 We grant the organisation a non-exclusive, non-transferable right, for the term
-of its subscription, to use Q Me Now to operate queues at the locations and for
+of its subscription, to use Lyne to operate queues at the locations and for
 the number of staff accounts agreed in its order.
 
 The organisation may not sublicense, resell, or provide the service to a third
@@ -229,7 +229,7 @@ we will not obstruct compliance with either.
   it, and we are not the record of who is entitled to be served.
 - Keeping staff accounts current, and withdrawing access when someone leaves.
 - Telling its own visitors what it does with their data.
-- Deciding its own order of service. Q Me Now records and displays the order; it
+- Deciding its own order of service. Lyne records and displays the order; it
   does not determine who is seen first, and it does not confer priority on
   anyone.
 

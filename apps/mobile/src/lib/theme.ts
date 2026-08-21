@@ -1,7 +1,7 @@
 import { Platform, StyleSheet } from 'react-native';
 
 /**
- * QME Now — mobile design system (v5 · boarding-pass style)
+ * Lyne — mobile design system (v5 · boarding-pass style)
  *
  * Ported from the approved v5 preview, which was built literally against
  * Debra's reference set: a deep navy ground for the "your place in line"

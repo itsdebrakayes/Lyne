@@ -79,7 +79,7 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
       <div className="ds-window">
         <header className="ds-titlebar">
           <span className="ds-mark">Q</span>
-          <b>QMe Now Setup</b>
+          <b>Lyne Setup</b>
           {meta.version ? <small>Version {meta.version}</small> : null}
         </header>
 
@@ -92,15 +92,15 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
           <main className="ds-content">
             {screen === 'welcome' ? (
               <>
-                <h1>Welcome To QMe Now</h1>
+                <h1>Welcome To Lyne</h1>
                 <p className="ds-lead">
-                  This will set up QMe Now on this computer. It takes under a minute, and you can
+                  This will set up Lyne on this computer. It takes under a minute, and you can
                   change any of it later from Settings.
                 </p>
                 <ul className="ds-list">
                   <li><Shield size={16} />Accept the licence terms</li>
                   <li><Download size={16} />Choose where downloaded reports are saved</li>
-                  <li><Monitor size={16} />Decide whether QMe Now starts with this machine</li>
+                  <li><Monitor size={16} />Decide whether Lyne starts with this machine</li>
                 </ul>
               </>
             ) : null}
@@ -110,15 +110,15 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
                 <h1>Licence Agreement</h1>
                 <p className="ds-lead">Please read this before continuing.</p>
                 <div className="ds-licence">
-                  <p><b>QMe Now — Software Licence</b></p>
+                  <p><b>Lyne — Software Licence</b></p>
                   <p>
                     This software is licensed, not sold. Your organisation is granted a
-                    non-exclusive, non-transferable licence to install and use QMe Now on
+                    non-exclusive, non-transferable licence to install and use Lyne on
                     computers it owns or controls, for the term of its subscription.
                   </p>
                   <p>
                     <b>Data.</b> Queue records, staff details and the contact details customers
-                    provide belong to your organisation. QMe Now processes them on your behalf and
+                    provide belong to your organisation. Lyne processes them on your behalf and
                     does not sell them or use them to train anything.
                   </p>
                   <p>
@@ -165,7 +165,7 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
                 <p className="ds-lead">Both can be changed later in Settings.</p>
                 <label className="ds-row">
                   <span className="t">
-                    <b>Start QMe Now When This Computer Starts</b>
+                    <b>Start Lyne When This Computer Starts</b>
                     <small>
                       Recommended on a branch terminal, so the queue comes back on its own after a
                       power cut without someone needing to know to launch it.
@@ -188,7 +188,7 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
                 <div className="ds-tick"><Check size={30} /></div>
                 <h1>Setup Complete</h1>
                 <p className="ds-lead">
-                  QMe Now is ready on this computer. Sign in with the account your administrator
+                  Lyne is ready on this computer. Sign in with the account your administrator
                   gave you to get started.
                 </p>
                 <div className="ds-summary">

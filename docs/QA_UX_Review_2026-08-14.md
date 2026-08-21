@@ -1,4 +1,4 @@
-# Q Me Now — QA + UX Review, 14 August 2026
+# Lyne — QA + UX Review, 14 August 2026
 
 Covers REMAINING_WORK §E items **#6** (full end-to-end + standard test phases) and
 **#22** (full use-case pass with business-person personas).

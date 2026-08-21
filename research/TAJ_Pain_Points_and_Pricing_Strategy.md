@@ -1,4 +1,4 @@
-# QMe Now — TAJ Pain Points and Pricing Strategy
+# Lyne — TAJ Pain Points and Pricing Strategy
 
 **Prepared:** 29 July 2026  
 **Purpose:** Research-backed message and commercial model for a first engagement with Tax Administration Jamaica
@@ -17,7 +17,7 @@ The recommended commercial structure is:
 
 This is easier for a government buyer to understand than a setup fee, monthly subscription, maintenance fee and retainer all charged separately.
 
-## The five TAJ pain points QMe Now actually solves
+## The five TAJ pain points Lyne actually solves
 
 These are not generic assumptions. They use language TAJ and the Government of Jamaica have already used to describe Tax Office operations.
 
@@ -36,7 +36,7 @@ This remains a live problem even though TAJ reports that approximately 80% of re
 - TAJ absorbs the cost of extended and Saturday opening;
 - a busy office can look like one problem even when one specific service is causing most of the delay.
 
-### What QMe Now changes
+### What Lyne changes
 
 - taxpayers see the live wait by Tax Office and service before travelling;
 - customers can join the line remotely and wait away from the building;
@@ -46,7 +46,7 @@ This remains a live problem even though TAJ reports that approximately 80% of re
 
 ### Deck headline
 
-> **TAJ has expanded access to ease weekday congestion. QMe Now helps prevent that congestion from forming.**
+> **TAJ has expanded access to ease weekday congestion. Lyne helps prevent that congestion from forming.**
 
 ### Demo proof
 
@@ -58,7 +58,7 @@ Show the taxpayer comparing branches, seeing the TRN wait and joining remotely. 
 
 The Government stated that TAJ’s automated queue initiative was intended to track service demand and provide real-time information for improved queue management.
 
-That language describes QMe Now’s central value almost exactly.
+That language describes Lyne’s central value almost exactly.
 
 ### What is really hurting
 
@@ -66,7 +66,7 @@ That language describes QMe Now’s central value almost exactly.
 - office totals hide the service, counter or hour causing the problem;
 - executives receive reports after the service failure rather than an actionable warning during it.
 
-### What QMe Now changes
+### What Lyne changes
 
 - live service demand by branch, queue and counter;
 - longest-waiting and over-target services shown first;
@@ -76,7 +76,7 @@ That language describes QMe Now’s central value almost exactly.
 
 ### Deck headline
 
-> **TAJ asked for real-time service-demand information. QMe Now turns that information into the next action.**
+> **TAJ asked for real-time service-demand information. Lyne turns that information into the next action.**
 
 ### Demo proof
 
@@ -95,7 +95,7 @@ TAJ has used flexi-time, earlier opening and Saturday operations for heavily tra
 - trained staff can be idle in one area while customers wait in another;
 - managers often react after the line has already compounded.
 
-### What QMe Now changes
+### What Lyne changes
 
 - forecasts peak days and hours using TAJ’s own service history;
 - recommends how many counters are needed to hold a chosen wait-time target;
@@ -124,7 +124,7 @@ TAJ has reported strong online collection, while the Minister of Finance acknowl
 - an online-first strategy can leave walk-ins feeling excluded;
 - running separate digital and walk-in processes can create confusion and perceived unfairness.
 
-### What QMe Now changes
+### What Lyne changes
 
 - one operational line for remote customers and walk-ins;
 - clerk-assisted kiosk entry for people who do not use the app;
@@ -133,7 +133,7 @@ TAJ has reported strong online collection, while the Minister of Finance acknowl
 
 ### Deck headline
 
-> **QMe Now advances digital service without leaving walk-in taxpayers behind.**
+> **Lyne advances digital service without leaving walk-in taxpayers behind.**
 
 ### Demo proof
 
@@ -152,7 +152,7 @@ TAJ says customers can start some processes online to **“minimise the time spe
 - quick collection and payment services can be trapped behind longer application services;
 - TAJ cannot fully realise the value of online preparation if the remaining branch visit is still unpredictable.
 
-### What QMe Now changes
+### What Lyne changes
 
 - service-specific document reminders before travel;
 - a separate queue and wait estimate for the exact transaction;
@@ -162,7 +162,7 @@ TAJ says customers can start some processes online to **“minimise the time spe
 
 ### Deck headline
 
-> **TAJ has shortened the online part of the journey. QMe Now makes the remaining branch visit predictable.**
+> **TAJ has shortened the online part of the journey. Lyne makes the remaining branch visit predictable.**
 
 ### Demo proof
 
@@ -170,7 +170,7 @@ Show a driver’s licence customer reviewing the required documents, choosing th
 
 ## The single sentence pitch to TAJ
 
-> **QMe Now gives TAJ the real-time service-demand and queue-management capability it has already identified as necessary—while helping taxpayers spend less time at Tax Offices and helping managers use existing staff and counters more effectively.**
+> **Lyne gives TAJ the real-time service-demand and queue-management capability it has already identified as necessary—while helping taxpayers spend less time at Tax Offices and helping managers use existing staff and counters more effectively.**
 
 ## Why TAJ should care immediately
 
@@ -270,7 +270,7 @@ A free operational pilot creates four risks:
 
 - it is easier for the agency to deprioritise;
 - the scope can expand without control;
-- QMe Now carries privacy, security and support risk without revenue;
+- Lyne carries privacy, security and support risk without revenue;
 - “free” makes it harder to establish the commercial value later.
 
 If a concession is necessary, offer a **founding-client discount**, not a free pilot. In exchange, request subject to TAJ approval:
@@ -281,7 +281,7 @@ If a concession is necessary, offer a **founding-client discount**, not a free p
 - a reference or case study after successful completion;
 - an opportunity to present a production-rollout proposal, subject to public-procurement rules.
 
-Do not give away ownership of the QMe Now platform, exclusivity or unlimited custom development.
+Do not give away ownership of the Lyne platform, exclusivity or unlimited custom development.
 
 ## Production pricing after a successful pilot
 
@@ -323,7 +323,7 @@ Implementation includes:
 
 The annual fee should include:
 
-- the QMe Now platform licence;
+- the Lyne platform licence;
 - secure hosting;
 - backups and uptime monitoring;
 - routine software updates;
@@ -446,7 +446,7 @@ Government technology tenders commonly require:
 - references and evidence of capacity;
 - security and data-protection documentation.
 
-Before approaching a paid pilot, QMe Now should have:
+Before approaching a paid pilot, Lyne should have:
 
 - a registered contracting entity;
 - business bank account;
@@ -464,7 +464,7 @@ Before approaching a paid pilot, QMe Now should have:
 
 ## Evidence that the Jamaican market pays for this category
 
-These figures are not direct valuations of QMe Now, but they show that Jamaican public entities budget materially for service-delivery and enterprise technology:
+These figures are not direct valuations of Lyne, but they show that Jamaican public entities budget materially for service-delivery and enterprise technology:
 
 - The Government allocated **J$11 billion** to Tax Office construction and modernisation, including expanded online systems.
 - TAJ awarded an upgrade of its Revenue Administration Information System for approximately **J$1.866 billion**.
@@ -472,7 +472,7 @@ These figures are not direct valuations of QMe Now, but they show that Jamaican 
 - Public-relations and change-communication services supporting PICA’s CRM implementation were awarded at **J$5.7385 million**.
 - The Students’ Loan Bureau issued a national competitive tender specifically for the supply and installation of a queue management system in 2025.
 
-The correct conclusion is not that QMe Now should copy the price of a core tax system or CRM. It is that a J$2.75–2.95 million founding pilot is commercially credible and small relative to the expenditure TAJ is already making to improve access and service delivery.
+The correct conclusion is not that Lyne should copy the price of a core tax system or CRM. It is that a J$2.75–2.95 million founding pilot is commercially credible and small relative to the expenditure TAJ is already making to improve access and service delivery.
 
 ## Sources
 

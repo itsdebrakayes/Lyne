@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 008: Executive Employee KPIs
+-- LYNE — Migration 008: Executive Employee KPIs
 -- Adds staff availability tracking for honest leave counts.
 -- =============================================================
 

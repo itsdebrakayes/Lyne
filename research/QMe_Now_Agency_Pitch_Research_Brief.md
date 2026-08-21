@@ -1,27 +1,27 @@
-# QMe Now — Agency Pitch Research Brief
+# Lyne — Agency Pitch Research Brief
 
 **Research started:** 29 July 2026  
 **Initial targets:** Tax Administration Jamaica (TAJ), National Housing Trust (NHT), Passport, Immigration and Citizenship Agency (PICA)
 
 ## 1. The strongest early positioning
 
-QMe Now should not be sold as “another online portal.” TAJ, NHT and PICA already offer online services, and each is continuing to digitise transactions.
+Lyne should not be sold as “another online portal.” TAJ, NHT and PICA already offer online services, and each is continuing to digitise transactions.
 
 The stronger position is:
 
-> **QMe Now is the live operating layer for every customer who still needs service — online or in person. It shows the public when and where to go, shows staff what to do next, and shows management where service is breaking down before complaints pile up.**
+> **Lyne is the live operating layer for every customer who still needs service — online or in person. It shows the public when and where to go, shows staff what to do next, and shows management where service is breaking down before complaints pile up.**
 
-Existing portals help a customer complete a transaction or track a case. QMe Now manages the demand, physical queues, counters, staffing and service performance surrounding those transactions.
+Existing portals help a customer complete a transaction or track a case. Lyne manages the demand, physical queues, counters, staffing and service performance surrounding those transactions.
 
 That distinction will be essential in the deck, FAQ and demo:
 
-- **TAJ Online collects payments; QMe Now manages the people and services that still require a Tax Office.**
-- **PICA REL-M manages customer cases and enquiries; QMe Now manages today’s appointments, walk-ins, service lines and counters.**
-- **NHT Online manages applications, account information and tracking; QMe Now manages in-branch advice, exceptions, document checks and branch capacity.**
+- **TAJ Online collects payments; Lyne manages the people and services that still require a Tax Office.**
+- **PICA REL-M manages customer cases and enquiries; Lyne manages today’s appointments, walk-ins, service lines and counters.**
+- **NHT Online manages applications, account information and tracking; Lyne manages in-branch advice, exceptions, document checks and branch capacity.**
 
-## 2. What QMe Now is, in plain language
+## 2. What Lyne is, in plain language
 
-QMe Now lets a person:
+Lyne lets a person:
 
 - see which branch is open and how long each service is taking;
 - join a line before travelling;
@@ -30,7 +30,7 @@ QMe Now lets a person:
 - know what documents to bring;
 - use a branch clerk to join the same line if they do not use the app.
 
-QMe Now lets an organisation:
+Lyne lets an organisation:
 
 - run one fair line for app users and walk-ins;
 - see each service, counter and branch in real time;
@@ -46,7 +46,7 @@ These capabilities are supported by the current product in the workspace: consum
 
 Recommended plain-language explanation:
 
-> **QMe Now learns how each branch and service really behaves. It notices which days and hours become busy, how long different services usually take, when people are likely to miss their turn and where more counters are needed. As conditions change, it refreshes its recommendations using the newest operating data.**
+> **Lyne learns how each branch and service really behaves. It notices which days and hours become busy, how long different services usually take, when people are likely to miss their turn and where more counters are needed. As conditions change, it refreshes its recommendations using the newest operating data.**
 
 What the current product actually does:
 
@@ -60,44 +60,44 @@ What the current product actually does:
 
 Honesty guardrail:
 
-- Do not promise that QMe Now “knows everything on day one.”
+- Do not promise that Lyne “knows everything on day one.”
 - A pilot begins with live queue calculations and operational rules.
 - Recommendations improve as the agency builds real service history.
 - Accuracy and target improvements must be validated with pilot data before numerical outcome claims are used in a sales deck.
 
 ## 4. The five cross-agency pain points
 
-These are the best-supported starting points for the “you have five problems / QMe Now solves five problems” pitch.
+These are the best-supported starting points for the “you have five problems / Lyne solves five problems” pitch.
 
 ### 1. Online services have not removed peak walk-in traffic
 
 TAJ collects approximately 80% of its revenue online, yet the Government expanded Saturday Tax Office operations to ease weekday congestion and reduce wait time. This proves that digital payment adoption and physical service pressure coexist.
 
-**QMe Now response:** show live demand by service and branch, let customers wait away from the office, and spread visits toward quieter locations and times.
+**Lyne response:** show live demand by service and branch, let customers wait away from the office, and spread visits toward quieter locations and times.
 
 ### 2. Managers cannot act quickly without a live operating picture
 
 Agency plans and job descriptions repeatedly call for service metrics, branch targets, peak planning, daily staffing, business intelligence and operational efficiency. The missing sales message is not “more data”; it is **one clear answer to what needs attention now**.
 
-**QMe Now response:** show the worst service first and recommend a specific action, such as moving a trained officer to a busy line or opening another counter.
+**Lyne response:** show the worst service first and recommend a specific action, such as moving a trained officer to a busy line or opening another counter.
 
 ### 3. Staffing and demand do not always meet in the same place
 
 Traffic changes by branch, service, deadline, day and hour. Extending opening hours is useful but expensive if managers cannot see the exact service causing the delay.
 
-**QMe Now response:** forecast busy periods, distinguish service-level demand, and recommend how many counters should be open to meet a wait-time target.
+**Lyne response:** forecast busy periods, distinguish service-level demand, and recommend how many counters should be open to meet a wait-time target.
 
 ### 4. Incomplete information creates repeat visits, delays and frustration
 
 PICA and NHT both explicitly warn that non-compliant applications, missing documents and inaccurate information cause processing delays. Customers often discover a problem only after travelling and waiting.
 
-**QMe Now response:** show service-specific document guidance before the visit and use the queue journey to send clear reminders. This should be positioned as delay prevention, not as replacing agency validation.
+**Lyne response:** show service-specific document guidance before the visit and use the queue journey to send clear reminders. This should be positioned as delay prevention, not as replacing agency validation.
 
 ### 5. Service standards exist, but performance is difficult to see continuously
 
 Jamaica’s Service Excellence Policy proposes measures including first response time, average wait, first-contact resolution, total resolution time and the number of contacts required. PICA and NHT publish their own service commitments.
 
-**QMe Now response:** turn standards into live targets at the branch and executive levels, so the organisation can intervene during the day rather than only reviewing complaints after the fact.
+**Lyne response:** turn standards into live targets at the branch and executive levels, so the organisation can intervene during the day rather than only reviewing complaints after the fact.
 
 ## 5. Agency research and pitch angles
 
@@ -131,7 +131,7 @@ Jamaica’s Service Excellence Policy proposes measures including first response
 4. Staff and counters may not be aligned with the service under pressure.
 5. Number-ticket systems can create uncertainty and perceived unfairness.
 
-### QMe Now answer
+### Lyne answer
 
 - one verified line for app users and walk-ins;
 - live wait times for TRN, driver’s licence, property tax and other in-person services;
@@ -152,7 +152,7 @@ Jamaica’s Service Excellence Policy proposes measures including first response
 
 ### Positioning guardrail
 
-Do not imply that QMe Now replaces TAJ Online or its payment systems. The pitch is that QMe Now protects the value of TAJ’s digital investment by managing the remaining in-person demand more intelligently.
+Do not imply that Lyne replaces TAJ Online or its payment systems. The pitch is that Lyne protects the value of TAJ’s digital investment by managing the remaining in-person demand more intelligently.
 
 ## B. Passport, Immigration and Citizenship Agency (PICA)
 
@@ -186,7 +186,7 @@ Do not imply that QMe Now replaces TAJ Online or its payment systems. The pitch 
 4. Missing or non-compliant documents create avoidable delays.
 5. REL-M gives case information, but branch managers still need a live view of physical service flow.
 
-### QMe Now answer
+### Lyne answer
 
 - manage appointments and walk-ins in one visible service flow;
 - separate lines by actual service, such as new passport, renewal and collection;
@@ -207,9 +207,9 @@ Do not imply that QMe Now replaces TAJ Online or its payment systems. The pitch 
 
 ### Positioning guardrail
 
-Present QMe Now as a complement to REL-M:
+Present Lyne as a complement to REL-M:
 
-> **REL-M helps PICA manage the customer’s case. QMe Now helps PICA manage the customer’s time and the branch’s capacity.**
+> **REL-M helps PICA manage the customer’s case. Lyne helps PICA manage the customer’s time and the branch’s capacity.**
 
 ## C. National Housing Trust (NHT)
 
@@ -243,7 +243,7 @@ Present QMe Now as a complement to REL-M:
 4. Incomplete applications cause repeat contact and delayed service.
 5. The organisation needs to know whether branches are meeting the 30-minute walk-in commitment.
 
-### QMe Now answer
+### Lyne answer
 
 - direct contributors to the right branch, service and time;
 - separate quick enquiries from longer loan-advice sessions;
@@ -264,13 +264,13 @@ Present QMe Now as a complement to REL-M:
 
 ### Positioning guardrail
 
-Do not pitch QMe Now as an end-to-end loan processing system. NHT is already investing in that. Pitch QMe Now as the operating layer for the human service around the application: advice, exceptions, document readiness, appointments, walk-ins and branch capacity.
+Do not pitch Lyne as an end-to-end loan processing system. NHT is already investing in that. Pitch Lyne as the operating layer for the human service around the application: advice, exceptions, document readiness, appointments, walk-ins and branch capacity.
 
 ## 6. “Why the organisation cannot do without it”
 
 The answer should avoid inflated language. A credible version is:
 
-> **Because digital services alone do not tell you what is happening in the branch right now. Without QMe Now, customers still travel without knowing the wait, managers still discover bottlenecks after the line has formed, and executives still review service problems after the complaints arrive. QMe Now turns every visit into a live signal and every signal into a clear action.**
+> **Because digital services alone do not tell you what is happening in the branch right now. Without Lyne, customers still travel without knowing the wait, managers still discover bottlenecks after the line has formed, and executives still review service problems after the complaints arrive. Lyne turns every visit into a live signal and every signal into a clear action.**
 
 The organisational case rests on five outcomes:
 
@@ -284,7 +284,7 @@ The organisational case rests on five outcomes:
 
 These should be developed as a separate FAQ document.
 
-1. Is QMe Now replacing our current portal, CRM or core system?
+1. Is Lyne replacing our current portal, CRM or core system?
 2. How does it work for customers without smartphones or data?
 3. How are walk-ins and remote customers kept in a fair order?
 4. What happens if a customer misses their turn?
@@ -294,20 +294,20 @@ These should be developed as a separate FAQ document.
 8. Can managers override a recommendation?
 9. Can the system work with our existing service targets and branch structure?
 10. Can it integrate with our current systems?
-11. What data does QMe Now collect?
+11. What data does Lyne collect?
 12. Where is the data stored, and who can see it?
-13. How does QMe Now comply with Jamaica’s Data Protection Act?
+13. How does Lyne comply with Jamaica’s Data Protection Act?
 14. What is the fallback if internet or a branch system is unavailable?
 15. How will a pilot be measured?
 16. What training will staff need?
-17. How does QMe Now prevent line-jumping or ticket sharing?
+17. How does Lyne prevent line-jumping or ticket sharing?
 18. What does implementation cost, and what internal resources are required?
 
 ## 8. Security, privacy and procurement objections
 
 Government buyers will expect these issues before they accept the customer-experience story.
 
-Current QMe Now strengths:
+Current Lyne strengths:
 
 - separate agency deployment and database;
 - role-based access;
@@ -321,7 +321,7 @@ Current work that must be completed or formally documented before procurement:
 - privacy notice;
 - retention and deletion schedule;
 - confirmed encryption-at-rest position;
-- agency/data-controller and QMe Now/data-processor responsibilities;
+- agency/data-controller and Lyne/data-processor responsibilities;
 - breach-response procedure;
 - data processing agreement;
 - pilot security assessment;
@@ -397,8 +397,8 @@ The pilot proposal should then attach outcomes to the agency’s own baseline, f
 
 Keep these as four separate sales assets:
 
-1. **One-page elevator pitch** — the simple case for QMe Now.
-2. **Agency-specific deck** — pain points in the organisation’s language, QMe Now’s response, how it works, continuous learning, indispensable value and a pilot ask.
+1. **One-page elevator pitch** — the simple case for Lyne.
+2. **Agency-specific deck** — pain points in the organisation’s language, Lyne’s response, how it works, continuous learning, indispensable value and a pilot ask.
 3. **FAQ document** — operational, integration, security, privacy, implementation and commercial objections.
 4. **Demo runbook** — exact screens, sample scenario, talk track and proof point for each agency.
 

@@ -1,8 +1,8 @@
-# Q ME NOW
+# LYNE
 
 **Intelligent, trust-first queue management and predictive analytics for multi-branch government agencies and businesses — starting in Jamaica.**
 
-Q Me Now lets people skip the physical line: you join a queue at an agency or business from your phone, watch your live position, and arrive when it's actually your turn — instead of standing in line for hours. For the organizations, it's a complete queue-management and analytics system their staff run day to day, and a predictive layer that tells them *why* their lines form and *what to change*.
+Lyne lets people skip the physical line: you join a queue at an agency or business from your phone, watch your live position, and arrive when it's actually your turn — instead of standing in line for hours. For the organizations, it's a complete queue-management and analytics system their staff run day to day, and a predictive layer that tells them *why* their lines form and *what to change*.
 
 First market is Jamaica (TAJ, PICA, NHT and similar). Because that market has deep, justified distrust of digital systems, **trust and safety are treated as the product, not a feature** — every design and security decision follows from that.
 
@@ -74,7 +74,7 @@ The separation is strict and deliberate: **no admin screen ever enters the consu
 | `supervisor` | A section within a branch — reassign staff between counters; no branch strategy |
 | `manager` | Own branch operations, assignments, branch analytics, and **branch-level targets** (refine the company target for their branch) |
 | `executive` | Own business across branches, analytics, targets, manual pipeline triggers |
-| `platform_admin` | Q Me Now internal onboarding/support only (super-admin across tenants) |
+| `platform_admin` | Lyne internal onboarding/support only (super-admin across tenants) |
 | `kiosk_clerk` | Branch-scoped intake account: logs in on a phone/iPad and adds **walk-in** customers to the line on their behalf. Sees a single-purpose console (no customer tabs, no queue-joining), picks a service offered at its branch, enters the customer's name, and issues a ticket number. Tickets are `channel='kiosk'` guests (no app account) so the walk-in-vs-online analytics can tell them apart. |
 
 ---

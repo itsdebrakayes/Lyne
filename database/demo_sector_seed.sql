@@ -6,7 +6,7 @@
 SET NAMES utf8mb4;
 
 -- =============================================================
--- Q ME NOW — Sector demo tenants
+-- LYNE — Sector demo tenants
 --
 -- Four organisations that exercise the sector vocabulary layer end to end, so
 -- the SAME screens can be shown reading "Court Users / Matters / Divisions" to a

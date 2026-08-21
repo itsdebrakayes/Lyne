@@ -3,6 +3,12 @@
 **Maintained by:** Debra-Kaye Smith (DKS Technologies)
 **Last verified:** 21 August 2026, against the full git history of this repository.
 
+> **Naming note.** This product was renamed to **Lyne** on 21 August 2026. The
+> old name and the identifiers below (`qmenow.dev`, `QMeNow`, the 2025 repository
+> state) are quoted here **verbatim and deliberately**, because this file is a
+> record of what the history contains. They are not stale references and must not
+> be renamed — doing so would falsify the evidence.
+
 This file records who has contributed to this codebase and how materially, so
 that the record exists and is reproducible rather than reconstructed later from
 memory. **Every claim below is a statement about the repository and can be

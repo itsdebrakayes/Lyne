@@ -1,7 +1,7 @@
-# App Store readiness — Q Me Now iOS
+# App Store readiness — Lyne iOS
 
 **Date:** 2026-08-13
-**Scope:** the consumer mobile app (`apps/mobile`, bundle `com.qmenow.app`). The admin desktop app and the B2B tenant subscriptions are a different animal and are covered at the end.
+**Scope:** the consumer mobile app (`apps/mobile`, bundle `com.lyne.app`). The admin desktop app and the B2B tenant subscriptions are a different animal and are covered at the end.
 
 Everything below was checked against the actual codebase, not recalled from general advice. Where I say something is missing, I grepped for it and it wasn't there.
 
@@ -81,7 +81,7 @@ Worth knowing, because these are common rejection causes you've avoided:
 
 ### On "block and report users"
 
-**Guideline 1.2** requires block/report only for apps with **user-generated content shown to other users**. Q Me Now has none — nobody sees anyone else's content. Ticket ratings go to the agency, not to other customers.
+**Guideline 1.2** requires block/report only for apps with **user-generated content shown to other users**. Lyne has none — nobody sees anyone else's content. Ticket ratings go to the agency, not to other customers.
 
 So this one **does not apply to you today**. It would apply the moment you add public reviews of branches, which is a plausible future feature. If that ships, you need: a content filter, a report mechanism, a block mechanism, and a published 24-hour response commitment.
 

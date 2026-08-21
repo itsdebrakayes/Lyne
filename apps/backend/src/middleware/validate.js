@@ -1,5 +1,5 @@
 /**
- * validate.js — Zod-based input validation middleware for Q ME NOW backend
+ * validate.js — Zod-based input validation middleware for LYNE backend
  *
  * Usage:
  *   const { validate, schemas } = require('../middleware/validate');

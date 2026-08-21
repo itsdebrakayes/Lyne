@@ -52,7 +52,7 @@ export default function DashboardShell({
       <aside className="ops-sidebar">
         <div className="ops-brand">
           <div>Q</div>
-          <span>QMe Now</span>
+          <span>Lyne</span>
         </div>
         <div className="ops-user-card">
           <b>{name}</b>

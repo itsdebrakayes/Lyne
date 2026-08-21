@@ -37,7 +37,7 @@ export default function LoginPage() {
       <section className="qa-login-hero">
         <div className="qa-login-brand">
           <i>Q</i>
-          <span><b>QMe Now</b><small>Admin Operations</small></span>
+          <span><b>Lyne</b><small>Admin Operations</small></span>
         </div>
         <div className="qa-login-copy">
           <div className="eyebrow">Dashboard Console</div>

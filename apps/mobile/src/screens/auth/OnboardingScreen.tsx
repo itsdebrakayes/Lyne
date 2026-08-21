@@ -91,7 +91,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
           <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 26 }}>Q</Text>
         </View>
         <Text style={{ fontFamily: font.extra, fontSize: 34, lineHeight: 40, color: colors.ink, letterSpacing: -1, textAlign: 'center' }}>
-          Welcome to{'\n'}QMe Now
+          Welcome to{'\n'}Lyne
         </Text>
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 14, maxWidth: 300 }}>
           Skip the line, not your day — live waits, remote queueing, and perfectly timed arrivals.

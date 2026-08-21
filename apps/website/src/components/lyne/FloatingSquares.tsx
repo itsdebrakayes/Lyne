@@ -13,11 +13,11 @@ type Sq = {
 };
 
 const squares: Sq[] = [
-  { cls: "sq1", size: 64, pos: { top: "40%", left: "8%" }, dur: 5.0, delay: 0, mx: 16, my: 16, icon: <Clock className="h-5 w-5 text-qme-lavender/80" /> },
+  { cls: "sq1", size: 64, pos: { top: "40%", left: "8%" }, dur: 5.0, delay: 0, mx: 16, my: 16, icon: <Clock className="h-5 w-5 text-lyne-lavender/80" /> },
   { cls: "sq2", size: 44, pos: { top: "64%", left: "5%" }, dur: 6.5, delay: 1.0, mx: -12, my: -12 },
-  { cls: "sq3", size: 36, pos: { top: "78%", left: "14%" }, dur: 7.0, delay: 0.5, mx: 10, my: 18, icon: <Bell className="h-4 w-4 text-qme-lavender/80" /> },
-  { cls: "sq4", size: 58, pos: { top: "42%", right: "9%" }, dur: 5.5, delay: 0.8, mx: -16, my: 12, icon: <QrCode className="h-5 w-5 text-qme-lavender/80" /> },
-  { cls: "sq5", size: 40, pos: { top: "70%", right: "7%" }, dur: 6.0, delay: 1.3, mx: 14, my: -14, icon: <Sparkles className="h-4 w-4 text-qme-lavender/80" /> },
+  { cls: "sq3", size: 36, pos: { top: "78%", left: "14%" }, dur: 7.0, delay: 0.5, mx: 10, my: 18, icon: <Bell className="h-4 w-4 text-lyne-lavender/80" /> },
+  { cls: "sq4", size: 58, pos: { top: "42%", right: "9%" }, dur: 5.5, delay: 0.8, mx: -16, my: 12, icon: <QrCode className="h-5 w-5 text-lyne-lavender/80" /> },
+  { cls: "sq5", size: 40, pos: { top: "70%", right: "7%" }, dur: 6.0, delay: 1.3, mx: 14, my: -14, icon: <Sparkles className="h-4 w-4 text-lyne-lavender/80" /> },
 ];
 
 export function FloatingSquares({ reduced = false }: { reduced?: boolean }) {

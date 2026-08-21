@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Q Me Now**
+**Lyne**
 
 **Last updated:** 21 August 2026
 
@@ -12,9 +12,9 @@
 
 ## 1. Who we are
 
-Q Me Now ("Q Me Now", "we", "us") is operated by **[REGISTERED COMPANY NAME]**, a business registered in Jamaica under the Registration of Business Names Act, registration number **[NUMBER]**, principal place of business **[ADDRESS]**.
+Lyne ("Lyne", "we", "us") is operated by **[REGISTERED COMPANY NAME]**, a business registered in Jamaica under the Registration of Business Names Act, registration number **[NUMBER]**, principal place of business **[ADDRESS]**.
 
-Q Me Now is operated as a **sole trader**. That does not change your rights under this policy or under the Data Protection Act, and it does not change who is accountable to you: the proprietor of the business is the data controller.
+Lyne is operated as a **sole trader**. That does not change your rights under this policy or under the Data Protection Act, and it does not change who is accountable to you: the proprietor of the business is the data controller.
 
 - **Privacy contact:** [PRIVACY EMAIL]
 - **Data Protection Officer:** [NAME / "not currently required — see s.20 DPA"]
@@ -24,7 +24,7 @@ This policy is written to meet the **Data Protection Act, 2020 (Jamaica)** ("the
 
 ## 2. What this app does
 
-Q Me Now lets you see how busy a public or private service branch is, join a queue remotely, hold your place, and be told when to set off and when you are called. Organisations use a separate administrator application to run their counters.
+Lyne lets you see how busy a public or private service branch is, join a queue remotely, hold your place, and be told when to set off and when you are called. Organisations use a separate administrator application to run their counters.
 
 ## 3. Whose data we hold, and in what capacity
 
@@ -32,7 +32,7 @@ This is the most important section for understanding your rights, because we hol
 
 | Group | Who they are | Our role |
 |---|---|---|
-| **App users** | Members of the public who install Q Me Now and join queues | **Controller** — we decide why and how their data is used |
+| **App users** | Members of the public who install Lyne and join queues | **Controller** — we decide why and how their data is used |
 | **Visitors served at a counter** | People a member of staff adds to a queue at a kiosk or desk, who may never use our app | **Processor**, acting on the organisation's instructions |
 | **Staff users** | Employees of a customer organisation with an administrator or counter account | **Processor** for their queue activity; **controller** for their account and security records |
 
@@ -91,7 +91,7 @@ So the boundary is explicit:
 
 ### 4.6 Children
 
-Q Me Now is not intended for under-18s and we do not knowingly collect their data. If you believe a child has given us data, contact us and we will delete it.
+Lyne is not intended for under-18s and we do not knowingly collect their data. If you believe a child has given us data, contact us and we will delete it.
 
 ## 5. Why we use it, and our lawful basis
 
@@ -150,7 +150,7 @@ We maintain the current list here and will give organisational customers advance
 
 Our database and authentication are currently hosted in the **United States (US East, Ohio)**, and other providers may process data outside Jamaica.
 
-Where we transfer personal data outside Jamaica we do so on one of the bases permitted by the DPA, including your consent and contractual safeguards with our providers. **By using Q Me Now you consent to this transfer.** You may withdraw that consent by deleting your account.
+Where we transfer personal data outside Jamaica we do so on one of the bases permitted by the DPA, including your consent and contractual safeguards with our providers. **By using Lyne you consent to this transfer.** You may withdraw that consent by deleting your account.
 
 We keep this under review. Organisational customers with a data-residency requirement should raise it before signing — it is a deployment question, not a policy one.
 

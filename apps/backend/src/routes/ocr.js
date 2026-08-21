@@ -1,5 +1,5 @@
 /**
- * ocr.js — OCR document scanning route for Q ME NOW
+ * ocr.js — OCR document scanning route for LYNE
  *
  * POST /api/ocr/scan          — Scan a document image and extract fields
  * POST /api/ocr/save          — Save OCR result to private Supabase storage

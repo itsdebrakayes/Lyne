@@ -1,5 +1,5 @@
 /**
- * routes.ts — Central route constants for Q ME NOW Mobile App
+ * routes.ts — Central route constants for LYNE Mobile App
  *
  * All navigation route names are defined here to prevent hardcoded
  * strings scattered across the codebase.

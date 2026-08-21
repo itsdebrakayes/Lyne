@@ -52,7 +52,7 @@ function inline(text: string, keyPrefix: string): ReactNode[] {
       );
     } else if (token.startsWith("`")) {
       nodes.push(
-        <code key={key} className="rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-[0.9em] text-qme-lavender">
+        <code key={key} className="rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-[0.9em] text-lyne-lavender">
           {token.slice(1, -1)}
         </code>,
       );
@@ -64,7 +64,7 @@ function inline(text: string, keyPrefix: string): ReactNode[] {
         <a
           key={key}
           href={href}
-          className="text-qme-lavender underline decoration-qme-lavender/40 underline-offset-2 hover:text-white"
+          className="text-lyne-lavender underline decoration-lyne-lavender/40 underline-offset-2 hover:text-white"
           {...(internal ? {} : { target: "_blank", rel: "noreferrer noopener" })}
         >
           {label}
@@ -102,7 +102,7 @@ function render(markdown: string): ReactNode[] {
     // wrapped**, leaving asterisks on the published page. Where a document
     // genuinely wants separate lines it uses separate paragraphs.
     out.push(
-      <p key={key} className="mt-4 text-[15px] leading-[1.75] text-qme-lavender/75">
+      <p key={key} className="mt-4 text-[15px] leading-[1.75] text-lyne-lavender/75">
         {markPlaceholders(buffer.join(" "), key)}
       </p>,
     );
@@ -142,7 +142,7 @@ function render(markdown: string): ReactNode[] {
               {rows.map((row, ri) => (
                 <tr key={ri} className="align-top">
                   {row.map((cell, ci) => (
-                    <td key={ci} className="border-b border-white/[0.05] px-4 py-3 text-qme-lavender/75">
+                    <td key={ci} className="border-b border-white/[0.05] px-4 py-3 text-lyne-lavender/75">
                       {markPlaceholders(cell, `${key}-r${ri}c${ci}`)}
                     </td>
                   ))}
@@ -167,7 +167,7 @@ function render(markdown: string): ReactNode[] {
       out.push(
         <ul key={key} className="mt-4 space-y-2 pl-5">
           {items.map((item, ii) => (
-            <li key={ii} className="list-disc text-[15px] leading-[1.7] text-qme-lavender/75 marker:text-qme-lavender/40">
+            <li key={ii} className="list-disc text-[15px] leading-[1.7] text-lyne-lavender/75 marker:text-lyne-lavender/40">
               {markPlaceholders(item, `${key}-li${ii}`)}
             </li>
           ))}
@@ -188,7 +188,7 @@ function render(markdown: string): ReactNode[] {
       out.push(
         <ol key={key} className="mt-4 space-y-2 pl-5">
           {items.map((item, ii) => (
-            <li key={ii} className="list-decimal text-[15px] leading-[1.7] text-qme-lavender/75 marker:text-qme-lavender/40">
+            <li key={ii} className="list-decimal text-[15px] leading-[1.7] text-lyne-lavender/75 marker:text-lyne-lavender/40">
               {markPlaceholders(item, `${key}-oi${ii}`)}
             </li>
           ))}

@@ -22,7 +22,7 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        /* QME Now brand palette (from the design specification) */
+        /* Lyne brand palette (from the design specification) */
         qme: {
           /* One blue across the product — these mirror the admin QX tokens and
              the mobile theme, so the site, the phone and the staff desktop are

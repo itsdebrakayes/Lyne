@@ -1,4 +1,4 @@
-# Q Me Now — Remaining Work (single source of truth)
+# Lyne — Remaining Work (single source of truth)
 
 _Compiled 2026-07-22 by sweeping the task tracker + every planning doc
 (LAUNCH_TO_MONDAY, SELL_READINESS_AUDIT, DASHBOARD_REDESIGN_PLAN, ML_MODELS,
@@ -36,7 +36,7 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 | 32 | Report formatting — formal preview + cover page on download | **awaiting your reference images** |
 | 48 | Redesign bug list (§8) | ✅ verified via code audit — all six resolved: no All-Services filter control remains (nothing dead); exec Settings/Support render real content (no `operations` route); no Operations tab in any nav; no notebook/"Review" links (only prose + `mailto:`/`tel:`); chart date labels use proper `toLocaleDateString` per range (day/weekday/hour/month); every KPI carries a base and every `%` headline shows its count. _A visual click-through with your login is welcome as belt-and-suspenders, but nothing in the code indicates a remaining §8 bug._ |
 | — | **(untracked)** Mobile-on-the-go admin (W5/P7) | PWA variants of exec screens for the phone; **needs your design refs**; post-screen-stabilization |
-| — | Platform-admin **console** (post-pilot) | ✅ verified (#52): the `platform_admin` role exists and is backend-gated — it's the only role that can create businesses (tenant onboarding) + has cross-tenant audit access — but has **no UI**. Fine for the single-tenant pilot (onboard via seed/API); a super-admin console to create/manage tenants + invite executives is needed once Q Me Now onboards multiple tenants itself. |
+| — | Platform-admin **console** (post-pilot) | ✅ verified (#52): the `platform_admin` role exists and is backend-gated — it's the only role that can create businesses (tenant onboarding) + has cross-tenant audit access — but has **no UI**. Fine for the single-tenant pilot (onboard via seed/API); a super-admin console to create/manage tenants + invite executives is needed once Lyne onboards multiple tenants itself. |
 
 ## C · Consumer mobile — remaining product work
 

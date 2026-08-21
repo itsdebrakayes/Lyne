@@ -1,12 +1,12 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Q ME NOW — Demo Data
+-- LYNE — Demo Data
 -- Populates the database with realistic live queue state, visit history,
 -- analytics summaries, and predictive results for a compelling demo.
 --
 -- Run AFTER: schema.sql → seed.sql → migrations/001_performance_indexes.sql
 -- ─────────────────────────────────────────────────────────────────────────────
 
-USE qmenow;
+USE lyne;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SECTION 1: Open today's queues for all 3 businesses
@@ -185,7 +185,7 @@ CROSS JOIN (
 JOIN businesses biz ON biz.slug IN ('taj', 'nht', 'pica')
 JOIN branches br ON br.business_id = biz.id AND br.name = 'Kingston Branch'
 JOIN services s ON s.business_id = biz.id
-WHERE u.email IN ('demo.user@qmenow.com', 'test.customer@qmenow.com')
+WHERE u.email IN ('demo.user@uselyne.com', 'test.customer@uselyne.com')
   AND s.slug IN ('general-enquiry', 'mortgage-enquiry', 'passport-application')
 LIMIT 30;
 
@@ -358,7 +358,7 @@ INSERT IGNORE INTO saved_businesses (id, user_id, business_id, saved_at)
 SELECT UUID(), u.id, biz.id, DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 30) DAY)
 FROM users u
 CROSS JOIN businesses biz
-WHERE u.email IN ('demo.user@qmenow.com', 'test.customer@qmenow.com');
+WHERE u.email IN ('demo.user@uselyne.com', 'test.customer@uselyne.com');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SECTION 7: Sample notifications for demo users
@@ -383,10 +383,10 @@ CROSS JOIN (
          'You are 3rd in line. Please be ready.', 0, 5
   UNION SELECT 'queue_update', 'Wait Time Updated',
          'Your estimated wait is now ~22 minutes due to increased traffic.', 1, 45
-  UNION SELECT 'system', 'Welcome to Q ME NOW',
+  UNION SELECT 'system', 'Welcome to LYNE',
          'You have successfully joined the queue. We will notify you when it is your turn.', 1, 120
 ) n
-WHERE u.email = 'demo.user@qmenow.com';
+WHERE u.email = 'demo.user@uselyne.com';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SECTION 8: Wait time records for analytics (last 7 days)

@@ -1,10 +1,10 @@
 /**
- * About — QME Now story, mission and values in the marketing design language.
+ * About — Lyne story, mission and values in the marketing design language.
  */
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Clock, Users, Shield, Zap, ArrowRight } from "lucide-react";
-import { MarketingNav, MarketingFooter } from "@/components/qme/Marketing";
+import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
 
 const features = [
   {
@@ -37,11 +37,11 @@ const steps = [
 
 const About = () => {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-qme-night text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-lyne-night text-white">
       {/* ambient glows */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-qme-purple/20 blur-[140px]" />
-        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-qme-violet/25 blur-[150px]" />
+        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-lyne-purple/20 blur-[140px]" />
+        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-lyne-violet/25 blur-[150px]" />
       </div>
 
       <MarketingNav />
@@ -58,7 +58,7 @@ const About = () => {
             <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               The story behind <span className="serif accent-text">the calm.</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-lg text-qme-lavender/70">
+            <p className="mx-auto mt-5 max-w-2xl text-lg text-lyne-lavender/70">
               Revolutionizing the way people wait — with smart technology,
               real-time data, and queues that respect everyone's time.
             </p>
@@ -75,8 +75,8 @@ const About = () => {
             <h2 className="mb-4 text-3xl font-bold tracking-tight">
               Our <span className="serif accent-text">mission.</span>
             </h2>
-            <p className="max-w-3xl text-lg leading-relaxed text-qme-lavender/75">
-              QME Now is designed to eliminate the frustration of long wait times
+            <p className="max-w-3xl text-lg leading-relaxed text-lyne-lavender/75">
+              Lyne is designed to eliminate the frustration of long wait times
               and uncertainty. We provide real-time queue information, remote
               joining, and live position tracking so a visit to any of our partner
               institutions is as smooth and efficient as possible — for the
@@ -95,11 +95,11 @@ const About = () => {
                 transition={{ duration: 0.45, delay: index * 0.05 }}
                 className="panel panel-hover p-8"
               >
-                <span className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+                <span className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
                   <feature.icon className="h-6 w-6" />
                 </span>
                 <h3 className="mb-2 text-2xl font-semibold tracking-tight">{feature.title}</h3>
-                <p className="leading-relaxed text-qme-lavender/70">{feature.description}</p>
+                <p className="leading-relaxed text-lyne-lavender/70">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -114,7 +114,7 @@ const About = () => {
                 <div key={item.step} className="panel-elev p-8 text-center">
                   <div className="mb-4 font-serif text-5xl italic accent-text">{item.step}</div>
                   <h3 className="mb-2 text-xl font-semibold tracking-tight">{item.title}</h3>
-                  <p className="text-sm leading-relaxed text-qme-lavender/65">{item.desc}</p>
+                  <p className="text-sm leading-relaxed text-lyne-lavender/65">{item.desc}</p>
                 </div>
               ))}
             </div>

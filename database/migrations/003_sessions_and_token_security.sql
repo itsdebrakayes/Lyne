@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 003: Session Management & Token Security
+-- LYNE — Migration 003: Session Management & Token Security
 -- Version: 3.0  |  Date: 2026-06-01
 -- =============================================================
 -- Adds:

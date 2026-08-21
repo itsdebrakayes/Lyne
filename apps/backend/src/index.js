@@ -103,7 +103,7 @@ app.use('/api/sse',            require('./routes/sse'));
 // Health check
 app.get('/health', (_req, res) => res.json({
   status:    'ok',
-  service:   'qme-now-backend',
+  service:   'lyne-backend',
   timestamp: new Date().toISOString(),
   uptime:    Math.round(process.uptime()),
 }));
@@ -124,7 +124,7 @@ app.use((err, _req, res, _next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Q ME NOW backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(`LYNE backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 
   // Analytics summaries refresh EVERY 2 HOURS. The dashboards tell users
   // "numbers recalculate automatically every 2 hours", so this must actually be

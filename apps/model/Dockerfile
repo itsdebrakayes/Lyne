@@ -1,4 +1,4 @@
-# Q Me Now — live model worker.
+# Lyne — live model worker.
 # Runs the six model scripts against the DB on boot and on a schedule so
 # predictive_results is produced by the models, not seeded. Lean by design:
 # scripts only, no Jupyter / papermill / matplotlib.

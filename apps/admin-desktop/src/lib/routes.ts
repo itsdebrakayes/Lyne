@@ -1,5 +1,5 @@
 /**
- * routes.ts — Central route constants for QMe Now Admin Desktop App
+ * routes.ts — Central route constants for Lyne Admin Desktop App
  *
  * All client-side route paths are defined here to prevent hardcoded
  * strings scattered across the codebase.

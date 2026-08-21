@@ -1,12 +1,12 @@
-# QMeNow: One-Page Investment Decision
+# Lyne: One-Page Investment Decision
 
 **Prepared:** 31 July 2026  
 **Planning rate:** US$1 = J$160  
-**Decision:** **YES — QMeNow is conditionally feasible, but only with staged spending and a paid private pilot before a large build-out.**
+**Decision:** **YES — Lyne is conditionally feasible, but only with staged spending and a paid private pilot before a large build-out.**
 
 ## What already exists
 
-QMeNow is a substantial working product, not only an idea. The repository contains the customer app, staff/management screens, queue service, database, security foundations, walk-in intake, analytics and forecasting. Remaining work is production finishing, web joining/readiness, real-device testing, secure hosting, independent assurance and release.
+Lyne is a substantial working product, not only an idea. The repository contains the customer app, staff/management screens, queue service, database, security foundations, walk-in intake, analytics and forecasting. Remaining work is production finishing, web joining/readiness, real-device testing, secure hosting, independent assurance and release.
 
 ## What it costs
 
@@ -27,7 +27,7 @@ The prior **J$250,000 sales/travel figure was a full-year allowance**, not one d
 - Two to five branches after proof: **J$1.8M–J$3.2M per year**.
 - Five-branch initial rollout with setup/training: roughly **J$4M–J$7M**.
 
-A J$1.2M pilot is about 0.34% of FHC’s reported J$354.34M surplus. International competitors confirm this is a paid software category; QMeNow’s price is plausible but must reflect its unproven status.
+A J$1.2M pilot is about 0.34% of FHC’s reported J$354.34M surplus. International competitors confirm this is a paid software category; Lyne’s price is plausible but must reflect its unproven status.
 
 ## When it breaks even
 
@@ -53,4 +53,4 @@ Spend no more than **J$350,000** on registration, accounts, quotes and qualifica
 
 Continue if 90 days of outreach produces two sponsors and one measurable branch opportunity. Stop or pivot by about 180 days if nobody will sign at **J$900,000 or more**, suitable systems already exist or required integrations make the deal unprofitable.
 
-> **Final answer:** Continue QMeNow because the expensive core already exists and institutional pricing can support it. Do not spend J$11M upfront. Stage J$2.44M–J$5.66M, win and measure one private branch, then fund expansion from evidence.
+> **Final answer:** Continue Lyne because the expensive core already exists and institutional pricing can support it. Do not spend J$11M upfront. Stage J$2.44M–J$5.66M, win and measure one private branch, then fund expansion from evidence.

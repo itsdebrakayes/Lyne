@@ -2,7 +2,7 @@
  * SignupScreen — brand-framed registration.
  *
  * Same visual language as sign in (white canvas, QMe brand-tile mosaic framing
- * the top and bottom, QMe Now lockup, black button), but as a scrolling form
+ * the top and bottom, Lyne lockup, black button), but as a scrolling form
  * that collects everything a branch needs up front: name, email, phone, date
  * of birth (in-app calendar), password + confirmation, and TRN.
  */

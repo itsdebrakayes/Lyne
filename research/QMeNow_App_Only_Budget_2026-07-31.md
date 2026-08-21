@@ -1,15 +1,15 @@
-# QMeNow App-Only Launch Budget
+# Lyne App-Only Launch Budget
 
 **Prepared:** 31 July 2026  
-**Purpose:** A plain-language budget for taking the QMeNow software from its present repository state to a responsible first commercial launch.  
+**Purpose:** A plain-language budget for taking the Lyne software from its present repository state to a responsible first commercial launch.  
 **Planning exchange rate:** US$1 = J$160. The Bank of Jamaica’s June 2026 average selling rate was J$158.55 to US$1; J$160 is used here to make the arithmetic simple and leave a small foreign-exchange cushion.  
 **Amounts:** Jamaican-dollar figures are rounded only where stated. Vendor prices can change, and card issuers may add foreign-transaction charges.
 
-> **Budget decision:** The recommended app-only launch budget is **J$5,661,478 (US$35,384)**. If the founder completes the remaining product work herself and uses specialists only where outside verification is important, the practical cash floor is about **J$2,441,478 (US$15,259)**. The earlier J$11 million figure was a broad, fully outsourced commercial-launch allowance; it is not the amount QMeNow must spend before a first private pilot.
+> **Budget decision:** The recommended app-only launch budget is **J$5,661,478 (US$35,384)**. If the founder completes the remaining product work herself and uses specialists only where outside verification is important, the practical cash floor is about **J$2,441,478 (US$15,259)**. The earlier J$11 million figure was a broad, fully outsourced commercial-launch allowance; it is not the amount Lyne must spend before a first private pilot.
 
 ## 1. What this budget covers
 
-This budget covers the QMeNow software itself:
+This budget covers the Lyne software itself:
 
 - the mobile app used by members or customers;
 - the staff and management application for Windows and the web;
@@ -33,11 +33,11 @@ It does **not** include:
 - a full appointment and scheduled-session product for Traffic Court; or
 - the cost of operating a large government contract before that contract is priced and signed.
 
-Those exclusions are deliberate. They prevent the cost of winning customers and the cost of a future enterprise contract from being mistaken for the cost of finishing QMeNow.
+Those exclusions are deliberate. They prevent the cost of winning customers and the cost of a future enterprise contract from being mistaken for the cost of finishing Lyne.
 
 ## 2. What already exists in the repository
 
-QMeNow is not being budgeted as a new app built from zero. The local repository contains approximately 43,754 lines of first-party JavaScript, TypeScript, Python and database code, excluding installed packages and generated files. More importantly, it contains working product areas:
+Lyne is not being budgeted as a new app built from zero. The local repository contains approximately 43,754 lines of first-party JavaScript, TypeScript, Python and database code, excluding installed packages and generated files. More importantly, it contains working product areas:
 
 | Product area already present | What it means in ordinary language |
 |---|---|
@@ -73,17 +73,17 @@ The present repository is still a **local/demo deployment**. The outstanding wor
 
 ### 3.2 Detailed line-by-line budget
 
-| # | Line item | US dollars | Jamaican dollars | Why QMeNow needs it |
+| # | Line item | US dollars | Jamaican dollars | Why Lyne needs it |
 |---:|---|---:|---:|---|
 | 1 | Finish the production version | $6,875.00 | J$1,100,000 | Completes the remaining staff-screen usability work, first-run setup, onboarding guidance, empty states and the clean production version that contains no demo customers. This turns the existing application into something a real branch can start using. |
 | 2 | Complete customer web entry and service-readiness flow | $3,125.00 | J$500,000 | The database groundwork exists, but a customer-facing web journey and the supporting live screens are not yet complete. This lets someone join without installing the mobile app and shows what documents or information to bring. It is particularly important for a credit-union pilot. |
 | 3 | Mobile real-device and store-release pass | $1,875.00 | J$300,000 | Covers testing and correcting the app on actual iPhones and Android phones, notifications, permissions, weak internet, older devices and store packaging. Passing a code check is not the same as working well on real phones. |
 | 4 | Full quality, accessibility and workflow testing | $3,750.00 | J$600,000 | Tests the complete journey: join, call, serve, no-show, close, reopen, report and recover from errors. It also checks that text, colour, keyboard use and screen-reader behaviour do not unnecessarily exclude users. |
-| 5 | Production hosting setup and automatic release process | $2,812.50 | J$450,000 | Places QMeNow safely on DigitalOcean, sets up private settings, automatic backups, health alerts and a repeatable release process. It also includes a recovery drill so a backup is proven usable rather than merely assumed to work. |
+| 5 | Production hosting setup and automatic release process | $2,812.50 | J$450,000 | Places Lyne safely on DigitalOcean, sets up private settings, automatic backups, health alerts and a repeatable release process. It also includes a recovery drill so a backup is proven usable rather than merely assumed to work. |
 | 6 | Independent security review and correction allowance | $4,062.50 | J$650,000 | Pays someone other than the builder to try to find access-control, data-exposure and configuration weaknesses, then allows time to correct the important findings. Credit unions and public bodies will ask how security was independently checked. |
-| 7 | Privacy and contract documents | $1,875.00 | J$300,000 | Covers a Jamaica-focused privacy policy, information-retention and deletion rules, a map of what personal information QMeNow holds, customer contract/data-processing terms and review of consent wording. It is professional work, not simply a website template. |
+| 7 | Privacy and contract documents | $1,875.00 | J$300,000 | Covers a Jamaica-focused privacy policy, information-retention and deletion rules, a map of what personal information Lyne holds, customer contract/data-processing terms and review of consent wording. It is professional work, not simply a website template. |
 | 8 | Windows installer and signing integration | $625.00 | J$100,000 | The repository can build a Windows installer, but production signing is not configured. This work connects the signing service or certificate to the release process and tests installation and updating on clean Windows machines. |
-| 9 | DigitalOcean server, one year | $288.00 | J$46,080 | A “server” is the internet computer that runs QMeNow’s queue service and analytics. The budget uses a 4 GB, two-processor DigitalOcean Droplet at $24 per month for a one-customer launch. |
+| 9 | DigitalOcean server, one year | $288.00 | J$46,080 | A “server” is the internet computer that runs Lyne’s queue service and analytics. The budget uses a 4 GB, two-processor DigitalOcean Droplet at $24 per month for a one-customer launch. |
 | 10 | DigitalOcean daily server backups, one year | $86.40 | J$13,824 | DigitalOcean charges 30% of the server price for daily backups. This allows the server to be restored after a damaging update or failure. The managed database has its own included daily backup. |
 | 11 | DigitalOcean managed MySQL database, one year | $180.00 | J$28,800 | MySQL is where queue, ticket, branch, staff and performance records live. “Managed” means DigitalOcean handles routine database maintenance and daily backups instead of the founder maintaining all of that alone. |
 | 12 | DigitalOcean Spaces storage, one year | $60.00 | J$9,600 | A separate storage area for exports, backup copies and files that should not fill the main server. It also prevents large files from competing with the live queue service. |
@@ -93,10 +93,10 @@ The present repository is still a **local/demo deployment**. The outstanding wor
 | 16 | Google Play developer account | $25.00 | J$4,000 | One-time registration to publish the Android app through Google Play. A new personal account also has identity, device and testing requirements before public release. |
 | 17 | Windows code-signing allowance, one year | $840.00 | J$134,400 | A public digital signature helps Windows verify that the installer came from the named publisher and was not changed. The allowance uses DigiCert’s listed standard USB-token subscription. Eligibility and shipping to Jamaica must be confirmed before purchase. |
 | 18 | Sole-trader completion allowance | $21.88 | J$3,500 | Uses the founder’s stated remaining amount. The official Companies Office fee page separately lists J$2,500 for sole-trader registration; a name search/reservation can be a different charge. Confirm the actual invoice before paying so the same step is not budgeted twice. |
-| 19 | First data-controller registration | $46.88 | J$7,500 | The Office of the Information Commissioner charges a sole trader or individual J$7,500 for first registration as a data controller. QMeNow handles personal information, so this is a real compliance cost, not an optional badge. Renewal is presently J$5,000 per year. |
+| 19 | First data-controller registration | $46.88 | J$7,500 | The Office of the Information Commissioner charges a sole trader or individual J$7,500 for first registration as a data controller. Lyne handles personal information, so this is a real compliance cost, not an optional badge. Renewal is presently J$5,000 per year. |
 | 20 | Domain and standard web encryption | $0.00 | J$0 | The domain has already been bought. Standard website encryption can be obtained at no charge through common automated certificate services. Future domain renewal is not included because the registrar and renewal date were not supplied. |
 | 21 | Basic error and uptime monitoring | $0.00 | J$0 | DigitalOcean includes basic server monitoring, and a free error-monitoring plan is sufficient for the first controlled pilot. Upgrade only if usage, retention or institutional requirements justify it. |
-| 22 | Low-volume system email | $0.00 | J$0 | Resend’s free plan currently includes up to 3,000 transactional emails per month, subject to a daily limit. Upgrade to its $20 monthly plan only when QMeNow’s actual volume requires it. |
+| 22 | Low-volume system email | $0.00 | J$0 | Resend’s free plan currently includes up to 3,000 transactional emails per month, subject to a daily limit. Upgrade to its $20 monthly plan only when Lyne’s actual volume requires it. |
 | 23 | Test devices and accessories allowance | $1,250.00 | J$200,000 | Provides access to at least one suitable iPhone and one Android test path, plus cables, stands or replacement batteries as required. If suitable devices are already available, this can be reduced. |
 | 24 | Store listing and release materials | $468.75 | J$75,000 | Covers final screenshots, plain-language store descriptions, privacy links and release artwork for Apple, Google and the Windows download page. It does not include general sales material. |
 | 25 | Early post-launch defect and support reserve | $1,875.00 | J$300,000 | Holds specialist time for issues found during the first live weeks. It should not be used for major new features requested by a customer; those belong in the customer contract. |
@@ -111,7 +111,7 @@ The large part of the launch budget is professional finishing and assurance work
 
 | Service | Monthly US dollars | Monthly Jamaican dollars | Plain-language purpose |
 |---|---:|---:|---|
-| DigitalOcean server | $24.00 | J$3,840 | Runs the live QMeNow service and analytics. |
+| DigitalOcean server | $24.00 | J$3,840 | Runs the live Lyne service and analytics. |
 | Daily server backups | $7.20 | J$1,152 | Keeps seven daily server recovery points under the percentage-priced plan. |
 | Managed database | $15.00 | J$2,400 | Holds the live operational records. |
 | File/object storage | $5.00 | J$800 | Keeps exports and file copies separate from the server. |
@@ -218,7 +218,7 @@ For the present sole-trader route:
 - Apple organization enrolment requires a legal entity and a D-U-N-S number. Apple does not accept a trading name by itself as the organization.
 - Google permits personal and organization developer accounts. Organization verification uses a D-U-N-S number. A new personal account has extra testing and device-verification requirements.
 
-Therefore, D-U-N-S is **not a paid launch line item** in this budget. The real decision is branding: publish now under the founder’s legal name, or wait until QMeNow has a legal entity that can be displayed as the seller.
+Therefore, D-U-N-S is **not a paid launch line item** in this budget. The real decision is branding: publish now under the founder’s legal name, or wait until Lyne has a legal entity that can be displayed as the seller.
 
 ## 9. Plain-language abbreviation guide
 
@@ -228,24 +228,24 @@ Therefore, D-U-N-S is **not a paid launch line item** in this budget. The real d
 | APNs | Apple Push Notification service: Apple’s route for sending an iPhone alert when the app is not open. |
 | CI/CD | Continuous Integration and Continuous Delivery: automated checks and release steps that reduce manual mistakes when a new version is published. |
 | D-U-N-S | Data Universal Numbering System: a free nine-digit identifier used to verify a business organization. |
-| EAS | Expo Application Services: the service QMeNow uses to build and update the iPhone and Android apps. |
+| EAS | Expo Application Services: the service Lyne uses to build and update the iPhone and Android apps. |
 | FCM | Firebase Cloud Messaging: Google’s service for sending mobile push notifications, especially to Android devices. |
 | GB or GiB | Gigabyte or gibibyte: a measure of computer memory or storage. For this budget, both simply indicate the size of the server or file allowance. |
 | GCT | General Consumption Tax: Jamaican tax that may be added to a local supplier’s quote. |
 | iOS | The operating system used by Apple iPhones. |
 | JMD or J$ | Jamaican dollars. |
-| MySQL | The main database software that stores QMeNow’s operational records. |
-| NSIS | The installer format presently configured for the QMeNow Windows application. Users see it as the normal setup program. |
+| MySQL | The main database software that stores Lyne’s operational records. |
+| NSIS | The installer format presently configured for the Lyne Windows application. Users see it as the normal setup program. |
 | OIC | Office of the Information Commissioner: Jamaica’s data-protection regulator. |
 | OCR | Optical Character Recognition: reading typed text from a photograph or scan. |
 | PII | Personally Identifiable Information: information that identifies or can be linked to a person. |
-| PWA | Progressive Web App: a website that can be installed and used in an app-like way. QMeNow’s staff interface can use this route as well as Windows. |
+| PWA | Progressive Web App: a website that can be installed and used in an app-like way. Lyne’s staff interface can use this route as well as Windows. |
 | QA | Quality Assurance: structured testing intended to find defects and confirm the product works as promised. |
 | RAM | Random Access Memory: the short-term working memory available to a server or device. |
 | SLA | Service-Level Agreement: a written commitment covering matters such as availability and response time. |
 | SMS | Short Message Service: ordinary mobile text messages. |
 | SSL/TLS | The standard encryption that protects information travelling between a user and a website or online service. |
-| TRN | Taxpayer Registration Number. QMeNow may hold it only where a service genuinely requires it and privacy rules permit it. |
+| TRN | Taxpayer Registration Number. Lyne may hold it only where a service genuinely requires it and privacy rules permit it. |
 | UI/UX | User Interface and User Experience: what people see and how easy, clear and safe the product is to use. |
 | USD or US$ | United States dollars. |
 | vCPU | Virtual Central Processing Unit: a share of computing power in an internet server. |

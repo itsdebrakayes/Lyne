@@ -6,7 +6,7 @@
 SET NAMES utf8mb4;
 
 -- =============================================================
--- Q ME NOW — Demo Branch Active Data Refresh
+-- LYNE — Demo Branch Active Data Refresh
 -- Creates a living demo sandbox for TAJ, Passport Office/PICA, and NHT.
 -- Safe to rerun on the demo branch to refresh today's queues/tickets.
 --
@@ -197,7 +197,7 @@ SELECT
   ELT(1 + MOD(CRC32(b.id), 8),
       'Andre Campbell', 'Nadine Foster', 'Rohan Peart', 'Kerry-Ann Brown',
       'Damion Stewart', 'Shanice Miller', 'Tarik Palmer', 'Janelle Rose'),
-  CONCAT('demo.sup.', REPLACE(b.id, 'br-', ''), '@qmenow.test'),
+  CONCAT('demo.sup.', REPLACE(b.id, 'br-', ''), '@lyne.test'),
   NULL, TRUE, 'active'
 FROM branches b
 WHERE b.is_active = TRUE
@@ -231,7 +231,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO users (id, email, full_name, phone, national_id, trn, date_of_birth)
 SELECT
   CONCAT('usr-demo-', LPAD(n.n, 2, '0')),
-  CONCAT('demo.customer', LPAD(n.n, 2, '0'), '@qmenow.test'),
+  CONCAT('demo.customer', LPAD(n.n, 2, '0'), '@lyne.test'),
   ELT(n.n,
     'Aaliyah Brown', 'Daniel Campbell', 'Maya Clarke', 'Owen Davis', 'Nia Edwards',
     'Jason Fraser', 'Sasha Grant', 'Andre Henry', 'Renee Johnson', 'Kyle Lewis',

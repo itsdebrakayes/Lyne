@@ -123,7 +123,7 @@ def process_manual_triggers():
 
 
 def main():
-    print("[worker] Q Me Now live model worker starting", flush=True)
+    print("[worker] Lyne live model worker starting", flush=True)
     if not wait_for_db():
         print("[worker] database never became reachable — exiting", flush=True)
         sys.exit(1)

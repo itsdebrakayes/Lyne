@@ -8,7 +8,7 @@ you can see exactly what your money turns on.
 Costs are **indicative planning figures only** — they move, and several depend on
 volume and on quotes you have not yet asked for. Confirm on the vendor's own page
 before committing. Detailed budgeting lives in
-[QMeNow_App_Only_Budget](../research/QMeNow_App_Only_Budget_2026-07-31.md) and
+[Lyne_App_Only_Budget](../research/Lyne_App_Only_Budget_2026-07-31.md) and
 [Monitoring and Running Costs](../research/Monitoring_and_Running_Costs_2026-08-13.md);
 this document is the *blocker list*, not a second budget.
 

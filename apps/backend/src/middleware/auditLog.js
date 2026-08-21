@@ -1,5 +1,5 @@
 /**
- * auditLog.js — Audit logging for sensitive data access in Q ME NOW
+ * auditLog.js — Audit logging for sensitive data access in LYNE
  *
  * Logs all sensitive reads and writes to the audit_logs table.
  * This middleware should be applied to any route that accesses or

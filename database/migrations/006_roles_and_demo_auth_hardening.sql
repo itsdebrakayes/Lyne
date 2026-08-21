@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 006: Role backfill for fresh production DBs
+-- LYNE — Migration 006: Role backfill for fresh production DBs
 -- =============================================================
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES

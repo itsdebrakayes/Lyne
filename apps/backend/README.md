@@ -1,6 +1,6 @@
-# Q ME NOW — Backend API
+# LYNE — Backend API
 
-Node.js/Express REST API that serves as the data layer for the Q ME NOW platform. It connects to a **MySQL** database and verifies user identity using **Supabase Auth JWTs**.
+Node.js/Express REST API that serves as the data layer for the LYNE platform. It connects to a **MySQL** database and verifies user identity using **Supabase Auth JWTs**.
 
 ---
 

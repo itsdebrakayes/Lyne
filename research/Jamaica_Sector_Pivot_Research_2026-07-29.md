@@ -1,34 +1,34 @@
-# QMe Now: Jamaica Sector Pivot Research
+# Lyne: Jamaica Sector Pivot Research
 
 **Prepared:** 29 July 2026  
 **Markets assessed:** Credit unions and microfinance; private diagnostic imaging/labs and hospitals; universities  
-**Purpose:** Identify evidence-backed pain, use each sector's own language, and define what QMe Now can honestly demonstrate, pilot, and build.
+**Purpose:** Identify evidence-backed pain, use each sector's own language, and define what Lyne can honestly demonstrate, pilot, and build.
 
 ## Executive decision
 
 Do not market the same generic “virtual queue” to all three sectors. The strongest position is:
 
-> **QMe Now is the locally supported service-flow layer that tells people where to go, what to prepare, when they will be served, and gives management a live view of demand—without replacing the organisation's core system.**
+> **Lyne is the locally supported service-flow layer that tells people where to go, what to prepare, when they will be served, and gives management a live view of demand—without replacing the organisation's core system.**
 
 ### Non-negotiable product model
 
-QMe Now is a **third-party multi-organisation mobile app**:
+Lyne is a **third-party multi-organisation mobile app**:
 
-- The public downloads QMe Now—not a separate app from each institution.
-- A QMe Now account works across every participating organisation.
-- People search the QMe Now directory, choose an organisation, location and service, then join its live queue.
-- The active digital ticket, wait estimate and notifications remain inside QMe Now.
-- Each organisation operates its queues through QMe Now's staff and management interfaces.
+- The public downloads Lyne—not a separate app from each institution.
+- A Lyne account works across every participating organisation.
+- People search the Lyne directory, choose an organisation, location and service, then join its live queue.
+- The active digital ticket, wait estimate and notifications remain inside Lyne.
+- Each organisation operates its queues through Lyne's staff and management interfaces.
 - The long-term value is that one app can hold many Jamaican public and private service queues.
 
-Sector work should configure this common product. It should not turn QMe Now into a browser widget, a white-label university app or a replacement for the organisation's main transaction system.
+Sector work should configure this common product. It should not turn Lyne into a browser widget, a white-label university app or a replacement for the organisation's main transaction system.
 
 The opportunity and the delivery risk are different in each sector. The ranking below now gives first preference to organisations for which no public virtual-queue/customer-flow system was identified:
 
 | Priority | Target | Best entry point | Why it is attractive | Main constraint |
 |---|---|---|---|---|
 | 1 | Access Financial or LASCO Microfinance | Branch check-in, live wait and service-demand visibility; document readiness can follow | No public virtual-queue tool was identified; both have multi-branch, time-sensitive loan processes; this is closest to the core product already built | Internal tools still must be confirmed; regulated data and integrations can slow approval |
-| 2 | Ultra Medical or Pines Imaging | Walk-in arrival, check-in and live wait at one location | Public journeys appear phone/form-led, with no live virtual queue identified; private decision-maker; small operational footprint | The centre must formally adopt and promote QMe Now as its third-party patient queue app |
+| 2 | Ultra Medical or Pines Imaging | Walk-in arrival, check-in and live wait at one location | Public journeys appear phone/form-led, with no live virtual queue identified; private decision-maker; small operational footprint | The centre must formally adopt and promote Lyne as its third-party patient queue app |
 | 3 | NCU Student Finance or UCC registration support | Route registration and financial-clearance support during peak periods | Both publish direct in-office/campus support paths; no public virtual queue was identified | The 2026 August/September implementation window is extremely short |
 | Secondary | Elite Diagnostic | Add live arrival and wait visibility to its existing appointment/WhatsApp channels | Clear appointment, referral and early check-in process | It already has more digital intake than Ultra/Pines, so it is not the first greenfield target |
 | Discovery, not first deployment | UTech or UWI | Registration exception/support routing—not replacement of registration | Strong, documented demand and large student populations; no public virtual queue was identified in the reviewed material | Mature portals/multichannel services, public/institutional procurement and the short September window |
@@ -38,14 +38,14 @@ This ranking is a commercial judgement based on public evidence and the current 
 
 ## Revised target-selection rule
 
-QMe Now should not begin by chasing the largest organisation. It should begin where the current waiting process is least digitally managed and a small deployment can produce an obvious result.
+Lyne should not begin by chasing the largest organisation. It should begin where the current waiting process is least digitally managed and a small deployment can produce an obvious result.
 
 ### Public maturity screen
 
 | Level | What the prospect publicly appears to have | Sales treatment |
 |---|---|---|
-| **A — Greenfield signal** | Phone, email, WhatsApp, web form, branch visit or paper/take-a-number process; no public live virtual queue identified | Highest priority. Confirm internally, then sell QMe Now Core. |
-| **B — Partial digital flow** | Appointment/callback form, portal or online application, but no public remote live queue/wait visibility | Good target if QMe Now fills the missing arrival/wait layer rather than replacing the existing tool. |
+| **A — Greenfield signal** | Phone, email, WhatsApp, web form, branch visit or paper/take-a-number process; no public live virtual queue identified | Highest priority. Confirm internally, then sell Lyne Core. |
+| **B — Partial digital flow** | Appointment/callback form, portal or online application, but no public remote live queue/wait visibility | Good target if Lyne fills the missing arrival/wait layer rather than replacing the existing tool. |
 | **C — Existing QMS/virtual queue** | Publicly documented queue management, remote line or queue-connected appointments | Deprioritise unless the prospect states a serious gap, replacement need or price problem. |
 | **Unknown** | Public information is insufficient | Do not guess. Ask a short qualification question before preparing a custom demo. |
 
@@ -63,11 +63,11 @@ Before spending time on a tailored deck, ask:
 
 If the answer is yes, ask what it does not solve. If the answer is no, continue to a workflow discovery call.
 
-## QMe Now Core: the smallest product worth selling
+## Lyne Core: the smallest product worth selling
 
 Predictive analytics, machine learning and executive forecasting are **not** required in the first package. The minimum useful product is:
 
-1. A person opens QMe Now and selects the organisation, location and reason for the visit.
+1. A person opens Lyne and selects the organisation, location and reason for the visit.
 2. They join remotely in the app without standing in a physical line.
 3. They see their place and an estimated wait.
 4. Staff call, serve and complete the visit from a simple board.
@@ -75,14 +75,14 @@ Predictive analytics, machine learning and executive forecasting are **not** req
 6. A manager sees current demand and a simple daily report.
 7. Walk-ins who do not use the digital journey can be added by staff.
 
-That is the common product. Each sector gets different words, service reasons and operating rules—not the entire QMe Now roadmap.
+That is the common product. Each sector gets different words, service reasons and operating rules—not the entire Lyne roadmap.
 
 ### Essential implementation package
 
 - One location
 - Up to five configured service/issue types
 - Staff and supervisor setup
-- QMe Now mobile join plus staff-assisted walk-in
+- Lyne mobile join plus staff-assisted walk-in
 - Live position and estimated wait
 - Call/serve/complete controls
 - Basic notification
@@ -102,12 +102,12 @@ That is the common product. Each sector gets different words, service reasons an
 
 ### Third-party app foundation with the highest market value
 
-QMe Now is intentionally a registered-user mobile app with push notifications. The shared product investment should strengthen that position:
+Lyne is intentionally a registered-user mobile app with push notifications. The shared product investment should strengthen that position:
 
 1. **Organisation discovery and trust.** Verified organisation profiles, clear locations, services, hours and live waits.
 2. **Fast first-use onboarding.** Make account creation and the first queue join as short as possible.
-3. **Institution-to-app hand-off.** App Store/Play Store links and deep links from an organisation's official email, portal, website or social post into its QMe Now profile.
-4. **Reliable live-ticket notifications.** Position, wait, leave-soon and called updates inside QMe Now.
+3. **Institution-to-app hand-off.** App Store/Play Store links and deep links from an organisation's official email, portal, website or social post into its Lyne profile.
+4. **Reliable live-ticket notifications.** Position, wait, leave-soon and called updates inside Lyne.
 5. **Network value.** Saved organisations and history make the same app useful for the next participating institution.
 
 Staff-assisted walk-in entry remains the accessibility path for people who do not use the app. These improvements should take priority over additional predictive features.
@@ -119,7 +119,7 @@ Public sources can prove that an organisation has a stated process, channel, ser
 For that reason, the pain statements below are labelled:
 
 - **Stated:** the organisation or a credible local report says it directly.
-- **Process-derived:** the organisation's published process contains a delay, hand-off or dependency that QMe Now could manage.
+- **Process-derived:** the organisation's published process contains a delay, hand-off or dependency that Lyne could manage.
 - **Hypothesis to validate:** commercially plausible, but must be confirmed in discovery before it appears as a fact in a pitch.
 
 ## 1. Credit unions and microfinance
@@ -134,21 +134,21 @@ Use “member check-in,” “service request,” “loan officer,” “advisor
 
 ### How they communicate with members and clients
 
-| Public pattern | Local evidence | Implication for QMe Now |
+| Public pattern | Local evidence | Implication for Lyne |
 |---|---|---|
-| Phone and branch remain important even when an online application exists | C&WJ says a representative contacts an online loan applicant within 24–48 hours, while an appointment is booked by calling or visiting a branch. | QMe Now should manage the waiting stage while continuing to support staff-assisted entry and appointments booked through existing channels. |
-| Email is used for exceptions that need identity and context | Access asks customers making some waiver or rebate requests to supply their name, TRN and contact information by email or at a branch. | QMe Now should structure the reason and required information before the visit, but should not collect a TRN unless the institution approves the security and retention design. |
+| Phone and branch remain important even when an online application exists | C&WJ says a representative contacts an online loan applicant within 24–48 hours, while an appointment is booked by calling or visiting a branch. | Lyne should manage the waiting stage while continuing to support staff-assisted entry and appointments booked through existing channels. |
+| Email is used for exceptions that need identity and context | Access asks customers making some waiver or rebate requests to supply their name, TRN and contact information by email or at a branch. | Lyne should structure the reason and required information before the visit, but should not collect a TRN unless the institution approves the security and retention design. |
 | Digital channels are sold as convenience, while the relationship stays personal | C&WJ promotes internet banking as line avoidance; Access promotes customer-centric, tailored service and direct contact channels. | Lead with convenience **and** continuity with a named representative—not automation for its own sake. |
 
 ### Five pitchable pain points
 
-| Pain in their language | Evidence | What QMe Now can credibly say | Discovery boundary |
+| Pain in their language | Evidence | What Lyne can credibly say | Discovery boundary |
 |---|---|---|---|
 | **“Members should not have to join long lines for service.”** | **Stated.** C&WJ markets internet banking with the line “Forget about joining long lines,” which confirms that line avoidance and convenience are already part of local credit-union language. | Members can join a service line remotely, see their live position and estimated wait, and arrive closer to service time. | Ask which services still generate physical lines and whether an existing QMS is already in place. |
-| **“A completed loan application should move quickly to disbursement.”** | **Stated/process-derived.** Access says personal loans may be disbursed the same day and business loans within two days after completion of the application process, subject to conditions. It also publishes detailed document requirements. | QMe Now can reduce avoidable branch waiting and capture the visit reason. With a new document-readiness step, it could tell applicants what to bring before a loan interview. | QMe Now does not approve or underwrite loans and cannot currently verify that documents are complete. |
-| **“The member needs the right representative, not simply the next available desk.”** | **Process-derived.** C&WJ describes loan representatives contacting applicants and loan appointments being booked by phone or branch visit. Access says some requests are reviewed by a loan officer or Credit Committee. | QMe Now already separates queues by service. It can be extended to route a member to a qualified loan officer or CSR and show managers the demand by service. | The current end-to-end application does not yet use staff competency records to assign each customer automatically. |
-| **“In-branch and online service should feel seamless.”** | **Stated.** C&WJ's annual reporting uses “member experience,” digital solutions and the connection between in-branch and online services. The wider credit-union sector is also moving deeper into electronic payments. | QMe Now can sit above the branch visit: online join, live wait, assisted walk-in and one management view. | It is not a core-banking, payments or loan-origination system. Integration should be a later phase. |
-| **“Management needs to know what members are waiting for, where, and for how long.”** | **Market-proven, organisation-specific need to validate.** JMMB says its QMS provides real-time feedback on branch experience, transaction ease and waiting experience. This proves that Jamaican financial institutions value these measures—but also proves some already own a QMS. | QMe Now already records queue and staff events and presents branch/management analytics. A pilot can measure wait, service time, abandonment/no-show and service demand. | Do not pitch JMMB as a greenfield target. Confirm the named prospect's current system and reporting gaps first. |
+| **“A completed loan application should move quickly to disbursement.”** | **Stated/process-derived.** Access says personal loans may be disbursed the same day and business loans within two days after completion of the application process, subject to conditions. It also publishes detailed document requirements. | Lyne can reduce avoidable branch waiting and capture the visit reason. With a new document-readiness step, it could tell applicants what to bring before a loan interview. | Lyne does not approve or underwrite loans and cannot currently verify that documents are complete. |
+| **“The member needs the right representative, not simply the next available desk.”** | **Process-derived.** C&WJ describes loan representatives contacting applicants and loan appointments being booked by phone or branch visit. Access says some requests are reviewed by a loan officer or Credit Committee. | Lyne already separates queues by service. It can be extended to route a member to a qualified loan officer or CSR and show managers the demand by service. | The current end-to-end application does not yet use staff competency records to assign each customer automatically. |
+| **“In-branch and online service should feel seamless.”** | **Stated.** C&WJ's annual reporting uses “member experience,” digital solutions and the connection between in-branch and online services. The wider credit-union sector is also moving deeper into electronic payments. | Lyne can sit above the branch visit: online join, live wait, assisted walk-in and one management view. | It is not a core-banking, payments or loan-origination system. Integration should be a later phase. |
+| **“Management needs to know what members are waiting for, where, and for how long.”** | **Market-proven, organisation-specific need to validate.** JMMB says its QMS provides real-time feedback on branch experience, transaction ease and waiting experience. This proves that Jamaican financial institutions value these measures—but also proves some already own a QMS. | Lyne already records queue and staff events and presents branch/management analytics. A pilot can measure wait, service time, abandonment/no-show and service demand. | Do not pitch JMMB as a greenfield target. Confirm the named prospect's current system and reporting gaps first. |
 
 ### Strongest prospects and positioning
 
@@ -201,8 +201,8 @@ Leave predictive staffing, underwriting, credit scoring and core-system integrat
 
 **Build before a strong financial-sector pilot**
 
-- A verified, branded financial-institution profile inside QMe Now
-- Fast member onboarding and a simple route from official institution channels to its QMe Now app profile
+- A verified, branded financial-institution profile inside Lyne
+- Fast member onboarding and a simple route from official institution channels to its Lyne app profile
 - Configurable document-readiness checklist
 - Appointment/loan-interview slots, if the pilot includes booked interviews
 - Operational use of service competency, so “right officer” is more than a service label
@@ -220,7 +220,7 @@ Leave predictive staffing, underwriting, credit scoring and core-system integrat
 **One branch, 6–8 weeks after implementation readiness**
 
 - Two or three high-volume service reasons
-- QMe Now mobile join plus staff-assisted walk-in
+- Lyne mobile join plus staff-assisted walk-in
 - Live position and wait alerts
 - Document checklist for one loan product
 - Manager dashboard by service and hour
@@ -238,22 +238,22 @@ Do not lead with “customer queue.” Do not describe medical priority as an or
 
 ### How they communicate with patients and referring providers
 
-| Public pattern | Local evidence | Implication for QMe Now |
+| Public pattern | Local evidence | Implication for Lyne |
 |---|---|---|
-| Phone-first appointment coordination is still prominent | Ultra's patient pathway begins with “Call Us”; its online referral form triggers staff follow-up to schedule. Elite publishes telephone and WhatsApp channels. | QMe Now should manage arrival and waiting after the centre formally adopts the app; existing phone/WhatsApp appointment channels can remain in place. |
+| Phone-first appointment coordination is still prominent | Ultra's patient pathway begins with “Call Us”; its online referral form triggers staff follow-up to schedule. Elite publishes telephone and WhatsApp channels. | Lyne should manage arrival and waiting after the centre formally adopts the app; existing phone/WhatsApp appointment channels can remain in place. |
 | Instructions are tied to the test and appointment | Elite provides preparation instructions during scheduling and tells patients to bring ID, insurance and the original referral. | Messages must be service-specific and clinically approved. Generic “you are next” alerts are insufficient. |
 | The tone is reassuring and outcome-oriented | PRIME uses “one visit, start to finish”; Elite uses “Better Service. Better Care”; Ultra stresses clear answers, dignity and timely reporting. | Use plain, calm language about preparation, arrival and what happens next. Never expose a diagnosis or sensitive test name in a notification. |
-| Referring doctors are a second audience | Ultra explicitly positions timely reports and smooth referrals as a service to physicians and clinics. | A later provider-referral view may be valuable, but the first pilot should keep QMe Now out of clinical results. |
+| Referring doctors are a second audience | Ultra explicitly positions timely reports and smooth referrals as a service to physicians and clinics. | A later provider-referral view may be valuable, but the first pilot should keep Lyne out of clinical results. |
 
 ### Five pitchable pain points
 
-| Pain in their language | Evidence | What QMe Now can credibly say | Discovery boundary |
+| Pain in their language | Evidence | What Lyne can credibly say | Discovery boundary |
 |---|---|---|---|
-| **“Patients need a clear path from appointment to check-in.”** | **Stated/process-derived.** Elite says appointments are necessary, patients must check in 15 minutes early, and must bring ID, insurance card and the original referral. PRIME describes check-in as registration and insurance verification. | QMe Now can give patients a live arrival/check-in flow and show the front desk who is waiting and why. | A true appointment book and pre-arrival document flow are not implemented yet. |
+| **“Patients need a clear path from appointment to check-in.”** | **Stated/process-derived.** Elite says appointments are necessary, patients must check in 15 minutes early, and must bring ID, insurance card and the original referral. PRIME describes check-in as registration and insurance verification. | Lyne can give patients a live arrival/check-in flow and show the front desk who is waiting and why. | A true appointment book and pre-arrival document flow are not implemented yet. |
 | **“The referral and preparation must be right before the patient reaches the scanner.”** | **Stated.** Elite requires a physician referral and provides special preparation instructions when scheduling. Ultra tells patients to bring a referral and follows up to schedule online referrals. | Add pre-visit instructions and a “ready / needs attention” check so staff catch missing referrals or preparation issues earlier. | Current pre-visit content is not a complete clinical document-management workflow. |
-| **“Patients should not be left waiting without answers.”** | **Stated.** PRIME markets four-hour lab results; Ultra markets same-day reporting and reports to the doctor within 24 hours. These are result-turnaround promises, while waiting on the day of service is a separate operational issue. | QMe Now can give an honest service wait estimate and notify the patient when to return or approach reception. | Never claim QMe Now speeds radiology reporting unless a measured pilot proves it. Results tracking must remain separate from queue position. |
-| **“Appointments, walk-ins and different tests must be coordinated.”** | **Stated/process-derived.** PRIME welcomes walk-ins and offers multiple care paths; Elite operates multiple modalities and locations with appointments; Ultra combines referral follow-up with walk-ins. | QMe Now can separate flows by service/location and give management a live picture of arrivals and waiting demand. | The present queue is essentially service-based and chronological. Modality capacity, procedure duration, room/equipment constraints and urgent clinical priority need new logic. |
-| **“Patient care must remain courteous, efficient, comfortable and private while people wait.”** | **Stated.** Elite's mission uses “patient care and service in a courteous and efficient manner,” and describes comfortable waiting periods. Ultra uses “care, dignity and respect.” | QMe Now can reduce uncertainty and waiting-room crowding while giving staff a simple service view. | Notifications and screens must expose the minimum possible health information. A privacy and clinical-safety review is mandatory. |
+| **“Patients should not be left waiting without answers.”** | **Stated.** PRIME markets four-hour lab results; Ultra markets same-day reporting and reports to the doctor within 24 hours. These are result-turnaround promises, while waiting on the day of service is a separate operational issue. | Lyne can give an honest service wait estimate and notify the patient when to return or approach reception. | Never claim Lyne speeds radiology reporting unless a measured pilot proves it. Results tracking must remain separate from queue position. |
+| **“Appointments, walk-ins and different tests must be coordinated.”** | **Stated/process-derived.** PRIME welcomes walk-ins and offers multiple care paths; Elite operates multiple modalities and locations with appointments; Ultra combines referral follow-up with walk-ins. | Lyne can separate flows by service/location and give management a live picture of arrivals and waiting demand. | The present queue is essentially service-based and chronological. Modality capacity, procedure duration, room/equipment constraints and urgent clinical priority need new logic. |
+| **“Patient care must remain courteous, efficient, comfortable and private while people wait.”** | **Stated.** Elite's mission uses “patient care and service in a courteous and efficient manner,” and describes comfortable waiting periods. Ultra uses “care, dignity and respect.” | Lyne can reduce uncertainty and waiting-room crowding while giving staff a simple service view. | Notifications and screens must expose the minimum possible health information. A privacy and clinical-safety review is mandatory. |
 
 ### Best entry point
 
@@ -280,7 +280,7 @@ Elite is a particularly useful discovery target because its public process expli
 Call it **QMe Patient Arrival & Wait**.
 
 - One location and one or two non-emergency services/modalities
-- Remote join through the QMe Now mobile app
+- Remote join through the Lyne mobile app
 - Staff-assisted patient check-in
 - Referral/preparation ready/not-ready flag—no clinical interpretation
 - Live estimated wait
@@ -305,8 +305,8 @@ Do not include results, diagnoses, clinical triage, full appointment scheduling 
 **Must build before a credible diagnostic appointment-flow pilot**
 
 - Appointment calendar, time slots, rescheduling and cancellation
-- A verified patient-facing organisation profile and service journey inside QMe Now
-- Privacy-safe QMe Now push reminders and “approach now” messages
+- A verified patient-facing organisation profile and service journey inside Lyne
+- Privacy-safe Lyne push reminders and “approach now” messages
 - Appointment plus walk-in capacity logic
 - Modality-aware durations and resource capacity
 - Referral, insurance and preparation checklist
@@ -326,7 +326,7 @@ Do not include results, diagnoses, clinical triage, full appointment scheduling 
 - Insurance eligibility integration
 - Secure results status, kept separate from visit queue status
 
-QMe Now must never make clinical decisions or infer medical urgency. A qualified provider sets priority; the software only executes and records it.
+Lyne must never make clinical decisions or infer medical urgency. A qualified provider sets priority; the software only executes and records it.
 
 ### Recommended diagnostic pilot
 
@@ -337,7 +337,7 @@ QMe Now must never make clinical decisions or infer medical urgency. A qualified
 - Arrival/check-in plus live wait notifications
 - Front-desk and modality worklist views
 - Manager dashboard
-- No clinical notes or results stored in QMe Now
+- No clinical notes or results stored in Lyne
 
 Measure: on-time starts, median and 90th-percentile wait, late arrivals, no-shows, incomplete referral/preparation incidents, front-desk calls about arrival/wait, throughput by modality and patient feedback.
 
@@ -347,25 +347,25 @@ Measure: on-time starts, median and 90th-percentile wait, late arrivals, no-show
 
 Use: student, enrolment or registration, module/course selection, financial clearance, Registrar's approval, hold or block, override, Student Finance, Admissions and Enrolment, Faculty Office, academic adviser, Student Records, service desk, portal, In-Tray, Aeorion, SAS, case, deadline and late registration.
 
-Do not say QMe Now fixes registration if the failure is in the student portal, course capacity, finance posting or academic approval. It can manage the support demand and hand-offs around those problems.
+Do not say Lyne fixes registration if the failure is in the student portal, course capacity, finance posting or academic approval. It can manage the support demand and hand-offs around those problems.
 
 ### How they communicate with students
 
-| Public pattern | Local evidence | Implication for QMe Now |
+| Public pattern | Local evidence | Implication for Lyne |
 |---|---|---|
-| The student portal is the official status channel | UTech refers students to their In-Tray; NCU uses Aeorion; UWI uses SAS and its application portal. | QMe Now should be framed as the support and exception layer. Do not create a conflicting “official registration status” without integration. |
+| The student portal is the official status channel | UTech refers students to their In-Tray; NCU uses Aeorion; UWI uses SAS and its application portal. | Lyne should be framed as the support and exception layer. Do not create a conflicting “official registration status” without integration. |
 | Email and scheduled online/in-person support handle exceptions | UTech said students received online meetings and official email updates after the 2025 disruption. UWI's 2026 guide directs registration issues to RIS by email or representatives in the Assembly Hall. | Add bulk service notices and clear office ownership, while preserving institutional email/portal as the official record. |
 | Communication is procedural and deadline-driven | All three institutions publish steps, payment conditions, named approvals, two-working-day expectations and late-registration consequences. | Messages should say exactly which step is incomplete, which office owns it, what evidence is needed and what deadline applies. |
-| Students use office names and system terms | Student Finance, Admissions and Enrolment, Faculty Office, Records, RIS, In-Tray, Aeorion and SAS are the navigation language. | Configure QMe Now with each institution's real terminology; do not flatten every issue into a generic “customer service” queue. |
+| Students use office names and system terms | Student Finance, Admissions and Enrolment, Faculty Office, Records, RIS, In-Tray, Aeorion and SAS are the navigation language. | Configure Lyne with each institution's real terminology; do not flatten every issue into a generic “customer service” queue. |
 
 ### Five pitchable pain points
 
-| Pain in their language | Evidence | What QMe Now can credibly say | Discovery boundary |
+| Pain in their language | Evidence | What Lyne can credibly say | Discovery boundary |
 |---|---|---|---|
 | **“Peak enrolment creates a surge of students who need direct assistance.”** | **Stated.** UTech said a late-August 2025 IT disruption destabilised registration during peak enrolment. Students described travelling to campus and joining a long admissions line. UWI's 2026 incoming-student guide says registration opens in July, orientation is in late August and support representatives will be in the Assembly Hall during orientation week. | A temporary registration-support hub can distribute demand across Student Finance, Admissions, Faculty/Advising and IT, with live wait visibility. | This does not repair the portal, firewall, module capacity or timetable engine. |
-| **“A student needs to know why registration is not complete.”** | **Stated/process-derived.** UWI says completion depends on course selection, financial clearance and identification; its bursary FAQ lists underpayment, delayed payment posting, incorrect ID, SLB status and sponsorship posting as reasons clearance can fail. | Add an issue-reason intake and clear next-step/status messages so the student reaches the correct office with the correct evidence. | Current QMe Now tracks a queue visit, not a multi-day support case. |
+| **“A student needs to know why registration is not complete.”** | **Stated/process-derived.** UWI says completion depends on course selection, financial clearance and identification; its bursary FAQ lists underpayment, delayed payment posting, incorrect ID, SLB status and sponsorship posting as reasons clearance can fail. | Add an issue-reason intake and clear next-step/status messages so the student reaches the correct office with the correct evidence. | Current Lyne tracks a queue visit, not a multi-day support case. |
 | **“Students are being sent between the wrong offices.”** | **Stated/process-derived.** UWI distinguishes financial blocks from library and Dean/academic approvals, and says the Bursary may redirect a non-financial issue. NCU separates Student Finance, University Records, advisers/departments and technical support. | Route by issue—not just physical line—and give staff a shared transfer/escalation trail. | Cross-office ownership and escalation are new case-management functions, not current queue features. |
-| **“Financial clearance and payment posting are time-sensitive.”** | **Stated.** UWI says outlet payments may take about two working days to post and deadlines can trigger late fees. UTech says its clearance is automated, campus visits are not required, and students should contact Student Financial Services if no In-Tray message appears after two clear working days. NCU says students below its published 50% tuition threshold must physically register with Student Finance. | QMe Now can manage only the exceptions: capture when payment was made, route the issue, show support status, and manage the in-person/remote support line. | It does not post payments or grant financial clearance. UTech should never be pitched an in-person clearance queue. |
+| **“Financial clearance and payment posting are time-sensitive.”** | **Stated.** UWI says outlet payments may take about two working days to post and deadlines can trigger late fees. UTech says its clearance is automated, campus visits are not required, and students should contact Student Financial Services if no In-Tray message appears after two clear working days. NCU says students below its published 50% tuition threshold must physically register with Student Finance. | Lyne can manage only the exceptions: capture when payment was made, route the issue, show support status, and manage the in-person/remote support line. | It does not post payments or grant financial clearance. UTech should never be pitched an in-person clearance queue. |
 | **“Students should not have to repeat their story or wait without a case status.”** | **Process-derived.** Published processes include approval chains, manual clearance, add/drop decisions, document evidence and case-by-case direct assistance. | A new case layer can show “received,” “needs document,” “with Student Finance,” “with Faculty,” and “resolved,” while the live queue handles same-day service. | This persistent case lifecycle is not in the current repository and must be built. |
 
 ### Institution-specific opportunity
@@ -385,7 +385,7 @@ NCU's published Student Finance process is the clearest match. It says returning
 
 Pitch:
 
-> “During registration, QMe Now directs each student to Student Finance, Records, the adviser or technical support, shows the wait and next step, and gives leadership a live view of unresolved registration demand.”
+> “During registration, Lyne directs each student to Student Finance, Records, the adviser or technical support, shows the wait and next step, and gives leadership a live view of unresolved registration demand.”
 
 This is not a replacement for Aeorion.
 
@@ -403,7 +403,7 @@ Because UCC is private and already supports multi-campus direct assistance, it m
 
 The 2025 reporting gives compelling evidence of peak-period failure, long admissions lines and case-by-case support. UTech itself called for modernisation of ageing infrastructure. However:
 
-- QMe Now cannot fix module selection, class capacity, timetables, a firewall or the enrolment portal.
+- Lyne cannot fix module selection, class capacity, timetables, a firewall or the enrolment portal.
 - Financial clearance is already automated and does not normally require a campus visit.
 - The valid wedge is **registration exception triage and support orchestration** during outages or unresolved cases.
 
@@ -421,7 +421,7 @@ The product to build is not “university registration.” It is:
 
 > **QMe Campus Support Queue — one digital front door for students whose registration, payment, financial-clearance or module-selection issue needs human help.**
 
-The existing portal remains the system of record. QMe Now organises the assistance around it.
+The existing portal remains the system of record. Lyne organises the assistance around it.
 
 A separate implementation-ready brief is available at [QMe Campus Support Prototype Brief](./QMe_Campus_Support_Prototype_Brief.md).
 
@@ -453,16 +453,16 @@ UWI's Student Administrative Services Section (SASS) describes itself as a “On
 
 #### Example student journey
 
-1. A student opens QMe Now, searches for UWI Mona and selects Student Administrative Services.
+1. A student opens Lyne, searches for UWI Mona and selects Student Administrative Services.
 2. They select **“Payment made but not reflected.”**
-3. QMe Now asks when and where payment was made.
+3. Lyne asks when and where payment was made.
 4. If the payment is still within UWI's published two-working-day posting period, the student sees the official expectation and required next step without joining a line.
 5. If it is beyond that period, the student joins the SASS support queue and sees an estimated wait.
 6. A staff member sees the reason and minimal intake information before opening the interaction.
 7. The issue is resolved or transferred to the correct team without making the student restart.
 8. The student receives a privacy-safe message with the next step.
 
-QMe Now must not decide whether the student is financially cleared. It organises the support request; UWI's system and authorised staff make the decision.
+Lyne must not decide whether the student is financially cleared. It organises the support request; UWI's system and authorised staff make the decision.
 
 ### Concrete UTech example: peak registration exception hub
 
@@ -496,12 +496,12 @@ UTech's normal financial-clearance process is automated. Students are told to mo
 1. The student opens the UTech Registration Support link.
 2. A service notice states whether the portal is operating normally or a known incident is active.
 3. The student selects the exact portal message or issue.
-4. QMe Now gives the approved self-service instruction or places the student in the appropriate virtual support line.
+4. Lyne gives the approved self-service instruction or places the student in the appropriate virtual support line.
 5. The student waits elsewhere and receives an approach/callback message.
 6. Staff see the issue category, elapsed wait and supporting reference before assisting.
 7. A supervisor sees demand building in Student Financial Services, Admissions, a Faculty/College or technical support and can reassign staff.
 
-QMe Now must not claim to repair the portal, create module capacity, generate a timetable or grant clearance.
+Lyne must not claim to repair the portal, create module capacity, generate a timetable or grant clearance.
 
 ### Shared campus MVP to build
 
@@ -509,14 +509,14 @@ This is the smallest version worth showing both institutions:
 
 | Capability | Why it is needed | Current state |
 |---|---|---|
-| Verified UWI/UTech organisation profile inside QMe Now | Students must be able to find and trust the institution and its official support queues in the third-party app | Core organisation discovery exists; **configure and add verification/branding** |
+| Verified UWI/UTech organisation profile inside Lyne | Students must be able to find and trust the institution and its official support queues in the third-party app | Core organisation discovery exists; **configure and add verification/branding** |
 | Campus/office and issue selection | Routes the student using the institution's real office names | Core services exist; **adapt the labels and intake** |
 | Rules-based self-service answer | Prevents a student joining a line for a published two-day wait or wrong office | **Build a simple configurable rules/content layer** |
 | Live virtual line and estimated wait | Lets the student wait elsewhere | **Core exists** |
 | Staff-assisted walk-in | Includes students without data, devices or confidence using the link | **Core exists** |
 | Staff call/serve/complete board | Gives each support team a manageable worklist | **Core exists; configure for campus use** |
 | Transfer to another office without restarting | Addresses the “wrong office” problem | **Build** |
-| QMe Now live-ticket push and approach message | Keeps the student updated while using other apps or travelling to campus | **Core push/live-ticket experience exists; configure privacy-safe wording** |
+| Lyne live-ticket push and approach message | Keeps the student updated while using other apps or travelling to campus | **Core push/live-ticket experience exists; configure privacy-safe wording** |
 | Service notice/outage banner | Deflects avoidable visits during known incidents | **Build** |
 | Simple daily demand report | Shows issues, waits, transfers and unresolved demand | Core analytics exist; **simplify and relabel** |
 | Multi-day case tracking | Useful for issues not resolved during first contact | **Optional phase two—not required for the first same-day pilot** |
@@ -566,9 +566,9 @@ The first request should be a 30-minute workflow validation—not a campus-wide 
 
 **Build for a useful registration-support pilot**
 
-- Verified university profile, campuses and support services inside the QMe Now app
-- Fast QMe Now onboarding and institution-to-app links for official student communications
-- Privacy-safe QMe Now push notifications
+- Verified university profile, campuses and support services inside the Lyne app
+- Fast Lyne onboarding and institution-to-app links for official student communications
+- Privacy-safe Lyne push notifications
 - Configurable issue categories and office routing
 - Temporary “event/registration week” setup and office hours
 - Persistent support-case states beyond a same-day queue ticket
@@ -589,7 +589,7 @@ The first request should be a 30-minute workflow validation—not a campus-wide 
 **One registration-support centre for two to four peak weeks**
 
 - Four or five issue categories
-- QMe Now mobile join and staff-assisted walk-in
+- Lyne mobile join and staff-assisted walk-in
 - Routing to participating offices or designated specialists
 - Live wait and next-step notifications
 - Basic case status for issues not resolved at first contact
@@ -608,7 +608,7 @@ As of 29 July 2026, the August/September university window is weeks away. A Sept
 4. Privacy, security, support, hardware/connectivity and fallback procedures are agreed before launch.
 5. The institution accepts a controlled pilot rather than a campus-wide production promise.
 
-With the repository exactly as audited, QMe Now is ready for a compelling app-based demo and a limited registered-user/staff-assisted queue. It is not yet ready to deliver cross-office ticket transfer, institution announcements or persistent multi-day cases.
+With the repository exactly as audited, Lyne is ready for a compelling app-based demo and a limited registered-user/staff-assisted queue. It is not yet ready to deliver cross-office ticket transfer, institution announcements or persistent multi-day cases.
 
 Therefore:
 
@@ -619,10 +619,10 @@ Therefore:
 
 ### Foundation that helps all three sectors
 
-1. **Trusted organisation directory inside QMe Now.** Verified profiles, locations, service lists, hours and live waits.
+1. **Trusted organisation directory inside Lyne.** Verified profiles, locations, service lists, hours and live waits.
 2. **Fast app onboarding.** Make sign-up, organisation search and the first queue join as short as possible.
-3. **Official institution-to-app links.** Open the organisation's QMe Now profile from its website, portal, email or social channel after the app is installed.
-4. **Reliable QMe Now notifications.** Confirmation, live-ticket, preparation, leave-soon and called updates.
+3. **Official institution-to-app links.** Open the organisation's Lyne profile from its website, portal, email or social channel after the app is installed.
+4. **Reliable Lyne notifications.** Confirmation, live-ticket, preparation, leave-soon and called updates.
 5. **Configurable vocabulary.** Member/client/patient/student; branch/location/campus; service/test/issue; officer/technologist/adviser.
 6. **Appointments plus live demand.** Where needed, book, reschedule, cancel, arrive and blend appointments with walk-ins.
 7. **Reason and readiness intake.** Service reason, document/referral checklist and safe next steps.
@@ -691,7 +691,7 @@ Build three short stories from the same product, without exposing technical mech
 
 ### University story
 
-“A student's payment was made but financial clearance has not appeared.” Show issue selection, routing to Student Finance, queue/wait, document request, case status and a leadership view of registration exceptions. Do not imply QMe Now posts the payment or grants clearance.
+“A student's payment was made but financial clearance has not appeared.” Show issue selection, routing to Student Finance, queue/wait, document request, case status and a leadership view of registration exceptions. Do not imply Lyne posts the payment or grants clearance.
 
 In every demo, show outcomes and controls. Do not explain the database design, forecast features or model mechanics.
 

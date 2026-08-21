@@ -1,4 +1,4 @@
-# Q ME NOW Demo Branch
+# LYNE Demo Branch
 
 This branch is for demos and end-to-end testing only. It keeps the production
 app code, plus demo seed SQL for sample businesses and queue activity.
@@ -51,7 +51,7 @@ reset the demo volume if you need to reload seed data:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.demo.yml down
-docker volume rm qme-now_mysql_demo_data
+docker volume rm lyne_mysql_demo_data
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 ```
 

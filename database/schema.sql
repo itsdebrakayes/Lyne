@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Complete MySQL Database Schema
+-- LYNE — Complete MySQL Database Schema
 -- Version: 1.0  |  Date: 2026-04-30
 -- Auth: Supabase Auth (login/signup only)
 -- Data: All application data stored in MySQL

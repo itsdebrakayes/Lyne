@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Q ME NOW — Performance Index Migration 001
+-- LYNE — Performance Index Migration 001
 -- Adds indexes identified during stress testing and load analysis.
 -- Run AFTER schema.sql.
 -- ─────────────────────────────────────────────────────────────────────────────

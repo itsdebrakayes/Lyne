@@ -1,5 +1,5 @@
 /**
- * rateLimiter.js — Rate limiting middleware for Q ME NOW backend
+ * rateLimiter.js — Rate limiting middleware for LYNE backend
  *
  * Applies per-endpoint rate limits to prevent abuse of public-facing
  * and sensitive endpoints. Uses express-rate-limit.

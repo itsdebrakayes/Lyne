@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-export function QmeLogo({
+export function LyneLogo({
   className = "",
   showText = true,
   dark = false,
@@ -18,10 +18,10 @@ export function QmeLogo({
       {showText && (
         <span
           className={`text-[17px] font-extrabold tracking-tight ${
-            dark ? "text-qme-ink" : "text-white"
+            dark ? "text-lyne-ink" : "text-white"
           }`}
         >
-          QME<span className="text-qme-purple"> Now</span>
+          Ly<span className="text-lyne-purple">ne</span>
         </span>
       )}
     </Link>

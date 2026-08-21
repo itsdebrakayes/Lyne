@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 011: Per-branch opening hours
+-- LYNE — Migration 011: Per-branch opening hours
 -- Branches carry their own opening/closing time and open days so
 -- the mobile app can show honest Open / About-to-open / Closed
 -- states per branch instead of a shared default schedule.

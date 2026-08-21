@@ -1,18 +1,18 @@
-# QMeNow — Market Pricing and Valuation Reality Check
+# Lyne — Market Pricing and Valuation Reality Check
 
 **Prepared:** 31 July 2026  
-**Purpose:** A separate, negotiation-ready analysis of what comparable queue and customer-flow systems cost, what a Jamaican buyer might reasonably pay QMeNow, and what “QMeNow is worth” can honestly mean before the first live pilot.  
+**Purpose:** A separate, negotiation-ready analysis of what comparable queue and customer-flow systems cost, what a Jamaican buyer might reasonably pay Lyne, and what “Lyne is worth” can honestly mean before the first live pilot.  
 **Planning conversion:** US$1 = J$160. This is a rounded budgeting conversion, not a foreign-exchange quote.
 
 ## Bottom line
 
-For the first private institutional customer, QMeNow should quote a **J$1.5 million** fixed-price pilot and be prepared to close at approximately **J$1.2 million**. The absolute floor should normally be **J$900,000**, and only in exchange for tightly limited scope, rapid stakeholder access, usable baseline data, and permission—after success—to use anonymised results and a reference.
+For the first private institutional customer, Lyne should quote a **J$1.5 million** fixed-price pilot and be prepared to close at approximately **J$1.2 million**. The absolute floor should normally be **J$900,000**, and only in exchange for tightly limited scope, rapid stakeholder access, usable baseline data, and permission—after success—to use anonymised results and a reference.
 
 That founding pilot should cover one branch, up to three services, 10–20 staff users, 8–12 weeks of live operation, configuration, training, hosting, support and a measured results report. It should exclude hardware, core-system integration, SMS overages, major new features, 24/7 support and custom ownership of the platform.
 
-For a public or heavily regulated pilot that requires independent security work, formal privacy deliverables, more training and production assurance, **J$2.0–3.5 million** is more realistic. The prior J$2.75–2.95 million TAJ pilot estimate sits within this band, but it should not be QMeNow’s default first-private-customer price in its current unproven state.
+For a public or heavily regulated pilot that requires independent security work, formal privacy deliverables, more training and production assurance, **J$2.0–3.5 million** is more realistic. The prior J$2.75–2.95 million TAJ pilot estimate sits within this band, but it should not be Lyne’s default first-private-customer price in its current unproven state.
 
-After proof, a reasonable annual QMeNow price is approximately:
+After proof, a reasonable annual Lyne price is approximately:
 
 | Production footprint | Annual platform, hosting and standard support |
 |---|---:|
@@ -67,10 +67,10 @@ Important limitations:
 
 - these were opened bids under evaluation, not contract awards or proven payments;
 - the procurement type was goods and the listed scope included installation, commissioning and ticket-issuing machines;
-- the values may include hardware, professional services, warranty, training, risk and enterprise overhead that QMeNow’s software-only pilot would not include;
+- the values may include hardware, professional services, warranty, training, risk and enterprise overhead that Lyne’s software-only pilot would not include;
 - the wide range shows that enterprise scope and architecture matter more than the label “queue system.”
 
-This evidence establishes a **J$29–101 million enterprise installed-system bracket**, not a fair first-pilot price for QMeNow.
+This evidence establishes a **J$29–101 million enterprise installed-system bracket**, not a fair first-pilot price for Lyne.
 
 Sources:
 
@@ -81,7 +81,7 @@ Other Jamaican market signals:
 
 - The Students’ Loan Bureau re-tendered a queue-management system in 2025 using an open national competitive process. Four suppliers responded, although their financial values were not public: https://www.gojep.gov.jm/epps/eawarding/showDetailsOpenedTender.do?resourceId=7161254
 - A 2025 queue-management subscription tender attracted PBS, Vertis, ADVANTUM and AV COM before cancellation. This confirms an active local supplier category, but does not disclose price: https://www.gojep.gov.jm/epps/eawarding/showDetailsOpenedTender.do?resourceId=7865335
-- The National Land Agency publicly operates QLess/Qme virtual queue, appointments, kiosk/QR access and notifications. No reliable contract price was located: https://jis.gov.jm/improved-customer-service-at-nla/
+- The National Land Agency publicly operates QLess/Lyne virtual queue, appointments, kiosk/QR access and notifications. No reliable contract price was located: https://jis.gov.jm/improved-customer-service-at-nla/
 
 ## 3. What a buyer is actually paying for
 
@@ -99,7 +99,7 @@ The cheap end buys access to an established standardised cloud product. The expe
 - warranties, redundancy and disaster recovery;
 - procurement, insurance and contractual risk carried by an established supplier.
 
-QMeNow cannot justify enterprise pricing merely because its feature list is broad. A first buyer will discount for:
+Lyne cannot justify enterprise pricing merely because its feature list is broad. A first buyer will discount for:
 
 - no live institutional reference;
 - no audited improvement in waiting time, abandonment or repeat visits;
@@ -110,7 +110,7 @@ QMeNow cannot justify enterprise pricing merely because its feature list is broa
 - company incorporation and procurement readiness still in progress;
 - no established support team or field-service network.
 
-QMeNow also has real positives:
+Lyne also has real positives:
 
 - it is a working multi-surface product, not an idea or slide deck;
 - the local repository contains mobile, staff desktop, backend, database and analytics components;
@@ -119,11 +119,11 @@ QMeNow also has real positives:
 - tenant, branch, service, role, real-time event and analytics concepts already exist;
 - the proposed differentiation—readiness before travel, live branch flow and Jamaican sector wording—is more specific than “take a number.”
 
-## 4. Cost to recreate QMeNow
+## 4. Cost to recreate Lyne
 
 Current custom-software market evidence places many development companies around US$25–49 per hour. At J$160/US$ and 160 hours per month, that is approximately **J$640,000–1.254 million per full-time person-month** before unusually senior specialists or high-assurance enterprise overhead.
 
-A reasonable reconstruction of QMeNow’s current mobile, staff desktop, API/database, analytics, QA and product-design scope would likely require approximately **18–30 competent person-months**. That produces a broad arithmetic range of **J$11.5–37.6 million**. Allowing for reuse, uneven code maturity and the fact that the present system is not production-complete, the more defensible present replacement-cost band is:
+A reasonable reconstruction of Lyne’s current mobile, staff desktop, API/database, analytics, QA and product-design scope would likely require approximately **18–30 competent person-months**. That produces a broad arithmetic range of **J$11.5–37.6 million**. Allowing for reuse, uneven code maturity and the fact that the present system is not production-complete, the more defensible present replacement-cost band is:
 
 > **J$15–30 million to reproduce the current demonstrated asset, and approximately J$22–45 million to reproduce it and complete a responsible commercial release.**
 
@@ -134,13 +134,13 @@ Sources:
 - Clutch 2026 software-development pricing: https://clutch.co/developers/pricing
 - Jamaican public-service Software Developer MIS/IT 6 salary benchmark: https://www.osc.gov.jm/wp-content/uploads/2024/01/Software-Developer-IT-6-et-al-Ministry-of-Industry-Investment-and-Commerce.pdf
 
-## 5. What “QMeNow is worth” can mean
+## 5. What “Lyne is worth” can mean
 
 There is no single honest value. Four different questions produce different numbers.
 
 ### 5.1 Customer-use value
 
-This is what an institution will pay to use QMeNow. Today, before proof, the most defensible one-branch annual value is **J$900,000–1.4 million**, plus implementation and exceptional services. That is aligned with established software benchmarks while recognising local configuration and support.
+This is what an institution will pay to use Lyne. Today, before proof, the most defensible one-branch annual value is **J$900,000–1.4 million**, plus implementation and exceptional services. That is aligned with established software benchmarks while recognising local configuration and support.
 
 ### 5.2 Replacement value
 
@@ -160,7 +160,7 @@ If a number is required for a preliminary Jamaican angel conversation:
 - **practical anchor:** approximately J$20–25 million pre-money;
 - **after incorporation, independent assurance and one successful paid pilot:** potentially J$30–60 million, depending on contract quality, renewal likelihood, founder commitment and sales pipeline.
 
-These are negotiation scenarios, not an appraisal. QMeNow should not sell equity merely because a buyer disputes these numbers. A convertible instrument or milestone-based investment may defer an artificial valuation argument, but legal advice is required.
+These are negotiation scenarios, not an appraisal. Lyne should not sell equity merely because a buyer disputes these numbers. A convertible instrument or milestone-based investment may defer an artificial valuation argument, but legal advice is required.
 
 US pre-seed medians should not be copied into Jamaica. Jamaica has a smaller investor pool, less liquidity and much less local comparative data. The DBJ Angel Fund and FirstAngels/RevUP ecosystem are better routes for testing a locally credible valuation.
 
@@ -218,7 +218,7 @@ Excluded:
 - independent penetration testing unless specifically budgeted;
 - unlimited SMS;
 - 24/7 support;
-- ownership of QMeNow source code;
+- ownership of Lyne source code;
 - exclusivity;
 - unlimited changes.
 
@@ -232,7 +232,7 @@ Founding-client discount conditions:
 - decision meeting at pilot end;
 - permission, after success and subject to approval, to use anonymised metrics and a reference.
 
-Suggested payments: **40% on signing, 30% on configured-pilot acceptance, 30% at live launch or an agreed acceptance milestone**. Do not leave most payment dependent on business outcomes QMeNow does not control.
+Suggested payments: **40% on signing, 30% on configured-pilot acceptance, 30% at live launch or an agreed acceptance milestone**. Do not leave most payment dependent on business outcomes Lyne does not control.
 
 ### Regulated or public pilot
 
@@ -287,7 +287,7 @@ Hardware should usually be passed through at cost plus a transparent procurement
 | Institution with 6–15 branches | J$7.0–14.0M |
 | Installed enterprise ticketing system with kiosks/hardware/integration | Jamaican bids currently show J$29–101M |
 
-The buyer may compare QMeNow with Qminder’s approximately J$1.5–2.0 million annual plans, including unlimited locations but limited users. QMeNow therefore cannot win by charging a high per-branch multiplier for a generic queue. It must win through:
+The buyer may compare Lyne with Qminder’s approximately J$1.5–2.0 million annual plans, including unlimited locations but limited users. Lyne therefore cannot win by charging a high per-branch multiplier for a generic queue. It must win through:
 
 - Jamaican configuration and support;
 - readiness information that prevents incomplete visits;
@@ -328,9 +328,9 @@ Ask the professional whether these five statements match Jamaican reality:
 
 1. Established software-only queue platforms appear to cost roughly **J$600,000–2.1 million per year** in published comparable configurations.
 2. A current Jamaican installed queue-ticketing tender produced disclosed bids of **J$29.3–101 million**, with a **J$53.7 million median**, but these are bids under evaluation and include installation/hardware risk.
-3. QMeNow should open a one-branch founding pilot at **J$1.5 million**, target **J$1.2 million**, and resist going below **J$900,000** without strong non-cash consideration and scope reduction.
+3. Lyne should open a one-branch founding pilot at **J$1.5 million**, target **J$1.2 million**, and resist going below **J$900,000** without strong non-cash consideration and scope reduction.
 4. After proof, one branch should cost approximately **J$900,000–1.4 million annually**, while a 3–5 branch institution should be approximately **J$1.8–3.2 million annually**, plus rollout.
-5. QMeNow’s present engineering replacement cost is plausibly **J$15–30 million**, but its code-sale value and company valuation are lower because it has no paid institutional evidence yet.
+5. Lyne’s present engineering replacement cost is plausibly **J$15–30 million**, but its code-sale value and company valuation are lower because it has no paid institutional evidence yet.
 
 Questions for the professional:
 
@@ -340,17 +340,17 @@ Questions for the professional:
 - What first-year price would cause a branch manager to approve locally versus escalate to executive procurement?
 - Is J$1.2 million credible for a measured one-branch, three-service pilot?
 - Which local security, insurance and support requirements will a credit union impose?
-- Would an established supplier partner with QMeNow, and what percentage or margin would it require?
+- Would an established supplier partner with Lyne, and what percentage or margin would it require?
 - How do buyers normally separate implementation, annual licence, hosting and support?
-- What proof would move QMeNow from a 40–60% credibility discount to normal market price?
+- What proof would move Lyne from a 40–60% credibility discount to normal market price?
 - What pre-money valuation, if any, would a Jamaican angel defend before the first paid pilot?
 
 ## Final judgement
 
-QMeNow is too substantial to price like a student website, but too unproven to price like PBS, Vertis, QLess or Qmatic.
+Lyne is too substantial to price like a student website, but too unproven to price like PBS, Vertis, QLess or Qmatic.
 
 The fair present position is:
 
 > **Sell a J$1.2–1.5 million measured founding pilot; establish one real result; then charge approximately J$900,000–1.4 million per branch per year or a discounted multi-branch platform rate.**
 
-The pilot price is not a claim that QMeNow is already enterprise-proven. It is the price of configuration, launch work, hosting, training, support, measurement and controlled operational risk. The first successful deployment is what converts QMeNow from an impressive software asset into a commercially valuable company.
+The pilot price is not a claim that Lyne is already enterprise-proven. It is the price of configuration, launch work, hosting, training, support, measurement and controlled operational risk. The first successful deployment is what converts Lyne from an impressive software asset into a commercially valuable company.

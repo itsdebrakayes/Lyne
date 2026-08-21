@@ -45,7 +45,7 @@ function App() {
 
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem('qmenow:first-run-tutorial-v1'),
+      AsyncStorage.getItem('lyne:first-run-tutorial-v1'),
       new Promise(resolve => setTimeout(resolve, 1200)),
     ]).then(([seen]) => {
       setTutorialSeen(seen === 'complete');
@@ -61,7 +61,7 @@ function App() {
   }, [fontsLoaded]);
 
   const completeTutorial = async () => {
-    await AsyncStorage.setItem('qmenow:first-run-tutorial-v1', 'complete').catch(() => {});
+    await AsyncStorage.setItem('lyne:first-run-tutorial-v1', 'complete').catch(() => {});
     setTutorialSeen(true);
   };
 

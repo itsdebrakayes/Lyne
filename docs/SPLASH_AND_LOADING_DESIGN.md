@@ -42,7 +42,7 @@ A delivery app shows a delivery. A queue app should show **a queue**.
         │   ▯ ▯ ▯ ▯     │   2. they join the back of a line
         │   ▯ ▯ ▯ →     │   3. the front of the line steps forward, then out
         ╰───────────────╯
-              QMe Now
+              Lyne
 ```
 
 **The cast.** The people in the line are not identical silhouettes — one has

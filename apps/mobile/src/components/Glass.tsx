@@ -1,5 +1,5 @@
 /**
- * Glass.tsx — Apple "liquid glass" materials for QMe Now.
+ * Glass.tsx — Apple "liquid glass" materials for Lyne.
  *
  * GlassCard / GlassView render an expo-blur BlurView (real background blur on
  * iOS, approximated on Android) with a translucent fill and a hairline

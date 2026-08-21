@@ -1,5 +1,5 @@
 """
-model_utils.py — Shared modelling helpers used across the QMe Now models.
+model_utils.py — Shared modelling helpers used across the Lyne models.
 
 Two things every model here needs and kept getting wrong on its own:
 

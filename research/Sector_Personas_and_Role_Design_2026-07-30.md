@@ -79,12 +79,12 @@ Not seasonal in the retail sense. It is **deadline-driven and event-driven** **[
 demand spikes around announced public days and will spike hard into late September 2026.
 Between events, ordinary traffic-court sittings continue at a lower baseline **[modelled]**.
 
-### The gap this exposes in QMe Now
+### The gap this exposes in Lyne
 
 **The public day is an appointment model, not a walk-in queue.** Only **pre-registered**
 motorists who registered during the designated window are accommodated **[sourced]**.
 I checked: there is **no appointment, booking or scheduled-slot concept anywhere in the
-codebase** — no table, no route, no screen. QMe Now models live queues only.
+codebase** — no table, no route, no screen. Lyne models live queues only.
 
 This is the most consequential finding in the document. Traffic court cannot be served
 properly without a scheduled-session concept: a capped, dated session that people register
@@ -415,7 +415,7 @@ across Curaçao and Bonaire** **[sourced]**. No confirmed Jamaican deployment wa
 **[gap]**.
 
 This is worth internalising rather than fearing. Those vendors sell **one installation to
-one institution**. QMe Now's model is **one consumer app across many organisations** — a
+one institution**. Lyne's model is **one consumer app across many organisations** — a
 Jamaican with the app installed for their traffic ticket already has it for their credit
 union and their campus office. That network position is not something a per-site hardware
 vendor can copy, and it is the honest strategic answer to "why not just buy Qmatic".

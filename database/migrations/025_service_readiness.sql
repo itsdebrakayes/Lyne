@@ -1,7 +1,7 @@
 -- =============================================================
 -- 025 — What to have ready before you come
 --
--- Step 6 of the customer journey is "QMe Now shows what to have ready", and
+-- Step 6 of the customer journey is "Lyne shows what to have ready", and
 -- there is nowhere to put it. services.description is a single sentence of
 -- marketing copy ("Apply for a first-time Jamaican passport").
 --

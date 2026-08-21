@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 004: Pipeline metadata and prediction freshness
+-- LYNE — Migration 004: Pipeline metadata and prediction freshness
 -- =============================================================
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES

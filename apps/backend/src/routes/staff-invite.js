@@ -1,5 +1,5 @@
 /**
- * staff-invite.js — Staff invite-code flow for Q ME NOW
+ * staff-invite.js — Staff invite-code flow for LYNE
  *
  * Staff accounts are NEVER self-registered. They must be created by a manager
  * or executive, who generates an invite code. The invited staff member uses

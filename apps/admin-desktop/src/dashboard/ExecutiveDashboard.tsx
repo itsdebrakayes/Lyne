@@ -283,7 +283,7 @@ export default function ExecutiveDashboard() {
 
   return (
     <QxShell
-      brand="QMe Now"
+      brand="Lyne"
       brandSub={org}
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}

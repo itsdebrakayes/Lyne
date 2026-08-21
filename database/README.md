@@ -1,4 +1,4 @@
-# Q ME NOW — MySQL Database
+# LYNE — MySQL Database
 
 This folder contains the production MySQL schema, migrations, and analytics export reference queries.
 

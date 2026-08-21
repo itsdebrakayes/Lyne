@@ -177,7 +177,7 @@ export default function LineStaffDashboard() {
     <QxShell
       notifications={notify.unread}
       notify={notify}
-      brand="QMe Now"
+      brand="Lyne"
       brandSub={branch}
       nav={NAV.map((n) => ({ key: n.key === 'live' ? 'overview' : n.key, label: n.label, icon: n.icon, group: 'Main' }))}
       active={tab === 'live' ? 'overview' : tab}

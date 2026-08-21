@@ -255,7 +255,7 @@ export default function ManagerDashboard() {
 
   return (
     <QxShell
-      brand="QMe Now"
+      brand="Lyne"
       brandSub={org}
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
@@ -775,8 +775,8 @@ export function ReportsTab({ summary, last, completed, total, noShows, scope, se
       <ReportDoc
         title={`${scope} Performance Report`}
         subtitle={`${from} – ${to}`}
-        meta={`Generated ${new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })} · QMe Now`}
-        filename={`QMeNow-${scope}-Report-${to.replace(/\s/g, '')}`}
+        meta={`Generated ${new Date().toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })} · Lyne`}
+        filename={`Lyne-${scope}-Report-${to.replace(/\s/g, '')}`}
       >
         <ReportSection heading="Summary">
           <ReportKpis items={[
@@ -870,8 +870,8 @@ export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[]
         ))}
       </Card>
       <Card span={5} title="Contact QMe Support" cap="We Reply Within One Business Day">
-        <a className="qa-contact" href="mailto:support@qme-now.com">
-          <i><Mail size={16} /></i><span><b>support@qme-now.com</b><small>Email us — best for questions with screenshots</small></span>
+        <a className="qa-contact" href="mailto:support@uselyne.com">
+          <i><Mail size={16} /></i><span><b>support@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
         </a>
         <a className="qa-contact" href="tel:+18765550199">
           <i><Phone size={16} /></i><span><b>+1 (876) 555-0199</b><small>Call us — best when a line is down</small></span>

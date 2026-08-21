@@ -78,7 +78,7 @@ export function Shell({
   return (
     <div className="qa-app qa-shell" data-theme={theme}>
       <aside className="qa-side">
-        <div className="qa-brand"><i>Q</i><div><b>QMe Now</b><small>{org}</small></div></div>
+        <div className="qa-brand"><i>Q</i><div><b>Lyne</b><small>{org}</small></div></div>
         <div className="qa-usercard">
           <span className="qa-av" style={{ '--h': hueFor(name) } as CSSProperties}>{initials(name)}</span>
           <div><b>{name}</b><small>{roleLabel}</small></div>

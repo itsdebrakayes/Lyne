@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 012: Payments (Stripe, event-sourced ledger)
+-- LYNE — Migration 012: Payments (Stripe, event-sourced ledger)
 -- Card data never touches our server; Stripe tokenizes on the client and
 -- reports state via webhooks. We record every payment event in an append-only
 -- ledger (payment_events) and derive status from it — so retries, out-of-order

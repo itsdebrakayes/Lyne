@@ -1,5 +1,5 @@
 /**
- * etaMath.js — the ONE way Q Me Now turns "people ahead" into "minutes to wait".
+ * etaMath.js — the ONE way Lyne turns "people ahead" into "minutes to wait".
  *
  * Every customer-facing wait — the pre-join Branch and Join screens, and the
  * live ticket — must agree, or the app contradicts itself one tap apart. They

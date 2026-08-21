@@ -12,7 +12,7 @@ written — the rule the TAJ experience produced. It answers the open question l
 ## The verdict in one line
 
 **IECMS does not do public check-in, and its reference implementation has not grown one in
-ten years of operation. QMe Now complements it — different object, different owner, different
+ten years of operation. Lyne complements it — different object, different owner, different
 system of record. Proceed with the court build.**
 
 ---
@@ -84,7 +84,7 @@ physically appear and be seen in person.
 This is the single point to get right, because "hearing management" and "automated
 scheduling" sound like they could overlap. They do not.
 
-|  | IECMS | QMe Now |
+|  | IECMS | Lyne |
 |---|---|---|
 | Object | A case | A person who walked in |
 | Time horizon | Which date is this matter listed for | Who is seen next, this morning |

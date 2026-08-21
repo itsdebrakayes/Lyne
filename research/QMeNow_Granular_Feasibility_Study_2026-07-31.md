@@ -1,17 +1,17 @@
-# QMeNow Granular Feasibility Study
+# Lyne Granular Feasibility Study
 
 **Prepared:** 31 July 2026  
-**Question tested:** Can QMeNow become a financially sustainable Jamaican venture when the present product, remaining launch cost, likely customer prices, founder profile, competition and target institutions are considered together?  
+**Question tested:** Can Lyne become a financially sustainable Jamaican venture when the present product, remaining launch cost, likely customer prices, founder profile, competition and target institutions are considered together?  
 **Planning conversion:** US$1 = J$160.  
-**Decision:** **Conditionally feasible.** QMeNow is feasible as a staged, founder-led business that wins a measured private-sector pilot before completing every enterprise feature. It is not feasible as a speculative J$11 million build completed in full before customer proof.
+**Decision:** **Conditionally feasible.** Lyne is feasible as a staged, founder-led business that wins a measured private-sector pilot before completing every enterprise feature. It is not feasible as a speculative J$11 million build completed in full before customer proof.
 
 ## 1. Executive finding
 
-QMeNow has crossed the line from “idea” to “substantial working product.” Its repository already contains the consumer mobile app, staff and management interface, live queue service, operational database, role and security foundations, forecasting worker and marketing site. This materially reduces technical creation risk.
+Lyne has crossed the line from “idea” to “substantial working product.” Its repository already contains the consumer mobile app, staff and management interface, live queue service, operational database, role and security foundations, forecasting worker and marketing site. This materially reduces technical creation risk.
 
 The venture still has material **commercial proof risk**:
 
-- no live institution has yet proved that QMeNow reduces waiting or improves throughput;
+- no live institution has yet proved that Lyne reduces waiting or improves throughput;
 - no paying customer or renewal history exists;
 - the founder is early in her professional career and does not yet have a large-company delivery record;
 - the leading prospects may already have an internal or contracted queue/appointment product that is not publicly visible;
@@ -20,7 +20,7 @@ The venture still has material **commercial proof risk**:
 
 These risks do not make the venture unworkable. They make **sequence** the central feasibility issue.
 
-> QMeNow should first sell a tightly controlled, one-branch private pilot at approximately J$1.2 million, use measured results to earn a multi-branch contract, and release further capital only when each customer milestone is achieved.
+> Lyne should first sell a tightly controlled, one-branch private pilot at approximately J$1.2 million, use measured results to earn a multi-branch contract, and release further capital only when each customer milestone is achieved.
 
 The recommended responsible app-only launch budget is **J$5.66 million (US$35,384)**. The founder-led cash floor is **J$2.44 million (US$15,259)**. The venture can cover its steady operating cost with approximately:
 
@@ -34,13 +34,13 @@ Recovering the full J$5.66 million launch investment while also paying the found
 
 This study compares five things:
 
-1. the actual state of the local QMeNow repository;
+1. the actual state of the local Lyne repository;
 2. the cash required to make that product commercially responsible;
 3. current public prices for international queue/customer-flow products;
 4. the financial capacity and workflow evidence of the identified Jamaican prospects; and
 5. the revenue and customer count required to sustain the venture.
 
-The analysis uses public information, not confidential customer data. Where a prospect’s current queue system cannot be verified publicly, the study records an **unknown**, not an assumption that QMeNow has an open field.
+The analysis uses public information, not confidential customer data. Where a prospect’s current queue system cannot be verified publicly, the study records an **unknown**, not an assumption that Lyne has an open field.
 
 ## 3. The product being tested
 
@@ -78,7 +78,7 @@ The repository’s own remaining-work record identifies:
 - independent security assurance; and
 - public app-store release.
 
-The database contains groundwork for customer web joining, service-readiness information and scheduled sessions. However, the present audit did not find a complete mounted scheduled-session service and usable screens. That means QMeNow can honestly sell **live same-day branch flow** first; it should not yet claim that it fully runs appointment-based court public days.
+The database contains groundwork for customer web joining, service-readiness information and scheduled sessions. However, the present audit did not find a complete mounted scheduled-session service and usable screens. That means Lyne can honestly sell **live same-day branch flow** first; it should not yet claim that it fully runs appointment-based court public days.
 
 ### 3.3 Product conclusion
 
@@ -86,7 +86,7 @@ Technical feasibility is **high for a one-branch private pilot** and **moderate 
 
 ## 4. Market need and customer selection
 
-### 4.1 The need QMeNow must prove
+### 4.1 The need Lyne must prove
 
 The problem is not merely that a visible line exists. A paying institution must have one or more measurable problems:
 
@@ -98,7 +98,7 @@ The problem is not merely that a visible line exists. A paying institution must 
 - managers lack reliable service-time and staffing evidence; or
 - the physical waiting area creates crowding, complaint or accessibility risk.
 
-QMeNow is valuable when it changes those outcomes. If a branch has a short, predictable wait or an incumbent system already solves the problem, it is not a good pilot site.
+Lyne is valuable when it changes those outcomes. If a branch has a short, predictable wait or an incumbent system already solves the problem, it is not a good pilot site.
 
 ### 4.2 Priority prospect assessment
 
@@ -117,7 +117,7 @@ No Transport Authority or Traffic Authority opportunity is included. The public-
 
 FHC publicly describes a 2040 direction based on digital transformation, inclusive innovation and sustainable growth. Its stated goal includes seamless experiences across mobile, online and in-branch service and using data to anticipate needs. It also reported J$20.49 billion in assets, J$6.12 billion in loan disbursements and a J$354.34 million net surplus.
 
-Those figures do not prove willingness to buy QMeNow. They do demonstrate that a properly sponsored J$1.2 million pilot is financially possible:
+Those figures do not prove willingness to buy Lyne. They do demonstrate that a properly sponsored J$1.2 million pilot is financially possible:
 
 - J$1.2 million is approximately 0.34% of the reported J$354.34 million surplus.
 - A J$5.5 million five-branch first-year rollout is approximately 1.55% of that surplus.
@@ -128,7 +128,7 @@ The first FHC meeting must answer:
 2. Which branch and service have the most variable and costly wait?
 3. Does the existing consultation/callback request create a scheduled appointment, a lead or only a phone call?
 4. How often do members arrive without all required information?
-5. Can the branch provide four weeks of baseline timestamps or permit QMeNow to measure them?
+5. Can the branch provide four weeks of baseline timestamps or permit Lyne to measure them?
 6. Who has authority to sponsor one branch and sign a limited pilot?
 
 If there is a strong incumbent or no measurable pain, FHC should be disqualified rather than pursued because it is a prestigious name.
@@ -137,7 +137,7 @@ If there is a strong incumbent or no measurable pain, FHC should be disqualified
 
 Access can become the first target if the reported warm introduction reaches an operations decision-maker quickly. Early ventures often win through access and trust, not the theoretically highest market score.
 
-The risk is overlap. Access already has a customer-facing MyAccess product and internal digital capability. The discovery call must determine whether arrival, appointment, document readiness, queueing or branch analytics are already present. QMeNow should use the language “customer/client,” “loan officer,” “application status” and “branch service”; it should not use credit-union terms such as “member” unless Access uses them.
+The risk is overlap. Access already has a customer-facing MyAccess product and internal digital capability. The discovery call must determine whether arrival, appointment, document readiness, queueing or branch analytics are already present. Lyne should use the language “customer/client,” “loan officer,” “application status” and “branch service”; it should not use credit-union terms such as “member” unless Access uses them.
 
 ### 4.5 Universities
 
@@ -159,11 +159,11 @@ Traffic Court has the strongest publicly documented volume pain and the weakest 
 
 The July 2026 Kingston and St Andrew Traffic Ticket Public Days covered more than 43,000 tickets, required registration and scheduled appointments, and did not accept walk-ins. Jamaica is also implementing the Judicial Integrated Electronic Case Management System (IECMS), intended to cover electronic filing, automated scheduling, case tracking and real-time information.
 
-QMeNow must therefore be positioned narrowly:
+Lyne must therefore be positioned narrowly:
 
 > the public arrival, readiness, check-in, live waiting and communication layer before service—not a case-management system and not a replacement for court records.
 
-Before any court build, the Court Administration Division must confirm what IECMS and the Ticket Information Management System already provide. If those programmes include event registration, appointments, arrival check-in, queue display, alerts and operational reporting, QMeNow should not duplicate them.
+Before any court build, the Court Administration Division must confirm what IECMS and the Ticket Information Management System already provide. If those programmes include event registration, appointments, arrival check-in, queue display, alerts and operational reporting, Lyne should not duplicate them.
 
 Government procurement, public accountability, accessibility, security and support requirements also make courts a poor first revenue dependency. The court track is feasible only after:
 
@@ -188,7 +188,7 @@ Public prices show a wide market:
 
 These prices prove that institutions pay recurring amounts for customer-flow systems. They do not prove Jamaican institutions will buy an unproven local product at the same price.
 
-### 5.2 QMeNow’s honest first-customer price
+### 5.2 Lyne’s honest first-customer price
 
 The recommended commercial position is:
 
@@ -213,7 +213,7 @@ The founding pilot should include:
 - normal business-hours support; and
 - a before-and-after results report.
 
-It should exclude customer hardware, core banking integration, unlimited text messages, custom ownership of QMeNow, major new modules and round-the-clock support.
+It should exclude customer hardware, core banking integration, unlimited text messages, custom ownership of Lyne, major new modules and round-the-clock support.
 
 ### 5.3 Why this price is credible despite the founder’s profile
 
@@ -228,7 +228,7 @@ The founder’s limited delivery record and the absence of pilot evidence justif
 
 They do **not** justify a free long-term deployment. A free pilot shifts all risk to the founder, provides weak evidence of willingness to pay and makes later price increases harder.
 
-QMeNow also has genuine positives:
+Lyne also has genuine positives:
 
 - a substantial functioning code base;
 - local language and workflows;
@@ -277,11 +277,11 @@ This model intentionally includes a founder salary. A venture that survives only
 | Five-branch initial rollout | J$5,500,000 | J$1,500,000 | J$4,000,000 | 73% |
 | Five-branch annual renewal | J$2,800,000 | J$700,000 | J$2,100,000 | 75% |
 
-These margins are attractive only if the scope is controlled. A J$1.2 million pilot becomes unprofitable if QMeNow quietly builds a new banking integration, supplies hardware, offers unlimited on-site support or accepts several bespoke workflows.
+These margins are attractive only if the scope is controlled. A J$1.2 million pilot becomes unprofitable if Lyne quietly builds a new banking integration, supplies hardware, offers unlimited on-site support or accepts several bespoke workflows.
 
 ### 7.1 Operating break-even
 
-To cover approximately J$3.5 million of annual company cost including modest founder compensation, QMeNow needs roughly one of the following:
+To cover approximately J$3.5 million of annual company cost including modest founder compensation, Lyne needs roughly one of the following:
 
 - four one-branch annual customers: about J$3.68 million combined contribution;
 - four founding pilots: about J$3.4 million combined contribution, just below full break-even;
@@ -332,7 +332,7 @@ The following scenarios are not forecasts. They are decision models showing what
 
 ### 8.4 What the scenarios really say
 
-QMeNow does not need dozens of customers to work. It needs:
+Lyne does not need dozens of customers to work. It needs:
 
 - the first two pilots to produce evidence;
 - at least one multi-branch expansion; and
@@ -407,7 +407,7 @@ The most feasible route is to complete the sole-trader registration now, but rev
 
 ### 11.2 Data protection
 
-QMeNow handles names, contact information, queue history and potentially identity-related information. A sole trader’s first registration as a data controller currently costs J$7,500 and annual renewal J$5,000.
+Lyne handles names, contact information, queue history and potentially identity-related information. A sole trader’s first registration as a data controller currently costs J$7,500 and annual renewal J$5,000.
 
 Feasibility requires:
 
@@ -436,7 +436,7 @@ The first pilot should promise:
 
 - support during agreed branch hours;
 - urgent acknowledgement within one business hour;
-- a manual branch fallback if QMeNow is unavailable;
+- a manual branch fallback if Lyne is unavailable;
 - daily backup and tested recovery;
 - named persons authorised to request changes; and
 - a planned maintenance window.
@@ -617,7 +617,7 @@ Stopping a market approach is not the same as deleting the product. The underlyi
 
 ## 17. Final feasibility verdict
 
-### Is QMeNow feasible?
+### Is Lyne feasible?
 
 **Yes—conditionally.**
 
@@ -649,7 +649,7 @@ It is conditional because:
 7. Keep Traffic Court in discovery until scheduled sessions work and the IECMS/TIMS boundary is confirmed.
 8. Measure the first pilot and sell the next contract on evidence, not projections.
 
-Under that sequence, QMeNow is a reasonable venture to continue. Without that sequence, it is an expensive unproven build.
+Under that sequence, Lyne is a reasonable venture to continue. Without that sequence, it is an expensive unproven build.
 
 ## 18. Source register
 
@@ -664,8 +664,8 @@ Under that sequence, QMeNow is a reasonable venture to continue. Without that se
 - `database/migrations/023_public_web_join.sql`
 - `database/migrations/025_service_readiness.sql`
 - `database/migrations/027_scheduled_sessions.sql`
-- `research/QMeNow_Market_Pricing_and_Valuation_Reality_Check_2026-07-31.md`
-- `research/QMeNow_Next_Step_Decision_and_Funding_Dossier_2026-07-31.md`
+- `research/Lyne_Market_Pricing_and_Valuation_Reality_Check_2026-07-31.md`
+- `research/Lyne_Next_Step_Decision_and_Funding_Dossier_2026-07-31.md`
 
 ### Market, prospects and courts
 

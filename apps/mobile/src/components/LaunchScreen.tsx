@@ -121,7 +121,7 @@ export default function LaunchScreen() {
             </View>
           </Animated.View>
           <Animated.View style={[{ overflow: 'hidden' }, wordStyle]}>
-            <Text numberOfLines={1} style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>QMe Now</Text>
+            <Text numberOfLines={1} style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>Lyne</Text>
           </Animated.View>
         </View>
       </View>

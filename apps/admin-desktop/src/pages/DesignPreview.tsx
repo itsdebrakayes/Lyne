@@ -200,7 +200,7 @@ export default function DesignPreview() {
       ) : null}
 
       <Shell
-        brand="QMe Now"
+        brand="Lyne"
         brandSub="Tax Administration Jamaica"
         nav={NAV_FOR[role]}
         active={tab}

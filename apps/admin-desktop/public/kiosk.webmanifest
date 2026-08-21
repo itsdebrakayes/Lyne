@@ -1,5 +1,5 @@
 {
-  "name": "QMe Now Kiosk",
+  "name": "Lyne Kiosk",
   "short_name": "QMe Kiosk",
   "description": "Self-service queue terminal for the branch lobby.",
   "start_url": "./kiosk.html",

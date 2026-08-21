@@ -1,5 +1,5 @@
 /**
- * QME Now — Marketing Landing Page
+ * Lyne — Marketing Landing Page
  * Design ported from queue-master-reimagined (Lovable): deep violet canvas,
  * hairline glass panels, serif accents, aurora text-clip hero.
  */
@@ -26,18 +26,18 @@ import {
   Users,
   MapPin,
 } from "lucide-react";
-import { MarketingNav, MarketingFooter } from "@/components/qme/Marketing";
-import { FloatingSquares } from "@/components/qme/FloatingSquares";
+import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
+import { FloatingSquares } from "@/components/lyne/FloatingSquares";
 import heroAurora from "@/assets/hero-aurora.jpg";
 
 export default function MarketingHome() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-qme-night text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-lyne-night text-white">
       {/* ambient glows */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-qme-purple/20 blur-[140px]" />
-        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-qme-violet/25 blur-[150px]" />
-        <div className="absolute bottom-0 right-[10%] h-[400px] w-[400px] rounded-full bg-qme-purple/10 blur-[140px]" />
+        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-lyne-purple/20 blur-[140px]" />
+        <div className="absolute top-[40%] left-[-15%] h-[460px] w-[460px] rounded-full bg-lyne-violet/25 blur-[150px]" />
+        <div className="absolute bottom-0 right-[10%] h-[400px] w-[400px] rounded-full bg-lyne-purple/10 blur-[140px]" />
       </div>
 
       <MarketingNav />
@@ -64,9 +64,9 @@ function Hero() {
 
       {/* ambient hero glows */}
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[46%] h-[46rem] w-[46rem] -translate-x-1/2 rounded-full bg-qme-purple/25 blur-[160px]" />
-        <div className="absolute left-[10%] top-[58%] h-[24rem] w-[24rem] rounded-full bg-qme-violet/30 blur-[150px]" />
-        <div className="absolute right-[8%] top-[40%] h-[24rem] w-[24rem] rounded-full bg-qme-purple/20 blur-[150px]" />
+        <div className="absolute left-1/2 top-[46%] h-[46rem] w-[46rem] -translate-x-1/2 rounded-full bg-lyne-purple/25 blur-[160px]" />
+        <div className="absolute left-[10%] top-[58%] h-[24rem] w-[24rem] rounded-full bg-lyne-violet/30 blur-[150px]" />
+        <div className="absolute right-[8%] top-[40%] h-[24rem] w-[24rem] rounded-full bg-lyne-purple/20 blur-[150px]" />
       </div>
 
       {/* floating glass squares with cursor parallax */}
@@ -93,9 +93,9 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-qme-lavender/75 xl:text-xl"
+          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-lyne-lavender/75 xl:text-xl"
         >
-          QME Now replaces crowded waiting rooms and guesswork with a single
+          Lyne replaces crowded waiting rooms and guesswork with a single
           live queue — real-time wait times, barcode check-in and dashboards for
           everyone from a single counter to a multi-branch network.
         </motion.p>
@@ -130,9 +130,9 @@ function WhatItIs() {
             One quiet system for <span className="serif accent-text">everything that happens</span> before the appointment.
           </h2>
         </div>
-        <div className="space-y-5 text-lg leading-relaxed text-qme-lavender/75 lg:col-span-7">
+        <div className="space-y-5 text-lg leading-relaxed text-lyne-lavender/75 lg:col-span-7">
           <p>
-            <strong className="text-white">QME Now</strong> replaces the clipboard,
+            <strong className="text-white">Lyne</strong> replaces the clipboard,
             the sign-in sheet and the "how long's the wait?" chorus with a single
             live queue your clients can join from their phone — and watch in
             real time.
@@ -149,7 +149,7 @@ function WhatItIs() {
               { i: Layers, t: "Built for teams" },
             ].map(({ i: Icon, t }) => (
               <div key={t} className="panel flex items-center gap-3 px-4 py-3">
-                <Icon className="h-5 w-5 text-qme-lavender" />
+                <Icon className="h-5 w-5 text-lyne-lavender" />
                 <span className="text-sm font-medium text-white">{t}</span>
               </div>
             ))}
@@ -183,8 +183,8 @@ function TheOldWay() {
           <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             The line hasn't changed in <span className="serif accent-text">a hundred years.</span>
           </h2>
-          <p className="mt-4 text-lg text-qme-lavender/70">
-            Most places still run on a crowded room and a paper ticket. QME Now
+          <p className="mt-4 text-lg text-lyne-lavender/70">
+            Most places still run on a crowded room and a paper ticket. Lyne
             replaces the whole experience — for the people waiting and the people serving.
           </p>
         </div>
@@ -193,23 +193,23 @@ function TheOldWay() {
           {/* Old way */}
           <div className="panel p-7">
             <div className="mb-6 flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-qme-lavender/60">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-lyne-lavender/60">
                 <X className="h-5 w-5" />
               </span>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/50">Today, without QME Now</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lyne-lavender/50">Today, without Lyne</div>
                 <div className="text-lg font-semibold">The take-a-number line</div>
               </div>
             </div>
             <div className="space-y-4">
               {oldWay.map((item) => (
                 <div key={item.title} className="flex items-start gap-3.5">
-                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-qme-lavender/45">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] text-lyne-lavender/45">
                     <item.icon className="h-4 w-4" />
                   </span>
                   <div>
                     <h4 className="font-semibold text-white/80">{item.title}</h4>
-                    <p className="text-[14px] leading-relaxed text-qme-lavender/55">{item.body}</p>
+                    <p className="text-[14px] leading-relaxed text-lyne-lavender/55">{item.body}</p>
                   </div>
                 </div>
               ))}
@@ -222,26 +222,26 @@ function TheOldWay() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="panel-elev p-7 ring-1 ring-qme-purple/40 shadow-[0_0_70px_-24px_rgba(90,147,232,0.65)]"
+            className="panel-elev p-7 ring-1 ring-lyne-purple/40 shadow-[0_0_70px_-24px_rgba(90,147,232,0.65)]"
           >
             <div className="mb-6 flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-qme-purple/30 bg-qme-purple/15 text-qme-lavender">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-lyne-purple/30 bg-lyne-purple/15 text-lyne-lavender">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/70">With QME Now</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lyne-lavender/70">With Lyne</div>
                 <div className="text-lg font-semibold">The calm live queue</div>
               </div>
             </div>
             <div className="space-y-4">
               {newWay.map((item) => (
                 <div key={item.title} className="flex items-start gap-3.5">
-                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-qme-purple/20 text-qme-lavender">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-lyne-purple/20 text-lyne-lavender">
                     <item.icon className="h-4 w-4" />
                   </span>
                   <div>
                     <h4 className="font-semibold text-white">{item.title}</h4>
-                    <p className="text-[14px] leading-relaxed text-qme-lavender/70">{item.body}</p>
+                    <p className="text-[14px] leading-relaxed text-lyne-lavender/70">{item.body}</p>
                   </div>
                 </div>
               ))}
@@ -258,7 +258,7 @@ function TheOldWay() {
           ].map((s) => (
             <div key={s.label} className="panel px-6 py-6 text-center">
               <div className="font-serif text-4xl italic accent-text">{s.stat}</div>
-              <div className="mt-2 text-sm text-qme-lavender/65">{s.label}</div>
+              <div className="mt-2 text-sm text-lyne-lavender/65">{s.label}</div>
             </div>
           ))}
         </div>
@@ -286,7 +286,7 @@ function Features() {
           <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             Six tools. <span className="serif accent-text">One calm surface.</span>
           </h2>
-          <p className="mt-4 text-lg text-qme-lavender/70">
+          <p className="mt-4 text-lg text-lyne-lavender/70">
             Each piece works on its own — together they become the daily backbone
             of how your business runs.
           </p>
@@ -302,15 +302,15 @@ function Features() {
               className="panel panel-hover flex flex-col p-6"
             >
               <div className="mb-5 flex items-center justify-between">
-                <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+                <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
                   <f.icon className="h-5 w-5" />
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-qme-lavender/50">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-lyne-lavender/50">
                   {f.tag}
                 </span>
               </div>
               <h3 className="mb-2 text-xl font-semibold tracking-tight">{f.title}</h3>
-              <p className="text-[15px] leading-relaxed text-qme-lavender/70">{f.body}</p>
+              <p className="text-[15px] leading-relaxed text-lyne-lavender/70">{f.body}</p>
             </motion.div>
           ))}
         </div>
@@ -342,7 +342,7 @@ function HowItWorks() {
             <div key={s.n} className="panel-elev relative overflow-hidden p-6">
               <div className="mb-3 font-serif text-5xl italic accent-text">{s.n}</div>
               <h4 className="mb-1.5 text-lg font-semibold tracking-tight">{s.t}</h4>
-              <p className="text-sm leading-relaxed text-qme-lavender/65">{s.d}</p>
+              <p className="text-sm leading-relaxed text-lyne-lavender/65">{s.d}</p>
             </div>
           ))}
         </div>
@@ -358,7 +358,7 @@ const plans = [
     name: "Free",
     price: { m: "Free", y: "Free" },
     desc: "For customers checking in and tracking their place in line.",
-    features: ["Join any QME Now queue", "Live position & wait time", "Barcode check-in ticket", "Push notifications", "Visit history"],
+    features: ["Join any Lyne queue", "Live position & wait time", "Barcode check-in ticket", "Push notifications", "Visit history"],
     highlighted: false,
     cta: "Download the app for free",
     href: "#pricing",
@@ -396,24 +396,24 @@ function Pricing() {
           <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
-          <p className="mt-4 text-lg text-qme-lavender/70">
-            Download the app for free, start a subscription, or license QME Now
+          <p className="mt-4 text-lg text-lyne-lavender/70">
+            Download the app for free, start a subscription, or license Lyne
             for your business.
           </p>
         </div>
 
         <div className="mb-12 flex items-center justify-center gap-3">
-          <span className={`text-sm ${!yearly ? "text-white" : "text-qme-lavender/55"}`}>Monthly</span>
+          <span className={`text-sm ${!yearly ? "text-white" : "text-lyne-lavender/55"}`}>Monthly</span>
           <button
             onClick={() => setYearly((v) => !v)}
-            className={`flex h-7 w-12 items-center rounded-full p-1 transition-colors ${yearly ? "bg-qme-purple" : "bg-white/15"}`}
+            className={`flex h-7 w-12 items-center rounded-full p-1 transition-colors ${yearly ? "bg-lyne-purple" : "bg-white/15"}`}
             aria-label="Toggle yearly billing"
           >
             <span className={`h-5 w-5 rounded-full bg-white transition-transform ${yearly ? "translate-x-5" : ""}`} />
           </button>
-          <span className={`text-sm ${yearly ? "text-white" : "text-qme-lavender/55"}`}>
+          <span className={`text-sm ${yearly ? "text-white" : "text-lyne-lavender/55"}`}>
             Yearly
-            <span className="ml-2 rounded-full bg-qme-green/20 px-2 py-0.5 text-xs text-qme-green">Save 20%</span>
+            <span className="ml-2 rounded-full bg-lyne-green/20 px-2 py-0.5 text-xs text-lyne-green">Save 20%</span>
           </span>
         </div>
 
@@ -427,7 +427,7 @@ function Pricing() {
               transition={{ duration: 0.5, delay: i * 0.08 }}
               className={`flex flex-col p-7 ${
                 plan.highlighted
-                  ? "panel-elev shadow-[0_0_70px_-20px_rgba(90,147,232,0.7)] ring-1 ring-qme-purple/40"
+                  ? "panel-elev shadow-[0_0_70px_-20px_rgba(90,147,232,0.7)] ring-1 ring-lyne-purple/40"
                   : "panel"
               }`}
             >
@@ -436,16 +436,16 @@ function Pricing() {
                   Most popular
                 </span>
               )}
-              <p className="text-sm text-qme-lavender/65">{plan.name}</p>
+              <p className="text-sm text-lyne-lavender/65">{plan.name}</p>
               <p className="mt-1 text-4xl font-bold tracking-tight">{yearly ? plan.price.y : plan.price.m}</p>
-              <p className="mt-3 text-sm text-qme-lavender/60">{plan.desc}</p>
+              <p className="mt-3 text-sm text-lyne-lavender/60">{plan.desc}</p>
               <ul className="mt-6 space-y-3">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-3 text-sm">
                     <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/10">
-                      <Check className="h-3 w-3 text-qme-green" />
+                      <Check className="h-3 w-3 text-lyne-green" />
                     </span>
-                    <span className="text-qme-lavender/85">{f}</span>
+                    <span className="text-lyne-lavender/85">{f}</span>
                   </li>
                 ))}
               </ul>
@@ -472,7 +472,7 @@ function Pricing() {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-sm text-qme-lavender/50">
+        <p className="mt-8 text-center text-sm text-lyne-lavender/50">
           iOS and Android apps are coming to the App Store and Google Play.
         </p>
       </div>
@@ -500,8 +500,8 @@ function ForBusiness() {
           <h2 className="mb-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             Built for the teams <span className="serif accent-text">that run the day.</span>
           </h2>
-          <p className="mb-7 text-lg leading-relaxed text-qme-lavender/70">
-            From government agencies to clinics and studios, QME Now powers calmer
+          <p className="mb-7 text-lg leading-relaxed text-lyne-lavender/70">
+            From government agencies to clinics and studios, Lyne powers calmer
             queues at scale. Want to bring it to your business? Size your setup
             and talk to sales about a license.
           </p>
@@ -510,7 +510,7 @@ function ForBusiness() {
           </Link>
           <div className="mt-8 flex flex-wrap gap-2">
             {["Tax Administration Jamaica", "NHT", "PICA"].map((p) => (
-              <span key={p} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-qme-lavender/80">
+              <span key={p} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-lyne-lavender/80">
                 {p}
               </span>
             ))}
@@ -519,12 +519,12 @@ function ForBusiness() {
         <div className="space-y-3 lg:col-span-7">
           {points.map((x) => (
             <div key={x.t} className="panel flex items-start gap-4 p-5">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-qme-purple/30 bg-qme-purple/15">
-                <Check className="h-4 w-4 text-qme-lavender" />
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-lyne-purple/30 bg-lyne-purple/15">
+                <Check className="h-4 w-4 text-lyne-lavender" />
               </div>
               <div>
                 <h4 className="mb-1 text-lg font-semibold tracking-tight">{x.t}</h4>
-                <p className="text-[15px] leading-relaxed text-qme-lavender/65">{x.d}</p>
+                <p className="text-[15px] leading-relaxed text-lyne-lavender/65">{x.d}</p>
               </div>
             </div>
           ))}
@@ -555,14 +555,14 @@ function Testimonials() {
           {quotes.map((q) => (
             <div key={q.name} className="panel flex flex-col p-6">
               <span className="font-serif text-4xl italic leading-none accent-text">“</span>
-              <p className="mt-4 flex-1 text-[15px] leading-relaxed text-qme-lavender/85">"{q.body}"</p>
+              <p className="mt-4 flex-1 text-[15px] leading-relaxed text-lyne-lavender/85">"{q.body}"</p>
               <div className="mt-6 flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-qme-purple/30 text-xs font-bold">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-lyne-purple/30 text-xs font-bold">
                   {q.name.charAt(0)}
                 </span>
                 <div>
                   <p className="text-sm font-semibold">{q.name}</p>
-                  <p className="text-xs text-qme-lavender/55">{q.role}</p>
+                  <p className="text-xs text-lyne-lavender/55">{q.role}</p>
                 </div>
               </div>
             </div>
@@ -584,20 +584,20 @@ function Newsletter() {
     <section className="border-t border-white/[0.06] py-24">
       <div className="w-full px-6 md:px-10 lg:px-16">
         <div className="panel-elev relative overflow-hidden px-8 py-16 text-center md:px-16 lg:py-20">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-qme-purple/30 blur-3xl" />
-          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-qme-purple/15 text-qme-lavender">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-lyne-purple/30 blur-3xl" />
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
             <Mail className="h-5 w-5" />
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
             Stay in <span className="serif accent-text">the loop.</span>
           </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm text-qme-lavender/65">
+          <p className="mx-auto mt-3 max-w-md text-sm text-lyne-lavender/65">
             Product updates, queue craft and the occasional behind-the-scenes.
             No spam — unsubscribe anytime.
           </p>
 
           {submitted ? (
-            <div className="mx-auto mt-8 inline-flex items-center gap-2 rounded-full bg-qme-green/20 px-5 py-3 text-sm font-semibold text-qme-green">
+            <div className="mx-auto mt-8 inline-flex items-center gap-2 rounded-full bg-lyne-green/20 px-5 py-3 text-sm font-semibold text-lyne-green">
               <Check className="h-4 w-4" /> You're subscribed! Check your inbox.
             </div>
           ) : (
@@ -615,7 +615,7 @@ function Newsletter() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@business.com"
                 maxLength={255}
-                className="flex-1 rounded-full border border-white/[0.12] bg-white/[0.05] px-5 py-3.5 text-sm outline-none placeholder:text-white/30 focus:border-qme-purple"
+                className="flex-1 rounded-full border border-white/[0.12] bg-white/[0.05] px-5 py-3.5 text-sm outline-none placeholder:text-white/30 focus:border-lyne-purple"
               />
               <button
                 type="submit"

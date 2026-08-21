@@ -7,7 +7,7 @@ pass=0; fail=0
 
 # Re-runnable: put the sitting back the way the seed leaves it, and drop
 # anything a previous run created.
-docker exec qmenow_demo_db mysql -uroot -prootpassword qme_now -e "
+docker exec lyne_demo_db mysql -uroot -prootpassword qme_now -e "
   DELETE FROM queue_tickets WHERE id IN (SELECT queue_ticket_id FROM (SELECT queue_ticket_id FROM session_registrations WHERE session_id='ses-court-sat' AND queue_ticket_id IS NOT NULL) x);
   DELETE FROM session_registrations WHERE session_id='ses-court-sat' AND id NOT LIKE 'reg-court-sat-%';
   UPDATE session_registrations SET status='registered', checked_in_at=NULL, queue_ticket_id=NULL WHERE session_id='ses-court-sat';
@@ -23,7 +23,7 @@ check() { # check <name> <expected-substring> <actual>
 echo "── 1 · The session is publicly findable"
 r=$(curl -s "$API/sessions/public/$S")
 check "session loads"                 '"id":"ses-court-sat"' "$r"
-SAT=$(docker exec qmenow_demo_db mysql -uroot -prootpassword qme_now -N -B -e "SELECT DATE_FORMAT(session_date,'%Y-%m-%d') FROM scheduled_sessions WHERE id='ses-court-sat'" 2>/dev/null | tr -d '\r')
+SAT=$(docker exec lyne_demo_db mysql -uroot -prootpassword qme_now -N -B -e "SELECT DATE_FORMAT(session_date,'%Y-%m-%d') FROM scheduled_sessions WHERE id='ses-court-sat'" 2>/dev/null | tr -d '\r')
 check "date is a plain calendar date"  "\"session_date\":\"$SAT\"" "$r"
 check "em-dash survived the import"   'Sitting — Camp Road' "$r"
 check "speaks court, not retail"      '"many":"Court Users"' "$r"
@@ -43,7 +43,7 @@ r=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API/sessions/$S/cause-list"
 check "anonymous import refused"      '401' "$r"
 
 echo "── 4 · Eligibility once a list exists"
-docker exec qmenow_demo_db mysql -uroot -prootpassword --default-character-set=utf8mb4 qme_now -e "
+docker exec lyne_demo_db mysql -uroot -prootpassword --default-character-set=utf8mb4 qme_now -e "
   DELETE FROM session_cause_list WHERE session_id='$S';
   INSERT INTO session_cause_list (id,session_id,reference,reference_key,party_surname,division)
   VALUES (UUID(),'$S','TKT-777001','TKT777001','Wright','Court 3');" 2>/dev/null
@@ -82,7 +82,7 @@ r=$(curl -s -X POST "$API/sessions/public/$S/check-in" -H 'Content-Type: applica
 check "too early to check in"        'opens on the day' "$r"
 
 echo "── 7 · Move the sitting to today, then check in for real"
-docker exec qmenow_demo_db mysql -uroot -prootpassword qme_now -e \
+docker exec lyne_demo_db mysql -uroot -prootpassword qme_now -e \
   "UPDATE scheduled_sessions SET session_date=CURDATE() WHERE id='$S';" 2>/dev/null
 
 r=$(curl -s -X POST "$API/sessions/public/$S/check-in" -H 'Content-Type: application/json' \

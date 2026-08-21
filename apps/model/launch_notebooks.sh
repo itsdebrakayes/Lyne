@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch all QMe Now notebooks in the browser (JupyterLab), wired to the demo DB.
+# Launch all Lyne notebooks in the browser (JupyterLab), wired to the demo DB.
 #
 #   cd apps/model && ./launch_notebooks.sh
 #

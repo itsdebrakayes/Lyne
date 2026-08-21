@@ -1,10 +1,10 @@
-# QMeNow: Next-Step Decision and Funding Dossier
+# Lyne: Next-Step Decision and Funding Dossier
 
 **Decision date:** 31 July 2026  
-**Prepared for:** QMeNow founder and family funding discussion  
+**Prepared for:** Lyne founder and family funding discussion  
 **Scope:** Jamaica market selection, court and private-sector opportunity analysis, product readiness, personas, go-to-market, grants and non-cash support, legal/procurement readiness, and full launch budgets
 
-> **Bottom line:** Make **credit-union branch flow the primary commercial beachhead**, led by First Heritage Credit Union (FHC) and one warm-contact microfinance discovery call. Keep **Traffic Court as a strategic public-sector discovery track**, not the first build or first revenue target. Use one configurable QMeNow platform, not separate sector codebases. Budget **J$11 million** for a responsible 12-month private commercial launch, or **J$30–65 million** for the first year of a large, high-assurance public deployment after contract-specific discovery.
+> **Bottom line:** Make **credit-union branch flow the primary commercial beachhead**, led by First Heritage Credit Union (FHC) and one warm-contact microfinance discovery call. Keep **Traffic Court as a strategic public-sector discovery track**, not the first build or first revenue target. Use one configurable Lyne platform, not separate sector codebases. Budget **J$11 million** for a responsible 12-month private commercial launch, or **J$30–65 million** for the first year of a large, high-assurance public deployment after contract-specific discovery.
 
 ---
 
@@ -22,24 +22,24 @@
    NCU publicly requires some returning students with insufficient tuition clearance to register physically with Student Finance. That is a current, specific in-person workflow. UWI Mona has a strong “One Stop” Student Administrative Services Section (SASS) with face-to-face support, but a larger governance path. UTech should be third: it already automated routine financial clearance, leaving a smaller exception queue.
 
 4. **Quick proof option: a private diagnostic centre with genuine walk-ins.**  
-   Ultra Medical Services publicly welcomes walk-ins and asks people to call first. This is closer to QMeNow’s current same-day queue model than appointment-only imaging centres. It may be a faster paid pilot, but privacy, appointment/walk-in blending, and patient-safe display rules must be completed first.
+   Ultra Medical Services publicly welcomes walk-ins and asks people to call first. This is closer to Lyne’s current same-day queue model than appointment-only imaging centres. It may be a faster paid pilot, but privacy, appointment/walk-in blending, and patient-safe display rules must be completed first.
 
 5. **Strategic government track: Traffic Court and selected Parish Court administrative counters.**  
-   The need is real: Traffic Ticket Public Days have processed tens of thousands of tickets and produced documented long lines. However, these events are pre-registered and time-bound, while QMeNow’s present working product is a same-day live queue. The new Judicial Integrated Electronic Case Management System (IECMS) is also intended to cover electronic filing, automated scheduling, case tracking, and real-time information for court users. QMeNow should therefore be positioned only as the **public-facing arrival, readiness, check-in and waiting-experience layer that integrates with IECMS/TIMS**, if that layer is not already included.
+   The need is real: Traffic Ticket Public Days have processed tens of thousands of tickets and produced documented long lines. However, these events are pre-registered and time-bound, while Lyne’s present working product is a same-day live queue. The new Judicial Integrated Electronic Case Management System (IECMS) is also intended to cover electronic filing, automated scheduling, case tracking, and real-time information for court users. Lyne should therefore be positioned only as the **public-facing arrival, readiness, check-in and waiting-experience layer that integrates with IECMS/TIMS**, if that layer is not already included.
 
 ### 1.2 What not to do
 
 - Do not build three or four separate branded applications.
 - Do not make Traffic Court the first revenue dependency.
 - Do not claim that FHC, Access, NCU, UWI, or a court has no incumbent merely because no public queue page was found.
-- Do not ingest bank balances, loan files, court case files, or judicial records. QMeNow should retain the minimum operational data needed to manage a visit.
+- Do not ingest bank balances, loan files, court case files, or judicial records. Lyne should retain the minimum operational data needed to manage a visit.
 - Do not promise “zero downtime.” Propose a measured service level, redundant architecture, recovery objectives, monitoring, and incident response.
 - Do not spend months completing a court-specific scheduled-session product before CAD confirms that IECMS will not supply the same function.
 - Do not create Apple or Google organization accounts until the legal entity name and D‑U‑N‑S record are ready, unless the founder deliberately accepts publishing under a personal identity.
 
 ### 1.3 The 90-day outcome to pursue
 
-By 31 October 2026, QMeNow should aim to have:
+By 31 October 2026, Lyne should aim to have:
 
 - the company incorporated and its organization-verification process started;
 - two incumbent-qualified discovery meetings completed in financial services;
@@ -56,7 +56,7 @@ By 31 October 2026, QMeNow should aim to have:
 
 This dossier combines:
 
-- direct inspection of the uncommitted local QMeNow repository;
+- direct inspection of the uncommitted local Lyne repository;
 - current official pages and public statements from prospects and Jamaican institutions;
 - current vendor pricing;
 - reputable news reporting where it supplies facts not published by the organization;
@@ -72,7 +72,7 @@ Three labels are used:
 
 ---
 
-## 3. What QMeNow can actually do now
+## 3. What Lyne can actually do now
 
 ### 3.1 Implemented and testable
 
@@ -118,11 +118,11 @@ The repository’s remaining-work document and direct inspection point to the fo
 - Windows code signing, release pipeline and update strategy;
 - App Store and Play Store assets and reviews;
 - accessibility assessment;
-- payment processor decision only if QMeNow itself will collect a fee. An agency-paid pilot does not need in-app card capture.
+- payment processor decision only if Lyne itself will collect a fee. An agency-paid pilot does not need in-app card capture.
 
 ### 3.4 Architecture rule for all sectors
 
-Use **one QMeNow codebase** with:
+Use **one Lyne codebase** with:
 
 - tenant configuration;
 - sector vocabulary;
@@ -170,7 +170,7 @@ Jamaica has 23 autonomous credit unions and more than 100 locations. Consolidati
 
 That makes the opportunity credible but unproven. The value proposition is not “credit unions are behind.” It is:
 
-> “QMeNow connects the digital application to the physical branch handoff: what to bring, when to arrive, how long the remaining wait is, and where branch capacity is breaking down.”
+> “Lyne connects the digital application to the physical branch handoff: what to bring, when to arrive, how long the remaining wait is, and where branch capacity is breaking down.”
 
 ### 5.2 FHC Credit Union
 
@@ -204,7 +204,7 @@ That makes the opportunity credible but unproven. The value proposition is not �
 - Three services only: member onboarding, loan-document support and account/transaction support.
 - Public web join plus assisted kiosk join; mobile app optional.
 - Institution-authored readiness checklist.
-- No banking transaction data in QMeNow.
+- No banking transaction data in Lyne.
 - Four baseline metrics: median wait, 90th-percentile wait, abandonment and incomplete-document visits.
 
 ### 5.3 Access Financial Services
@@ -241,7 +241,7 @@ Infiniti emerged from the EduCom/Gateway merger with more than 179,000 members, 
 - longer security and governance reviews;
 - greater chance that queue or appointment procurement is already bundled into a transformation programme.
 
-Treat them as second-wave targets after QMeNow can show a measured private pilot.
+Treat them as second-wave targets after Lyne can show a measured private pilot.
 
 ### 5.5 Financial institutions to exclude from greenfield assumptions
 
@@ -260,7 +260,7 @@ The public record associates Boulevard Supercentre with First Global Bank agent 
 
 ### 6.1 The right product boundary
 
-QMeNow should never pitch itself to the Judiciary as a case-management system, court scheduling authority or replacement for judicial records.
+Lyne should never pitch itself to the Judiciary as a case-management system, court scheduling authority or replacement for judicial records.
 
 The defensible boundary is:
 
@@ -277,7 +277,7 @@ The defensible boundary is:
 - The St Catherine event produced documented long lines.
 - Public-day instructions included ID, relevant documents, sufficient funds and early arrival for security.
 
-**Fit with QMeNow**
+**Fit with Lyne**
 
 The current working queue can manage the on-day line after check-in. It cannot yet manage the full public-day model because scheduled sessions are only schema-level.
 
@@ -304,7 +304,7 @@ The current working queue can manage the on-day line after check-in. It cannot y
 6. Is there an API or approved integration layer?
 7. Who owns the public waiting experience: CAD Client Services, ICT, the court administrator, or the IECMS programme?
 
-If IECMS includes all seven, QMeNow should not build a court version. If it does not, propose a bounded integration pilot.
+If IECMS includes all seven, Lyne should not build a court version. If it does not, propose a bounded integration pilot.
 
 ### 6.3 Parish Court administrative counters
 
@@ -374,9 +374,9 @@ That is unusually good product-fit evidence:
 - a defined condition;
 - a defined office;
 - a defined staff action;
-- an existing system that QMeNow should not replace.
+- an existing system that Lyne should not replace.
 
-QMeNow’s role would be arrival readiness, queueing and the handoff into Aeorion.
+Lyne’s role would be arrival readiness, queueing and the handoff into Aeorion.
 
 ### 7.2 UWI Mona SASS
 
@@ -401,7 +401,7 @@ UTech has long automated routine financial clearance. An October 2025 report des
 
 ### 7.4 UCC
 
-UCC already operates a helpdesk ticket system. QMeNow must not pitch as a support-ticket replacement. A possible use case is only the in-person waiting layer for cases that cannot be completed remotely.
+UCC already operates a helpdesk ticket system. Lyne must not pitch as a support-ticket replacement. A possible use case is only the in-person waiting layer for cases that cannot be completed remotely.
 
 ### 7.5 Private diagnostics
 
@@ -425,42 +425,42 @@ This can be a fast private proof, but it requires more privacy work than a credi
 
 **Situation:** started a loan or membership request online but must attend a branch.  
 **Pain language:** “I don’t know what to bring, how long this will take, or whether the person I need is available.”  
-**QMeNow response:** readiness list, live wait, web/app join, branch status, private ticket, notification.  
+**Lyne response:** readiness list, live wait, web/app join, branch status, private ticket, notification.  
 **Measures:** incomplete visits, repeat visits, median/P90 wait, abandonment, digital-to-branch completion.
 
 ### 8.2 Branch manager / operations sponsor
 
 **Situation:** demand changes by hour and service, while staff are assigned by habit.  
 **Pain language:** “I can see the crowd, but I cannot show why it formed or what one extra officer would change.”  
-**QMeNow response:** per-service line, open counters, staffing recommendation, demand history, stalled-window alerts.  
+**Lyne response:** per-service line, open counters, staffing recommendation, demand history, stalled-window alerts.  
 **Measures:** customers served per staff-hour, P90 wait, overtime, counter utilization, SLA attainment.
 
 ### 8.3 CIO / risk
 
 **Situation:** another customer-facing system expands the attack surface.  
 **Pain language:** “Show me what you store, where it sits, who can see it, and how you recover.”  
-**QMeNow response:** minimum-data design, tenant isolation, audit log, retention/deletion, encryption, tested backup, incident process, no financial or court-case payload.  
+**Lyne response:** minimum-data design, tenant isolation, audit log, retention/deletion, encryption, tested backup, incident process, no financial or court-case payload.  
 **Measures:** access exceptions, recovery tests, patch time, incident response and data-retention compliance.
 
 ### 8.4 Student
 
 **Situation:** a registration/finance exception threatens module confirmation or access.  
 **Pain language:** “I don’t know which office owns this, and I cannot spend all day moving between offices.”  
-**QMeNow response:** issue triage, office routing, readiness and a live campus-office wait.  
+**Lyne response:** issue triage, office routing, readiness and a live campus-office wait.  
 **Measures:** wrong-office transfers, repeat visits, wait, peak-day throughput.
 
 ### 8.5 Court user
 
 **Situation:** must attend on a date, may not understand protocol and may fear consequences of missing a step.  
 **Pain language:** “I need to know that I am registered, what to bring, when to arrive and where I stand without exposing my matter.”  
-**QMeNow response:** session confirmation, readiness, arrival band, private check-in, accessible notification.  
+**Lyne response:** session confirmation, readiness, arrival band, private check-in, accessible notification.  
 **Measures:** readiness failure, late arrival, no-show, arrival-to-check-in, check-in-to-service, crowding.
 
 ### 8.6 CAD Client Services / court administrator
 
 **Situation:** public experience is visible, but legal and operational boundaries are strict.  
 **Pain language:** “Improve access and order without changing the court list, legal rights or judicial workflow.”  
-**QMeNow response:** a front-door layer with clear system-of-record boundaries and IECMS/TIMS integration.  
+**Lyne response:** a front-door layer with clear system-of-record boundaries and IECMS/TIMS integration.  
 **Measures:** service-standard attainment, complaints, incomplete visits, crowd density and service interruptions.
 
 ---
@@ -475,7 +475,7 @@ Demo story:
 
 1. A member opens a web link or app and sees three services with current waits.
 2. The member selects loan-document support.
-3. QMeNow shows the institution-approved readiness list.
+3. Lyne shows the institution-approved readiness list.
 4. The member joins remotely and receives a private ticket.
 5. A kiosk clerk adds a walk-in without a smartphone.
 6. A line officer calls, verifies, serves or records an incomplete-readiness outcome.
@@ -518,7 +518,7 @@ Only the winning design partner receives a complete production configuration.
 
 Do not lead with “virtual queue software.” Lead with the operational outcome:
 
-> “QMeNow is a Jamaican branch-arrival and service-flow platform. It tells people what to bring and when to arrive, gives staff one live operational line, and shows management where waiting time and repeat visits are being created. We are selecting one design partner for a measured branch pilot and first want to confirm what appointment, queue or customer-flow system you already use.”
+> “Lyne is a Jamaican branch-arrival and service-flow platform. It tells people what to bring and when to arrive, gives staff one live operational line, and shows management where waiting time and repeat visits are being created. We are selecting one design partner for a measured branch pilot and first want to confirm what appointment, queue or customer-flow system you already use.”
 
 ### 9.5 Pilot offer
 
@@ -526,7 +526,7 @@ Do not lead with “virtual queue software.” Lead with the operational outcome
 - three services;
 - four-week baseline plus four-week pilot;
 - no core-system write integration in phase one;
-- QMeNow supplies configuration, training and measurement;
+- Lyne supplies configuration, training and measurement;
 - prospect approves readiness wording and privacy notice;
 - success criteria agreed before deployment;
 - pilot converts only if the agreed measures improve or the prospect chooses an operational reason to continue.
@@ -537,7 +537,7 @@ Do not lead with “virtual queue software.” Lead with the operational outcome
 
 ### 10.1 Honest conclusion
 
-As of 31 July 2026, this research did **not** verify a national, unrestricted cash grant that an unincorporated for-profit QMeNow can both submit today and clearly pass at pre-screening.
+As of 31 July 2026, this research did **not** verify a national, unrestricted cash grant that an unincorporated for-profit Lyne can both submit today and clearly pass at pre-screening.
 
 There are live opportunities, but they fall into one of four categories:
 
@@ -546,18 +546,18 @@ There are live opportunities, but they fall into one of four categories:
 - individual education grants;
 - programmes requiring an incorporated or established entity, tax compliance, 12 months of traction or an eligible nonprofit partner.
 
-That is not a reason to stop. It changes tomorrow’s task from “submit everywhere” to “finish eligibility, enter the right pipelines and apply only where QMeNow can win.”
+That is not a reason to stop. It changes tomorrow’s task from “submit everywhere” to “finish eligibility, enter the right pipelines and apply only where Lyne can win.”
 
 ### 10.2 Live or upcoming opportunities
 
-| Opportunity | Value | Deadline / status | QMeNow fit now | Action |
+| Opportunity | Value | Deadline / status | Lyne fit now | Action |
 |---|---:|---|---|---|
 | MIIC Portland MSME Pitch | J$400,000 small / J$200,000 micro cash grant | 14 Sep 2026; no fee | Only if the entrepreneur is in Portland | Apply if parish condition is true |
 | MIIC October roadshow pitch | Same prize levels | 27 Oct 2026 | Official page contradicts itself on St James, Manchester and St Thomas | Call MIIC before relying on it |
 | EU-LAC Social Startup Pitch, Caribbean Export | Sponsored CIF travel, coaching and visibility; not cash | Extended to 2 Aug 2026 | Requires 12 months active operation, traction/pilot and registration proof; likely not yet eligible | Apply only if evidence genuinely exists |
 | USF 2026 ICT education grants | J$300,000 or J$200,000 | Page says 31 Jul 2026 | Individual education/professional study, not business capital | Use only if founder personally meets study criteria |
-| MOH CARE Fund | Amount depends on call | 31 Jul 2026 | Registered CBO/FBO/civil-society groups with TRN, TCC and good-standing documents; QMeNow alone is not eligible | Do not submit as a for-profit; consider only a real health-community partner |
-| U.S. Embassy Kingston Freedom 250 | US$10,000–20,000 | 31 Jul 2026 | Individuals/nonprofits/education allowed, but project must serve public-diplomacy priorities; commercial product build is weak fit | Do not distort QMeNow to chase it |
+| MOH CARE Fund | Amount depends on call | 31 Jul 2026 | Registered CBO/FBO/civil-society groups with TRN, TCC and good-standing documents; Lyne alone is not eligible | Do not submit as a for-profit; consider only a real health-community partner |
+| U.S. Embassy Kingston Freedom 250 | US$10,000–20,000 | 31 Jul 2026 | Individuals/nonprofits/education allowed, but project must serve public-diplomacy priorities; commercial product build is weak fit | Do not distort Lyne to chase it |
 
 ### 10.3 Best local grant pipeline
 
@@ -609,7 +609,7 @@ These are not grants to spend freely, but they can remove hosting cost:
 | Microsoft for Startups | US$1,000 starter, then US$4,000 after verification; up to US$150,000 as milestones are verified | Privately held for-profit software company; legal business information and payment card |
 | DigitalOcean Startups | Amount set on acceptance | Working website, matching corporate email, new team account and valid card |
 
-Apply first to the cloud QMeNow is actually prepared to use. Credits are dangerous if they hide an architecture whose paid cost is unaffordable after expiry.
+Apply first to the cloud Lyne is actually prepared to use. Credits are dangerous if they hide an architecture whose paid cost is unaffordable after expiry.
 
 ### 10.6 Tomorrow’s funding calls
 
@@ -637,7 +637,7 @@ Finish incorporation before creating organization marketplace accounts. Apple an
 
 ### 11.2 Data protection
 
-QMeNow processes personal data and therefore needs a clear controller/processor model for each contract.
+Lyne processes personal data and therefore needs a clear controller/processor model for each contract.
 
 Current OIC registration fees:
 
@@ -792,7 +792,7 @@ This is a planning envelope, not a bid. A real bid requires:
 
 ### 12.7 “Large records” clarification
 
-QMeNow should store visit and queue records, not duplicate the client’s system of record.
+Lyne should store visit and queue records, not duplicate the client’s system of record.
 
 At one million visits per year, structured ticket and event data is manageable in a conventional relational database. The expensive requirements are:
 
@@ -877,11 +877,11 @@ Do not implement the full scheduled-session feature until CAD answers the seven 
 ### Stop or pause if:
 
 - queueing is already part of a live or contracted system;
-- the buyer wants QMeNow to become the system of record;
+- the buyer wants Lyne to become the system of record;
 - no site owner will supply readiness content;
 - the “pilot” requires unpaid bespoke integrations;
 - the buyer will not define how a successful pilot becomes a paid contract;
-- the requested data exceeds QMeNow’s minimum operational purpose.
+- the requested data exceeds Lyne’s minimum operational purpose.
 
 ---
 
@@ -964,7 +964,7 @@ Do not implement the full scheduled-session feature until CAD answers the seven 
 
 ## Final recommendation
 
-QMeNow should enter the market as a **branch-arrival and service-flow product**, not a generic queue app.
+Lyne should enter the market as a **branch-arrival and service-flow product**, not a generic queue app.
 
 The next concrete bet is:
 
