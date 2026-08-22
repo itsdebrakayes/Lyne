@@ -11,8 +11,6 @@ import {
   Building2,
   CalendarClock,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   Clock,
   Download,
@@ -43,6 +41,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -531,13 +530,255 @@ function latestBranchRows(rows: BranchTrend[]) {
   return Array.from(latest.values()).sort((a, b) => numberValue(b.total_visits) - numberValue(a.total_visits));
 }
 
-function downloadJson(filename: string, value: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+// ── Reports ───────────────────────────────────────────────────
+// A report is a document a business owner can hand to someone, not a data
+// dump. The same structure drives the on-screen preview and the Word export,
+// so what you see is exactly what you get.
+type ReportSection =
+  | { kind: 'metrics'; heading: string; note?: string; rows: Array<{ label: string; value: string; detail?: string }> }
+  | { kind: 'list'; heading: string; note?: string; items: string[] }
+  | { kind: 'table'; heading: string; note?: string; columns: string[]; rows: string[][] };
+
+type ReportDocument = {
+  title: string;
+  subtitle: string;
+  period: string;
+  sections: ReportSection[];
+};
+
+function reportTimestamp() {
+  return new Date().toLocaleString([], {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+function escapeHtml(value: string) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sectionToHtml(section: ReportSection) {
+  const note = section.note ? `<p class="note">${escapeHtml(section.note)}</p>` : '';
+  if (section.kind === 'metrics') {
+    const rows = section.rows
+      .map((row) => `<tr><td class="label">${escapeHtml(row.label)}</td><td class="value">${escapeHtml(row.value)}</td><td class="detail">${escapeHtml(row.detail || '')}</td></tr>`)
+      .join('');
+    return `<h2>${escapeHtml(section.heading)}</h2>${note}<table>${rows}</table>`;
+  }
+  if (section.kind === 'list') {
+    const items = section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+    return `<h2>${escapeHtml(section.heading)}</h2>${note}<ul>${items}</ul>`;
+  }
+  const head = section.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('');
+  const body = section.rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<h2>${escapeHtml(section.heading)}</h2>${note}<table class="grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/**
+ * Word export with no extra dependency: Word, Pages and Google Docs all open
+ * an HTML document served as application/msword, and it round-trips styling
+ * far more faithfully than a CSV or JSON dump would.
+ */
+function downloadWordReport(doc: ReportDocument, filename: string) {
+  const body = doc.sections.map(sectionToHtml).join('');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHtml(doc.title)}</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; color: #1F3442; font-size: 11pt; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; margin: 20pt 0 6pt; border-bottom: 1pt solid #D9E4EA; padding-bottom: 3pt; }
+  .sub { color: #607787; font-size: 10.5pt; margin: 0 0 2pt; }
+  .note { color: #607787; font-size: 9.5pt; margin: 0 0 8pt; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 6pt; }
+  td, th { padding: 5pt 7pt; vertical-align: top; font-size: 10.5pt; }
+  td.label { width: 45%; }
+  td.value { width: 20%; font-weight: bold; }
+  td.detail { color: #607787; }
+  table.grid th { background: #F0F5F8; text-align: left; border: 1pt solid #D9E4EA; }
+  table.grid td { border: 1pt solid #D9E4EA; }
+  ul { margin: 0 0 8pt 16pt; padding: 0; }
+  li { margin-bottom: 5pt; }
+</style></head>
+<body>
+  <h1>${escapeHtml(doc.title)}</h1>
+  <p class="sub">${escapeHtml(doc.subtitle)}</p>
+  <p class="sub">${escapeHtml(doc.period)} · Prepared ${escapeHtml(reportTimestamp())}</p>
+  ${body}
+</body></html>`;
+  const url = URL.createObjectURL(new Blob(['﻿', html], { type: 'application/msword' }));
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function ReportPreview({ doc }: { doc: ReportDocument }) {
+  return (
+    <article className="report-preview">
+      <header>
+        <h1>{doc.title}</h1>
+        <p>{doc.subtitle}</p>
+        <p>{doc.period} · Prepared {reportTimestamp()}</p>
+      </header>
+      {doc.sections.map((section) => (
+        <section key={section.heading}>
+          <h2>{section.heading}</h2>
+          {section.note ? <p className="report-note">{section.note}</p> : null}
+          {section.kind === 'metrics' ? (
+            <dl className="report-metrics">
+              {section.rows.map((row) => (
+                <div key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd><b>{row.value}</b>{row.detail ? <small>{row.detail}</small> : null}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {section.kind === 'list' ? (
+            <ul className="report-list">
+              {section.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : null}
+          {section.kind === 'table' ? (
+            <div className="report-table-scroll">
+              <table className="report-table">
+                <thead><tr>{section.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                <tbody>
+                  {section.rows.map((row, index) => (
+                    <tr key={`${section.heading}-${index}`}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ))}
+    </article>
+  );
+}
+
+function reportPeriodLabel(rows: SummaryRow[]) {
+  const dates = orderedSummaryRows(rows).map((row) => String(row.summary_date).slice(0, 10));
+  if (!dates.length) return 'No dated activity yet';
+  const readable = (value: string) => new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  const first = readable(dates[0]);
+  const last = readable(dates[dates.length - 1]);
+  return first === last ? first : `${first} – ${last}`;
+}
+
+function buildOperationsReport({
+  title,
+  subtitle,
+  summary,
+  services,
+  branches = [],
+  managers = [],
+  targets,
+  actionPlan,
+}: {
+  title: string;
+  subtitle: string;
+  summary: SummaryRow[];
+  services: ServiceInsight[];
+  branches?: BranchAggregate[];
+  managers?: ManagerScore[];
+  targets: BusinessTargets;
+  actionPlan: { improve: string[]; maintain: string[]; focus: string[]; why: string[] };
+}): ReportDocument {
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const noShows = total(summary, 'no_show_count');
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
+  const deadline = targetDeadlineLabel(targets);
+
+  const sections: ReportSection[] = [
+    {
+      kind: 'metrics',
+      heading: 'Headline numbers',
+      note: 'Every rate is shown with the number it came from.',
+      rows: [
+        { label: 'Customers who arrived', value: formatCount(visitors), detail: 'Total visits in this period' },
+        { label: 'Customers served', value: formatCount(served), detail: `${formatPercent(completionRate)} of arrivals` },
+        { label: 'Estimated wait for service', value: formatMinutes(avgWait), detail: `Target is ${numberValue(targets.target_wait_minutes)}m` },
+        { label: 'No-shows', value: formatCount(noShows), detail: `${formatPercent(noShowRate)} of arrivals · target ${formatPercent(targets.target_no_show_rate)}` },
+      ],
+    },
+    {
+      kind: 'metrics',
+      heading: 'Against your targets',
+      note: `The targets below were set for this business, to be met by ${deadline}.`,
+      rows: [
+        { label: 'Average wait', value: formatMinutes(avgWait), detail: avgWait <= numberValue(targets.target_wait_minutes) ? `On target (${numberValue(targets.target_wait_minutes)}m)` : `Over target by ${formatMinutes(avgWait - numberValue(targets.target_wait_minutes))}` },
+        { label: 'Completed visits', value: formatPercent(completionRate), detail: completionRate >= numberValue(targets.target_completion_rate) ? `On target (${formatPercent(targets.target_completion_rate)})` : `Under target by ${formatPercent(numberValue(targets.target_completion_rate) - completionRate)}` },
+        { label: 'No-show rate', value: formatPercent(noShowRate), detail: noShowRate <= numberValue(targets.target_no_show_rate) ? `On target (${formatPercent(targets.target_no_show_rate)})` : `Over target by ${formatPercent(noShowRate - numberValue(targets.target_no_show_rate))}` },
+      ],
+    },
+    { kind: 'list', heading: 'What to improve', items: actionPlan.improve },
+    { kind: 'list', heading: 'What to maintain', items: actionPlan.maintain },
+    { kind: 'list', heading: 'Where to focus next', items: actionPlan.focus },
+  ];
+
+  if (branches.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Branch performance',
+      note: 'Sorted by completed visits. The score weighs completion, no-shows and wait against your targets.',
+      columns: ['Branch', 'Customers', 'Served', 'Completed', 'Avg wait', 'Score'],
+      rows: branches.map((branch) => [
+        displayLabel(branch.branch_name || 'Branch'),
+        formatCount(branch.total_visits),
+        formatCount(branch.completed),
+        formatPercent(branch.completion_rate),
+        formatMinutes(branch.avg_wait_minutes),
+        String(branchEfficiencyScore(branch, targets)),
+      ]),
+    });
+  }
+
+  if (services.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Service performance',
+      note: 'Where customers spend their waiting time.',
+      columns: ['Service', 'Customers', 'Served', 'No-shows', 'Avg wait'],
+      rows: services.map((service) => [
+        displayLabel(service.service_name),
+        formatCount(service.total_visits),
+        formatCount(service.completed),
+        formatCount(service.no_shows),
+        formatMinutes(service.avg_wait_minutes),
+      ]),
+    });
+  }
+
+  if (managers.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Manager scores',
+      note: 'A balanced score across wait, completion, no-shows, throughput and staff use.',
+      columns: ['Rank', 'Manager', 'Branch', 'Completed', 'No-shows', 'Score'],
+      rows: managers.map((manager) => [
+        String(manager.rank),
+        displayLabel(manager.manager_name),
+        displayLabel(manager.branch_name || 'Branch'),
+        formatPercent(manager.completion_rate),
+        formatPercent(manager.no_show_rate),
+        String(manager.manager_score),
+      ]),
+    });
+  }
+
+  sections.push({ kind: 'list', heading: 'Why this was recommended', items: actionPlan.why });
+
+  return { title, subtitle, period: reportPeriodLabel(summary), sections };
 }
 
 function ChartTooltip({ active, payload, label }: any) {
@@ -552,30 +793,55 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-function ChartCard({ title, data, mode = 'bar' }: { title: string; data: any[]; mode?: 'bar' | 'area' }) {
+// Rule 4 — every chart explains itself: an always-visible plain-word legend,
+// a unit on the value axis, and one line saying what it means for the business.
+const CHART_LEGEND_STYLE = { fontSize: 12, fontWeight: 800, color: '#4A616F', paddingTop: 4 };
+
+function axisLabel(text: string) {
+  return { value: text, angle: -90, position: 'insideLeft', offset: 4, style: { fill: '#718896', fontSize: 11, fontWeight: 800 } } as any;
+}
+
+function ChartCard({
+  title,
+  data,
+  mode = 'bar',
+  caption,
+  unit = 'Customers',
+}: {
+  title: string;
+  data: any[];
+  mode?: 'bar' | 'area';
+  caption?: string;
+  unit?: string;
+}) {
   return (
     <Panel title={title} className="ops-chart-panel">
       {data.length ? (
-        <ResponsiveContainer height={220}>
-          {mode === 'area' ? (
-            <AreaChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={44} tickMargin={8} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#1F3442', strokeDasharray: '4 4' }} />
-              <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#1F3442" fill="#E8F0F4" fillOpacity={0.48} strokeWidth={4} />
-            </AreaChart>
-          ) : (
-            <BarChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }} barGap={8}>
-              <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={44} tickMargin={8} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(31,52,66,.06)' }} />
-              <Bar dataKey="served" name="Served" fill="#1F3442" radius={[10, 10, 4, 4]} />
-              <Bar dataKey="noShows" name="No-Shows" fill="#FCA5A5" radius={[10, 10, 4, 4]} />
-            </BarChart>
-          )}
-        </ResponsiveContainer>
+        <>
+          <ResponsiveContainer height={240}>
+            {mode === 'area' ? (
+              <AreaChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={54} tickMargin={8} allowDecimals={false} label={axisLabel(unit)} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#1F3442', strokeDasharray: '4 4' }} />
+                <Legend verticalAlign="bottom" height={26} iconType="circle" iconSize={9} wrapperStyle={CHART_LEGEND_STYLE} />
+                <Area type="monotone" dataKey="visitors" name="Customers who arrived" stroke="#1F3442" fill="#E8F0F4" fillOpacity={0.48} strokeWidth={4} />
+              </AreaChart>
+            ) : (
+              <BarChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }} barGap={8}>
+                <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={54} tickMargin={8} allowDecimals={false} label={axisLabel(unit)} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(31,52,66,.06)' }} />
+                <Legend verticalAlign="bottom" height={26} iconType="circle" iconSize={9} wrapperStyle={CHART_LEGEND_STYLE} />
+                <Bar dataKey="served" name="Served" fill="#1F3442" radius={[10, 10, 4, 4]} />
+                <Bar dataKey="noShows" name="No-shows" fill="#e5484d" radius={[10, 10, 4, 4]} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+          {caption ? <p className="ops-chart-caption">{caption}</p> : null}
+        </>
       ) : (
         <EmptyState title="No Chart Data Yet" detail="Live operational data will appear here after tickets are completed." />
       )}
@@ -1365,16 +1631,6 @@ function ExecutiveBranchList({ branches, targets }: { branches: BranchAggregate[
   );
 }
 
-function eventDatesForMonth(monthKey: string, rows: SummaryRow[]) {
-  const monthRows = rows.filter((row) => String(row.summary_date || '').slice(0, 7) === monthKey);
-  const avgVisits = avg(monthRows, 'total_visitors');
-  const avgWait = avg(monthRows, 'avg_wait_time_minutes');
-  return new Set(monthRows
-    .filter((row) => numberValue(row.no_show_count) > 0
-      || numberValue(row.total_visitors) >= Math.max(avgVisits, 1)
-      || numberValue(row.avg_wait_time_minutes) >= Math.max(avgWait * 1.15, avgWait + 8))
-    .map((row) => String(row.summary_date || '').slice(0, 10)));
-}
 
 function ExecutiveKpiTile({
   label,
@@ -1501,33 +1757,42 @@ function ExecutiveInsightCard({
   );
 }
 
-function ExecutiveCalendar({ monthKey, rows }: { monthKey: string; rows: SummaryRow[] }) {
-  const [year, month] = monthKey.split('-').map(Number);
-  const first = new Date(year, month - 1, 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const previousDays = new Date(year, month - 1, 0).getDate();
-  const eventDates = eventDatesForMonth(monthKey, rows);
-  const cells = Array.from({ length: 42 }, (_, index) => {
-    const offset = index - first.getDay();
-    const inMonth = offset >= 0 && offset < daysInMonth;
-    const day = inMonth ? offset + 1 : offset < 0 ? previousDays + offset + 1 : offset - daysInMonth + 1;
-    const dateKey = `${monthKey}-${String(day).padStart(2, '0')}`;
-    return { day, inMonth, event: inMonth && eventDates.has(dateKey) };
-  });
+
+function ExecutiveActionCard({
+  actionPlan,
+  targets,
+  summary,
+  onOpen,
+}: {
+  actionPlan: { improve: string[] };
+  targets: BusinessTargets;
+  summary: SummaryRow[];
+  onOpen: () => void;
+}) {
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetCompletion = numberValue(targets.target_completion_rate) || 80;
+
   return (
-    <section className="exec-side-panel exec-calendar">
+    <section className="exec-side-panel exec-action-card">
       <div className="exec-side-head">
-        <h3>{monthLabel(monthKey)}</h3>
-        <span><ChevronLeft size={14} /><ChevronRight size={14} /></span>
+        <h3>What To Improve</h3>
+        <button type="button" className="ops-link-button" onClick={onOpen}>See all</button>
       </div>
-      <div className="exec-calendar-weekdays">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <b key={day}>{day}</b>)}
-      </div>
-      <div className="exec-calendar-grid">
-        {cells.map((cell, index) => (
-          <span key={`${cell.day}-${index}`} className={`${cell.inMonth ? '' : 'muted'} ${cell.event ? 'event' : ''}`}>{cell.day}</span>
-        ))}
-      </div>
+      <p className="exec-action-target">
+        <b>Target:</b> {targetWait}m average wait · <b>You're at</b> {formatMinutes(avgWait)}
+      </p>
+      <p className="exec-action-target">
+        <b>Target:</b> {formatPercent(targetCompletion)} completed · <b>You're at</b> {formatPercent(completionRate)}
+        <small> ({formatCount(served)} of {formatCount(visitors)} customers)</small>
+      </p>
+      <ol className="exec-action-list">
+        {actionPlan.improve.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+      </ol>
+      <button type="button" className="ops-primary" onClick={onOpen}>Open the full plan</button>
     </section>
   );
 }
@@ -2365,6 +2630,173 @@ function ManagerDashboardContent() {
   );
 }
 
+// ── Executive topbar controls ─────────────────────────────────
+// Rule 10 — if a control exists, it does something. These replaced a search
+// pill with a fake shortcut, a vague "QMe Intelligence" button, and a bell
+// that dumped you on the Operations tab.
+type JumpTarget = { id: string; label: string; kind: string; tab: string; serviceId?: string };
+
+function ExecutiveSearch({
+  targets,
+  onJump,
+}: {
+  targets: JumpTarget[];
+  onJump: (target: JumpTarget) => void;
+}) {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const query = term.trim().toLowerCase();
+  const matches = query
+    ? targets.filter((target) => target.label.toLowerCase().includes(query)).slice(0, 8)
+    : [];
+
+  return (
+    <div className="exec-search-wrap">
+      <div className="exec-search">
+        <Search size={17} />
+        <input
+          value={term}
+          onChange={(event) => { setTerm(event.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+          placeholder="Search branches, services, managers"
+          aria-label="Search branches, services and managers"
+        />
+        {term ? <button type="button" className="exec-search-clear" onClick={() => setTerm('')} aria-label="Clear search">×</button> : null}
+      </div>
+      {open && query ? (
+        <div className="exec-search-results">
+          {matches.length ? matches.map((target) => (
+            <button
+              key={target.id}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { onJump(target); setTerm(''); setOpen(false); }}
+            >
+              <b>{target.label}</b>
+              <small>{target.kind}</small>
+            </button>
+          )) : <p className="exec-search-empty">Nothing matches “{term.trim()}”.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type ExecutiveAlert = { id: string; title: string; detail: string; tab: string };
+
+function buildExecutiveAlerts({
+  summary,
+  branches,
+  targets,
+  queues,
+  lastRunAt,
+}: {
+  summary: SummaryRow[];
+  branches: BranchAggregate[];
+  targets: BusinessTargets;
+  queues: QueueRow[];
+  lastRunAt?: string;
+}): ExecutiveAlert[] {
+  const alerts: ExecutiveAlert[] = [];
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const noShows = total(summary, 'no_show_count');
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetNoShow = numberValue(targets.target_no_show_rate) || 10;
+  const targetCompletion = numberValue(targets.target_completion_rate) || 80;
+
+  if (avgWait > targetWait) {
+    alerts.push({
+      id: 'wait',
+      title: 'Waits are over your target',
+      detail: `${formatMinutes(avgWait)} average against a ${targetWait}m target.`,
+      tab: 'statistics',
+    });
+  }
+  const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
+  if (noShowRate > targetNoShow) {
+    alerts.push({
+      id: 'no-show',
+      title: 'No-shows are over your target',
+      detail: `${formatCount(noShows)} of ${formatCount(visitors)} customers · ${formatPercent(noShowRate)} against a ${targetNoShow}% target.`,
+      tab: 'statistics',
+    });
+  }
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  if (visitors && completionRate < targetCompletion) {
+    alerts.push({
+      id: 'completion',
+      title: 'Completed visits are under your target',
+      detail: `${formatCount(served)} of ${formatCount(visitors)} customers served · ${formatPercent(completionRate)} against a ${targetCompletion}% target.`,
+      tab: 'statistics',
+    });
+  }
+  branches
+    .filter((branch) => numberValue(branch.avg_wait_minutes) > targetWait * 1.5)
+    .slice(0, 3)
+    .forEach((branch) => alerts.push({
+      id: `branch-${branch.branch_id || branch.branch_name}`,
+      title: `${displayLabel(branch.branch_name || 'A branch')} is waiting far too long`,
+      detail: `${formatMinutes(branch.avg_wait_minutes)} average — more than half again your ${targetWait}m target.`,
+      tab: 'branches',
+    }));
+  const busiestQueue = [...queues].sort((a, b) => numberValue(b.waiting_count) - numberValue(a.waiting_count))[0];
+  if (busiestQueue && numberValue(busiestQueue.waiting_count) >= 10) {
+    alerts.push({
+      id: 'queue',
+      title: 'A line is building right now',
+      detail: `${formatCount(busiestQueue.waiting_count)} customers waiting for ${displayLabel(busiestQueue.service_name || 'a service')} at ${displayLabel(busiestQueue.branch_name || 'a branch')}.`,
+      tab: 'overview',
+    });
+  }
+  const runAge = lastRunAt ? Date.now() - new Date(lastRunAt).getTime() : null;
+  if (runAge === null || runAge > 2 * 60 * 60 * 1000) {
+    alerts.push({
+      id: 'freshness',
+      title: 'Your numbers need updating',
+      detail: lastRunAt ? `Last recalculated ${compactDate(lastRunAt)}.` : 'These numbers have not been recalculated yet.',
+      tab: 'settings',
+    });
+  }
+  return alerts;
+}
+
+function ExecutiveAlertsButton({ alerts, onJump }: { alerts: ExecutiveAlert[]; onJump: (tab: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="exec-alerts-wrap">
+      <button
+        type="button"
+        className="exec-round-button"
+        aria-label={alerts.length ? `${alerts.length} things need attention` : 'Nothing needs attention'}
+        onClick={() => setOpen((value) => !value)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+      >
+        <Bell size={17} />
+        {alerts.length ? <i className="exec-alert-dot">{alerts.length}</i> : null}
+      </button>
+      {open ? (
+        <div className="exec-alerts-panel">
+          <header>Needs your attention</header>
+          {alerts.length ? alerts.map((alert) => (
+            <button
+              key={alert.id}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { onJump(alert.tab); setOpen(false); }}
+            >
+              <b>{alert.title}</b>
+              <small>{alert.detail}</small>
+            </button>
+          )) : <p className="exec-alerts-empty">Everything is inside your targets right now.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -2416,10 +2848,54 @@ function ExecutiveDashboardContent() {
     ? managerRows.find((manager) => manager.branch_id === topBranch.branch_id || manager.branch_name === topBranch.branch_name)
     : undefined;
   const employeePeople = (employeeKpis?.new_staff || []).map((member) => member.full_name);
+  const tabs: DashboardTab[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'statistics', label: 'Statistics', icon: BarChart3 },
+    { id: 'managers', label: 'Managers', icon: UserCog },
+    { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'services', label: 'Services', icon: ListChecks },
+    { id: 'heatmap', label: 'Busy Times', icon: Activity },
+    { id: 'reports', label: 'Reports', icon: FileText },
+  ];
   const openReports = (focus: 'overview' | 'action_plan' = 'overview') => {
     setReportFocus(focus);
     setActiveTab('reports');
   };
+  const jumpTargets: JumpTarget[] = useMemo(() => [
+    ...branches.map((branch) => ({
+      id: `branch-${branch.branch_id || branch.branch_name}`,
+      label: displayLabel(branch.branch_name || 'Branch'),
+      kind: 'Branch',
+      tab: 'branches',
+    })),
+    ...(serviceOptions.data || []).map((service) => ({
+      id: `service-${service.id || service.service_id}`,
+      label: displayLabel(service.name || service.service_name),
+      kind: 'Service',
+      tab: 'services',
+      serviceId: service.id || service.service_id,
+    })),
+    ...managerRows.map((manager) => ({
+      id: `manager-${manager.manager_id}`,
+      label: displayLabel(manager.manager_name),
+      kind: `Manager · ${displayLabel(manager.branch_name || 'Branch')}`,
+      tab: 'managers',
+    })),
+    ...tabs.map((tab) => ({ id: `tab-${tab.id}`, label: tab.label, kind: 'Screen', tab: tab.id })),
+    { id: 'tab-settings', label: 'Settings', kind: 'Screen', tab: 'settings' },
+    { id: 'tab-support', label: 'Help & Support', kind: 'Screen', tab: 'support' },
+  ], [branches, serviceOptions.data, managerRows, tabs]);
+  const jumpTo = (target: JumpTarget) => {
+    if (target.serviceId) setSelectedServiceId(target.serviceId);
+    setActiveTab(target.tab);
+  };
+  const alerts = useMemo(() => buildExecutiveAlerts({
+    summary,
+    branches,
+    targets,
+    queues,
+    lastRunAt: pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at,
+  }), [summary, branches, targets, queues, pipeline]);
   const overviewText = `${formatCount(total(summary, 'total_visitors'))} clients moved through ${branchCount || 'the'} branch network with ${formatMinutes(avg(summary, 'avg_wait_time_minutes'))} average wait time.`;
   const happinessText = insightSentence(abandonmentInsight, `${formatPercent(total(summary, 'total_visitors') ? (1 - total(summary, 'no_show_count') / Math.max(total(summary, 'total_visitors'), 1)) * 100 : 0)} of clients stayed in the flow, with no-show pressure tracked from the latest summaries.`);
   const actionText = insightSentence(resourceInsight, topService
@@ -2434,28 +2910,16 @@ function ExecutiveDashboardContent() {
     heatmap,
     targets,
   });
-  const report = {
-    generated_at: new Date().toISOString(),
-    business_id: businessId,
-    month: analyticsMonth,
-    employee_kpis: employeeKpis,
+  const reportDoc = buildOperationsReport({
+    title: `${displayLabel(admin?.staffRecord.business_name || 'Your business')} — Operations Report`,
+    subtitle: `${branchCount || 'All'} ${branchCount === 1 ? 'branch' : 'branches'} · Prepared for ${admin?.name || 'the executive team'}`,
     summary,
     services,
-    heatmap,
-    branch_trends: branchTrends,
+    branches,
     managers: managerRows,
-    predictions,
-  };
-  const tabs: DashboardTab[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'statistics', label: 'Statistics', icon: BarChart3 },
-    { id: 'managers', label: 'Managers', icon: UserCog },
-    { id: 'branches', label: 'Branches', icon: Building2 },
-    { id: 'services', label: 'Services', icon: ListChecks },
-    { id: 'heatmap', label: 'Busy Times', icon: Activity },
-    { id: 'operations', label: 'Operations', icon: Gauge },
-    { id: 'reports', label: 'Reports', icon: FileText },
-  ];
+    targets,
+    actionPlan,
+  });
 
   return (
     <div className="exec-page">
@@ -2508,9 +2972,9 @@ function ExecutiveDashboardContent() {
 
       <main className="exec-main">
         <header className="exec-topbar">
-          <button type="button" className="exec-search" onClick={() => openReports()}><Search size={17} /><span>Search Reports</span><kbd>⌘S</kbd></button>
-          <button type="button" className="exec-assist" onClick={() => openReports()}><Sparkles size={16} /> QMe Intelligence</button>
-          <button type="button" className="exec-round-button" aria-label="Notifications" onClick={() => setActiveTab('operations')}><Bell size={17} /></button>
+          <ExecutiveSearch targets={jumpTargets} onJump={jumpTo} />
+          <button type="button" className="exec-assist" onClick={() => openReports('action_plan')}><TrendingUp size={16} /> What To Improve</button>
+          <ExecutiveAlertsButton alerts={alerts} onJump={setActiveTab} />
           <div className="exec-profile">
             <div>{(admin?.name || 'Q').slice(0, 1)}</div>
             <span><b>{admin?.name || 'Executive'}</b><small>{admin?.staffRecord.email}</small></span>
@@ -2555,10 +3019,21 @@ function ExecutiveDashboardContent() {
                 <ExecutiveEfficiency summary={summary} services={services} targets={targets} onOpen={() => setActiveTab('branches')} />
                 <ExecutiveTopBranch branch={topBranch} manager={topBranchManager} onOpen={() => setActiveTab('branches')} />
               </div>
+
+              <Panel title="Lines Right Now" eyebrow="Who Is Waiting Across Your Branches">
+                {queues.length ? queues.map((queue) => (
+                  <DataRow
+                    key={queue.id}
+                    title={displayLabel(queue.service_name || 'Service')}
+                    detail={`${displayLabel(queue.branch_name || 'Branch')} · ${formatMinutes(queue.avg_wait_minutes)} average wait`}
+                    value={`${formatCount(queue.waiting_count)} Waiting`}
+                  />
+                )) : <EmptyState title="No Lines Open Right Now" detail="Branch queues appear here as soon as today's services open." />}
+              </Panel>
             </section>
 
             <aside className="exec-right-column">
-              <ExecutiveCalendar monthKey={analyticsMonth} rows={summary} />
+              <ExecutiveActionCard actionPlan={actionPlan} targets={targets} summary={summary} onOpen={() => openReports('action_plan')} />
               <ExecutiveManagerList managers={managerRows} onOpen={() => setActiveTab('managers')} />
             </aside>
           </div>
@@ -2626,30 +3101,14 @@ function ExecutiveDashboardContent() {
           </section>
         ) : null}
 
-        {activeTab === 'operations' ? (
-          <section className="exec-tab-page">
-            <div className="ops-grid two">
-              <Panel title="Pipeline Status">
-                <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={pipeline?.last_run?.status || 'Empty'} />
-                <DataRow title="Predictions" detail={`${pipeline?.insights?.length || 0} Insights Tracked For Your Business`} value={(pipeline?.insights || []).some((item: any) => item.is_stale) ? 'Needs Update' : 'Up To Date'} />
-                <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
-              </Panel>
-              <Panel title="Live Queues">
-                {queues.length ? queues.map((queue) => (
-                  <DataRow key={queue.id} title={queue.service_name || 'Service'} detail={queue.branch_name || 'Branch'} value={`${formatCount(queue.waiting_count)} Waiting`} />
-                )) : <EmptyState title="No Live Queues" detail="Open branch queues will appear here." />}
-              </Panel>
-            </div>
-          </section>
-        ) : null}
-
         {activeTab === 'reports' ? (
           <section className="exec-tab-page">
-            <Panel title="Executive Reports">
+            <Panel title="Your Report" eyebrow="Exactly What The Export Will Contain">
               <div className="ops-report-actions">
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
-                <button className="ops-primary dark" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={16} /> Export Report</button>
+                <button className="ops-primary dark" onClick={() => downloadWordReport(reportDoc, 'qmenow-operations-report.doc')}><Download size={16} /> Export As Word</button>
               </div>
+              <ReportPreview doc={reportDoc} />
             </Panel>
             <div className="ops-grid two">
               <TargetsPanel targets={targets} businessId={businessId} editable />
