@@ -106,6 +106,53 @@ export default function PrivacySecurityScreen() {
             Your card details never touch our servers — they’re handled directly by Stripe. Your ID and TRN are shared only with the agency serving you, to verify you at the counter, and can be locked behind Face ID. We never sell your data.
           </Text>
         </View>
+
+        <View style={[t.card, { overflow: 'hidden', marginTop: 12, ...shadow.card }]}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Legal', { tab: 'privacy' })}
+            accessibilityRole="button"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSoft }}
+          >
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="shield-checkmark-outline" size={17} color={colors.ink} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Privacy policy</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>What we collect and why</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.chevron} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Legal', { tab: 'terms' })}
+            accessibilityRole="button"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16 }}
+          >
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="document-text-outline" size={17} color={colors.ink} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Terms of use</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>How the service works</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.chevron} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 28, marginBottom: 12, marginLeft: 4 }}>Account</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('DeleteAccount')}
+          accessibilityRole="button"
+          style={[t.card, { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 13, ...shadow.card }]}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#fdeceb', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.danger }}>Delete account</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>Permanently remove your account and personal data</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.chevron} />
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );

@@ -20,6 +20,18 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
+const { auditLog } = require('../middleware/auditLog');
+const { withTransaction } = require('../db/tx');
+const { createClient } = require('@supabase/supabase-js');
+
+// Deleting a Supabase Auth identity is an administrative action, so unlike the
+// request-path verification in middleware/auth.js it needs the service-role
+// key. It is used for nothing else.
+const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
 
 async function getStaffProfile(staffId) {
   const [rows] = await pool.query(
@@ -235,6 +247,92 @@ router.post('/force-signout', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('force-signout error:', err);
     res.status(500).json({ error: 'Failed to force sign-out.' });
+  }
+});
+
+// ── DELETE /api/auth/account ──────────────────────────────────
+// App Store Guideline 5.1.1(v): an app with account creation must let the user
+// initiate deletion of the account and its data from inside the app. Not
+// deactivation, and not "email support".
+//
+// What happens:
+//   • The MySQL `users` row is deleted. Everything personal cascades with it —
+//     saved businesses, notifications, device push tokens, saved payment
+//     methods, visit history.
+//   • Queue tickets and intake forms are NOT deleted. The FKs are ON DELETE SET
+//     NULL, so the business keeps the operational record of a visit that
+//     actually happened while it stops being linked to a person.
+//   • Every session for the account is revoked, so other devices are signed out.
+//   • The Supabase Auth identity is deleted last, which frees the email address
+//     for re-registration.
+//
+// The Supabase step needs the service-role key. If it is not configured we fail
+// the whole request rather than half-deleting an account and reporting success.
+router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async (req, res) => {
+  if (!req.dbUser) {
+    return res.status(403).json({
+      error: 'Staff accounts are managed by their business and cannot be deleted from the app.',
+    });
+  }
+  if (!supabaseAdmin) {
+    console.error('[DeleteAccount] SUPABASE_SERVICE_KEY is not configured.');
+    return res.status(503).json({ error: 'Account deletion is temporarily unavailable. Please try again later.' });
+  }
+
+  const userId = req.dbUser.id;
+  const supabaseUid = req.supabaseUser.id;
+
+  try {
+    // Refuse while the customer is still standing in a line — deleting now
+    // would strand a ticket that staff are actively serving.
+    const [activeTickets] = await pool.query(
+      `SELECT COUNT(*) AS active
+         FROM queue_tickets
+        WHERE user_id = ?
+          AND status IN ('waiting', 'called', 'in_service')`,
+      [userId]
+    );
+    if (activeTickets[0].active > 0) {
+      return res.status(409).json({
+        error: 'You are still in a queue. Leave your active queue first, then delete your account.',
+      });
+    }
+
+    await withTransaction(async (conn) => {
+      await conn.query('DELETE FROM users WHERE id = ?', [userId]);
+    });
+
+    // Sign the account out everywhere before releasing the identity.
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await createRevocation(supabaseUid, null, 'account_deleted', expiresAt, null);
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(supabaseUid);
+    if (authError) {
+      // The personal data is already gone; surface the failure so the identity
+      // can be cleaned up rather than silently reporting complete success.
+      console.error('[DeleteAccount] Supabase identity delete failed:', authError.message);
+      return res.status(500).json({
+        error: 'Your personal data was deleted, but the sign-in record could not be removed. Please contact support so we can finish.',
+      });
+    }
+
+    res.json({
+      message: 'Your account and personal data have been deleted.',
+      deleted: [
+        'Profile and contact details',
+        'Saved businesses and recent searches',
+        'Notifications and device push tokens',
+        'Saved payment methods',
+        'Visit history',
+        'Sign-in record',
+      ],
+      retained: [
+        'Anonymous records of visits that already happened, which businesses keep for their own reporting. These are no longer linked to you.',
+      ],
+    });
+  } catch (err) {
+    console.error('delete-account error:', err);
+    res.status(500).json({ error: 'Failed to delete your account. Nothing was changed.' });
   }
 });
 

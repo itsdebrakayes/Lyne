@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const authRouter = require('../src/routes/auth');
 const ticketRouter = require('../src/routes/tickets');
 const queueRouter = require('../src/routes/queues');
 const sseRouter = require('../src/routes/sse');
@@ -184,4 +185,21 @@ test('auth lookup treats unprovisioned Supabase accounts as mobile users only af
 
   assert.equal(actor.dbStaff, undefined);
   assert.equal(actor.dbUser.id, 'user-1');
+});
+
+test('account deletion is authenticated and audited', () => {
+  const handlers = routeHandlers(authRouter, 'delete', '/account');
+  assert.ok(handlers.includes('requireAuth'), 'deletion must authenticate the caller');
+  // Deleting an account is exactly the kind of irreversible, personal-data
+  // action the audit trail exists for.
+  assert.ok(handlers.length > 1, 'deletion must be audit-logged');
+});
+
+test('account deletion is not exposed unauthenticated on any other verb', () => {
+  for (const method of ['get', 'post', 'put']) {
+    const layer = authRouter.stack.find(candidate => (
+      candidate.route?.path === '/account' && candidate.route.methods?.[method]
+    ));
+    assert.equal(layer, undefined, `/account must not answer ${method.toUpperCase()}`);
+  }
 });

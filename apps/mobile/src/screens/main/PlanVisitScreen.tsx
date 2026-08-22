@@ -19,7 +19,6 @@ import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
-import { getPremiumPreview } from '../../lib/premiumPreview';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -56,9 +55,10 @@ export default function PlanVisitScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const [preview, setPreview] = useState(false);
-  useFocusEffect(useCallback(() => { getPremiumPreview().then(setPreview); }, []));
-  const premium = Boolean(Number(user?.is_premium || 0)) || preview;
+  // Premium comes from the server flag alone. The old device-local preview
+  // override let anyone unlock paid features from Settings, which is both a
+  // review flag and a way to give the product away.
+  const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
