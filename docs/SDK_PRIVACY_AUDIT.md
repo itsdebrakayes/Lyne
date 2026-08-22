@@ -1,4 +1,4 @@
-# Third-party SDK privacy audit — Lyne iOS
+# Third-party SDK privacy audit — Lyne iOS (com.uselyne.app)
 
 Checked against [Apple's third-party SDK requirements](https://developer.apple.com/support/third-party-SDK-requirements/),
 which require a privacy manifest and a valid signature for the SDKs on Apple's list.

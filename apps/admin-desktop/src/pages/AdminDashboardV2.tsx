@@ -3152,7 +3152,7 @@ function ExecutiveDashboardContent() {
         {activeTab === 'support' ? (
           <section className="exec-tab-page">
             <Panel title="Help & Support" eyebrow="We Reply Monday To Friday, 9 AM – 5 PM">
-              <DataRow title="Email Us" detail="support@lyne.com" value="Fastest" />
+              <DataRow title="Email Us" detail="support@uselyne.com" value="Fastest" />
               <DataRow title="Call Us" detail="+1 (876) 000-0000" value="Mon–Fri" />
               <DataRow title="Onboarding Help" detail="Setting Up Branches, Services, Counters, And Staff" value="Ask Us" />
             </Panel>

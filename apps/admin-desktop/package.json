@@ -42,7 +42,7 @@
     "vite-plugin-electron": "^0.28.4"
   },
   "build": {
-    "appId": "com.dkstechnologies.lyne.admin",
+    "appId": "com.uselyne.admin",
     "productName": "Lyne Admin",
     "directories": {
       "output": "release"

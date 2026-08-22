@@ -71,7 +71,7 @@ const JoinUs = () => {
     const phone = String(data.get("phone") || "");
     const body = encodeURIComponent([`Name: ${name}`, `Email: ${email}`, `Phone: ${phone}`, "", message].join("\n"));
     setSubmitted(true);
-    window.location.href = `mailto:support@lyne.com?subject=Lyne%20Quote%20Request&body=${body}`;
+    window.location.href = `mailto:support@uselyne.com?subject=Lyne%20Quote%20Request&body=${body}`;
   };
 
   return (

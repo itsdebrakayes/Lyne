@@ -11,8 +11,8 @@
 
 export const COMPANY = 'DKS Technologies';
 export const APP_NAME = 'Lyne';
-export const SUPPORT_EMAIL = 'support@lyne.com';
-export const PRIVACY_CONTACT = 'privacy@lyne.com';
+export const SUPPORT_EMAIL = 'support@uselyne.com';
+export const PRIVACY_CONTACT = 'privacy@uselyne.com';
 
 export type LegalSection = { heading: string; body: string[] };
 
