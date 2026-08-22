@@ -154,7 +154,9 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
   return Notifications.scheduleNotificationAsync({
     content: {
       title: 'Time to head out',
-      body: `Leave soon to reach ${input.branchName} before your queue is called.`,
+      // Neutral on the lock screen — the branch name is in the app, where it
+      // sits behind authentication. See PUSH_TITLES in backend routes/tickets.js.
+      body: 'Leave soon to arrive before your turn. Open Lyne for the details.',
       data: { ticketId: input.ticketId, branchName: input.branchName },
     },
     trigger: {
