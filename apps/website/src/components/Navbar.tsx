@@ -1,5 +1,5 @@
 /**
- * Navbar — re-exports the QME Now marketing header so every page
+ * Navbar — re-exports the Lyne marketing header so every page
  * (home, about, join-us) shares the same sticky glass navigation.
  */
 import { MarketingNav } from "@/components/qme/Marketing";

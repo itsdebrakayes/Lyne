@@ -125,7 +125,7 @@ export function MarketingFooter() {
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-qme-lavender/45 sm:flex-row">
-          <span>© {new Date().getFullYear()} QME Now. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Lyne. All rights reserved.</span>
           <div className="flex gap-6">
             <Link to="/about" className="hover:text-white">Terms</Link>
             <Link to="/about" className="hover:text-white">Privacy</Link>

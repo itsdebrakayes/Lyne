@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="admin-login-brand">
           <div>Q</div>
           <span>
-            <b>QMe Now</b>
+            <b>Lyne</b>
             <small>Admin Operations</small>
           </span>
         </div>

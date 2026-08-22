@@ -1,8 +1,8 @@
 /**
  * SignupScreen — brand-framed registration.
  *
- * Same visual language as sign in (white canvas, QMe brand-tile mosaic framing
- * the top and bottom, QMe Now lockup, black button), but as a scrolling form
+ * Same visual language as sign in (white canvas, Lyne brand-tile mosaic framing
+ * the top and bottom, Lyne lockup, black button), but as a scrolling form
  * that collects everything a branch needs up front: name, email, phone, date
  * of birth (in-app calendar), password + confirmation, and TRN.
  */
@@ -103,7 +103,7 @@ export default function SignupScreen() {
 
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+            <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
             <Text style={styles.brand}>Create your account</Text>
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>

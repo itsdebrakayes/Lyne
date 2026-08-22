@@ -53,7 +53,7 @@ export default function PaymentMethodsScreen() {
         </View>
 
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, lineHeight: 21, marginBottom: 6 }}>
-          Cards you save here are used for QMe Premium. Your card details are held securely by Stripe — never on our servers.
+          Cards you save here are used for Lyne Premium. Your card details are held securely by Stripe — never on our servers.
         </Text>
 
         {!paymentsConfigured() && (
@@ -67,7 +67,7 @@ export default function PaymentMethodsScreen() {
           {isLoading && <SkeletonRows count={2} />}
           {!!error && !isLoading && <ErrorCard title="Couldn’t load cards" message="Your saved cards couldn’t be loaded right now." onRetry={() => refetch()} />}
           {!isLoading && !error && cards.length === 0 && (
-            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock QMe Premium in one tap." />
+            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock Lyne Premium in one tap." />
           )}
 
           {cards.map(card => (

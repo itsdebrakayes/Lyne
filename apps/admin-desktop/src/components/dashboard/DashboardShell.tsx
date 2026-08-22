@@ -51,8 +51,8 @@ export default function DashboardShell({
     <div className={`ops-page ${tone}`}>
       <aside className="ops-sidebar">
         <div className="ops-brand">
-          <div>Q</div>
-          <span>QMe Now</span>
+          <div>L</div>
+          <span>Lyne</span>
         </div>
         <div className="ops-user-card">
           <b>{name}</b>
@@ -112,7 +112,7 @@ export default function DashboardShell({
             />
           </form>
           <div className="ops-profile">
-            <div>{name[0] || 'Q'}</div>
+            <div>{name[0] || 'L'}</div>
             <span>
               <b>{name}</b>
               <small>{admin?.staffRecord.email}</small>

@@ -2,8 +2,8 @@
  * LoginScreen — brand-framed sign in.
  *
  * Carries the welcome screen's visual language onto auth: a white canvas with
- * the QMe brand-tile mosaic bleeding in from the top and bottom edges (you see
- * half of it at each end), fading into white around a centred QMe Now lockup,
+ * the Lyne brand-tile mosaic bleeding in from the top and bottom edges (you see
+ * half of it at each end), fading into white around a centred Lyne lockup,
  * the sign-in form, and one black button — the same forest button as the
  * intro's "Start queuing".
  */
@@ -100,8 +100,8 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
           {/* brand lockup */}
-          <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
-          <Text style={styles.brand}>QMe Now</Text>
+          <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
+          <Text style={styles.brand}>Lyne</Text>
           <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
           {!!error && (

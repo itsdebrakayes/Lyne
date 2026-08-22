@@ -1,8 +1,8 @@
 /**
  * HelpScreen — the Help & Support centre (content buckets, not a chatbot).
  *
- * Two clear paths: general questions about QMe Now (expandable buckets), and
- * "a specific agency?" — a list of the agencies QMe Now works with, each
+ * Two clear paths: general questions about Lyne (expandable buckets), and
+ * "a specific agency?" — a list of the agencies Lyne works with, each
  * leading to its opening hours, required documents and JP requirements.
  * A contact card closes it out.
  */
@@ -15,7 +15,7 @@ import { GENERAL_FAQS, AGENCY_GUIDES } from '../../lib/helpContent';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
 import { Sheen } from '../../components/Glass';
 
-const SUPPORT_EMAIL = 'support@qmenow.com';
+const SUPPORT_EMAIL = 'support@lyne.com';
 const SUPPORT_PHONE = '+18760000000';
 
 export default function HelpScreen() {
@@ -30,11 +30,11 @@ export default function HelpScreen() {
         </View>
 
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, lineHeight: 21, marginBottom: 4 }}>
-          Find answers below — start with general questions about QMe Now, or jump to a specific agency for hours and what to bring.
+          Find answers below — start with general questions about Lyne, or jump to a specific agency for hours and what to bring.
         </Text>
 
         {/* general */}
-        <View style={t.sectionRow}><Text style={t.section}>About QMe Now</Text></View>
+        <View style={t.sectionRow}><Text style={t.section}>About Lyne</Text></View>
         {GENERAL_FAQS.map(f => (
           <FaqBucket key={f.q} q={f.q}><FaqAnswer>{f.a}</FaqAnswer></FaqBucket>
         ))}
@@ -65,7 +65,7 @@ export default function HelpScreen() {
         {/* contact */}
         <View style={t.sectionRow}><Text style={t.section}>Still need help?</Text></View>
         <View style={[t.card, { padding: 18, ...shadow.card }]}>
-          <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink }}>Contact the QMe Now team</Text>
+          <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink }}>Contact the Lyne team</Text>
           <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, lineHeight: 19, marginTop: 5 }}>We reply Monday–Friday, 9:00 AM – 5:00 PM.</Text>
           <View style={{ flexDirection: 'row', gap: 11, marginTop: 16 }}>
             <TouchableOpacity onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} style={[t.primaryBtn, { flex: 1, minHeight: 50 }]}>

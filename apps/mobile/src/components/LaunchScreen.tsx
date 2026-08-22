@@ -45,9 +45,9 @@ export default function LaunchScreen() {
     <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
       <Animated.View style={{ opacity, transform: [{ scale }], flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <View style={{ width: 58, height: 58, borderRadius: 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 30 }}>Q</Text>
+          <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 30 }}>L</Text>
         </View>
-        <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>QMe Now</Text>
+        <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>Lyne</Text>
       </Animated.View>
       <Animated.Text style={{ opacity: subOpacity, color: 'rgba(255,255,255,.55)', fontFamily: font.semibold, fontSize: 13.5 }}>
         Skip the line, not your day.

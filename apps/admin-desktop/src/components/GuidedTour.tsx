@@ -26,7 +26,7 @@ export default function GuidedTour({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const storageKey = `qmenow:desktop-tour:${role}:v1`;
+  const storageKey = `Lyne:desktop-tour:${role}:v1`;
 
   useEffect(() => {
     if (localStorage.getItem(storageKey) !== 'complete') {

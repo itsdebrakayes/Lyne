@@ -1,5 +1,5 @@
 /**
- * QME Now — Marketing Landing Page
+ * Lyne — Marketing Landing Page
  * Design ported from queue-master-reimagined (Lovable): deep violet canvas,
  * hairline glass panels, serif accents, aurora text-clip hero.
  */
@@ -105,7 +105,7 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-qme-lavender/75 xl:text-xl"
         >
-          QME Now replaces crowded waiting rooms and guesswork with a single
+          Lyne replaces crowded waiting rooms and guesswork with a single
           live queue — real-time wait times, barcode check-in and dashboards for
           everyone from a single counter to a multi-branch network.
         </motion.p>
@@ -142,7 +142,7 @@ function WhatItIs() {
         </div>
         <div className="space-y-5 text-lg leading-relaxed text-qme-lavender/75 lg:col-span-7">
           <p>
-            <strong className="text-white">QME Now</strong> replaces the clipboard,
+            <strong className="text-white">Lyne</strong> replaces the clipboard,
             the sign-in sheet and the "how long's the wait?" chorus with a single
             live queue your clients can join from their phone — and watch in
             real time.
@@ -194,7 +194,7 @@ function TheOldWay() {
             The line hasn't changed in <span className="serif accent-text">a hundred years.</span>
           </h2>
           <p className="mt-4 text-lg text-qme-lavender/70">
-            Most places still run on a crowded room and a paper ticket. QME Now
+            Most places still run on a crowded room and a paper ticket. Lyne
             replaces the whole experience — for the people waiting and the people serving.
           </p>
         </div>
@@ -207,7 +207,7 @@ function TheOldWay() {
                 <X className="h-5 w-5" />
               </span>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/50">Today, without QME Now</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/50">Today, without Lyne</div>
                 <div className="text-lg font-semibold">The take-a-number line</div>
               </div>
             </div>
@@ -239,7 +239,7 @@ function TheOldWay() {
                 <Sparkles className="h-5 w-5" />
               </span>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/70">With QME Now</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-qme-lavender/70">With Lyne</div>
                 <div className="text-lg font-semibold">The calm live queue</div>
               </div>
             </div>
@@ -368,7 +368,7 @@ const plans = [
     name: "Free",
     price: { m: "Free", y: "Free" },
     desc: "For customers checking in and tracking their place in line.",
-    features: ["Join any QME Now queue", "Live position & wait time", "Barcode check-in ticket", "Push notifications", "Visit history"],
+    features: ["Join any Lyne queue", "Live position & wait time", "Barcode check-in ticket", "Push notifications", "Visit history"],
     highlighted: false,
     cta: "Download the app for free",
     href: "#pricing",
@@ -407,7 +407,7 @@ function Pricing() {
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
           <p className="mt-4 text-lg text-qme-lavender/70">
-            Download the app for free, start a subscription, or license QME Now
+            Download the app for free, start a subscription, or license Lyne
             for your business.
           </p>
         </div>
@@ -511,7 +511,7 @@ function ForBusiness() {
             Built for the teams <span className="serif accent-text">that run the day.</span>
           </h2>
           <p className="mb-7 text-lg leading-relaxed text-qme-lavender/70">
-            From government agencies to clinics and studios, QME Now powers calmer
+            From government agencies to clinics and studios, Lyne powers calmer
             queues at scale. Want to bring it to your business? Size your setup
             and talk to sales about a license.
           </p>

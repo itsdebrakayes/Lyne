@@ -100,7 +100,7 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ borderRadius: 23, ...shadow.depth }}>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <Sheen radius={23} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'Q')}</Text>
+              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'L')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>

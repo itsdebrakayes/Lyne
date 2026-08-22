@@ -33,7 +33,7 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([
-      AsyncStorage.getItem('qmenow:first-run-tutorial-v1'),
+      AsyncStorage.getItem('Lyne:first-run-tutorial-v1'),
       // Hold the splash long enough for the figure to walk all the way across.
       new Promise(resolve => setTimeout(resolve, LAUNCH_DURATION_MS)),
     ]).then(([seen]) => {
@@ -43,7 +43,7 @@ export default function App() {
   }, []);
 
   const completeTutorial = async () => {
-    await AsyncStorage.setItem('qmenow:first-run-tutorial-v1', 'complete').catch(() => {});
+    await AsyncStorage.setItem('Lyne:first-run-tutorial-v1', 'complete').catch(() => {});
     setTutorialSeen(true);
   };
 

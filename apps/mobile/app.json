@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "Q ME NOW",
-    "slug": "qme-now",
+    "name": "Lyne",
+    "slug": "lyne",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.qmenow.app",
+      "bundleIdentifier": "com.dkstechnologies.lyne",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Q ME NOW uses your location to estimate when you should leave for your queue.",
-        "NSUserNotificationUsageDescription": "Q ME NOW sends queue updates and departure reminders.",
-        "NSCameraUsageDescription": "Q ME NOW uses the camera to scan your ID, TRN or passport so agencies can verify you faster.",
-        "NSPhotoLibraryUsageDescription": "Q ME NOW lets you upload a photo or document of your ID, TRN or passport.",
-        "NSFaceIDUsageDescription": "Q ME NOW uses Face ID to protect your saved documents and sensitive details."
+        "NSLocationWhenInUseUsageDescription": "Lyne uses your location to estimate when you should leave for your queue.",
+        "NSUserNotificationUsageDescription": "Lyne sends queue updates and departure reminders.",
+        "NSCameraUsageDescription": "Lyne uses the camera to scan your ID, TRN or passport so agencies can verify you faster.",
+        "NSPhotoLibraryUsageDescription": "Lyne lets you upload a photo or document of your ID, TRN or passport.",
+        "NSFaceIDUsageDescription": "Lyne uses Face ID to protect your saved documents and sensitive details."
       }
     },
     "android": {
-      "package": "com.qmenow.app",
+      "package": "com.dkstechnologies.lyne",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -39,15 +39,15 @@
       "expo-font",
       [
         "expo-camera",
-        { "cameraPermission": "Q ME NOW uses the camera to scan your ID, TRN or passport." }
+        { "cameraPermission": "Lyne uses the camera to scan your ID, TRN or passport." }
       ],
       [
         "expo-image-picker",
-        { "photosPermission": "Q ME NOW lets you upload a photo of your ID, TRN or passport." }
+        { "photosPermission": "Lyne lets you upload a photo of your ID, TRN or passport." }
       ],
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Q ME NOW uses Face ID to protect your saved documents." }
+        { "faceIDPermission": "Lyne uses Face ID to protect your saved documents." }
       ]
     ],
     "extra": {

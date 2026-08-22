@@ -49,7 +49,7 @@ const JoinUs = () => {
   const applyEstimateToForm = () => {
     setMessage(
       [
-        "We would like a formal quote for QME Now.",
+        "We would like a formal quote for Lyne.",
         "",
         `Branches: ${branches}`,
         `Services per branch: ${services}`,
@@ -71,7 +71,7 @@ const JoinUs = () => {
     const phone = String(data.get("phone") || "");
     const body = encodeURIComponent([`Name: ${name}`, `Email: ${email}`, `Phone: ${phone}`, "", message].join("\n"));
     setSubmitted(true);
-    window.location.href = `mailto:support@quemenow.com?subject=QME%20Now%20Quote%20Request&body=${body}`;
+    window.location.href = `mailto:support@lyne.com?subject=Lyne%20Quote%20Request&body=${body}`;
   };
 
   return (

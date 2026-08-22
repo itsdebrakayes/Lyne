@@ -21,7 +21,7 @@ export function QmeLogo({
             dark ? "text-qme-ink" : "text-white"
           }`}
         >
-          QME<span className="text-qme-purple"> Now</span>
+          Lyne
         </span>
       )}
     </Link>

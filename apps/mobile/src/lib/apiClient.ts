@@ -1,7 +1,7 @@
 /**
  * apiClient.ts — Mobile API Client
  *
- * Attaches the Supabase JWT to every request to the Q ME NOW backend.
+ * Attaches the Supabase JWT to every request to the Lyne backend.
  */
 
 import { createClient } from '@supabase/supabase-js';

@@ -1,6 +1,6 @@
 /**
  * PrivacySecurityScreen — app lock (Face ID), session control, and a plain
- * statement of how QMe handles data. Built for a market where digital trust is
+ * statement of how Lyne handles data. Built for a market where digital trust is
  * the whole sell.
  */
 import React, { useEffect, useState } from 'react';
@@ -77,7 +77,7 @@ export default function PrivacySecurityScreen() {
           <Row
             icon="lock-closed-outline"
             title="App Lock"
-            sub={bioAvailable ? 'Require Face ID each time you open QMe Now' : 'Set up Face ID / a passcode on your device to use this'}
+            sub={bioAvailable ? 'Require Face ID each time you open Lyne' : 'Set up Face ID / a passcode on your device to use this'}
             right={<Switch value={appLock} onValueChange={toggleAppLock} trackColor={{ true: colors.accent, false: colors.border }} />}
           />
           <Row

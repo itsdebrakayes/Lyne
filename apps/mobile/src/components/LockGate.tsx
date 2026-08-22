@@ -23,7 +23,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
     const [hasHw, enrolled] = await Promise.all([LocalAuthentication.hasHardwareAsync(), LocalAuthentication.isEnrolledAsync()]);
     if (!hasHw || !enrolled) { setState('open'); return; }
     setState('locked');
-    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock QMe Now' });
+    const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock Lyne' });
     setState(res.success ? 'open' : 'locked');
   };
 
@@ -36,7 +36,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
       <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
         <Ionicons name="lock-closed" size={30} color={colors.accent} />
       </View>
-      <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.3 }}>QMe Now is locked</Text>
+      <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.3 }}>Lyne is locked</Text>
       <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,.6)', marginTop: 8, textAlign: 'center' }}>Unlock with Face ID to continue.</Text>
       {state === 'locked' ? (
         <TouchableOpacity onPress={attempt} style={{ marginTop: 26, backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 28, flexDirection: 'row', alignItems: 'center', gap: 8 }}>

@@ -2632,7 +2632,7 @@ function ManagerDashboardContent() {
 
 // ── Executive topbar controls ─────────────────────────────────
 // Rule 10 — if a control exists, it does something. These replaced a search
-// pill with a fake shortcut, a vague "QMe Intelligence" button, and a bell
+// pill with a fake shortcut, a vague "Lyne Intelligence" button, and a bell
 // that dumped you on the Operations tab.
 type JumpTarget = { id: string; label: string; kind: string; tab: string; serviceId?: string };
 
@@ -2925,10 +2925,10 @@ function ExecutiveDashboardContent() {
     <div className="exec-page">
       <aside className="exec-sidebar">
         <div className="exec-brand">
-          <div>Q</div>
-          <span><b>QMe Now</b><small>Private</small></span>
+          <div>L</div>
+          <span><b>Lyne</b><small>Private</small></span>
         </div>
-        <div className="exec-breadcrumb">QMe Now &gt; Dashboard</div>
+        <div className="exec-breadcrumb">Lyne &gt; Dashboard</div>
         <section className="exec-welcome">
           <small>Welcome Back,</small>
           <strong>{admin?.name || 'Executive'}</strong>
@@ -2976,7 +2976,7 @@ function ExecutiveDashboardContent() {
           <button type="button" className="exec-assist" onClick={() => openReports('action_plan')}><TrendingUp size={16} /> What To Improve</button>
           <ExecutiveAlertsButton alerts={alerts} onJump={setActiveTab} />
           <div className="exec-profile">
-            <div>{(admin?.name || 'Q').slice(0, 1)}</div>
+            <div>{(admin?.name || 'L').slice(0, 1)}</div>
             <span><b>{admin?.name || 'Executive'}</b><small>{admin?.staffRecord.email}</small></span>
           </div>
         </header>
@@ -3106,7 +3106,7 @@ function ExecutiveDashboardContent() {
             <Panel title="Your Report" eyebrow="Exactly What The Export Will Contain">
               <div className="ops-report-actions">
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
-                <button className="ops-primary dark" onClick={() => downloadWordReport(reportDoc, 'qmenow-operations-report.doc')}><Download size={16} /> Export As Word</button>
+                <button className="ops-primary dark" onClick={() => downloadWordReport(reportDoc, 'lyne-operations-report.doc')}><Download size={16} /> Export As Word</button>
               </div>
               <ReportPreview doc={reportDoc} />
             </Panel>
@@ -3152,7 +3152,7 @@ function ExecutiveDashboardContent() {
         {activeTab === 'support' ? (
           <section className="exec-tab-page">
             <Panel title="Help & Support" eyebrow="We Reply Monday To Friday, 9 AM – 5 PM">
-              <DataRow title="Email Us" detail="support@qmenow.com" value="Fastest" />
+              <DataRow title="Email Us" detail="support@lyne.com" value="Fastest" />
               <DataRow title="Call Us" detail="+1 (876) 000-0000" value="Mon–Fri" />
               <DataRow title="Onboarding Help" detail="Setting Up Branches, Services, Counters, And Staff" value="Ask Us" />
             </Panel>

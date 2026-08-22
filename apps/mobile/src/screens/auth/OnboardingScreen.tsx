@@ -1,7 +1,7 @@
 /**
  * OnboardingScreen — the welcome moment (single screen, GoMart-style).
  *
- * A brand mosaic fills the top: rounded tiles in QMe forest/cyan carrying the
+ * A brand mosaic fills the top: rounded tiles in Lyne forest/cyan carrying the
  * product's icons, on a soft cyan-tinted canvas (the dark tiles are what
  * "gradient into black" becomes in a future dark mode). Below: the welcome,
  * the slogan, and one verb — Start queuing.
@@ -88,10 +88,10 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {/* welcome */}
       <View style={{ flex: 1, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 46 }}>
         <View style={{ width: 58, height: 58, borderRadius: 20, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', marginBottom: 22, ...shadow.card }}>
-          <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 26 }}>Q</Text>
+          <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 26 }}>L</Text>
         </View>
         <Text style={{ fontFamily: font.extra, fontSize: 34, lineHeight: 40, color: colors.ink, letterSpacing: -1, textAlign: 'center' }}>
-          Welcome to{'\n'}QMe Now
+          Welcome to{'\n'}Lyne
         </Text>
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 14, maxWidth: 300 }}>
           Skip the line, not your day — live waits, remote queueing, and perfectly timed arrivals.

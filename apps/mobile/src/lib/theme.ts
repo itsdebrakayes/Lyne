@@ -1,9 +1,9 @@
 import { Platform, StyleSheet } from 'react-native';
 
 /**
- * QME Now — mobile design system (v4 · fintech style)
+ * Lyne — mobile design system (v4 · fintech style)
  *
- * Ported from the approved Claude Design "QMe Mobile App v4" handoff.
+ * Ported from the approved Claude Design "Lyne Mobile App v4" handoff.
  * Light canvas, white cards with hairline borders, Plus Jakarta Sans,
  * a forest-dark hero tone and a cyan accent. Status/efficiency semantics
  * use green → amber → red.
@@ -209,7 +209,7 @@ export function waitShort(minutes?: number | string | null) {
 /**
  * Branch open/closed by the wall clock. The demo seeds queues for the whole
  * day, so "open_queues > 0" is NOT a truthful "open now" signal — a branch
- * can carry a stale low wait at midnight. Every QMe business here is a
+ * can carry a stale low wait at midnight. Every Lyne business here is a
  * Jamaican government agency (TAJ · PICA · NHT) on standard Mon–Fri
  * 8:30am–4:30pm hours, so we gate live waits on the clock and surface a
  * clear Closed / About-to-open state instead of a fake "Now / Light".
@@ -286,7 +286,7 @@ export function initials(value?: string) {
     .slice(0, 3)
     .map(part => part[0])
     .join('')
-    .toUpperCase() || 'Q';
+    .toUpperCase() || 'L';
 }
 
 // Spacing scale — the whole app sits on this rhythm. Sections get xl above

@@ -292,7 +292,7 @@ export default function ProfileScreen() {
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Appearance</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how QMe Now looks. “System” follows your phone.</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how Lyne looks. “System” follows your phone.</Text>
             <View style={{ marginTop: 16, gap: 10 }}>
               {([
                 { key: 'system', label: 'System default', icon: 'phone-portrait-outline' },

@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /**
- * QMe Now Admin — Luxury Design System
+ * Lyne Admin — Luxury Design System
  * OLED Black · Deep Blue-Grey #1F3442 · Jost · Liquid Glass
  */
 
@@ -104,7 +104,7 @@
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:0.01ms!important; transition-duration:0.01ms!important; } }
 
-/* QMe Admin Dashboards v2 — blue-grey operational workspace */
+/* Lyne Admin Dashboards v2 — blue-grey operational workspace */
 .v2-page {
   width: 100vw;
   height: 100vh;
