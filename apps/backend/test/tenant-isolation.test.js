@@ -170,3 +170,25 @@ test('line staff cannot reach manager analytics', async () => {
   assertDenied(await callAs('staff-a', '/api/analytics/summary?business_id=biz-a'), 'staff-a -> summary');
   assertDenied(await callAs('staff-a', '/api/targets?business_id=biz-a'), 'staff-a -> targets');
 });
+
+// ── DKS gatekeeping on staff requests ─────────────────────────
+// A manager submitting a request must not be able to wave it through: that gate
+// is the only thing standing between a branch manager and creating working
+// accounts inside the business unsupervised.
+
+test('a manager cannot approve their own staff request', async () => {
+  assertDenied(await callAs('mgr-a', '/api/staff-invite/invite-1/approve', { method: 'POST' }), 'mgr-a -> approve own request');
+});
+
+test('an executive cannot approve a staff request either', async () => {
+  assertDenied(await callAs('exec-a', '/api/staff-invite/invite-1/approve', { method: 'POST' }), 'exec-a -> approve request');
+});
+
+test('a manager cannot decline a staff request', async () => {
+  assertDenied(await callAs('mgr-a', '/api/staff-invite/invite-1/decline', { method: 'POST', body: { reason: 'no' } }), 'mgr-a -> decline request');
+});
+
+test('a customer cannot touch staff requests at all', async () => {
+  assertDenied(await callAs('user-1', '/api/staff-invite/pending?business_id=biz-a'), 'user-1 -> pending requests');
+  assertDenied(await callAs('user-1', '/api/staff-invite/invite-1/approve', { method: 'POST' }), 'user-1 -> approve');
+});

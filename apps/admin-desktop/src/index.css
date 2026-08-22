@@ -1421,6 +1421,38 @@ button.ops-row { cursor: pointer; }
   font-weight: 900;
 }
 .ops-report-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.assignment-controls input {
+  min-width: 170px;
+  flex: 1 1 170px;
+  height: 38px;
+  border: 1px solid #D9E4EA;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: #1F3442;
+  font-size: 13px;
+  font-weight: 700;
+}
+.assignment-controls input::placeholder { color: #98AEBA; font-weight: 700; }
+.ops-hint {
+  margin: 12px 0 4px;
+  color: #607787;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+.ops-hint.success { color: #12795A; }
+.ops-invite-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  background: #F0F5F8;
+  border: 1px solid #D9E4EA;
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: #1F3442;
+}
 .ops-chart-caption {
   margin: 6px 2px 0;
   color: #607787;

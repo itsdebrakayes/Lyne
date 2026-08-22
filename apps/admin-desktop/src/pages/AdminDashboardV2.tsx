@@ -208,6 +208,16 @@ type ManagerScore = {
   rank: number;
 };
 
+type StaffRequestRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  status: 'requested' | 'pending' | 'declined' | 'redeemed' | 'revoked';
+  invite_code?: string | null;
+  decline_reason?: string | null;
+};
+
 type BranchOption = {
   id: string;
   name: string;
@@ -2444,6 +2454,44 @@ function ManagerDashboardContent() {
     onSuccess: () => qc.invalidateQueries(),
   });
 
+  const [requestName, setRequestName] = useState('');
+  const [requestEmail, setRequestEmail] = useState('');
+  const [requestRole, setRequestRole] = useState<'line_staff' | 'manager'>('line_staff');
+  const staffRequests = useQuery({
+    queryKey: ['manager-staff-requests', businessId],
+    queryFn: () => api.get<StaffRequestRow[]>(`/staff-invite/pending?business_id=${businessId}`),
+    enabled: Boolean(businessId),
+    refetchInterval: 60_000,
+  });
+  const requestStaff = useMutation({
+    mutationFn: () => api.post('/staff-invite/create', {
+      business_id: businessId,
+      branch_id: branchId,
+      full_name: requestName.trim(),
+      email: requestEmail.trim(),
+      role: requestRole,
+    }),
+    onSuccess: () => {
+      setRequestName('');
+      setRequestEmail('');
+      staffRequests.refetch();
+    },
+  });
+
+  const closeQueue = useMutation({
+    mutationFn: (queueId: string) => api.put(`/queues/${queueId}/close`, {}),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+  const confirmCloseQueue = (queue: QueueRow) => {
+    const waiting = numberValue(queue.waiting_count);
+    const warning = waiting
+      ? `${waiting} ${waiting === 1 ? 'customer is' : 'customers are'} still waiting in this line. Closing it stops anyone else joining — serve or release them first.`
+      : 'No one is waiting. Closing stops anyone else joining today.';
+    if (window.confirm(`Close ${displayLabel(queue.service_name || 'this line')}?\n\n${warning}`)) {
+      closeQueue.mutate(queue.id);
+    }
+  };
+
   const filteredQueues = selectedServiceId ? queues.filter((queue) => queue.service_id === selectedServiceId) : queues;
   const lineStaffPresence = (presence.data || []).filter((member) => member.role_name === 'line_staff');
   const onlineLineStaff = lineStaffPresence.filter((member) => member.presence_status === 'online');
@@ -2527,6 +2575,58 @@ function ManagerDashboardContent() {
       ) : null}
 
       {activeTab === 'staff' ? (
+        <>
+        <Panel title="Request A Staff Member" eyebrow="DKS Technologies Reviews Every Request Before The Account Works">
+          <div className="assignment-controls">
+            <input
+              value={requestName}
+              onChange={(event) => setRequestName(event.target.value)}
+              placeholder="Full name"
+              aria-label="Staff member's full name"
+            />
+            <input
+              value={requestEmail}
+              onChange={(event) => setRequestEmail(event.target.value)}
+              placeholder="Work email"
+              type="email"
+              aria-label="Staff member's work email"
+            />
+            <select value={requestRole} onChange={(event) => setRequestRole(event.target.value as 'line_staff' | 'manager')} aria-label="Role">
+              <option value="line_staff">Line Staff</option>
+              <option value="manager">Manager</option>
+            </select>
+            <button
+              className="ops-primary accent"
+              disabled={!requestName.trim() || !requestEmail.trim() || requestStaff.isPending}
+              onClick={() => requestStaff.mutate()}
+            >
+              <Plus size={16} /> Send Request
+            </button>
+          </div>
+          <p className="ops-hint">
+            We send the request to DKS Technologies. Once it's approved an invite code appears below —
+            share it with your staff member and they set their own password. You never see or choose it.
+          </p>
+          {requestStaff.isError ? <p className="ops-error">{requestStaff.error instanceof Error ? requestStaff.error.message : 'The request could not be sent.'}</p> : null}
+          {requestStaff.isSuccess ? <p className="ops-hint success">Request sent. You'll see it below once DKS approves it.</p> : null}
+
+          {(staffRequests.data || []).length ? (staffRequests.data || []).map((request) => (
+            <DataRow
+              key={request.id}
+              title={displayLabel(request.full_name)}
+              detail={`${request.email} · ${displayLabel(request.role)}`}
+              meta={<StatusPill status={request.status === 'pending' ? 'approved' : request.status} />}
+              value={
+                request.status === 'pending' && request.invite_code
+                  ? <span className="ops-invite-code">{request.invite_code}</span>
+                  : request.status === 'declined'
+                    ? <span title={request.decline_reason || ''}>Declined</span>
+                    : 'Waiting on DKS'
+              }
+            />
+          )) : <EmptyState title="No Requests Yet" detail="Staff you request will appear here with their approval status." />}
+        </Panel>
+
         <Panel title="Staff Presence" eyebrow="Who's Signed In And Assigned">
           {lineStaffPresence.length ? lineStaffPresence.map((member) => (
             <DataRow
@@ -2539,6 +2639,7 @@ function ManagerDashboardContent() {
             />
           )) : <EmptyState title="No Line Staff Found" detail="Line staff presence will appear after staff are created and assigned." />}
         </Panel>
+        </>
       ) : null}
 
       {activeTab === 'assignments' ? (
@@ -2581,16 +2682,32 @@ function ManagerDashboardContent() {
       ) : null}
 
       {activeTab === 'queues' ? (
-        <Panel title="Active Queues">
-          {filteredQueues.length ? filteredQueues.map((queue) => (
-            <DataRow
-              key={queue.id}
-              title={displayLabel(queue.service_name || 'Service')}
-              detail={`${displayLabel(queue.branch_name || 'Branch')} · ${Math.round(numberValue(queue.avg_wait_minutes))}m Avg Wait`}
-              meta={<StatusPill status={queue.status || 'live'} />}
-              value={`${numberValue(queue.waiting_count)} Waiting`}
-            />
-          )) : <EmptyState title="No Live Queues" detail="Open queues will appear once today’s branch services start." />}
+        <Panel title="Active Queues" eyebrow="Close A Line At The End Of The Day">
+          {closeQueue.isError ? <p className="ops-error">{closeQueue.error instanceof Error ? closeQueue.error.message : 'The queue could not be closed.'}</p> : null}
+          {filteredQueues.length ? filteredQueues.map((queue) => {
+            const waiting = numberValue(queue.waiting_count);
+            return (
+              <DataRow
+                key={queue.id}
+                title={displayLabel(queue.service_name || 'Service')}
+                detail={`${displayLabel(queue.branch_name || 'Branch')} · ${Math.round(numberValue(queue.avg_wait_minutes))}m Avg Wait`}
+                meta={<StatusPill status={queue.status || 'live'} />}
+                value={
+                  <span className="ops-row-actions wide">
+                    <b>{waiting} Waiting</b>
+                    <button
+                      type="button"
+                      disabled={closeQueue.isPending}
+                      title={waiting ? `${waiting} customers are still in this line` : 'Close this line'}
+                      onClick={() => confirmCloseQueue(queue)}
+                    >
+                      Close
+                    </button>
+                  </span>
+                }
+              />
+            );
+          }) : <EmptyState title="No Live Queues" detail="Open queues will appear once today’s branch services start." />}
         </Panel>
       ) : null}
 

@@ -94,6 +94,10 @@ function fakeQuery(sql, params = []) {
     return [ticket ? [{ id: params[0], status: 'waiting', queue_id: ticket.queue_id, user_id: ticket.user_id, position: 1 }] : []];
   }
 
+  if (q.includes('FROM staff_invites')) {
+    return [[{ id: 'invite-1', business_id: 'biz-a', invite_code: 'CODE12345678', email: 'new@biz-a.test', full_name: 'New Staff', role: 'line_staff' }]];
+  }
+
   return [[]];
 }
 
@@ -145,6 +149,7 @@ function buildApp() {
   built.use('/api/analytics', require('../../src/routes/analytics'));
   built.use('/api/staff', require('../../src/routes/staff'));
   built.use('/api/targets', require('../../src/routes/targets'));
+  built.use('/api/staff-invite', require('../../src/routes/staff-invite'));
   built.use((err, _req, res, _next) => res.status(err.status || 500).json({ error: err.message }));
 
   app = built;
