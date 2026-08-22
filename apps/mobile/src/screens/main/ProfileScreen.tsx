@@ -130,7 +130,7 @@ export default function ProfileScreen() {
           <View style={{ borderRadius: 44, ...shadow.depth }}>
             <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
               <Sheen radius={44} />
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
+              <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
             </View>
           </View>
           <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>

@@ -81,7 +81,7 @@ export default function BranchScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Now</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
@@ -89,7 +89,14 @@ export default function BranchScreen() {
               <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{branch?.name || branchName}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => toggleSave.mutate()} disabled={toggleSave.isPending} style={t.iconBtn}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? 'Remove from saved' : 'Save this branch'}
+            accessibilityState={{ selected: isSaved, disabled: toggleSave.isPending }}
+            onPress={() => toggleSave.mutate()}
+            disabled={toggleSave.isPending}
+            style={t.iconBtn}
+          >
             <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={colors.ink} />
           </TouchableOpacity>
         </View>

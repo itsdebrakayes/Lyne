@@ -103,7 +103,7 @@ export default function SignupScreen() {
 
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
+            <View style={styles.logo}><Text maxFontSizeMultiplier={1.2} style={styles.logoText}>L</Text></View>
             <Text style={styles.brand}>Create your account</Text>
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
@@ -149,7 +149,12 @@ export default function SignupScreen() {
           <Text style={styles.label}>Password</Text>
           <View style={[styles.input, styles.pickerRow, focused === 'password' && styles.inputFocused]}>
             <TextInput style={[{ flex: 1, height: '100%', fontFamily: font.medium, color: colors.ink, fontSize: 15 }, inputReset]} {...focusProps('password')} placeholder="Min. 8 characters" placeholderTextColor={colors.faint} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoComplete="new-password" />
-            <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              onPress={() => setShowPassword(s => !s)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
             </TouchableOpacity>
           </View>

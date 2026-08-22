@@ -10,7 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { GlassView, Sheen } from '../../components/Glass';
 import { PremiumBadge } from '../../components/PremiumBadge';
-import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { EmptyCard, ErrorCard, SkeletonCard, SkeletonRows } from '../../components/Feedback';
 
 function timeGreeting() {
   const hour = new Date().getHours();
@@ -76,9 +76,16 @@ export default function HomeScreen() {
   // Hero reflects the best branch's state (sorted open-first). Each row below
   // computes its own state, so branches on different hours read correctly.
   const open = branchOpenInfo(new Date(), shortest ? hoursFromBranch(shortest) : undefined);
-  const isOpen = open.state === 'open';
-  const soon = open.state === 'about_to_open';
-  const closed = open.state === 'closed';
+  // Without a branch, branchOpenInfo falls back to DEFAULT_HOURS — which had
+  // the hero confidently say "Tap to join a queue · No wait" over an empty
+  // list, on a card that is disabled. Nothing is open or closed until there is
+  // something to be open or closed, so the hero renders only alongside a real
+  // branch and these flags follow it.
+  const hasBranch = Boolean(shortest);
+  const isOpen = hasBranch && open.state === 'open';
+  const soon = hasBranch && open.state === 'about_to_open';
+  const closed = hasBranch && open.state === 'closed';
+  const noBranches = !isLoading && !error && branches.length === 0;
   const agencies = useMemo(() => {
     const seen = new Set<string>();
     return branches.filter(b => (seen.has(b.business_id) ? false : (seen.add(b.business_id), true))).slice(0, 8);
@@ -100,14 +107,19 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ borderRadius: 23, ...shadow.depth }}>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <Sheen radius={23} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'L')}</Text>
+              <Text maxFontSizeMultiplier={1.2} style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'L')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.sub }}>{timeGreeting()}</Text>
             <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3, marginTop: 1 }}>{firstName}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={hasUnread ? 'Notifications, unread' : 'Notifications'}
+            onPress={() => navigation.navigate('Notifications')}
+            style={t.iconBtn}
+          >
             <Ionicons name="notifications-outline" size={19} color={colors.ink} />
             {hasUnread && <View style={{ position: 'absolute', top: 10, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, borderWidth: 1.5, borderColor: '#fff' }} />}
           </TouchableOpacity>
@@ -140,10 +152,28 @@ export default function HomeScreen() {
           })}
         </View>
 
-        {/* join hero */}
+        {/* join hero — or, with nothing to join, an honest stand-in */}
+        {!hasBranch ? (
+          isLoading ? (
+            <View style={{ marginBottom: 18 }}><SkeletonCard height={200} /></View>
+          ) : error ? null : (
+          <View style={{ backgroundColor: colors.dark, borderRadius: 30, padding: 24, marginBottom: 18, ...shadow.hero }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="map-outline" size={22} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>No agencies here yet</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>
+                  We're adding branches all the time. Pull down to refresh, or search for one by name.
+                </Text>
+              </View>
+            </View>
+          </View>
+          )
+        ) : (
         <TouchableOpacity
           activeOpacity={0.9}
-          disabled={!shortest}
           onPress={() => shortest && openBranch(shortest)}
           style={{ backgroundColor: colors.dark, borderRadius: 30, padding: closed ? 20 : 24, marginBottom: 18, ...shadow.hero }}
         >
@@ -170,7 +200,7 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
               <View style={{ flexShrink: 0 }}>
                 <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
-                <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
+                <Text maxFontSizeMultiplier={1.4} adjustsFontSizeToFit numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
               </View>
               {shortest && (
                 <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
@@ -191,6 +221,7 @@ export default function HomeScreen() {
             </View>
           )}
         </TouchableOpacity>
+        )}
 
         {/* smart timing — plan your visit */}
         <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
@@ -213,6 +244,13 @@ export default function HomeScreen() {
             title="Live data unavailable"
             message="We couldn't reach the queue service. Check your connection and try again."
             onRetry={() => refetch()}
+          />
+        )}
+        {noBranches && (
+          <EmptyCard
+            icon="business-outline"
+            title="Nothing nearby yet"
+            message="No agency has opened a queue in your area. Search for a specific agency, or check back soon."
           />
         )}
 

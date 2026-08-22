@@ -25,7 +25,7 @@ export default function HelpScreen() {
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
         {/* header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={t.h2}>Help & Support</Text>
         </View>
 

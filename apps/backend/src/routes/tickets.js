@@ -39,14 +39,6 @@ function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
 }
 
-// Lazy-load to avoid circular dependency at startup
-function broadcast(queueId, ticket) {
-  try {
-    const { broadcastQueueUpdate } = require('./sse');
-    broadcastQueueUpdate(queueId, ticket).catch(() => {});
-  } catch { /* sse module not yet loaded */ }
-}
-
 // Validation schemas
 const joinQueueSchema = z.object({
   queue_id:  z.string().min(1).max(64),
@@ -236,7 +228,6 @@ router.post('/', requireAuth, async (req, res) => {
 
     await conn.commit();
     const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
-    broadcast(queue_id, ticket[0]);
     res.status(201).json(ticket[0]);
   } catch (err) {
     await conn.rollback();
@@ -487,7 +478,6 @@ router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
     );
     await conn.commit();
     const [updated] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
@@ -702,7 +692,6 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
@@ -873,7 +862,6 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();

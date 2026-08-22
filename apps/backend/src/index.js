@@ -91,9 +91,6 @@ app.use('/api/audit',          require('./routes/audit'));
 // Staff invite — invite-code-based staff onboarding (no self-registration)
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
 
-// SSE — live queue updates (no auth for public stream; staff stream auth handled in route)
-app.use('/api/sse',            require('./routes/sse'));
-
 // Health check
 app.get('/health', (_req, res) => res.json({
   status:    'ok',

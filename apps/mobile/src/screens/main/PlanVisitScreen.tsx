@@ -15,7 +15,7 @@ import { colors, font, shadow, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
@@ -114,7 +114,7 @@ export default function PlanVisitScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 56 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
           <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
             {premium && <PremiumBadge size="sm" />}
@@ -140,6 +140,15 @@ export default function PlanVisitScreen() {
         {bestTimes.isLoading && <SkeletonRows count={4} />}
         {!!bestTimes.error && !bestTimes.isLoading && (
           <ErrorCard title="Timing data unavailable" message="Best-time recommendations could not be loaded for this branch." onRetry={() => bestTimes.refetch()} />
+        )}
+        {/* No branch means the best-times query is disabled: it never loads and
+            never errors, so without this the screen is a heading over nothing. */}
+        {!branch && (
+          <EmptyCard
+            icon="calendar-outline"
+            title="No branches to plan for"
+            message="Once an agency near you opens a queue on Lyne, we'll show you the quietest times to go."
+          />
         )}
 
         {plan && (

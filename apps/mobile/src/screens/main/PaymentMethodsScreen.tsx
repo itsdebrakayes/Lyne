@@ -48,7 +48,7 @@ export default function PaymentMethodsScreen() {
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={t.h2}>Payment methods</Text>
         </View>
 
@@ -84,7 +84,14 @@ export default function PaymentMethodsScreen() {
                   Expires {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}{card.is_default ? '  ·  Default' : ''}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => confirmRemove(card)} disabled={remove.isPending} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Remove card ending ${card.last4}`}
+                accessibilityState={{ disabled: remove.isPending }}
+                onPress={() => confirmRemove(card)}
+                disabled={remove.isPending}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="trash-outline" size={19} color={colors.danger} />
               </TouchableOpacity>
             </View>

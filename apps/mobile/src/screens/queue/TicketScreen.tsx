@@ -155,7 +155,7 @@ export default function TicketScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Queue ticket</Text>

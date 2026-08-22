@@ -163,12 +163,12 @@ export default function DocumentCaptureScreen() {
         </View>
         {/* controls */}
         <View style={{ position: 'absolute', top: 54, left: 20 }}>
-          <TouchableOpacity onPress={() => setMode('intro')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close camera" onPress={() => setMode('intro')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,.45)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="close" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
         <View style={{ position: 'absolute', bottom: 46, left: 0, right: 0, alignItems: 'center' }}>
-          <TouchableOpacity onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Take photo" onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.accent }} />
           </TouchableOpacity>
         </View>
@@ -182,7 +182,7 @@ export default function DocumentCaptureScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
             <Text style={t.h2}>{cfg.title}</Text>
           </View>
 

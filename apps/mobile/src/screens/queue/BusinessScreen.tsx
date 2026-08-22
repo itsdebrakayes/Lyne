@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { colors, font, t, initials, statusFromWait, statusMeta, waitShort } from '../../lib/theme';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 
 type Params = RouteProp<RootStackParamList, 'Business'>;
 
@@ -16,7 +17,7 @@ export default function BusinessScreen() {
   const queryClient = useQueryClient();
   const { businessId, businessName } = route.params;
 
-  const { data: branches = [], isLoading } = useQuery({
+  const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['branches', businessId],
     queryFn: () => api.get<BranchSummary[]>(`/branches?business_id=${businessId}`, false),
     refetchInterval: 30_000,
@@ -33,8 +34,15 @@ export default function BusinessScreen() {
     <View style={t.root}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => nav.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <TouchableOpacity disabled={toggleSave.isPending} onPress={() => toggleSave.mutate()} style={t.iconBtn}>
+          <TouchableOpacity onPress={() => nav.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? 'Remove from saved' : 'Save this agency'}
+            accessibilityState={{ selected: isSaved, disabled: toggleSave.isPending }}
+            disabled={toggleSave.isPending}
+            onPress={() => toggleSave.mutate()}
+            style={t.iconBtn}
+          >
             <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={colors.ink} />
           </TouchableOpacity>
         </View>
@@ -49,8 +57,21 @@ export default function BusinessScreen() {
         </View>
         <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted, marginBottom: 20 }}>Select a branch</Text>
 
-        {isLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />}
-        {!isLoading && branches.length === 0 && <Text style={{ fontFamily: font.semibold, color: colors.muted }}>No branches are available for this company yet.</Text>}
+        {isLoading && <SkeletonRows count={3} />}
+        {!!error && !isLoading && (
+          <ErrorCard
+            title="Branches unavailable"
+            message="We couldn't load this agency's branches. Check your connection and try again."
+            onRetry={() => refetch()}
+          />
+        )}
+        {!isLoading && !error && branches.length === 0 && (
+          <EmptyCard
+            icon="business-outline"
+            title="No branches yet"
+            message={`${businessName} has not opened any branches on Lyne. Check back soon.`}
+          />
+        )}
 
         <View style={{ gap: 12 }}>
           {branches.map(b => {

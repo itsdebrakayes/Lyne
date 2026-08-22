@@ -100,7 +100,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
           {/* brand lockup */}
-          <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
+          <View style={styles.logo}><Text maxFontSizeMultiplier={1.2} style={styles.logoText}>L</Text></View>
           <Text style={styles.brand}>Lyne</Text>
           <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
@@ -136,7 +136,12 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
               autoComplete="current-password"
             />
-            <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              onPress={() => setShowPassword(s => !s)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
             </TouchableOpacity>
           </View>

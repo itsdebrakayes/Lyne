@@ -65,7 +65,7 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 20 }]}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 20 }]}>
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <Text style={[t.h2, { marginBottom: 22 }]}>Notifications</Text>

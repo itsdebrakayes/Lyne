@@ -68,7 +68,7 @@ export default function AgencyHelpScreen() {
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
         {/* header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={{ borderRadius: 13, ...shadow.depth }}>
             <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <Sheen radius={13} />
