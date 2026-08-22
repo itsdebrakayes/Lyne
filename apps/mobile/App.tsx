@@ -12,7 +12,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import AppNavigator from './src/navigation/AppNavigator';
-import LaunchScreen from './src/components/LaunchScreen';
+import LaunchScreen, { LAUNCH_DURATION_MS } from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
 
 const queryClient = new QueryClient({
@@ -34,7 +34,8 @@ export default function App() {
   useEffect(() => {
     Promise.all([
       AsyncStorage.getItem('qmenow:first-run-tutorial-v1'),
-      new Promise(resolve => setTimeout(resolve, 1200)),
+      // Hold the splash long enough for the figure to walk all the way across.
+      new Promise(resolve => setTimeout(resolve, LAUNCH_DURATION_MS)),
     ]).then(([seen]) => {
       setTutorialSeen(seen === 'complete');
       setLaunching(false);
