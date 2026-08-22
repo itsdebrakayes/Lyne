@@ -300,6 +300,12 @@ export const space = { xs: 6, s: 10, m: 14, l: 20, xl: 32, xxl: 44 } as const;
  * screen titles use `display` / `title`. Never hand-set a fontSize below 13
  * for readable text — use `tag`/`overline` (uppercase, tracked) if smaller.
  */
+/**
+ * The widest a content column ever gets. On a phone this is never reached; on
+ * an iPad it stops a one-column layout from stretching into unreadable lines.
+ */
+export const TABLET_CONTENT_MAX = 620;
+
 export const type = {
   display:   { fontFamily: font.extra,    fontSize: 28,   letterSpacing: -0.6, lineHeight: 33 },
   title:     { fontFamily: font.extra,    fontSize: 22,   letterSpacing: -0.5, lineHeight: 27 },
@@ -316,7 +322,14 @@ export const type = {
 
 const makeT = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
+  content: {
+    paddingHorizontal: 22,
+    paddingTop: 72,
+    paddingBottom: 148,
+    width: '100%',
+    maxWidth: TABLET_CONTENT_MAX,
+    alignSelf: 'center',
+  },
 
   // typography (mirrors the `type` scale — readable floors, consistent ramp)
   h1: { fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.6, lineHeight: 33 },

@@ -11,13 +11,26 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import { AppState, type AppStateStatus } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { focusManager } from '@tanstack/react-query';
 import AppNavigator from './src/navigation/AppNavigator';
+import OfflineBanner from './src/components/OfflineBanner';
+import { startNetworkWatch } from './src/lib/network';
 import LaunchScreen, { LAUNCH_DURATION_MS } from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
+
+// State restoration: coming back from the background must not leave a stale
+// queue position on screen. Telling React Query the app regained focus makes
+// every active query refetch, so the ticket a customer left open is current by
+// the time they have finished looking at it.
+function onAppStateChange(status: AppStateStatus) {
+  focusManager.setFocused(status === 'active');
+}
 
 export default function App() {
   const [launching, setLaunching] = useState(true);
@@ -42,6 +55,15 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    const stopNetworkWatch = startNetworkWatch();
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      stopNetworkWatch();
+      subscription.remove();
+    };
+  }, []);
+
   const completeTutorial = async () => {
     await AsyncStorage.setItem('Lyne:first-run-tutorial-v1', 'complete').catch(() => {});
     setTutorialSeen(true);
@@ -51,12 +73,16 @@ export default function App() {
   if (!tutorialSeen) return <OnboardingScreen onComplete={completeTutorial} />;
 
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <LockGate>
-          <AppNavigator />
-        </LockGate>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <LockGate>
+            {/* Above everything: losing the connection is true on every screen. */}
+            <OfflineBanner />
+            <AppNavigator />
+          </LockGate>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

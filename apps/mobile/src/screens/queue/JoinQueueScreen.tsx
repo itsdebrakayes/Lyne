@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
+import { hapticJoined, hapticFailed } from '../../lib/haptics';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -36,6 +37,7 @@ export default function JoinQueueScreen() {
       setLoading(true);
       setError('');
       const ticket = await api.post<TicketRecord>('/tickets', { queue_id: liveQueue.id });
+      hapticJoined();
       registerPushNotifications().catch(() => {});
       scheduleDepartureReminder({
         ticketId: ticket.id,
@@ -47,6 +49,7 @@ export default function JoinQueueScreen() {
       }).catch(() => {});
       navigation.navigate('Ticket', { ticketId: ticket.id, businessId: branch.business_id, branchId, serviceId });
     } catch (caught: unknown) {
+      hapticFailed();
       setError(caught instanceof Error ? caught.message : 'Could not join this queue. Please try again.');
     } finally {
       setLoading(false);
