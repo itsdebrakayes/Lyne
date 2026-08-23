@@ -21,6 +21,7 @@ const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
+const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
 // Service-role client, used for exactly one thing: removing the auth identity
@@ -76,7 +77,12 @@ async function getStaffProfile(staffId) {
 // Idempotent: safe to call multiple times.
 router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, res) => {
   try {
-    const { full_name, phone, national_id, trn, date_of_birth } = req.body;
+    /* national_id and trn are deliberately not read. This is the path signup
+       takes, and it was the one that put a Jamaican citizen's TRN on our server
+       the moment an account was created — while the published privacy policy
+       said it stayed on the device. Ignored rather than rejected, so an older
+       build keeps working; it just stops leaving a copy behind. */
+    const { full_name, phone, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
 
     // Already synced?
@@ -87,16 +93,14 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
           `UPDATE users SET
              full_name    = COALESCE(?, full_name),
              phone        = COALESCE(?, phone),
-             national_id  = COALESCE(?, national_id),
-             trn          = COALESCE(?, trn),
              date_of_birth = COALESCE(?, date_of_birth),
              updated_at   = NOW()
            WHERE id = ?`,
-          [full_name, phone, national_id, trn, date_of_birth, req.dbUser.id]
+          [full_name, phone, date_of_birth, req.dbUser.id]
         );
       }
       const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-      return res.json({ user: updated[0], created: false });
+      return res.json({ user: withPremiumState(updated[0]), created: false });
     }
 
     // Check if this is a staff account (staff log in via Supabase Auth too)
@@ -110,13 +114,13 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
     const name  = full_name || supabaseUser.user_metadata?.full_name || email.split('@')[0];
 
     await pool.query(
-      `INSERT INTO users (id, supabase_uid, email, full_name, phone, national_id, trn, date_of_birth)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, supabaseUser.id, email, name, phone || null, national_id || null, trn || null, date_of_birth || null]
+      `INSERT INTO users (id, supabase_uid, email, full_name, phone, date_of_birth)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, supabaseUser.id, email, name, phone || null, date_of_birth || null]
     );
 
     const [newUser] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
-    res.status(201).json({ user: newUser[0], created: true });
+    res.status(201).json({ user: withPremiumState(newUser[0]), created: true });
   } catch (err) {
     console.error('sync-user error:', err);
     res.status(500).json({ error: 'Failed to sync user.' });
@@ -126,7 +130,7 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
 // ── GET /api/auth/me ──────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    if (req.dbUser) return res.json({ type: 'user', record: req.dbUser });
+    if (req.dbUser) return res.json({ type: 'user', record: withPremiumState(req.dbUser) });
     if (req.dbStaff) {
       const staffProfile = await getStaffProfile(req.dbStaff.id);
       return res.json({ type: 'staff', record: staffProfile || req.dbStaff });
@@ -148,26 +152,26 @@ router.patch('/profile', requireAuth, validate(schemas.updateProfile), async (re
   try {
     // Only columns that exist on the users table — the previous version
     // referenced address/employer/occupation and 500'd on every save.
-    const { full_name, phone, date_of_birth, national_id, trn } = req.body;
+    /* Same refusal as sync-user. The device keychain (documentVault.ts) is the
+       only place identification lives; nothing in that module touches the
+       network, so a breach of this database cannot expose one. */
+    const { full_name, phone, date_of_birth } = req.body;
 
     await pool.query(
       `UPDATE users SET
          full_name     = COALESCE(?, full_name),
          phone         = COALESCE(?, phone),
          date_of_birth = COALESCE(?, date_of_birth),
-         national_id   = COALESCE(?, national_id),
-         trn           = COALESCE(?, trn),
          updated_at    = NOW()
        WHERE id = ?`,
       [
         full_name || null, phone || null, date_of_birth || null,
-        national_id || null, trn || null,
         req.dbUser.id,
       ]
     );
 
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]) });
   } catch (err) {
     console.error('profile update error:', err);
     res.status(500).json({ error: 'Failed to update profile.' });
@@ -182,9 +186,30 @@ router.post('/start-trial', requireAuth, async (req, res) => {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
   try {
-    await pool.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [req.dbUser.id]);
+    const [rows] = await pool.query('SELECT trial_started_at FROM users WHERE id = ?', [req.dbUser.id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'No user record found. Please sync first.' });
+    }
+    const usedMessage = `You have already used your free ${TRIAL_DAYS}-day trial. Subscribe to keep Lyne Premium.`;
+    if (rows[0].trial_started_at) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
+    const endsAt = trialEndsAt();
+    // Guarded on trial_started_at IS NULL, so two taps racing each other
+    // cannot both start a trial and stack the window.
+    const [result] = await pool.query(
+      `UPDATE users
+          SET is_premium = TRUE, trial_started_at = NOW(), premium_until = ?, updated_at = NOW()
+        WHERE id = ? AND trial_started_at IS NULL`,
+      [endsAt, req.dbUser.id]
+    );
+    if (!result.affectedRows) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]), trial_ends_at: endsAt });
   } catch (err) {
     console.error('start-trial error:', err);
     res.status(500).json({ error: 'Failed to start your trial.' });
