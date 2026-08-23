@@ -333,6 +333,21 @@ const schemas = {
     note:                   z.string().max(1000).optional(),
   }),
 
+  /* Subscriptions. `plan` is the only thing the client chooses, and it chooses
+     from a list — the amount comes from lib/premium.js PLANS and is never
+     accepted from a request. Same rule that closed "premium for one cent". */
+  startSubscription: z.object({
+    plan:              z.enum(['monthly', 'yearly']),
+    payment_method_id: z.string().min(1).max(255),
+    idempotency_key:   z.string().min(1).max(255),
+  }),
+
+  cancelSubscription: z.object({
+    // Optional and free-text: useful to us, never a gate. Nobody has to explain
+    // themselves to stop paying.
+    reason: z.string().max(500).optional(),
+  }),
+
   skipTicket: z.object({
     disposition: z.enum(['remove', 'requeue']).optional(),
   }),

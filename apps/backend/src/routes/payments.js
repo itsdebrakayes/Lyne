@@ -54,6 +54,10 @@ function priceFor(purpose) {
   return resolve ? resolve() : null;
 }
 const CURRENCY = (process.env.PREMIUM_CURRENCY || 'usd').toLowerCase();
+const { PLANS, PLAN_IDS, planFor, yearlySavingCents, subscriptionEntitles } = require('../lib/premium');
+const {
+  ensurePrice, ensureCustomerEmail, fromUnix, toClientShape,
+} = require('../lib/subscriptions');
 
 // Lazy Stripe client — null when no secret key is configured yet.
 let _stripe;
@@ -152,6 +156,208 @@ router.delete('/methods/:id', requireAuth, async (req, res) => {
   } catch (err) { console.error('payments/methods delete:', err); res.status(500).json({ error: 'Could not remove card.' }); }
 });
 
+
+
+/**
+ * Stripe's subscription object → our users row. One writer, used by both the
+ * routes and the webhook, so a state change cannot be recorded two different
+ * ways depending on which arrived first.
+ *
+ * premium_until takes current_period_end. That is what makes access expire on
+ * its own: no sweep job, no cron, no "did we remember to revoke it". If Stripe
+ * stops renewing, the date stops moving and lib/premium.js stops entitling.
+ */
+async function applySubscriptionState(conn, userId, subscription, planHint) {
+  const plan = planHint
+    || subscription?.metadata?.lyne_plan
+    || subscription?.items?.data?.[0]?.price?.metadata?.lyne_plan
+    || null;
+
+  const status = subscription?.status || null;
+  const periodEnd = fromUnix(subscription?.current_period_end);
+  const entitled = subscriptionEntitles(status);
+
+  await conn.query(
+    `UPDATE users SET
+       stripe_subscription_id = ?,
+       subscription_plan      = ?,
+       subscription_status    = ?,
+       cancel_at_period_end   = ?,
+       is_premium             = ?,
+       premium_until          = ?,
+       updated_at             = NOW()
+     WHERE id = ?`,
+    [
+      subscription?.id || null,
+      plan,
+      status,
+      subscription?.cancel_at_period_end ? 1 : 0,
+      entitled ? 1 : 0,
+      /* A subscription that has ended keeps its last period end rather than
+         being nulled: NULL means "legacy permanent grant" in this schema, and
+         writing it here would hand a cancelled customer unlimited access. */
+      periodEnd,
+      userId,
+    ]
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SUBSCRIPTIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── GET /api/payments/plans — public, so the price is visible BEFORE signup ──
+// The old flow charged $9.99 without ever showing a number. A price the
+// customer has not seen is not a price they agreed to.
+router.get('/plans', (_req, res) => {
+  res.json({
+    currency: CURRENCY,
+    plans: PLAN_IDS.map((id) => ({
+      id,
+      label: PLANS[id].label,
+      amount_cents: PLANS[id].amountCents,
+      interval: PLANS[id].interval,
+    })),
+    yearly_saving_cents: yearlySavingCents(),
+  });
+});
+
+// ── GET /api/payments/subscription — what am I paying, and when next? ──
+router.get('/subscription', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+  try {
+    const [rows] = await pool.query(
+      `SELECT stripe_subscription_id, subscription_plan, subscription_status,
+              cancel_at_period_end, premium_until
+         FROM users WHERE id = ? LIMIT 1`,
+      [req.dbUser.id]
+    );
+    res.json(toClientShape(rows[0] || {}));
+  } catch (err) {
+    console.error('subscription read error:', err);
+    res.status(500).json({ error: 'Could not load your subscription.' });
+  }
+});
+
+// ── POST /api/payments/subscription — start one ──
+router.post('/subscription', requireAuth, validate(schemas.startSubscription), async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  const { plan, payment_method_id, idempotency_key } = req.body;
+  if (!planFor(plan)) return res.status(400).json({ error: 'Unknown plan.' });
+
+  try {
+    const [existing] = await pool.query(
+      'SELECT stripe_subscription_id, subscription_status FROM users WHERE id = ? LIMIT 1',
+      [req.dbUser.id]
+    );
+    // Refuse rather than stack a second subscription on the same customer —
+    // double-charging somebody who tapped twice is not a bug we get to shrug at.
+    if (existing[0]?.stripe_subscription_id && subscriptionEntitles(existing[0].subscription_status)) {
+      return res.status(409).json({ error: 'You already have an active Lyne Premium subscription.' });
+    }
+
+    const customer = await getOrCreateCustomer(stripe, req.dbUser);
+    await ensureCustomerEmail(stripe, customer, req.dbUser.email);
+
+    await stripe.paymentMethods.attach(payment_method_id, { customer }).catch((err) => {
+      if (err?.code !== 'resource_already_attached') throw err;
+    });
+    await stripe.customers.update(customer, {
+      invoice_settings: { default_payment_method: payment_method_id },
+    });
+
+    const price = await ensurePrice(stripe, plan);
+    const subscription = await stripe.subscriptions.create({
+      customer,
+      items: [{ price: price.id }],
+      default_payment_method: payment_method_id,
+      payment_behavior: 'error_if_incomplete',
+      expand: ['latest_invoice.payment_intent'],
+      metadata: { lyne_user_id: req.dbUser.id, lyne_plan: plan },
+    }, { idempotencyKey: idempotency_key });
+
+    await applySubscriptionState(pool, req.dbUser.id, subscription, plan);
+
+    const [updated] = await pool.query(
+      `SELECT stripe_subscription_id, subscription_plan, subscription_status,
+              cancel_at_period_end, premium_until FROM users WHERE id = ? LIMIT 1`,
+      [req.dbUser.id]
+    );
+    res.status(201).json(toClientShape(updated[0]));
+  } catch (err) {
+    console.error('subscription create error:', err);
+    const message = err?.type === 'StripeCardError'
+      ? (err.message || 'Your card was declined.')
+      : 'Could not start your subscription.';
+    res.status(err?.type === 'StripeCardError' ? 402 : 500).json({ error: message });
+  }
+});
+
+// ── POST /api/payments/subscription/cancel ──
+// One call. No retention flow, no "are you sure" chain, no support ticket. The
+// customer keeps what they already paid for and is not charged again.
+router.post('/subscription/cancel', requireAuth, validate(schemas.cancelSubscription), async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT stripe_subscription_id FROM users WHERE id = ? LIMIT 1', [req.dbUser.id]
+    );
+    const subId = rows[0]?.stripe_subscription_id;
+    if (!subId) return res.status(404).json({ error: 'You do not have a subscription to cancel.' });
+
+    const subscription = await stripe.subscriptions.update(subId, {
+      cancel_at_period_end: true,
+      metadata: { lyne_cancel_reason: (req.body?.reason || '').slice(0, 500) },
+    });
+    await applySubscriptionState(pool, req.dbUser.id, subscription);
+
+    const endsAt = fromUnix(subscription.current_period_end);
+    res.json({
+      message: endsAt
+        ? `Cancelled. You keep Lyne Premium until ${endsAt.toISOString().slice(0, 10)}, and you will not be charged again.`
+        : 'Cancelled. You will not be charged again.',
+      access_until: endsAt ? endsAt.toISOString() : null,
+      cancel_at_period_end: true,
+    });
+  } catch (err) {
+    console.error('subscription cancel error:', err);
+    res.status(500).json({ error: 'Could not cancel your subscription. Please try again.' });
+  }
+});
+
+// ── POST /api/payments/subscription/resume ──
+// Undo, available right up to the period end. Somebody who cancels by mistake
+// should not have to re-enter a card.
+router.post('/subscription/resume', requireAuth, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT stripe_subscription_id, cancel_at_period_end FROM users WHERE id = ? LIMIT 1', [req.dbUser.id]
+    );
+    const subId = rows[0]?.stripe_subscription_id;
+    if (!subId) return res.status(404).json({ error: 'You do not have a subscription.' });
+    if (!Number(rows[0].cancel_at_period_end)) {
+      return res.status(409).json({ error: 'Your subscription is not scheduled to end.' });
+    }
+
+    const subscription = await stripe.subscriptions.update(subId, { cancel_at_period_end: false });
+    await applySubscriptionState(pool, req.dbUser.id, subscription);
+    res.json({ message: 'Your subscription will continue.', cancel_at_period_end: false });
+  } catch (err) {
+    console.error('subscription resume error:', err);
+    res.status(500).json({ error: 'Could not resume your subscription.' });
+  }
+});
+
 // ── POST /api/payments/create-intent — start a charge ─────────
 // Body: { payment_method_id, idempotency_key, amount_cents?, purpose?, save_card? }
 router.post('/create-intent', requireAuth, validate(schemas.createIntent), async (req, res) => {
@@ -234,6 +440,102 @@ router.get('/intents/:id', requireAuth, async (req, res) => {
 
 // ── POST /api/payments/webhook — Stripe's source of truth ─────
 // Mounted in index.js with express.raw so the signature can be verified.
+
+/**
+ * Subscription lifecycle, handled before the PaymentIntent path below.
+ *
+ * These events carry no payment_intent, so the existing handler would have
+ * dropped them on the "no payment_intent reference" line and Stripe would have
+ * seen 200 OK while nothing was recorded — a renewal that silently never
+ * extended anybody's access.
+ *
+ * Returns true when it claimed the event.
+ */
+async function handleSubscriptionEvent(event) {
+  const obj = event.data.object || {};
+
+  // ── the customer was told, before the money moved ──
+  if (event.type === 'invoice.upcoming') {
+    const subId = obj.subscription;
+    const dueAt = fromUnix(obj.next_payment_attempt || obj.period_end);
+    if (!subId || !dueAt) return true;
+
+    const [rows] = await pool.query(
+      `SELECT id, subscription_plan, renewal_notice_sent_for
+         FROM users WHERE stripe_subscription_id = ? LIMIT 1`,
+      [subId]
+    );
+    const user = rows[0];
+    if (!user) return true;
+
+    /* Stripe can deliver invoice.upcoming more than once for the same invoice.
+       Being told twice that money is about to leave your account is the
+       opposite of the reassurance this is meant to be. */
+    const already = user.renewal_notice_sent_for
+      && new Date(user.renewal_notice_sent_for).getTime() === dueAt.getTime();
+    if (already) return true;
+
+    const amount = ((obj.amount_due ?? 0) / 100).toFixed(2);
+    const when = dueAt.toISOString().slice(0, 10);
+    await pool.query(
+      `INSERT INTO notifications (id, user_id, notification_type, channel, message)
+       VALUES (?, ?, 'general', 'push', ?)`,
+      [uuidv4(), user.id,
+       `Your Lyne Premium renews on ${when} for $${amount}. You can cancel any time in Account before then.`]
+    );
+    await pool.query(
+      'UPDATE users SET renewal_notice_sent_for = ? WHERE id = ?', [dueAt, user.id]
+    );
+    return true;
+  }
+
+  // ── a renewal succeeded: move the paid-through date forward ──
+  if (event.type === 'invoice.paid' || event.type === 'invoice.payment_succeeded') {
+    const subId = obj.subscription;
+    if (!subId) return true;
+    const stripe = getStripe();
+    const subscription = await stripe.subscriptions.retrieve(subId);
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE stripe_subscription_id = ? LIMIT 1', [subId]
+    );
+    if (rows[0]) await applySubscriptionState(pool, rows[0].id, subscription);
+    return true;
+  }
+
+  // ── created / updated / deleted: mirror Stripe verbatim ──
+  if (event.type.startsWith('customer.subscription.')) {
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE stripe_subscription_id = ? LIMIT 1', [obj.id]
+    );
+    const userId = rows[0]?.id || obj.metadata?.lyne_user_id || null;
+    if (userId) await applySubscriptionState(pool, userId, obj);
+    return true;
+  }
+
+  // ── payment failed: Stripe keeps retrying, so do not cut access here ──
+  // past_due still entitles (see ENTITLING_STATUSES); premium_until is what
+  // actually ends it. Cutting off at the first failed retry punishes an expired
+  // card rather than a non-payer.
+  if (event.type === 'invoice.payment_failed') {
+    const subId = obj.subscription;
+    if (!subId) return true;
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE stripe_subscription_id = ? LIMIT 1', [subId]
+    );
+    if (rows[0]) {
+      await pool.query(
+        `INSERT INTO notifications (id, user_id, notification_type, channel, message)
+         VALUES (?, ?, 'general', 'push', ?)`,
+        [uuidv4(), rows[0].id,
+         'We could not take payment for Lyne Premium. Update your card in Account to keep it — you have not lost access yet.']
+      );
+    }
+    return true;
+  }
+
+  return false;
+}
+
 async function webhookHandler(req, res) {
   const stripe = getStripe();
   if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) return res.status(503).send('Payments not configured.');
@@ -243,6 +545,18 @@ async function webhookHandler(req, res) {
     event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+  }
+
+  /* Subscription events first: they carry no payment_intent, so the mapping
+     below would ignore them and the PaymentIntent path would drop them. */
+  try {
+    if (await handleSubscriptionEvent(event)) {
+      return res.json({ received: true, handled: event.type });
+    }
+  } catch (err) {
+    console.error('[webhook] subscription event failed:', event.type, err.message);
+    // 500 so Stripe retries — a missed renewal must not be silently accepted.
+    return res.status(500).json({ error: 'Subscription event could not be recorded.' });
   }
 
   const mapped = mapEvent(event.type);

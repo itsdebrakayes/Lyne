@@ -9,6 +9,46 @@
 
 const TRIAL_DAYS = 14;
 
+/* ── The price list ───────────────────────────────────────────────────────
+   Server-side, like every price in this codebase — see PURPOSE_PRICES in
+   routes/payments.js and the reason it exists.
+
+   $10 a month, or $100 for a year. The annual is two months free; that is the
+   reason to offer it, not a rounding artefact, so the saving is published
+   rather than left for the customer to work out.
+
+   Amounts are in cents and the currency is USD. PREMIUM_CURRENCY can override
+   it, but changing it does NOT reprice: 1000 cents is $10 and would be J$10 if
+   the currency moved without new amounts. Whoever changes the currency has to
+   change the numbers too, deliberately. */
+const PLANS = {
+  monthly: { interval: 'month', intervalCount: 1, amountCents: 1000,  label: '$10 / month' },
+  yearly:  { interval: 'year',  intervalCount: 1, amountCents: 10000, label: '$100 / year' },
+};
+
+const PLAN_IDS = Object.keys(PLANS);
+
+/** A plan by id, or null. hasOwnProperty so 'constructor' is not a plan. */
+function planFor(id) {
+  return Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null;
+}
+
+/** What the annual saves against twelve months, in cents. */
+function yearlySavingCents() {
+  return PLANS.monthly.amountCents * 12 - PLANS.yearly.amountCents;
+}
+
+/* Stripe statuses that mean the customer should still be able to use what they
+   paid for. `past_due` is deliberately included: the card failed but the period
+   they already paid for has not ended, and Stripe is still retrying. Cutting
+   access at the first failed retry punishes an expired card, not a non-payer —
+   premium_until is what actually ends the access. */
+const ENTITLING_STATUSES = new Set(['active', 'trialing', 'past_due']);
+
+function subscriptionEntitles(status) {
+  return ENTITLING_STATUSES.has(String(status || ''));
+}
+
 /** True only while access is genuinely current. */
 function hasPremium(user) {
   if (!user || !Number(user.is_premium)) return false;
@@ -29,4 +69,8 @@ function trialEndsAt(from = new Date()) {
   return new Date(from.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 }
 
-module.exports = { hasPremium, withPremiumState, trialEndsAt, TRIAL_DAYS };
+module.exports = {
+  hasPremium, withPremiumState, trialEndsAt, TRIAL_DAYS,
+  PLANS, PLAN_IDS, planFor, yearlySavingCents,
+  ENTITLING_STATUSES, subscriptionEntitles,
+};

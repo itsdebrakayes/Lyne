@@ -139,6 +139,7 @@ app.use('/api/saved',          require('./routes/saved'));
    by signature, and GET /methods is a customer reading their own cards. */
 app.post('/api/payments/create-intent', paymentLimiter);
 app.post('/api/payments/methods',       paymentLimiter);
+app.post('/api/payments/subscription',  paymentLimiter);
 app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
