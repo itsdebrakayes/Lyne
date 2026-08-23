@@ -24,6 +24,7 @@ const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
 const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
+const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
 // Service-role client, used for exactly one thing: removing the auth identity
@@ -127,6 +128,23 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
     console.error('sync-user error:', err);
     res.status(500).json({ error: 'Failed to sync user.' });
   }
+});
+
+
+// ── POST /api/auth/portal-token ───────────────────────────────
+// Mints the short-lived proof that somebody reached the website FROM the app.
+// It is not a sign-in: the customer still logs in on the web. See
+// lib/portalHandoff.js for why that separation is deliberate.
+router.post('/portal-token', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  const token = portalHandoff.issue(req.dbUser.id);
+  if (!token) {
+    // No secret configured. Say so plainly rather than handing back a token
+    // signed with something guessable.
+    return res.status(503).json({ error: 'The web portal is not available yet.' });
+  }
+  res.json({ token, expires_in_seconds: Math.floor(portalHandoff.TTL_MS / 1000) });
 });
 
 // ── GET /api/auth/me ──────────────────────────────────────────

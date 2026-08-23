@@ -140,6 +140,11 @@ app.use('/api/saved',          require('./routes/saved'));
 app.post('/api/payments/create-intent', paymentLimiter);
 app.post('/api/payments/methods',       paymentLimiter);
 app.post('/api/payments/subscription',  paymentLimiter);
+/* Public and unauthenticated by necessity — the website has no session yet when
+   it asks. That makes it an oracle worth capping: without a limit it is a place
+   to grind forged handoff tokens. */
+app.post('/api/payments/portal/verify', sessionLookupLimiter);
+app.post('/api/payments/checkout-session', paymentLimiter);
 app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads

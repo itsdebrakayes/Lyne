@@ -58,6 +58,7 @@ const { PLANS, PLAN_IDS, planFor, yearlySavingCents, subscriptionEntitles } = re
 const {
   ensurePrice, ensureCustomerEmail, fromUnix, toClientShape,
 } = require('../lib/subscriptions');
+const portalHandoff = require('../lib/portalHandoff');
 
 // Lazy Stripe client — null when no secret key is configured yet.
 let _stripe;
@@ -239,6 +240,96 @@ async function applySubscriptionState(conn, userId, subscription, planHint) {
     ]
   );
 }
+
+
+/* ── The web portal ───────────────────────────────────────────────────────
+   Apple does not permit the app to sell a subscription, so buying and
+   cancelling happen on the website. These three endpoints are what make that
+   possible without putting a login form on a public marketing site. */
+
+// ── POST /api/payments/portal/verify — public, rate-limited ──
+// The website calls this before it renders anything. A failure here means the
+// route must behave exactly like a page that does not exist: no form, no
+// "session expired", no confirmation that /account is real.
+router.post('/portal/verify', (req, res) => {
+  const result = portalHandoff.verify(req.body?.token);
+  // Deliberately uniform. The reason is logged, never returned — distinguishing
+  // "expired" from "forged" tells an attacker which half to work on.
+  if (!result.valid) {
+    console.warn('[portal] handoff rejected:', result.reason);
+    /* Byte-identical to the app's own 404 (index.js). An earlier version said
+       "Not found." while the catch-all says "Route not found." — a one-word
+       difference that told an attacker the portal endpoint exists and had
+       rejected them, rather than that nothing is there. That is the whole
+       property this route is built for, defeated by a string. */
+    return res.status(404).json({ error: 'Route not found.' });
+  }
+  res.json({ ok: true });
+});
+
+// ── POST /api/payments/checkout-session ──
+// Stripe's own hosted page. It handles 3-D Secure, the receipt, and the card
+// form, none of which we should be reimplementing to look slightly different.
+router.post('/checkout-session', requireAuth, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  const plan = req.body?.plan;
+  if (!planFor(plan)) return res.status(400).json({ error: 'Unknown plan.' });
+
+  try {
+    const customer = await getOrCreateCustomer(stripe, req.dbUser);
+    await ensureCustomerEmail(stripe, customer, req.dbUser.email);
+    const price = await ensurePrice(stripe, plan);
+    const site = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer,
+      line_items: [{ price: price.id, quantity: 1 }],
+      success_url: `${site}/account?checkout=done`,
+      cancel_url: `${site}/account?checkout=cancelled`,
+      // The subscription carries the same metadata the webhook reads, so a
+      // renewal months from now still resolves to a user and a plan.
+      subscription_data: { metadata: { lyne_user_id: req.dbUser.id, lyne_plan: plan } },
+      client_reference_id: req.dbUser.id,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('checkout session error:', err);
+    res.status(500).json({ error: 'Could not start checkout.' });
+  }
+});
+
+// ── POST /api/payments/billing-portal ──
+// Stripe's hosted management page: change card, change plan, cancel, download
+// invoices. Cancelling through it emits customer.subscription.updated, which
+// the webhook already handles — so the cancel path needs no bespoke code and
+// cannot drift from what Stripe believes.
+router.post('/billing-portal', requireAuth, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT stripe_customer_id FROM users WHERE id = ? LIMIT 1', [req.dbUser.id]
+    );
+    const customer = rows[0]?.stripe_customer_id;
+    if (!customer) return res.status(404).json({ error: 'You do not have a subscription to manage.' });
+
+    const site = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+    const session = await stripe.billingPortal.sessions.create({
+      customer,
+      return_url: `${site}/account`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('billing portal error:', err);
+    res.status(500).json({ error: 'Could not open subscription management.' });
+  }
+});
 
 /* ══════════════════════════════════════════════════════════════════════════
    SUBSCRIPTIONS
