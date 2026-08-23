@@ -11,6 +11,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireTicketAccess } = require('../middleware/tenantAccess');
 
 router.get('/', requireAuth, async (req, res) => {
@@ -39,7 +40,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/register-device', requireAuth, async (req, res) => {
+router.post('/register-device', requireAuth, validate(schemas.registerDevice), async (req, res) => {
   try {
     const userId = req.dbUser?.id;
     if (!userId) return res.status(403).json({ error: 'User account required.' });
@@ -66,7 +67,7 @@ router.post('/register-device', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive', 'platform_admin'), requireTicketAccess, async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive', 'platform_admin'), requireTicketAccess, validate(schemas.sendNotification), async (req, res) => {
   try {
     const { user_id, ticket_id, notification_type, channel, message } = req.body;
     if (!user_id || !ticket_id || !notification_type || !message) {
@@ -102,7 +103,7 @@ router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executi
  * Addressed to every active supervisor at the branch, because "the supervisor"
  * is a shift, not a person.
  */
-router.post('/staff-request', requireAuth, requireStaffRole('manager', 'executive'), async (req, res) => {
+router.post('/staff-request', requireAuth, requireStaffRole('manager', 'executive'), validate(schemas.staffRequest), async (req, res) => {
   try {
     const { branch_id: branchId, message, request_type: requestType } = req.body || {};
     const from = req.dbStaff;

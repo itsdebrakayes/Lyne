@@ -12,6 +12,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBranchAccess,
@@ -279,7 +280,7 @@ router.get(
 );
 
 // Create / open a queue for today
-router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireBranchAccess, async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireBranchAccess, validate(schemas.createQueue), async (req, res) => {
   try {
     const { branch_id, service_id, queue_date, max_capacity } = req.body;
     if (!branch_id || !service_id) return res.status(400).json({ error: 'branch_id and service_id are required.' });

@@ -20,6 +20,7 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -820,7 +821,7 @@ router.get('/export-csv', requireAuth, requireStaffRole('supervisor', 'manager',
 });
 
 // POST /api/analytics/refresh — manually trigger analytics summary rebuild (executive only)
-router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, res) => {
+router.post('/refresh', requireAuth, requireStaffRole('executive'), validate(schemas.refreshAnalytics), async (req, res) => {
   try {
     const { lookback_days = 7 } = req.body;
     const safeDays = Math.min(Math.max(parseInt(lookback_days) || 7, 1), 365);

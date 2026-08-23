@@ -323,11 +323,25 @@ async function syncMobileUser(connection, account, supabaseUser) {
     [account.id, supabaseUser.id, account.email, account.fullName]
   );
 
+  /* The upsert above can land on the `email` or `supabase_uid` unique key
+     instead of the primary one. When it does, MySQL updates the row that is
+     already there and KEEPS ITS ID — `account.id` is never inserted. That is
+     the normal case, not the edge one: POST /api/auth/sync-user mints a
+     uuidv4() for anyone who signs into the mobile app, so the moment somebody
+     logs in as user@test.com this script's hard-coded id stops existing.
+     Referencing it below then fails the saved_businesses foreign key and
+     aborts the whole sync. Read the id the database actually kept. */
+  const [userRows] = await connection.query(
+    'SELECT id FROM users WHERE email = ? LIMIT 1',
+    [account.email]
+  );
+  const userId = userRows[0]?.id || account.id;
+
   await connection.query(
     `INSERT INTO saved_businesses (user_id, business_id)
      VALUES (?, 'biz-cfcu-001'), (?, 'biz-taj-001'), (?, 'biz-pica-001'), (?, 'biz-nht-001')
      ON DUPLICATE KEY UPDATE saved_at = saved_at`,
-    [account.id, account.id, account.id, account.id]
+    [userId, userId, userId, userId]
   );
 }
 
@@ -359,6 +373,15 @@ async function syncStaff(connection, account, supabaseUser) {
     ]
   );
 
+  /* Same hazard as the users table: staff is unique on email, staff_code AND
+     supabase_uid, so the upsert may have updated an existing row under a
+     different id. Seat whoever the database actually holds. */
+  const [staffRows] = await connection.query(
+    'SELECT id FROM staff WHERE email = ? LIMIT 1',
+    [account.email]
+  );
+  const staffId = staffRows[0]?.id || account.id;
+
   if (account.counterId) {
     /* staff_assignments is keyed (staff_id, assignment_date) — one desk per
        person per day. Two things used to break here:
@@ -374,7 +397,7 @@ async function syncStaff(connection, account, supabaseUser) {
        otherwise create the row. */
     const [seated] = await connection.query(
       'SELECT id FROM staff_assignments WHERE staff_id = ? AND assignment_date = CURDATE() LIMIT 1',
-      [account.id]
+      [staffId]
     );
 
     if (seated.length) {
@@ -389,7 +412,7 @@ async function syncStaff(connection, account, supabaseUser) {
         `INSERT INTO staff_assignments
            (id, staff_id, counter_id, assignment_date, shift_start, shift_end, created_by)
          VALUES (?, ?, ?, CURDATE(), '08:30:00', '16:30:00', NULL)`,
-        [`asgn-${account.id}-current`, account.id, account.counterId]
+        [`asgn-${staffId}-current`, staffId, account.counterId]
       );
     }
   }

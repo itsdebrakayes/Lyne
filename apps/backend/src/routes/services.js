@@ -13,6 +13,7 @@ const { z } = require('zod');
 const pool = require('../db/pool');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -251,7 +252,7 @@ router.put(
   }
 );
 
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, validate(schemas.createService), async (req, res) => {
   try {
     const { business_id, name, description, ticket_prefix, base_avg_time_minutes } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
@@ -269,7 +270,7 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
   }
 });
 
-router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), validate(schemas.updateService), async (req, res) => {
   try {
     const { name, description, ticket_prefix, base_avg_time_minutes, is_active } = req.body;
     const [existing] = await pool.query(

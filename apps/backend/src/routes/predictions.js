@@ -10,6 +10,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
   requireStaffRole,
@@ -217,7 +218,7 @@ router.post(
   requireStaffRole('executive'),
   requireBusinessAccess('body'),
   requireBranchAccess,
-  auditLog('prediction_import', 'predictive_result'),
+  auditLog('prediction_import', 'predictive_result'), validate(schemas.savePrediction),
   async (req, res) => {
   try {
     const {

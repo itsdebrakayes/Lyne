@@ -20,8 +20,39 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 
 const DEFAULT_PREMIUM_CENTS = Number(process.env.PREMIUM_PRICE_CENTS || 999);
+
+/* ── The server owns the price ─────────────────────────────────────────────
+   `amount_cents` used to be read from the request body and passed straight to
+   Stripe as the charge amount:
+
+     const amount = Number.isInteger(amount_cents) && amount_cents > 0
+       ? amount_cents : DEFAULT_PREMIUM_CENTS;
+
+   So a customer could POST { amount_cents: 1 }, be charged one cent on their
+   own real card, and the charge would SUCCEED — at which point
+   payment_intent.succeeded fires, the webhook maps it to 'captured', and the
+   capture branch sets is_premium = TRUE. Premium, permanently, for $0.01. The
+   attacker needs no special access; every authenticated customer could do it,
+   and the payment_intents row would record 1 cent as though that were the
+   price, so the ledger agreed with the theft.
+
+   A price is not user input. It is looked up here, by purpose, and the body
+   cannot influence it. `purpose` is likewise constrained: it was a free string
+   that reached Stripe as the charge description and was stored on the intent,
+   so it was both a pricing key and an injection surface into our own records. */
+const PURPOSE_PRICES = {
+  premium_subscription: () => DEFAULT_PREMIUM_CENTS,
+};
+
+function priceFor(purpose) {
+  const resolve = Object.prototype.hasOwnProperty.call(PURPOSE_PRICES, purpose)
+    ? PURPOSE_PRICES[purpose]
+    : null;
+  return resolve ? resolve() : null;
+}
 const CURRENCY = (process.env.PREMIUM_CURRENCY || 'usd').toLowerCase();
 
 // Lazy Stripe client — null when no secret key is configured yet.
@@ -83,7 +114,7 @@ router.get('/methods', requireAuth, async (req, res) => {
 // ── POST /api/payments/methods — save a tokenized card ────────
 // Body: { payment_method_id }. The card was tokenized on the client; we only
 // attach the pm id to the customer and store display metadata (brand/last4).
-router.post('/methods', requireAuth, async (req, res) => {
+router.post('/methods', requireAuth, validate(schemas.attachPaymentMethod), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
   const { payment_method_id } = req.body || {};
@@ -123,13 +154,17 @@ router.delete('/methods/:id', requireAuth, async (req, res) => {
 
 // ── POST /api/payments/create-intent — start a charge ─────────
 // Body: { payment_method_id, idempotency_key, amount_cents?, purpose?, save_card? }
-router.post('/create-intent', requireAuth, async (req, res) => {
+router.post('/create-intent', requireAuth, validate(schemas.createIntent), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
 
-  const { payment_method_id, idempotency_key, amount_cents, purpose = 'premium_subscription', save_card } = req.body || {};
+  const { payment_method_id, idempotency_key, purpose = 'premium_subscription', save_card } = req.body || {};
   if (!payment_method_id || !idempotency_key) return res.status(400).json({ error: 'payment_method_id and idempotency_key are required.' });
-  const amount = Number.isInteger(amount_cents) && amount_cents > 0 ? amount_cents : DEFAULT_PREMIUM_CENTS;
+
+  /* amount_cents is deliberately NOT destructured — see PURPOSE_PRICES above.
+     Anything the caller sends under that name is ignored, not honoured. */
+  const amount = priceFor(purpose);
+  if (amount === null) return res.status(400).json({ error: 'Unknown purpose.' });
 
   try {
     // Idempotent at our layer: same key → return the existing attempt, never re-charge.
@@ -256,4 +291,4 @@ async function webhookHandler(req, res) {
   }
 }
 
-module.exports = { router, webhookHandler, mapEvent, advancesStatus, STATUS_RANK };
+module.exports = { router, webhookHandler, mapEvent, advancesStatus, STATUS_RANK, priceFor, PURPOSE_PRICES };

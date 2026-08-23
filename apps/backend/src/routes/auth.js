@@ -18,6 +18,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
@@ -73,7 +74,7 @@ async function getStaffProfile(staffId) {
 // ── POST /api/auth/sync-user ──────────────────────────────────
 // Called after every Supabase signup / first login.
 // Idempotent: safe to call multiple times.
-router.post('/sync-user', requireAuth, async (req, res) => {
+router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, res) => {
   try {
     const { full_name, phone, national_id, trn, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
@@ -140,7 +141,7 @@ router.get('/me', requireAuth, async (req, res) => {
 // ── PATCH /api/auth/profile ──────────────────────────────────
 // Called by the mobile ProfileScreen when the user saves their profile.
 // Updates all standard intake fields in the MySQL users table.
-router.patch('/profile', requireAuth, async (req, res) => {
+router.patch('/profile', requireAuth, validate(schemas.updateProfile), async (req, res) => {
   if (!req.dbUser) {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
@@ -318,7 +319,7 @@ router.delete('/account', requireAuth, async (req, res) => {
 // ── POST /api/auth/force-signout ───────────────────────────────
 // Manager/executive can force-sign-out a specific user or staff member.
 // Revokes ALL active tokens for that supabase_uid.
-router.post('/force-signout', requireAuth, async (req, res) => {
+router.post('/force-signout', requireAuth, validate(schemas.forceSignout), async (req, res) => {
   if (!req.dbStaff || !['manager', 'executive', 'platform_admin'].includes(req.dbStaff.role_name)) {
     return res.status(403).json({ error: 'Managers and executives only.' });
   }

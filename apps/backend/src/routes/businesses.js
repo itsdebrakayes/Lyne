@@ -11,6 +11,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, assertBusinessAccess } = require('../middleware/tenantAccess');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
@@ -58,7 +59,7 @@ router.get('/:slug', async (req, res) => {
 });
 
 // Create business — executive only
-router.post('/', requireAuth, requireStaffRole('platform_admin'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('platform_admin'), validate(schemas.createBusiness), async (req, res) => {
   try {
     const { name, slug, description, logo_url, website_url, phone, email, subscription_tier_id } = req.body;
     if (!name || !slug || !subscription_tier_id) {
@@ -79,7 +80,7 @@ router.post('/', requireAuth, requireStaffRole('platform_admin'), async (req, re
 });
 
 // Update business — executive only
-router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'), validate(schemas.updateBusiness), async (req, res) => {
   try {
     const { name, description, logo_url, website_url, phone, email, subscription_tier_id, is_active } = req.body;
     if (!assertBusinessAccess(req, req.params.id)) {

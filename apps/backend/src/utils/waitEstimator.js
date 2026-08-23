@@ -14,6 +14,7 @@
  * queue never depends on the model being present.
  */
 const pool = require('../db/pool');
+const { predictionsEnabled } = require('./predictionsEnabled');
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map(); // branch_id -> { grid, expires }
@@ -22,10 +23,20 @@ async function loadGridForBranch(branchId) {
   const cached = cache.get(branchId);
   if (cached && cached.expires > Date.now()) return cached.grid;
 
+  /* Kill switch, platform tier. Checked BEFORE the cache is populated but after
+     it is read, so flipping the switch stops new grids immediately while an
+     in-flight cached one ages out within its own TTL. Returning null is the
+     signal every caller already handles by falling back to the formula. */
+  if (!(await predictionsEnabled())) return null;
+
   const [rows] = await pool.query(
+    /* The business tier rides along as a JOIN rather than a second round trip:
+       this runs on every wait estimate, and a tenant that has switched
+       predictions off should cost us nothing to respect. */
     `SELECT p.insight_data
        FROM predictive_results p
        JOIN branches b ON b.business_id = p.business_id
+       JOIN businesses biz ON biz.id = p.business_id AND biz.predictions_enabled = TRUE
       WHERE b.id = ? AND p.insight_type = 'wait_eta_grid'
         AND (p.stale_after IS NULL OR p.stale_after > NOW())
       ORDER BY p.generated_at DESC

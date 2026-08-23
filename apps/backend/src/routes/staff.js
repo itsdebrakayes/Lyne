@@ -11,6 +11,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
   requireStaffRole,
@@ -23,6 +24,58 @@ const {
 } = require('../middleware/tenantAccess');
 
 const STAFF_AVAILABILITY_STATUSES = new Set(['active', 'on_leave', 'inactive']);
+
+/* ── Role grant guard ──────────────────────────────────────────────────────
+   role_id used to travel straight from the request body into the INSERT, and
+   supabase_uid alongside it. Together those were a privilege escalation with a
+   cross-tenant payoff:
+
+     1. A manager POSTs /api/staff for their OWN business — which every guard
+        here permits — with role_id 'role-platform-admin-001' and the
+        supabase_uid of an account they control.
+     2. platform_admin is the one role scopedBusinessId() and assertBusinessAccess()
+        treat as unscoped, so it reads and writes EVERY tenant, not just theirs.
+     3. They sign in as that account and the middleware resolves them as
+        platform_admin.
+
+   The tenant-isolation suite did not catch it because it proves a tenant cannot
+   reach another tenant by CHANGING AN IDENTIFIER. This never changes an
+   identifier; it changes what the caller is.
+
+   Two rules close it. A caller may not grant a role ranked above their own, and
+   platform_admin is not grantable through the tenant-facing API at all — it is
+   an internal Lyne operator role. This matches the invite path, whose role enum
+   has always been ['line_staff','manager','executive'].
+   ──────────────────────────────────────────────────────────────────────── */
+const ROLE_RANK = {
+  line_staff: 1,
+  kiosk_clerk: 1,
+  supervisor: 2,
+  manager: 3,
+  executive: 4,
+  platform_admin: 5,
+};
+const NEVER_GRANTABLE = new Set(['platform_admin']);
+
+async function roleGrantError(req, roleId) {
+  if (!roleId) return null; // PUT leaves the role alone when it is absent
+
+  const [rows] = await pool.query('SELECT name FROM roles WHERE id = ? LIMIT 1', [roleId]);
+  if (!rows.length) return { status: 400, error: 'Unknown role_id.' };
+
+  const target = rows[0].name;
+  if (NEVER_GRANTABLE.has(target)) {
+    return { status: 403, error: 'That role cannot be assigned through this API.' };
+  }
+
+  const callerRole = req.dbStaff?.role_name;
+  const callerRank = ROLE_RANK[callerRole] || 0;
+  const targetRank = ROLE_RANK[target] || 0;
+  if (!targetRank || targetRank > callerRank) {
+    return { status: 403, error: 'You cannot assign a role above your own.' };
+  }
+  return null;
+}
 
 router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
@@ -161,12 +214,15 @@ router.get('/:id', requireAuth, requireStaffRole('manager', 'executive'), async 
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, auditLog('create_staff', 'staff'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, auditLog('create_staff', 'staff'), validate(schemas.createStaff), async (req, res) => {
   try {
-    const { business_id, branch_id, role_id, full_name, email, phone, supabase_uid, assigned_service_id, availability_status } = req.body;
+    const { business_id, branch_id, role_id, full_name, email, phone, assigned_service_id, availability_status } = req.body;
     if (!business_id || !role_id || !full_name || !email) {
       return res.status(400).json({ error: 'business_id, role_id, full_name, and email are required.' });
     }
+
+    const grantError = await roleGrantError(req, role_id);
+    if (grantError) return res.status(grantError.status).json({ error: grantError.error });
     const availabilityStatus = availability_status || 'active';
     if (!STAFF_AVAILABILITY_STATUSES.has(availabilityStatus)) {
       return res.status(400).json({ error: 'Invalid availability_status.' });
@@ -185,7 +241,11 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
     await pool.query(
       `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, phone, assigned_service_id, availability_status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, scopedBusinessId(req, business_id), scopedBranchId(req, branch_id) || null, role_id, supabase_uid || null, staffCode, full_name, email, phone || null, assigned_service_id || null, availabilityStatus]
+      /* supabase_uid stays NULL. Binding a MySQL staff row to a Supabase
+         identity happens exactly once, in POST /api/staff-invite/redeem, and
+         the uid there comes from the REDEEMER'S OWN verified token — never
+         from a field an administrator can type. */
+      [id, scopedBusinessId(req, business_id), scopedBranchId(req, branch_id) || null, role_id, null, staffCode, full_name, email, phone || null, assigned_service_id || null, availabilityStatus]
     );
     const [created] = await pool.query('SELECT * FROM staff WHERE id = ?', [id]);
     res.status(201).json(created[0]);
@@ -195,9 +255,9 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
   }
 });
 
-router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('update_staff', 'staff'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('update_staff', 'staff'), validate(schemas.updateStaff), async (req, res) => {
   try {
-    const { branch_id, role_id, full_name, email, phone, assigned_service_id, availability_status, is_active, supabase_uid } = req.body;
+    const { branch_id, role_id, full_name, email, phone, assigned_service_id, availability_status, is_active } = req.body;
     if (availability_status && !STAFF_AVAILABILITY_STATUSES.has(availability_status)) {
       return res.status(400).json({ error: 'Invalid availability_status.' });
     }
@@ -206,6 +266,9 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
     if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, existing[0].branch_id)) {
       return res.status(403).json({ error: 'You do not have access to this staff member.' });
     }
+
+    const grantError = await roleGrantError(req, role_id);
+    if (grantError) return res.status(grantError.status).json({ error: grantError.error });
     await pool.query(
       `UPDATE staff SET
          branch_id           = COALESCE(?, branch_id),
@@ -216,10 +279,13 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
          assigned_service_id = COALESCE(?, assigned_service_id),
          availability_status = COALESCE(?, availability_status),
          is_active           = COALESCE(?, is_active),
-         supabase_uid        = COALESCE(?, supabase_uid),
          updated_at          = NOW()
        WHERE id = ?`,
-      [scopedBranchId(req, branch_id), role_id, full_name, email, phone, assigned_service_id, availability_status, is_active, supabase_uid, req.params.id]
+      /* supabase_uid is deliberately NOT updatable here — see the role grant
+         guard above. Rebinding an existing staff row to a different Supabase
+         identity is the second half of the escalation, and it has no legitimate
+         caller: the invite redemption flow owns that binding. */
+      [scopedBranchId(req, branch_id), role_id, full_name, email, phone, assigned_service_id, availability_status, is_active, req.params.id]
     );
     const [updated] = await pool.query('SELECT * FROM staff WHERE id = ?', [req.params.id]);
     res.json(updated[0]);

@@ -1,0 +1,23 @@
+# The Dockerfile ends in `COPY . .`, so anything left in apps/backend at build
+# time is baked into the image. `.env` is the one that matters: it is gitignored,
+# which means it never shows up in review, and .env.example actively invites
+# somebody to create one right here. The moment that happens it ships inside the
+# image — readable by anyone who can `docker run` it or pull it from a registry.
+#
+# Nothing was leaking when this was written (apps/backend/.env does not exist).
+# This exists so that stays true.
+.env
+.env.*
+!.env.example
+
+# Copied and then immediately replaced by the deps stage — pure build cost, and
+# a host-built tree can carry the wrong platform's native binaries.
+node_modules
+
+# Never needed at runtime; .git would carry the whole history into the image.
+.git
+.gitignore
+test
+coverage
+*.log
+npm-debug.log*

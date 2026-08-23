@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireBranchAccess, scopedBranchId } = require('../middleware/tenantAccess');
 
 router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
@@ -39,7 +40,7 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBr
  * counter_number is allocated per branch rather than supplied, so two people
  * setting up at once cannot collide on it.
  */
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, validate(schemas.createCounter), async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { branch_id, service_id, label } = req.body || {};

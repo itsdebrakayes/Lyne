@@ -27,6 +27,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
 
@@ -1077,7 +1078,7 @@ router.put('/:id/move-down', requireAuth, requireStaffRole('line_staff', 'manage
 
 // PUT /api/tickets/:id/skip — Staff skips a waiting ticket
 // disposition: 'remove' (cancel) | 'requeue' (place right after current in_service ticket)
-router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
+router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, validate(schemas.skipTicket), async (req, res) => {
   const { disposition = 'requeue' } = req.body;
   if (!['remove', 'requeue'].includes(disposition)) {
     return res.status(400).json({ error: "disposition must be 'remove' or 'requeue'." });

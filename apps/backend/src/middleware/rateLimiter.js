@@ -53,6 +53,24 @@ const publicQueueLimiter = rateLimit({
 // The admin dashboards legitimately poll ~15 analytics endpoints on a 60s
 // refresh cycle (~15 req/min at idle, more while navigating), so the ceiling
 // must clear that comfortably while still stopping real abuse/scraping.
+// ── Payment intents ───────────────────────────────────────────────────────
+// POST /api/payments/create-intent used to sit behind nothing but the global
+// 1000-per-15-minutes ceiling, which is a card-testing budget, not a limit: a
+// script can validate stolen cards against a real Stripe account all day inside
+// it. The cost lands on us as failed-payment fees and, eventually, as Stripe
+// questioning the account.
+//
+// A person subscribes once. Ten attempts an hour is already generous for
+// somebody genuinely fighting a declined card, and it takes card testing from
+// "free" to "pointless".
+const paymentLimiter = rateLimit({
+  windowMs:        60 * 60 * 1000,
+  max:             10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { error: 'Too many payment attempts. Please try again later.' },
+});
+
 const generalLimiter = rateLimit({
   windowMs:         15 * 60 * 1000,
   max:              1000,
@@ -84,5 +102,6 @@ module.exports = {
   ocrLimiter,
   publicQueueLimiter,
   sessionLookupLimiter,
+  paymentLimiter,
   generalLimiter,
 };

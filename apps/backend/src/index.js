@@ -11,6 +11,7 @@ const {
   ocrLimiter,
   publicQueueLimiter,
   sessionLookupLimiter,
+  paymentLimiter,
   generalLimiter,
 } = require('./middleware/rateLimiter');
 const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
@@ -22,6 +23,38 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL 
   .map(origin => origin.trim())
   .filter(Boolean);
 
+/* Falling open is gated on an EXPLICIT development declaration, never on
+   "not production".
+
+   `NODE_ENV !== 'production'` is a negative test, and it passes for every way
+   the variable can be wrong in a real deployment: unset, empty string, 'prod',
+   'Production', or a typo. Any one of those combined with an unset
+   ALLOWED_ORIGINS served every browser origin on earth — with
+   `credentials: true`, so the browser would attach the session too. The
+   failure was silent, because the app it was serving worked fine.
+
+   Requiring the positive statement means a misconfigured environment fails
+   closed: unknown NODE_ENV + empty allowlist now rejects browser origins
+   rather than trusting them. */
+class CorsError extends Error {
+  constructor(origin) {
+    super('Origin not allowed by CORS.');
+    this.name = 'CorsError';
+    this.origin = origin;
+  }
+}
+
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+if (!isDevelopment && allowedOrigins.length === 0) {
+  console.warn(
+    '[CORS] No ALLOWED_ORIGINS set and NODE_ENV is not development/test '
+    + `(NODE_ENV=${JSON.stringify(process.env.NODE_ENV)}). Every browser origin `
+    + 'will be rejected — native mobile clients still work, but the admin app '
+    + 'and website will not. Set ALLOWED_ORIGINS to a comma-separated list.'
+  );
+}
+
 // Security & performance middleware
 app.use(helmet());
 app.use(compression());
@@ -31,11 +64,26 @@ app.use(cors({
     // Native mobile clients do not send a browser Origin header.
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) return callback(null, true);
-    return callback(new Error('Origin not allowed by CORS.'));
+    if (isDevelopment && allowedOrigins.length === 0) return callback(null, true);
+    return callback(new CorsError(origin));
   },
   credentials: true,
 }));
+
+/* A rejected origin is a CLIENT error, and it has to say so.
+   `cors` surfaces a refusal by handing an Error to next(), which fell through
+   to the generic handler and came back 500. That is wrong twice: it reports our
+   own correct security decision as a server fault, and at deploy time a missing
+   ALLOWED_ORIGINS entry looks like the API is crashing rather than like the
+   config problem it actually is. Registered here, immediately after the mount,
+   so it catches the refusal before anything else sees it. */
+app.use((err, req, res, next) => {
+  if (err instanceof CorsError) {
+    console.warn(`[CORS] rejected origin ${err.origin}`);
+    return res.status(403).json({ error: 'Origin not allowed.' });
+  }
+  return next(err);
+});
 
 // Stripe webhook needs the RAW body for signature verification — mount it
 // before express.json() so the parser doesn't consume the body.
@@ -86,6 +134,11 @@ app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));
+/* Card testing goes straight at create-intent, so the limiter is mounted on
+   the write path only — the webhook above is Stripe calling us and is verified
+   by signature, and GET /methods is a customer reading their own cards. */
+app.post('/api/payments/create-intent', paymentLimiter);
+app.post('/api/payments/methods',       paymentLimiter);
 app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads

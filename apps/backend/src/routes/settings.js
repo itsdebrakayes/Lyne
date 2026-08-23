@@ -25,6 +25,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireBranchAccess, scopedBranchId } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 
@@ -105,7 +106,7 @@ router.get('/branch', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
 
 // ── PUT /api/settings/branch ─────────────────────────────────
 // Branch policy. Supervisors are read-only on this tab, so they are not admitted.
-router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('branch_settings_update', 'branch_setting'), async (req, res) => {
+router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('branch_settings_update', 'branch_setting'), validate(schemas.branchSettings), async (req, res) => {
   try {
     const branchId = scopedBranchId(req, req.body.branch_id);
     if (!branchId) return res.status(400).json({ error: 'branch_id is required.' });
@@ -138,7 +139,7 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
 // ── PUT /api/settings/alerts ─────────────────────────────────
 // "Alerts To Me" is per person by design: two managers at one branch may want
 // different thresholds. No branch scoping — you may only ever set your own.
-router.put('/alerts', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), async (req, res) => {
+router.put('/alerts', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), validate(schemas.alertPrefs), async (req, res) => {
   try {
     const staffId = req.dbStaff?.id;
     if (!staffId) return res.status(403).json({ error: 'Staff account required.' });
