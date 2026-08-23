@@ -17,7 +17,10 @@ const squash = (sql) => sql.replace(/\s+/g, ' ').trim();
 
 function freshDb() {
   return {
-    users: [{ id: 'user-1', supabase_uid: 'user-1', email: 'customer@test.jm', full_name: 'A Customer' }],
+    users: [{
+      id: 'user-1', supabase_uid: 'user-1', email: 'customer@test.jm', full_name: 'A Customer',
+      is_premium: 0, trial_started_at: null, premium_until: null,
+    }],
     tickets: [],
     staff_invites: [{
       id: 'invite-1', business_id: 'biz-a', branch_id: 'branch-a1',
@@ -65,6 +68,29 @@ function fakeQuery(sql, params = []) {
     const active = db.tickets.filter((row) => row.user_id === params[0]
       && ['waiting', 'called', 'in_service'].includes(row.status)).length;
     return [[{ active }]];
+  }
+  if (q.startsWith('SELECT trial_started_at FROM users WHERE id')) {
+    const user = db.users.find((row) => row.id === params[0]);
+    return [user ? [{ trial_started_at: user.trial_started_at }] : []];
+  }
+  if (q.startsWith('UPDATE users SET is_premium = TRUE, trial_started_at')) {
+    // Read the guard out of the statement rather than assuming it. Hardcoding
+    // `trial_started_at === null` here made the harness enforce the once-only
+    // rule itself, so deleting that condition from the real SQL changed
+    // nothing and the test kept passing — the rule was being proved by the
+    // fake, not the code.
+    const guarded = /WHERE[\s\S]*trial_started_at IS NULL/.test(q);
+    const user = db.users.find((row) => row.id === params[1]
+      && (!guarded || row.trial_started_at === null));
+    if (!user) return [{ affectedRows: 0 }];
+    user.is_premium = 1;
+    user.trial_started_at = new Date();
+    user.premium_until = params[0];
+    return [{ affectedRows: 1 }];
+  }
+  if (q.startsWith('SELECT * FROM users WHERE id')) {
+    const user = db.users.find((row) => row.id === params[0]);
+    return [user ? [{ ...user }] : []];
   }
   if (q.startsWith('DELETE FROM users WHERE id')) {
     const before = db.users.length;

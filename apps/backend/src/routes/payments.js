@@ -233,7 +233,13 @@ async function webhookHandler(req, res) {
     if ((STATUS_RANK[mapped.status] ?? 0) > (STATUS_RANK[intent.status] ?? 0)) {
       await conn.query('UPDATE payment_intents SET status = ? WHERE id = ?', [mapped.status, intent.id]);
       if (mapped.status === 'captured') {
-        await conn.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [intent.user_id]);
+        // premium_until must be cleared, not left alone: a customer who
+        // subscribes during their trial would otherwise keep the trial's end
+        // date and lose access on that day despite having paid.
+        await conn.query(
+          'UPDATE users SET is_premium = TRUE, premium_until = NULL, updated_at = NOW() WHERE id = ?',
+          [intent.user_id]
+        );
       }
     }
 

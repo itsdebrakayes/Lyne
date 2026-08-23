@@ -22,6 +22,7 @@ const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
+const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
 const { createClient } = require('@supabase/supabase-js');
 
 // Deleting a Supabase Auth identity is an administrative action, so unlike the
@@ -89,7 +90,7 @@ router.post('/sync-user', requireAuth, async (req, res) => {
         );
       }
       const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-      return res.json({ user: updated[0], created: false });
+      return res.json({ user: withPremiumState(updated[0]), created: false });
     }
 
     // Check if this is a staff account (staff log in via Supabase Auth too)
@@ -119,7 +120,7 @@ router.post('/sync-user', requireAuth, async (req, res) => {
 // ── GET /api/auth/me ──────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    if (req.dbUser) return res.json({ type: 'user', record: req.dbUser });
+    if (req.dbUser) return res.json({ type: 'user', record: withPremiumState(req.dbUser) });
     if (req.dbStaff) {
       const staffProfile = await getStaffProfile(req.dbStaff.id);
       return res.json({ type: 'staff', record: staffProfile || req.dbStaff });
@@ -160,7 +161,7 @@ router.patch('/profile', requireAuth, async (req, res) => {
     );
 
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]) });
   } catch (err) {
     console.error('profile update error:', err);
     res.status(500).json({ error: 'Failed to update profile.' });
@@ -168,16 +169,40 @@ router.patch('/profile', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/auth/start-trial ───────────────────────────────
-// Unlocks QMe Premium (Smart Timing / visit planner) for this user.
-// Billing comes later — for now a trial start simply flips the flag.
+// The app offers this as a "14-day free trial · cancel anytime". It used to
+// set is_premium and nothing else — no start, no end, no check that one had
+// already been taken — so it granted permanent premium to anyone, repeatedly,
+// while a paid subscription sat on the same screen. Both halves of the promise
+// are real now: it runs out, and it is once per account.
 router.post('/start-trial', requireAuth, async (req, res) => {
   if (!req.dbUser) {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
   try {
-    await pool.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [req.dbUser.id]);
+    const [rows] = await pool.query('SELECT trial_started_at FROM users WHERE id = ?', [req.dbUser.id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'No user record found. Please sync first.' });
+    }
+    const usedMessage = `You have already used your free ${TRIAL_DAYS}-day trial. Subscribe to keep Lyne Premium.`;
+    if (rows[0].trial_started_at) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
+    const endsAt = trialEndsAt();
+    // Guarded on trial_started_at IS NULL, so two taps racing each other
+    // cannot both start a trial and stack the window.
+    const [result] = await pool.query(
+      `UPDATE users
+          SET is_premium = TRUE, trial_started_at = NOW(), premium_until = ?, updated_at = NOW()
+        WHERE id = ? AND trial_started_at IS NULL`,
+      [endsAt, req.dbUser.id]
+    );
+    if (!result.affectedRows) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]), trial_ends_at: endsAt });
   } catch (err) {
     console.error('start-trial error:', err);
     res.status(500).json({ error: 'Failed to start your trial.' });
