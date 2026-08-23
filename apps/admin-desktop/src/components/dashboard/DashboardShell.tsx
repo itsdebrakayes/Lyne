@@ -38,13 +38,23 @@ export default function DashboardShell({
   const mainTabs = tabs.filter((tab) => tab.group !== 'utility');
   const utilityTabs = tabs.filter((tab) => tab.group === 'utility');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResult, setSearchResult] = useState('');
 
+  // This is a find-on-page, and it used to fail in total silence: no match, no
+  // message, nothing — indistinguishable from a search box that isn't wired up
+  // at all. window.find is also non-standard, so on any runtime that lacks it
+  // every search did nothing. Say which of the two happened.
   const runPageSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = searchTerm.trim();
     if (!query) return;
     const pageFind = (window as Window & { find?: (text: string) => boolean }).find;
-    pageFind?.(query);
+    if (typeof pageFind !== 'function') {
+      setSearchResult('Find on page is not available here.');
+      return;
+    }
+    const found = pageFind.call(window, query);
+    setSearchResult(found ? `Jumped to “${query}”.` : `No match for “${query}” on this page.`);
   };
 
   return (
@@ -65,6 +75,7 @@ export default function DashboardShell({
               <button
                 key={tab.id}
                 className={activeTab === tab.id ? 'active' : ''}
+                aria-current={activeTab === tab.id ? 'page' : undefined}
                 onClick={() => onTabChange(tab.id)}
                 type="button"
               >
@@ -83,6 +94,7 @@ export default function DashboardShell({
                 <button
                   key={tab.id}
                   className={activeTab === tab.id ? 'active' : ''}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
                   onClick={() => onTabChange(tab.id)}
                   type="button"
                 >
@@ -93,7 +105,11 @@ export default function DashboardShell({
               })}
             </nav>
           ) : null}
-          <button type="button" className="ops-signout-card" onClick={logout}>
+          <button
+            type="button"
+            className="ops-signout-card"
+            onClick={() => { if (window.confirm('Sign out of Lyne?')) logout(); }}
+          >
             <span>Sign Out</span>
             <small>{admin?.staffRecord.email}</small>
             <i><LogOut size={16} /></i>
@@ -106,11 +122,14 @@ export default function DashboardShell({
             <Search size={17} />
             <input
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search dashboard..."
-              aria-label="Search visible dashboard text"
+              onChange={(event) => { setSearchTerm(event.target.value); setSearchResult(''); }}
+              placeholder="Find on this page…"
+              aria-label="Find text on this page"
             />
           </form>
+          {searchResult ? (
+            <p className="ops-search-result" role="status" aria-live="polite">{searchResult}</p>
+          ) : null}
           <div className="ops-profile">
             <div>{name[0] || 'L'}</div>
             <span>

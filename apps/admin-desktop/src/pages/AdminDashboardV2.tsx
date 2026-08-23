@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 
 import DashboardShell, { type DashboardTab } from '@/components/dashboard/DashboardShell';
-import { DataRow, EmptyState, KpiCard, Panel, PeriodTabs, StatusPill, displayLabel } from '@/components/dashboard/DashboardPrimitives';
+import { DataRow, EmptyState, KpiCard, Panel, PeriodTabs, StatusPill, displayLabel, listFallback } from '@/components/dashboard/DashboardPrimitives';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
 
@@ -455,7 +455,9 @@ function useDashboardData(serviceId = '') {
     businessId,
     branchId,
     queues: queues.data || [],
+    queuesQuery: queues,
     summary: summary.data || [],
+    summaryQuery: summary,
     services: services.data || [],
     staff: staff.data || [],
     branchTrends: branchTrends.data || [],
@@ -853,7 +855,7 @@ function ChartCard({
           {caption ? <p className="ops-chart-caption">{caption}</p> : null}
         </>
       ) : (
-        <EmptyState title="No Chart Data Yet" detail="Live operational data will appear here after tickets are completed." />
+        <EmptyState title="No chart data yet" detail="Live operational data will appear here after tickets are completed." />
       )}
     </Panel>
   );
@@ -935,9 +937,9 @@ function effLabel(score: number) {
 function serviceEffNote(service: ServiceInsight, targets: BusinessTargets) {
   const wait = Math.round(numberValue(service.avg_wait_minutes));
   const target = numberValue(targets.target_wait_minutes) || 20;
-  if (wait <= target * 0.75) return `${wait}m Avg · Well Under ${target}m Target`;
-  if (wait <= target) return `${wait}m Avg · On ${target}m Target`;
-  return `${wait}m Avg · Above ${target}m Target`;
+  if (wait <= target * 0.75) return `${wait}m avg · well under ${target}m target`;
+  if (wait <= target) return `${wait}m avg · on ${target}m target`;
+  return `${wait}m avg · above ${target}m target`;
 }
 
 function HealthDonut({ score, size = 76, label }: { score: number; size?: number; label?: string }) {
@@ -977,7 +979,7 @@ function BranchHealthCard({
     .sort((a, b) => b.score - a.score);
   const health = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0;
   return (
-    <Panel title={title} eyebrow="Efficiency By Service · Live" className="branch-health-panel">
+    <Panel title={title} eyebrow="Efficiency by service · live" className="branch-health-panel">
       {rows.length ? (
         <>
           <div className="health-head">
@@ -1003,7 +1005,7 @@ function BranchHealthCard({
           </div>
         </>
       ) : (
-        <EmptyState title="No Service Activity Yet" detail="Service efficiency scores appear after today's visits are recorded." />
+        <EmptyState title="No service activity yet" detail="Service efficiency scores appear after today's visits are recorded." />
       )}
     </Panel>
   );
@@ -1011,7 +1013,7 @@ function BranchHealthCard({
 
 function ServiceDetailTable({ services }: { services: ServiceInsight[] }) {
   return (
-    <Panel title="Service Detail" eyebrow="Visits, Waits, And Drop-Off Behind The Scores" className="manager-table-panel">
+    <Panel title="Service Detail" eyebrow="Visits, waits, and drop-off behind the scores" className="manager-table-panel">
       {services.length ? (
         <table className="manager-data-table">
           <thead>
@@ -1038,7 +1040,7 @@ function ServiceDetailTable({ services }: { services: ServiceInsight[] }) {
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Service Analytics Yet" detail="Service detail is generated as completed visits accumulate." />
+        <EmptyState title="No service analytics yet" detail="Service detail is generated as completed visits accumulate." />
       )}
     </Panel>
   );
@@ -1079,7 +1081,7 @@ function ManagerRecentCustomers({ tickets, onOpen }: { tickets: TicketRow[]; onO
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Recent Customers Yet" detail="Served and no-show customers will appear here throughout the day." />
+        <EmptyState title="No recent customers yet" detail="Served and no-show customers will appear here throughout the day." />
       )}
     </Panel>
   );
@@ -1129,7 +1131,7 @@ function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }
   const columnTitle = (col: number) => (by === 'hour' ? `${col}:00` : DOW_LABELS[col]);
 
   if (!rows.length) {
-    return <EmptyState title="No Demand Data Yet" detail="Traffic patterns will appear here after visits are recorded." />;
+    return <EmptyState title="No demand data yet" detail="Traffic patterns will appear here after visits are recorded." />;
   }
   const colStyle = { '--demand-cols': columns.length } as CSSProperties;
   return (
@@ -1189,7 +1191,7 @@ function DemandPanel({
   const [view, setView] = useState<'hour' | 'dow'>('hour');
   const cells = view === 'hour' ? hourly : weekly;
   const totalVisits = total(cells, 'visit_count');
-  const title = rowKind === 'branch' ? 'Branch Demand Breakdown' : 'Service Demand Breakdown';
+  const title = rowKind === 'branch' ? 'Branch demand breakdown' : 'Service demand breakdown';
 
   return (
     <Panel
@@ -1256,7 +1258,7 @@ function ManagerCounterTable({
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Assignments Today" detail="Assign staff to counters before branch traffic begins." />
+        <EmptyState title="No assignments today" detail="Assign staff to counters before branch traffic begins." />
       )}
     </Panel>
   );
@@ -1299,7 +1301,7 @@ function ManagerStaffPanel({
           value={<StatusPill status={member.presence_status} />}
           onClick={onOpen}
         />
-      )) : <EmptyState title="No Staff Found" detail="Staff will appear here after they are active or assigned to this branch." />}
+      )) : <EmptyState title="No staff found" detail="Staff will appear here after they are active or assigned to this branch." />}
       <button type="button" className="manager-panel-more" onClick={onOpen}>View Staff</button>
     </Panel>
   );
@@ -1365,9 +1367,9 @@ function insightSentence(prediction: PredictionRow | undefined, fallback: string
 const INSIGHT_DISPLAY_NAMES: Record<string, string> = {
   manager_performance: 'Manager Performance',
   ops_insights: 'Operations Insights',
-  resource_recommendations: 'Who’s Needed Where',
-  abandonment_thresholds: 'Queue Length Tolerance',
-  wait_time_predictions: 'Wait Time Forecast',
+  resource_recommendations: 'Who’s needed where',
+  abandonment_thresholds: 'Queue length tolerance',
+  wait_time_predictions: 'Wait time forecast',
   heatmap_data: 'Busy Times',
 };
 
@@ -1578,23 +1580,23 @@ function branchDrilldown(branch: BranchAggregate, targets: BusinessTargets) {
 
   (completion >= targetCompletion ? working : failing).push(
     completion >= targetCompletion
-      ? `Strong Completion — ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
-      : `Low Completion — Only ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
+      ? `Strong completion — ${formatPercent(completion)} of visitors served (target ${targetCompletion}%)`
+      : `Low completion — only ${formatPercent(completion)} of visitors served (target ${targetCompletion}%)`
   );
   (wait <= targetWait ? working : failing).push(
     wait <= targetWait
-      ? `Average Wait Held At ${wait}m — Under The ${targetWait}m Target`
-      : `Average Wait Is ${wait}m — Above The ${targetWait}m Target`
+      ? `Average wait held at ${wait}m — under the ${targetWait}m target`
+      : `Average wait is ${wait}m — above the ${targetWait}m target`
   );
   (noShowRate <= targetNoShow ? working : failing).push(
     noShowRate <= targetNoShow
-      ? `No-Show Rate Contained At ${formatPercent(noShowRate)} (Target ${targetNoShow}%)`
-      : `No-Show Rate Elevated At ${formatPercent(noShowRate)} — Target Is ${targetNoShow}%`
+      ? `No-Show rate contained at ${formatPercent(noShowRate)} (target ${targetNoShow}%)`
+      : `No-Show rate elevated at ${formatPercent(noShowRate)} — target is ${targetNoShow}%`
   );
   (visits >= 20 ? working : failing).push(
     visits >= 20
-      ? `Healthy Demand — ${formatCount(visits)} Visits In The Window`
-      : `Light Demand — Only ${formatCount(visits)} Visits In The Window`
+      ? `Healthy demand — ${formatCount(visits)} visits in the window`
+      : `Light demand — only ${formatCount(visits)} visits in the window`
   );
   return { working, failing };
 }
@@ -1602,7 +1604,7 @@ function branchDrilldown(branch: BranchAggregate, targets: BusinessTargets) {
 function ExecutiveBranchList({ branches, targets }: { branches: BranchAggregate[]; targets: BusinessTargets }) {
   const [openId, setOpenId] = useState<string | null>(null);
   if (!branches.length) {
-    return <EmptyState title="No Branch Analytics Yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
+    return <EmptyState title="No branch analytics yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
   }
   return (
     <div className="branch-health-list">
@@ -1724,7 +1726,7 @@ function ExecutiveAnalyticsView({ data, services, branches }: { data: any[]; ser
                 <Area type="monotone" dataKey="wait" name="Avg Wait" stroke="#607787" fill="#E8F0F4" fillOpacity={0.5} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
-          ) : <EmptyState title="No Model Chart Yet" detail="Analytics will fill this panel after operational records are available." />}
+          ) : <EmptyState title="No model chart yet" detail="Analytics will fill this panel after operational records are available." />}
         </div>
         <div className="exec-branch-bars">
           {branchCards.length ? branchCards.map((branch) => (
@@ -1821,7 +1823,7 @@ function ExecutiveManagerList({ managers, onOpen }: { managers: ManagerScore[]; 
           <em>{formatCount(manager.assigned_staff)} Staff</em>
         </button>
       ))}
-      {!managers.length ? <EmptyState title="No Manager Scores" detail="Manager ranking appears after branch activity is available." /> : null}
+      {!managers.length ? <EmptyState title="No manager scores" detail="Manager ranking appears after branch activity is available." /> : null}
     </section>
   );
 }
@@ -1844,7 +1846,7 @@ function ExecutiveTopBranch({ branch, manager, onOpen }: { branch?: BranchTrend;
             <span><b>{formatMinutes(branch.avg_wait_minutes)}</b><small>Avg Wait</small></span>
           </div>
         </>
-      ) : <EmptyState title="No Branch Leader Yet" detail="Branch ranking appears after analytics records are available." />}
+      ) : <EmptyState title="No branch leader yet" detail="Branch ranking appears after analytics records are available." />}
     </section>
   );
 }
@@ -1927,7 +1929,7 @@ function TargetsPanel({ targets, businessId, editable }: { targets: BusinessTarg
 
   const deadline = targetDeadlineLabel(targets);
   const provenance = targets.is_default
-    ? 'Default Targets · Not Set Yet'
+    ? 'Default targets · not set yet'
     : `Set By ${displayLabel(targets.set_by_name || 'Executive')} · Due ${deadline}`;
 
   if (!editable) {
@@ -2009,7 +2011,7 @@ function TargetProgress({ targets, summary }: { targets: BusinessTargets; summar
   ];
 
   return (
-    <Panel title="Target Progress" eyebrow={`Where You Stand Against The ${targets.horizon_months}-Month Goal · Due ${deadline}`}>
+    <Panel title="Target Progress" eyebrow={`Where you stand against the ${targets.horizon_months}-month goal · due ${deadline}`}>
       <div className="target-progress">
         {rows.map((row) => (
           <div key={row.label} className="target-progress-row">
@@ -2047,7 +2049,7 @@ function NotebookWaitForecast({ predictions }: { predictions: PredictionRow[] })
     })
     .filter((row) => row.wait >= 0);
   return (
-    <Panel title="Predicted Wait By Hour" eyebrow={`Forecast${prediction?.branch_name ? ` · ${displayLabel(prediction.branch_name)}` : ''}`} className="ops-chart-panel">
+    <Panel title="Predicted wait by hour" eyebrow={`Forecast${prediction?.branch_name ? ` · ${displayLabel(prediction.branch_name)}` : ''}`} className="ops-chart-panel">
       {chart.length ? (
         <ResponsiveContainer height={210}>
           <AreaChart data={chart} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
@@ -2059,7 +2061,7 @@ function NotebookWaitForecast({ predictions }: { predictions: PredictionRow[] })
           </AreaChart>
         </ResponsiveContainer>
       ) : (
-        <EmptyState title="No Wait Forecast Yet" detail={insightSentence(prediction, 'Run the analytics refresh to generate the hourly wait forecast.')} />
+        <EmptyState title="No wait forecast yet" detail={insightSentence(prediction, 'Run the analytics refresh to generate the hourly wait forecast.')} />
       )}
     </Panel>
   );
@@ -2071,7 +2073,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
   const services: any[] = Array.isArray(data?.services) ? data.services : [];
   const maxThreshold = Math.max(1, ...services.map((row) => numberValue(row.threshold_queue_length ?? row.max_queue_length)));
   return (
-    <Panel title="Queue Length Tolerance" eyebrow="How Long A Line Gets Before People Stop Joining">
+    <Panel title="Queue length tolerance" eyebrow="How long a line gets before people stop joining">
       {services.length ? (
         <div className="health-rows">
           {services.map((row) => {
@@ -2082,7 +2084,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
                 <i style={{ background: '#607787' }} />
                 <div className="health-row-main">
                   <b>{displayLabel(row.service_name || 'Service')}</b>
-                  <small>{abandonRate ? `${formatPercent(abandonRate)} Walk Away Beyond This Point` : 'Joining Drops Beyond This Point'}</small>
+                  <small>{abandonRate ? `${formatPercent(abandonRate)} Walk away beyond this point` : 'Joining drops beyond this point'}</small>
                 </div>
                 <div className="health-line"><i style={{ width: `${Math.max(8, (threshold / maxThreshold) * 100)}%`, background: 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
                 <span>{formatCount(threshold)}</span>
@@ -2091,7 +2093,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
           })}
         </div>
       ) : (
-        <EmptyState title="No Abandonment Model Yet" detail={insightSentence(prediction, 'The prediction system estimates the queue length at which customers stop joining each service.')} />
+        <EmptyState title="No abandonment model yet" detail={insightSentence(prediction, 'The prediction system estimates the queue length at which customers stop joining each service.')} />
       )}
     </Panel>
   );
@@ -2102,10 +2104,10 @@ function NotebookModelQuality({ predictions }: { predictions: PredictionRow[] })
   const data = parseInsightData(prediction?.insight_data);
   if (!prediction) return null;
   return (
-    <Panel title="Prediction Accuracy" eyebrow="How Reliable The Wait Forecasts Are">
-      <DataRow title="Typical Error" detail="Mean Absolute Error Of Predicted Waits" value={data?.mae_minutes != null ? `±${Math.round(numberValue(data.mae_minutes))}m` : 'Pending'} />
-      <DataRow title="Fit (R²)" detail="Share Of Wait Variation The Model Explains" value={data?.r2 != null ? `${Math.round(numberValue(data.r2) * 100)}%` : 'Pending'} />
-      <DataRow title="Model" detail={data?.summary ? String(data.summary) : 'Gradient Boosting Trained On Visit History'} value={displayLabel(data?.model || 'GBR')} />
+    <Panel title="Prediction Accuracy" eyebrow="How reliable the wait forecasts are">
+      <DataRow title="Typical Error" detail="Mean absolute error of predicted waits" value={data?.mae_minutes != null ? `±${Math.round(numberValue(data.mae_minutes))}m` : 'Pending'} />
+      <DataRow title="Fit (R²)" detail="Share of wait variation the model explains" value={data?.r2 != null ? `${Math.round(numberValue(data.r2) * 100)}%` : 'Pending'} />
+      <DataRow title="Model" detail={data?.summary ? String(data.summary) : 'Gradient boosting trained on visit history'} value={displayLabel(data?.model || 'GBR')} />
     </Panel>
   );
 }
@@ -2115,14 +2117,14 @@ const BALK_UPPER: Record<string, number> = { '0-5': 5, '5-10': 10, '10-15': 15, 
 function BalkingCard({ balking }: { balking: BalkingData | null }) {
   if (!balking || !balking.total_joins) {
     return (
-      <Panel title="Demand Lost To Long Lines" eyebrow="Measured From Real Customer Behaviour">
-        <EmptyState title="Not Enough Joins Yet" detail="Once customers start joining, we'll show the quoted wait at which join volume drops off." />
+      <Panel title="Demand lost to long lines" eyebrow="Measured from real customer behaviour">
+        <EmptyState title="Not enough joins yet" detail="Once customers start joining, we'll show the quoted wait at which join volume drops off." />
       </Panel>
     );
   }
   const maxJoins = Math.max(1, ...balking.histogram.map((h) => h.joins));
   return (
-    <Panel title="Demand Lost To Long Lines" eyebrow="Measured From Real Customer Behaviour">
+    <Panel title="Demand lost to long lines" eyebrow="Measured from real customer behaviour">
       <div style={{ display: 'flex', gap: 14 }}>
         <div style={{ flex: 1, background: '#F3F7F9', borderRadius: 12, padding: '12px 14px' }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#1F3442', letterSpacing: '-0.5px' }}>{balking.balk_wait_minutes != null ? `~${balking.balk_wait_minutes}m` : '—'}</div>
@@ -2170,8 +2172,8 @@ function NotebookAnalytics({ predictions, balking }: { predictions: PredictionRo
 function WorkforcePanel({ employeeKpis }: { employeeKpis?: ExecutiveKpis }) {
   return (
     <Panel title="Workforce" eyebrow={`Employee Movement · ${employeeKpis ? monthLabel(employeeKpis.month) : 'This Month'}`}>
-      <DataRow title="Total Employees" detail="Active Staff Accounts" value={formatCount(employeeKpis?.total_employees)} />
-      <DataRow title="Active This Month" detail={`Vs Last Month: ${signedPercent(employeeKpis?.active_change_pct)}`} value={formatCount(employeeKpis?.active_employees)} />
+      <DataRow title="Total Employees" detail="Active staff accounts" value={formatCount(employeeKpis?.total_employees)} />
+      <DataRow title="Active this month" detail={`Vs last month: ${signedPercent(employeeKpis?.active_change_pct)}`} value={formatCount(employeeKpis?.active_employees)} />
       <DataRow title="On Leave" detail="Marked Unavailable" value={formatCount(employeeKpis?.leave_employees)} />
       {(employeeKpis?.new_staff || []).map((member) => (
         <DataRow key={member.id} title={displayLabel(member.full_name)} detail={`New Hire · ${displayLabel(member.branch_name || 'Branch')}`} value={member.created_at ? compactDate(member.created_at) : 'New'} />
@@ -2187,7 +2189,11 @@ function StaffDashboardContent() {
   const [selectedQueueId, setSelectedQueueId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [period, setPeriod] = useState('today');
-  const [actionMessage, setActionMessage] = useState('');
+  // Success and failure used to share one string in one grey line, so a failed
+  // no-show read exactly like a successful one. They are separate now, and the
+  // confirmation clears itself so a stale "Queue updated." never sits over a
+  // line that has moved on since.
+  const [actionMessage, setActionMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   useNow();
 
   const activeQueue = queues.find((queue) => queue.id === selectedQueueId) || queues[0];
@@ -2233,16 +2239,45 @@ function StaffDashboardContent() {
     },
     onSuccess: async () => {
       setVerificationCode('');
-      setActionMessage('Queue updated.');
-      await qc.invalidateQueries();
+      setActionMessage({ tone: 'ok', text: 'Queue updated.' });
+      // Scoped: a blanket invalidateQueries() refetched analytics, history,
+      // presence and branch data on every single button press, so the whole
+      // dashboard flickered each time a customer was called.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['ops-tickets'] }),
+        qc.invalidateQueries({ queryKey: ['ops-staff-history'] }),
+        qc.invalidateQueries({ queryKey: ['ops-line-staff-analytics'] }),
+        qc.invalidateQueries({ queryKey: ['ops-queues'] }),
+      ]);
     },
-    onError: (error) => setActionMessage(error instanceof Error ? error.message : 'The queue could not be updated.'),
+    onError: (error) => setActionMessage({
+      tone: 'error',
+      text: error instanceof Error ? error.message : 'The queue could not be updated.',
+    }),
   });
+
+  // Clear the confirmation after a few seconds; leave failures up until the
+  // next action, because those need reading.
+  useEffect(() => {
+    if (actionMessage?.tone !== 'ok') return undefined;
+    const timer = setTimeout(() => setActionMessage(null), 4_000);
+    return () => clearTimeout(timer);
+  }, [actionMessage]);
 
   const updateStatus = (ticket: TicketRow | undefined, newStatus: TicketStatus, body: Record<string, unknown> = {}) => {
     if (!ticket) return;
-    setActionMessage('');
+    setActionMessage(null);
     ticketAction.mutate({ ticketId: ticket.id, action: 'status', body: { new_status: newStatus, ...body } });
+  };
+
+  // A no-show takes someone's place in the line away, it sits one button from
+  // "Complete", and it cannot be undone from this screen. Ask first.
+  const confirmNoShow = () => {
+    if (!calledTicket) return;
+    const who = calledTicket.user_name ? `${calledTicket.ticket_number} (${calledTicket.user_name})` : calledTicket.ticket_number;
+    if (window.confirm(`Mark ${who} as a no-show?\n\nThey lose their place in the line and will have to join again.`)) {
+      updateStatus(calledTicket, 'no_show');
+    }
   };
 
   const tabs: DashboardTab[] = [
@@ -2256,7 +2291,7 @@ function StaffDashboardContent() {
   return (
     <DashboardShell
       roleLabel="Line Staff"
-      title="Run Today’s Line"
+      title="Run today’s line"
       subtitle={`${activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No Branch'} · ${activeQueue?.service_name || admin?.staffRecord.assigned_service_name || 'Waiting For Assignment'}`}
       tabs={tabs}
       activeTab={activeTab}
@@ -2301,7 +2336,7 @@ function StaffDashboardContent() {
               <button disabled={!nextTicket || ticketAction.isPending} onClick={() => nextTicket && ticketAction.mutate({ ticketId: nextTicket.id, action: 'skip', body: { disposition: 'requeue' } })}>
                 <RefreshCw size={17} /> Skip
               </button>
-              <button disabled={!calledTicket || countdown > 0 || ticketAction.isPending} onClick={() => updateStatus(calledTicket, 'no_show')}>
+              <button disabled={!calledTicket || countdown > 0 || ticketAction.isPending} onClick={confirmNoShow}>
                 <XCircle size={17} /> No-Show
               </button>
             </div>
@@ -2323,12 +2358,20 @@ function StaffDashboardContent() {
             ) : null}
             {servingTicket ? <p className="staff-timer-note">Service Timer Started After Customer Code Confirmation.</p> : null}
             {calledTicket ? <p className="staff-timer-note">No-Show Becomes Available When The Call Timer Reaches 0:00.</p> : null}
-            {actionMessage ? <p className="ops-action-message">{actionMessage}</p> : null}
+            {actionMessage ? (
+              <p
+                className={actionMessage.tone === 'error' ? 'ops-action-message error' : 'ops-action-message'}
+                role="status"
+                aria-live="polite"
+              >
+                {actionMessage.text}
+              </p>
+            ) : null}
           </section>
           <div className="ops-grid three">
             <KpiCard label="Served" value={analytics.data?.served_count || 0} detail={displayLabel(period)} icon={CheckCircle2} onClick={() => setActiveTab('history')} />
             <KpiCard label="No-Shows" value={analytics.data?.no_show_count || 0} detail="Skipped After Call" icon={XCircle} onClick={() => setActiveTab('history')} />
-            <KpiCard label="Service Avg" value={`${Math.round(numberValue(analytics.data?.avg_service_minutes))}m`} detail="From Start To Complete" icon={Timer} onClick={() => setActiveTab('analytics')} />
+            <KpiCard label="Service Avg" value={`${Math.round(numberValue(analytics.data?.avg_service_minutes))}m`} detail="From start to complete" icon={Timer} onClick={() => setActiveTab('analytics')} />
           </div>
         </>
       ) : null}
@@ -2348,7 +2391,12 @@ function StaffDashboardContent() {
                 </span>
               }
             />
-          )) : <EmptyState title={ticketsQuery.isLoading ? 'Loading Queue' : 'No Active Tickets'} detail="Active tickets will appear here as customers join or are called." />}
+          )) : listFallback(ticketsQuery, {
+            emptyTitle: "No active tickets",
+            emptyDetail: "Active tickets will appear here as customers join or are called.",
+            errorTitle: "The live queue could not be loaded",
+            errorDetail: "This is not an empty line — the connection failed. Do not stop calling customers until it loads.",
+          })}
         </Panel>
       ) : null}
 
@@ -2364,7 +2412,12 @@ function StaffDashboardContent() {
                 meta={<StatusPill status={ticket.status} />}
                 value={ticket.status === 'served' ? `${Math.round(numberValue(ticket.service_minutes))}m` : 'Skipped'}
               />
-            )) : <EmptyState title="No History For This Period" detail="Completed services and no-shows will be listed here." />}
+            )) : listFallback(history, {
+              emptyTitle: "No history for this period",
+              emptyDetail: "Completed services and no-shows will be listed here.",
+              errorTitle: "History could not be loaded",
+              errorDetail: "The connection failed, so this period may not really be empty.",
+            })}
           </Panel>
         </>
       ) : null}
@@ -2381,7 +2434,7 @@ function StaffDashboardContent() {
       ) : null}
 
       {activeTab === 'manager' ? (
-          <Panel title="Manager On Shift">
+          <Panel title="Manager on shift">
           {(managers.data || []).length ? (managers.data || []).map((manager) => (
             <DataRow
               key={manager.id}
@@ -2390,7 +2443,12 @@ function StaffDashboardContent() {
               meta={<StatusPill status={manager.presence_status} />}
               value={manager.last_seen_at ? compactDate(manager.last_seen_at) : 'Not active'}
             />
-          )) : <EmptyState title="No Manager Activity Found" detail="Assigned managers will appear when they are active in this branch." />}
+          )) : listFallback(managers, {
+            emptyTitle: "No manager on shift",
+            emptyDetail: "Assigned managers appear here when they are active in this branch.",
+            errorTitle: "Manager presence could not be loaded",
+            errorDetail: "The connection failed — a manager may well be on shift.",
+          })}
         </Panel>
       ) : null}
     </DashboardShell>
@@ -2446,12 +2504,21 @@ function ManagerDashboardContent() {
     onSuccess: async () => {
       setStaffId('');
       setCounterId('');
-      await qc.invalidateQueries();
+      // Assigning a counter changes assignments and who counts as unassigned —
+      // not the branch's analytics, targets or forecasts. A blanket invalidate
+      // refetched all of those and made the page jump on every assignment.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['manager-assignments'] }),
+        qc.invalidateQueries({ queryKey: ['manager-presence'] }),
+      ]);
     },
   });
   const removeAssignment = useMutation({
     mutationFn: (assignmentId: string) => api.delete(`/assignments/${assignmentId}`),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manager-assignments'] });
+      qc.invalidateQueries({ queryKey: ['manager-presence'] });
+    },
   });
 
   const [requestName, setRequestName] = useState('');
@@ -2480,7 +2547,7 @@ function ManagerDashboardContent() {
 
   const closeQueue = useMutation({
     mutationFn: (queueId: string) => api.put(`/queues/${queueId}/close`, {}),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops-queues'] }),
   });
   const confirmCloseQueue = (queue: QueueRow) => {
     const waiting = numberValue(queue.waiting_count);
@@ -2529,7 +2596,7 @@ function ManagerDashboardContent() {
     <DashboardShell
       roleLabel="Manager"
       title="Branch Operations"
-      subtitle={`${displayLabel(admin?.staffRecord.branch_name || 'Branch')} · Live Queues, Counters, And Staff`}
+      subtitle={`${displayLabel(admin?.staffRecord.branch_name || 'Branch')} · Live queues, counters, and staff`}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -2562,13 +2629,13 @@ function ManagerDashboardContent() {
             </div>
           </div>
           <div className="manager-summary-grid">
-            <Panel title="Staff Coverage" eyebrow="Line Staff Only">
+            <Panel title="Staff Coverage" eyebrow="Line staff only">
               <DataRow title="Online Staff" detail="Active sessions in this branch" value={`${onlineLineStaff.length}`} meta={<StatusPill status="online" />} onClick={() => setActiveTab('staff')} />
               <DataRow title="Unassigned Staff" detail="Available to place at a counter" value={`${unassignedStaff.length}`} meta={<StatusPill status={unassignedStaff.length ? 'called' : 'served'} />} onClick={() => setActiveTab('assignments')} />
             </Panel>
             <Panel title="Last Updated" eyebrow="Your Numbers">
               <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={displayLabel(pipeline?.last_run?.status || 'Empty')} />
-              <DataRow title="Predictions" detail="Insights Tracked For Your Branch" value={pipeline?.insights?.length || 0} />
+              <DataRow title="Predictions" detail="Insights tracked for your branch" value={pipeline?.insights?.length || 0} />
             </Panel>
           </div>
         </>
@@ -2576,7 +2643,7 @@ function ManagerDashboardContent() {
 
       {activeTab === 'staff' ? (
         <>
-        <Panel title="Request A Staff Member" eyebrow="DKS Technologies Reviews Every Request Before The Account Works">
+        <Panel title="Request a staff member" eyebrow="DKS Technologies reviews every request before the account works">
           <div className="assignment-controls">
             <input
               value={requestName}
@@ -2624,10 +2691,15 @@ function ManagerDashboardContent() {
                     : 'Waiting on DKS'
               }
             />
-          )) : <EmptyState title="No Requests Yet" detail="Staff you request will appear here with their approval status." />}
+          )) : listFallback(staffRequests, {
+            emptyTitle: "No requests yet",
+            emptyDetail: "Staff you request will appear here with their approval status.",
+            errorTitle: "Staff requests could not be loaded",
+            errorDetail: "The connection failed. Pending requests may still exist.",
+          })}
         </Panel>
 
-        <Panel title="Staff Presence" eyebrow="Who's Signed In And Assigned">
+        <Panel title="Staff Presence" eyebrow="Who's signed in and assigned">
           {lineStaffPresence.length ? lineStaffPresence.map((member) => (
             <DataRow
               key={member.id}
@@ -2637,13 +2709,18 @@ function ManagerDashboardContent() {
               value={member.last_seen_at ? compactDate(member.last_seen_at) : 'No Session'}
               onClick={() => setActiveTab('assignments')}
             />
-          )) : <EmptyState title="No Line Staff Found" detail="Line staff presence will appear after staff are created and assigned." />}
+          )) : listFallback(presence, {
+            emptyTitle: "No line staff found",
+            emptyDetail: "Line staff presence appears after staff are created and assigned.",
+            errorTitle: "Staff presence could not be loaded",
+            errorDetail: "The connection failed — staff may well be on shift.",
+          })}
         </Panel>
         </>
       ) : null}
 
       {activeTab === 'assignments' ? (
-        <Panel title="Counter Assignments" eyebrow="Assign, Reassign, Or Remove Staff">
+        <Panel title="Counter Assignments" eyebrow="Assign, reassign, or remove staff">
           <div className="assignment-controls">
             <select value={staffId} onChange={(event) => setStaffId(event.target.value)} aria-label="Staff member">
               <option value="">Select Staff</option>
@@ -2670,7 +2747,12 @@ function ManagerDashboardContent() {
                 </span>
               }
             />
-          )) : <EmptyState title="No Assignments Today" detail="Choose a staff member and counter to prepare the branch for service." />}
+          )) : listFallback(assignments, {
+            emptyTitle: "No assignments today",
+            emptyDetail: "Choose a staff member and counter to prepare the branch for service.",
+            errorTitle: "Assignments could not be loaded",
+            errorDetail: "The connection failed, so counters may already be assigned.",
+          })}
         </Panel>
       ) : null}
 
@@ -2682,7 +2764,7 @@ function ManagerDashboardContent() {
       ) : null}
 
       {activeTab === 'queues' ? (
-        <Panel title="Active Queues" eyebrow="Close A Line At The End Of The Day">
+        <Panel title="Active Queues" eyebrow="Close a line at the end of the day">
           {closeQueue.isError ? <p className="ops-error">{closeQueue.error instanceof Error ? closeQueue.error.message : 'The queue could not be closed.'}</p> : null}
           {filteredQueues.length ? filteredQueues.map((queue) => {
             const waiting = numberValue(queue.waiting_count);
@@ -2707,7 +2789,7 @@ function ManagerDashboardContent() {
                 }
               />
             );
-          }) : <EmptyState title="No Live Queues" detail="Open queues will appear once today’s branch services start." />}
+          }) : <EmptyState title="No live queues" detail="Open queues will appear once today’s branch services start." />}
         </Panel>
       ) : null}
 
@@ -2715,7 +2797,7 @@ function ManagerDashboardContent() {
         <>
           <div className="ops-grid two">
             <ChartCard title="Visitors Served" data={chart} mode="area" />
-            <ChartCard title="Served Vs No-Shows" data={chart} />
+            <ChartCard title="Served vs no-shows" data={chart} />
           </div>
           <NotebookAnalytics predictions={predictions} balking={balking} />
         </>
@@ -2917,7 +2999,7 @@ function ExecutiveAlertsButton({ alerts, onJump }: { alerts: ExecutiveAlert[]; o
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, queues, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline, balking } = useDashboardData(selectedServiceId);
+  const { admin, businessId, queues, queuesQuery, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline, balking } = useDashboardData(selectedServiceId);
   const { logout } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('month');
@@ -3117,9 +3199,9 @@ function ExecutiveDashboardContent() {
             <section className="exec-center-column">
               <div className="exec-kpi-row">
                 <ExecutiveKpiTile label="Total Employees" value={formatCount(employeeKpis?.total_employees)} detail={monthLabel(analyticsMonth)} icon={Users} tone="dark" onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="Active Employees" value={formatCount(employeeKpis?.active_employees)} detail="Compared With Last Month" icon={UserCheck} change={signedPercent(employeeKpis?.active_change_pct)} onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="Leave Employees" value={formatCount(employeeKpis?.leave_employees)} detail="Marked On Leave" icon={CalendarClock} onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="New Employees" value={formatCount(employeeKpis?.new_employees)} detail={`${employeePeople.length} Joined This Month`} icon={Sparkles} people={employeePeople} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="Active Employees" value={formatCount(employeeKpis?.active_employees)} detail="Compared with last month" icon={UserCheck} change={signedPercent(employeeKpis?.active_change_pct)} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="Leave Employees" value={formatCount(employeeKpis?.leave_employees)} detail="Marked on leave" icon={CalendarClock} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="New Employees" value={formatCount(employeeKpis?.new_employees)} detail={`${employeePeople.length} Joined this month`} icon={Sparkles} people={employeePeople} onClick={() => setActiveTab('statistics')} />
               </div>
 
               <ExecutiveAnalyticsView data={chart} services={services} branches={branchTrends} />
@@ -3129,7 +3211,7 @@ function ExecutiveDashboardContent() {
               <div className="exec-insight-grid">
                 <ExecutiveInsightCard title="Overview" icon={LayoutDashboard} body={insightSentence(opsInsight, overviewText)} onMore={() => openReports()} />
                 <ExecutiveInsightCard title="Customer Happiness" icon={ShieldCheck} body={happinessText} onMore={() => openReports()} />
-                <ExecutiveInsightCard title="What To Improve" icon={TrendingUp} body={actionText} onMore={() => openReports('action_plan')} />
+                <ExecutiveInsightCard title="What to improve" icon={TrendingUp} body={actionText} onMore={() => openReports('action_plan')} />
               </div>
 
               <div className="exec-bottom-grid">
@@ -3137,7 +3219,7 @@ function ExecutiveDashboardContent() {
                 <ExecutiveTopBranch branch={topBranch} manager={topBranchManager} onOpen={() => setActiveTab('branches')} />
               </div>
 
-              <Panel title="Lines Right Now" eyebrow="Who Is Waiting Across Your Branches">
+              <Panel title="Lines right now" eyebrow="Who is waiting across your branches">
                 {queues.length ? queues.map((queue) => (
                   <DataRow
                     key={queue.id}
@@ -3145,7 +3227,12 @@ function ExecutiveDashboardContent() {
                     detail={`${displayLabel(queue.branch_name || 'Branch')} · ${formatMinutes(queue.avg_wait_minutes)} average wait`}
                     value={`${formatCount(queue.waiting_count)} Waiting`}
                   />
-                )) : <EmptyState title="No Lines Open Right Now" detail="Branch queues appear here as soon as today's services open." />}
+                )) : listFallback(queuesQuery, {
+                  emptyTitle: 'No lines open right now',
+                  emptyDetail: "Branch queues appear here as soon as today's services open.",
+                  errorTitle: 'Live lines could not be loaded',
+                  errorDetail: 'The connection to the server failed — branches may well have queues open.',
+                })}
               </Panel>
             </section>
 
@@ -3160,7 +3247,7 @@ function ExecutiveDashboardContent() {
           <section className="exec-tab-page">
             <PeriodTabs value={period} onChange={setPeriod} />
             <div className="ops-grid two">
-              <ChartCard title="Customers Per Day" data={chart} />
+              <ChartCard title="Customers per day" data={chart} />
               <ChartCard title="Customer Visits" data={chart} mode="area" />
             </div>
             <WorkforcePanel employeeKpis={employeeKpis} />
@@ -3177,7 +3264,7 @@ function ExecutiveDashboardContent() {
         {activeTab === 'managers' ? (
           <section className="exec-tab-page">
             <PeriodTabs value={period} onChange={setPeriod} />
-            <Panel title="Manager Performance Ranking" eyebrow="Balanced Score: Wait, Completion, No-Show, Throughput, Utilization">
+            <Panel title="Manager performance ranking" eyebrow="Balanced score: wait, completion, no-show, throughput, utilization">
               {managerRows.length ? managerRows.map((manager) => (
                 <DataRow
                   key={manager.manager_id}
@@ -3186,10 +3273,15 @@ function ExecutiveDashboardContent() {
                   value={`${manager.manager_score}`}
                   meta={<div className="ops-meter score"><i style={{ width: `${Math.max(4, Math.min(100, manager.manager_score))}%` }} /></div>}
                 />
-              )) : <EmptyState title="No Manager Performance Yet" detail="The score needs completed operational records for each branch." />}
+              )) : listFallback(managerScores, {
+                emptyTitle: 'No manager performance yet',
+                emptyDetail: 'The score needs completed operational records for each branch.',
+                errorTitle: 'Manager scores could not be loaded',
+                errorDetail: 'The connection to the server failed.',
+              })}
             </Panel>
             {managerPerformanceInsight ? (
-              <Panel title="Latest Manager Performance Insight">
+              <Panel title="Latest manager performance insight">
                 <DataRow
                   title={insightDisplayName(managerPerformanceInsight.insight_type)}
                   detail={insightSentence(managerPerformanceInsight, 'Manager scoring is ready for review after the latest update.')}
@@ -3205,7 +3297,7 @@ function ExecutiveDashboardContent() {
             <div className="exec-branches-head">
               <ExecutiveEfficiency summary={summary} services={services} targets={targets} />
             </div>
-            <Panel title="Branch Performance" eyebrow="Efficiency Score · Click A Branch To Drill Down">
+            <Panel title="Branch Performance" eyebrow="Efficiency score · click a branch to drill down">
               <ExecutiveBranchList branches={branches} targets={targets} />
             </Panel>
           </section>
@@ -3220,7 +3312,7 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'reports' ? (
           <section className="exec-tab-page">
-            <Panel title="Your Report" eyebrow="Exactly What The Export Will Contain">
+            <Panel title="Your Report" eyebrow="Exactly what the export will contain">
               <div className="ops-report-actions">
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
                 <button className="ops-primary dark" onClick={() => downloadWordReport(reportDoc, 'lyne-operations-report.doc')}><Download size={16} /> Export As Word</button>
@@ -3231,7 +3323,7 @@ function ExecutiveDashboardContent() {
               <TargetsPanel targets={targets} businessId={businessId} editable />
               <TargetProgress targets={targets} summary={summary} />
             </div>
-            <Panel title="What To Improve" eyebrow={reportFocus === 'action_plan' ? 'Selected From Dashboard' : `Working Toward Your ${targets.horizon_months}-Month Targets`} className="exec-action-plan-panel">
+            <Panel title="What to improve" eyebrow={reportFocus === 'action_plan' ? 'Selected from dashboard' : `Working toward your ${targets.horizon_months}-month targets`} className="exec-action-plan-panel">
               <div className="exec-action-plan-grid">
                 <section>
                   <h3>What To Improve</h3>
@@ -3258,7 +3350,7 @@ function ExecutiveDashboardContent() {
           <section className="exec-tab-page">
             <div className="ops-grid two">
               <TargetsPanel targets={targets} businessId={businessId} editable />
-              <Panel title="Your Numbers" eyebrow="When The Dashboard Was Last Recalculated">
+              <Panel title="Your Numbers" eyebrow="When the dashboard was last recalculated">
                 <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={pipeline?.last_run?.status || 'Empty'} />
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
               </Panel>
@@ -3268,10 +3360,10 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'support' ? (
           <section className="exec-tab-page">
-            <Panel title="Help & Support" eyebrow="We Reply Monday To Friday, 9 AM – 5 PM">
+            <Panel title="Help & Support" eyebrow="We reply Monday to Friday, 9 AM – 5 PM">
               <DataRow title="Email Us" detail="support@uselyne.com" value="Fastest" />
               <DataRow title="Call Us" detail="+1 (876) 000-0000" value="Mon–Fri" />
-              <DataRow title="Onboarding Help" detail="Setting Up Branches, Services, Counters, And Staff" value="Ask Us" />
+              <DataRow title="Onboarding Help" detail="Setting up branches, services, counters, and staff" value="Ask Us" />
             </Panel>
           </section>
         ) : null}
