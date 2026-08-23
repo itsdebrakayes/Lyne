@@ -8,6 +8,34 @@
  */
 
 const router = require('express').Router();
+
+/* ── What the public is allowed to see about a business ────────────────────
+   GET /api/businesses and GET /api/businesses/:slug are both unauthenticated —
+   a customer browsing the app has no account yet — and both returned
+   `SELECT b.*` joined to the tier row. That handed anyone who curled the
+   endpoint 21 fields per tenant, including subscription_tier_id, tier_name,
+   tier_label and the four can_view_* entitlement flags.
+
+   Two problems with that. It publishes which plan each customer pays for,
+   which is commercially sensitive to them and to us. And the entitlement flags
+   tell an attacker exactly which features are worth trying to unlock.
+
+   Nothing in any client read them: the mobile home screen uses id, name, sector
+   and slug. So this is a whitelist, and it stays a whitelist — a new column on
+   `businesses` should not become public by default just because it exists. */
+const PUBLIC_BUSINESS_FIELDS = [
+  'id', 'slug', 'name', 'description', 'logo_url', 'website_url',
+  'phone', 'email', 'sector', 'terms',
+];
+
+function toPublicBusiness(row) {
+  const out = {};
+  for (const key of PUBLIC_BUSINESS_FIELDS) {
+    if (row[key] !== undefined) out[key] = row[key];
+  }
+  return out;
+}
+
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -29,7 +57,7 @@ router.get('/', async (_req, res) => {
        WHERE b.is_active = TRUE
        ORDER BY b.name`
     );
-    res.json(rows.map(withTerms));
+    res.json(rows.map(withTerms).map(toPublicBusiness));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch businesses.' });
@@ -51,7 +79,7 @@ router.get('/:slug', async (req, res) => {
       [req.params.slug]
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
-    res.json(withTerms(rows[0]));
+    res.json(toPublicBusiness(withTerms(rows[0])));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch business.' });
@@ -109,3 +137,5 @@ router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'),
 });
 
 module.exports = router;
+module.exports.toPublicBusiness = toPublicBusiness;
+module.exports.PUBLIC_BUSINESS_FIELDS = PUBLIC_BUSINESS_FIELDS;
