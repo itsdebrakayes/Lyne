@@ -95,6 +95,44 @@ function mapEvent(stripeType) {
   }
 }
 
+
+/**
+ * STATUS = FULL EVENT TIMELINE.
+ *
+ * The stored `payment_intents.status` column is a cache. This is the answer.
+ *
+ * Deriving matters for the two failures that are otherwise indistinguishable
+ * from success: a charge that went through while our response was lost, and a
+ * charge that later failed or was refunded after we had already written
+ * "captured". The ledger is append-only and every row carries when Stripe says
+ * it happened, so the highest-ranked event that actually arrived is the truth
+ * regardless of what order the webhooks did.
+ *
+ * Rank rather than recency on purpose: Stripe does not guarantee delivery
+ * order, and a late-arriving `payment_authorized` must never demote a capture.
+ * Refunded outranks captured because it genuinely is the later state of the
+ * world, and a refund is the one thing that should override a success.
+ */
+const EVENT_TO_STATUS = {
+  payment_initialized: 'initialized',
+  payment_processing:  'authorized',
+  payment_authorized:  'authorized',
+  payment_captured:    'captured',
+  payment_failed:      'failed',
+  payment_canceled:    'canceled',
+  payment_refunded:    'refunded',
+};
+
+function deriveStatus(events = []) {
+  let best = null;
+  for (const row of events) {
+    const status = EVENT_TO_STATUS[row.event_type];
+    if (!status) continue;
+    if (best === null || (STATUS_RANK[status] ?? 0) > (STATUS_RANK[best] ?? 0)) best = status;
+  }
+  return best;
+}
+
 async function getOrCreateCustomer(stripe, dbUser) {
   const [rows] = await pool.query('SELECT stripe_customer_id, email, full_name FROM users WHERE id = ?', [dbUser.id]);
   const u = rows[0] || {};
@@ -434,12 +472,79 @@ router.get('/intents/:id', requireAuth, async (req, res) => {
     const [rows] = await pool.query('SELECT id, status, amount_cents, currency, purpose, created_at FROM payment_intents WHERE id = ? AND user_id = ?', [req.params.id, req.dbUser.id]);
     if (!rows.length) return res.status(404).json({ error: 'Payment not found.' });
     const [events] = await pool.query('SELECT event_type, amount_cents, occurred_at, recorded_at FROM payment_events WHERE payment_intent_id = ? ORDER BY recorded_at ASC', [req.params.id]);
-    res.json({ ...rows[0], timeline: events });
+
+    /* The ledger is authoritative; the column is a cache. When they disagree
+       the cache lost a webhook, and saying so is more useful than quietly
+       serving either one — that disagreement IS the reconciliation signal. */
+    const derived = deriveStatus(events);
+    res.json({
+      ...rows[0],
+      status: derived || rows[0].status,
+      stored_status: rows[0].status,
+      status_source: derived ? 'timeline' : 'stored',
+      needs_reconciliation: Boolean(derived && derived !== rows[0].status),
+      timeline: events,
+    });
   } catch (err) { console.error('intents/:id:', err); res.status(500).json({ error: 'Could not load payment.' }); }
 });
 
 // ── POST /api/payments/webhook — Stripe's source of truth ─────
 // Mounted in index.js with express.raw so the signature can be verified.
+
+
+/**
+ * A renewal is a payment, so it belongs in the payment ledger.
+ *
+ * The subscription handler wrote nothing here at first: it moved
+ * users.premium_until and left no trace. That is exactly the gap the ledger
+ * exists to close — "somebody paid and it did not register" is unanswerable
+ * without a row saying money moved.
+ *
+ * Every Stripe invoice carries a PaymentIntent, so a renewal charge already IS
+ * one; it does not need a parallel table. This finds or creates the
+ * payment_intents row for an invoice, so the ledger event has something to hang
+ * on and a subscriber's history reads as one timeline rather than two systems.
+ */
+async function intentRowForInvoice(invoice, userId) {
+  const piId = typeof invoice.payment_intent === 'string'
+    ? invoice.payment_intent
+    : invoice.payment_intent?.id;
+  if (!piId) return null;
+
+  const [existing] = await pool.query(
+    'SELECT id FROM payment_intents WHERE stripe_payment_intent_id = ? LIMIT 1', [piId]
+  );
+  if (existing.length) return existing[0].id;
+
+  const id = uuidv4();
+  await pool.query(
+    `INSERT INTO payment_intents
+       (id, user_id, idempotency_key, stripe_payment_intent_id, purpose, amount_cents, currency, status)
+     VALUES (?, ?, ?, ?, 'premium_subscription', ?, ?, 'initialized')`,
+    [id, userId, `invoice_${invoice.id}`, piId,
+     invoice.amount_paid ?? invoice.amount_due ?? 0,
+     (invoice.currency || CURRENCY).toLowerCase()]
+  );
+  return id;
+}
+
+/** Append to the ledger. uk_stripe_event makes a redelivered webhook a no-op. */
+async function recordLedgerEvent(intentId, eventType, stripeEventId, amountCents, payload, occurredAt) {
+  if (!intentId) return;
+  try {
+    await pool.query(
+      `INSERT INTO payment_events
+         (id, payment_intent_id, stripe_event_id, event_type, amount_cents, payload, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [uuidv4(), intentId, stripeEventId || null, eventType, amountCents ?? null,
+       JSON.stringify(payload || {}), occurredAt || new Date()]
+    );
+  } catch (err) {
+    // Duplicate stripe_event_id: Stripe redelivered. The ledger already holds
+    // it, which is the point of the unique key.
+    if (err?.code !== 'ER_DUP_ENTRY') throw err;
+  }
+}
 
 /**
  * Subscription lifecycle, handled before the PaymentIntent path below.
@@ -498,7 +603,18 @@ async function handleSubscriptionEvent(event) {
     const [rows] = await pool.query(
       'SELECT id FROM users WHERE stripe_subscription_id = ? LIMIT 1', [subId]
     );
-    if (rows[0]) await applySubscriptionState(pool, rows[0].id, subscription);
+    if (rows[0]) {
+      await applySubscriptionState(pool, rows[0].id, subscription);
+      const intentId = await intentRowForInvoice(obj, rows[0].id);
+      await recordLedgerEvent(
+        intentId, 'payment_captured', event.id,
+        obj.amount_paid ?? obj.amount_due, { invoice: obj.id, subscription: subId },
+        fromUnix(event.created)
+      );
+      if (intentId) {
+        await pool.query('UPDATE payment_intents SET status = ? WHERE id = ?', ['captured', intentId]);
+      }
+    }
     return true;
   }
 
@@ -523,6 +639,11 @@ async function handleSubscriptionEvent(event) {
       'SELECT id FROM users WHERE stripe_subscription_id = ? LIMIT 1', [subId]
     );
     if (rows[0]) {
+      const intentId = await intentRowForInvoice(obj, rows[0].id);
+      await recordLedgerEvent(
+        intentId, 'payment_failed', event.id,
+        obj.amount_due, { invoice: obj.id, subscription: subId }, fromUnix(event.created)
+      );
       await pool.query(
         `INSERT INTO notifications (id, user_id, notification_type, channel, message)
          VALUES (?, ?, 'general', 'push', ?)`,
@@ -611,4 +732,4 @@ async function webhookHandler(req, res) {
   }
 }
 
-module.exports = { router, webhookHandler, mapEvent, advancesStatus, STATUS_RANK, priceFor, PURPOSE_PRICES };
+module.exports = { router, webhookHandler, mapEvent, advancesStatus, STATUS_RANK, priceFor, PURPOSE_PRICES, deriveStatus, EVENT_TO_STATUS };

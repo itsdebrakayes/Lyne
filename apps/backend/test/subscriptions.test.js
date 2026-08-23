@@ -110,3 +110,62 @@ test('somebody who never subscribed is not described as a subscriber', () => {
   assert.equal(out.plan, null);
   assert.equal(out.amount_cents, null);
 });
+
+/* ── STATUS = FULL EVENT TIMELINE ─────────────────────────────────────────
+   From the payment architecture: payment_events is an immutable ledger and
+   status is derived from it, not stored beside it. These cover the two
+   failures that are otherwise indistinguishable from success — a charge that
+   went through while our response was lost, and a charge that failed or was
+   refunded after we had already recorded a capture. */
+
+const { deriveStatus } = require('../src/routes/payments');
+
+const ev = (event_type, recorded_at) => ({ event_type, recorded_at });
+
+test('an empty ledger derives nothing rather than guessing', () => {
+  assert.equal(deriveStatus([]), null);
+  assert.equal(deriveStatus(undefined), null);
+});
+
+test('the timeline resolves to its highest state, not its latest row', () => {
+  assert.equal(deriveStatus([
+    ev('payment_initialized', 1), ev('payment_authorized', 2), ev('payment_captured', 3),
+  ]), 'captured');
+});
+
+test('a late authorization cannot demote a capture', () => {
+  /* Stripe does not guarantee webhook ordering. Ranking rather than taking the
+     last row is what stops an out-of-order delivery reopening a settled
+     payment. */
+  assert.equal(deriveStatus([
+    ev('payment_captured', 1), ev('payment_authorized', 2),
+  ]), 'captured');
+});
+
+test('a refund overrides a capture, whenever it arrives', () => {
+  assert.equal(deriveStatus([
+    ev('payment_captured', 1), ev('payment_refunded', 2),
+  ]), 'refunded');
+  assert.equal(deriveStatus([
+    ev('payment_refunded', 1), ev('payment_captured', 2),
+  ]), 'refunded');
+});
+
+test('a payment nobody captured does not read as captured', () => {
+  // "their card bounced but it says registered" — the ledger has no capture.
+  assert.equal(deriveStatus([
+    ev('payment_initialized', 1), ev('payment_failed', 2),
+  ]), 'failed');
+});
+
+test('a capture recorded only in the ledger still resolves', () => {
+  /* "somebody paid and it did not register": the in-band response was lost so
+     the cached column never moved, but the webhook landed. The timeline knows. */
+  assert.equal(deriveStatus([ev('payment_captured', 1)]), 'captured');
+});
+
+test('unknown event types are ignored, not treated as a state', () => {
+  assert.equal(deriveStatus([
+    ev('payment_captured', 1), ev('some_future_stripe_event', 2),
+  ]), 'captured');
+});
