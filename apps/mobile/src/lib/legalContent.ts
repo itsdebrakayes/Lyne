@@ -27,7 +27,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
     heading: 'What we collect, and why',
     body: [
       'Account details — your name, email address and phone number. We need these to create your account, sign you in, and tell you about the queue you joined.',
-      'Identification you choose to add — your TRN, national ID or passport details, and any photo of those documents. This is optional. We collect it only so the agency serving you can verify you faster at the counter. It is stored on your device and shared only with the agency you are visiting.',
+      'Identification you choose to add — your TRN or national ID. This is optional, and we do not collect it: it is saved in your phone\u2019s keychain and never sent to us. We cannot see it, it is not in our database, and it does not move to your other devices. You read it off your own screen when a counter asks for it. Photographs of documents are never uploaded or saved anywhere.',
       'Queue activity — which businesses and services you join, your ticket, your position, and whether the visit was completed. This is what the app is for, and the business you visited keeps its own record of the visit.',
       'Location — only if you allow it, and only while the app is open. We use it to estimate when you should leave for your appointment. Denying location does not stop you using the app: you can search for any business by name.',
       'Notifications — if you allow them, we store a device token so we can tell you when your turn is close. Denying notifications does not stop you using the app: every status change is visible in the app itself.',
@@ -41,7 +41,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
       'Supabase — authentication. Stores your sign-in credentials.',
       'Stripe — payments. Handles and stores card details directly; we hold only a token.',
       'Expo push notification service — delivers notifications to your device.',
-      'The business whose queue you join — receives your name and, if you provided it, the identification needed to serve you.',
+      'The business whose queue you join — receives your name and phone number, so they can call you and check you in. They do not receive your TRN or national ID; those never leave your phone.',
       'We do not sell your personal information, and we do not share it for advertising.',
     ],
   },
@@ -62,20 +62,20 @@ export const PRIVACY_POLICY: LegalSection[] = [
     heading: 'Deleting your account',
     body: [
       'You can delete your account from inside the app at any time: Profile, then Privacy & security, then Delete account. You do not need to email us or call us.',
-      'Deleting removes your profile and contact details, your saved businesses and recent searches, your notifications and device tokens, your saved payment methods, your visit history, and your sign-in record.',
+      'Deleting removes your profile and contact details, your saved businesses and recent searches, your notifications and device tokens, your saved payment methods, your visit history, and your sign-in record. Any identification number saved on this device is erased at the same time.',
       'Deletion is immediate and cannot be undone.',
     ],
   },
   {
     heading: 'Withdrawing permission',
     body: [
-      'You can turn off location and notifications at any time in your device settings, and the app will keep working without them. You can remove a saved document or payment method from inside the app. You can withdraw consent entirely by deleting your account.',
+      'You can turn off location and notifications at any time in your device settings, and the app will keep working without them. You can remove a saved payment method from inside the app, and a saved identification number from the screen where you added it. Signing out erases every identification number held on that device. You can withdraw consent entirely by deleting your account.',
     ],
   },
   {
     heading: 'Security',
     body: [
-      'Your sign-in tokens are stored in the device keychain, not in ordinary app storage. All traffic between the app and our servers is encrypted. Sensitive documents can be locked behind Face ID.',
+      'Your sign-in tokens and any identification number you save are stored in the device keychain, not in ordinary app storage. All traffic between the app and our servers is encrypted. The app can be locked behind Face ID, and an individual identification number can be locked separately.',
       `To report a security problem, write to ${PRIVACY_CONTACT} and we will respond.`,
     ],
   },

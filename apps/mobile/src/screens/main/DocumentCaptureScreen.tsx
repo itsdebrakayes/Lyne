@@ -30,11 +30,10 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDocument, setDocument, isProtected, setProtected } from '../../lib/documentVault';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, inputReset } from '../../lib/theme';
 import api from '../../lib/apiClient';
-import { useAuth } from '../../hooks/useAuth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Field = 'national_id' | 'trn';
@@ -75,27 +74,33 @@ const DOC_CONFIG: Record<Field, DocConfig> = {
   },
 };
 
-const protectKey = (field: Field) => `qme.doc-protected.${field}`;
 
 export default function DocumentCaptureScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RootStackParamList, 'DocumentCapture'>>();
-  const { user, refreshProfile } = useAuth();
   const { width } = useWindowDimensions();
   const cfg = DOC_CONFIG[(route.params?.field as Field) || 'national_id'];
-  const existing = (cfg.field === 'trn' ? user?.trn : user?.national_id) || '';
+  // The number lives in the device keychain, not on the user record.
 
   const [mode, setMode] = useState<'intro' | 'camera' | 'review'>('intro');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [value, setValue] = useState(existing);
+  const [value, setValue] = useState('');
   const [protect, setProtect] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [permission, requestPermission] = useCameraPermissions();
   const camRef = useRef<CameraView>(null);
 
-  // Load the saved "protected" preference for this doc.
-  useEffect(() => { AsyncStorage.getItem(protectKey(cfg.field)).then(v => setProtect(v === '1')); }, [cfg.field]);
+  // Load whatever this device already holds, and its Face ID preference.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getDocument(cfg.field), isProtected(cfg.field)]).then(([stored, locked]) => {
+      if (cancelled) return;
+      if (stored) setValue(stored);
+      setProtect(locked);
+    });
+    return () => { cancelled = true; };
+  }, [cfg.field]);
 
   // Frame dimensions — credit-card ratio for cards, portrait for pages.
   const frameW = Math.round(width * (cfg.kind === 'card' ? 0.84 : 0.72));
@@ -137,9 +142,11 @@ export default function DocumentCaptureScreen() {
     if (!value.trim()) { setError(`Enter or confirm your ${cfg.valueLabel.toLowerCase()} to save.`); return; }
     setBusy(true); setError('');
     try {
-      await api.patch('/auth/profile', { [cfg.field]: value.trim() });
-      await AsyncStorage.setItem(protectKey(cfg.field), protect ? '1' : '0');
-      await refreshProfile();
+      // Deliberately not sent to the server. See lib/documentVault.ts: the
+      // privacy policy promises this stays on the device, and nothing on the
+      // server ever read it back, so keeping a copy there protected nobody.
+      await setDocument(cfg.field, value.trim());
+      await setProtected(cfg.field, protect);
       navigation.goBack();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save. Try again.');
@@ -290,8 +297,7 @@ export default function DocumentCaptureScreen() {
  * Returns true if allowed (unprotected, or auth succeeded).
  */
 export async function unlockDocument(field: Field): Promise<boolean> {
-  const flag = await AsyncStorage.getItem(protectKey(field));
-  if (flag !== '1') return true;
+  if (!(await isProtected(field))) return true;
   const hasHw = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
   if (!hasHw || !enrolled) return true; // no biometrics available — don't lock the user out

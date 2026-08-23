@@ -70,7 +70,10 @@ async function getStaffProfile(staffId) {
 // Idempotent: safe to call multiple times.
 router.post('/sync-user', requireAuth, async (req, res) => {
   try {
-    const { full_name, phone, national_id, trn, date_of_birth } = req.body;
+    // national_id and trn are not read from the body: see PATCH /profile below.
+    // This is the path signup takes, and it was the one that put a TRN on the
+    // server the moment an account was created.
+    const { full_name, phone, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
 
     // Already synced?
@@ -81,12 +84,10 @@ router.post('/sync-user', requireAuth, async (req, res) => {
           `UPDATE users SET
              full_name    = COALESCE(?, full_name),
              phone        = COALESCE(?, phone),
-             national_id  = COALESCE(?, national_id),
-             trn          = COALESCE(?, trn),
              date_of_birth = COALESCE(?, date_of_birth),
              updated_at   = NOW()
            WHERE id = ?`,
-          [full_name, phone, national_id, trn, date_of_birth, req.dbUser.id]
+          [full_name, phone, date_of_birth, req.dbUser.id]
         );
       }
       const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
@@ -104,9 +105,9 @@ router.post('/sync-user', requireAuth, async (req, res) => {
     const name  = full_name || supabaseUser.user_metadata?.full_name || email.split('@')[0];
 
     await pool.query(
-      `INSERT INTO users (id, supabase_uid, email, full_name, phone, national_id, trn, date_of_birth)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, supabaseUser.id, email, name, phone || null, national_id || null, trn || null, date_of_birth || null]
+      `INSERT INTO users (id, supabase_uid, email, full_name, phone, date_of_birth)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, supabaseUser.id, email, name, phone || null, date_of_birth || null]
     );
 
     const [newUser] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
@@ -142,20 +143,26 @@ router.patch('/profile', requireAuth, async (req, res) => {
   try {
     // Only columns that exist on the users table — the previous version
     // referenced address/employer/occupation and 500'd on every save.
-    const { full_name, phone, date_of_birth, national_id, trn } = req.body;
+    //
+    // national_id and trn are deliberately not accepted here. The privacy
+    // policy tells customers those numbers stay on their device, and they now
+    // do: the app keeps them in the device keychain (lib/documentVault.ts).
+    // Nothing on this server ever read them back — no staff endpoint returns
+    // either field — so the only thing storing them achieved was holding
+    // government ID numbers we had promised not to hold. Ignored rather than
+    // rejected, so an older build that still sends them keeps working; it just
+    // no longer succeeds in leaving a copy here.
+    const { full_name, phone, date_of_birth } = req.body;
 
     await pool.query(
       `UPDATE users SET
          full_name     = COALESCE(?, full_name),
          phone         = COALESCE(?, phone),
          date_of_birth = COALESCE(?, date_of_birth),
-         national_id   = COALESCE(?, national_id),
-         trn           = COALESCE(?, trn),
          updated_at    = NOW()
        WHERE id = ?`,
       [
         full_name || null, phone || null, date_of_birth || null,
-        national_id || null, trn || null,
         req.dbUser.id,
       ]
     );

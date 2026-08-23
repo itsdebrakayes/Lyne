@@ -51,9 +51,16 @@ Declared in `app.json` under `ios.privacyManifests`:
   - `FileTimestamp` — reason `C617.1`. Document capture reads and writes ID/TRN
     images inside the app container.
 - **Collected data types:** name, email, phone, user ID, coarse location,
-  device ID (push token), payment info, other (TRN / national ID), product
-  interaction (queue activity) — all linked, none used for tracking, all for
-  app functionality. Crash data is collected unlinked.
+  device ID (push token), payment info, product interaction (queue activity) —
+  all linked, none used for tracking, all for app functionality. Crash data is
+  collected unlinked.
+- **Not collected:** TRN and national ID. These are held in the device keychain
+  by `apps/mobile/src/lib/documentVault.ts` and never transmitted, so under
+  Apple's definition — data sent off the device — they are not collected. The
+  `OtherDataTypes` declaration that previously covered them has been removed;
+  the server no longer accepts either field on any route. If a future version
+  transmits an identification number, `OtherDataTypes` goes back in on the same
+  day, along with the matching App Privacy answer.
 
 ## Keeping it true
 

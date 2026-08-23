@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
+import { getDocument, type DocumentField } from '../../lib/documentVault';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
 import Constants from 'expo-constants';
@@ -71,9 +72,20 @@ export default function ProfileScreen() {
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
+  // TRN and national ID are held in the device keychain, never on the user
+  // record, so whether one is "on file" is a question for this device only.
+  const [deviceDocs, setDeviceDocs] = useState<Partial<Record<DocumentField, string>>>({});
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    Promise.all([getDocument('trn'), getDocument('national_id')]).then(([trn, nationalId]) => {
+      if (!cancelled) setDeviceDocs({ trn: trn || undefined, national_id: nationalId || undefined });
+    });
+    return () => { cancelled = true; };
+  }, []));
+
   const docs: Array<{ key: string; docKey: DocKey; value?: string; tint: { fg: string; bg: string }; icon: keyof typeof Ionicons.glyphMap; ok: string; missing: string }> = [
-    { key: 'TRN', docKey: 'trn', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On file', missing: 'Add TRN' },
-    { key: 'National ID', docKey: 'national_id', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On file', missing: 'Add ID' },
+    { key: 'TRN', docKey: 'trn', value: deviceDocs.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On this device', missing: 'Add TRN' },
+    { key: 'National ID', docKey: 'national_id', value: deviceDocs.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On this device', missing: 'Add ID' },
     { key: 'Phone', docKey: 'phone', value: user?.phone, tint: categoryTints.orange, icon: 'call-outline', ok: 'On file', missing: 'Add phone' },
   ];
 

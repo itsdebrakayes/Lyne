@@ -133,3 +133,33 @@ test('an unauthenticated caller cannot approve a request', async () => {
   assert.equal(result.status, 401);
   assert.equal(db.staff_invites[0].status, 'requested');
 });
+
+// ── Identification numbers stay off this server ───────────────
+// The privacy policy tells customers their TRN and national ID never leave
+// their phone. That is now true, and these tests are what keeps it true: the
+// two routes that used to write those columns must ignore them, so a client
+// that still sends them — an older build, or a future mistake — cannot leave
+// a government ID number in our database.
+
+test('the profile route will not store a TRN or national ID', async () => {
+  const result = await callAs('user-1', '/api/auth/profile', {
+    method: 'PATCH',
+    body: { full_name: 'Updated Name', trn: '123456789', national_id: 'NID-99999' },
+  });
+  assert.equal(result.status, 200, `profile update failed: ${JSON.stringify(result.body)}`);
+  assert.equal(db.users[0].full_name, 'Updated Name', 'the fields it does accept must still work');
+  assert.equal(db.users[0].trn, undefined, 'a TRN sent to this route must not be written');
+  assert.equal(db.users[0].national_id, undefined, 'a national ID sent to this route must not be written');
+});
+
+test('sync-user will not store a TRN or national ID either', async () => {
+  // This is the path signup takes — the one that put a TRN on the server the
+  // moment an account was created.
+  const result = await callAs('user-1', '/api/auth/sync-user', {
+    method: 'POST',
+    body: { full_name: 'Synced Name', phone: '8761234567', trn: '123456789', national_id: 'NID-99999' },
+  });
+  assert.equal(result.status, 200, `sync failed: ${JSON.stringify(result.body)}`);
+  assert.equal(db.users[0].trn, undefined);
+  assert.equal(db.users[0].national_id, undefined);
+});

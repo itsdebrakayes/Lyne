@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import api, { supabase } from '../lib/apiClient';
+import { clearAllDocuments } from '../lib/documentVault';
 
 export interface UserProfile {
   id: string;
@@ -125,6 +126,10 @@ export const useAuth = () => {
 
   const signOut = async () => {
     syncedUid.current = null;
+    // TRN and national ID exist only in this device's keychain — the server
+    // holds no copy. If they are not cleared here they are not cleared
+    // anywhere, and the next person to sign in on this phone inherits them.
+    await clearAllDocuments();
     await supabase.auth.signOut();
     setUser(null);
   };

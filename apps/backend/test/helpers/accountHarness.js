@@ -47,6 +47,28 @@ function reset() {
   return db;
 }
 
+/**
+ * Split a comma-separated SQL fragment at the top level only.
+ *
+ * Splitting on every comma tore `COALESCE(?, phone)` in half and produced a
+ * column named `phone)`, which threw the parameter alignment out. The harness
+ * then wrote nothing where the test was looking, so a route that stored a TRN
+ * again still passed. Every matcher here is a place to be wrong; this one was.
+ */
+function splitTopLevel(fragment) {
+  const parts = [];
+  let depth = 0;
+  let current = '';
+  for (const char of fragment) {
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    if (char === ',' && depth === 0) { parts.push(current.trim()); current = ''; continue; }
+    current += char;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
 function fakeQuery(sql, params = []) {
   const q = squash(sql);
 
@@ -69,6 +91,13 @@ function fakeQuery(sql, params = []) {
       && ['waiting', 'called', 'in_service'].includes(row.status)).length;
     return [[{ active }]];
   }
+  if (q.startsWith('INSERT INTO users')) {
+    const columns = splitTopLevel(q.slice(q.indexOf('(') + 1, q.indexOf(')')));
+    const row = {};
+    columns.forEach((column, index) => { row[column] = params[index]; });
+    db.users.push(row);
+    return [{ affectedRows: 1 }];
+  }
   if (q.startsWith('SELECT trial_started_at FROM users WHERE id')) {
     const user = db.users.find((row) => row.id === params[0]);
     return [user ? [{ trial_started_at: user.trial_started_at }] : []];
@@ -86,6 +115,30 @@ function fakeQuery(sql, params = []) {
     user.is_premium = 1;
     user.trial_started_at = new Date();
     user.premium_until = params[0];
+    return [{ affectedRows: 1 }];
+  }
+  // Generic last: the trial UPDATE above names columns this cannot represent
+  // (is_premium = TRUE and NOW() carry no placeholder), so a generic matcher
+  // placed first would swallow it and silently start no trial at all.
+  if (q.startsWith('UPDATE users SET')) {
+    // Apply exactly the columns the statement names, so a route that stops
+    // writing a column really stops writing it here too. Parameters are
+    // consumed in statement order, and only assignments that actually carry a
+    // placeholder consume one — NOW() does not.
+    const setClause = q.slice(q.indexOf(' SET ') + 5, q.lastIndexOf(' WHERE '));
+    const user = db.users.find((row) => row.id === params[params.length - 1]);
+    if (!user) return [{ affectedRows: 0 }];
+    let cursor = 0;
+    for (const assignment of splitTopLevel(setClause)) {
+      const column = assignment.split('=')[0].trim();
+      const value = assignment.slice(assignment.indexOf('=') + 1);
+      const placeholders = (value.match(/\?/g) || []).length;
+      if (!placeholders) continue;
+      const incoming = params[cursor];
+      cursor += placeholders;
+      // COALESCE(?, col) leaves the column alone when the parameter is null.
+      if (incoming !== null && incoming !== undefined) user[column] = incoming;
+    }
     return [{ affectedRows: 1 }];
   }
   if (q.startsWith('SELECT * FROM users WHERE id')) {
