@@ -18,7 +18,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { toPublicBusiness, PUBLIC_BUSINESS_FIELDS } = require('../src/routes/businesses');
+const {
+  toPublicBusiness, PUBLIC_BUSINESS_FIELDS,
+  toPublicStaff, PUBLIC_STAFF_FIELDS, NEVER_EXPOSE,
+} = require('../src/utils/publicShapes');
 
 // The full row shape the query produces today, commercial fields included.
 const dbRow = () => ({
@@ -87,5 +90,61 @@ test('an unknown column is excluded by default, not included', () => {
 test('the whitelist itself carries no commercial field', () => {
   for (const field of COMMERCIAL) {
     assert.ok(!PUBLIC_BUSINESS_FIELDS.includes(field), `${field} must not be whitelisted`);
+  }
+});
+
+/* ── Staff ────────────────────────────────────────────────────────────────
+   `SELECT s.*` on GET /api/staff and GET /api/staff/:id returned
+   password_hash and supabase_uid to every manager and executive listing their
+   own team. No hash is populated today — Supabase Auth owns passwords — but
+   the column exists and would ship the moment local auth is used.
+
+   supabase_uid is the live one: it is the identity binding, and writing a uid
+   onto a staff row was half of the privilege escalation closed earlier today.
+   Publishing the other half is not a mistake worth keeping. */
+
+const staffRow = () => ({
+  id: 'staff-1', business_id: 'biz-taj-001', branch_id: 'br-taj-kgn',
+  role_id: 'role-mgr-001', staff_code: 'TAJ-0001', full_name: 'A Manager',
+  email: 'manager@taj.gov.jm', phone: '8765550100',
+  assigned_service_id: null, availability_status: 'active', is_active: 1,
+  invited_by_staff_id: null, created_at: 'x', updated_at: 'y',
+  role_name: 'manager', role_label: 'Manager', branch_name: 'Kingston',
+  assigned_service_name: null,
+  // must never leave the server
+  password_hash: '$2a$10$abcdefghijklmnopqrstuv',
+  supabase_uid: '81b22fdc-929e-4307-8175-b0ecbd49434c',
+  date_of_birth: '1990-01-01',
+  address: '1 Hope Road',
+});
+
+test('a staff row never carries a password hash', () => {
+  assert.ok(!('password_hash' in toPublicStaff(staffRow())));
+});
+
+test('a staff row never carries the Supabase identity', () => {
+  assert.ok(!('supabase_uid' in toPublicStaff(staffRow())),
+    'the uid is the binding a role escalation needs');
+});
+
+test('a colleague does not receive personal details', () => {
+  const out = toPublicStaff(staffRow());
+  for (const field of ['date_of_birth', 'address']) {
+    assert.ok(!(field in out), `${field} is not needed to render a rota`);
+  }
+});
+
+test('what the admin app renders off a staff row still arrives', () => {
+  const out = toPublicStaff(staffRow());
+  // Confirmed against apps/admin-desktop: these four are read by name.
+  for (const field of ['role_name', 'branch_name', 'staff_code', 'full_name']) {
+    assert.ok(field in out, `the admin app reads ${field}`);
+  }
+});
+
+test('neither whitelist contains anything on the never-expose list', () => {
+  for (const banned of NEVER_EXPOSE) {
+    assert.ok(!PUBLIC_STAFF_FIELDS.includes(banned), `staff whitelist must not carry ${banned}`);
+    assert.ok(!PUBLIC_BUSINESS_FIELDS.includes(banned), `business whitelist must not carry ${banned}`);
   }
 });

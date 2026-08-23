@@ -22,6 +22,7 @@ const {
   assertBusinessAccess,
   assertBranchAccess,
 } = require('../middleware/tenantAccess');
+const { toPublicStaff } = require('../utils/publicShapes');
 
 const STAFF_AVAILABILITY_STATUSES = new Set(['active', 'on_leave', 'inactive']);
 
@@ -98,7 +99,7 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBu
        ORDER BY r.name, s.full_name`,
       params
     );
-    res.json(rows);
+    res.json(rows.map(toPublicStaff));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch staff.' });
@@ -207,7 +208,7 @@ router.get('/:id', requireAuth, requireStaffRole('manager', 'executive'), async 
     if (!assertBusinessAccess(req, rows[0].business_id) || !assertBranchAccess(req, rows[0].branch_id)) {
       return res.status(403).json({ error: 'You do not have access to this staff member.' });
     }
-    res.json(rows[0]);
+    res.json(toPublicStaff(rows[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch staff member.' });
