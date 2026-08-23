@@ -21,6 +21,7 @@
  */
 import { Alert, Linking } from 'react-native';
 import Constants from 'expo-constants';
+import api from './apiClient';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
 
@@ -78,8 +79,24 @@ export function openSubscriptionPortal(intent: PortalIntent = 'upgrade'): Promis
       {
         text: copy.confirm,
         onPress: async () => {
+          let url = PORTAL_URL;
           try {
-            await Linking.openURL(PORTAL_URL);
+            /* The handoff proves the visitor came from the app, which is what
+               stops /account behaving like a page that exists. It goes in the
+               FRAGMENT: fragments are never sent to a server, so the token
+               stays out of access logs and out of the Referer header.
+
+               If minting fails the browser still opens — the portal will show
+               its 404, which is the correct outcome and a far better one than
+               leaving somebody stuck on a dead button with no explanation. */
+            const { token } = await api.post<{ token: string }>('/auth/portal-token', {});
+            if (token) url = `${PORTAL_URL}#t=${encodeURIComponent(token)}`;
+          } catch {
+            // fall through with the bare URL
+          }
+
+          try {
+            await Linking.openURL(url);
             resolve(true);
           } catch {
             Alert.alert(
