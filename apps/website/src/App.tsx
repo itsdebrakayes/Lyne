@@ -13,6 +13,7 @@ import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
+import Account from './pages/Account';
 
 function App() {
   return (
@@ -27,6 +28,10 @@ function App() {
             <Route path="/join-us" element={<JoinUs />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            {/* Deliberately absent from the nav, the footer and the sitemap.
+                Typing the URL renders <NotFound /> unless the visitor arrived
+                from the app with a valid handoff — see pages/Account.tsx. */}
+            <Route path="/account" element={<Account />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
