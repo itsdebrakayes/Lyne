@@ -21,7 +21,6 @@ import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
-import { getPremiumPreview } from '../../lib/premiumPreview';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -59,9 +58,11 @@ export default function PlanVisitScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const [preview, setPreview] = useState(false);
-  useFocusEffect(useCallback(() => { getPremiumPreview().then(setPreview); }, []));
-  const premium = Boolean(Number(user?.is_premium || 0)) || preview;
+  /* Entitlement comes from the server record and nothing else. This used to be
+     `|| preview`, where `preview` was a device-local toggle anybody could flip
+     in Settings — it unlocked the paid planner for free, and an App Store
+     reviewer would have found it in the first minute. */
+  const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);

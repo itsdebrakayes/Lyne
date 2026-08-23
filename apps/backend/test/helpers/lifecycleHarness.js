@@ -150,6 +150,35 @@ function fakeQuery(sql, params = []) {
   // Writes first: an INSERT ... SELECT carries a FROM/JOIN tail that the read
   // matchers below would otherwise claim, and the row would never be stored.
   // ── writes ──────────────────────────────────────────────────
+  /* Re-estimation, this branch's shape. PR #3 rewrote every remaining wait with
+     a ranked JOIN; this branch issues `SET estimated_wait_minutes = CASE id
+     WHEN ? THEN ? ... END WHERE id IN (...)`, so the ranked matcher never
+     claimed it and the waits were left untouched — the two re-estimate tests
+     failed against code that does the work correctly, just differently.
+     Params are [id, wait, id, wait, ..., id, id, ...]: the CASE pairs first,
+     then the IN list. */
+  /* The remaining waiters, read before the CASE update above rewrites them.
+     Without this the SELECT returned [], `waiting.length` was 0, and the
+     handler skipped re-estimation entirely — so the UPDATE matcher below was
+     never even reached. The two tests were failing one step earlier than they
+     appeared to. */
+  if (q.startsWith('SELECT id, position FROM queue_tickets') && q.includes("status = 'waiting'")) {
+    const rows = db.tickets
+      .filter((row) => row.queue_id === params[0] && row.status === 'waiting')
+      .sort((a, b) => a.position - b.position)
+      .map((row) => ({ id: row.id, position: row.position }));
+    return [rows];
+  }
+
+  if (q.startsWith('UPDATE queue_tickets SET estimated_wait_minutes = CASE id')) {
+    const pairCount = (q.match(/WHEN \? THEN \?/g) || []).length;
+    for (let i = 0; i < pairCount; i++) {
+      const row = ticketById(params[i * 2]);
+      if (row) row.estimated_wait_minutes = params[i * 2 + 1];
+    }
+    return [{ affectedRows: pairCount }];
+  }
+
   if (q.startsWith('UPDATE queue_tickets SET status')) return [applyTicketUpdate(q, params)];
   if (q.startsWith('UPDATE queue_tickets t JOIN')) {
     // Wait-time recalculation across the remaining waiting tickets.
@@ -219,9 +248,20 @@ function fakeQuery(sql, params = []) {
     const positions = db.tickets.filter((row) => row.queue_id === params[0]).map((row) => row.position);
     return [[{ next_pos: (positions.length ? Math.max(...positions) : 0) + 1 }]];
   }
-  if (q.startsWith('SELECT ticket_prefix, base_avg_time_minutes FROM services')) {
+  /* Matched on the SELECT list rather than the whole prefix: this branch's join
+     also pulls a readiness_count sub-select, so the statement no longer starts
+     with '... FROM services'. A startsWith match silently fell through, the
+     service row came back undefined, and every ticket was numbered Q-nnn using
+     the fallback prefix instead of the service's own A-nnn. The test caught it
+     precisely because it asserts on the number a clerk actually calls out. */
+  if (q.includes('SELECT ticket_prefix, base_avg_time_minutes') && q.includes('FROM services')) {
     const service = db.services.find((row) => row.id === params[0]);
-    return [service ? [{ ticket_prefix: service.ticket_prefix || 'Q', base_avg_time_minutes: service.base_avg_time_minutes }] : []];
+    if (!service) return [[]];
+    return [[{
+      ticket_prefix: service.ticket_prefix || 'Q',
+      base_avg_time_minutes: service.base_avg_time_minutes,
+      readiness_count: 0,
+    }]];
   }
 
   // ── the row the status handler locks ────────────────────────
@@ -265,6 +305,18 @@ function fakeQuery(sql, params = []) {
 
   // No counter assignments in this world, so served_at_counter_id stays null.
   if (q.includes('FROM staff_assignments sa JOIN counters c')) return [[]];
+  /* This branch issues tickets through utils/ticketSlot.js, which PR #3 did not
+     have — it asks how many counters are open for the service so the fallback
+     ETA can divide the queue across them. Without a matcher this returned
+     undefined and issueTicketSlot threw on `.cnt`, failing five lifecycle tests
+     for a reason that had nothing to do with the queue's behaviour.
+
+     One counter, which is what the seed describes: a single Kingston branch
+     running one service. Returning 0 would divide by zero in
+     projectedWaitMinutes; returning many would silently flatter every estimate. */
+  if (q.includes('FROM counters WHERE branch_id') && q.includes('COUNT(*)')) {
+    return [[{ cnt: 1 }]];
+  }
   if (q.includes('FROM staff_assignments WHERE counter_id')) return [[{ cnt: 0 }]];
   if (q.includes('FROM counters c JOIN staff_assignments')) return [[{ cnt: 0 }]];
 

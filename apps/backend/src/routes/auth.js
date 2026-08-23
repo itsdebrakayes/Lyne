@@ -21,6 +21,8 @@ const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
+const { auditLog } = require('../middleware/auditLog');
+const { withTransaction } = require('../db/tx');
 const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
@@ -273,77 +275,74 @@ router.post('/logout', requireAuth, async (req, res) => {
 //
 // Telling someone their data is gone while their scanned passport number sits
 // in a table with a null user_id would be a lie, and under the DPA an offence.
-router.delete('/account', requireAuth, async (req, res) => {
-  // Staff accounts are provisioned by their agency and are not the account
-  // holder's to delete — a customer must never be able to remove a staff row.
-  if (req.dbStaff) {
-    return res.status(403).json({ error: 'Staff accounts are managed by your organisation and cannot be deleted here.' });
-  }
+router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async (req, res) => {
   if (!req.dbUser) {
-    return res.status(403).json({ error: 'User account required.' });
+    return res.status(403).json({
+      error: 'Staff accounts are managed by their business and cannot be deleted from the app.',
+    });
+  }
+  if (!supabaseAdmin) {
+    console.error('[DeleteAccount] SUPABASE_SERVICE_KEY is not configured.');
+    return res.status(503).json({ error: 'Account deletion is temporarily unavailable. Please try again later.' });
   }
 
   const userId = req.dbUser.id;
-  const uid = req.supabaseUser?.id;
-  const conn = await pool.getConnection();
+  const supabaseUid = req.supabaseUser.id;
 
   try {
-    await conn.beginTransaction();
-
-    // Order matters: scrub the SET NULL tables BEFORE the users row goes, while
-    // user_id still identifies which rows are ours.
-    const [ocr] = await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
-    const [intake] = await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
-    await conn.query(
-      'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL WHERE user_id = ?',
+    // Refuse while the customer is still standing in a line — deleting now
+    // would strand a ticket that staff are actively serving.
+    const [activeTickets] = await pool.query(
+      `SELECT COUNT(*) AS active
+         FROM queue_tickets
+        WHERE user_id = ?
+          AND status IN ('waiting', 'called', 'in_service')`,
       [userId]
     );
-
-    // Cascades take the remaining seven tables with it.
-    await conn.query('DELETE FROM users WHERE id = ?', [userId]);
-
-    await conn.commit();
-    console.log(`[Account] Deleted user ${userId} — ${ocr.affectedRows} document scans, ${intake.affectedRows} intake forms removed.`);
-  } catch (err) {
-    await conn.rollback();
-    console.error('account deletion error:', err);
-    return res.status(500).json({ error: 'Could not delete your account. Nothing was removed — please try again.' });
-  } finally {
-    conn.release();
-  }
-
-  // The auth identity goes last and OUTSIDE the transaction: if this fails the
-  // application data is already gone, and leaving a login that resolves to
-  // nothing is a far better failure than rolling the data back and telling the
-  // person their deletion did not happen when most of it did.
-  let authRemoved = true;
-  try {
-    if (uid && supabaseAdmin) {
-      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
-      if (delErr) throw delErr;
-    } else {
-      authRemoved = false;
+    if (activeTickets[0].active > 0) {
+      return res.status(409).json({
+        error: 'You are still in a queue. Leave your active queue first, then delete your account.',
+      });
     }
+
+    await withTransaction(async (conn) => {
+      await conn.query('DELETE FROM users WHERE id = ?', [userId]);
+    });
+
+    // Sign the account out everywhere before releasing the identity.
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await createRevocation(supabaseUid, null, 'account_deleted', expiresAt, null);
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(supabaseUid);
+    if (authError) {
+      // The personal data is already gone; surface the failure so the identity
+      // can be cleaned up rather than silently reporting complete success.
+      console.error('[DeleteAccount] Supabase identity delete failed:', authError.message);
+      return res.status(500).json({
+        error: 'Your personal data was deleted, but the sign-in record could not be removed. Please contact support so we can finish.',
+      });
+    }
+
+    res.json({
+      message: 'Your account and personal data have been deleted.',
+      deleted: [
+        'Profile and contact details',
+        'Saved businesses and recent searches',
+        'Notifications and device push tokens',
+        'Saved payment methods',
+        'Visit history',
+        'Sign-in record',
+      ],
+      retained: [
+        'Anonymous records of visits that already happened, which businesses keep for their own reporting. These are no longer linked to you.',
+      ],
+    });
   } catch (err) {
-    authRemoved = false;
-    console.error(`[Account] Data for ${userId} deleted but Supabase user ${uid} remains:`, err.message);
+    console.error('delete-account error:', err);
+    res.status(500).json({ error: 'Failed to delete your account. Nothing was changed.' });
   }
-
-  // Kill the session either way, so the app cannot keep acting as a user who no
-  // longer exists.
-  try {
-    await createRevocation(uid, null, 'account_deleted', new Date(Date.now() + 24 * 60 * 60 * 1000));
-  } catch { /* non-fatal */ }
-
-  res.json({
-    message: 'Your account and personal data have been deleted.',
-    auth_identity_removed: authRemoved,
-  });
 });
 
-// ── POST /api/auth/force-signout ───────────────────────────────
-// Manager/executive can force-sign-out a specific user or staff member.
-// Revokes ALL active tokens for that supabase_uid.
 router.post('/force-signout', requireAuth, validate(schemas.forceSignout), async (req, res) => {
   if (!req.dbStaff || !['manager', 'executive', 'platform_admin'].includes(req.dbStaff.role_name)) {
     return res.status(403).json({ error: 'Managers and executives only.' });

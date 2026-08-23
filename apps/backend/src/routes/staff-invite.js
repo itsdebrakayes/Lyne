@@ -18,7 +18,7 @@ const { createClient } = require('@supabase/supabase-js');
 const pool    = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
-const { assertBusinessAccess, assertBranchAccess } = require('../middleware/tenantAccess');
+const { assertBusinessAccess, assertBranchAccess, isPlatformAdmin } = require('../middleware/tenantAccess');
 
 function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
@@ -97,7 +97,7 @@ router.post('/create',
 
       // Check for existing pending invite for this email+business
       const [existing] = await pool.query(
-        "SELECT id FROM staff_invites WHERE email = ? AND business_id = ? AND status = 'pending' AND expires_at > NOW()",
+        "SELECT id FROM staff_invites WHERE email = ? AND business_id = ? AND status IN ('requested','pending') AND expires_at > NOW()",
         [email, business_id]
       );
       if (existing.length) {
@@ -113,14 +113,25 @@ router.post('/create',
         `INSERT INTO staff_invites
            (id, business_id, branch_id, email, full_name, role, invite_code,
             invited_by_staff_id, expires_at, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [inviteId, business_id, branch_id || null, email, full_name, role,
-         inviteCode, req.dbStaff?.id, expiresAt]
+         inviteCode, req.dbStaff?.id, expiresAt,
+         // A platform admin acting directly IS the approval; anyone else is asking.
+         isPlatformAdmin(req) ? 'pending' : 'requested']
       );
 
+      const approved = isPlatformAdmin(req);
       res.status(201).json({
         invite_id:    inviteId,
-        invite_code:  inviteCode,
+        status:       approved ? 'pending' : 'requested',
+        /* The code is withheld until DKS approves. A manager's invite used to
+           mint a working code immediately, which made the gate cosmetic — and
+           handing somebody a code that will be refused at redemption is worse
+           than handing them none. */
+        invite_code:  approved ? inviteCode : null,
+        message:      approved
+          ? 'Invite created. Share the code with your new staff member.'
+          : 'Request sent to DKS Technologies. You will see the invite code here once it is approved.',
         email,
         full_name,
         role,
@@ -272,7 +283,7 @@ router.get('/pending',
                 si.created_at, s.full_name AS invited_by_name
          FROM staff_invites si
          LEFT JOIN staff s ON si.invited_by_staff_id = s.id
-         WHERE si.business_id = ? AND si.status = 'pending' AND si.expires_at > NOW()
+         WHERE si.business_id = ? AND si.status IN ('requested','pending','declined') AND si.expires_at > NOW()
          ORDER BY si.created_at DESC`,
         [business_id]
       );
@@ -292,7 +303,7 @@ router.delete('/:id',
   async (req, res) => {
     try {
       const [rows] = await pool.query(
-        "SELECT id, business_id FROM staff_invites WHERE id = ? AND status = 'pending'",
+        "SELECT id, business_id FROM staff_invites WHERE id = ? AND status IN ('requested','pending')",
         [req.params.id]
       );
       if (!rows.length) {
@@ -314,5 +325,58 @@ router.delete('/:id',
     }
   }
 );
+
+// ── POST /api/staff-invite/:id/approve ────────────────────────
+// DKS Technologies only. Turns a manager's request into a live invite code.
+// A manager cannot approve their own request — that is the entire point of the
+// gate, and requireStaffRole would let an executive through, so this checks
+// platform admin explicitly.
+router.post('/:id/approve', requireAuth, auditLog('staff_invite_approve', 'staff_invite'), async (req, res) => {
+  if (!isPlatformAdmin(req)) {
+    return res.status(403).json({ error: 'Only DKS Technologies can approve staff requests.' });
+  }
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, invite_code, email, full_name, role FROM staff_invites WHERE id = ? AND status = 'requested' LIMIT 1",
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No pending request with that id.' });
+
+    await pool.query(
+      "UPDATE staff_invites SET status = 'pending', approved_at = NOW(), approved_by = ? WHERE id = ?",
+      [req.dbStaff?.email || 'platform_admin', req.params.id]
+    );
+    res.json({
+      invite_id:   rows[0].id,
+      invite_code: rows[0].invite_code,
+      email:       rows[0].email,
+      full_name:   rows[0].full_name,
+      role:        rows[0].role,
+      message:     'Approved. The manager can now share this code with their staff member.',
+    });
+  } catch (err) {
+    console.error('approve staff request error:', err);
+    res.status(500).json({ error: 'Failed to approve the request.' });
+  }
+});
+
+// ── POST /api/staff-invite/:id/decline ────────────────────────
+router.post('/:id/decline', requireAuth, auditLog('staff_invite_decline', 'staff_invite'), async (req, res) => {
+  if (!isPlatformAdmin(req)) {
+    return res.status(403).json({ error: 'Only DKS Technologies can decline staff requests.' });
+  }
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 500) : null;
+  try {
+    const [result] = await pool.query(
+      "UPDATE staff_invites SET status = 'declined', decline_reason = ? WHERE id = ? AND status = 'requested'",
+      [reason, req.params.id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: 'No pending request with that id.' });
+    res.json({ message: 'Request declined.', reason });
+  } catch (err) {
+    console.error('decline staff request error:', err);
+    res.status(500).json({ error: 'Failed to decline the request.' });
+  }
+});
 
 module.exports = router;

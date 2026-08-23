@@ -1,9 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+/* The SSE tests that used to live here went with routes/sse.js. Its public
+   stream took no token and served an entire queue to anyone holding a queue id,
+   and nothing in this repo consumed either stream, so the route was removed
+   rather than gated. Nothing is left to assert about it. */
+
 const ticketRouter = require('../src/routes/tickets');
 const queueRouter = require('../src/routes/queues');
-const sseRouter = require('../src/routes/sse');
 const predictionsRouter = require('../src/routes/predictions');
 const notificationsRouter = require('../src/routes/notifications');
 const analyticsRouter = require('../src/routes/analytics');
@@ -100,33 +104,6 @@ test('full queue details are restricted to authorized staff', () => {
   const handlers = routeHandlers(queueRouter, 'get', '/:id');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(handlers.includes('requireQueueAccess'));
-});
-
-test('staff queue streams verify tenant access', () => {
-  const handlers = routeHandlers(sseRouter, 'get', '/queue/:queue_id/staff');
-  assert.ok(handlers.includes('requireAuth'));
-  assert.ok(handlers.includes('requireQueueAccess'));
-});
-
-test('public queue updates exclude ownership and verification fields', () => {
-  const publicUpdate = sseRouter.toPublicTicketUpdate({
-    id: 'ticket-1',
-    queue_id: 'queue-1',
-    user_id: 'user-1',
-    ticket_number: 'A-001',
-    verification_code: 'SECRET12',
-    position: 1,
-    status: 'called',
-    estimated_wait_minutes: 0,
-  });
-
-  assert.deepEqual(publicUpdate, {
-    id: 'ticket-1',
-    ticket_number: 'A-001',
-    position: 1,
-    status: 'called',
-    estimated_wait_minutes: 0,
-  });
 });
 
 test('staff can skip a ticket only through authenticated tenant checks', () => {

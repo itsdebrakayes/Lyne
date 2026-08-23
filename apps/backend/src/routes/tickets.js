@@ -135,9 +135,24 @@ async function inferActiveCounter(conn, staffId, queueId) {
   return rows[0]?.id || null;
 }
 
+/* Lock-screen copy is deliberately vague. Lyne serves government agencies,
+   clinics and immigration desks, so the SERVICE NAME alone — "HIV Clinic",
+   "Unemployment Benefits", "Passport Renewal" — is the leak the moment it lands
+   on a lock screen somebody else can read. The push used to carry the full
+   detailed message, which for a call read "A-014 is being called for
+   {service}."
+
+   The detail still exists; it goes to the in-app notification row, which sits
+   behind authentication. The push only says something changed. */
 const PUSH_TITLES = {
-  called: "It's your turn!",
-  no_show: 'You lost your place in line',
+  called: 'Your queue update',
+  no_show: 'Your queue update',
+};
+
+const NEUTRAL_PUSH_BODIES = {
+  called: 'It is your turn. Open Lyne for the details.',
+  no_show: 'Your place in line has changed. Open Lyne for the details.',
+  queue_update: 'Your queue status has changed. Open Lyne for the details.',
 };
 
 /**
@@ -155,8 +170,9 @@ async function notifyTicketUser(conn, ticket, notificationType, message) {
   );
   return {
     userId: ticket.user_id,
-    title: PUSH_TITLES[notificationType] || 'Queue update',
-    body: message,
+    title: PUSH_TITLES[notificationType] || 'Your queue update',
+    // Never `message` — that is the detailed in-app text inserted just above.
+    body: NEUTRAL_PUSH_BODIES[notificationType] || NEUTRAL_PUSH_BODIES.queue_update,
     data: { ticketId: ticket.id, type: notificationType },
   };
 }

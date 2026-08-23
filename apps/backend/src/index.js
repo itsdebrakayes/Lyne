@@ -151,7 +151,13 @@ app.use('/api/audit',          require('./routes/audit'));
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
 
 // SSE — live queue updates (no auth for public stream; staff stream auth handled in route)
-app.use('/api/sse',            require('./routes/sse'));
+/* /api/sse is gone. GET /api/sse/queue/:queue_id took no token at all and
+   streamed every ticket in a queue plus the queue's service and branch names to
+   anyone who could guess or observe a queue id. Its own docblock claimed
+   "ticket_id is used as a lightweight access token"; no ticket_id appeared
+   anywhere in the handler. Nothing in this repo consumed it, or the
+   authenticated staff stream beside it — "unused" only ever described OUR
+   clients, not an attacker's. */
 
 // Health check
 app.get('/health', (_req, res) => res.json({
