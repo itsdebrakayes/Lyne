@@ -35,15 +35,15 @@ export default function LoginPage() {
     <main className="admin-login-page">
       <section className="admin-login-showcase">
         <div className="admin-login-brand">
-          <div>Q</div>
+          <div>L</div>
           <span>
-            <b>QMe Now</b>
-            <small>Admin Operations</small>
+            <b>Lyne</b>
+            <small>Admin operations</small>
           </span>
         </div>
 
         <div className="admin-login-copy">
-          <p>Dashboard Console</p>
+          <p>Dashboard console</p>
           <h1>Run queues, staff, and branch performance from one place.</h1>
           <span>Sign in to access the workspace for your assigned role.</span>
         </div>
@@ -51,18 +51,18 @@ export default function LoginPage() {
         <div className="admin-login-metrics" aria-hidden="true">
           <div>
             <Users size={18} />
-            <span>Live Lines</span>
-            <b>42</b>
+            <span>Live lines</span>
+            <b>Every branch</b>
           </div>
           <div>
             <Timer size={18} />
-            <span>Avg Wait</span>
-            <b>12m</b>
+            <span>Wait times</span>
+            <b>As they happen</b>
           </div>
           <div>
             <BarChart3 size={18} />
             <span>Insights</span>
-            <b>Fresh</b>
+            <b>Against your targets</b>
           </div>
         </div>
       </section>
@@ -72,13 +72,13 @@ export default function LoginPage() {
           <div className="admin-login-card-head">
             <ShieldCheck size={21} />
             <span>
-              <small>Secure Admin Access</small>
+              <small>Secure admin access</small>
               <h2>Sign In</h2>
             </span>
           </div>
 
           {error ? (
-            <div className="admin-login-error">
+            <div className="admin-login-error" role="alert">
               <AlertCircle size={16} />
               <p>{error}</p>
             </div>
@@ -92,6 +92,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="admin@company.com"
+                autoFocus
                 autoComplete="email"
               />
             </label>
@@ -103,7 +104,7 @@ export default function LoginPage() {
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter Password"
+                  placeholder="Enter your password"
                   autoComplete="current-password"
                 />
                 <button type="button" onClick={() => setShowPw((value) => !value)} aria-label={showPw ? 'Hide password' : 'Show password'}>

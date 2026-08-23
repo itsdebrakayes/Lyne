@@ -1,11 +1,11 @@
 /**
  * apiClient.ts — Mobile API Client
  *
- * Attaches the Supabase JWT to every request to the Q ME NOW backend.
+ * Attaches the Supabase JWT to every request to the Lyne backend.
  */
 
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureSessionStorage from './secureSessionStorage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
@@ -45,11 +45,18 @@ function inferApiUrl() {
       || expoConstants.manifest?.debuggerHost
   );
 
-  if (expoHost && !['localhost', '127.0.0.1', '::1'].includes(expoHost)) {
-    return `http://${expoHost}:4000/api`;
+  // Development conveniences only. In a release build there is no Expo host and
+  // no localhost worth reaching, so an unset EXPO_PUBLIC_API_URL is a
+  // configuration error we surface loudly rather than papering over with a
+  // plain-HTTP dev address that will simply fail on a real device.
+  if (__DEV__) {
+    if (expoHost && !['localhost', '127.0.0.1', '::1'].includes(expoHost)) {
+      return `http://${expoHost}:4000/api`;
+    }
+    return Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api';
   }
 
-  return Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api';
+  throw new Error('EXPO_PUBLIC_API_URL is not set. A release build cannot start without its API URL.');
 }
 
 const SUPABASE_URL = expoExtra.supabaseUrl || '';
@@ -58,7 +65,7 @@ const API_URL = inferApiUrl();
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
-    storage:          AsyncStorage,
+    storage:          secureSessionStorage,
     autoRefreshToken: true,
     persistSession:   true,
     detectSessionInUrl: false,

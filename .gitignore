@@ -53,7 +53,12 @@ supabase/.temp/
 # Local coding-assistant and generated analysis metadata
 .agent/
 .agents/
-.claude/
+# Excluding the entries rather than the directory itself: git never descends
+# into an excluded directory, so a later "!" cannot rescue anything inside it.
+.claude/*
+# Project skills are shared team assets, not local machine state — they belong
+# in the repo so everyone working on Lyne gets them.
+!.claude/skills/
 .codebuddy/
 .codex/
 .continue/

@@ -1,4 +1,4 @@
-# Q ME NOW — Mobile App
+# Lyne — Mobile App
 
 Built with **Expo + React Native + TypeScript**.
 

@@ -91,7 +91,7 @@ export default function HistoryScreen() {
       >
         {/* header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={t.iconBtn}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={t.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>{MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}</Text>

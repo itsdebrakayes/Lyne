@@ -6,8 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
+import { hapticJoined, hapticFailed } from '../../lib/haptics';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 
 type Params = RouteProp<RootStackParamList, 'JoinQueue'>;
 interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_minutes: number; }
@@ -36,6 +38,7 @@ export default function JoinQueueScreen() {
       setLoading(true);
       setError('');
       const ticket = await api.post<TicketRecord>('/tickets', { queue_id: liveQueue.id });
+      hapticJoined();
       registerPushNotifications().catch(() => {});
       scheduleDepartureReminder({
         ticketId: ticket.id,
@@ -47,6 +50,7 @@ export default function JoinQueueScreen() {
       }).catch(() => {});
       navigation.navigate('Ticket', { ticketId: ticket.id, businessId: branch.business_id, branchId, serviceId });
     } catch (caught: unknown) {
+      hapticFailed();
       setError(caught instanceof Error ? caught.message : 'Could not join this queue. Please try again.');
     } finally {
       setLoading(false);
@@ -59,12 +63,18 @@ export default function JoinQueueScreen() {
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 58, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 18 }]}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[t.iconBtn, { marginBottom: 18 }]} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
         <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' }}>Join remotely</Text>
         <Text style={[t.h1, { marginTop: 8, marginBottom: 10 }]}>Take your spot{'\n'}from anywhere.</Text>
 
-        {pageLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 36 }} />}
-        {!!pageError && <Text style={{ fontFamily: font.bold, color: colors.danger }}>Live queue details could not be loaded.</Text>}
+        {pageLoading && <SkeletonCard height={230} />}
+        {!!pageError && !pageLoading && (
+          <ErrorCard
+            title="Queue details unavailable"
+            message="We couldn't load this queue. Check your connection and try again."
+            onRetry={() => { branchQuery.refetch(); serviceQuery.refetch(); queueQuery.refetch(); }}
+          />
+        )}
 
         {branch && service && (
           <>
@@ -81,12 +91,12 @@ export default function JoinQueueScreen() {
               </View>
               <View style={{ flexDirection: 'row', marginTop: 22 }}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.waiting_count ?? 0}</Text>
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.waiting_count ?? 0}</Text>
                   <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>ahead</Text>
                 </View>
                 <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,.12)' }} />
                 <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.estimated_wait_minutes ?? 0}<Text style={{ fontSize: 13 }}>m</Text></Text>
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: font.extra, fontSize: 24, color: '#fff' }}>{liveQueue?.estimated_wait_minutes ?? 0}<Text style={{ fontSize: 13 }}>m</Text></Text>
                   <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 5 }}>est. wait</Text>
                 </View>
               </View>

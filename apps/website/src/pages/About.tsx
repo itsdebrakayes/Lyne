@@ -1,5 +1,5 @@
 /**
- * About — QME Now story, mission and values in the marketing design language.
+ * About — Lyne story, mission and values in the marketing design language.
  */
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -77,7 +77,7 @@ const About = () => {
               Our <span className="serif accent-text">mission.</span>
             </h2>
             <p className="max-w-3xl text-lg leading-relaxed text-qme-lavender/75">
-              QME Now is designed to eliminate the frustration of long wait times
+              Lyne is designed to eliminate the frustration of long wait times
               and uncertainty. We provide real-time queue information, remote
               joining, and live position tracking so a visit to any of our partner
               institutions is as smooth and efficient as possible — for the

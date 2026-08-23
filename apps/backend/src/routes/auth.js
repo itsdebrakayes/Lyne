@@ -20,6 +20,19 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
+const { auditLog } = require('../middleware/auditLog');
+const { withTransaction } = require('../db/tx');
+const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
+const { createClient } = require('@supabase/supabase-js');
+
+// Deleting a Supabase Auth identity is an administrative action, so unlike the
+// request-path verification in middleware/auth.js it needs the service-role
+// key. It is used for nothing else.
+const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
 
 async function getStaffProfile(staffId) {
   const [rows] = await pool.query(
@@ -57,7 +70,10 @@ async function getStaffProfile(staffId) {
 // Idempotent: safe to call multiple times.
 router.post('/sync-user', requireAuth, async (req, res) => {
   try {
-    const { full_name, phone, national_id, trn, date_of_birth } = req.body;
+    // national_id and trn are not read from the body: see PATCH /profile below.
+    // This is the path signup takes, and it was the one that put a TRN on the
+    // server the moment an account was created.
+    const { full_name, phone, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
 
     // Already synced?
@@ -68,16 +84,14 @@ router.post('/sync-user', requireAuth, async (req, res) => {
           `UPDATE users SET
              full_name    = COALESCE(?, full_name),
              phone        = COALESCE(?, phone),
-             national_id  = COALESCE(?, national_id),
-             trn          = COALESCE(?, trn),
              date_of_birth = COALESCE(?, date_of_birth),
              updated_at   = NOW()
            WHERE id = ?`,
-          [full_name, phone, national_id, trn, date_of_birth, req.dbUser.id]
+          [full_name, phone, date_of_birth, req.dbUser.id]
         );
       }
       const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-      return res.json({ user: updated[0], created: false });
+      return res.json({ user: withPremiumState(updated[0]), created: false });
     }
 
     // Check if this is a staff account (staff log in via Supabase Auth too)
@@ -91,9 +105,9 @@ router.post('/sync-user', requireAuth, async (req, res) => {
     const name  = full_name || supabaseUser.user_metadata?.full_name || email.split('@')[0];
 
     await pool.query(
-      `INSERT INTO users (id, supabase_uid, email, full_name, phone, national_id, trn, date_of_birth)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, supabaseUser.id, email, name, phone || null, national_id || null, trn || null, date_of_birth || null]
+      `INSERT INTO users (id, supabase_uid, email, full_name, phone, date_of_birth)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, supabaseUser.id, email, name, phone || null, date_of_birth || null]
     );
 
     const [newUser] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
@@ -107,7 +121,7 @@ router.post('/sync-user', requireAuth, async (req, res) => {
 // ── GET /api/auth/me ──────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    if (req.dbUser) return res.json({ type: 'user', record: req.dbUser });
+    if (req.dbUser) return res.json({ type: 'user', record: withPremiumState(req.dbUser) });
     if (req.dbStaff) {
       const staffProfile = await getStaffProfile(req.dbStaff.id);
       return res.json({ type: 'staff', record: staffProfile || req.dbStaff });
@@ -129,26 +143,32 @@ router.patch('/profile', requireAuth, async (req, res) => {
   try {
     // Only columns that exist on the users table — the previous version
     // referenced address/employer/occupation and 500'd on every save.
-    const { full_name, phone, date_of_birth, national_id, trn } = req.body;
+    //
+    // national_id and trn are deliberately not accepted here. The privacy
+    // policy tells customers those numbers stay on their device, and they now
+    // do: the app keeps them in the device keychain (lib/documentVault.ts).
+    // Nothing on this server ever read them back — no staff endpoint returns
+    // either field — so the only thing storing them achieved was holding
+    // government ID numbers we had promised not to hold. Ignored rather than
+    // rejected, so an older build that still sends them keeps working; it just
+    // no longer succeeds in leaving a copy here.
+    const { full_name, phone, date_of_birth } = req.body;
 
     await pool.query(
       `UPDATE users SET
          full_name     = COALESCE(?, full_name),
          phone         = COALESCE(?, phone),
          date_of_birth = COALESCE(?, date_of_birth),
-         national_id   = COALESCE(?, national_id),
-         trn           = COALESCE(?, trn),
          updated_at    = NOW()
        WHERE id = ?`,
       [
         full_name || null, phone || null, date_of_birth || null,
-        national_id || null, trn || null,
         req.dbUser.id,
       ]
     );
 
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]) });
   } catch (err) {
     console.error('profile update error:', err);
     res.status(500).json({ error: 'Failed to update profile.' });
@@ -156,16 +176,40 @@ router.patch('/profile', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/auth/start-trial ───────────────────────────────
-// Unlocks QMe Premium (Smart Timing / visit planner) for this user.
-// Billing comes later — for now a trial start simply flips the flag.
+// The app offers this as a "14-day free trial · cancel anytime". It used to
+// set is_premium and nothing else — no start, no end, no check that one had
+// already been taken — so it granted permanent premium to anyone, repeatedly,
+// while a paid subscription sat on the same screen. Both halves of the promise
+// are real now: it runs out, and it is once per account.
 router.post('/start-trial', requireAuth, async (req, res) => {
   if (!req.dbUser) {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
   try {
-    await pool.query('UPDATE users SET is_premium = TRUE, updated_at = NOW() WHERE id = ?', [req.dbUser.id]);
+    const [rows] = await pool.query('SELECT trial_started_at FROM users WHERE id = ?', [req.dbUser.id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'No user record found. Please sync first.' });
+    }
+    const usedMessage = `You have already used your free ${TRIAL_DAYS}-day trial. Subscribe to keep Lyne Premium.`;
+    if (rows[0].trial_started_at) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
+    const endsAt = trialEndsAt();
+    // Guarded on trial_started_at IS NULL, so two taps racing each other
+    // cannot both start a trial and stack the window.
+    const [result] = await pool.query(
+      `UPDATE users
+          SET is_premium = TRUE, trial_started_at = NOW(), premium_until = ?, updated_at = NOW()
+        WHERE id = ? AND trial_started_at IS NULL`,
+      [endsAt, req.dbUser.id]
+    );
+    if (!result.affectedRows) {
+      return res.status(409).json({ error: usedMessage });
+    }
+
     const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
-    res.json({ user: updated[0] });
+    res.json({ user: withPremiumState(updated[0]), trial_ends_at: endsAt });
   } catch (err) {
     console.error('start-trial error:', err);
     res.status(500).json({ error: 'Failed to start your trial.' });
@@ -235,6 +279,92 @@ router.post('/force-signout', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('force-signout error:', err);
     res.status(500).json({ error: 'Failed to force sign-out.' });
+  }
+});
+
+// ── DELETE /api/auth/account ──────────────────────────────────
+// App Store Guideline 5.1.1(v): an app with account creation must let the user
+// initiate deletion of the account and its data from inside the app. Not
+// deactivation, and not "email support".
+//
+// What happens:
+//   • The MySQL `users` row is deleted. Everything personal cascades with it —
+//     saved businesses, notifications, device push tokens, saved payment
+//     methods, visit history.
+//   • Queue tickets and intake forms are NOT deleted. The FKs are ON DELETE SET
+//     NULL, so the business keeps the operational record of a visit that
+//     actually happened while it stops being linked to a person.
+//   • Every session for the account is revoked, so other devices are signed out.
+//   • The Supabase Auth identity is deleted last, which frees the email address
+//     for re-registration.
+//
+// The Supabase step needs the service-role key. If it is not configured we fail
+// the whole request rather than half-deleting an account and reporting success.
+router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async (req, res) => {
+  if (!req.dbUser) {
+    return res.status(403).json({
+      error: 'Staff accounts are managed by their business and cannot be deleted from the app.',
+    });
+  }
+  if (!supabaseAdmin) {
+    console.error('[DeleteAccount] SUPABASE_SERVICE_KEY is not configured.');
+    return res.status(503).json({ error: 'Account deletion is temporarily unavailable. Please try again later.' });
+  }
+
+  const userId = req.dbUser.id;
+  const supabaseUid = req.supabaseUser.id;
+
+  try {
+    // Refuse while the customer is still standing in a line — deleting now
+    // would strand a ticket that staff are actively serving.
+    const [activeTickets] = await pool.query(
+      `SELECT COUNT(*) AS active
+         FROM queue_tickets
+        WHERE user_id = ?
+          AND status IN ('waiting', 'called', 'in_service')`,
+      [userId]
+    );
+    if (activeTickets[0].active > 0) {
+      return res.status(409).json({
+        error: 'You are still in a queue. Leave your active queue first, then delete your account.',
+      });
+    }
+
+    await withTransaction(async (conn) => {
+      await conn.query('DELETE FROM users WHERE id = ?', [userId]);
+    });
+
+    // Sign the account out everywhere before releasing the identity.
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await createRevocation(supabaseUid, null, 'account_deleted', expiresAt, null);
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(supabaseUid);
+    if (authError) {
+      // The personal data is already gone; surface the failure so the identity
+      // can be cleaned up rather than silently reporting complete success.
+      console.error('[DeleteAccount] Supabase identity delete failed:', authError.message);
+      return res.status(500).json({
+        error: 'Your personal data was deleted, but the sign-in record could not be removed. Please contact support so we can finish.',
+      });
+    }
+
+    res.json({
+      message: 'Your account and personal data have been deleted.',
+      deleted: [
+        'Profile and contact details',
+        'Saved businesses and recent searches',
+        'Notifications and device push tokens',
+        'Saved payment methods',
+        'Visit history',
+        'Sign-in record',
+      ],
+      retained: [
+        'Anonymous records of visits that already happened, which businesses keep for their own reporting. These are no longer linked to you.',
+      ],
+    });
+  } catch (err) {
+    console.error('delete-account error:', err);
+    res.status(500).json({ error: 'Failed to delete your account. Nothing was changed.' });
   }
 });
 

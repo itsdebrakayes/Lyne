@@ -66,6 +66,9 @@ export function ActiveTicketPill() {
 function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }; active: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
+      accessibilityRole="tab"
+      accessibilityLabel={tab.key}
+      accessibilityState={{ selected: active }}
       onPress={onPress}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
       style={{
@@ -115,6 +118,10 @@ export function TabBar({ active }: { active: TabKey }) {
           <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
         ))}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={hasTicket ? 'Open your ticket' : 'No active ticket'}
+          accessibilityHint={hasTicket ? undefined : 'Join a queue to get a ticket'}
+          accessibilityState={{ disabled: !hasTicket }}
           onPress={centerPress}
           disabled={!hasTicket}
           activeOpacity={hasTicket ? 0.85 : 1}

@@ -11,8 +11,6 @@ import {
   Building2,
   CalendarClock,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   Clock,
   Download,
@@ -43,6 +41,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -50,7 +49,7 @@ import {
 } from 'recharts';
 
 import DashboardShell, { type DashboardTab } from '@/components/dashboard/DashboardShell';
-import { DataRow, EmptyState, KpiCard, Panel, PeriodTabs, StatusPill, displayLabel } from '@/components/dashboard/DashboardPrimitives';
+import { DataRow, EmptyState, KpiCard, Panel, PeriodTabs, StatusPill, displayLabel, listFallback } from '@/components/dashboard/DashboardPrimitives';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
 
@@ -207,6 +206,16 @@ type ManagerScore = {
   staff_utilization: number;
   manager_score: number;
   rank: number;
+};
+
+type StaffRequestRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  status: 'requested' | 'pending' | 'declined' | 'redeemed' | 'revoked';
+  invite_code?: string | null;
+  decline_reason?: string | null;
 };
 
 type BranchOption = {
@@ -446,7 +455,9 @@ function useDashboardData(serviceId = '') {
     businessId,
     branchId,
     queues: queues.data || [],
+    queuesQuery: queues,
     summary: summary.data || [],
+    summaryQuery: summary,
     services: services.data || [],
     staff: staff.data || [],
     branchTrends: branchTrends.data || [],
@@ -531,13 +542,255 @@ function latestBranchRows(rows: BranchTrend[]) {
   return Array.from(latest.values()).sort((a, b) => numberValue(b.total_visits) - numberValue(a.total_visits));
 }
 
-function downloadJson(filename: string, value: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+// ── Reports ───────────────────────────────────────────────────
+// A report is a document a business owner can hand to someone, not a data
+// dump. The same structure drives the on-screen preview and the Word export,
+// so what you see is exactly what you get.
+type ReportSection =
+  | { kind: 'metrics'; heading: string; note?: string; rows: Array<{ label: string; value: string; detail?: string }> }
+  | { kind: 'list'; heading: string; note?: string; items: string[] }
+  | { kind: 'table'; heading: string; note?: string; columns: string[]; rows: string[][] };
+
+type ReportDocument = {
+  title: string;
+  subtitle: string;
+  period: string;
+  sections: ReportSection[];
+};
+
+function reportTimestamp() {
+  return new Date().toLocaleString([], {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+function escapeHtml(value: string) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sectionToHtml(section: ReportSection) {
+  const note = section.note ? `<p class="note">${escapeHtml(section.note)}</p>` : '';
+  if (section.kind === 'metrics') {
+    const rows = section.rows
+      .map((row) => `<tr><td class="label">${escapeHtml(row.label)}</td><td class="value">${escapeHtml(row.value)}</td><td class="detail">${escapeHtml(row.detail || '')}</td></tr>`)
+      .join('');
+    return `<h2>${escapeHtml(section.heading)}</h2>${note}<table>${rows}</table>`;
+  }
+  if (section.kind === 'list') {
+    const items = section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+    return `<h2>${escapeHtml(section.heading)}</h2>${note}<ul>${items}</ul>`;
+  }
+  const head = section.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('');
+  const body = section.rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<h2>${escapeHtml(section.heading)}</h2>${note}<table class="grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/**
+ * Word export with no extra dependency: Word, Pages and Google Docs all open
+ * an HTML document served as application/msword, and it round-trips styling
+ * far more faithfully than a CSV or JSON dump would.
+ */
+function downloadWordReport(doc: ReportDocument, filename: string) {
+  const body = doc.sections.map(sectionToHtml).join('');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHtml(doc.title)}</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; color: #1F3442; font-size: 11pt; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; margin: 20pt 0 6pt; border-bottom: 1pt solid #D9E4EA; padding-bottom: 3pt; }
+  .sub { color: #607787; font-size: 10.5pt; margin: 0 0 2pt; }
+  .note { color: #607787; font-size: 9.5pt; margin: 0 0 8pt; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 6pt; }
+  td, th { padding: 5pt 7pt; vertical-align: top; font-size: 10.5pt; }
+  td.label { width: 45%; }
+  td.value { width: 20%; font-weight: bold; }
+  td.detail { color: #607787; }
+  table.grid th { background: #F0F5F8; text-align: left; border: 1pt solid #D9E4EA; }
+  table.grid td { border: 1pt solid #D9E4EA; }
+  ul { margin: 0 0 8pt 16pt; padding: 0; }
+  li { margin-bottom: 5pt; }
+</style></head>
+<body>
+  <h1>${escapeHtml(doc.title)}</h1>
+  <p class="sub">${escapeHtml(doc.subtitle)}</p>
+  <p class="sub">${escapeHtml(doc.period)} · Prepared ${escapeHtml(reportTimestamp())}</p>
+  ${body}
+</body></html>`;
+  const url = URL.createObjectURL(new Blob(['﻿', html], { type: 'application/msword' }));
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function ReportPreview({ doc }: { doc: ReportDocument }) {
+  return (
+    <article className="report-preview">
+      <header>
+        <h1>{doc.title}</h1>
+        <p>{doc.subtitle}</p>
+        <p>{doc.period} · Prepared {reportTimestamp()}</p>
+      </header>
+      {doc.sections.map((section) => (
+        <section key={section.heading}>
+          <h2>{section.heading}</h2>
+          {section.note ? <p className="report-note">{section.note}</p> : null}
+          {section.kind === 'metrics' ? (
+            <dl className="report-metrics">
+              {section.rows.map((row) => (
+                <div key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd><b>{row.value}</b>{row.detail ? <small>{row.detail}</small> : null}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {section.kind === 'list' ? (
+            <ul className="report-list">
+              {section.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : null}
+          {section.kind === 'table' ? (
+            <div className="report-table-scroll">
+              <table className="report-table">
+                <thead><tr>{section.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                <tbody>
+                  {section.rows.map((row, index) => (
+                    <tr key={`${section.heading}-${index}`}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ))}
+    </article>
+  );
+}
+
+function reportPeriodLabel(rows: SummaryRow[]) {
+  const dates = orderedSummaryRows(rows).map((row) => String(row.summary_date).slice(0, 10));
+  if (!dates.length) return 'No dated activity yet';
+  const readable = (value: string) => new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  const first = readable(dates[0]);
+  const last = readable(dates[dates.length - 1]);
+  return first === last ? first : `${first} – ${last}`;
+}
+
+function buildOperationsReport({
+  title,
+  subtitle,
+  summary,
+  services,
+  branches = [],
+  managers = [],
+  targets,
+  actionPlan,
+}: {
+  title: string;
+  subtitle: string;
+  summary: SummaryRow[];
+  services: ServiceInsight[];
+  branches?: BranchAggregate[];
+  managers?: ManagerScore[];
+  targets: BusinessTargets;
+  actionPlan: { improve: string[]; maintain: string[]; focus: string[]; why: string[] };
+}): ReportDocument {
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const noShows = total(summary, 'no_show_count');
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
+  const deadline = targetDeadlineLabel(targets);
+
+  const sections: ReportSection[] = [
+    {
+      kind: 'metrics',
+      heading: 'Headline numbers',
+      note: 'Every rate is shown with the number it came from.',
+      rows: [
+        { label: 'Customers who arrived', value: formatCount(visitors), detail: 'Total visits in this period' },
+        { label: 'Customers served', value: formatCount(served), detail: `${formatPercent(completionRate)} of arrivals` },
+        { label: 'Estimated wait for service', value: formatMinutes(avgWait), detail: `Target is ${numberValue(targets.target_wait_minutes)}m` },
+        { label: 'No-shows', value: formatCount(noShows), detail: `${formatPercent(noShowRate)} of arrivals · target ${formatPercent(targets.target_no_show_rate)}` },
+      ],
+    },
+    {
+      kind: 'metrics',
+      heading: 'Against your targets',
+      note: `The targets below were set for this business, to be met by ${deadline}.`,
+      rows: [
+        { label: 'Average wait', value: formatMinutes(avgWait), detail: avgWait <= numberValue(targets.target_wait_minutes) ? `On target (${numberValue(targets.target_wait_minutes)}m)` : `Over target by ${formatMinutes(avgWait - numberValue(targets.target_wait_minutes))}` },
+        { label: 'Completed visits', value: formatPercent(completionRate), detail: completionRate >= numberValue(targets.target_completion_rate) ? `On target (${formatPercent(targets.target_completion_rate)})` : `Under target by ${formatPercent(numberValue(targets.target_completion_rate) - completionRate)}` },
+        { label: 'No-show rate', value: formatPercent(noShowRate), detail: noShowRate <= numberValue(targets.target_no_show_rate) ? `On target (${formatPercent(targets.target_no_show_rate)})` : `Over target by ${formatPercent(noShowRate - numberValue(targets.target_no_show_rate))}` },
+      ],
+    },
+    { kind: 'list', heading: 'What to improve', items: actionPlan.improve },
+    { kind: 'list', heading: 'What to maintain', items: actionPlan.maintain },
+    { kind: 'list', heading: 'Where to focus next', items: actionPlan.focus },
+  ];
+
+  if (branches.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Branch performance',
+      note: 'Sorted by completed visits. The score weighs completion, no-shows and wait against your targets.',
+      columns: ['Branch', 'Customers', 'Served', 'Completed', 'Avg wait', 'Score'],
+      rows: branches.map((branch) => [
+        displayLabel(branch.branch_name || 'Branch'),
+        formatCount(branch.total_visits),
+        formatCount(branch.completed),
+        formatPercent(branch.completion_rate),
+        formatMinutes(branch.avg_wait_minutes),
+        String(branchEfficiencyScore(branch, targets)),
+      ]),
+    });
+  }
+
+  if (services.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Service performance',
+      note: 'Where customers spend their waiting time.',
+      columns: ['Service', 'Customers', 'Served', 'No-shows', 'Avg wait'],
+      rows: services.map((service) => [
+        displayLabel(service.service_name),
+        formatCount(service.total_visits),
+        formatCount(service.completed),
+        formatCount(service.no_shows),
+        formatMinutes(service.avg_wait_minutes),
+      ]),
+    });
+  }
+
+  if (managers.length) {
+    sections.push({
+      kind: 'table',
+      heading: 'Manager scores',
+      note: 'A balanced score across wait, completion, no-shows, throughput and staff use.',
+      columns: ['Rank', 'Manager', 'Branch', 'Completed', 'No-shows', 'Score'],
+      rows: managers.map((manager) => [
+        String(manager.rank),
+        displayLabel(manager.manager_name),
+        displayLabel(manager.branch_name || 'Branch'),
+        formatPercent(manager.completion_rate),
+        formatPercent(manager.no_show_rate),
+        String(manager.manager_score),
+      ]),
+    });
+  }
+
+  sections.push({ kind: 'list', heading: 'Why this was recommended', items: actionPlan.why });
+
+  return { title, subtitle, period: reportPeriodLabel(summary), sections };
 }
 
 function ChartTooltip({ active, payload, label }: any) {
@@ -552,32 +805,57 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-function ChartCard({ title, data, mode = 'bar' }: { title: string; data: any[]; mode?: 'bar' | 'area' }) {
+// Rule 4 — every chart explains itself: an always-visible plain-word legend,
+// a unit on the value axis, and one line saying what it means for the business.
+const CHART_LEGEND_STYLE = { fontSize: 12, fontWeight: 800, color: '#4A616F', paddingTop: 4 };
+
+function axisLabel(text: string) {
+  return { value: text, angle: -90, position: 'insideLeft', offset: 4, style: { fill: '#718896', fontSize: 11, fontWeight: 800 } } as any;
+}
+
+function ChartCard({
+  title,
+  data,
+  mode = 'bar',
+  caption,
+  unit = 'Customers',
+}: {
+  title: string;
+  data: any[];
+  mode?: 'bar' | 'area';
+  caption?: string;
+  unit?: string;
+}) {
   return (
     <Panel title={title} className="ops-chart-panel">
       {data.length ? (
-        <ResponsiveContainer height={220}>
-          {mode === 'area' ? (
-            <AreaChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={44} tickMargin={8} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#1F3442', strokeDasharray: '4 4' }} />
-              <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#1F3442" fill="#E8F0F4" fillOpacity={0.48} strokeWidth={4} />
-            </AreaChart>
-          ) : (
-            <BarChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }} barGap={8}>
-              <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={44} tickMargin={8} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(31,52,66,.06)' }} />
-              <Bar dataKey="served" name="Served" fill="#1F3442" radius={[10, 10, 4, 4]} />
-              <Bar dataKey="noShows" name="No-Shows" fill="#FCA5A5" radius={[10, 10, 4, 4]} />
-            </BarChart>
-          )}
-        </ResponsiveContainer>
+        <>
+          <ResponsiveContainer height={240}>
+            {mode === 'area' ? (
+              <AreaChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={54} tickMargin={8} allowDecimals={false} label={axisLabel(unit)} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#1F3442', strokeDasharray: '4 4' }} />
+                <Legend verticalAlign="bottom" height={26} iconType="circle" iconSize={9} wrapperStyle={CHART_LEGEND_STYLE} />
+                <Area type="monotone" dataKey="visitors" name="Customers who arrived" stroke="#1F3442" fill="#E8F0F4" fillOpacity={0.48} strokeWidth={4} />
+              </AreaChart>
+            ) : (
+              <BarChart data={data} margin={{ top: 8, right: 18, left: 6, bottom: 0 }} barGap={8}>
+                <CartesianGrid vertical={false} stroke="#D9E4EA" strokeDasharray="3 8" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 12, fontWeight: 700 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#718896', fontSize: 11, fontWeight: 700 }} width={54} tickMargin={8} allowDecimals={false} label={axisLabel(unit)} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(31,52,66,.06)' }} />
+                <Legend verticalAlign="bottom" height={26} iconType="circle" iconSize={9} wrapperStyle={CHART_LEGEND_STYLE} />
+                <Bar dataKey="served" name="Served" fill="#1F3442" radius={[10, 10, 4, 4]} />
+                <Bar dataKey="noShows" name="No-shows" fill="#e5484d" radius={[10, 10, 4, 4]} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+          {caption ? <p className="ops-chart-caption">{caption}</p> : null}
+        </>
       ) : (
-        <EmptyState title="No Chart Data Yet" detail="Live operational data will appear here after tickets are completed." />
+        <EmptyState title="No chart data yet" detail="Live operational data will appear here after tickets are completed." />
       )}
     </Panel>
   );
@@ -659,9 +937,9 @@ function effLabel(score: number) {
 function serviceEffNote(service: ServiceInsight, targets: BusinessTargets) {
   const wait = Math.round(numberValue(service.avg_wait_minutes));
   const target = numberValue(targets.target_wait_minutes) || 20;
-  if (wait <= target * 0.75) return `${wait}m Avg · Well Under ${target}m Target`;
-  if (wait <= target) return `${wait}m Avg · On ${target}m Target`;
-  return `${wait}m Avg · Above ${target}m Target`;
+  if (wait <= target * 0.75) return `${wait}m avg · well under ${target}m target`;
+  if (wait <= target) return `${wait}m avg · on ${target}m target`;
+  return `${wait}m avg · above ${target}m target`;
 }
 
 function HealthDonut({ score, size = 76, label }: { score: number; size?: number; label?: string }) {
@@ -701,7 +979,7 @@ function BranchHealthCard({
     .sort((a, b) => b.score - a.score);
   const health = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.score, 0) / rows.length) : 0;
   return (
-    <Panel title={title} eyebrow="Efficiency By Service · Live" className="branch-health-panel">
+    <Panel title={title} eyebrow="Efficiency by service · live" className="branch-health-panel">
       {rows.length ? (
         <>
           <div className="health-head">
@@ -727,7 +1005,7 @@ function BranchHealthCard({
           </div>
         </>
       ) : (
-        <EmptyState title="No Service Activity Yet" detail="Service efficiency scores appear after today's visits are recorded." />
+        <EmptyState title="No service activity yet" detail="Service efficiency scores appear after today's visits are recorded." />
       )}
     </Panel>
   );
@@ -735,7 +1013,7 @@ function BranchHealthCard({
 
 function ServiceDetailTable({ services }: { services: ServiceInsight[] }) {
   return (
-    <Panel title="Service Detail" eyebrow="Visits, Waits, And Drop-Off Behind The Scores" className="manager-table-panel">
+    <Panel title="Service Detail" eyebrow="Visits, waits, and drop-off behind the scores" className="manager-table-panel">
       {services.length ? (
         <table className="manager-data-table">
           <thead>
@@ -762,7 +1040,7 @@ function ServiceDetailTable({ services }: { services: ServiceInsight[] }) {
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Service Analytics Yet" detail="Service detail is generated as completed visits accumulate." />
+        <EmptyState title="No service analytics yet" detail="Service detail is generated as completed visits accumulate." />
       )}
     </Panel>
   );
@@ -803,7 +1081,7 @@ function ManagerRecentCustomers({ tickets, onOpen }: { tickets: TicketRow[]; onO
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Recent Customers Yet" detail="Served and no-show customers will appear here throughout the day." />
+        <EmptyState title="No recent customers yet" detail="Served and no-show customers will appear here throughout the day." />
       )}
     </Panel>
   );
@@ -853,7 +1131,7 @@ function DemandMatrix({ cells, by }: { cells: DemandCell[]; by: 'hour' | 'dow' }
   const columnTitle = (col: number) => (by === 'hour' ? `${col}:00` : DOW_LABELS[col]);
 
   if (!rows.length) {
-    return <EmptyState title="No Demand Data Yet" detail="Traffic patterns will appear here after visits are recorded." />;
+    return <EmptyState title="No demand data yet" detail="Traffic patterns will appear here after visits are recorded." />;
   }
   const colStyle = { '--demand-cols': columns.length } as CSSProperties;
   return (
@@ -913,7 +1191,7 @@ function DemandPanel({
   const [view, setView] = useState<'hour' | 'dow'>('hour');
   const cells = view === 'hour' ? hourly : weekly;
   const totalVisits = total(cells, 'visit_count');
-  const title = rowKind === 'branch' ? 'Branch Demand Breakdown' : 'Service Demand Breakdown';
+  const title = rowKind === 'branch' ? 'Branch demand breakdown' : 'Service demand breakdown';
 
   return (
     <Panel
@@ -980,7 +1258,7 @@ function ManagerCounterTable({
           </tbody>
         </table>
       ) : (
-        <EmptyState title="No Assignments Today" detail="Assign staff to counters before branch traffic begins." />
+        <EmptyState title="No assignments today" detail="Assign staff to counters before branch traffic begins." />
       )}
     </Panel>
   );
@@ -1023,7 +1301,7 @@ function ManagerStaffPanel({
           value={<StatusPill status={member.presence_status} />}
           onClick={onOpen}
         />
-      )) : <EmptyState title="No Staff Found" detail="Staff will appear here after they are active or assigned to this branch." />}
+      )) : <EmptyState title="No staff found" detail="Staff will appear here after they are active or assigned to this branch." />}
       <button type="button" className="manager-panel-more" onClick={onOpen}>View Staff</button>
     </Panel>
   );
@@ -1089,9 +1367,9 @@ function insightSentence(prediction: PredictionRow | undefined, fallback: string
 const INSIGHT_DISPLAY_NAMES: Record<string, string> = {
   manager_performance: 'Manager Performance',
   ops_insights: 'Operations Insights',
-  resource_recommendations: 'Who’s Needed Where',
-  abandonment_thresholds: 'Queue Length Tolerance',
-  wait_time_predictions: 'Wait Time Forecast',
+  resource_recommendations: 'Who’s needed where',
+  abandonment_thresholds: 'Queue length tolerance',
+  wait_time_predictions: 'Wait time forecast',
   heatmap_data: 'Busy Times',
 };
 
@@ -1302,23 +1580,23 @@ function branchDrilldown(branch: BranchAggregate, targets: BusinessTargets) {
 
   (completion >= targetCompletion ? working : failing).push(
     completion >= targetCompletion
-      ? `Strong Completion — ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
-      : `Low Completion — Only ${formatPercent(completion)} Of Visitors Served (Target ${targetCompletion}%)`
+      ? `Strong completion — ${formatPercent(completion)} of visitors served (target ${targetCompletion}%)`
+      : `Low completion — only ${formatPercent(completion)} of visitors served (target ${targetCompletion}%)`
   );
   (wait <= targetWait ? working : failing).push(
     wait <= targetWait
-      ? `Average Wait Held At ${wait}m — Under The ${targetWait}m Target`
-      : `Average Wait Is ${wait}m — Above The ${targetWait}m Target`
+      ? `Average wait held at ${wait}m — under the ${targetWait}m target`
+      : `Average wait is ${wait}m — above the ${targetWait}m target`
   );
   (noShowRate <= targetNoShow ? working : failing).push(
     noShowRate <= targetNoShow
-      ? `No-Show Rate Contained At ${formatPercent(noShowRate)} (Target ${targetNoShow}%)`
-      : `No-Show Rate Elevated At ${formatPercent(noShowRate)} — Target Is ${targetNoShow}%`
+      ? `No-Show rate contained at ${formatPercent(noShowRate)} (target ${targetNoShow}%)`
+      : `No-Show rate elevated at ${formatPercent(noShowRate)} — target is ${targetNoShow}%`
   );
   (visits >= 20 ? working : failing).push(
     visits >= 20
-      ? `Healthy Demand — ${formatCount(visits)} Visits In The Window`
-      : `Light Demand — Only ${formatCount(visits)} Visits In The Window`
+      ? `Healthy demand — ${formatCount(visits)} visits in the window`
+      : `Light demand — only ${formatCount(visits)} visits in the window`
   );
   return { working, failing };
 }
@@ -1326,7 +1604,7 @@ function branchDrilldown(branch: BranchAggregate, targets: BusinessTargets) {
 function ExecutiveBranchList({ branches, targets }: { branches: BranchAggregate[]; targets: BusinessTargets }) {
   const [openId, setOpenId] = useState<string | null>(null);
   if (!branches.length) {
-    return <EmptyState title="No Branch Analytics Yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
+    return <EmptyState title="No branch analytics yet" detail="Branch comparisons will appear after the analytics refresh has records." />;
   }
   return (
     <div className="branch-health-list">
@@ -1365,16 +1643,6 @@ function ExecutiveBranchList({ branches, targets }: { branches: BranchAggregate[
   );
 }
 
-function eventDatesForMonth(monthKey: string, rows: SummaryRow[]) {
-  const monthRows = rows.filter((row) => String(row.summary_date || '').slice(0, 7) === monthKey);
-  const avgVisits = avg(monthRows, 'total_visitors');
-  const avgWait = avg(monthRows, 'avg_wait_time_minutes');
-  return new Set(monthRows
-    .filter((row) => numberValue(row.no_show_count) > 0
-      || numberValue(row.total_visitors) >= Math.max(avgVisits, 1)
-      || numberValue(row.avg_wait_time_minutes) >= Math.max(avgWait * 1.15, avgWait + 8))
-    .map((row) => String(row.summary_date || '').slice(0, 10)));
-}
 
 function ExecutiveKpiTile({
   label,
@@ -1458,7 +1726,7 @@ function ExecutiveAnalyticsView({ data, services, branches }: { data: any[]; ser
                 <Area type="monotone" dataKey="wait" name="Avg Wait" stroke="#607787" fill="#E8F0F4" fillOpacity={0.5} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
-          ) : <EmptyState title="No Model Chart Yet" detail="Analytics will fill this panel after operational records are available." />}
+          ) : <EmptyState title="No model chart yet" detail="Analytics will fill this panel after operational records are available." />}
         </div>
         <div className="exec-branch-bars">
           {branchCards.length ? branchCards.map((branch) => (
@@ -1501,33 +1769,42 @@ function ExecutiveInsightCard({
   );
 }
 
-function ExecutiveCalendar({ monthKey, rows }: { monthKey: string; rows: SummaryRow[] }) {
-  const [year, month] = monthKey.split('-').map(Number);
-  const first = new Date(year, month - 1, 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const previousDays = new Date(year, month - 1, 0).getDate();
-  const eventDates = eventDatesForMonth(monthKey, rows);
-  const cells = Array.from({ length: 42 }, (_, index) => {
-    const offset = index - first.getDay();
-    const inMonth = offset >= 0 && offset < daysInMonth;
-    const day = inMonth ? offset + 1 : offset < 0 ? previousDays + offset + 1 : offset - daysInMonth + 1;
-    const dateKey = `${monthKey}-${String(day).padStart(2, '0')}`;
-    return { day, inMonth, event: inMonth && eventDates.has(dateKey) };
-  });
+
+function ExecutiveActionCard({
+  actionPlan,
+  targets,
+  summary,
+  onOpen,
+}: {
+  actionPlan: { improve: string[] };
+  targets: BusinessTargets;
+  summary: SummaryRow[];
+  onOpen: () => void;
+}) {
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetCompletion = numberValue(targets.target_completion_rate) || 80;
+
   return (
-    <section className="exec-side-panel exec-calendar">
+    <section className="exec-side-panel exec-action-card">
       <div className="exec-side-head">
-        <h3>{monthLabel(monthKey)}</h3>
-        <span><ChevronLeft size={14} /><ChevronRight size={14} /></span>
+        <h3>What To Improve</h3>
+        <button type="button" className="ops-link-button" onClick={onOpen}>See all</button>
       </div>
-      <div className="exec-calendar-weekdays">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <b key={day}>{day}</b>)}
-      </div>
-      <div className="exec-calendar-grid">
-        {cells.map((cell, index) => (
-          <span key={`${cell.day}-${index}`} className={`${cell.inMonth ? '' : 'muted'} ${cell.event ? 'event' : ''}`}>{cell.day}</span>
-        ))}
-      </div>
+      <p className="exec-action-target">
+        <b>Target:</b> {targetWait}m average wait · <b>You're at</b> {formatMinutes(avgWait)}
+      </p>
+      <p className="exec-action-target">
+        <b>Target:</b> {formatPercent(targetCompletion)} completed · <b>You're at</b> {formatPercent(completionRate)}
+        <small> ({formatCount(served)} of {formatCount(visitors)} customers)</small>
+      </p>
+      <ol className="exec-action-list">
+        {actionPlan.improve.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+      </ol>
+      <button type="button" className="ops-primary" onClick={onOpen}>Open the full plan</button>
     </section>
   );
 }
@@ -1546,7 +1823,7 @@ function ExecutiveManagerList({ managers, onOpen }: { managers: ManagerScore[]; 
           <em>{formatCount(manager.assigned_staff)} Staff</em>
         </button>
       ))}
-      {!managers.length ? <EmptyState title="No Manager Scores" detail="Manager ranking appears after branch activity is available." /> : null}
+      {!managers.length ? <EmptyState title="No manager scores" detail="Manager ranking appears after branch activity is available." /> : null}
     </section>
   );
 }
@@ -1569,7 +1846,7 @@ function ExecutiveTopBranch({ branch, manager, onOpen }: { branch?: BranchTrend;
             <span><b>{formatMinutes(branch.avg_wait_minutes)}</b><small>Avg Wait</small></span>
           </div>
         </>
-      ) : <EmptyState title="No Branch Leader Yet" detail="Branch ranking appears after analytics records are available." />}
+      ) : <EmptyState title="No branch leader yet" detail="Branch ranking appears after analytics records are available." />}
     </section>
   );
 }
@@ -1652,7 +1929,7 @@ function TargetsPanel({ targets, businessId, editable }: { targets: BusinessTarg
 
   const deadline = targetDeadlineLabel(targets);
   const provenance = targets.is_default
-    ? 'Default Targets · Not Set Yet'
+    ? 'Default targets · not set yet'
     : `Set By ${displayLabel(targets.set_by_name || 'Executive')} · Due ${deadline}`;
 
   if (!editable) {
@@ -1734,7 +2011,7 @@ function TargetProgress({ targets, summary }: { targets: BusinessTargets; summar
   ];
 
   return (
-    <Panel title="Target Progress" eyebrow={`Where You Stand Against The ${targets.horizon_months}-Month Goal · Due ${deadline}`}>
+    <Panel title="Target Progress" eyebrow={`Where you stand against the ${targets.horizon_months}-month goal · due ${deadline}`}>
       <div className="target-progress">
         {rows.map((row) => (
           <div key={row.label} className="target-progress-row">
@@ -1772,7 +2049,7 @@ function NotebookWaitForecast({ predictions }: { predictions: PredictionRow[] })
     })
     .filter((row) => row.wait >= 0);
   return (
-    <Panel title="Predicted Wait By Hour" eyebrow={`Forecast${prediction?.branch_name ? ` · ${displayLabel(prediction.branch_name)}` : ''}`} className="ops-chart-panel">
+    <Panel title="Predicted wait by hour" eyebrow={`Forecast${prediction?.branch_name ? ` · ${displayLabel(prediction.branch_name)}` : ''}`} className="ops-chart-panel">
       {chart.length ? (
         <ResponsiveContainer height={210}>
           <AreaChart data={chart} margin={{ top: 8, right: 18, left: 6, bottom: 0 }}>
@@ -1784,7 +2061,7 @@ function NotebookWaitForecast({ predictions }: { predictions: PredictionRow[] })
           </AreaChart>
         </ResponsiveContainer>
       ) : (
-        <EmptyState title="No Wait Forecast Yet" detail={insightSentence(prediction, 'Run the analytics refresh to generate the hourly wait forecast.')} />
+        <EmptyState title="No wait forecast yet" detail={insightSentence(prediction, 'Run the analytics refresh to generate the hourly wait forecast.')} />
       )}
     </Panel>
   );
@@ -1796,7 +2073,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
   const services: any[] = Array.isArray(data?.services) ? data.services : [];
   const maxThreshold = Math.max(1, ...services.map((row) => numberValue(row.threshold_queue_length ?? row.max_queue_length)));
   return (
-    <Panel title="Queue Length Tolerance" eyebrow="How Long A Line Gets Before People Stop Joining">
+    <Panel title="Queue length tolerance" eyebrow="How long a line gets before people stop joining">
       {services.length ? (
         <div className="health-rows">
           {services.map((row) => {
@@ -1807,7 +2084,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
                 <i style={{ background: '#607787' }} />
                 <div className="health-row-main">
                   <b>{displayLabel(row.service_name || 'Service')}</b>
-                  <small>{abandonRate ? `${formatPercent(abandonRate)} Walk Away Beyond This Point` : 'Joining Drops Beyond This Point'}</small>
+                  <small>{abandonRate ? `${formatPercent(abandonRate)} Walk away beyond this point` : 'Joining drops beyond this point'}</small>
                 </div>
                 <div className="health-line"><i style={{ width: `${Math.max(8, (threshold / maxThreshold) * 100)}%`, background: 'linear-gradient(90deg,#2F5063,#A8BBC6)' }} /></div>
                 <span>{formatCount(threshold)}</span>
@@ -1816,7 +2093,7 @@ function NotebookAbandonment({ predictions }: { predictions: PredictionRow[] }) 
           })}
         </div>
       ) : (
-        <EmptyState title="No Abandonment Model Yet" detail={insightSentence(prediction, 'The prediction system estimates the queue length at which customers stop joining each service.')} />
+        <EmptyState title="No abandonment model yet" detail={insightSentence(prediction, 'The prediction system estimates the queue length at which customers stop joining each service.')} />
       )}
     </Panel>
   );
@@ -1827,10 +2104,10 @@ function NotebookModelQuality({ predictions }: { predictions: PredictionRow[] })
   const data = parseInsightData(prediction?.insight_data);
   if (!prediction) return null;
   return (
-    <Panel title="Prediction Accuracy" eyebrow="How Reliable The Wait Forecasts Are">
-      <DataRow title="Typical Error" detail="Mean Absolute Error Of Predicted Waits" value={data?.mae_minutes != null ? `±${Math.round(numberValue(data.mae_minutes))}m` : 'Pending'} />
-      <DataRow title="Fit (R²)" detail="Share Of Wait Variation The Model Explains" value={data?.r2 != null ? `${Math.round(numberValue(data.r2) * 100)}%` : 'Pending'} />
-      <DataRow title="Model" detail={data?.summary ? String(data.summary) : 'Gradient Boosting Trained On Visit History'} value={displayLabel(data?.model || 'GBR')} />
+    <Panel title="Prediction Accuracy" eyebrow="How reliable the wait forecasts are">
+      <DataRow title="Typical Error" detail="Mean absolute error of predicted waits" value={data?.mae_minutes != null ? `±${Math.round(numberValue(data.mae_minutes))}m` : 'Pending'} />
+      <DataRow title="Fit (R²)" detail="Share of wait variation the model explains" value={data?.r2 != null ? `${Math.round(numberValue(data.r2) * 100)}%` : 'Pending'} />
+      <DataRow title="Model" detail={data?.summary ? String(data.summary) : 'Gradient boosting trained on visit history'} value={displayLabel(data?.model || 'GBR')} />
     </Panel>
   );
 }
@@ -1840,14 +2117,14 @@ const BALK_UPPER: Record<string, number> = { '0-5': 5, '5-10': 10, '10-15': 15, 
 function BalkingCard({ balking }: { balking: BalkingData | null }) {
   if (!balking || !balking.total_joins) {
     return (
-      <Panel title="Demand Lost To Long Lines" eyebrow="Measured From Real Customer Behaviour">
-        <EmptyState title="Not Enough Joins Yet" detail="Once customers start joining, we'll show the quoted wait at which join volume drops off." />
+      <Panel title="Demand lost to long lines" eyebrow="Measured from real customer behaviour">
+        <EmptyState title="Not enough joins yet" detail="Once customers start joining, we'll show the quoted wait at which join volume drops off." />
       </Panel>
     );
   }
   const maxJoins = Math.max(1, ...balking.histogram.map((h) => h.joins));
   return (
-    <Panel title="Demand Lost To Long Lines" eyebrow="Measured From Real Customer Behaviour">
+    <Panel title="Demand lost to long lines" eyebrow="Measured from real customer behaviour">
       <div style={{ display: 'flex', gap: 14 }}>
         <div style={{ flex: 1, background: '#F3F7F9', borderRadius: 12, padding: '12px 14px' }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#1F3442', letterSpacing: '-0.5px' }}>{balking.balk_wait_minutes != null ? `~${balking.balk_wait_minutes}m` : '—'}</div>
@@ -1895,8 +2172,8 @@ function NotebookAnalytics({ predictions, balking }: { predictions: PredictionRo
 function WorkforcePanel({ employeeKpis }: { employeeKpis?: ExecutiveKpis }) {
   return (
     <Panel title="Workforce" eyebrow={`Employee Movement · ${employeeKpis ? monthLabel(employeeKpis.month) : 'This Month'}`}>
-      <DataRow title="Total Employees" detail="Active Staff Accounts" value={formatCount(employeeKpis?.total_employees)} />
-      <DataRow title="Active This Month" detail={`Vs Last Month: ${signedPercent(employeeKpis?.active_change_pct)}`} value={formatCount(employeeKpis?.active_employees)} />
+      <DataRow title="Total Employees" detail="Active staff accounts" value={formatCount(employeeKpis?.total_employees)} />
+      <DataRow title="Active this month" detail={`Vs last month: ${signedPercent(employeeKpis?.active_change_pct)}`} value={formatCount(employeeKpis?.active_employees)} />
       <DataRow title="On Leave" detail="Marked Unavailable" value={formatCount(employeeKpis?.leave_employees)} />
       {(employeeKpis?.new_staff || []).map((member) => (
         <DataRow key={member.id} title={displayLabel(member.full_name)} detail={`New Hire · ${displayLabel(member.branch_name || 'Branch')}`} value={member.created_at ? compactDate(member.created_at) : 'New'} />
@@ -1912,7 +2189,11 @@ function StaffDashboardContent() {
   const [selectedQueueId, setSelectedQueueId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [period, setPeriod] = useState('today');
-  const [actionMessage, setActionMessage] = useState('');
+  // Success and failure used to share one string in one grey line, so a failed
+  // no-show read exactly like a successful one. They are separate now, and the
+  // confirmation clears itself so a stale "Queue updated." never sits over a
+  // line that has moved on since.
+  const [actionMessage, setActionMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   useNow();
 
   const activeQueue = queues.find((queue) => queue.id === selectedQueueId) || queues[0];
@@ -1958,16 +2239,45 @@ function StaffDashboardContent() {
     },
     onSuccess: async () => {
       setVerificationCode('');
-      setActionMessage('Queue updated.');
-      await qc.invalidateQueries();
+      setActionMessage({ tone: 'ok', text: 'Queue updated.' });
+      // Scoped: a blanket invalidateQueries() refetched analytics, history,
+      // presence and branch data on every single button press, so the whole
+      // dashboard flickered each time a customer was called.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['ops-tickets'] }),
+        qc.invalidateQueries({ queryKey: ['ops-staff-history'] }),
+        qc.invalidateQueries({ queryKey: ['ops-line-staff-analytics'] }),
+        qc.invalidateQueries({ queryKey: ['ops-queues'] }),
+      ]);
     },
-    onError: (error) => setActionMessage(error instanceof Error ? error.message : 'The queue could not be updated.'),
+    onError: (error) => setActionMessage({
+      tone: 'error',
+      text: error instanceof Error ? error.message : 'The queue could not be updated.',
+    }),
   });
+
+  // Clear the confirmation after a few seconds; leave failures up until the
+  // next action, because those need reading.
+  useEffect(() => {
+    if (actionMessage?.tone !== 'ok') return undefined;
+    const timer = setTimeout(() => setActionMessage(null), 4_000);
+    return () => clearTimeout(timer);
+  }, [actionMessage]);
 
   const updateStatus = (ticket: TicketRow | undefined, newStatus: TicketStatus, body: Record<string, unknown> = {}) => {
     if (!ticket) return;
-    setActionMessage('');
+    setActionMessage(null);
     ticketAction.mutate({ ticketId: ticket.id, action: 'status', body: { new_status: newStatus, ...body } });
+  };
+
+  // A no-show takes someone's place in the line away, it sits one button from
+  // "Complete", and it cannot be undone from this screen. Ask first.
+  const confirmNoShow = () => {
+    if (!calledTicket) return;
+    const who = calledTicket.user_name ? `${calledTicket.ticket_number} (${calledTicket.user_name})` : calledTicket.ticket_number;
+    if (window.confirm(`Mark ${who} as a no-show?\n\nThey lose their place in the line and will have to join again.`)) {
+      updateStatus(calledTicket, 'no_show');
+    }
   };
 
   const tabs: DashboardTab[] = [
@@ -1981,7 +2291,7 @@ function StaffDashboardContent() {
   return (
     <DashboardShell
       roleLabel="Line Staff"
-      title="Run Today’s Line"
+      title="Run today’s line"
       subtitle={`${activeQueue?.branch_name || admin?.staffRecord.branch_name || 'No Branch'} · ${activeQueue?.service_name || admin?.staffRecord.assigned_service_name || 'Waiting For Assignment'}`}
       tabs={tabs}
       activeTab={activeTab}
@@ -2026,7 +2336,7 @@ function StaffDashboardContent() {
               <button disabled={!nextTicket || ticketAction.isPending} onClick={() => nextTicket && ticketAction.mutate({ ticketId: nextTicket.id, action: 'skip', body: { disposition: 'requeue' } })}>
                 <RefreshCw size={17} /> Skip
               </button>
-              <button disabled={!calledTicket || countdown > 0 || ticketAction.isPending} onClick={() => updateStatus(calledTicket, 'no_show')}>
+              <button disabled={!calledTicket || countdown > 0 || ticketAction.isPending} onClick={confirmNoShow}>
                 <XCircle size={17} /> No-Show
               </button>
             </div>
@@ -2048,12 +2358,20 @@ function StaffDashboardContent() {
             ) : null}
             {servingTicket ? <p className="staff-timer-note">Service Timer Started After Customer Code Confirmation.</p> : null}
             {calledTicket ? <p className="staff-timer-note">No-Show Becomes Available When The Call Timer Reaches 0:00.</p> : null}
-            {actionMessage ? <p className="ops-action-message">{actionMessage}</p> : null}
+            {actionMessage ? (
+              <p
+                className={actionMessage.tone === 'error' ? 'ops-action-message error' : 'ops-action-message'}
+                role="status"
+                aria-live="polite"
+              >
+                {actionMessage.text}
+              </p>
+            ) : null}
           </section>
           <div className="ops-grid three">
             <KpiCard label="Served" value={analytics.data?.served_count || 0} detail={displayLabel(period)} icon={CheckCircle2} onClick={() => setActiveTab('history')} />
             <KpiCard label="No-Shows" value={analytics.data?.no_show_count || 0} detail="Skipped After Call" icon={XCircle} onClick={() => setActiveTab('history')} />
-            <KpiCard label="Service Avg" value={`${Math.round(numberValue(analytics.data?.avg_service_minutes))}m`} detail="From Start To Complete" icon={Timer} onClick={() => setActiveTab('analytics')} />
+            <KpiCard label="Service Avg" value={`${Math.round(numberValue(analytics.data?.avg_service_minutes))}m`} detail="From start to complete" icon={Timer} onClick={() => setActiveTab('analytics')} />
           </div>
         </>
       ) : null}
@@ -2073,7 +2391,12 @@ function StaffDashboardContent() {
                 </span>
               }
             />
-          )) : <EmptyState title={ticketsQuery.isLoading ? 'Loading Queue' : 'No Active Tickets'} detail="Active tickets will appear here as customers join or are called." />}
+          )) : listFallback(ticketsQuery, {
+            emptyTitle: "No active tickets",
+            emptyDetail: "Active tickets will appear here as customers join or are called.",
+            errorTitle: "The live queue could not be loaded",
+            errorDetail: "This is not an empty line — the connection failed. Do not stop calling customers until it loads.",
+          })}
         </Panel>
       ) : null}
 
@@ -2089,7 +2412,12 @@ function StaffDashboardContent() {
                 meta={<StatusPill status={ticket.status} />}
                 value={ticket.status === 'served' ? `${Math.round(numberValue(ticket.service_minutes))}m` : 'Skipped'}
               />
-            )) : <EmptyState title="No History For This Period" detail="Completed services and no-shows will be listed here." />}
+            )) : listFallback(history, {
+              emptyTitle: "No history for this period",
+              emptyDetail: "Completed services and no-shows will be listed here.",
+              errorTitle: "History could not be loaded",
+              errorDetail: "The connection failed, so this period may not really be empty.",
+            })}
           </Panel>
         </>
       ) : null}
@@ -2106,7 +2434,7 @@ function StaffDashboardContent() {
       ) : null}
 
       {activeTab === 'manager' ? (
-          <Panel title="Manager On Shift">
+          <Panel title="Manager on shift">
           {(managers.data || []).length ? (managers.data || []).map((manager) => (
             <DataRow
               key={manager.id}
@@ -2115,7 +2443,12 @@ function StaffDashboardContent() {
               meta={<StatusPill status={manager.presence_status} />}
               value={manager.last_seen_at ? compactDate(manager.last_seen_at) : 'Not active'}
             />
-          )) : <EmptyState title="No Manager Activity Found" detail="Assigned managers will appear when they are active in this branch." />}
+          )) : listFallback(managers, {
+            emptyTitle: "No manager on shift",
+            emptyDetail: "Assigned managers appear here when they are active in this branch.",
+            errorTitle: "Manager presence could not be loaded",
+            errorDetail: "The connection failed — a manager may well be on shift.",
+          })}
         </Panel>
       ) : null}
     </DashboardShell>
@@ -2171,13 +2504,60 @@ function ManagerDashboardContent() {
     onSuccess: async () => {
       setStaffId('');
       setCounterId('');
-      await qc.invalidateQueries();
+      // Assigning a counter changes assignments and who counts as unassigned —
+      // not the branch's analytics, targets or forecasts. A blanket invalidate
+      // refetched all of those and made the page jump on every assignment.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['manager-assignments'] }),
+        qc.invalidateQueries({ queryKey: ['manager-presence'] }),
+      ]);
     },
   });
   const removeAssignment = useMutation({
     mutationFn: (assignmentId: string) => api.delete(`/assignments/${assignmentId}`),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['manager-assignments'] });
+      qc.invalidateQueries({ queryKey: ['manager-presence'] });
+    },
   });
+
+  const [requestName, setRequestName] = useState('');
+  const [requestEmail, setRequestEmail] = useState('');
+  const [requestRole, setRequestRole] = useState<'line_staff' | 'manager'>('line_staff');
+  const staffRequests = useQuery({
+    queryKey: ['manager-staff-requests', businessId],
+    queryFn: () => api.get<StaffRequestRow[]>(`/staff-invite/pending?business_id=${businessId}`),
+    enabled: Boolean(businessId),
+    refetchInterval: 60_000,
+  });
+  const requestStaff = useMutation({
+    mutationFn: () => api.post('/staff-invite/create', {
+      business_id: businessId,
+      branch_id: branchId,
+      full_name: requestName.trim(),
+      email: requestEmail.trim(),
+      role: requestRole,
+    }),
+    onSuccess: () => {
+      setRequestName('');
+      setRequestEmail('');
+      staffRequests.refetch();
+    },
+  });
+
+  const closeQueue = useMutation({
+    mutationFn: (queueId: string) => api.put(`/queues/${queueId}/close`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops-queues'] }),
+  });
+  const confirmCloseQueue = (queue: QueueRow) => {
+    const waiting = numberValue(queue.waiting_count);
+    const warning = waiting
+      ? `${waiting} ${waiting === 1 ? 'customer is' : 'customers are'} still waiting in this line. Closing it stops anyone else joining — serve or release them first.`
+      : 'No one is waiting. Closing stops anyone else joining today.';
+    if (window.confirm(`Close ${displayLabel(queue.service_name || 'this line')}?\n\n${warning}`)) {
+      closeQueue.mutate(queue.id);
+    }
+  };
 
   const filteredQueues = selectedServiceId ? queues.filter((queue) => queue.service_id === selectedServiceId) : queues;
   const lineStaffPresence = (presence.data || []).filter((member) => member.role_name === 'line_staff');
@@ -2216,7 +2596,7 @@ function ManagerDashboardContent() {
     <DashboardShell
       roleLabel="Manager"
       title="Branch Operations"
-      subtitle={`${displayLabel(admin?.staffRecord.branch_name || 'Branch')} · Live Queues, Counters, And Staff`}
+      subtitle={`${displayLabel(admin?.staffRecord.branch_name || 'Branch')} · Live queues, counters, and staff`}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -2249,20 +2629,77 @@ function ManagerDashboardContent() {
             </div>
           </div>
           <div className="manager-summary-grid">
-            <Panel title="Staff Coverage" eyebrow="Line Staff Only">
+            <Panel title="Staff Coverage" eyebrow="Line staff only">
               <DataRow title="Online Staff" detail="Active sessions in this branch" value={`${onlineLineStaff.length}`} meta={<StatusPill status="online" />} onClick={() => setActiveTab('staff')} />
               <DataRow title="Unassigned Staff" detail="Available to place at a counter" value={`${unassignedStaff.length}`} meta={<StatusPill status={unassignedStaff.length ? 'called' : 'served'} />} onClick={() => setActiveTab('assignments')} />
             </Panel>
             <Panel title="Last Updated" eyebrow="Your Numbers">
               <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={displayLabel(pipeline?.last_run?.status || 'Empty')} />
-              <DataRow title="Predictions" detail="Insights Tracked For Your Branch" value={pipeline?.insights?.length || 0} />
+              <DataRow title="Predictions" detail="Insights tracked for your branch" value={pipeline?.insights?.length || 0} />
             </Panel>
           </div>
         </>
       ) : null}
 
       {activeTab === 'staff' ? (
-        <Panel title="Staff Presence" eyebrow="Who's Signed In And Assigned">
+        <>
+        <Panel title="Request a staff member" eyebrow="DKS Technologies reviews every request before the account works">
+          <div className="assignment-controls">
+            <input
+              value={requestName}
+              onChange={(event) => setRequestName(event.target.value)}
+              placeholder="Full name"
+              aria-label="Staff member's full name"
+            />
+            <input
+              value={requestEmail}
+              onChange={(event) => setRequestEmail(event.target.value)}
+              placeholder="Work email"
+              type="email"
+              aria-label="Staff member's work email"
+            />
+            <select value={requestRole} onChange={(event) => setRequestRole(event.target.value as 'line_staff' | 'manager')} aria-label="Role">
+              <option value="line_staff">Line Staff</option>
+              <option value="manager">Manager</option>
+            </select>
+            <button
+              className="ops-primary accent"
+              disabled={!requestName.trim() || !requestEmail.trim() || requestStaff.isPending}
+              onClick={() => requestStaff.mutate()}
+            >
+              <Plus size={16} /> Send Request
+            </button>
+          </div>
+          <p className="ops-hint">
+            We send the request to DKS Technologies. Once it's approved an invite code appears below —
+            share it with your staff member and they set their own password. You never see or choose it.
+          </p>
+          {requestStaff.isError ? <p className="ops-error">{requestStaff.error instanceof Error ? requestStaff.error.message : 'The request could not be sent.'}</p> : null}
+          {requestStaff.isSuccess ? <p className="ops-hint success">Request sent. You'll see it below once DKS approves it.</p> : null}
+
+          {(staffRequests.data || []).length ? (staffRequests.data || []).map((request) => (
+            <DataRow
+              key={request.id}
+              title={displayLabel(request.full_name)}
+              detail={`${request.email} · ${displayLabel(request.role)}`}
+              meta={<StatusPill status={request.status === 'pending' ? 'approved' : request.status} />}
+              value={
+                request.status === 'pending' && request.invite_code
+                  ? <span className="ops-invite-code">{request.invite_code}</span>
+                  : request.status === 'declined'
+                    ? <span title={request.decline_reason || ''}>Declined</span>
+                    : 'Waiting on DKS'
+              }
+            />
+          )) : listFallback(staffRequests, {
+            emptyTitle: "No requests yet",
+            emptyDetail: "Staff you request will appear here with their approval status.",
+            errorTitle: "Staff requests could not be loaded",
+            errorDetail: "The connection failed. Pending requests may still exist.",
+          })}
+        </Panel>
+
+        <Panel title="Staff Presence" eyebrow="Who's signed in and assigned">
           {lineStaffPresence.length ? lineStaffPresence.map((member) => (
             <DataRow
               key={member.id}
@@ -2272,12 +2709,18 @@ function ManagerDashboardContent() {
               value={member.last_seen_at ? compactDate(member.last_seen_at) : 'No Session'}
               onClick={() => setActiveTab('assignments')}
             />
-          )) : <EmptyState title="No Line Staff Found" detail="Line staff presence will appear after staff are created and assigned." />}
+          )) : listFallback(presence, {
+            emptyTitle: "No line staff found",
+            emptyDetail: "Line staff presence appears after staff are created and assigned.",
+            errorTitle: "Staff presence could not be loaded",
+            errorDetail: "The connection failed — staff may well be on shift.",
+          })}
         </Panel>
+        </>
       ) : null}
 
       {activeTab === 'assignments' ? (
-        <Panel title="Counter Assignments" eyebrow="Assign, Reassign, Or Remove Staff">
+        <Panel title="Counter Assignments" eyebrow="Assign, reassign, or remove staff">
           <div className="assignment-controls">
             <select value={staffId} onChange={(event) => setStaffId(event.target.value)} aria-label="Staff member">
               <option value="">Select Staff</option>
@@ -2304,7 +2747,12 @@ function ManagerDashboardContent() {
                 </span>
               }
             />
-          )) : <EmptyState title="No Assignments Today" detail="Choose a staff member and counter to prepare the branch for service." />}
+          )) : listFallback(assignments, {
+            emptyTitle: "No assignments today",
+            emptyDetail: "Choose a staff member and counter to prepare the branch for service.",
+            errorTitle: "Assignments could not be loaded",
+            errorDetail: "The connection failed, so counters may already be assigned.",
+          })}
         </Panel>
       ) : null}
 
@@ -2316,16 +2764,32 @@ function ManagerDashboardContent() {
       ) : null}
 
       {activeTab === 'queues' ? (
-        <Panel title="Active Queues">
-          {filteredQueues.length ? filteredQueues.map((queue) => (
-            <DataRow
-              key={queue.id}
-              title={displayLabel(queue.service_name || 'Service')}
-              detail={`${displayLabel(queue.branch_name || 'Branch')} · ${Math.round(numberValue(queue.avg_wait_minutes))}m Avg Wait`}
-              meta={<StatusPill status={queue.status || 'live'} />}
-              value={`${numberValue(queue.waiting_count)} Waiting`}
-            />
-          )) : <EmptyState title="No Live Queues" detail="Open queues will appear once today’s branch services start." />}
+        <Panel title="Active Queues" eyebrow="Close a line at the end of the day">
+          {closeQueue.isError ? <p className="ops-error">{closeQueue.error instanceof Error ? closeQueue.error.message : 'The queue could not be closed.'}</p> : null}
+          {filteredQueues.length ? filteredQueues.map((queue) => {
+            const waiting = numberValue(queue.waiting_count);
+            return (
+              <DataRow
+                key={queue.id}
+                title={displayLabel(queue.service_name || 'Service')}
+                detail={`${displayLabel(queue.branch_name || 'Branch')} · ${Math.round(numberValue(queue.avg_wait_minutes))}m Avg Wait`}
+                meta={<StatusPill status={queue.status || 'live'} />}
+                value={
+                  <span className="ops-row-actions wide">
+                    <b>{waiting} Waiting</b>
+                    <button
+                      type="button"
+                      disabled={closeQueue.isPending}
+                      title={waiting ? `${waiting} customers are still in this line` : 'Close this line'}
+                      onClick={() => confirmCloseQueue(queue)}
+                    >
+                      Close
+                    </button>
+                  </span>
+                }
+              />
+            );
+          }) : <EmptyState title="No live queues" detail="Open queues will appear once today’s branch services start." />}
         </Panel>
       ) : null}
 
@@ -2333,7 +2797,7 @@ function ManagerDashboardContent() {
         <>
           <div className="ops-grid two">
             <ChartCard title="Visitors Served" data={chart} mode="area" />
-            <ChartCard title="Served Vs No-Shows" data={chart} />
+            <ChartCard title="Served vs no-shows" data={chart} />
           </div>
           <NotebookAnalytics predictions={predictions} balking={balking} />
         </>
@@ -2365,10 +2829,177 @@ function ManagerDashboardContent() {
   );
 }
 
+// ── Executive topbar controls ─────────────────────────────────
+// Rule 10 — if a control exists, it does something. These replaced a search
+// pill with a fake shortcut, a vague "Lyne Intelligence" button, and a bell
+// that dumped you on the Operations tab.
+type JumpTarget = { id: string; label: string; kind: string; tab: string; serviceId?: string };
+
+function ExecutiveSearch({
+  targets,
+  onJump,
+}: {
+  targets: JumpTarget[];
+  onJump: (target: JumpTarget) => void;
+}) {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const query = term.trim().toLowerCase();
+  const matches = query
+    ? targets.filter((target) => target.label.toLowerCase().includes(query)).slice(0, 8)
+    : [];
+
+  return (
+    <div className="exec-search-wrap">
+      <div className="exec-search">
+        <Search size={17} />
+        <input
+          value={term}
+          onChange={(event) => { setTerm(event.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+          placeholder="Search branches, services, managers"
+          aria-label="Search branches, services and managers"
+        />
+        {term ? <button type="button" className="exec-search-clear" onClick={() => setTerm('')} aria-label="Clear search">×</button> : null}
+      </div>
+      {open && query ? (
+        <div className="exec-search-results">
+          {matches.length ? matches.map((target) => (
+            <button
+              key={target.id}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { onJump(target); setTerm(''); setOpen(false); }}
+            >
+              <b>{target.label}</b>
+              <small>{target.kind}</small>
+            </button>
+          )) : <p className="exec-search-empty">Nothing matches “{term.trim()}”.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type ExecutiveAlert = { id: string; title: string; detail: string; tab: string };
+
+function buildExecutiveAlerts({
+  summary,
+  branches,
+  targets,
+  queues,
+  lastRunAt,
+}: {
+  summary: SummaryRow[];
+  branches: BranchAggregate[];
+  targets: BusinessTargets;
+  queues: QueueRow[];
+  lastRunAt?: string;
+}): ExecutiveAlert[] {
+  const alerts: ExecutiveAlert[] = [];
+  const visitors = total(summary, 'total_visitors');
+  const served = total(summary, 'completed_count');
+  const noShows = total(summary, 'no_show_count');
+  const avgWait = avg(summary, 'avg_wait_time_minutes');
+  const targetWait = numberValue(targets.target_wait_minutes) || 20;
+  const targetNoShow = numberValue(targets.target_no_show_rate) || 10;
+  const targetCompletion = numberValue(targets.target_completion_rate) || 80;
+
+  if (avgWait > targetWait) {
+    alerts.push({
+      id: 'wait',
+      title: 'Waits are over your target',
+      detail: `${formatMinutes(avgWait)} average against a ${targetWait}m target.`,
+      tab: 'statistics',
+    });
+  }
+  const noShowRate = visitors ? (noShows / visitors) * 100 : 0;
+  if (noShowRate > targetNoShow) {
+    alerts.push({
+      id: 'no-show',
+      title: 'No-shows are over your target',
+      detail: `${formatCount(noShows)} of ${formatCount(visitors)} customers · ${formatPercent(noShowRate)} against a ${targetNoShow}% target.`,
+      tab: 'statistics',
+    });
+  }
+  const completionRate = visitors ? (served / visitors) * 100 : 0;
+  if (visitors && completionRate < targetCompletion) {
+    alerts.push({
+      id: 'completion',
+      title: 'Completed visits are under your target',
+      detail: `${formatCount(served)} of ${formatCount(visitors)} customers served · ${formatPercent(completionRate)} against a ${targetCompletion}% target.`,
+      tab: 'statistics',
+    });
+  }
+  branches
+    .filter((branch) => numberValue(branch.avg_wait_minutes) > targetWait * 1.5)
+    .slice(0, 3)
+    .forEach((branch) => alerts.push({
+      id: `branch-${branch.branch_id || branch.branch_name}`,
+      title: `${displayLabel(branch.branch_name || 'A branch')} is waiting far too long`,
+      detail: `${formatMinutes(branch.avg_wait_minutes)} average — more than half again your ${targetWait}m target.`,
+      tab: 'branches',
+    }));
+  const busiestQueue = [...queues].sort((a, b) => numberValue(b.waiting_count) - numberValue(a.waiting_count))[0];
+  if (busiestQueue && numberValue(busiestQueue.waiting_count) >= 10) {
+    alerts.push({
+      id: 'queue',
+      title: 'A line is building right now',
+      detail: `${formatCount(busiestQueue.waiting_count)} customers waiting for ${displayLabel(busiestQueue.service_name || 'a service')} at ${displayLabel(busiestQueue.branch_name || 'a branch')}.`,
+      tab: 'overview',
+    });
+  }
+  const runAge = lastRunAt ? Date.now() - new Date(lastRunAt).getTime() : null;
+  if (runAge === null || runAge > 2 * 60 * 60 * 1000) {
+    alerts.push({
+      id: 'freshness',
+      title: 'Your numbers need updating',
+      detail: lastRunAt ? `Last recalculated ${compactDate(lastRunAt)}.` : 'These numbers have not been recalculated yet.',
+      tab: 'settings',
+    });
+  }
+  return alerts;
+}
+
+function ExecutiveAlertsButton({ alerts, onJump }: { alerts: ExecutiveAlert[]; onJump: (tab: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="exec-alerts-wrap">
+      <button
+        type="button"
+        className="exec-round-button"
+        aria-label={alerts.length ? `${alerts.length} things need attention` : 'Nothing needs attention'}
+        onClick={() => setOpen((value) => !value)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+      >
+        <Bell size={17} />
+        {alerts.length ? <i className="exec-alert-dot">{alerts.length}</i> : null}
+      </button>
+      {open ? (
+        <div className="exec-alerts-panel">
+          <header>Needs your attention</header>
+          {alerts.length ? alerts.map((alert) => (
+            <button
+              key={alert.id}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { onJump(alert.tab); setOpen(false); }}
+            >
+              <b>{alert.title}</b>
+              <small>{alert.detail}</small>
+            </button>
+          )) : <p className="exec-alerts-empty">Everything is inside your targets right now.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ExecutiveDashboardContent() {
   const qc = useQueryClient();
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const { admin, businessId, queues, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline, balking } = useDashboardData(selectedServiceId);
+  const { admin, businessId, queues, queuesQuery, summary, services, branchTrends, heatmap, demandHourly, demandWeekly, targets, employeeKpis, predictions, pipeline, balking } = useDashboardData(selectedServiceId);
   const { logout } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('month');
@@ -2416,10 +3047,54 @@ function ExecutiveDashboardContent() {
     ? managerRows.find((manager) => manager.branch_id === topBranch.branch_id || manager.branch_name === topBranch.branch_name)
     : undefined;
   const employeePeople = (employeeKpis?.new_staff || []).map((member) => member.full_name);
+  const tabs: DashboardTab[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'statistics', label: 'Statistics', icon: BarChart3 },
+    { id: 'managers', label: 'Managers', icon: UserCog },
+    { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'services', label: 'Services', icon: ListChecks },
+    { id: 'heatmap', label: 'Busy Times', icon: Activity },
+    { id: 'reports', label: 'Reports', icon: FileText },
+  ];
   const openReports = (focus: 'overview' | 'action_plan' = 'overview') => {
     setReportFocus(focus);
     setActiveTab('reports');
   };
+  const jumpTargets: JumpTarget[] = useMemo(() => [
+    ...branches.map((branch) => ({
+      id: `branch-${branch.branch_id || branch.branch_name}`,
+      label: displayLabel(branch.branch_name || 'Branch'),
+      kind: 'Branch',
+      tab: 'branches',
+    })),
+    ...(serviceOptions.data || []).map((service) => ({
+      id: `service-${service.id || service.service_id}`,
+      label: displayLabel(service.name || service.service_name),
+      kind: 'Service',
+      tab: 'services',
+      serviceId: service.id || service.service_id,
+    })),
+    ...managerRows.map((manager) => ({
+      id: `manager-${manager.manager_id}`,
+      label: displayLabel(manager.manager_name),
+      kind: `Manager · ${displayLabel(manager.branch_name || 'Branch')}`,
+      tab: 'managers',
+    })),
+    ...tabs.map((tab) => ({ id: `tab-${tab.id}`, label: tab.label, kind: 'Screen', tab: tab.id })),
+    { id: 'tab-settings', label: 'Settings', kind: 'Screen', tab: 'settings' },
+    { id: 'tab-support', label: 'Help & Support', kind: 'Screen', tab: 'support' },
+  ], [branches, serviceOptions.data, managerRows, tabs]);
+  const jumpTo = (target: JumpTarget) => {
+    if (target.serviceId) setSelectedServiceId(target.serviceId);
+    setActiveTab(target.tab);
+  };
+  const alerts = useMemo(() => buildExecutiveAlerts({
+    summary,
+    branches,
+    targets,
+    queues,
+    lastRunAt: pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at,
+  }), [summary, branches, targets, queues, pipeline]);
   const overviewText = `${formatCount(total(summary, 'total_visitors'))} clients moved through ${branchCount || 'the'} branch network with ${formatMinutes(avg(summary, 'avg_wait_time_minutes'))} average wait time.`;
   const happinessText = insightSentence(abandonmentInsight, `${formatPercent(total(summary, 'total_visitors') ? (1 - total(summary, 'no_show_count') / Math.max(total(summary, 'total_visitors'), 1)) * 100 : 0)} of clients stayed in the flow, with no-show pressure tracked from the latest summaries.`);
   const actionText = insightSentence(resourceInsight, topService
@@ -2434,37 +3109,25 @@ function ExecutiveDashboardContent() {
     heatmap,
     targets,
   });
-  const report = {
-    generated_at: new Date().toISOString(),
-    business_id: businessId,
-    month: analyticsMonth,
-    employee_kpis: employeeKpis,
+  const reportDoc = buildOperationsReport({
+    title: `${displayLabel(admin?.staffRecord.business_name || 'Your business')} — Operations Report`,
+    subtitle: `${branchCount || 'All'} ${branchCount === 1 ? 'branch' : 'branches'} · Prepared for ${admin?.name || 'the executive team'}`,
     summary,
     services,
-    heatmap,
-    branch_trends: branchTrends,
+    branches,
     managers: managerRows,
-    predictions,
-  };
-  const tabs: DashboardTab[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'statistics', label: 'Statistics', icon: BarChart3 },
-    { id: 'managers', label: 'Managers', icon: UserCog },
-    { id: 'branches', label: 'Branches', icon: Building2 },
-    { id: 'services', label: 'Services', icon: ListChecks },
-    { id: 'heatmap', label: 'Busy Times', icon: Activity },
-    { id: 'operations', label: 'Operations', icon: Gauge },
-    { id: 'reports', label: 'Reports', icon: FileText },
-  ];
+    targets,
+    actionPlan,
+  });
 
   return (
     <div className="exec-page">
       <aside className="exec-sidebar">
         <div className="exec-brand">
-          <div>Q</div>
-          <span><b>QMe Now</b><small>Private</small></span>
+          <div>L</div>
+          <span><b>Lyne</b><small>Private</small></span>
         </div>
-        <div className="exec-breadcrumb">QMe Now &gt; Dashboard</div>
+        <div className="exec-breadcrumb">Lyne &gt; Dashboard</div>
         <section className="exec-welcome">
           <small>Welcome Back,</small>
           <strong>{admin?.name || 'Executive'}</strong>
@@ -2508,11 +3171,11 @@ function ExecutiveDashboardContent() {
 
       <main className="exec-main">
         <header className="exec-topbar">
-          <button type="button" className="exec-search" onClick={() => openReports()}><Search size={17} /><span>Search Reports</span><kbd>⌘S</kbd></button>
-          <button type="button" className="exec-assist" onClick={() => openReports()}><Sparkles size={16} /> QMe Intelligence</button>
-          <button type="button" className="exec-round-button" aria-label="Notifications" onClick={() => setActiveTab('operations')}><Bell size={17} /></button>
+          <ExecutiveSearch targets={jumpTargets} onJump={jumpTo} />
+          <button type="button" className="exec-assist" onClick={() => openReports('action_plan')}><TrendingUp size={16} /> What To Improve</button>
+          <ExecutiveAlertsButton alerts={alerts} onJump={setActiveTab} />
           <div className="exec-profile">
-            <div>{(admin?.name || 'Q').slice(0, 1)}</div>
+            <div>{(admin?.name || 'L').slice(0, 1)}</div>
             <span><b>{admin?.name || 'Executive'}</b><small>{admin?.staffRecord.email}</small></span>
           </div>
         </header>
@@ -2536,9 +3199,9 @@ function ExecutiveDashboardContent() {
             <section className="exec-center-column">
               <div className="exec-kpi-row">
                 <ExecutiveKpiTile label="Total Employees" value={formatCount(employeeKpis?.total_employees)} detail={monthLabel(analyticsMonth)} icon={Users} tone="dark" onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="Active Employees" value={formatCount(employeeKpis?.active_employees)} detail="Compared With Last Month" icon={UserCheck} change={signedPercent(employeeKpis?.active_change_pct)} onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="Leave Employees" value={formatCount(employeeKpis?.leave_employees)} detail="Marked On Leave" icon={CalendarClock} onClick={() => setActiveTab('statistics')} />
-                <ExecutiveKpiTile label="New Employees" value={formatCount(employeeKpis?.new_employees)} detail={`${employeePeople.length} Joined This Month`} icon={Sparkles} people={employeePeople} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="Active Employees" value={formatCount(employeeKpis?.active_employees)} detail="Compared with last month" icon={UserCheck} change={signedPercent(employeeKpis?.active_change_pct)} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="Leave Employees" value={formatCount(employeeKpis?.leave_employees)} detail="Marked on leave" icon={CalendarClock} onClick={() => setActiveTab('statistics')} />
+                <ExecutiveKpiTile label="New Employees" value={formatCount(employeeKpis?.new_employees)} detail={`${employeePeople.length} Joined this month`} icon={Sparkles} people={employeePeople} onClick={() => setActiveTab('statistics')} />
               </div>
 
               <ExecutiveAnalyticsView data={chart} services={services} branches={branchTrends} />
@@ -2548,17 +3211,33 @@ function ExecutiveDashboardContent() {
               <div className="exec-insight-grid">
                 <ExecutiveInsightCard title="Overview" icon={LayoutDashboard} body={insightSentence(opsInsight, overviewText)} onMore={() => openReports()} />
                 <ExecutiveInsightCard title="Customer Happiness" icon={ShieldCheck} body={happinessText} onMore={() => openReports()} />
-                <ExecutiveInsightCard title="What To Improve" icon={TrendingUp} body={actionText} onMore={() => openReports('action_plan')} />
+                <ExecutiveInsightCard title="What to improve" icon={TrendingUp} body={actionText} onMore={() => openReports('action_plan')} />
               </div>
 
               <div className="exec-bottom-grid">
                 <ExecutiveEfficiency summary={summary} services={services} targets={targets} onOpen={() => setActiveTab('branches')} />
                 <ExecutiveTopBranch branch={topBranch} manager={topBranchManager} onOpen={() => setActiveTab('branches')} />
               </div>
+
+              <Panel title="Lines right now" eyebrow="Who is waiting across your branches">
+                {queues.length ? queues.map((queue) => (
+                  <DataRow
+                    key={queue.id}
+                    title={displayLabel(queue.service_name || 'Service')}
+                    detail={`${displayLabel(queue.branch_name || 'Branch')} · ${formatMinutes(queue.avg_wait_minutes)} average wait`}
+                    value={`${formatCount(queue.waiting_count)} Waiting`}
+                  />
+                )) : listFallback(queuesQuery, {
+                  emptyTitle: 'No lines open right now',
+                  emptyDetail: "Branch queues appear here as soon as today's services open.",
+                  errorTitle: 'Live lines could not be loaded',
+                  errorDetail: 'The connection to the server failed — branches may well have queues open.',
+                })}
+              </Panel>
             </section>
 
             <aside className="exec-right-column">
-              <ExecutiveCalendar monthKey={analyticsMonth} rows={summary} />
+              <ExecutiveActionCard actionPlan={actionPlan} targets={targets} summary={summary} onOpen={() => openReports('action_plan')} />
               <ExecutiveManagerList managers={managerRows} onOpen={() => setActiveTab('managers')} />
             </aside>
           </div>
@@ -2568,7 +3247,7 @@ function ExecutiveDashboardContent() {
           <section className="exec-tab-page">
             <PeriodTabs value={period} onChange={setPeriod} />
             <div className="ops-grid two">
-              <ChartCard title="Customers Per Day" data={chart} />
+              <ChartCard title="Customers per day" data={chart} />
               <ChartCard title="Customer Visits" data={chart} mode="area" />
             </div>
             <WorkforcePanel employeeKpis={employeeKpis} />
@@ -2585,7 +3264,7 @@ function ExecutiveDashboardContent() {
         {activeTab === 'managers' ? (
           <section className="exec-tab-page">
             <PeriodTabs value={period} onChange={setPeriod} />
-            <Panel title="Manager Performance Ranking" eyebrow="Balanced Score: Wait, Completion, No-Show, Throughput, Utilization">
+            <Panel title="Manager performance ranking" eyebrow="Balanced score: wait, completion, no-show, throughput, utilization">
               {managerRows.length ? managerRows.map((manager) => (
                 <DataRow
                   key={manager.manager_id}
@@ -2594,10 +3273,15 @@ function ExecutiveDashboardContent() {
                   value={`${manager.manager_score}`}
                   meta={<div className="ops-meter score"><i style={{ width: `${Math.max(4, Math.min(100, manager.manager_score))}%` }} /></div>}
                 />
-              )) : <EmptyState title="No Manager Performance Yet" detail="The score needs completed operational records for each branch." />}
+              )) : listFallback(managerScores, {
+                emptyTitle: 'No manager performance yet',
+                emptyDetail: 'The score needs completed operational records for each branch.',
+                errorTitle: 'Manager scores could not be loaded',
+                errorDetail: 'The connection to the server failed.',
+              })}
             </Panel>
             {managerPerformanceInsight ? (
-              <Panel title="Latest Manager Performance Insight">
+              <Panel title="Latest manager performance insight">
                 <DataRow
                   title={insightDisplayName(managerPerformanceInsight.insight_type)}
                   detail={insightSentence(managerPerformanceInsight, 'Manager scoring is ready for review after the latest update.')}
@@ -2613,7 +3297,7 @@ function ExecutiveDashboardContent() {
             <div className="exec-branches-head">
               <ExecutiveEfficiency summary={summary} services={services} targets={targets} />
             </div>
-            <Panel title="Branch Performance" eyebrow="Efficiency Score · Click A Branch To Drill Down">
+            <Panel title="Branch Performance" eyebrow="Efficiency score · click a branch to drill down">
               <ExecutiveBranchList branches={branches} targets={targets} />
             </Panel>
           </section>
@@ -2626,36 +3310,20 @@ function ExecutiveDashboardContent() {
           </section>
         ) : null}
 
-        {activeTab === 'operations' ? (
-          <section className="exec-tab-page">
-            <div className="ops-grid two">
-              <Panel title="Pipeline Status">
-                <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={pipeline?.last_run?.status || 'Empty'} />
-                <DataRow title="Predictions" detail={`${pipeline?.insights?.length || 0} Insights Tracked For Your Business`} value={(pipeline?.insights || []).some((item: any) => item.is_stale) ? 'Needs Update' : 'Up To Date'} />
-                <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
-              </Panel>
-              <Panel title="Live Queues">
-                {queues.length ? queues.map((queue) => (
-                  <DataRow key={queue.id} title={queue.service_name || 'Service'} detail={queue.branch_name || 'Branch'} value={`${formatCount(queue.waiting_count)} Waiting`} />
-                )) : <EmptyState title="No Live Queues" detail="Open branch queues will appear here." />}
-              </Panel>
-            </div>
-          </section>
-        ) : null}
-
         {activeTab === 'reports' ? (
           <section className="exec-tab-page">
-            <Panel title="Executive Reports">
+            <Panel title="Your Report" eyebrow="Exactly what the export will contain">
               <div className="ops-report-actions">
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
-                <button className="ops-primary dark" onClick={() => downloadJson('qmenow-network-report.json', report)}><Download size={16} /> Export Report</button>
+                <button className="ops-primary dark" onClick={() => downloadWordReport(reportDoc, 'lyne-operations-report.doc')}><Download size={16} /> Export As Word</button>
               </div>
+              <ReportPreview doc={reportDoc} />
             </Panel>
             <div className="ops-grid two">
               <TargetsPanel targets={targets} businessId={businessId} editable />
               <TargetProgress targets={targets} summary={summary} />
             </div>
-            <Panel title="What To Improve" eyebrow={reportFocus === 'action_plan' ? 'Selected From Dashboard' : `Working Toward Your ${targets.horizon_months}-Month Targets`} className="exec-action-plan-panel">
+            <Panel title="What to improve" eyebrow={reportFocus === 'action_plan' ? 'Selected from dashboard' : `Working toward your ${targets.horizon_months}-month targets`} className="exec-action-plan-panel">
               <div className="exec-action-plan-grid">
                 <section>
                   <h3>What To Improve</h3>
@@ -2682,7 +3350,7 @@ function ExecutiveDashboardContent() {
           <section className="exec-tab-page">
             <div className="ops-grid two">
               <TargetsPanel targets={targets} businessId={businessId} editable />
-              <Panel title="Your Numbers" eyebrow="When The Dashboard Was Last Recalculated">
+              <Panel title="Your Numbers" eyebrow="When the dashboard was last recalculated">
                 <DataRow title="Last Updated" detail={pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at ? compactDate(pipeline?.last_run?.completed_at || pipeline?.last_run?.created_at) : 'Not Updated Yet'} value={pipeline?.last_run?.status || 'Empty'} />
                 <button className="ops-primary" disabled={!businessId || triggerPipeline.isPending} onClick={() => triggerPipeline.mutate()}><RefreshCw size={16} /> Update Now</button>
               </Panel>
@@ -2692,10 +3360,10 @@ function ExecutiveDashboardContent() {
 
         {activeTab === 'support' ? (
           <section className="exec-tab-page">
-            <Panel title="Help & Support" eyebrow="We Reply Monday To Friday, 9 AM – 5 PM">
-              <DataRow title="Email Us" detail="support@qmenow.com" value="Fastest" />
+            <Panel title="Help & Support" eyebrow="We reply Monday to Friday, 9 AM – 5 PM">
+              <DataRow title="Email Us" detail="support@uselyne.com" value="Fastest" />
               <DataRow title="Call Us" detail="+1 (876) 000-0000" value="Mon–Fri" />
-              <DataRow title="Onboarding Help" detail="Setting Up Branches, Services, Counters, And Staff" value="Ask Us" />
+              <DataRow title="Onboarding Help" detail="Setting up branches, services, counters, and staff" value="Ask Us" />
             </Panel>
           </section>
         ) : null}

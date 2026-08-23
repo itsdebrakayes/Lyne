@@ -1,5 +1,5 @@
 /**
- * HeroSection — Premium animated hero for Q ME NOW landing page
+ * HeroSection — Premium animated hero for Lyne landing page
  * Features:
  *  - Floating geometric shapes (21st.dev Magic inspired)
  *  - Animated gradient text
@@ -97,7 +97,7 @@ export function HeroSection({ heroImage }: HeroSectionProps) {
               animate="visible"
               className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-lg"
             >
-              Q ME NOW gives you real-time queue visibility, predictive wait times, and instant
+              Lyne gives you real-time queue visibility, predictive wait times, and instant
               notifications — so you never waste time waiting in line again.
             </motion.p>
 
@@ -195,7 +195,7 @@ export function HeroSection({ heroImage }: HeroSectionProps) {
               >
                 <motion.img
                   src={heroImage}
-                  alt="Q ME NOW — intelligent queue management interface"
+                  alt="Lyne — intelligent queue management interface"
                   className="relative w-full h-auto max-w-2xl xl:max-w-3xl ml-auto object-contain drop-shadow-2xl"
                   animate={{ y: [0, -12, 0] }}
                   transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
@@ -248,7 +248,7 @@ export function HeroSection({ heroImage }: HeroSectionProps) {
             <div className="lg:hidden fixed bottom-0 right-0 w-[55%] max-w-xs pointer-events-none z-0">
               <img
                 src={heroImage}
-                alt="Q ME NOW"
+                alt="Lyne"
                 className="w-full h-auto object-contain opacity-20"
               />
             </div>

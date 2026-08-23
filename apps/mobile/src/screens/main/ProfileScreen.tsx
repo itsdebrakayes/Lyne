@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
+import { getDocument, type DocumentField } from '../../lib/documentVault';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, categoryTints, initials, inputReset, depthText } from '../../lib/theme';
+import Constants from 'expo-constants';
+import { APP_NAME, COMPANY } from '../../lib/legalContent';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { paymentsConfigured } from '../../lib/stripe';
-import { getPremiumPreview, setPremiumPreview } from '../../lib/premiumPreview';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -47,14 +49,16 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 32, marginBottom: 13, marginLeft: 4 }}>{children}</Text>;
 }
 
+const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+const BUILD_NUMBER = Constants.expoConfig?.ios?.buildNumber
+  || String(Constants.expoConfig?.android?.versionCode ?? '')
+  || 'dev';
+
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [premiumPreview, setPremiumPreviewState] = useState(false);
-  useEffect(() => { getPremiumPreview().then(setPremiumPreviewState); }, []);
-  const togglePremiumPreview = (on: boolean) => { setPremiumPreviewState(on); setPremiumPreview(on).catch(() => {}); };
   const { data: history = [] } = useQuery({ queryKey: ['visit-history-count'], queryFn: () => api.get<Array<{ id: string }>>('/history') });
   const [editingDoc, setEditingDoc] = useState<DocKey | null>(null);
   const [docValue, setDocValue] = useState('');
@@ -68,9 +72,20 @@ export default function ProfileScreen() {
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
+  // TRN and national ID are held in the device keychain, never on the user
+  // record, so whether one is "on file" is a question for this device only.
+  const [deviceDocs, setDeviceDocs] = useState<Partial<Record<DocumentField, string>>>({});
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    Promise.all([getDocument('trn'), getDocument('national_id')]).then(([trn, nationalId]) => {
+      if (!cancelled) setDeviceDocs({ trn: trn || undefined, national_id: nationalId || undefined });
+    });
+    return () => { cancelled = true; };
+  }, []));
+
   const docs: Array<{ key: string; docKey: DocKey; value?: string; tint: { fg: string; bg: string }; icon: keyof typeof Ionicons.glyphMap; ok: string; missing: string }> = [
-    { key: 'TRN', docKey: 'trn', value: user?.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On file', missing: 'Add TRN' },
-    { key: 'National ID', docKey: 'national_id', value: user?.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On file', missing: 'Add ID' },
+    { key: 'TRN', docKey: 'trn', value: deviceDocs.trn, tint: categoryTints.blue, icon: 'document-text-outline', ok: 'On this device', missing: 'Add TRN' },
+    { key: 'National ID', docKey: 'national_id', value: deviceDocs.national_id, tint: categoryTints.green, icon: 'card-outline', ok: 'On this device', missing: 'Add ID' },
     { key: 'Phone', docKey: 'phone', value: user?.phone, tint: categoryTints.orange, icon: 'call-outline', ok: 'On file', missing: 'Add phone' },
   ];
 
@@ -127,7 +142,7 @@ export default function ProfileScreen() {
           <View style={{ borderRadius: 44, ...shadow.depth }}>
             <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
               <Sheen radius={44} />
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
+              <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{initials(name)}</Text>
             </View>
           </View>
           <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>
@@ -185,25 +200,17 @@ export default function ProfileScreen() {
           { icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 
-        {!paymentsConfigured() && (
-          <>
-            <SectionLabel>Demo controls</SectionLabel>
-            <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, ...shadow.card }]}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: '#eef8fb', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="sparkles" size={17} color={colors.accentDeep} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Preview Premium</Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>Toggle to demo the free vs premium experience</Text>
-              </View>
-              <Switch value={premiumPreview} onValueChange={togglePremiumPreview} trackColor={{ true: colors.accent, false: colors.border }} />
-            </View>
-          </>
-        )}
 
         <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: '#f3d3d5', borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
           <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Log out</Text>
         </TouchableOpacity>
+
+        {/* Who is responsible for this app, and which build you are on — both
+            are things App Review looks for, and both help support. */}
+        <View style={{ alignItems: 'center', marginTop: 22, gap: 3 }}>
+          <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{APP_NAME} by {COMPANY}</Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.faint }}>Version {APP_VERSION} ({BUILD_NUMBER})</Text>
+        </View>
       </ScrollView>
       <TabBar active="Profile" />
 
@@ -292,7 +299,7 @@ export default function ProfileScreen() {
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Appearance</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how QMe Now looks. “System” follows your phone.</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how Lyne looks. “System” follows your phone.</Text>
             <View style={{ marginTop: 16, gap: 10 }}>
               {([
                 { key: 'system', label: 'System default', icon: 'phone-portrait-outline' },

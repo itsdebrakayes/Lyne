@@ -39,14 +39,6 @@ function validationMessage(error) {
   return error.issues?.[0]?.message || 'Invalid request data.';
 }
 
-// Lazy-load to avoid circular dependency at startup
-function broadcast(queueId, ticket) {
-  try {
-    const { broadcastQueueUpdate } = require('./sse');
-    broadcastQueueUpdate(queueId, ticket).catch(() => {});
-  } catch { /* sse module not yet loaded */ }
-}
-
 // Validation schemas
 const joinQueueSchema = z.object({
   queue_id:  z.string().min(1).max(64),
@@ -105,9 +97,20 @@ async function inferActiveCounter(conn, staffId, queueId) {
   return rows[0]?.id || null;
 }
 
+// Lock-screen copy is deliberately vague. Lyne serves government agencies, so
+// the service name alone ("HIV Clinic", "Unemployment Benefits") is sensitive
+// the moment it appears on a lock screen someone else can read. The full detail
+// goes in the in-app notification, which sits behind authentication; the push
+// only says something changed and invites the customer to open the app.
 const PUSH_TITLES = {
-  called: "It's your turn!",
-  no_show: 'You lost your place in line',
+  called: 'Your queue update',
+  no_show: 'Your queue update',
+};
+
+const NEUTRAL_PUSH_BODIES = {
+  called: 'It is your turn. Open Lyne for the details.',
+  no_show: 'Your place in line has changed. Open Lyne for the details.',
+  queue_update: 'Your queue status has changed. Open Lyne for the details.',
 };
 
 /**
@@ -125,8 +128,9 @@ async function notifyTicketUser(conn, ticket, notificationType, message) {
   );
   return {
     userId: ticket.user_id,
-    title: PUSH_TITLES[notificationType] || 'Queue update',
-    body: message,
+    title: PUSH_TITLES[notificationType] || 'Your queue update',
+    // Never `message` — that is the detailed in-app text stored above.
+    body: NEUTRAL_PUSH_BODIES[notificationType] || NEUTRAL_PUSH_BODIES.queue_update,
     data: { ticketId: ticket.id, type: notificationType },
   };
 }
@@ -224,7 +228,6 @@ router.post('/', requireAuth, async (req, res) => {
 
     await conn.commit();
     const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
-    broadcast(queue_id, ticket[0]);
     res.status(201).json(ticket[0]);
   } catch (err) {
     await conn.rollback();
@@ -475,7 +478,6 @@ router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
     );
     await conn.commit();
     const [updated] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
@@ -690,7 +692,6 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();
@@ -861,7 +862,6 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
   } catch (err) {
     await conn.rollback();

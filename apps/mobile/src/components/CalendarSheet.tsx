@@ -74,7 +74,7 @@ export function CalendarSheet({
             </TouchableOpacity>
             {mode === 'days' && (
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity onPress={prevMonth} style={navBtn}><Ionicons name="chevron-back" size={18} color={colors.ink} /></TouchableOpacity>
+                <TouchableOpacity onPress={prevMonth} style={navBtn} accessibilityRole="button" accessibilityLabel="Previous month"><Ionicons name="chevron-back" size={18} color={colors.ink} /></TouchableOpacity>
                 <TouchableOpacity onPress={nextMonth} disabled={atCurrentMonth} style={[navBtn, atCurrentMonth && { opacity: 0.4 }]}><Ionicons name="chevron-forward" size={18} color={colors.ink} /></TouchableOpacity>
               </View>
             )}

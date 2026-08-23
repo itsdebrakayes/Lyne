@@ -48,12 +48,12 @@ export default function PaymentMethodsScreen() {
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={t.h2}>Payment methods</Text>
         </View>
 
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, lineHeight: 21, marginBottom: 6 }}>
-          Cards you save here are used for QMe Premium. Your card details are held securely by Stripe — never on our servers.
+          Cards you save here are used for Lyne Premium. Your card details are held securely by Stripe — never on our servers.
         </Text>
 
         {!paymentsConfigured() && (
@@ -67,7 +67,7 @@ export default function PaymentMethodsScreen() {
           {isLoading && <SkeletonRows count={2} />}
           {!!error && !isLoading && <ErrorCard title="Couldn’t load cards" message="Your saved cards couldn’t be loaded right now." onRetry={() => refetch()} />}
           {!isLoading && !error && cards.length === 0 && (
-            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock QMe Premium in one tap." />
+            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock Lyne Premium in one tap." />
           )}
 
           {cards.map(card => (
@@ -84,7 +84,14 @@ export default function PaymentMethodsScreen() {
                   Expires {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}{card.is_default ? '  ·  Default' : ''}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => confirmRemove(card)} disabled={remove.isPending} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Remove card ending ${card.last4}`}
+                accessibilityState={{ disabled: remove.isPending }}
+                onPress={() => confirmRemove(card)}
+                disabled={remove.isPending}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="trash-outline" size={19} color={colors.danger} />
               </TouchableOpacity>
             </View>

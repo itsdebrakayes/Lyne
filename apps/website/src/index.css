@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 /*
- * QME Now design system.
- * Palette derived from the QME Now Design Specification (queue-master-reimagined).
+ * Lyne design system.
+ * Palette derived from the Lyne Design Specification (queue-master-reimagined).
  * Deep violet-tinted canvas, hairline glass, serif accents.
  */
 
@@ -182,7 +182,7 @@
 }
 
 /* =====================================================================
- * Editorial luxury marketing system (QME Now)
+ * Editorial luxury marketing system (Lyne)
  * ===================================================================== */
 @layer components {
   .lux-container {

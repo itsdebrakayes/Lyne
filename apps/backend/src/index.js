@@ -77,17 +77,19 @@ app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));
 app.use('/api/payments',       paymentsRouter);
 
-// OCR — strict rate limit + larger body size for image uploads
-app.use('/api/ocr', ocrLimiter, express.json({ limit: '10mb' }), require('./routes/ocr'));
+// OCR is deliberately NOT mounted. Document capture is on-device only: photos
+// of an ID or TRN never leave the phone, which is what the in-app privacy
+// policy promises. Mounting this would upload government IDs to the server and
+// store extracted values in `ocr_results`, making that promise false.
+// routes/ocr.js is kept for a future release that discloses server-side
+// extraction properly; until then it must stay unmounted.
+// app.use('/api/ocr', ocrLimiter, express.json({ limit: '10mb' }), require('./routes/ocr'));
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));
 
 // Staff invite — invite-code-based staff onboarding (no self-registration)
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
-
-// SSE — live queue updates (no auth for public stream; staff stream auth handled in route)
-app.use('/api/sse',            require('./routes/sse'));
 
 // Health check
 app.get('/health', (_req, res) => res.json({

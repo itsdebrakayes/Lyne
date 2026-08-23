@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueue
 import Code39Barcode from '../../components/Code39Barcode';
 import { ErrorCard } from '../../components/Feedback';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { hapticDestructive, hapticFailed } from '../../lib/haptics';
+import { lastUpdatedLabel } from '../../lib/network';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
@@ -81,18 +83,31 @@ export default function TicketScreen() {
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket]);
 
-  const leaveQueue = async () => {
+  const performLeave = async () => {
     if (!ticketId) return;
     try {
       setLeaving(true); setError('');
       await api.put(`/tickets/${ticketId}/leave`, {});
+      hapticDestructive();
       navigation.navigate('Main');
     } catch (caught: unknown) {
+      hapticFailed();
       setError(caught instanceof Error ? caught.message : 'Could not leave this queue.');
     } finally {
       setLeaving(false);
     }
   };
+
+  // Leaving gives up your place, and the tap sits next to the ticket itself —
+  // far too easy to hit by accident without being asked first.
+  const leaveQueue = () => Alert.alert(
+    'Leave this queue?',
+    'You’ll lose your place in line. If you want service later you’ll need to join again and start from the back.',
+    [
+      { text: 'Stay in line', style: 'cancel' },
+      { text: 'Leave queue', style: 'destructive', onPress: performLeave },
+    ],
+  );
 
   const rejoin = () => {
     if (ticket?.branch_id && ticket?.service_id) {
@@ -140,7 +155,7 @@ export default function TicketScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Queue ticket</Text>
@@ -158,18 +173,33 @@ export default function TicketScreen() {
               <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>
               <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{ticket.service_name || 'Service'}</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 11 }}>
+            <View
+              accessibilityLabel="This ticket is updating live"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 11 }}
+            >
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>LIVE</Text>
+              <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>LIVE</Text>
             </View>
           </View>
 
           {/* body */}
           <View style={{ padding: 24, paddingTop: 28, alignItems: 'center' }}>
             <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
-            <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
-            <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 15 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
+            <Text
+              accessibilityRole="header"
+              accessibilityLabel={`Your ticket number is ${String(ticket.ticket_number).split('').join(' ')}`}
+              maxFontSizeMultiplier={1.3}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+              style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}
+            >{ticket.ticket_number}</Text>
+            <View
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={`Status: ${statusLabel}`}
+              style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 15 }}
+            >
+              <Text maxFontSizeMultiplier={1.8} style={{ fontFamily: font.extra, fontSize: 13, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
             </View>
             {called && (
               <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.sub, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
@@ -178,16 +208,35 @@ export default function TicketScreen() {
             )}
             {active && !called && !inService && (
               <View style={{ flexDirection: 'row', marginTop: 24, alignSelf: 'stretch' }}>
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ahead}</Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>ahead of you</Text>
+                <View
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLiveRegion="polite"
+                  accessibilityLabel={ahead === 0 ? 'You are next in line' : `${ahead} ${ahead === 1 ? 'person' : 'people'} ahead of you`}
+                  style={{ flex: 1, alignItems: 'center' }}
+                >
+                  <Text maxFontSizeMultiplier={1.5} style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ahead}</Text>
+                  <Text maxFontSizeMultiplier={1.5} style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>ahead of you</Text>
                 </View>
                 <View style={{ width: 1, backgroundColor: colors.border }} />
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>est. wait</Text>
+                <View
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel={`Estimated wait, about ${ticket.estimated_wait_minutes} minutes. This is an estimate, not a guarantee.`}
+                  style={{ flex: 1, alignItems: 'center' }}
+                >
+                  <Text maxFontSizeMultiplier={1.5} style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
+                  <Text maxFontSizeMultiplier={1.5} style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>est. wait</Text>
                 </View>
               </View>
+            )}
+            {active && (
+              <Text
+                maxFontSizeMultiplier={1.6}
+                style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 14 }}
+              >
+                {lastUpdatedLabel(ticketQuery.dataUpdatedAt)}
+              </Text>
             )}
           </View>
 
@@ -233,7 +282,15 @@ export default function TicketScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity disabled={leaving} onPress={leaveQueue} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
+              <TouchableOpacity
+                disabled={leaving}
+                onPress={leaveQueue}
+                accessibilityRole="button"
+                accessibilityLabel="Leave this queue"
+                accessibilityHint="You will lose your place in line"
+                accessibilityState={{ disabled: leaving }}
+                style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}
+              >
                 {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
               </TouchableOpacity>
             </>

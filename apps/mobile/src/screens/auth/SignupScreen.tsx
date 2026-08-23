@@ -1,10 +1,15 @@
 /**
  * SignupScreen — brand-framed registration.
  *
- * Same visual language as sign in (white canvas, QMe brand-tile mosaic framing
- * the top and bottom, QMe Now lockup, black button), but as a scrolling form
+ * Same visual language as sign in (white canvas, Lyne brand-tile mosaic framing
+ * the top and bottom, Lyne lockup, black button), but as a scrolling form
  * that collects everything a branch needs up front: name, email, phone, date
- * of birth (in-app calendar), password + confirmation, and TRN.
+ * of birth (in-app calendar), and password + confirmation.
+ *
+ * No TRN here. It used to be required at signup — "branches use it to verify
+ * you" — and stored on the server, where no branch endpoint ever read it. It
+ * is optional now, added later if the customer wants it, and kept in the
+ * device keychain: see lib/documentVault.ts.
  */
 import React, { useMemo, useState } from 'react';
 import {
@@ -46,7 +51,7 @@ function MotifRow({ tiles }: { tiles: Tile[] }) {
   );
 }
 
-type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
+type Field = 'name' | 'email' | 'phone' | 'password' | 'confirm';
 
 export default function SignupScreen() {
   const navigation = useNavigation<any>();
@@ -55,7 +60,6 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState<Date | null>(null);
-  const [trn, setTrn] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -73,14 +77,12 @@ export default function SignupScreen() {
     if (!password) { setError('Create a password to secure your account.'); return; }
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
-    if (!trn.trim()) { setError('Add your TRN — branches use it to verify you.'); return; }
     setLoading(true); setError(null);
     try {
       const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         phone: phone.trim(),
         date_of_birth: toISODate(dob),
-        trn: trn.trim(),
       });
       if (signupError) throw signupError;
       if (needsConfirmation) setConfirmSent(true);
@@ -103,7 +105,7 @@ export default function SignupScreen() {
 
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={styles.logo}><Text style={styles.logoText}>Q</Text></View>
+            <View style={styles.logo}><Text maxFontSizeMultiplier={1.2} style={styles.logoText}>L</Text></View>
             <Text style={styles.brand}>Create your account</Text>
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
@@ -143,13 +145,15 @@ export default function SignupScreen() {
             <Ionicons name="calendar-outline" size={18} color={colors.muted} />
           </TouchableOpacity>
 
-          <Text style={styles.label}>TRN</Text>
-          <TextInput style={fieldStyle('trn')} {...focusProps('trn')} placeholder="000-000-000" placeholderTextColor={colors.faint} value={trn} onChangeText={setTrn} keyboardType="number-pad" />
-
           <Text style={styles.label}>Password</Text>
           <View style={[styles.input, styles.pickerRow, focused === 'password' && styles.inputFocused]}>
             <TextInput style={[{ flex: 1, height: '100%', fontFamily: font.medium, color: colors.ink, fontSize: 15 }, inputReset]} {...focusProps('password')} placeholder="Min. 8 characters" placeholderTextColor={colors.faint} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoComplete="new-password" />
-            <TouchableOpacity onPress={() => setShowPassword(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              onPress={() => setShowPassword(s => !s)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
             </TouchableOpacity>
           </View>

@@ -1,14 +1,24 @@
 /**
- * DocumentCaptureScreen — Apple-Wallet-style document capture.
+ * DocumentCaptureScreen — add your ID or TRN number, with the document in view.
  *
- * Flow: intro (instructions + choose Scan / Upload / Type) → camera (a framed
- * cut-out sized to the document, with guidance) or file upload → review (the
- * captured image + a confirm/enter field + optional Face ID protection) → save.
+ * Flow: intro (instructions + choose Photograph / Upload / Type) → camera (a
+ * framed cut-out sized to the document) or file upload → review (the photo, so
+ * you can read the number off it while you type, plus optional Face ID
+ * protection on the saved number) → save.
  *
- * OCR note: true on-device auto-extraction isn't available in Expo Go, so the
- * captured image is sent to the backend OCR service (Tesseract, server-side)
- * when reachable; until then it falls back to confirm/type. `attemptOcr` is the
- * single integration point.
+ * NO AUTOMATIC EXTRACTION, deliberately. There was a `attemptOcr` stub here
+ * that always returned null while the UI showed "reading…", and a server OCR
+ * endpoint that returned 503 because tesseract.js was never installed — a
+ * feature advertised and not delivered.
+ *
+ * Server-side OCR is not the fix. It would upload photographs of government
+ * IDs and store extracted TRN / ID values in `ocr_results`, which contradicts
+ * the promise in the in-app privacy policy that this information stays on the
+ * device. If auto-extraction returns, it must be on-device (iOS Vision) so
+ * that promise survives — see routes/ocr.js, deliberately unmounted.
+ *
+ * The photo itself is never uploaded and never persisted: it exists only in
+ * this screen's state while you read the number off it.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -20,11 +30,10 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDocument, setDocument, isProtected, setProtected } from '../../lib/documentVault';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, inputReset } from '../../lib/theme';
 import api from '../../lib/apiClient';
-import { useAuth } from '../../hooks/useAuth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Field = 'national_id' | 'trn';
@@ -36,7 +45,7 @@ interface DocConfig {
   keyboard: 'number-pad' | 'default';
   placeholder: string;
   valueLabel: string;
-  scanLabel: string;             // "Scan your ID" etc.
+  scanLabel: string;             // "Photograph your ID" etc.
   guide: string;                 // guidance shown by the frame
   instructions: string[];
 }
@@ -44,66 +53,58 @@ interface DocConfig {
 const DOC_CONFIG: Record<Field, DocConfig> = {
   national_id: {
     field: 'national_id', title: 'National ID', kind: 'card', allowType: true, keyboard: 'default',
-    placeholder: 'ID number', valueLabel: 'ID number', scanLabel: 'Scan your National ID',
+    placeholder: 'ID number', valueLabel: 'ID number', scanLabel: 'Photograph your National ID',
     guide: 'Line your ID up inside the frame',
     instructions: [
       'Rest your ID on a flat, dark surface',
       'Fit the whole card inside the frame',
-      'Avoid glare and shadows for a clean scan',
-      'Only the agency serving you ever sees it',
+      'Avoid glare so the number is easy to read',
+      'The photo stays on your phone — it is never uploaded',
     ],
   },
   trn: {
     field: 'trn', title: 'TRN', kind: 'page', allowType: true, keyboard: 'number-pad',
-    placeholder: '000-000-000', valueLabel: 'TRN number', scanLabel: 'Scan your TRN letter',
+    placeholder: '000-000-000', valueLabel: 'TRN number', scanLabel: 'Photograph your TRN letter',
     guide: 'Fit your TRN letter inside the frame',
     instructions: [
       'You can simply type your 9-digit TRN',
-      'Or scan / upload the paper TRN — some agencies ask for it',
-      'If scanning, keep the sheet flat and well-lit',
+      'Or photograph the paper TRN so you can read it off while you type',
+      'Keep the sheet flat and well-lit',
     ],
   },
 };
 
-// Placeholder for server-side OCR. Returns null today (Expo Go can't OCR
-// on-device); wire this to POST the image to the backend OCR endpoint once the
-// API is hosted, and it will pre-fill the field automatically.
-async function attemptOcr(_field: Field, _uri: string): Promise<string | null> {
-  return null;
-}
-
-const protectKey = (field: Field) => `qme.doc-protected.${field}`;
 
 export default function DocumentCaptureScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RootStackParamList, 'DocumentCapture'>>();
-  const { user, refreshProfile } = useAuth();
   const { width } = useWindowDimensions();
   const cfg = DOC_CONFIG[(route.params?.field as Field) || 'national_id'];
-  const existing = (cfg.field === 'trn' ? user?.trn : user?.national_id) || '';
+  // The number lives in the device keychain, not on the user record.
 
   const [mode, setMode] = useState<'intro' | 'camera' | 'review'>('intro');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [value, setValue] = useState(existing);
+  const [value, setValue] = useState('');
   const [protect, setProtect] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [ocrBusy, setOcrBusy] = useState(false);
   const [error, setError] = useState('');
   const [permission, requestPermission] = useCameraPermissions();
   const camRef = useRef<CameraView>(null);
 
-  // Load the saved "protected" preference for this doc.
-  useEffect(() => { AsyncStorage.getItem(protectKey(cfg.field)).then(v => setProtect(v === '1')); }, [cfg.field]);
+  // Load whatever this device already holds, and its Face ID preference.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getDocument(cfg.field), isProtected(cfg.field)]).then(([stored, locked]) => {
+      if (cancelled) return;
+      if (stored) setValue(stored);
+      setProtect(locked);
+    });
+    return () => { cancelled = true; };
+  }, [cfg.field]);
 
   // Frame dimensions — credit-card ratio for cards, portrait for pages.
   const frameW = Math.round(width * (cfg.kind === 'card' ? 0.84 : 0.72));
   const frameH = Math.round(cfg.kind === 'card' ? frameW / 1.586 : frameW * 1.32);
-
-  const runOcr = async (uri: string) => {
-    setOcrBusy(true);
-    try { const found = await attemptOcr(cfg.field, uri); if (found) setValue(found); }
-    finally { setOcrBusy(false); }
-  };
 
   const openCamera = async () => {
     setError('');
@@ -117,14 +118,14 @@ export default function DocumentCaptureScreen() {
   const capture = async () => {
     try {
       const photo = await camRef.current?.takePictureAsync({ quality: 0.7 });
-      if (photo?.uri) { setImageUri(photo.uri); setMode('review'); runOcr(photo.uri); }
+      if (photo?.uri) { setImageUri(photo.uri); setMode('review'); }
     } catch { setError('Could not take the photo. Try again or upload a file.'); }
   };
 
   const pickImage = async () => {
     setError('');
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (!res.canceled && res.assets[0]?.uri) { setImageUri(res.assets[0].uri); setMode('review'); runOcr(res.assets[0].uri); }
+    if (!res.canceled && res.assets[0]?.uri) { setImageUri(res.assets[0].uri); setMode('review'); }
   };
 
   const pickDocument = async () => {
@@ -134,7 +135,6 @@ export default function DocumentCaptureScreen() {
       const a = res.assets[0];
       setImageUri(a.mimeType?.startsWith('image/') ? a.uri : null);
       setMode('review');
-      if (a.mimeType?.startsWith('image/')) runOcr(a.uri);
     }
   };
 
@@ -142,9 +142,11 @@ export default function DocumentCaptureScreen() {
     if (!value.trim()) { setError(`Enter or confirm your ${cfg.valueLabel.toLowerCase()} to save.`); return; }
     setBusy(true); setError('');
     try {
-      await api.patch('/auth/profile', { [cfg.field]: value.trim() });
-      await AsyncStorage.setItem(protectKey(cfg.field), protect ? '1' : '0');
-      await refreshProfile();
+      // Deliberately not sent to the server. See lib/documentVault.ts: the
+      // privacy policy promises this stays on the device, and nothing on the
+      // server ever read it back, so keeping a copy there protected nobody.
+      await setDocument(cfg.field, value.trim());
+      await setProtected(cfg.field, protect);
       navigation.goBack();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save. Try again.');
@@ -168,12 +170,12 @@ export default function DocumentCaptureScreen() {
         </View>
         {/* controls */}
         <View style={{ position: 'absolute', top: 54, left: 20 }}>
-          <TouchableOpacity onPress={() => setMode('intro')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close camera" onPress={() => setMode('intro')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,.45)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="close" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
         <View style={{ position: 'absolute', bottom: 46, left: 0, right: 0, alignItems: 'center' }}>
-          <TouchableOpacity onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Take photo" onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.accent }} />
           </TouchableOpacity>
         </View>
@@ -187,7 +189,7 @@ export default function DocumentCaptureScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
             <Text style={t.h2}>{cfg.title}</Text>
           </View>
 
@@ -196,15 +198,26 @@ export default function DocumentCaptureScreen() {
           {mode === 'review' && imageUri ? (
             <View style={{ alignItems: 'center', marginBottom: 22 }}>
               <View style={{ width: frameW, height: frameH, borderRadius: 18, backgroundColor: colors.surfaceAlt, overflow: 'hidden', ...shadow.card }}>
-                <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                  accessibilityLabel={`Photo of your ${cfg.title}, shown so you can read the number while you type it`}
+                />
               </View>
+              <Text
+                maxFontSizeMultiplier={1.6}
+                style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 10, textAlign: 'center', lineHeight: 17 }}
+              >
+                Read the number off the photo and type it below. The photo is not uploaded or saved.
+              </Text>
             </View>
           ) : null}
 
           {mode === 'review' ? (
             <>
               <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.sub, marginBottom: 7, marginLeft: 2 }}>
-                {cfg.valueLabel}{ocrBusy ? ' · reading…' : ''}
+                {cfg.valueLabel}
               </Text>
               <TextInput
                 value={value}
@@ -284,8 +297,7 @@ export default function DocumentCaptureScreen() {
  * Returns true if allowed (unprotected, or auth succeeded).
  */
 export async function unlockDocument(field: Field): Promise<boolean> {
-  const flag = await AsyncStorage.getItem(protectKey(field));
-  if (flag !== '1') return true;
+  if (!(await isProtected(field))) return true;
   const hasHw = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
   if (!hasHw || !enrolled) return true; // no biometrics available — don't lock the user out

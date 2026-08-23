@@ -29,11 +29,11 @@ function validate(schema) {
 // ── Shared schemas ────────────────────────────────────────────
 const schemas = {
   // Auth
+  // No national_id or trn: identification numbers are kept in the device
+  // keychain by the app and never sent here. See routes/auth.js PATCH /profile.
   syncUser: z.object({
     full_name:     z.string().min(1).max(255).optional(),
     phone:         z.string().max(50).optional(),
-    national_id:   z.string().max(100).optional(),
-    trn:           z.string().max(20).optional(),
     date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date_of_birth must be YYYY-MM-DD').optional(),
   }),
 

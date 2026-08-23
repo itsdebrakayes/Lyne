@@ -3,7 +3,7 @@
  *
  * Best time to visit, per service, per branch — computed from the last 90
  * days of real visit history. Free tier sees the branch-level headline and a
- * locked preview; QMe Premium unlocks the per-service planner. The trial
+ * locked preview; Lyne Premium unlocks the per-service planner. The trial
  * button flips the flag server-side so both states are real, not mocked.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -15,11 +15,10 @@ import { colors, font, shadow, t, initials } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import { CardSheet } from '../../components/CardSheet';
 import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
-import { getPremiumPreview } from '../../lib/premiumPreview';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -56,9 +55,10 @@ export default function PlanVisitScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const [preview, setPreview] = useState(false);
-  useFocusEffect(useCallback(() => { getPremiumPreview().then(setPreview); }, []));
-  const premium = Boolean(Number(user?.is_premium || 0)) || preview;
+  // Premium comes from the server flag alone. The old device-local preview
+  // override let anyone unlock paid features from Settings, which is both a
+  // review flag and a way to give the product away.
+  const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -114,7 +114,7 @@ export default function PlanVisitScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 66, paddingBottom: 56 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
           <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
             {premium && <PremiumBadge size="sm" />}
@@ -140,6 +140,15 @@ export default function PlanVisitScreen() {
         {bestTimes.isLoading && <SkeletonRows count={4} />}
         {!!bestTimes.error && !bestTimes.isLoading && (
           <ErrorCard title="Timing data unavailable" message="Best-time recommendations could not be loaded for this branch." onRetry={() => bestTimes.refetch()} />
+        )}
+        {/* No branch means the best-times query is disabled: it never loads and
+            never errors, so without this the screen is a heading over nothing. */}
+        {!branch && (
+          <EmptyCard
+            icon="calendar-outline"
+            title="No branches to plan for"
+            message="Once an agency near you opens a queue on Lyne, we'll show you the quietest times to go."
+          />
         )}
 
         {plan && (
@@ -225,7 +234,7 @@ export default function PlanVisitScreen() {
                 <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Ionicons name="sparkles" size={15} color={colors.accent} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>QME PREMIUM</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
                   </View>
                   <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
                   {[
@@ -259,7 +268,7 @@ export default function PlanVisitScreen() {
         )}
       </ScrollView>
 
-      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get QMe Premium" submitLabel="Subscribe" />
+      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get Lyne Premium" submitLabel="Subscribe" />
     </View>
   );
 }

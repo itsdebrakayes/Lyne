@@ -88,7 +88,7 @@ export default function SearchScreen() {
       >
         {/* search bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
           <View style={[t.search, { flex: 1, height: 50 }]}>
             <Ionicons name="search-outline" size={17} color={searching ? colors.ink : colors.muted} />
             <TextInput
@@ -102,7 +102,7 @@ export default function SearchScreen() {
               placeholderTextColor={colors.muted}
             />
             {searching && (
-              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearch('')} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
                 <Ionicons name="close-circle" size={17} color={colors.faint} />
               </TouchableOpacity>
             )}

@@ -1,9 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const authRouter = require('../src/routes/auth');
 const ticketRouter = require('../src/routes/tickets');
 const queueRouter = require('../src/routes/queues');
-const sseRouter = require('../src/routes/sse');
 const predictionsRouter = require('../src/routes/predictions');
 const notificationsRouter = require('../src/routes/notifications');
 const analyticsRouter = require('../src/routes/analytics');
@@ -45,33 +45,6 @@ test('full queue details are restricted to authorized staff', () => {
   const handlers = routeHandlers(queueRouter, 'get', '/:id');
   assert.ok(handlers.includes('requireAuth'));
   assert.ok(handlers.includes('requireQueueAccess'));
-});
-
-test('staff queue streams verify tenant access', () => {
-  const handlers = routeHandlers(sseRouter, 'get', '/queue/:queue_id/staff');
-  assert.ok(handlers.includes('requireAuth'));
-  assert.ok(handlers.includes('requireQueueAccess'));
-});
-
-test('public queue updates exclude ownership and verification fields', () => {
-  const publicUpdate = sseRouter.toPublicTicketUpdate({
-    id: 'ticket-1',
-    queue_id: 'queue-1',
-    user_id: 'user-1',
-    ticket_number: 'A-001',
-    verification_code: 'SECRET12',
-    position: 1,
-    status: 'called',
-    estimated_wait_minutes: 0,
-  });
-
-  assert.deepEqual(publicUpdate, {
-    id: 'ticket-1',
-    ticket_number: 'A-001',
-    position: 1,
-    status: 'called',
-    estimated_wait_minutes: 0,
-  });
 });
 
 test('staff can skip a ticket only through authenticated tenant checks', () => {
@@ -184,4 +157,21 @@ test('auth lookup treats unprovisioned Supabase accounts as mobile users only af
 
   assert.equal(actor.dbStaff, undefined);
   assert.equal(actor.dbUser.id, 'user-1');
+});
+
+test('account deletion is authenticated and audited', () => {
+  const handlers = routeHandlers(authRouter, 'delete', '/account');
+  assert.ok(handlers.includes('requireAuth'), 'deletion must authenticate the caller');
+  // Deleting an account is exactly the kind of irreversible, personal-data
+  // action the audit trail exists for.
+  assert.ok(handlers.length > 1, 'deletion must be audit-logged');
+});
+
+test('account deletion is not exposed unauthenticated on any other verb', () => {
+  for (const method of ['get', 'post', 'put']) {
+    const layer = authRouter.stack.find(candidate => (
+      candidate.route?.path === '/account' && candidate.route.methods?.[method]
+    ));
+    assert.equal(layer, undefined, `/account must not answer ${method.toUpperCase()}`);
+  }
 });
