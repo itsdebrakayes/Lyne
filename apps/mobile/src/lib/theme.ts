@@ -429,6 +429,12 @@ export const radius = {
 export const TAB_BAR_CLEARANCE = 150;
 
 export const type = {
+  /* One step above `display`, for the single sentence that IS a screen — the
+     Home opening, the line preview's "you'd be second". The ramp stopped at 30,
+     which is why nothing on Home could dominate and every section read at the
+     same volume. Deliberately one step, not a redesign: 34 is as large as
+     Manrope stays comfortable at this line height on a 375pt screen. */
+  displayLg: { fontFamily: font.extra,    fontSize: 34, letterSpacing: -1.0, lineHeight: 38 },
   display:   { fontFamily: font.extra,    fontSize: 30, letterSpacing: -0.8, lineHeight: 35 },
   title:     { fontFamily: font.extra,    fontSize: 24, letterSpacing: -0.6, lineHeight: 29 },
   section:   { fontFamily: font.extra,    fontSize: 19, letterSpacing: -0.4, lineHeight: 24 },
