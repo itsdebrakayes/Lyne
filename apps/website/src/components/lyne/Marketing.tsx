@@ -41,17 +41,25 @@ export function MarketingNav() {
           </a>
         </div>
 
+        {/* 44x44 minimum: this was p-2 around a 20px icon, so 38x38 — under the
+            touch target every mobile guideline sets, and the one place on this
+            site somebody on a phone MUST hit to navigate at all.
+            aria-expanded because "Menu" alone never tells a screen reader
+            whether the thing is open. */}
         <button
-          className="rounded-lg border border-white/10 p-2 md:hidden"
+          type="button"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 md:hidden"
           onClick={() => setOpen((o) => !o)}
-          aria-label="Menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-white/[0.06] md:hidden">
+        <div id="mobile-nav" className="border-t border-white/[0.06] md:hidden">
           <div className="lux-container flex flex-col gap-1 py-4">
             {links.map((l) => (
               <a
