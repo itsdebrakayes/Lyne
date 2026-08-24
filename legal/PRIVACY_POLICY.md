@@ -10,7 +10,7 @@
 
 ## 1. Who we are
 
-Lyne ("Lyne", "we", "us") is operated by **[REGISTERED COMPANY NAME]**, a business registered in Jamaica under the Registration of Business Names Act, registration number **[NUMBER]**, principal place of business **[ADDRESS]**.
+Lyne ("Lyne", "we", "us") is operated by **[REGISTERED COMPANY NAME]**, a business registered in Jamaica under the Registration of Business Names Act, registration number **[NUMBER]**. Our registered particulars are held by the Companies Office of Jamaica; write to us at the address in section 15.
 
 Lyne is operated as a **sole trader**. That does not change your rights under this policy or under the Data Protection Act, and it does not change who is accountable to you: the proprietor of the business is the data controller.
 

@@ -29,8 +29,14 @@ export interface LegalEntity {
    * "company number" on a published policy would be a misstatement.
    */
   businessRegistrationNumber: string;
-  /** Principal place of business, as filed. */
-  registeredAddress: string;
+  /**
+   * Where post reaches us — deliberately NOT the principal place of business
+   * from the certificate, which is residential. The Act requires the controller
+   * be contactable; it does not require a home address on a public page. The
+   * registered particulars stay with the Companies Office, which is the record
+   * that is meant to hold them.
+   */
+  correspondenceAddress: string;
   /** Where data-protection requests and complaints go. */
   privacyEmail: string;
   /** General support and contractual notices. */
@@ -47,8 +53,8 @@ export const LEGAL_ENTITY: LegalEntity = {
   // From the Certificate of Registration, Form B.N.9, dated 9 August 2026.
   registeredName: "DKS Technologies",
   businessRegistrationNumber: "11602/2026",
-  registeredAddress:
-    "31 Claude O'Reagan Close, Unions Estate, Central Village P.A., Saint Catherine, Jamaica",
+  correspondenceAddress:
+    "Debra-Kaye Samantha Smith, c/o Marvaley Post Office, Kingston 20, Jamaica",
   /* One mailbox, used for both. A privacy policy that routes data-subject
      requests to an address nobody has created is worse than one that shares an
      inbox — the request simply bounces, and the obligation is missed. Split
@@ -67,7 +73,7 @@ export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): stri
   const labels: Record<keyof LegalEntity, string> = {
     registeredName: "Registered business name",
     businessRegistrationNumber: "Business Name (BN) registration number",
-    registeredAddress: "Principal place of business",
+    correspondenceAddress: "Correspondence address",
     privacyEmail: "Privacy contact address",
     supportEmail: "Support contact address",
     oicRegistration: "Information Commissioner registration",
@@ -89,7 +95,7 @@ export function applyLegalEntity(markdown: string, entity: LegalEntity = LEGAL_E
   const map: Record<string, string> = {
     "[REGISTERED COMPANY NAME]": entity.registeredName,
     "[NUMBER]": entity.businessRegistrationNumber,
-    "[ADDRESS]": entity.registeredAddress,
+    "[ADDRESS]": entity.correspondenceAddress,
     "[PRIVACY EMAIL]": entity.privacyEmail,
     "[SUPPORT EMAIL]": entity.supportEmail,
     "[REGISTRATION NUMBER]": entity.oicRegistration,
