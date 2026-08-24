@@ -23,6 +23,69 @@
 
   <body>
     <div id="root"></div>
+
+    <!--
+      Boot diagnostic.
+
+      A blank page is the least informative failure a deployed SPA can produce:
+      the HTML arrived, so the server looks healthy, and everything that went
+      wrong went wrong in a console nobody is looking at. On a laptop where F12
+      is the volume key, "check devtools" is not a usable instruction either.
+
+      This listens for the two ways the app can fail to start — a script or
+      stylesheet that 404s, and an exception while the bundle evaluates — and
+      prints what happened into the page itself. If React mounts, #root gets
+      children and this never renders. It costs nothing when everything works.
+    -->
+    <script>
+      (function () {
+        var reported = false;
+
+        function show(title, detail) {
+          if (reported) return;
+          var root = document.getElementById('root');
+          if (!root || root.children.length) return;   // the app mounted; stay quiet
+          reported = true;
+          root.innerHTML =
+            '<div style="font:14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;' +
+            'max-width:640px;margin:12vh auto;padding:0 24px;color:#e6ecf5">' +
+            '<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.55">Lyne — the page could not start</div>' +
+            '<h1 style="font-size:24px;margin:14px 0 10px;font-weight:700">' + title + '</h1>' +
+            '<pre style="white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,.06);' +
+            'border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:14px;font-size:12.5px;margin:0 0 16px">' +
+            detail + '</pre>' +
+            '<div style="opacity:.7;font-size:13px">Send this text to whoever is deploying the site.</div>' +
+            '</div>';
+        }
+
+        // A 404 on the bundle fires an error event on the element, which does
+        // not bubble — so it has to be caught in the capture phase.
+        window.addEventListener('error', function (e) {
+          var el = e.target;
+          if (el && (el.tagName === 'SCRIPT' || el.tagName === 'LINK')) {
+            show('A file the page needs was not found.',
+                 'Could not load:\n' + (el.src || el.href) +
+                 '\n\nThe server returned something other than the file. Usually the site is\n' +
+                 'in a subfolder and the asset paths are absolute, or .htaccess is rewriting\n' +
+                 'the bundle to index.html.');
+          } else if (e.error) {
+            show('The app crashed while starting.', String(e.error && e.error.stack || e.message));
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function (e) {
+          show('The app crashed while starting.', String((e.reason && e.reason.stack) || e.reason));
+        });
+
+        // Nothing threw and nothing 404'd, but nothing rendered either.
+        setTimeout(function () {
+          show('The app loaded but did not render.',
+               'No error was raised. This usually means the JavaScript bundle was served\n' +
+               'as HTML — check that .htaccess exists next to index.html and that its\n' +
+               'file/directory check comes before the catch-all rewrite.');
+        }, 5000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
