@@ -96,7 +96,7 @@ function Hero() {
               </defs>
             </svg>
             <span
-              className="hero-wordmark script text-clip-img text-clip-glow inline-block pr-[0.06em] text-[1.35em] sm:text-[1.5em]"
+              className="hero-wordmark script text-clip-img text-clip-glow inline-block pr-[0.06em] text-[1.42em] sm:text-[1.58em]"
               style={{ backgroundImage: `url(${heroAurora})` }}
             >
               Lyne
