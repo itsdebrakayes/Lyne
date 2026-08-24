@@ -111,20 +111,25 @@ export function MobileMarketingFooter() {
               <h4 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
                 {group.title}
               </h4>
-              <ul className="space-y-3 text-sm text-lyne-lavender/60">
-                {group.links.map((item) => (
-                  <li key={item.label}>
-                    {item.href.startsWith("/#") ? (
-                      <a href={item.href} className="transition-colors hover:text-white">
-                        {item.label}
-                      </a>
-                    ) : (
-                      <Link to={item.href} className="transition-colors hover:text-white">
-                        {item.label}
-                      </Link>
-                    )}
-                  </li>
-                ))}
+              {/* The anchor carries the height, not the row around it. A bare
+                  inline link is only as tall as its text — 17px, against the
+                  44px a fingertip actually needs — so the gap between rows was
+                  doing the work of separating targets that were never big
+                  enough to hit. This file only ever renders on a phone, so
+                  there is no desktop case to hedge for. */}
+              <ul className="flex flex-col text-sm text-lyne-lavender/60">
+                {group.links.map((item) => {
+                  const tap = "inline-flex min-h-[44px] items-center transition-colors hover:text-white";
+                  return (
+                    <li key={item.label}>
+                      {item.href.startsWith("/#") ? (
+                        <a href={item.href} className={tap}>{item.label}</a>
+                      ) : (
+                        <Link to={item.href} className={tap}>{item.label}</Link>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
@@ -132,9 +137,9 @@ export function MobileMarketingFooter() {
 
         <div className="mt-10 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45">
           <span>© {new Date().getFullYear()} Lyne. All rights reserved.</span>
-          <div className="mt-4 flex gap-6">
-            <Link to="/terms" className="hover:text-white">Terms</Link>
-            <Link to="/privacy" className="hover:text-white">Privacy</Link>
+          <div className="mt-1 flex items-center gap-6">
+            <Link to="/terms" className="inline-flex min-h-[44px] items-center hover:text-white">Terms</Link>
+            <Link to="/privacy" className="inline-flex min-h-[44px] items-center hover:text-white">Privacy</Link>
           </div>
         </div>
       </div>

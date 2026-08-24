@@ -101,5 +101,9 @@ outputs/*
 # They are never wanted. Ignoring them means the next bulk add cannot repeat it.
 * 2
 * 2.*
+# Finder numbers its copies upwards, so " 3" and beyond arrived after the first
+# sweep and one of them ("MarketingHome 3.tsx") got committed.
+* [0-9]
+* [0-9].*
 * [0-9]
 * [0-9].*

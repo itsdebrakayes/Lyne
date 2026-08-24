@@ -139,13 +139,13 @@ export function MarketingFooter() {
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45 sm:flex-row">
           <span>© {new Date().getFullYear()} Lyne. All rights reserved.</span>
-          <div className="flex gap-6">
+          <div className="flex items-center gap-6">
             {/* These pointed at /about until 21 Aug 2026 — the site advertised
                 three legal pages and delivered a marketing page. Security has
                 no page of its own, so it is not claimed; the security
                 commitments live in the Privacy Policy. */}
-            <Link to="/terms" className="hover:text-white">Terms</Link>
-            <Link to="/privacy" className="hover:text-white">Privacy</Link>
+            <Link to="/terms" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Terms</Link>
+            <Link to="/privacy" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Privacy</Link>
           </div>
         </div>
       </div>
@@ -165,16 +165,24 @@ function FooterCol({
       <h4 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
         {title}
       </h4>
-      <ul className="space-y-2.5 text-sm text-lyne-lavender/55">
-        {items.map((item) => (
-          <li key={item.label}>
-            {item.href.startsWith("/#") ? (
-              <a href={item.href} className="transition-colors hover:text-white">{item.label}</a>
-            ) : (
-              <Link to={item.href} className="transition-colors hover:text-white">{item.label}</Link>
-            )}
-          </li>
-        ))}
+      {/* A bare inline link is only as tall as its text — 17px here, against a
+          44px guideline. On a phone that is a miss waiting to happen, so the
+          anchor itself carries the height rather than the row around it: the
+          whole target is tappable, not just the glyphs. Pointer users do not
+          need it, so it collapses back to the tighter rhythm from sm up. */}
+      <ul className="flex flex-col gap-0.5 text-sm text-lyne-lavender/55 sm:gap-2.5">
+        {items.map((item) => {
+          const tap = "inline-flex min-h-[44px] items-center transition-colors hover:text-white sm:min-h-0";
+          return (
+            <li key={item.label}>
+              {item.href.startsWith("/#") ? (
+                <a href={item.href} className={tap}>{item.label}</a>
+              ) : (
+                <Link to={item.href} className={tap}>{item.label}</Link>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
