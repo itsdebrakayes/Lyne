@@ -77,9 +77,54 @@ const SEED_PATH = process.env.DEMO_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_active_seed.sql');
 const CREDIT_UNION_SEED_PATH = process.env.DEMO_CREDIT_UNION_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_credit_union_seed.sql');
+/* The sector accounts — Traffic Court, UWI, UTech, First Heritage. These were
+   seeded once and then left out of the daily roll-over, so their queues kept
+   the date they were first written and every service under them read "not open
+   right now" from the next morning onwards. Four of the eight demo businesses
+   were dead on any day but the day they were seeded, and they are precisely the
+   ones the sector pivot demos. */
+const SECTOR_SEED_PATH = process.env.DEMO_SECTOR_SEED_PATH
+  || path.resolve(__dirname, '../../../database/demo_sector_seed.sql');
+
+/* Seed-authored tickets on today's queues, and nothing else.
+ *
+ * The seeds re-date a fixed set of queue rows rather than creating a new row
+ * each morning, so a queue carries whatever was written into it before. Two
+ * seed generations then coexist in one line: 298 ticket numbers appeared twice,
+ * and 158 slots in First Heritage alone had two live tickets claiming the same
+ * position — the staff list showed LDR-001 twice, one in service and one still
+ * waiting.
+ *
+ * Deleting by id shape rather than by "everything on this queue" is the whole
+ * point. Seeds mint readable ids (t-, tsec-, pt-); the API mints UUIDs. Anything
+ * UUID-shaped was created by a real person going through the product — a test
+ * account holding a place, a walk-in issued at a kiosk — and a demo refresh has
+ * no business deleting it.
+ *
+ * queue_events, ticket_ratings, visit_history and wait_time_records cascade;
+ * notifications and session_registrations null out. That is correct here: these
+ * rows are being replaced by the same seed a moment later, and leaving the old
+ * history attached to a ticket number that now belongs to somebody else is how
+ * the analytics got double-counted in the first place.
+ */
+const UUID_SHAPED = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+
+async function clearSeedTickets(connection) {
+  const [result] = await connection.query(
+    `DELETE t FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
+      WHERE q.queue_date = CURDATE()
+        AND t.id NOT REGEXP ?`,
+    [UUID_SHAPED]
+  );
+  return result.affectedRows || 0;
+}
 
 async function refreshDemoData(connection = pool) {
-  const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH].filter(seedPath => fs.existsSync(seedPath));
+  const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, SECTOR_SEED_PATH]
+    .filter(seedPath => fs.existsSync(seedPath));
+  const cleared = await clearSeedTickets(connection);
+  if (cleared) console.log(`Cleared ${cleared} seed-authored ticket(s) before reseeding.`);
   const statements = seedPaths.flatMap(seedPath => splitStatements(fs.readFileSync(seedPath, 'utf8')));
 
   for (const statement of statements) {
@@ -106,4 +151,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { refreshDemoData };
+module.exports = { refreshDemoData, clearSeedTickets };

@@ -70,9 +70,11 @@ services:
       ALLOW_DEMO_DATA_REFRESH: "true"
       DEMO_SEED_PATH: /seed/demo_active_seed.sql
       DEMO_CREDIT_UNION_SEED_PATH: /seed/demo_credit_union_seed.sql
+      DEMO_SECTOR_SEED_PATH: /seed/demo_sector_seed.sql
     volumes:
       - ./database/demo_active_seed.sql:/seed/demo_active_seed.sql:ro
       - ./database/demo_credit_union_seed.sql:/seed/demo_credit_union_seed.sql:ro
+      - ./database/demo_sector_seed.sql:/seed/demo_sector_seed.sql:ro
 
   # ── Live model worker: runs the six models against the demo DB on boot and
   #    every 2h, so predictive_results is produced by the models, not seeded.

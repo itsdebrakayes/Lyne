@@ -344,12 +344,18 @@ SELECT
   NULL
 FROM queues q
 JOIN services s ON s.id = q.service_id
+JOIN branches b ON b.id = q.branch_id
 JOIN (
   SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
   UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
 ) seq
 WHERE q.queue_date = CURDATE()
   AND q.is_active = TRUE
+  -- Only the tenants this file owns. Without it the block fills EVERY queue
+  -- dated today, including the ones the credit-union and sector seeds populate
+  -- moments later, and both blocks number from 1: LDR-001 written twice into
+  -- one line, two live tickets on position 1, and "you're next" shown to both.
+  AND b.business_id IN ('biz-taj-001', 'biz-nht-001', 'biz-pica-001')
   AND seq.n <= 3 + MOD(CRC32(q.id), 8)
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
