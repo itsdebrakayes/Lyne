@@ -18,16 +18,35 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const API_URL = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    /* The handoff token arrives in the fragment and Supabase also parses the
-       fragment for its own OAuth callbacks. Turning that off keeps it from
-       consuming or rewriting a URL that is not addressed to it. */
-    detectSessionInUrl: false,
+/**
+ * Whether the portal has what it needs to run.
+ *
+ * apps/website/.env is gitignored, so a build on a host that has not been given
+ * VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY produces a bundle with empty
+ * strings in them. createClient() throws "supabaseUrl is required" on an empty
+ * URL, at module scope — which would take down the whole route rather than the
+ * one feature that is unconfigured.
+ *
+ * The homepage is unaffected either way: Account is lazily imported, so this
+ * module is not in the initial chunk. But /account should degrade to its own
+ * 404 rather than a white screen, which is what the flag below is for.
+ */
+export const isPortalConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON);
+
+export const supabase = createClient(
+  SUPABASE_URL || 'https://unconfigured.invalid',
+  SUPABASE_ANON || 'unconfigured',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      /* The handoff token arrives in the fragment and Supabase also parses
+         the fragment for its own OAuth callbacks. Turning that off keeps it
+         from consuming or rewriting a URL that is not addressed to it. */
+      detectSessionInUrl: false,
+    },
   },
-});
+);
 
 /**
  * Read and immediately erase the handoff token.
@@ -100,6 +119,8 @@ let unlockPromise: Promise<boolean> | null = null;
 export function ensureUnlocked(): Promise<boolean> {
   if (!unlockPromise) {
     unlockPromise = (async () => {
+      // Nothing to sign in to. Behave exactly like a page that does not exist.
+      if (!isPortalConfigured) return false;
       /* An existing session counts as arrival — somebody who signed in a minute
          ago and refreshed should not be shown a 404 of their own account. */
       const { data } = await supabase.auth.getSession();
