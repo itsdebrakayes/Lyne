@@ -232,6 +232,20 @@ export function waitShort(minutes?: number | string | null) {
 }
 
 /**
+ * The compact form with the word "wait" attached — "16m wait", and at zero
+ * "No wait" rather than "Now wait".
+ *
+ * waitShort answers "how long?" with a bare "Now", which is right on its own
+ * next to a heading. It is wrong the moment a caller appends the noun, and one
+ * did: the busiest card on the Home screen read "Now wait · 3 branches". The
+ * zero case belongs here, once, instead of at every site that composes it.
+ */
+export function waitPhrase(minutes?: number | string | null) {
+  const wait = Math.round(Number(minutes || 0));
+  return wait ? `${wait}m wait` : 'No wait';
+}
+
+/**
  * Branch open/closed by the wall clock. The demo seeds queues for the whole
  * day, so "open_queues > 0" is NOT a truthful "open now" signal — a branch
  * can carry a stale low wait at midnight. Every Lyne business here is a

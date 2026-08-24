@@ -131,7 +131,55 @@ async function refreshDemoData(connection = pool) {
     await connection.query(statement);
   }
 
+  await normaliseHistoryPositions(connection);
+
   return statements.length;
+}
+
+/**
+ * Pull the seeds' reserved position bands back into the real sequence.
+ *
+ * Both seeds park served history in bands well clear of the live tickets — the
+ * credit-union file writes 101, 102, 103 by hand and the active file generates
+ * 900 + n — so that history cannot collide with the people still in line. It
+ * works for that, and it breaks the thing downstream of it: the allocator hands
+ * out MAX(position) + 1 over today's tickets, and history counts, so a customer
+ * joining a nine-person line was issued MEM-904. That is the exact symptom the
+ * comment in utils/ticketSlot.js was written about, and it survived the
+ * CURDATE() scoping because the seeds date this history to today on purpose —
+ * it is what makes "served today" mean anything on the dashboards.
+ *
+ * Renumbering after the fact fixes it without touching either seed's authored
+ * rows. History is stacked immediately above whoever is still live, in the
+ * order it was served, so the sequence reads continuously and the next real
+ * join gets a number a human would expect. The positions of served tickets
+ * carry no meaning of their own — nobody is standing in them — so moving them
+ * costs nothing.
+ */
+async function normaliseHistoryPositions(connection) {
+  const [result] = await connection.query(`
+    UPDATE queue_tickets tgt
+    JOIN (
+      SELECT t.id,
+             COALESCE(live.live_max, 0)
+               + ROW_NUMBER() OVER (PARTITION BY t.queue_id ORDER BY t.joined_at, t.id) AS new_pos
+        FROM queue_tickets t
+        JOIN queues q ON q.id = t.queue_id
+        LEFT JOIN (
+          SELECT queue_id, MAX(position) AS live_max
+            FROM queue_tickets
+           WHERE status IN ('waiting', 'called', 'in_service')
+           GROUP BY queue_id
+        ) live ON live.queue_id = t.queue_id
+       WHERE q.queue_date = CURDATE()
+         AND t.status NOT IN ('waiting', 'called', 'in_service')
+         AND t.position >= 100
+    ) ren ON ren.id = tgt.id
+    SET tgt.position = ren.new_pos
+  `);
+  const moved = result.affectedRows || 0;
+  if (moved) console.log(`Pulled ${moved} history ticket(s) out of the reserved position bands.`);
+  return moved;
 }
 
 if (require.main === module) {
@@ -151,4 +199,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { refreshDemoData, clearSeedTickets };
+module.exports = { refreshDemoData, clearSeedTickets, normaliseHistoryPositions };
