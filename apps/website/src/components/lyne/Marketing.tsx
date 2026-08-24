@@ -6,7 +6,7 @@ import { LyneLogo } from "./LyneLogo";
 const links = [
   { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/#pricing" },
-  { label: "Partners", href: "/#partners" },
+  { label: "For business", href: "/#partners" },
 ];
 
 export function MarketingNav() {
@@ -123,8 +123,8 @@ export function MarketingFooter() {
           <div className="max-w-xs">
             <LyneLogo />
             <p className="mt-4 text-sm leading-relaxed text-lyne-lavender/60">
-              The calm queue layer for modern businesses. Live wait times,
-              QR check-in, and dashboards built for the people who run the day.
+              The simple way to run your line. See how long the wait is,
+              hold your spot from your phone, and keep your day moving.
             </p>
           </div>
           {footerCols.map((col) => (

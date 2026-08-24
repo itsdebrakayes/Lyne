@@ -21,7 +21,7 @@ export function LyneLogo({
             dark ? "text-lyne-ink" : "text-white"
           }`}
         >
-          Ly<span className="text-lyne-purple">ne</span>
+          Lyne<span className="text-lyne-purple">.</span>
         </span>
       )}
     </Link>

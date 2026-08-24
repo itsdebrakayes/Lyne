@@ -16,12 +16,12 @@ import {
   Layers,
   Sparkles,
 } from "lucide-react";
-import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
+import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 import { FloatingSquares } from "@/components/lyne/FloatingSquares";
 import heroAurora from "@/assets/hero-aurora.jpg";
 
 
-export default function MarketingHome() {
+export default function MobileMarketingHome() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-lyne-night text-white">
       {/* ambient glows */}
@@ -31,7 +31,7 @@ export default function MarketingHome() {
         <div className="absolute bottom-0 right-[10%] h-[400px] w-[400px] rounded-full bg-lyne-purple/10 blur-[140px]" />
       </div>
 
-      <MarketingNav />
+      <MobileMarketingNav />
       <Hero />
       <WhatItIs />
       <Features />
@@ -39,7 +39,7 @@ export default function MarketingHome() {
       <Pricing />
       <ForBusiness />
       <Newsletter />
-      <MarketingFooter />
+      <MobileMarketingFooter />
     </div>
   );
 }
@@ -48,7 +48,7 @@ export default function MarketingHome() {
 
 function Hero() {
   return (
-    <section className="relative flex min-h-[92vh] items-center justify-center overflow-hidden pb-28 pt-24">
+    <section className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden pb-20 pt-14 sm:pb-24 sm:pt-20">
       <div className="pointer-events-none absolute inset-0 grid-bg" />
 
       {/* ambient hero glows */}
@@ -67,17 +67,17 @@ function Hero() {
           initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto max-w-4xl text-balance text-6xl font-bold leading-[1.02] tracking-tight text-white sm:text-7xl lg:text-8xl xl:max-w-5xl xl:text-[6.5rem] 2xl:text-[7rem]"
+          className="mx-auto max-w-3xl text-balance text-[3.15rem] font-bold leading-[0.98] tracking-tight text-white sm:text-6xl"
         >
           Stop waiting around.
-          <br className="hidden sm:block" /> Hold your spot.
-          <br className="hidden sm:block" /> In{" "}
+          <br /> Hold your spot.
+          <br /> In{" "}
           <span className="relative inline-block align-baseline">
             {/* snaking flourish that trails off the wordmark */}
             <svg
               viewBox="0 0 600 220"
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[3.2em] w-[7em] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-70"
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[2.8em] w-[5.5em] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-70 sm:h-[3.2em] sm:w-[7em]"
             >
               <path
                 d="M-160 150 C -40 200, 60 130, 120 70 S 240 -20, 300 40 S 420 190, 520 120 S 700 40, 820 90"
@@ -96,7 +96,7 @@ function Hero() {
               </defs>
             </svg>
             <span
-              className="script text-clip-img text-clip-glow inline-block pr-[0.06em] text-[1.5em]"
+              className="script text-clip-img text-clip-glow inline-block pr-[0.06em] text-[1.35em] sm:text-[1.5em]"
               style={{ backgroundImage: `url(${heroAurora})` }}
             >
               Lyne
@@ -109,7 +109,7 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="mx-auto mt-12 max-w-2xl text-lg leading-relaxed text-lyne-lavender/75 xl:text-xl"
+          className="mx-auto mt-10 max-w-xl text-base leading-relaxed text-lyne-lavender/75 sm:text-lg"
         >
           Lyne shows you how long the wait really is before you leave home,
           holds your spot while you go about your day, and tells you when it is
@@ -120,12 +120,12 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center"
         >
-          <a href="#pricing" className="btn btn-primary btn-lg">
+          <a href="#pricing" className="btn btn-primary btn-lg w-full sm:w-auto">
             Get the app free <ArrowUpRight className="h-5 w-5" />
           </a>
-          <a href="#features" className="btn btn-ghost btn-lg">
+          <a href="#features" className="btn btn-ghost btn-lg w-full sm:w-auto">
             See how it works <ArrowRight className="h-5 w-5" />
           </a>
         </motion.div>
@@ -139,15 +139,15 @@ function Hero() {
 
 function WhatItIs() {
   return (
-    <section className="py-24 md:py-32">
-      <div className="lux-container grid items-start gap-12 lg:grid-cols-12">
-        <div className="lg:col-span-5">
+    <section className="py-16 sm:py-20">
+      <div className="lux-container grid items-start gap-8">
+        <div>
           <div className="chip chip-mute mb-5">What it is</div>
-          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             A simpler way to <span className="serif accent-text">wait your turn</span> — for everybody.
           </h2>
         </div>
-        <div className="space-y-5 text-lg leading-relaxed text-lyne-lavender/75 lg:col-span-7">
+        <div className="space-y-5 text-base leading-relaxed text-lyne-lavender/75 sm:text-lg">
           <p>
             <strong className="text-white">Lyne</strong> takes away the sign-in
             sheet, the crowded waiting area and the endless "how much longer?"
@@ -190,11 +190,11 @@ function Features() {
     { icon: ShieldCheck, tag: "Trust", title: "Safe and private", body: "Strong encryption and strict access rules keep customer details protected from day one." },
   ];
   return (
-    <section id="features" className="border-t border-white/[0.06] py-24 md:py-28">
+    <section id="features" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mb-14 max-w-2xl">
           <div className="chip chip-mute mb-5">The product</div>
-          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Six simple things. <span className="serif accent-text">One easy app.</span>
           </h2>
           <p className="mt-4 text-lg text-lyne-lavender/70">
@@ -202,7 +202,7 @@ function Features() {
             runs.
           </p>
         </div>
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {features.map((f, i) => (
             <motion.div
               key={f.title}
@@ -240,15 +240,15 @@ function HowItWorks() {
     { n: "04", t: "See the day clearly", d: "Every visit feeds the owner screen, so the business knows how it is doing without lifting a finger." },
   ];
   return (
-    <section className="border-t border-white/[0.06] py-24 md:py-32">
+    <section className="border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mb-14 max-w-3xl">
           <div className="chip chip-mute mb-5">How it works</div>
-          <h2 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Up and running in <span className="serif accent-text">minutes,</span> not months.
           </h2>
         </div>
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {steps.map((s) => (
             <div key={s.n} className="panel-elev relative overflow-hidden p-6">
               <div className="mb-3 font-serif text-5xl italic accent-text">{s.n}</div>
@@ -274,13 +274,13 @@ function ForBusiness() {
     { t: "We grow with you", d: "Start with one location and add more whenever you are ready — no rebuild, no restart." },
   ];
   return (
-    <section id="partners" className="scroll-mt-24 border-t border-white/[0.06] py-24 md:py-32">
-      <div className="lux-container grid items-start gap-12 lg:grid-cols-12">
-        <div className="lg:col-span-5 lg:sticky lg:top-24">
+    <section id="partners" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
+      <div className="lux-container grid items-start gap-10">
+        <div>
           <div className="chip mb-5">
             <Building2 className="h-3.5 w-3.5" /> For business
           </div>
-          <h2 className="mb-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h2 className="mb-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Trust us to help you <span className="serif accent-text">run your day.</span>
           </h2>
           <p className="mb-7 text-lg leading-relaxed text-lyne-lavender/70">
@@ -288,7 +288,7 @@ function ForBusiness() {
             build it with. Whether you serve ten people a day or ten thousand,
             here is what you stand to gain when you come on board early.
           </p>
-          <a href="mailto:hello@lyne.app" className="btn btn-primary">
+          <a href="mailto:hello@lyne.app" className="btn btn-primary min-h-12 w-full sm:w-auto">
             Talk to us <ArrowRight className="h-4 w-4" />
           </a>
           <div className="mt-8 flex flex-wrap gap-2">
@@ -299,7 +299,7 @@ function ForBusiness() {
             ))}
           </div>
         </div>
-        <div className="space-y-3 lg:col-span-7">
+        <div className="space-y-3">
           {points.map((x) => (
             <div key={x.t} className="panel flex items-start gap-4 p-5">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-lyne-purple/30 bg-lyne-purple/15">
@@ -352,11 +352,11 @@ const plans = [
 function Pricing() {
   const [yearly, setYearly] = useState(false);
   return (
-    <section id="pricing" className="border-t border-white/[0.06] py-24 md:py-32">
+    <section id="pricing" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mx-auto mb-10 max-w-2xl overflow-visible text-center">
           <div className="chip chip-mute mb-5">Plans</div>
-          <h2 className="pb-1 text-4xl font-bold leading-[1.1] tracking-tight md:text-5xl">
+          <h2 className="pb-1 text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
           <p className="mt-4 text-lg text-lyne-lavender/70">
@@ -365,7 +365,7 @@ function Pricing() {
           </p>
         </div>
 
-        <div className="mb-12 flex items-center justify-center gap-3">
+        <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
           <span className={`text-sm ${!yearly ? "text-white" : "text-lyne-lavender/55"}`}>Monthly</span>
           <button
             onClick={() => setYearly((v) => !v)}
@@ -380,7 +380,7 @@ function Pricing() {
           </span>
         </div>
 
-        <div className="grid items-stretch gap-6 md:grid-cols-3">
+        <div className="grid items-stretch gap-5 sm:grid-cols-2">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -388,7 +388,7 @@ function Pricing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.08 }}
-              className={`flex flex-col p-7 ${
+              className={`flex flex-col p-6 ${i === 2 ? "sm:col-span-2" : ""} ${
                 plan.highlighted
                   ? "panel-elev shadow-[0_0_70px_-20px_rgba(123,95,255,0.7)] ring-1 ring-lyne-purple/40"
                   : "panel"
@@ -439,9 +439,9 @@ function Newsletter() {
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   return (
-    <section className="border-t border-white/[0.06] py-24">
-      <div className="w-full px-6 md:px-10 lg:px-16">
-        <div className="panel-elev relative overflow-hidden px-8 py-16 text-center md:px-16 lg:py-20">
+    <section className="border-t border-white/[0.06] py-16 sm:py-20">
+      <div className="w-full px-4 sm:px-8">
+        <div className="panel-elev relative overflow-hidden px-5 py-12 text-center sm:px-10 sm:py-16">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-lyne-purple/30 blur-3xl" />
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
             <Mail className="h-5 w-5" />
