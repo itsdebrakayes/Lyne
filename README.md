@@ -1,8 +1,8 @@
-# Q ME NOW
+# Lyne
 
 Intelligent queue management and predictive analytics for multi-branch organizations.
 
-Q ME NOW has five production surfaces:
+Lyne has five production surfaces:
 
 - `apps/website` — public marketing website for product information, quote/contact requests, and app-store links only.
 - `apps/mobile` — Expo mobile app for customers on phones and tablets.
