@@ -90,3 +90,16 @@ outputs/*
 
 # Office lock files
 ~$*
+
+# Finder / iCloud duplicates.
+#
+# macOS appends " 2" when it resolves a sync collision, and it does this to
+# whole trees at once. A `git add -A` then sweeps up a hundred stale copies of
+# real source files — which is exactly what happened in 4b17392: 108 of them,
+# including a `.htaccess 2` that shipped into the website build.
+#
+# They are never wanted. Ignoring them means the next bulk add cannot repeat it.
+* 2
+* 2.*
+* [0-9]
+* [0-9].*
