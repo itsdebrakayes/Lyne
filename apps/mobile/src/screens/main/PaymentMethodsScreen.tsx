@@ -1,6 +1,14 @@
 /**
- * PaymentMethodsScreen — manage saved cards (metadata only; the PAN lives at
- * Stripe). List, add (via CardSheet → /payments/methods), and remove cards.
+ * PaymentMethodsScreen — the cards on file, read-only.
+ *
+ * Adding one used to happen here through CardSheet. It does not any more:
+ * every purchase now goes through the website, so a second place to enter a
+ * card would be a second thing to keep correct, a second PCI surface, and — on
+ * iOS — a card form inside an app that is not allowed to sell anything.
+ *
+ * Listing and removing stay. Seeing what is on file, and taking something off
+ * it, are not transactions, and sending somebody to a browser to answer "which
+ * card is Lyne holding" would be user-hostile.
  */
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -9,17 +17,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
 import api from '../../lib/apiClient';
-import { paymentsConfigured, brandLabel, TokenizedCard } from '../../lib/stripe';
-import { CardSheet } from '../../components/CardSheet';
+import { paymentsConfigured, brandLabel } from '../../lib/stripe';
+import { openSubscriptionPortal } from '../../lib/subscriptionPortal';
 import { Sheen } from '../../components/Glass';
-import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 
 interface Card { id: string; brand?: string; last4?: string; exp_month?: number; exp_year?: number; is_default?: boolean }
 
 export default function PaymentMethodsScreen() {
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
-  const [adding, setAdding] = useState(false);
 
   const { data: cards = [], isLoading, error, refetch } = useQuery({
     queryKey: ['payment-methods'],
@@ -28,11 +36,6 @@ export default function PaymentMethodsScreen() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
 
-  const addCard = async (pm: TokenizedCard) => {
-    await api.post('/payments/methods', { payment_method_id: pm.id });
-    await refresh();
-    setAdding(false);
-  };
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/payments/methods/${id}`),
@@ -53,7 +56,7 @@ export default function PaymentMethodsScreen() {
         </View>
 
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, lineHeight: 21, marginBottom: 6 }}>
-          Cards you save here are used for QMe Premium. Your card details are held securely by Stripe — never on our servers.
+          Cards you save here are used for Lyne Premium. Your card details are held securely by Stripe — never on our servers.
         </Text>
 
         {!paymentsConfigured() && (
@@ -67,7 +70,12 @@ export default function PaymentMethodsScreen() {
           {isLoading && <SkeletonRows count={2} />}
           {!!error && !isLoading && <ErrorCard title="Couldn’t load cards" message="Your saved cards couldn’t be loaded right now." onRetry={() => refetch()} />}
           {!isLoading && !error && cards.length === 0 && (
-            <EmptyCard icon="card-outline" title="No cards yet" message="Add a card to unlock QMe Premium in one tap." />
+            <EmptyState
+              compact
+              icon="financial"
+              title="No cards saved"
+              body="Add a card once and Premium is a single tap from anywhere in the app. Your card details never touch our servers."
+            />
           )}
 
           {cards.map(card => (
@@ -91,13 +99,14 @@ export default function PaymentMethodsScreen() {
           ))}
         </View>
 
-        <TouchableOpacity onPress={() => setAdding(true)} style={[t.primaryBtn, { marginTop: 18, minHeight: 54 }]}>
-          <Ionicons name="add" size={19} color={colors.onDark} />
-          <Text style={[t.primaryBtnText, { marginLeft: 6 }]}>Add a card</Text>
+        <TouchableOpacity onPress={() => openSubscriptionPortal('manage')} style={[t.primaryBtn, { marginTop: 18, minHeight: 54 }]}>
+          <Ionicons name="open-outline" size={18} color={colors.onDark} />
+          <Text style={[t.primaryBtnText, { marginLeft: 6 }]}>Manage on the web</Text>
         </TouchableOpacity>
+        <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 10 }}>
+          Cards are added and changed on our website, using the same account.
+        </Text>
       </ScrollView>
-
-      <CardSheet visible={adding} onClose={() => setAdding(false)} onToken={addCard} title="Add a card" submitLabel="Save card" />
     </View>
   );
 }

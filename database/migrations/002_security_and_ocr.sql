@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 002: Security, OCR, and Staff Invites
+-- LYNE — Migration 002: Security, OCR, and Staff Invites
 -- Version: 2.0  |  Date: 2026-05-27
 -- =============================================================
 -- This migration adds:

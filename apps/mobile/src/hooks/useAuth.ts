@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import api, { supabase } from '../lib/apiClient';
+import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 export interface UserProfile {
   id: string;
@@ -24,6 +25,9 @@ interface StaffRecord {
   branch_name?: string;
   business_id?: string;
   business_name?: string;
+  /** What this tenant's sector calls the people it serves. /auth/me always
+   *  sends it; the government wording is the server-side fallback. */
+  terms?: SectorTerms;
 }
 
 interface AuthMe {
@@ -40,6 +44,10 @@ export interface KioskActor {
   branchName: string;
   businessName: string;
   roleLabel: string;
+  /** The kiosk is the one mobile screen that belongs to a single tenant, so it
+   *  is the one that can — and must — speak that tenant's language. A credit
+   *  union's front desk should not be asking a clerk to type in a "Customer". */
+  terms: SectorTerms;
 }
 
 export const useAuth = () => {
@@ -80,6 +88,7 @@ export const useAuth = () => {
         branchName:   me.record.branch_name || 'this branch',
         businessName: me.record.business_name || '',
         roleLabel:    me.record.role_label || 'Kiosk Clerk',
+        terms:        me.record.terms?.visitor?.many ? me.record.terms : GOVERNMENT_TERMS,
       });
       return me.record;
     }

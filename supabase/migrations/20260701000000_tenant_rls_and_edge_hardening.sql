@@ -1,4 +1,4 @@
--- QMe Now tenant-scoped Supabase RLS hardening.
+-- Lyne tenant-scoped Supabase RLS hardening.
 -- Keeps service-role writes available for edge jobs while preventing
 -- manager/executive reads from crossing organization boundaries.
 

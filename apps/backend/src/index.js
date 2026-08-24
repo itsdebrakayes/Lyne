@@ -10,6 +10,8 @@ const {
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
+  sessionLookupLimiter,
+  paymentLimiter,
   generalLimiter,
 } = require('./middleware/rateLimiter');
 const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
@@ -21,6 +23,38 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL 
   .map(origin => origin.trim())
   .filter(Boolean);
 
+/* Falling open is gated on an EXPLICIT development declaration, never on
+   "not production".
+
+   `NODE_ENV !== 'production'` is a negative test, and it passes for every way
+   the variable can be wrong in a real deployment: unset, empty string, 'prod',
+   'Production', or a typo. Any one of those combined with an unset
+   ALLOWED_ORIGINS served every browser origin on earth — with
+   `credentials: true`, so the browser would attach the session too. The
+   failure was silent, because the app it was serving worked fine.
+
+   Requiring the positive statement means a misconfigured environment fails
+   closed: unknown NODE_ENV + empty allowlist now rejects browser origins
+   rather than trusting them. */
+class CorsError extends Error {
+  constructor(origin) {
+    super('Origin not allowed by CORS.');
+    this.name = 'CorsError';
+    this.origin = origin;
+  }
+}
+
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+if (!isDevelopment && allowedOrigins.length === 0) {
+  console.warn(
+    '[CORS] No ALLOWED_ORIGINS set and NODE_ENV is not development/test '
+    + `(NODE_ENV=${JSON.stringify(process.env.NODE_ENV)}). Every browser origin `
+    + 'will be rejected — native mobile clients still work, but the admin app '
+    + 'and website will not. Set ALLOWED_ORIGINS to a comma-separated list.'
+  );
+}
+
 // Security & performance middleware
 app.use(helmet());
 app.use(compression());
@@ -30,11 +64,26 @@ app.use(cors({
     // Native mobile clients do not send a browser Origin header.
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) return callback(null, true);
-    return callback(new Error('Origin not allowed by CORS.'));
+    if (isDevelopment && allowedOrigins.length === 0) return callback(null, true);
+    return callback(new CorsError(origin));
   },
   credentials: true,
 }));
+
+/* A rejected origin is a CLIENT error, and it has to say so.
+   `cors` surfaces a refusal by handing an Error to next(), which fell through
+   to the generic handler and came back 500. That is wrong twice: it reports our
+   own correct security decision as a server fault, and at deploy time a missing
+   ALLOWED_ORIGINS entry looks like the API is crashing rather than like the
+   config problem it actually is. Registered here, immediately after the mount,
+   so it catches the refusal before anything else sees it. */
+app.use((err, req, res, next) => {
+  if (err instanceof CorsError) {
+    console.warn(`[CORS] rejected origin ${err.origin}`);
+    return res.status(403).json({ error: 'Origin not allowed.' });
+  }
+  return next(err);
+});
 
 // Stripe webhook needs the RAW body for signature verification — mount it
 // before express.json() so the parser doesn't consume the body.
@@ -65,16 +114,37 @@ app.use('/api/queues',         require('./routes/queues'));
 app.post('/api/tickets',       queueJoinLimiter);
 app.use('/api/tickets',        require('./routes/tickets'));
 
+// Scheduled sessions — a queue you had to be entitled to join. The /public
+// half takes no token at all (a motorist under a court deadline will not create
+// an account first), so the two write paths that an anonymous caller can reach
+// carry their own limiter: eligibility because it answers "does this reference
+// exist", register because it consumes a capped place.
+app.post('/api/sessions/public/:id/eligibility', sessionLookupLimiter);
+app.post('/api/sessions/public/:id/register',    sessionLookupLimiter);
+app.use('/api/sessions',       require('./routes/sessions'));
+
 app.use('/api/staff',          require('./routes/staff'));
 app.use('/api/assignments',    require('./routes/assignments'));
 app.use('/api/counters',       require('./routes/counters'));
 app.use('/api/analytics',      require('./routes/analytics'));
 app.use('/api/targets',        require('./routes/targets'));
+app.use('/api/settings',       require('./routes/settings'));
 app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));
+/* Card testing goes straight at create-intent, so the limiter is mounted on
+   the write path only — the webhook above is Stripe calling us and is verified
+   by signature, and GET /methods is a customer reading their own cards. */
+app.post('/api/payments/create-intent', paymentLimiter);
+app.post('/api/payments/methods',       paymentLimiter);
+app.post('/api/payments/subscription',  paymentLimiter);
+/* Public and unauthenticated by necessity — the website has no session yet when
+   it asks. That makes it an oracle worth capping: without a limit it is a place
+   to grind forged handoff tokens. */
+app.post('/api/payments/portal/verify', sessionLookupLimiter);
+app.post('/api/payments/checkout-session', paymentLimiter);
 app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
@@ -87,12 +157,18 @@ app.use('/api/audit',          require('./routes/audit'));
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
 
 // SSE — live queue updates (no auth for public stream; staff stream auth handled in route)
-app.use('/api/sse',            require('./routes/sse'));
+/* /api/sse is gone. GET /api/sse/queue/:queue_id took no token at all and
+   streamed every ticket in a queue plus the queue's service and branch names to
+   anyone who could guess or observe a queue id. Its own docblock claimed
+   "ticket_id is used as a lightweight access token"; no ticket_id appeared
+   anywhere in the handler. Nothing in this repo consumed it, or the
+   authenticated staff stream beside it — "unused" only ever described OUR
+   clients, not an attacker's. */
 
 // Health check
 app.get('/health', (_req, res) => res.json({
   status:    'ok',
-  service:   'qme-now-backend',
+  service:   'lyne-backend',
   timestamp: new Date().toISOString(),
   uptime:    Math.round(process.uptime()),
 }));
@@ -113,7 +189,7 @@ app.use((err, _req, res, _next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Q ME NOW backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(`LYNE backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 
   // Analytics summaries refresh EVERY 2 HOURS. The dashboards tell users
   // "numbers recalculate automatically every 2 hours", so this must actually be
@@ -197,4 +273,71 @@ app.listen(PORT, () => {
   } else if (process.env.NODE_ENV !== 'production') {
     console.log('[Demo] Daily re-seed is OFF (set ALLOW_DEMO_DATA_REFRESH=true on a demo box to enable).');
   }
+
+  // ── Close off the lines after each branch shuts ───────────────────────────
+  // Runs every 15 minutes rather than nightly: branches close at their own
+  // local times, and each should be tidied shortly after its own grace window
+  // instead of waiting for some global small-hours pass. Cheap query, indexed.
+  const { runTicketExpiry, GRACE_MINUTES } = require('./jobs/expireStaleTickets');
+  const expire = (why) =>
+    runTicketExpiry()
+      .then((out) => {
+        if (!out.enabled) return;
+        if (out.cancelled || out.noShow) {
+          console.log(
+            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, ${out.noShow} called but absent.`
+          );
+        }
+        // Surfaced every pass, because it means a clerk left somebody at a
+        // counter overnight. Silence here would hide a real floor problem.
+        if (out.stuckInService) {
+          console.warn(
+            `[TicketExpiry] ${out.stuckInService} ticket(s) still IN SERVICE past closing at: `
+            + `${out.stuckBranches.join(', ')} — a clerk did not finish them.`
+          );
+        }
+      })
+      .catch((err) => console.error(`[TicketExpiry] Failed (${why}):`, err.message));
+
+  expire('startup');
+  setInterval(() => expire('interval'), 15 * 60 * 1000);
+  console.log(
+    `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `
+    + `tickets close ${GRACE_MINUTES} min after each branch's closing time.`
+  );
+
+  // ── Retention sweep ───────────────────────────────────────────────────────
+  // The Privacy Policy publishes retention periods; this is what makes them
+  // true. Runs at 03:00, away from the midnight demo re-seed and the even-hour
+  // analytics runs so three jobs never contend for the same tables.
+  //
+  // Defaults to DRY RUN: a fresh deployment reports what it would remove and
+  // removes nothing until RETENTION_ENABLED=true is set deliberately.
+  const { runRetentionSweep } = require('./jobs/retention');
+  const sweep = (why) =>
+    runRetentionSweep()
+      .then((out) => {
+        if (out.dryRun) return;
+        const total = out.results.reduce((sum, r) => sum + r.rows, 0);
+        console.log(`[Retention] Enforced (${why}) — ${total} rows.`);
+      })
+      .catch((err) => console.error(`[Retention] Sweep failed (${why}):`, err.message));
+
+  // Once on boot so the first log line tells you where you stand.
+  sweep('startup');
+
+  const nextThreeAM = new Date();
+  nextThreeAM.setHours(3, 0, 0, 0);
+  if (nextThreeAM <= new Date()) nextThreeAM.setDate(nextThreeAM.getDate() + 1);
+  const msUntilThree = nextThreeAM - new Date();
+
+  setTimeout(() => {
+    sweep('daily');
+    setInterval(() => sweep('daily'), 24 * 60 * 60 * 1000);
+  }, msUntilThree);
+
+  console.log(
+    `[Retention] ${process.env.RETENTION_ENABLED === 'true' ? 'ENFORCING' : 'Dry run'}; `
+    + `next sweep at 03:00 (in ${Math.round(msUntilThree / 60000)} minutes).`
+  );
 });

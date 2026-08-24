@@ -1,7 +1,7 @@
 {
-  "name": "qme-now-backend",
+  "name": "lyne-backend",
   "version": "1.0.0",
-  "description": "Q ME NOW Backend API — MySQL data layer with Supabase Auth verification",
+  "description": "LYNE Backend API — MySQL data layer with Supabase Auth verification",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

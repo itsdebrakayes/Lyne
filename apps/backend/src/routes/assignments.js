@@ -10,6 +10,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
   requireStaffRole,
@@ -56,7 +57,7 @@ router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executiv
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), auditLog('create_assignment', 'staff_assignment'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), auditLog('create_assignment', 'staff_assignment'), validate(schemas.createAssignment), async (req, res) => {
   try {
     const { staff_id, counter_id, assignment_date, shift_start, shift_end } = req.body;
     if (!staff_id || !counter_id) return res.status(400).json({ error: 'staff_id and counter_id are required.' });

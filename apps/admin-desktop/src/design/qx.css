@@ -1,5 +1,5 @@
 /* ============================================================
-   QMe Now — Admin design system "QX"
+   Lyne — Admin design system "QX"
    Liquid-glass surfaces floating on an ambient wash.
 
    Scoped under .qx so it cannot collide with the older .qa-app
@@ -150,7 +150,12 @@
   color: var(--c-ink-dim); font-size: 13px; font-weight: 600; text-align: left; transition: .13s;
 }
 .qx-nav button svg { width: 17px; height: 17px; flex: none; }
-.qx-nav button:hover { background: rgba(255, 255, 255, .07); color: var(--c-ink-text); }
+/* Hover must stay clearly WEAKER than selected. At .07 against selected's .11
+   the two fills were all but identical, so whichever item the pointer happened
+   to rest on read as a second selected tab — the sidebar looked like it had two
+   active pages. Selected keeps the accent bar, white text and bold weight;
+   hover is now only a faint wash, and never applies to the selected item. */
+.qx-nav button:hover:not(.on) { background: rgba(255, 255, 255, .04); color: var(--c-ink-text); }
 .qx-nav button.on { background: rgba(255, 255, 255, .11); color: #fff; font-weight: 700; }
 .qx-nav button.on svg { color: var(--c-primary-bright); }
 .qx-nav button.on::before {
@@ -314,6 +319,18 @@
 .qx-fstep .sub { color: var(--c-faint); font-size: 11px; font-weight: 600; margin-top: 1px; }
 .qx-bar { height: 8px; border-radius: 999px; background: var(--c-surface-3); overflow: hidden; margin-top: 7px; }
 .qx-bar i { display: block; height: 100%; border-radius: 999px; }
+
+/* A target bar needs the TARGET drawn on it, otherwise "is 16 min good?" cannot
+   be answered from the bar alone. `overflow: hidden` above would clip the
+   marker, so this variant keeps it visible and positions the notch with a CSS
+   variable set inline. */
+.qx-bar.tgt { overflow: visible; position: relative; }
+.qx-bar.tgt i { position: relative; z-index: 0; }
+.qx-bar.tgt::after {
+  content: ''; position: absolute; top: -3px; bottom: -3px; width: 2px;
+  left: var(--tgt, 100%); transform: translateX(-1px);
+  background: var(--c-ink); opacity: .55; border-radius: 2px; z-index: 1;
+}
 
 /* ── channel split (two real channels; a donut is wrong for n=2) ── */
 .qx-split { display: flex; flex-direction: column; gap: 14px; }
@@ -747,8 +764,13 @@
 .ql-stage {
   /* Sized so the first few rows of the line clear the fold underneath it —
      the stage is the point, but you should not have to scroll to see who is
-     coming. Tuned against a 1180px viewport. */
-  min-height: 56vh;
+     coming.
+     CLAMPED, not a bare 56vh. That was tuned against a 1180px viewport; on a
+     1500px screen it resolved to 840px against roughly 450px of content, so the
+     desk station opened with a third of a metre of empty navy between "Next up"
+     and the action bar — on the screen a clerk looks at all day. The floor keeps
+     it usable on a short laptop; the ceiling stops it stretching on a tall one. */
+  min-height: clamp(400px, 56vh, 620px);
   position: relative; overflow: hidden; border-radius: var(--r); padding: 22px 26px; color: #E9EEF6;
   display: flex; flex-direction: column;
   background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
@@ -798,6 +820,32 @@
 .ql-verifymsg { margin-top: 10px; font-size: 12px; font-weight: 700; }
 .ql-verifymsg.ok { color: #A8E0B4; }
 .ql-verifymsg.bad { color: #FFC9C5; }
+
+/* Readiness is an operational outcome, not a second verification code. It sits
+   beside the live visit and asks one quick, explicit question before Complete. */
+.ql-readycheck { margin-top: 14px; padding: 14px 16px; border-radius: 18px;
+  background: rgba(255,255,255,.075); border: 1px solid rgba(255,255,255,.14); }
+.ql-readyhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.ql-readyhead b { display: block; font-size: 13.5px; font-weight: 800; }
+.ql-readyhead small { display: block; max-width: 54ch; margin-top: 3px; font-size: 11.5px; line-height: 1.45; opacity: .7; }
+.ql-readyhead > span { flex: none; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.ql-readyhead > span.seen { background: rgba(91,210,139,.16); color: #A8E0B4; }
+.ql-readyhead > span.notseen { background: rgba(255,194,107,.15); color: #FFD29A; }
+.ql-readychoices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+.ql-readychoices button { display: inline-flex; justify-content: center; align-items: center; gap: 7px;
+  min-height: 42px; padding: 8px 12px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color: #fff;
+  font-family: inherit; font-size: 12px; font-weight: 700; line-height: 1.2; }
+.ql-readychoices button:hover { background: rgba(255,255,255,.11); }
+.ql-readychoices button.on.ready { border-color: rgba(91,210,139,.62); background: rgba(91,210,139,.17); }
+.ql-readychoices button.on.incomplete { border-color: rgba(255,194,107,.65); background: rgba(255,194,107,.16); }
+.ql-readynote { margin-top: 11px; }
+.ql-readynote label { display: block; margin-bottom: 6px; font-size: 11.5px; font-weight: 800; }
+.ql-readynote textarea { width: 100%; min-height: 70px; resize: vertical; box-sizing: border-box;
+  border: 1px solid rgba(255,255,255,.18); border-radius: 11px; padding: 10px 11px;
+  background: rgba(5,14,11,.28); color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.45; }
+.ql-readynote textarea::placeholder { color: rgba(255,255,255,.44); }
+.ql-readynote small { display: block; margin-top: 5px; font-size: 10.5px; line-height: 1.4; opacity: .62; }
 
 /* actions sit at the base of the stage, so the hero grows into the space */
 .ql-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
@@ -959,3 +1007,221 @@
 }
 .qx-selbar b { font-size: 12.5px; font-weight: 800; color: var(--c-primary); }
 .qx-selactions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+/* ── notifications popover ──
+   The bell was a badge with no click handler on all four dashboards. This is
+   the panel behind it. Anchored to the bell rather than a route, because
+   checking who needs you should not cost you the screen you were on. */
+.qx-notify { position: relative; }
+
+.qx-notifypanel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 60;
+  /* Fixed. This is a desktop window — it is never 380px wide — and making
+     the width depend on 100vw meant any host that reported a zero
+     viewport collapsed the panel to nothing. */
+  width: 380px;
+  background: var(--c-surface); border: 1px solid var(--c-line-2);
+  border-radius: 16px; box-shadow: var(--sh-lift); overflow: hidden;
+}
+.qx-notifypanel > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 15px; border-bottom: 1px solid var(--c-line);
+}
+.qx-notifypanel > header b { font-size: 13.5px; font-weight: 800; }
+
+/* Fixed for the same reason as the width — a zero-viewport host collapsed
+   the list to nothing, hiding every notification behind a header. */
+.qx-notifylist { max-height: 420px; overflow-y: auto; }
+
+.qx-notifyrow {
+  width: 100%; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 11px; align-items: start; text-align: left;
+  padding: 13px 15px; border: 0; border-bottom: 1px solid var(--c-line);
+  background: transparent; cursor: pointer; color: var(--c-text);
+}
+.qx-notifyrow:last-child { border-bottom: 0; }
+.qx-notifyrow:hover { background: var(--c-surface-2); }
+/* the unread marker is the dot AND the weight — colour alone is not a signal */
+.qx-notifyrow i { width: 8px; height: 8px; border-radius: 50%; background: transparent; margin-top: 5px; }
+.qx-notifyrow.unread i { background: var(--c-primary); }
+.qx-notifyrow.unread.warn i { background: var(--c-warn, #B4791F); }
+.qx-notifyrow.unread.urgent i { background: var(--c-bad); }
+.qx-notifyrow .tx { min-width: 0; }
+.qx-notifyrow .tx b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.45; }
+.qx-notifyrow.unread .tx b { font-weight: 800; }
+.qx-notifyrow .tx small { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.5; color: var(--c-dim); }
+.qx-notifyrow em { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--c-faint); white-space: nowrap; }
+
+.qx-notifyempty { padding: 26px 20px; text-align: center; }
+.qx-notifyempty b { display: block; font-size: 13px; font-weight: 800; margin-bottom: 5px; }
+.qx-notifyempty span { display: block; font-size: 11.5px; line-height: 1.6; color: var(--c-dim); max-width: 30ch; margin: 0 auto; }
+
+/* ── service readiness workspace ── */
+.qx-readyeditor { color: var(--c-text); }
+.qx-readytoolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding-bottom: 15px; border-bottom: 1px solid var(--c-line); }
+.qx-readytoolbar > div > b { display: block; font-size: 14px; font-weight: 800; }
+.qx-readytoolbar > div > span { display: block; margin-top: 3px; font-size: 11.5px; color: var(--c-dim); }
+.qx-readyservice { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 800; color: var(--c-dim); }
+.qx-readyservice select, .qx-readyfields select, .qx-readyfields input { height: 38px; box-sizing: border-box;
+  border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface-2); color: var(--c-text);
+  padding: 0 10px; font: inherit; font-size: 12px; font-weight: 650; outline: none; }
+.qx-readyservice select { min-width: 220px; }
+.qx-readyservice select:focus, .qx-readyfields select:focus, .qx-readyfields input:focus,
+.qx-readynote textarea:focus { border-color: var(--c-primary); box-shadow: 0 0 0 3px var(--c-primary-soft); }
+.qx-readyservice-name { padding: 7px 10px; border-radius: 999px; color: var(--c-primary);
+  background: var(--c-primary-soft); font-size: 11.5px; font-weight: 800; }
+.qx-readyintro { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; padding: 11px 13px;
+  border: 1px solid color-mix(in oklab, var(--c-primary) 25%, var(--c-line)); border-radius: 12px; background: var(--c-primary-soft); }
+.qx-readyintro svg { flex: none; margin-top: 1px; color: var(--c-primary); }
+.qx-readyintro p { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--c-dim); }
+.qx-readyintro b { color: var(--c-text); }
+.qx-readyitems { display: grid; gap: 10px; }
+.qx-readyitem { display: grid; grid-template-columns: 28px minmax(0,1fr) 32px; gap: 11px; align-items: start;
+  padding: 13px; border: 1px solid var(--c-line); border-radius: 14px; background: var(--c-surface-2); }
+.qx-readyorder { display: grid; gap: 5px; padding-top: 18px; }
+.qx-readyorder button, .qx-readydelete { display: grid; place-items: center; width: 28px; height: 28px;
+  border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-surface); color: var(--c-dim); cursor: pointer; }
+.qx-readyorder button:hover:not(:disabled), .qx-readydelete:hover { color: var(--c-primary); border-color: var(--c-primary); }
+.qx-readyorder button:disabled { opacity: .3; cursor: default; }
+.qx-readyorder svg, .qx-readydelete svg { width: 13px; height: 13px; }
+.qx-readydelete { margin-top: 18px; }
+.qx-readydelete:hover { color: var(--c-bad); border-color: var(--c-bad); }
+.qx-readyfields { display: grid; gap: 9px; }
+.qx-readyrow { display: flex; gap: 9px; align-items: flex-end; }
+.qx-readyrow label { display: grid; gap: 5px; min-width: 115px; }
+.qx-readyrow label.grow { flex: 1; }
+.qx-readyrow label.lead { width: 125px; }
+.qx-readyrow label > span { font-size: 10.5px; font-weight: 800; color: var(--c-dim); }
+.qx-readyfields input { width: 100%; }
+.qx-readyrequired { display: flex; align-items: flex-start; gap: 8px; width: fit-content; cursor: pointer; }
+.qx-readyrequired input { width: 16px; height: 16px; accent-color: var(--c-primary); margin: 1px 0 0; }
+.qx-readyrequired span { display: grid; gap: 1px; }
+.qx-readyrequired b { font-size: 11px; font-weight: 800; }
+.qx-readyrequired small { font-size: 10.5px; color: var(--c-dim); }
+.qx-readyfooter { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--c-line); }
+.qx-readyadd, .qx-readysave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qx-readyadd .qx-btn svg, .qx-readysave .qx-btn svg { width: 14px; height: 14px; }
+.qx-readysave > span { font-size: 11px; font-weight: 700; color: var(--c-dim); }
+.qx-readysave > span.good { display: inline-flex; align-items: center; gap: 5px; color: var(--c-good); }
+.qx-readysave > span.bad { color: var(--c-bad); max-width: 34ch; }
+.qx-readysave > span svg { width: 14px; height: 14px; }
+.qx-readyempty { min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 20px; color: var(--c-dim); }
+.qx-readyempty > svg { width: 24px; height: 24px; margin-bottom: 8px; color: var(--c-faint); }
+.qx-readyempty > b { font-size: 12.5px; color: var(--c-text); }
+.qx-readyempty > span { max-width: 48ch; margin-top: 4px; font-size: 11.5px; line-height: 1.5; }
+.qx-readyoutcomes { display: grid; }
+.qx-readyoutcome { display: grid; grid-template-columns: minmax(190px,1.5fr) repeat(4,minmax(72px,.5fr)); gap: 12px;
+  align-items: center; min-height: 48px; padding: 7px 4px; border-bottom: 1px solid var(--c-line); font-size: 12px; }
+.qx-readyoutcome:last-child { border-bottom: 0; }
+.qx-readyoutcome.head { min-height: 28px; color: var(--c-faint); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+.qx-readyoutcome b { display: block; font-weight: 800; }
+.qx-readyoutcome small { display: block; margin-top: 2px; color: var(--c-dim); font-size: 10.5px; }
+.qx-readyincidents { display: grid; }
+.qx-readyincident { display: grid; grid-template-columns: 86px minmax(0,1fr) 150px; gap: 13px; align-items: center;
+  min-height: 54px; padding: 8px 3px; border-bottom: 1px solid var(--c-line); }
+.qx-readyincident:last-child { border-bottom: 0; }
+.qx-readyincident .ticket { width: fit-content; padding: 5px 8px; border-radius: 8px; background: var(--c-bad-soft); color: var(--c-bad); font-size: 11px; font-weight: 850; }
+.qx-readyincident b { display: block; font-size: 12px; line-height: 1.4; }
+.qx-readyincident small { display: block; margin-top: 3px; color: var(--c-dim); font-size: 10.5px; }
+.qx-readyincident time { color: var(--c-dim); font-size: 10.5px; text-align: right; }
+@media (max-width: 760px) {
+  .qx-readyrow, .qx-readytoolbar { align-items: stretch; flex-direction: column; }
+  .qx-readyservice { align-items: stretch; flex-direction: column; }
+  .qx-readyservice select { min-width: 0; width: 100%; }
+  .qx-readyoutcome { grid-template-columns: minmax(140px,1.3fr) repeat(4,60px); overflow-x: auto; }
+  .qx-readyincident { grid-template-columns: 74px minmax(0,1fr); }
+  .qx-readyincident time { grid-column: 2; text-align: left; }
+}
+
+/* ============================================================
+   Sessions — the day you had to register for
+   ============================================================ */
+
+/* ── the picker ──────────────────────────────────────────── */
+.qx-sesrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 11px; }
+.qx-sescard {
+  display: block; text-align: left; padding: 13px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--c-line); background: var(--c-surface-2); color: var(--c-text);
+}
+.qx-sescard:hover { border-color: var(--c-line-2); }
+/* Selected is the brand blue at full strength — on a screen showing eight
+   sittings, which one you are running is the single most important fact. */
+.qx-sescard[data-on="true"] { border-color: var(--c-primary); background: var(--c-primary-soft); }
+.qx-sescard small { display: flex; align-items: center; gap: 5px; color: var(--c-dim);
+  font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.qx-sescard b { display: block; margin: 6px 0 8px; font-size: 13px; font-weight: 800; line-height: 1.35; }
+.qx-sescard .meta { display: block; margin-bottom: 9px; }
+.qx-sescard .fill { display: block; height: 5px; border-radius: 999px; background: var(--c-surface-3); overflow: hidden; }
+.qx-sescard .fill i { display: block; height: 100%; border-radius: 999px; background: var(--c-primary); }
+.qx-sescard .cap { display: block; margin-top: 6px; color: var(--c-dim); font-size: 10.5px; font-weight: 700; }
+
+/* ── check-in: the clerk's whole job ─────────────────────── */
+.qx-checkin { display: flex; gap: 9px; align-items: stretch; }
+.qx-checkin input {
+  flex: 1; min-width: 0; border: 1px solid var(--c-line-2); border-radius: 12px;
+  background: var(--c-surface); color: var(--c-text); padding: 11px 13px;
+  /* Monospaced and wide-tracked: this field is read off a phone screen or a
+     photograph of one, and typed by somebody looking at the person, not the
+     keyboard. Ambiguity here costs a place in a line. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 17px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+}
+.qx-checkin input:focus { border-color: var(--c-primary); outline: none; }
+.qx-checkin input::placeholder { color: var(--c-faint); letter-spacing: .09em; }
+.qx-checkin .qx-btn { padding-inline: 16px; }
+
+/* The answer. Deliberately the largest type in the product — a clerk reads
+   this across a desk to somebody who has been standing outside since seven. */
+.qx-callout { margin-top: 13px; padding: 15px; border-radius: 14px;
+  background: var(--c-primary-soft); border: 1px solid color-mix(in oklab, var(--c-primary) 22%, transparent); }
+.qx-callout small { display: block; color: var(--c-primary); font-size: 10px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase; }
+.qx-callout b { display: block; margin: 5px 0 3px; color: var(--c-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 40px; font-weight: 800; line-height: 1.05; letter-spacing: .02em; }
+.qx-callout p { margin: 0; color: var(--c-dim); font-size: 11.5px; line-height: 1.45; }
+
+.qx-hint { margin: 9px 0 0; color: var(--c-faint); font-size: 11px; line-height: 1.45; }
+
+/* ── forms ───────────────────────────────────────────────── */
+.qx-fieldrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 11px; }
+.qx-fieldrow.wide { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }
+.qx-fieldrow label { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.qx-fieldrow label > span { color: var(--c-text); font-size: 11.5px; font-weight: 700; }
+.qx-fieldrow label > span small { margin-left: 5px; color: var(--c-faint); font-size: 10.5px; font-weight: 600; }
+.qx-fieldrow input, .qx-fieldrow select {
+  border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface);
+  color: var(--c-text); font-size: 12.5px; font-weight: 600; padding: 9px 11px; min-width: 0;
+}
+.qx-fieldrow input:focus, .qx-fieldrow select:focus { border-color: var(--c-primary); outline: none; }
+
+.qx-textarea {
+  width: 100%; border: 1px solid var(--c-line-2); border-radius: 12px; background: var(--c-surface);
+  color: var(--c-text); padding: 11px 12px; resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6;
+}
+.qx-textarea:focus { border-color: var(--c-primary); outline: none; }
+
+.qx-checkline { display: flex; align-items: flex-start; gap: 9px; margin-top: 10px;
+  color: var(--c-text); font-size: 12px; font-weight: 600; line-height: 1.45; cursor: pointer; }
+.qx-checkline input { margin-top: 1px; accent-color: var(--c-primary); }
+
+/* ── registration rows ───────────────────────────────────── */
+.qx-strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qx-ref { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; }
+.qx-mono { display: inline-flex; align-items: center; gap: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; font-weight: 700; }
+/* A tick means the organisation's own list vouched for this person; the query
+   mark means nobody did. Both are admitted — neither is an error — so the
+   unchecked one is grey, never red. */
+.qx-ok { color: var(--c-primary); flex: none; }
+.qx-unk { color: var(--c-faint); flex: none; }
+
+@media (max-width: 900px) {
+  .qx-checkin { flex-direction: column; }
+  .qx-checkin input { font-size: 16px; }
+  .qx-callout b { font-size: 32px; }
+}

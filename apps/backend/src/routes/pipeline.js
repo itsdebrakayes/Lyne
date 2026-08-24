@@ -9,6 +9,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
   requireStaffRole,
@@ -82,7 +83,7 @@ router.get('/status', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
   }
 });
 
-router.post('/trigger', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('pipeline_trigger', 'pipeline_run'), async (req, res) => {
+router.post('/trigger', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('pipeline_trigger', 'pipeline_run'), validate(schemas.pipelineTrigger), async (req, res) => {
   try {
     const { business_id, source_window_start, source_window_end } = req.body;
     const id = uuidv4();
@@ -106,7 +107,7 @@ router.post('/trigger', requireAuth, requireStaffRole('executive'), requireBusin
   }
 });
 
-router.post('/import', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('pipeline_import', 'predictive_result'), async (req, res) => {
+router.post('/import', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('pipeline_import', 'predictive_result'), validate(schemas.pipelineImport), async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const {

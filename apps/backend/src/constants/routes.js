@@ -1,5 +1,5 @@
 /**
- * routes.js — Central route constants for Q ME NOW backend
+ * routes.js — Central route constants for LYNE backend
  *
  * All route paths are defined here to prevent hardcoded strings
  * scattered across the codebase. Import this file wherever route

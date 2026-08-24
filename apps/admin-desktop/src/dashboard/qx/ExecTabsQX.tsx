@@ -85,8 +85,17 @@ export function EmptyTab({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
-  return <button type="button" className="qx-tog" aria-pressed={on} aria-label={label} onClick={onClick}><i /></button>;
+export function Toggle({ on, onClick, label, disabled, title }: {
+  on: boolean; onClick: () => void; label: string;
+  /** For a control whose FEATURE does not exist yet. Pass `title` with the
+   *  reason — a dead toggle with no explanation is what this tab had before. */
+  disabled?: boolean; title?: string;
+}) {
+  return (
+    <button type="button" className="qx-tog" aria-pressed={on} aria-label={label}
+      onClick={onClick} disabled={disabled} title={title}
+      aria-disabled={disabled || undefined}><i /></button>
+  );
 }
 
 /* ══════════════════════ 1 · TRENDS ══════════════════════ */
@@ -655,7 +664,7 @@ export function ExecServices() {
         <Card title="How People Join" cap="The only two ways a ticket gets created">
           <Split note="Every app join is one less person a clerk has to key in at the counter."
             segments={[
-              { label: 'QMe App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+              { label: 'Lyne App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
               { label: 'Branch Kiosk', value: 318, color: 'var(--c-second)', sub: 'Added at the branch' },
             ]} />
         </Card>
@@ -778,6 +787,17 @@ const FX_TARGETS: TargetRow[] = [
   { key: 'svc', label: 'Time At The Counter', unit: 'min', now: 22, target: 20, goodWhen: 'down', help: 'How long a visit takes once the customer reaches the clerk.' },
 ];
 
+
+/** "Last changed 4 July by Debra Samuels." — or nothing if we do not know. */
+export function lastChanged(who?: string | null, when?: string | null) {
+  if (!who && !when) return 'Set for the whole company.';
+  const date = when ? new Date(when) : null;
+  const day = date && !Number.isNaN(date.getTime())
+    ? date.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+    : null;
+  return `Last changed${day ? ` ${day}` : ''}${who ? ` by ${who}` : ''}.`;
+}
+
 export function ExecTargets() {
   const d = useExecData();
   const [vals, setVals] = useState<Record<string, number>>(
@@ -828,14 +848,20 @@ export function ExecTargets() {
           })}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <button type="button" className="qx-btn" disabled={!dirty} onClick={() => setDirty(false)}>
-            <Check size={14} />Save Targets
+          <button type="button" className="qx-btn"
+            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveTargets}
+            onClick={async () => { await d.onSaveTargets?.(vals); setDirty(false); }}>
+            <Check size={14} />{d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Targets'}
           </button>
           <button type="button" className="qx-btn ghost" onClick={() => {
             setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.target]))); setDirty(false);
           }}>Reset</button>
-          <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600 }}>
-            {dirty ? 'Unsaved changes — nothing is applied until you save.' : 'Last changed 2 July by Debra Samuels.'}
+          <span style={{ fontSize: 11.5, color: d.targetsSaveState === 'error' ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 600 }}>
+            {d.targetsSaveState === 'error'
+              ? (d.targetsSaveError || 'Could not save. Nothing was changed.')
+              : dirty ? 'Unsaved changes — nothing is applied until you save.'
+              : d.targetsSaveState === 'saved' ? 'Saved. Every branch is measured against this from now on.'
+              : lastChanged(d.targetsSetBy, d.targetsSetAt)}
           </span>
         </div>
       </Card>
@@ -1171,7 +1197,7 @@ function PaperPage({ page, n, total, ctx }: {
       <span>{ctx.periodLabel}</span>
     </div>
   );
-  const foot = <div className="qx-paperfoot"><span>QMe Now · Confidential</span><span>Page {n} of {total}</span></div>;
+  const foot = <div className="qx-paperfoot"><span>Lyne · Confidential</span><span>Page {n} of {total}</span></div>;
 
   if (page.kind === 'cover') {
     return (
@@ -1179,7 +1205,7 @@ function PaperPage({ page, n, total, ctx }: {
         <div className="qx-papercover">
           <div className="qx-papertop">
             <span className="qx-av" style={avatarStyle('Tax Administration Jamaica')}>TAJ</span>
-            <span><b>Tax Administration Jamaica</b><small>Prepared by QMe Now</small></span>
+            <span><b>Tax Administration Jamaica</b><small>Prepared by Lyne</small></span>
           </div>
           <h5>{ctx.typeLabel}</h5>
           <div className="meta">
@@ -1225,7 +1251,7 @@ function PaperPage({ page, n, total, ctx }: {
         <h6>Executive Summary</h6>
         <p>
           Across {ctx.periodLabel.toLowerCase()}, Tax Administration Jamaica served <b>2,847 customers</b> through
-          the QMe queueing system, an increase of <b>12.4%</b> on the preceding period. Ninety-one per cent of
+          the Lyne queueing system, an increase of <b>12.4%</b> on the preceding period. Ninety-one per cent of
           people who joined a line were seen and served, against a company target of eighty-five.
         </p>
         <div className="qx-paperkpis">
@@ -1266,7 +1292,7 @@ function PaperPage({ page, n, total, ctx }: {
           demand, is the binding constraint on waiting time.
         </p>
         <p>
-          Adoption of the QMe mobile app rose from seventy-six to <b>eighty-nine per cent</b> of all tickets.
+          Adoption of the Lyne mobile app rose from seventy-six to <b>eighty-nine per cent</b> of all tickets.
           Every app join is a ticket a clerk does not key in by hand, and the shift is measurable in reduced
           front-desk load at all five branches.
         </p>
@@ -1500,14 +1526,14 @@ function PaperPage({ page, n, total, ctx }: {
         {run}
         <h6>How People Join</h6>
         <p>
-          A ticket can be created in exactly two ways: through the QMe mobile app, or at a branch kiosk.
+          A ticket can be created in exactly two ways: through the Lyne mobile app, or at a branch kiosk.
           There is no walk-up desk intake in the system, so every figure in this report describes people who
           entered a queue by one of those two routes.
         </p>
         <table className="qx-papertable">
           <thead><tr><th>Channel</th><th>Tickets</th><th>Share</th><th>Change</th></tr></thead>
           <tbody>
-            <tr><td>QMe App</td><td className="n">2,529</td><td className="n">89%</td><td className="n">+13 pts</td></tr>
+            <tr><td>Lyne App</td><td className="n">2,529</td><td className="n">89%</td><td className="n">+13 pts</td></tr>
             <tr><td>Branch Kiosk</td><td className="n">318</td><td className="n">11%</td><td className="n">−13 pts</td></tr>
           </tbody>
         </table>
@@ -1681,7 +1707,7 @@ export function ExecSettings() {
 
   return (
     <div className="qx-grid">
-      <Card span={7} title="Company Details" cap="Shown to customers in the QMe app and printed on every report">
+      <Card span={7} title="Company Details" cap="Shown to customers in the Lyne app and printed on every report">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {[
             ['Organisation Name', 'Tax Administration Jamaica'],
@@ -1765,7 +1791,7 @@ export function ExecSettings() {
 const FX_FAQ: Array<{ q: string; a: string }> = [
   { q: 'Where Do These Numbers Come From?', a: 'Every figure on your dashboard is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except the items explicitly labelled as a forecast, which come from the prediction models and are refreshed every two hours.' },
   { q: 'What Is The Health Score Out Of 100?', a: 'Four measures, equally weighted: wait time control, completed visits, no-show control, and staffing discipline. Open any manager under the Managers tab to see the four component scores that produced their number.' },
-  { q: 'Why Does A Branch Show Fewer People Than I Counted?', a: 'The system only knows about people who joined a line — through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
+  { q: 'Why Does A Branch Show Fewer People Than I Counted?', a: 'The system only knows about people who joined a line — through the Lyne app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
   { q: 'Can I Change The Targets?', a: 'Yes. Targets are yours to set under the Targets tab, and every branch, manager score and report in the system is judged against whatever you set there. You can also hold an individual branch to a stricter or looser number using a branch override.' },
   { q: 'How Do I Add A New Branch?', a: 'Create the manager account first under Settings, then attach the branch to that manager. A branch cannot exist without someone accountable for it.' },
   { q: 'Who Can See This Dashboard?', a: 'Only executive accounts see island-wide figures. A branch manager sees their own branch, a supervisor sees their section, and line staff see only their own window and queue.' },
@@ -1802,7 +1828,7 @@ export function ExecSupport() {
         <Card title="Still Stuck?" cap="We answer within one business day">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Start A Conversation</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@qmenow.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
           </div>
           <div style={{ marginTop: 13 }}>
@@ -1813,7 +1839,7 @@ export function ExecSupport() {
         <Card title="System Status" cap="Live">
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {[
-              ['Dashboard', 'open'], ['QMe Mobile App', 'open'], ['Branch Kiosks', 'open'], ['Prediction Models', 'open'],
+              ['Dashboard', 'open'], ['Lyne Mobile App', 'open'], ['Branch Kiosks', 'open'], ['Prediction Models', 'open'],
             ].map(([name, state]) => (
               <div className="qx-setrow" key={name}>
                 <div><b>{name}</b></div>
@@ -1857,6 +1883,15 @@ export type ExecTabData = {
   faq: Array<{ q: string; a: string }>;
   /** printed on the report cover and in Settings */
   org: string; preparedBy: string; generatedOn: string;
+
+  /* Saving used to be `setDirty(false)` — the button cleared its own dirty flag
+     and wrote nothing at all. These make it real. */
+  onSaveTargets?: (values: Record<string, number>) => Promise<void> | void;
+  targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
+  targetsSaveError?: string | null;
+  /** Who last changed them and when. Was hardcoded to a name and a date. */
+  targetsSetBy?: string | null;
+  targetsSetAt?: string | null;
 };
 
 export const EXEC_FIXTURES: ExecTabData = {

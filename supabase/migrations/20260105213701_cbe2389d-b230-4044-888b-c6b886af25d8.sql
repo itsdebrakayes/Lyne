@@ -1,6 +1,6 @@
 
 -- =============================================
--- QmeNow Database Schema
+-- LyneNow Database Schema
 -- =============================================
 
 -- 1. Create the role enum for staff access levels

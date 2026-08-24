@@ -1,10 +1,10 @@
 -- =============================================================
--- Q ME NOW — Migration 010: User Premium (Smart Timing)
+-- LYNE — Migration 010: User Premium (Smart Timing)
 -- Gates the "Plan your visit" best-time planner. A trial start
 -- simply flips the flag; billing integration comes later.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

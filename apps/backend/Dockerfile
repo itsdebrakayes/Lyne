@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────
-#  Q ME NOW Backend API — Dockerfile
+#  LYNE Backend API — Dockerfile
 #  Multi-stage build: deps → production image
 # ─────────────────────────────────────────────────────────────
 
@@ -15,13 +15,13 @@ WORKDIR /app
 
 # Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser  --system --uid 1001 qmenow
+    adduser  --system --uid 1001 lyne
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Ensure the app runs as non-root
-USER qmenow
+USER lyne
 
 EXPOSE 4000
 

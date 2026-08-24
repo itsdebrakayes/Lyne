@@ -11,6 +11,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -97,7 +98,7 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), validate(schemas.createBranch), async (req, res) => {
   try {
     const { business_id, name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
@@ -115,7 +116,7 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
   }
 });
 
-router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, validate(schemas.updateBranch), async (req, res) => {
   try {
     const { name, address, city, parish, phone, latitude, longitude, opening_time, closing_time, open_days, is_main_branch, is_active } = req.body;
     const [existing] = await pool.query('SELECT business_id FROM branches WHERE id = ? LIMIT 1', [req.params.id]);

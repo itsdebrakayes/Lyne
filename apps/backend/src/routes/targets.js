@@ -11,6 +11,7 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
   requireStaffRole,
@@ -72,7 +73,7 @@ router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executiv
   }
 });
 
-router.put('/', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('targets_update', 'business_target'), async (req, res) => {
+router.put('/', requireAuth, requireStaffRole('executive'), requireBusinessAccess('body'), auditLog('targets_update', 'business_target'), validate(schemas.businessTargets), async (req, res) => {
   try {
     const businessId = scopedBusinessId(req, req.body.business_id);
     if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
@@ -174,7 +175,7 @@ router.get('/branch', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
 // PUT /api/targets/branch — a manager sets their own branch's targets (an
 // executive may set any branch in their business). scopedBranchId pins a
 // manager/supervisor to their own branch regardless of the body.
-router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('branch_targets_update', 'branch_target'), async (req, res) => {
+router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), requireBranchAccess, auditLog('branch_targets_update', 'branch_target'), validate(schemas.branchTargets), async (req, res) => {
   try {
     const branchId = scopedBranchId(req, req.body.branch_id);
     if (!branchId) return res.status(400).json({ error: 'branch_id is required.' });

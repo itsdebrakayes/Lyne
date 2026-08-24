@@ -19,19 +19,22 @@ export default {
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         serif: ['"Instrument Serif"', 'ui-serif', 'Georgia', 'serif'],
+        script: ['Parisienne', '"Instrument Serif"', 'cursive'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        /* QME Now brand palette (from the design specification) */
-        qme: {
-          purple: "#7b5fff",
-          "purple-deep": "#6b4eff",
-          violet: "#533483",
-          lavender: "#c4b5fd",
-          "lavender-dim": "#a78bfa",
-          navy: "#1a1a2e",
-          surface: "#16213e",
-          mid: "#0f3460",
+        /* Lyne brand palette (from the design specification) */
+        lyne: {
+          /* Token names are retained for compatibility with the existing
+             marketing components; the values follow the latest blue redesign. */
+          purple: "#2f6bff",
+          "purple-deep": "#1d4ed8",
+          violet: "#12326b",
+          lavender: "#b7d5ff",
+          "lavender-dim": "#7fb3f5",
+          navy: "#0a1730",
+          surface: "#0f2547",
+          mid: "#14509a",
           yellow: "#f5a623",
           green: "#22c55e",
           lime: "#c8f135",
@@ -39,7 +42,7 @@ export default {
           ink: "#1c1c1e",
           paper: "#f8f8f8",
           soft: "#f0f0f0",
-          night: "#0d0d1a",
+          night: "#060d1c",
           black: "#0d0d0d",
         },
         border: "var(--border)",

@@ -3,8 +3,11 @@
  * Reuses the shared useDashboardData() layer and the same sub-cards as the
  * Manager dashboard, rendered business-wide.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import api from '@/lib/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNotifications } from '@/hooks/useNotifications';
+import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp, CalendarClock } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
@@ -13,6 +16,7 @@ import { type NavItem } from './kit';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
 import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
 import { ExecDataProvider, execTab, EXEC_TAB_HEAD } from './qx/ExecTabsQX';
+import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { buildExecData } from './qx/execLiveData';
 
 /* Kept verbatim from the Help & Support tab this replaced — these answers were
@@ -27,7 +31,7 @@ const EXEC_FAQ = [
   { q: 'Where Do These Numbers Come From?',
     a: 'Every figure is counted from real tickets — someone joined a line, was called, and was either served or did not answer. Nothing is estimated except items explicitly labelled as a forecast, which come from the prediction models.' },
   { q: 'Why Does A Branch Show Fewer People Than I Counted?',
-    a: 'The system only knows about people who joined a line, through the QMe app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
+    a: 'The system only knows about people who joined a line, through the Lyne app or a branch kiosk. Someone who walked up to a counter without taking a ticket was never in the queue, so they are not in the count.' },
   { q: 'How Often Do The Numbers Update?',
     a: 'They recalculate automatically in the background on a schedule, and the timestamp beside Update always tells you how fresh they are. If you need them recalculated immediately — before a meeting, say — press Update.' },
 ];
@@ -41,6 +45,7 @@ const NAV: NavItem[] = [
   { key: 'branches', label: 'Branches', icon: Building2 },
   { key: 'managers', label: 'Managers', icon: UserCheck },
   { key: 'services', label: 'Services', icon: Waypoints },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
   { key: 'reports', label: 'Reports', icon: FileText },
@@ -94,6 +99,12 @@ export default function ExecutiveDashboard() {
   const last = summary[summary.length - 1] || {};
   const target = d.targets;
   const managers = managerScores(preds).sort((a, b) => num(b.manager_score) - num(a.manager_score));
+  /* Live, from the same queue feed the manager and supervisor rails read.
+     This used to sum `waiting_now` off the manager_performance INSIGHT, which is
+     regenerated every couple of hours and does not always carry that field — so
+     an executive saw "0 People Are In Line" for a company with hundreds waiting,
+     directly contradicting the branch screens. Three roles, one number. */
+  const waitingNow = d.queues.reduce((t: number, q: any) => t + num(q.waiting_count), 0);
   const branchCount = new Set(d.branchTrends.map((t: any) => t.branch_id)).size || managers.length;
   const top = managers[0];
   const worst = managers[managers.length - 1];
@@ -228,6 +239,7 @@ export default function ExecutiveDashboard() {
     branches: ['Branches', 'This Week · Ranked By Performance Score.'],
     managers: ['Managers', 'Where To Focus Your Attention This Week.'],
     services: ['Services', 'Company-Wide, Against The Wait Target.'],
+    sessions: ['Sessions', 'Capped Days Across The Company — Including Any Held Away From A Branch.'],
     busy: ['Busy Times', 'Which Branch Is Under The Most Pressure, And When.'],
     targets: ['Company Targets', 'You Set These — Every Branch Works Toward Them.'],
     reports: ['Reports', 'A Preview Of What The Export Will Contain.'],
@@ -246,21 +258,45 @@ export default function ExecutiveDashboard() {
   }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
        d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
 
+  const qcExec = useQueryClient();
+  /* The Save Targets button used to just clear its own dirty flag. */
+  const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [tgtError, setTgtError] = useState<string | null>(null);
+  const saveCompanyTargets = useCallback(async (vals: Record<string, number>) => {
+    setTgtState('saving'); setTgtError(null);
+    try {
+      await api.put('/targets', {
+        business_id: d.admin?.staffRecord?.business_id,
+        target_wait_minutes: Math.round(vals.wait),
+        target_completion_rate: Math.round(vals.done),
+        target_no_show_rate: Math.round(vals.noshow),
+      });
+      await qcExec.invalidateQueries({ queryKey: ['targets'] });
+      setTgtState('saved');
+    } catch (err) {
+      setTgtState('error');
+      setTgtError(err instanceof Error ? err.message : 'Could not save these targets.');
+    }
+  }, [d.admin, qcExec]);
+
+  const notify = useNotifications();
+
   return (
     <QxShell
-      brand="QMe Now"
+      brand="Lyne"
       brandSub={org}
       nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
-      notifications={alerts.length}
+      notifications={notify.unread}
+      notify={notify}
       account={{ name: d.admin?.name || 'Executive', role: 'Executive', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={SEARCHABLE[tab] ? { value: q, onChange: setQ, placeholder: SEARCHABLE[tab] } : undefined}
       context={<><MapPin size={13} /><span>{org}</span><b>· {branchCount} Branches</b></>}
       railCard={
         <div className="qx-railcard">
           <small>Right Now</small>
-          <b>{fmtN(managers.reduce((t: number, m: any) => t + num(m.waiting_now), 0))} People Are In Line</b>
+          <b>{fmtN(waitingNow)} People Are In Line</b>
           <p>{worst ? `${titleCase(worst.branch_name)} needs the most help right now.` : 'All branches are running to target.'}</p>
           <button type="button" onClick={() => setTab('branches')}>See Which Branches</button>
         </div>
@@ -275,9 +311,11 @@ export default function ExecutiveDashboard() {
             : (EXEC_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live="Live"
           right={<>
-            <QxPills value={period} onChange={setPeriod}
-              options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} />
-            <span className="qx-datechip"><CalendarDays size={14} />{rangeLabel}</span>
+            {/* A session is one fixed DAY — a period pill over it would drive
+                nothing and imply the screen below is a period view. */}
+            {tab !== 'sessions' ? <QxPills value={period} onChange={setPeriod}
+              options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} /> : null}
+            <span className="qx-datechip"><CalendarDays size={14} />{tab === 'sessions' ? new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : rangeLabel}</span>
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
@@ -299,8 +337,16 @@ export default function ExecutiveDashboard() {
           components as the DEV preview — only the data source differs. */}
       {tour.running ? <Spotlight steps={TOURS.executive} onDone={tour.finish} /> : null}
       {!isOverview && (
-        <ExecDataProvider value={liveTabData}>
-          {execTab(tab, setTab)}
+        <ExecDataProvider value={{ ...liveTabData, onSaveTargets: saveCompanyTargets,
+          targetsSaveState: tgtState, targetsSaveError: tgtError,
+          targetsSetBy: d.targets?.set_by_name ?? null, targetsSetAt: d.targets?.updated_at ?? null }}>
+          {/* Sessions is company-wide and fetches its own data, so it is NOT
+              branch-scoped here — an executive is also the only role allowed to
+              hold a session away from a branch (a hired venue is a company
+              commitment, and 027 declines to invent a branch row for one). */}
+          {tab === 'sessions'
+            ? <SessionsWorkspace businessId={d.businessId} />
+            : execTab(tab, setTab)}
         </ExecDataProvider>
       )}
     </QxShell>

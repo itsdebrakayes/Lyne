@@ -77,3 +77,16 @@ skills-lock.json
 # Expo prebuild output (regenerate with: npx expo prebuild)
 apps/mobile/ios/
 apps/mobile/android/
+
+# Reference material and generated deliverables — kept locally, not in the repo.
+# The substance of the videos lives in docs/WEB_AND_APP_UX_PRINCIPLES.md; the
+# 40MB of third-party clips themselves do not belong in git history.
+Web design and App Videos/
+
+# outputs/ is BUILT from research/*.md by the scripts below — 74MB of PDF, DOCX
+# and page renders. The builders are source and are kept; their output is not.
+outputs/*
+!outputs/*.py
+
+# Office lock files
+~$*

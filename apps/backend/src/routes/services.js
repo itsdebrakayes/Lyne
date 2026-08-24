@@ -9,9 +9,11 @@
 
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
+const { z } = require('zod');
 const pool = require('../db/pool');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -20,6 +22,29 @@ const {
   assertBusinessAccess,
   assertBranchAccess,
 } = require('../middleware/tenantAccess');
+
+const readinessItemSchema = z.object({
+  id: z.string().max(64).optional(),
+  kind: z.enum(['bring', 'prepare']),
+  label: z.string().trim().min(1, 'Every checklist item needs a label.').max(140),
+  detail: z.string().trim().max(400).optional().nullable(),
+  is_mandatory: z.boolean().default(true),
+  lead_minutes: z.number().int().min(0).max(10080).optional().nullable(),
+});
+
+const readinessListSchema = z.object({
+  items: z.array(readinessItemSchema).max(30, 'A service can have up to 30 readiness items.'),
+});
+
+function validationMessage(error) {
+  return error.issues?.[0]?.message || 'Invalid readiness checklist.';
+}
+
+function canAuthorReadiness(req, service) {
+  if (!assertBusinessAccess(req, service.business_id)) return false;
+  if (req.dbStaff?.role_name !== 'line_staff') return true;
+  return req.dbStaff.assigned_service_id === service.id;
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -51,6 +76,8 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.*,
               b.name AS business_name,
+              (SELECT COUNT(*) FROM service_readiness sr
+                WHERE sr.service_id = s.id AND sr.is_active = TRUE) AS readiness_count,
               -- live waiting count for this service across open queues
               COALESCE((
                 SELECT COUNT(*)
@@ -137,6 +164,18 @@ router.get('/:id', async (req, res) => {
     if (svc.required_profile_fields && typeof svc.required_profile_fields === 'string') {
       try { svc.required_profile_fields = JSON.parse(svc.required_profile_fields); } catch { svc.required_profile_fields = []; }
     }
+    const [readiness] = await pool.query(
+      `SELECT id, service_id, kind, seq, label, detail, is_mandatory, lead_minutes
+       FROM service_readiness
+       WHERE service_id = ? AND is_active = TRUE
+       ORDER BY is_mandatory DESC, kind, seq, created_at`,
+      [req.params.id]
+    );
+    svc.readiness = readiness.map((item) => ({
+      ...item,
+      is_mandatory: Boolean(item.is_mandatory),
+    }));
+    svc.readiness_count = svc.readiness.length;
     res.json(svc);
   } catch (err) {
     console.error(err);
@@ -144,7 +183,76 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, async (req, res) => {
+// PUT /api/services/:id/readiness — atomically replace one service's checklist.
+// Managers own service content across their business. Line staff may keep the
+// checklist for the service they are assigned to current, but cannot edit a
+// different desk's instructions.
+router.put(
+  '/:id/readiness',
+  requireAuth,
+  requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'),
+  async (req, res) => {
+    const parsed = readinessListSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: validationMessage(parsed.error) });
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [services] = await conn.query(
+        'SELECT id, business_id FROM services WHERE id = ? FOR UPDATE',
+        [req.params.id]
+      );
+      if (!services.length) {
+        await conn.rollback();
+        return res.status(404).json({ error: 'Service not found.' });
+      }
+      if (!canAuthorReadiness(req, services[0])) {
+        await conn.rollback();
+        return res.status(403).json({ error: 'You can only edit readiness for your assigned service.' });
+      }
+
+      const [existingItems] = await conn.query(
+        'SELECT id FROM service_readiness WHERE service_id = ?',
+        [req.params.id]
+      );
+      const existingIds = new Set(existingItems.map((item) => item.id));
+
+      // A full replacement makes ordering and deletion one atomic save. This
+      // uses the exact table created by migration 025 and adds no competing
+      // checklist representation.
+      await conn.query('DELETE FROM service_readiness WHERE service_id = ?', [req.params.id]);
+      for (let seq = 0; seq < parsed.data.items.length; seq += 1) {
+        const item = parsed.data.items[seq];
+        await conn.query(
+          `INSERT INTO service_readiness
+             (id, service_id, kind, seq, label, detail, is_mandatory, lead_minutes, is_active)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+          [
+            item.id && existingIds.has(item.id) ? item.id : uuidv4(), req.params.id, item.kind, seq, item.label,
+            item.detail || null, item.is_mandatory, item.kind === 'prepare' ? item.lead_minutes ?? null : null,
+          ]
+        );
+      }
+
+      const [saved] = await conn.query(
+        `SELECT id, service_id, kind, seq, label, detail, is_mandatory, lead_minutes
+         FROM service_readiness WHERE service_id = ? AND is_active = TRUE
+         ORDER BY is_mandatory DESC, kind, seq, created_at`,
+        [req.params.id]
+      );
+      await conn.commit();
+      res.json(saved.map((item) => ({ ...item, is_mandatory: Boolean(item.is_mandatory) })));
+    } catch (err) {
+      await conn.rollback();
+      console.error(err);
+      res.status(500).json({ error: 'Failed to save readiness checklist.' });
+    } finally {
+      conn.release();
+    }
+  }
+);
+
+router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess('body'), requireBranchAccess, validate(schemas.createService), async (req, res) => {
   try {
     const { business_id, name, description, ticket_prefix, base_avg_time_minutes } = req.body;
     if (!business_id || !name) return res.status(400).json({ error: 'business_id and name are required.' });
@@ -162,7 +270,7 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
   }
 });
 
-router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), async (req, res) => {
+router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), validate(schemas.updateService), async (req, res) => {
   try {
     const { name, description, ticket_prefix, base_avg_time_minutes, is_active } = req.body;
     const [existing] = await pool.query(

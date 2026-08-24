@@ -7,7 +7,12 @@
    asked, and the action pinned to the bottom.
    ============================================================ */
 
-.sw { min-height: 100vh; }
+/* Root class is `sw-root`, NOT `sw`. A bare `.sw` here is global (Vite CSS
+   has no scoping) and it collided with the `.sw` colour swatch in the
+   Split legend — min-height:100vh beat the swatch's height:10px, so every
+   10px chip became a full-viewport-height bar and stretched its whole card
+   row to 1641px. Keep every selector in this file `sw-` prefixed. */
+.sw-root { min-height: 100vh; }
 .sw-shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh; }
 @media (max-width: 900px) { .sw-shell { grid-template-columns: 1fr; } .sw-rail { display: none; } }
 

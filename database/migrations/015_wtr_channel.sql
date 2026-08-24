@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 015: channel on the ML feature table
+-- LYNE — Migration 015: channel on the ML feature table
 -- wait_time_records is the denormalised ML input table (it already copies
 -- dow / hour / queue length / staff off the ticket). Channel (app vs walk-in
 -- vs kiosk) is a real predictor of no-shows, so it belongs here too — read
@@ -8,7 +8,7 @@
 -- Populated from queue_tickets.channel when a visit completes.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

@@ -70,7 +70,25 @@ async function assertLineStaffQueueAccess(req, queue) {
      LIMIT 1`,
     [req.dbStaff.id, queue.branch_id, queue.service_id]
   );
-  return assignments.length > 0;
+  if (assignments.length > 0) return true;
+
+  /* "Allow Overflow Onto Any Window" — the manager's Settings toggle, enforced.
+     When a branch turns it on, a clerk rostered AT THAT BRANCH may call from any
+     of its lines, not only the service they are assigned to. That is the whole
+     point of the setting: a long queue and a free clerk should not be blocked by
+     a roster row.
+
+     Two limits are deliberate and must stay. It never crosses a BRANCH — the
+     branch check above still applies, so this cannot become a back door into a
+     sister branch. And it never applies to a clerk with no branch of their own,
+     because an unscoped staff row is a provisioning mistake and must fail
+     closed. */
+  if (req.dbStaff.branch_id !== queue.branch_id) return false;
+  const [settings] = await pool.query(
+    'SELECT allow_overflow FROM branch_settings WHERE branch_id = ? LIMIT 1',
+    [queue.branch_id]
+  );
+  return Boolean(settings[0]?.allow_overflow);
 }
 
 function requireBusinessAccess(source = 'query') {

@@ -59,7 +59,7 @@ const DOC_CONFIG: Record<Field, DocConfig> = {
     guide: 'Fit your TRN letter inside the frame',
     instructions: [
       'You can simply type your 9-digit TRN',
-      'Or scan / upload the paper TRN — some agencies ask for it',
+      'Or scan the paper TRN. Some agencies ask for it',
       'If scanning, keep the sheet flat and well-lit',
     ],
   },
@@ -72,7 +72,7 @@ async function attemptOcr(_field: Field, _uri: string): Promise<string | null> {
   return null;
 }
 
-const protectKey = (field: Field) => `qme.doc-protected.${field}`;
+const protectKey = (field: Field) => `lyne.doc-protected.${field}`;
 
 export default function DocumentCaptureScreen() {
   const navigation = useNavigation<any>();
@@ -164,7 +164,7 @@ export default function DocumentCaptureScreen() {
               <View key={i} style={{ position: 'absolute', [r ? 'bottom' : 'top']: -2, [c ? 'right' : 'left']: -2, width: 26, height: 26, borderColor: '#fff', borderTopWidth: r ? 0 : 4, borderBottomWidth: r ? 4 : 0, borderLeftWidth: c ? 0 : 4, borderRightWidth: c ? 4 : 0, borderTopLeftRadius: !r && !c ? 18 : 0, borderTopRightRadius: !r && c ? 18 : 0, borderBottomLeftRadius: r && !c ? 18 : 0, borderBottomRightRadius: r && c ? 18 : 0 } as any} />
             ))}
           </View>
-          <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: 'rgba(255,255,255,.75)', marginTop: 16, textShadowColor: 'rgba(0,0,0,.6)', textShadowRadius: 4 }}>Hold steady — avoid glare and shadows</Text>
+          <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: 'rgba(255,255,255,.75)', marginTop: 16, textShadowColor: 'rgba(0,0,0,.6)', textShadowRadius: 4 }}>Hold steady. Avoid glare and shadows</Text>
         </View>
         {/* controls */}
         <View style={{ position: 'absolute', top: 54, left: 20 }}>

@@ -12,6 +12,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBranchAccess,
@@ -84,7 +85,49 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'm
       `SELECT q.*, b.name AS branch_name, s.name AS service_name,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS waiting_count,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'in_service') AS serving_count,
-              (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes
+              (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes,
+              -- How many windows this line HAS, and how many are actually manned.
+              -- The dashboards read these to answer "does this line need a
+              -- window opened?" — without them every branch reported "0 of 0",
+              -- which reads as fully covered and produced the opposite advice.
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id
+                  AND c.is_active = TRUE) AS counters_total,
+              -- "Open" matches /analytics/counters exactly: staff_assignments is
+              -- the source of truth, ticket history only a fallback for a desk
+              -- with no assignment. Two screens must never disagree on this.
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id
+                  AND c.is_active = TRUE
+                  AND (EXISTS (SELECT 1 FROM staff_assignments sa
+                                WHERE sa.counter_id = c.id
+                                  AND sa.assignment_date = CURDATE())
+                    OR EXISTS (SELECT 1 FROM queue_tickets t
+                                 JOIN queues q2 ON q2.id = t.queue_id
+                                              AND q2.queue_date = CURDATE()
+                                WHERE t.served_at_counter_id = c.id
+                                  AND t.served_by_staff_id IS NOT NULL))
+              ) AS counters_open,
+              -- The single longest wait in the line right now. This is the
+              -- number a manager is judged on; the average hides it.
+              (SELECT MAX(TIMESTAMPDIFF(MINUTE, t.joined_at, NOW()))
+                 FROM queue_tickets t
+                WHERE t.queue_id = q.id AND t.status = 'waiting') AS longest_wait_minutes,
+              -- Per-person SERVICE time, the input to the projected ETA. This is
+              -- deliberately the SAME expression /services uses, so the minutes a
+              -- manager reads off the floor board are the minutes the customer is
+              -- being shown on their phone. A manager who cannot defend the number
+              -- at the counter stops trusting the board.
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE,
+                             COALESCE(qt.started_serving_at, qt.called_at, qt.joined_at),
+                             qt.completed_at))
+                  FROM queue_tickets qt
+                  JOIN queues q2 ON q2.id = qt.queue_id
+                 WHERE q2.service_id = q.service_id AND q2.branch_id = q.branch_id
+                   AND q2.queue_date = CURDATE()
+                   AND qt.status = 'served' AND qt.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
        FROM queues q
        JOIN branches b ON b.id = q.branch_id
        JOIN services s ON s.id = q.service_id
@@ -92,7 +135,18 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'm
        ORDER BY b.name, s.name`,
       params
     );
-    res.json(rows);
+    // The live, counter-aware projection — the one number the floor board and
+    // the customer's phone must agree on. Same helper and same inputs as
+    // /services, deliberately: divergence here is what made a manager read 106
+    // minutes off a line the member had been quoted 20 for.
+    res.json(rows.map((r) => ({
+      ...r,
+      projected_wait_minutes: projectedWaitMinutes({
+        ahead: r.waiting_count,
+        perServiceMinutes: r.service_minutes,
+        counters: r.counters_total,
+      }),
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch assigned queues.' });
@@ -226,7 +280,7 @@ router.get(
 );
 
 // Create / open a queue for today
-router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireBranchAccess, async (req, res) => {
+router.post('/', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireBranchAccess, validate(schemas.createQueue), async (req, res) => {
   try {
     const { branch_id, service_id, queue_date, max_capacity } = req.body;
     if (!branch_id || !service_id) return res.status(400).json({ error: 'branch_id and service_id are required.' });

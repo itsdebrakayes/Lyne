@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Supabase RLS Migration: Security Hardening
+-- LYNE — Supabase RLS Migration: Security Hardening
 -- Date: 2026-05-27
 -- =============================================================
 -- This migration adds strict Row Level Security policies for:

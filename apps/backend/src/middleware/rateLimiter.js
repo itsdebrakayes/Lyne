@@ -1,5 +1,5 @@
 /**
- * rateLimiter.js — Rate limiting middleware for Q ME NOW backend
+ * rateLimiter.js — Rate limiting middleware for LYNE backend
  *
  * Applies per-endpoint rate limits to prevent abuse of public-facing
  * and sensitive endpoints. Uses express-rate-limit.
@@ -53,6 +53,24 @@ const publicQueueLimiter = rateLimit({
 // The admin dashboards legitimately poll ~15 analytics endpoints on a 60s
 // refresh cycle (~15 req/min at idle, more while navigating), so the ceiling
 // must clear that comfortably while still stopping real abuse/scraping.
+// ── Payment intents ───────────────────────────────────────────────────────
+// POST /api/payments/create-intent used to sit behind nothing but the global
+// 1000-per-15-minutes ceiling, which is a card-testing budget, not a limit: a
+// script can validate stolen cards against a real Stripe account all day inside
+// it. The cost lands on us as failed-payment fees and, eventually, as Stripe
+// questioning the account.
+//
+// A person subscribes once. Ten attempts an hour is already generous for
+// somebody genuinely fighting a declined card, and it takes card testing from
+// "free" to "pointless".
+const paymentLimiter = rateLimit({
+  windowMs:        60 * 60 * 1000,
+  max:             10,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: { error: 'Too many payment attempts. Please try again later.' },
+});
+
 const generalLimiter = rateLimit({
   windowMs:         15 * 60 * 1000,
   max:              1000,
@@ -61,10 +79,29 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again later.' },
 });
 
+// ── Session eligibility portal ────────────────────────────────
+// POST /api/sessions/public/:id/eligibility answers "is this reference listed
+// today", from an UNAUTHENTICATED browser. That is an enumeration oracle by
+// nature: given enough attempts it confirms which ticket numbers exist. The
+// second factor raises the cost per guess; this caps the number of guesses.
+//
+// 15 in 15 minutes is deliberately tight. The honest user checks once, maybe
+// mistypes twice, then registers. Nobody legitimately needs a sixteenth attempt,
+// and a court's own staff use the authenticated staff route, not this one.
+const sessionLookupLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              15,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message: { error: 'Too many lookup attempts. Please wait 15 minutes, or contact the office directly.' },
+});
+
 module.exports = {
   authLimiter,
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
+  sessionLookupLimiter,
+  paymentLimiter,
   generalLimiter,
 };

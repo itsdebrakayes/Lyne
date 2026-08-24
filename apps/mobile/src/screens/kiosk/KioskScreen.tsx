@@ -12,9 +12,15 @@ import { haptics } from '../../lib/haptics';
 import { ServiceSummary } from '../../lib/mobileData';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import { useAuth, KioskActor } from '../../hooks/useAuth';
+import { lower } from '../../lib/sectorTerms';
 
-// The row POST /tickets/walk-in returns — enough to read the ticket back to the
-// customer and print/write the number on a slip.
+// The row POST /tickets/walk-in returns.
+//
+// NOTE — this screen is the CLERK CONSOLE, not a self-service kiosk: a staff
+// member adds a walk-in on someone's behalf. There is no printer integration, so
+// today the number has to be read out. That is a known gap, not the intent —
+// the intended product is a lobby terminal the public touches themselves, which
+// prints a ticket. See docs/KIOSK_HARDWARE.md for what that needs.
 interface WalkInTicket {
   id: string;
   ticket_number: string;
@@ -29,7 +35,8 @@ const svcWait = (s: ServiceSummary) => {
   return Math.round(live > 0 ? live : Number(s.base_avg_time_minutes || 0));
 };
 
-// ── The issued-ticket confirmation the clerk reads/hands to the customer ──────
+// ── The issued ticket. Read out by the clerk today; this is the content that
+//    will go to the printer once a kiosk device exists. ─────────────────────
 function TicketIssued({ ticket, serviceName, onAddAnother }: {
   ticket: WalkInTicket; serviceName: string; onAddAnother: () => void;
 }) {
@@ -142,12 +149,12 @@ export default function KioskScreen() {
             <>
               <Text style={[t.h1, { marginBottom: 4 }]}>Add a walk-in</Text>
               <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginBottom: 22 }}>
-                Put a customer who is here at the branch into the line. They&apos;ll get a ticket number to watch for.
+                Put a {lower(actor.terms.visitor.one)} who is here at the branch into the line. They&apos;ll get a ticket number to watch for.
               </Text>
 
               {/* ── customer details ── */}
               <View style={[t.cardLg, { padding: 18, marginBottom: 18 }]}>
-                <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 10 }}>Customer</Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 10 }}>{actor.terms.visitor.one}</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}

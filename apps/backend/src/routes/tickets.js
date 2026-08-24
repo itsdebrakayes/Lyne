@@ -23,17 +23,18 @@
  *   visible queue count shown to users.
  */
 const router = require('express').Router();
-const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
-const { estimateWaitMinutes } = require('../utils/waitEstimator');
 
+const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
 const { projectedWaitMinutes } = require('../utils/etaMath');
+const { issueTicketSlot } = require('../utils/ticketSlot');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -70,8 +71,9 @@ function broadcast(queueId, ticket) {
 
 // Validation schemas
 const joinQueueSchema = z.object({
-  queue_id:  z.string().min(1).max(64),
-  form_data: z.record(z.unknown()).optional(),
+  queue_id:               z.string().min(1).max(64),
+  form_data:              z.record(z.unknown()).optional(),
+  readiness_acknowledged: z.boolean().optional(),
 });
 
 // A kiosk clerk adds a walk-in (someone at the branch without the app). They
@@ -90,21 +92,9 @@ const updateStatusSchema = z.object({
   verification_code: z.string().max(12).optional(),
   call_timeout_seconds: z.number().int().min(MIN_CALL_TIMEOUT_SECONDS).max(MAX_CALL_TIMEOUT_SECONDS).optional(),
   notes: z.string().max(1000).optional(),
+  readiness_outcome: z.enum(['ready', 'incomplete']).optional(),
+  readiness_note: z.string().trim().max(255).optional(),
 });
-
-/**
- * A six-digit numeric code, read off a phone or a printed ticket and typed at
- * the counter. Digits rather than hex because it is read aloud across a desk,
- * typed on a numeric keypad, and never has to survive "is that a B or an 8".
- *
- * Six digits is 900,000 values, which is not enough to stay unique across every
- * ticket a branch will ever issue — so uniqueness is scoped to the queue (one
- * service, one day) by migration 019. Collisions inside that window are
- * retried at insert.
- */
-function createVerificationCode() {
-  return String(crypto.randomInt(100000, 1000000));
-}
 
 function periodCondition(period, month) {
   if (period === 'this_week') {
@@ -145,9 +135,24 @@ async function inferActiveCounter(conn, staffId, queueId) {
   return rows[0]?.id || null;
 }
 
+/* Lock-screen copy is deliberately vague. Lyne serves government agencies,
+   clinics and immigration desks, so the SERVICE NAME alone — "HIV Clinic",
+   "Unemployment Benefits", "Passport Renewal" — is the leak the moment it lands
+   on a lock screen somebody else can read. The push used to carry the full
+   detailed message, which for a call read "A-014 is being called for
+   {service}."
+
+   The detail still exists; it goes to the in-app notification row, which sits
+   behind authentication. The push only says something changed. */
 const PUSH_TITLES = {
-  called: "It's your turn!",
-  no_show: 'You lost your place in line',
+  called: 'Your queue update',
+  no_show: 'Your queue update',
+};
+
+const NEUTRAL_PUSH_BODIES = {
+  called: 'It is your turn. Open Lyne for the details.',
+  no_show: 'Your place in line has changed. Open Lyne for the details.',
+  queue_update: 'Your queue status has changed. Open Lyne for the details.',
 };
 
 /**
@@ -165,8 +170,9 @@ async function notifyTicketUser(conn, ticket, notificationType, message) {
   );
   return {
     userId: ticket.user_id,
-    title: PUSH_TITLES[notificationType] || 'Queue update',
-    body: message,
+    title: PUSH_TITLES[notificationType] || 'Your queue update',
+    // Never `message` — that is the detailed in-app text inserted just above.
+    body: NEUTRAL_PUSH_BODIES[notificationType] || NEUTRAL_PUSH_BODIES.queue_update,
     data: { ticketId: ticket.id, type: notificationType },
   };
 }
@@ -181,7 +187,7 @@ router.post('/', requireAuth, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const { queue_id, form_data } = parsed.data;
+    const { queue_id, form_data, readiness_acknowledged } = parsed.data;
 
     const [queues] = await conn.query(
       'SELECT * FROM queues WHERE id = ? AND is_active = TRUE FOR UPDATE',
@@ -238,38 +244,30 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'Queue is at full capacity.' });
     }
 
-    const [posRows] = await conn.query(
-      'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM queue_tickets WHERE queue_id = ?',
-      [queue_id]
-    );
-    const position = posRows[0].next_pos;
-
     const [svcRows] = await conn.query(
-      'SELECT ticket_prefix, base_avg_time_minutes FROM services WHERE id = ?',
+      `SELECT ticket_prefix, base_avg_time_minutes,
+              (SELECT COUNT(*) FROM service_readiness sr
+                WHERE sr.service_id = services.id AND sr.is_active = TRUE) AS readiness_count
+       FROM services WHERE id = ?`,
       [queue.service_id]
     );
     const prefix  = svcRows[0]?.ticket_prefix || 'Q';
     const avgTime = svcRows[0]?.base_avg_time_minutes || 15;
-    const ticketNumber  = `${prefix}-${String(position).padStart(3, '0')}`;
-    // Prefer the model-based ETA (wait_eta_grid); fall back to a counter-aware
-    // estimate — people already WAITING ahead of this ticket (not raw position,
-    // which counts served/left tickets), split across the open counters.
-    const [counterRows] = await conn.query(
-      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
-      [queue.branch_id, queue.service_id]
-    );
-    const modelWait = await estimateWaitMinutes({
+    const hasReadinessChecklist = Number(svcRows[0]?.readiness_count || 0) > 0;
+    if (hasReadinessChecklist && readiness_acknowledged !== true) {
+      await conn.rollback();
+      return res.status(400).json({
+        error: 'Review and confirm the service checklist before joining this queue.',
+      });
+    }
+    const { position, ticketNumber, estimatedWait, verificationCode } = await issueTicketSlot(conn, {
+      queueId: queue_id,
       branchId: queue.branch_id,
       serviceId: queue.service_id,
-      position,
-      hour: new Date().getHours(),
+      prefix,
+      avgTimeMinutes: avgTime,
+      waitingAhead: countRows[0].cnt,
     });
-    const estimatedWait = modelWait ?? projectedWaitMinutes({
-      ahead: countRows[0].cnt,
-      perServiceMinutes: avgTime,
-      counters: counterRows[0].cnt,
-    });
-    const verificationCode = createVerificationCode();
 
     let intakeFormId = null;
     if (form_data) {
@@ -285,9 +283,13 @@ router.post('/', requireAuth, async (req, res) => {
       // channel is explicit ('app' is also the column default): this route is the
       // customer app, and the walk-in buffer above depends on that distinction.
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app')`,
-      [ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber, verificationCode, position, estimatedWait]
+         (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status,
+          estimated_wait_minutes, channel, readiness_shown_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app', ?)`,
+      [
+        ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber,
+        verificationCode, position, estimatedWait, hasReadinessChecklist ? new Date() : null,
+      ]
     );
 
     await conn.query(
@@ -379,31 +381,17 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
       return res.status(409).json({ error: 'Queue is at full capacity.' });
     }
 
-    const [posRows] = await conn.query(
-      'SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM queue_tickets WHERE queue_id = ?',
-      [queue.id]
-    );
-    const position = posRows[0].next_pos;
-    const ticketNumber = `${prefix}-${String(position).padStart(3, '0')}`;
-
-    // Same counter-aware ETA the app join uses, so a walk-in's estimate agrees
-    // with what the app would show for the same spot in line.
-    const [counterRows] = await conn.query(
-      "SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE",
-      [branchId, service_id]
-    );
-    const modelWait = await estimateWaitMinutes({
+    // Identical arithmetic to the app join — same daily reset, same counter-aware
+    // ETA — so a walk-in's estimate agrees with what the app would show for the
+    // same spot in line.
+    const { position, ticketNumber, estimatedWait, verificationCode } = await issueTicketSlot(conn, {
+      queueId: queue.id,
       branchId,
       serviceId: service_id,
-      position,
-      hour: new Date().getHours(),
+      prefix,
+      avgTimeMinutes: avgTime,
+      waitingAhead: countRows[0].cnt,
     });
-    const estimatedWait = modelWait ?? projectedWaitMinutes({
-      ahead: countRows[0].cnt,
-      perServiceMinutes: avgTime,
-      counters: counterRows[0].cnt,
-    });
-    const verificationCode = createVerificationCode();
 
     const ticketId = uuidv4();
     await conn.query(
@@ -440,9 +428,13 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
               t.estimated_wait_minutes, t.joined_at, t.called_at, t.started_serving_at,
               t.completed_at, t.call_timeout_seconds, t.call_expires_at,
               t.served_by_staff_id, t.served_at_counter_id,
+              t.readiness_shown_at, t.readiness_outcome, t.readiness_note,
+              (SELECT COUNT(*) FROM service_readiness sr
+                WHERE sr.service_id = q.service_id AND sr.is_active = TRUE) AS readiness_item_count,
               u.full_name AS user_name, u.phone AS user_phone,
               c.label AS counter_label, c.counter_number
        FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
        LEFT JOIN users u ON t.user_id = u.id
        LEFT JOIN counters c ON c.id = t.served_at_counter_id
        WHERE t.queue_id = ?
@@ -607,6 +599,76 @@ router.get('/:id/position', requireAuth, requireTicketAccess, async (req, res) =
   }
 });
 
+// GET /api/tickets/guest/:token — a guest re-opens their own ticket
+//
+// MUST be declared before /:id.
+//
+// Migration 023 added guest_access_token so somebody who joined from a browser
+// could come back to their own ticket without an account — and then nothing
+// ever read it. The session portal made that gap load-bearing: a motorist checks
+// in from the portal, is handed a token, and until now had nowhere to spend it.
+// Their only other option was GET /:id, which requires a Supabase session they
+// were deliberately never asked to create.
+//
+// The token IS the authorisation. It is 43 random characters, unique-indexed,
+// issued server-side and returned exactly once, so possession proves ownership
+// of this one ticket and grants nothing else. Note what is NOT selected:
+// verification_code stays server-side, because a token that leaked would
+// otherwise let somebody answer for a person at the counter.
+router.get('/guest/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    // Cheap shape check before touching the database — this endpoint is
+    // unauthenticated, so it should not turn every stray request into a query.
+    if (token.length < 32 || token.length > 64) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT t.id, t.queue_id, t.ticket_number, t.status, t.position,
+              t.joined_at, t.called_at, t.guest_name,
+              q.branch_id, q.service_id,
+              b.name AS branch_name, b.address AS branch_address,
+              biz.name AS business_name,
+              s.name AS service_name,
+              (SELECT COUNT(*) + 1
+                 FROM queue_tickets t2
+                WHERE t2.queue_id = t.queue_id AND t2.status = 'waiting'
+                  AND t2.position < t.position) AS waiting_position,
+              (SELECT COUNT(*) FROM queue_tickets t3
+                WHERE t3.queue_id = t.queue_id AND t3.status = 'waiting') AS total_waiting,
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE) AS active_counters,
+              COALESCE((
+                SELECT AVG(TIMESTAMPDIFF(MINUTE, COALESCE(t4.started_serving_at, t4.called_at, t4.joined_at), t4.completed_at))
+                  FROM queue_tickets t4
+                 WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
+              ), s.base_avg_time_minutes) AS service_minutes
+         FROM queue_tickets t
+         JOIN queues     q   ON t.queue_id    = q.id
+         JOIN branches   b   ON q.branch_id   = b.id
+         JOIN businesses biz ON b.business_id = biz.id
+         JOIN services   s   ON q.service_id  = s.id
+        WHERE t.guest_access_token = ?
+        LIMIT 1`,
+      [token]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+
+    const ticket = rows[0];
+    const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
+    res.json({
+      ...ticket,
+      estimated_wait_minutes: liveTicketWait(ticket),
+      is_next: isNext,
+      status_message: isNext ? "You're next!" : null,
+    });
+  } catch (err) {
+    console.error('tickets/guest:', err);
+    res.status(500).json({ error: 'Failed to fetch ticket.' });
+  }
+});
+
 // GET /api/tickets/:id — Get ticket status
 router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
   try {
@@ -615,6 +677,7 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
               q.branch_id, q.service_id, q.queue_date,
               b.business_id,
               b.name AS branch_name,
+              biz.name AS business_name,
               s.name AS service_name,
               (SELECT COUNT(*) + 1
                FROM queue_tickets t2
@@ -633,9 +696,10 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
                 WHERE t4.queue_id = t.queue_id AND t4.status = 'served' AND t4.completed_at IS NOT NULL
               ), s.base_avg_time_minutes) AS service_minutes
        FROM queue_tickets t
-       JOIN queues   q ON t.queue_id   = q.id
-       JOIN branches b ON q.branch_id  = b.id
-       JOIN services s ON q.service_id = s.id
+       JOIN queues     q   ON t.queue_id   = q.id
+       JOIN branches   b   ON q.branch_id  = b.id
+       JOIN businesses biz ON b.business_id = biz.id
+       JOIN services   s   ON q.service_id = s.id
        WHERE t.id = ?`,
       [req.params.id]
     );
@@ -708,10 +772,12 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
   try {
     await conn.beginTransaction();
 
-    const { new_status, verification_code, notes } = parsed.data;
+    const { new_status, verification_code, notes, readiness_outcome, readiness_note } = parsed.data;
 
     const [tickets] = await conn.query(
-      `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name
+      `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name,
+              (SELECT COUNT(*) FROM service_readiness sr
+                WHERE sr.service_id = q.service_id AND sr.is_active = TRUE) AS readiness_item_count
        FROM queue_tickets t
        JOIN queues q ON t.queue_id = q.id
        JOIN branches b ON q.branch_id = b.id
@@ -738,6 +804,18 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     if (new_status === 'served' && prevStatus !== 'in_service') {
       await conn.rollback();
       return res.status(400).json({ error: 'Only in_service tickets can be marked served.' });
+    }
+    if (new_status === 'served' && Number(ticket.readiness_item_count || 0) > 0 && !readiness_outcome) {
+      await conn.rollback();
+      return res.status(400).json({
+        error: 'Record whether the member was ready before completing this visit.',
+      });
+    }
+    if (readiness_outcome === 'incomplete' && (!readiness_note || readiness_note.trim().length < 3)) {
+      await conn.rollback();
+      return res.status(400).json({
+        error: 'Add a short note about what was missing or not completed.',
+      });
     }
     if (new_status === 'no_show' && !['called', 'waiting'].includes(prevStatus)) {
       await conn.rollback();
@@ -767,6 +845,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     } else if (new_status === 'served') {
       extraFields = ', completed_at = ?';
       extraParams = [now];
+      if (readiness_outcome) {
+        extraFields += ', readiness_outcome = ?, readiness_note = ?';
+        extraParams.push(readiness_outcome, readiness_outcome === 'incomplete' ? readiness_note.trim() : null);
+      }
     } else if (new_status === 'no_show') {
       extraFields = ', completed_at = ?';
       extraParams = [now];
@@ -1012,7 +1094,7 @@ router.put('/:id/move-down', requireAuth, requireStaffRole('line_staff', 'manage
 
 // PUT /api/tickets/:id/skip — Staff skips a waiting ticket
 // disposition: 'remove' (cancel) | 'requeue' (place right after current in_service ticket)
-router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
+router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, validate(schemas.skipTicket), async (req, res) => {
   const { disposition = 'requeue' } = req.body;
   if (!['remove', 'requeue'].includes(disposition)) {
     return res.status(400).json({ error: "disposition must be 'remove' or 'requeue'." });

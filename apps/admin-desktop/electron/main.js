@@ -25,8 +25,8 @@ function writeSettings(patch) {
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL || 'http://localhost:5174';
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
-const shouldOpenDevTools = isDev && process.env.QMENOW_OPEN_DEVTOOLS === 'true';
-const shouldStartFullscreen = process.env.QMENOW_WINDOWED !== 'true';
+const shouldOpenDevTools = isDev && process.env.LYNE_OPEN_DEVTOOLS === 'true';
+const shouldStartFullscreen = process.env.LYNE_WINDOWED !== 'true';
 
 function createWindow() {
   const win = new BrowserWindow({

@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 018: Branch-level targets
+-- LYNE — Migration 018: Branch-level targets
 -- Executives set the company-wide targets (business_targets, 009). A branch
 -- manager can now set their OWN branch's operational targets, which refine the
 -- company target for that branch's dashboard scoring and action plan.
@@ -10,7 +10,7 @@
 -- operational numbers — so only the three operational metrics live here.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS branch_targets (
   branch_id              CHAR(36)  NOT NULL PRIMARY KEY,

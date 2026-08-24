@@ -1,5 +1,5 @@
 /**
- * maskData.js — Sensitive data masking utilities for Q ME NOW
+ * maskData.js — Sensitive data masking utilities for LYNE
  *
  * These functions mask sensitive fields before sending data to the frontend.
  * Full sensitive data is only available to authorized staff during an active

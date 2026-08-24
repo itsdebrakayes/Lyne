@@ -1,11 +1,11 @@
 -- =============================================================
--- Q ME NOW — Migration 009: Business Targets
+-- LYNE — Migration 009: Business Targets
 -- Executive-set operational targets with a chosen horizon.
 -- The dashboards and action plan measure progress against these
 -- instead of hardcoded values.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS business_targets (
   business_id            CHAR(36)  NOT NULL PRIMARY KEY,

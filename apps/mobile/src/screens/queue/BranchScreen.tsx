@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, font, t, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
+import { colors, font, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
@@ -11,29 +10,104 @@ import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileDa
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import BestTimeCard from '../../components/BestTimeCard';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
+import Icon from '../../components/Icon';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
 
-function ServiceStat({ value, unit, label, accent }: { value: React.ReactNode; unit?: string; label: string; accent?: boolean }) {
+/**
+ * "Let's get you in line" — v5.
+ *
+ * Both the branch AND the service are editable here. The old flow reached this
+ * screen with a branch already fixed by the previous screen, so someone who had
+ * picked the wrong one had to back all the way out to change it. Since v5 drops
+ * the standalone branch step, this screen owns both choices: each field is a
+ * button that opens its own picker, and switching branch re-queries the
+ * services for it rather than carrying the old branch's list across.
+ */
+
+/** A field that reads like a filled form row and behaves like a button. */
+function PickerField({ label, value, hint, onPress }: { label: string; value: string; hint?: string; onPress: () => void }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontFamily: font.extra, fontSize: 22, color: accent ? colors.accentDeep : colors.ink }}>{value}{unit ? <Text style={{ fontSize: 12 }}>{unit}</Text> : null}</Text>
-      <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>{label}</Text>
-    </View>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}. Tap to change.`}
+      style={{ backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 18, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}
+    >
+      <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, width: 74 }}>{label}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 23, color: colors.ink, letterSpacing: -0.8 }}>{value}</Text>
+        {!!hint && <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3 }}>{hint}</Text>}
+      </View>
+      <Icon name="chevronDown" size={18} color={colors.chevron} />
+    </TouchableOpacity>
+  );
+}
+
+/** Bottom sheet used by both pickers, so branch and service feel identical. */
+function PickerSheet<T extends { id: string }>({
+  open, title, items, selectedId, onSelect, onClose, renderRow,
+}: {
+  open: boolean; title: string; items: T[]; selectedId?: string;
+  onSelect: (item: T) => void; onClose: () => void;
+  renderRow: (item: T, selected: boolean) => React.ReactNode;
+}) {
+  return (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(6,12,20,.55)' }} />
+      <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 10, paddingBottom: 34, maxHeight: '72%' }}>
+        <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.chevron, marginBottom: 14 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, marginBottom: 12 }}>
+          <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.6 }}>{title}</Text>
+          <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close"
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="close" size={17} color={colors.sub} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 8, gap: 9 }}>
+          {items.map(item => {
+            const selected = item.id === selectedId;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.85}
+                onPress={() => { onSelect(item); onClose(); }}
+                style={{
+                  backgroundColor: selected ? colors.accent : colors.surface,
+                  borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 12,
+                }}
+              >
+                {renderRow(item, selected)}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
 export default function BranchScreen() {
-  const topPad = useTopPad(18);
+  const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const queryClient = useQueryClient();
-  const { businessId, branchId, branchName } = route.params;
+  const { businessId, branchName } = route.params;
+
+  // Branch is now local state, not a fixed route param, so it can be swapped
+  // in place without unwinding the stack.
+  const [branchId, setBranchId] = useState(route.params.branchId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [branchPicker, setBranchPicker] = useState(false);
+  const [servicePicker, setServicePicker] = useState(false);
 
   const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false), refetchInterval: 30_000 });
+  const branchesQuery = useQuery({
+    queryKey: ['business-branches', businessId],
+    queryFn: () => api.get<BranchSummary[]>(`/branches?business_id=${businessId}`, false),
+  });
   const servicesQuery = useQuery({
     queryKey: ['branch-services', businessId, branchId],
     queryFn: () => api.get<ServiceSummary[]>(`/services?business_id=${businessId}&branch_id=${branchId}`, false),
@@ -42,10 +116,22 @@ export default function BranchScreen() {
   const { data: saved = [] } = useQuery({ queryKey: ['saved-businesses'], queryFn: () => api.get<SavedBusiness[]>('/saved') });
 
   const branch = branchQuery.data;
+  const branches = branchesQuery.data || [];
   const services = servicesQuery.data || [];
   const { refreshing, onRefresh } = useRefresh(branchQuery.refetch, servicesQuery.refetch);
-  const selected = useMemo(() => services.find(s => s.id === selectedId) || services[0], [services, selectedId]);
-  const others = services.filter(s => s.id !== selected?.id);
+
+  /* Until the person picks, show the service they can be seen for soonest.
+     The list arrives alphabetically, and at Constant Spring that put Child
+     Passport Application (58 min) in front of someone who tapped in from a
+     card advertising the shortest wait nearby. */
+  const quickest = useMemo(() => {
+    if (!services.length) return undefined;
+    return [...services].sort((a, b) =>
+      Number(a.estimated_wait_minutes ?? Infinity) - Number(b.estimated_wait_minutes ?? Infinity))[0];
+  }, [services]);
+  const selected = useMemo(
+    () => services.find(s => s.id === selectedId) || quickest,
+    [services, selectedId, quickest]);
   const isSaved = saved.some(b => b.id === businessId);
 
   // Optimistic toggle — the bookmark fills instantly (like a like button) and
@@ -92,197 +178,208 @@ export default function BranchScreen() {
   // agree with it. Offering "Join this queue" under a "Closed" header sends the
   // customer to a dead end and makes the branch state look decorative.
   const joinState = useMemo(() => remoteJoinInfo(now, hoursFromBranch(branch)), [now, branch]);
+  const openInfo = useMemo(() => branchOpenInfo(now, hoursFromBranch(branch)), [now, branch]);
 
-  const join = (s?: ServiceSummary) => {
+  // Second tap opens the queue map rather than joining outright. Joining is the
+  // commitment; seeing the line you are about to stand in is the step before it,
+  // and the map carries its own Join button.
+  const seeLine = (s?: ServiceSummary) => {
     if (!s || !joinState.allowed) return;
-    navigation.navigate('JoinQueue', { businessId, branchId, serviceId: s.id, serviceName: s.name });
+    navigation.navigate('QueueMap', { businessId, branchId, serviceId: s.id, serviceName: s.name });
   };
 
+  // Shortest wait first: the list is a shopping list, and the number people are
+  // shopping on is the wait.
+  const lines = useMemo(() => [...services].sort((a, b) => svcWait(a) - svcWait(b)), [services]);
+
+  const arriveLabel = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
   return (
-    <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 48 }} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
-        {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Now</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
-              <Ionicons name="location" size={11} color={colors.ink} />
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink }}>{branch?.name || branchName}</Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={() => toggleSave.mutate()} disabled={toggleSave.isPending} style={t.iconBtn}>
-            <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={colors.ink} />
+    <View style={{ flex: 1, backgroundColor: colors.dark }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 48 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+
+        {/* heading row */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingTop: 8, paddingBottom: 26 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="back" size={21} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 32, color: '#fff', letterSpacing: -1.2, lineHeight: 35 }}>
+            Let&apos;s get you{'\n'}in line
+          </Text>
+          <TouchableOpacity onPress={() => toggleSave.mutate()} disabled={toggleSave.isPending}
+            accessibilityRole="button" accessibilityLabel={isSaved ? 'Remove from saved' : 'Save this agency'}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={isSaved ? 'bookmarkFilled' : 'bookmark'} size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* business heading */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 }}>
-          <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>{initials(branch?.business_name)}</Text>
+        {/* branch → service, both editable */}
+        <PickerField
+          label="Branch"
+          value={branch?.name || branchName || 'Choose a branch'}
+          // openInfo.detail already reads "Open until 11:59 pm", so prefixing it
+          // with "open" produced "Kingston · open · open until 11:59 pm".
+          hint={[branch?.city, openInfo.detail].filter(Boolean).join(' · ')}
+          onPress={() => setBranchPicker(true)}
+        />
+        <View style={{ height: 12 }}>
+          <View style={{ position: 'absolute', right: 20, top: -24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 5, borderColor: colors.dark, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+            <Icon name="arrowDown" size={22} color={colors.ink} />
           </View>
-          {(() => {
-            const open = branchOpenInfo(new Date(), hoursFromBranch(branch));
-            const live = open.state === 'open' && Number(branch?.open_queues) > 0;
-            const dot = open.state === 'open' ? colors.light : open.state === 'about_to_open' ? colors.accent : colors.faint;
-            const label = open.state === 'open'
-              ? (live ? 'Live queue · open now' : `Open · ${open.detail.toLowerCase()}`)
-              : open.state === 'about_to_open' ? open.detail : `Closed · ${open.detail.toLowerCase()}`;
-            return (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dot }} />
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{label}</Text>
-              </View>
-            );
-          })()}
         </View>
-        <Text style={[t.h1, { marginBottom: 24 }]}>{branch?.business_name || 'Agency'}</Text>
+        <PickerField
+          label="Service"
+          value={selected?.name || 'Choose a service'}
+          hint={services.length ? `${services.length} available today` : undefined}
+          onPress={() => setServicePicker(true)}
+        />
 
-        {servicesQuery.isLoading && <SkeletonCard height={230} />}
+        {/* arriving */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 }}>
+          <View style={{ backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 16 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.75)' }}>Arriving</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 14, color: '#fff', marginTop: 2 }}>Now · {arriveLabel}</Text>
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Plan', { businessId, branchId })}
+            accessibilityRole="button" accessibilityLabel="Plan a later visit"
+            style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.3)', borderRadius: 16, paddingVertical: 11, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 9 }}
+          >
+            <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.4)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: 'rgba(255,255,255,.65)', fontFamily: font.extra, fontSize: 14, lineHeight: 16 }}>+</Text>
+            </View>
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: 'rgba(255,255,255,.65)' }}>Later</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* open lines */}
+        <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.5, marginTop: 24, marginBottom: 13 }}>Open lines</Text>
+
+        {servicesQuery.isLoading && <SkeletonCard height={150} />}
         {!!servicesQuery.error && !servicesQuery.isLoading && (
-          <ErrorCard
-            title="Services unavailable"
-            message="This branch's live services could not be loaded."
-            onRetry={() => servicesQuery.refetch()}
-          />
+          <ErrorCard title="Services unavailable" message="This branch's live services could not be loaded." onRetry={() => servicesQuery.refetch()} />
         )}
         {!servicesQuery.isLoading && !servicesQuery.error && services.length === 0 && (
-          <View style={[t.cardLg, { padding: 22, alignItems: 'center' }]}>
-            <Ionicons name="time-outline" size={28} color={colors.muted} />
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginTop: 12 }}>No open services right now</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 6 }}>This branch has no live queues at the moment. Check back a little later.</Text>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 24, alignItems: 'center' }}>
+            <Icon name="clock" size={28} color={colors.muted} />
+            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>No open lines right now</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+              This branch has nothing running at the moment. Try another branch, or plan a visit for when it&apos;s quiet.
+            </Text>
           </View>
         )}
 
-        {selected && (
-          <>
-            {/* service picker card */}
-            <View style={[t.cardLg, { padding: 18 }]}>
-              <TouchableOpacity onPress={() => setPickerOpen(o => !o)} style={{ backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 13, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ minWidth: 0, flex: 1 }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>Choose your service</Text>
-                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink, marginTop: 3 }}>{selected.name}</Text>
+        {lines.map(s => {
+          const on = s.id === selected?.id;
+          const wait = svcWait(s);
+          return (
+            <TouchableOpacity
+              key={s.id}
+              activeOpacity={0.9}
+              onPress={() => (on ? seeLine(s) : setSelectedId(s.id))}
+              accessibilityRole="button"
+              accessibilityLabel={`${s.name}, ${Number(s.waiting_count || 0)} in line, about ${wait} minutes`}
+              style={{ backgroundColor: on ? colors.accent : colors.surface, borderRadius: 22, paddingVertical: 17, paddingHorizontal: 19, marginBottom: 12 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 11, letterSpacing: 0.5, color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>
+                    {joinState.allowed ? (on ? 'TAP AGAIN TO SEE THE LINE' : 'JOIN NOW') : joinState.label.toUpperCase()}
+                  </Text>
+                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.8, marginTop: 3, color: on ? '#fff' : colors.ink }}>{s.name}</Text>
                 </View>
-                <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={pickerOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#fff" />
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: on ? '#fff' : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? colors.accent : '#fff' }}>{initials(branch?.business_name)}</Text>
                 </View>
-              </TouchableOpacity>
-
-              {pickerOpen && (
-                <View style={{ marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 6, gap: 3 }}>
-                  {/* Quick switcher: name + traffic dot only — the numbers live
-                      on the selected card and the comparison cards below. */}
-                  {services.map(s => {
-                    const on = s.id === selected.id;
-                    const meta = statusMeta(statusFromWait(svcWait(s)));
-                    return (
-                      <TouchableOpacity key={s.id} onPress={() => { setSelectedId(s.id); setPickerOpen(false); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 11, borderRadius: 11, backgroundColor: on ? colors.surfaceAlt : 'transparent' }}>
-                        <Text style={{ fontFamily: on ? font.extra : font.bold, fontSize: 14, color: colors.ink }}>{s.name}</Text>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: meta.dot }} />
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {/* Key for the dots */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, paddingTop: 9, paddingBottom: 4, paddingHorizontal: 11, borderTopWidth: 1, borderTopColor: colors.borderSoft, marginTop: 3 }}>
-                    {([['Light', colors.light], ['Busy', colors.moderate], ['High traffic', colors.busy]] as const).map(([label, dot]) => (
-                      <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
-                        <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{label}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', marginVertical: 22, marginBottom: 8 }}>
-                <ServiceStat value={joinState.allowed ? Number(selected.waiting_count || 0) : '—'} label="in line" />
-                <View style={{ width: 1, backgroundColor: colors.border }} />
-                <ServiceStat value={joinState.allowed ? `~${svcWait(selected)}` : '—'} unit={joinState.allowed ? 'm' : undefined} label="est. wait" />
-                <View style={{ width: 1, backgroundColor: colors.border }} />
-                <ServiceStat value={joinState.allowed ? leaveIn(selected) : '—'} unit={joinState.allowed ? 'm' : undefined} label="leave in" accent />
               </View>
-
-              <TouchableOpacity
-                onPress={() => join(selected)}
-                disabled={!joinState.allowed}
-                style={{ backgroundColor: colors.dark, borderRadius: 19, height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 22, paddingRight: 9, marginTop: 16, opacity: joinState.allowed ? 1 : 0.45 }}
-              >
-                <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: '#fff' }}>
-                  {joinState.allowed ? `Join this queue · ~${svcWait(selected)}m` : joinState.label}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15, paddingTop: 14, borderTopWidth: 1, borderTopColor: on ? 'rgba(255,255,255,.22)' : colors.border }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? 'rgba(255,255,255,.82)' : colors.muted }}>
+                  {Number(s.waiting_count || 0)} in line{s.active_counters != null ? ` · ${Number(s.active_counters)} counters` : ''}
                 </Text>
-                {joinState.allowed && (
-                  <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 17 }}>→</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* When to leave — only meaningful while the branch can actually be
-                joined. Closed, it becomes advice to set off for a locked door. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.infoSoft, borderWidth: 1, borderColor: '#dbeef4', borderRadius: 19, padding: 15, paddingHorizontal: 16, marginTop: 16 }}>
-              <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={joinState.allowed ? 'time-outline' : 'information-circle-outline'} size={17} color={colors.accentDeep} />
+                <Text style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.8, color: on ? '#fff' : colors.ink }}>
+                  {joinState.allowed ? `${wait} min` : '—'}
+                </Text>
               </View>
-              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.infoInk, lineHeight: 17 }}>
-                {joinState.allowed
-                  ? <>Leave in <Text style={{ fontFamily: font.extra }}>~{leaveIn(selected)} min</Text> to reach the front on time — we&apos;ll remind you once you join.</>
-                  : joinState.detail}
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* when to leave — only meaningful while the branch can actually be
+            joined. Closed, it becomes advice to set off for a locked door. */}
+        {!!selected && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 19, padding: 15, marginTop: 4 }}>
+            <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="clock" size={17} color={colors.accent} />
+            </View>
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)', lineHeight: 17 }}>
+              {joinState.allowed
+                ? <>Leave in <Text style={{ fontFamily: font.extra, color: '#fff' }}>~{leaveIn(selected)} min</Text> to reach the front on time. We&apos;ll remind you once you join.</>
+                : joinState.detail}
+            </Text>
+          </View>
+        )}
+
+        {/* premium best-time recommendation (live model output) */}
+        <BestTimeCard businessId={businessId} branchId={branchId} onPlan={() => navigation.navigate('Plan', { businessId, branchId })} />
+      </ScrollView>
+
+      {/* ── pickers ─────────────────────────────────────────────────── */}
+      <PickerSheet
+        open={branchPicker}
+        title="Change branch"
+        items={branches}
+        selectedId={branchId}
+        onClose={() => setBranchPicker(false)}
+        onSelect={(b) => {
+          if (b.id === branchId) return;
+          // Clear the service too: the old selection belongs to the old branch,
+          // and carrying it across would show a service this branch may not run.
+          setBranchId(b.id);
+          setSelectedId(null);
+          navigation.setParams({ branchId: b.id, branchName: b.name });
+        }}
+        renderRow={(b, on) => (
+          <>
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: on ? 'rgba(255,255,255,.2)' : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="pin" size={18} color={on ? '#fff' : colors.muted} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : colors.ink, letterSpacing: -0.3 }}>{b.name}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: on ? 'rgba(255,255,255,.75)' : colors.muted, marginTop: 3 }}>
+                {[b.city, `${Number(b.open_queues || 0)} open`].filter(Boolean).join(' · ')}
               </Text>
             </View>
-
-            {/* premium best-time recommendation (live model output) */}
-            <BestTimeCard businessId={businessId} branchId={branchId} onPlan={() => navigation.navigate('Plan', { businessId, branchId })} />
-
-            {/* other services */}
-            {others.length > 0 && (
-              <>
-                <View style={t.sectionRow}>
-                  <Text style={t.section}>Other services</Text>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted }}>{others.length} available</Text>
-                </View>
-                <View style={{ gap: 14 }}>
-                  {/* finance-goal card style: icon tile + name + chevron, then a
-                      busyness meter with the numbers on either end. */}
-                  {others.map(s => {
-                    const wait = svcWait(s);
-                    const meta = statusMeta(statusFromWait(wait));
-                    const busyRatio = Math.max(0.06, Math.min(1, wait / 60));
-                    return (
-                      <TouchableOpacity key={s.id} activeOpacity={0.88} onPress={() => setSelectedId(s.id)} style={[t.card, { padding: 17, borderRadius: 24 }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
-                          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="documents-outline" size={19} color={colors.accentDeep} />
-                          </View>
-                          <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{s.name}</Text>
-                          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="chevron-forward" size={15} color={colors.sub} />
-                          </View>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 18 }}>
-                          <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink }}>{Number(s.waiting_count || 0)} <Text style={{ fontSize: 13, fontFamily: font.bold, color: colors.muted }}>in line</Text></Text>
-                          <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink }}>~{wait}<Text style={{ fontSize: 13, fontFamily: font.bold, color: colors.muted }}>m wait</Text></Text>
-                        </View>
-                        <View style={{ height: 7, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden', marginTop: 11 }}>
-                          <View style={{ width: `${Math.round(busyRatio * 100)}%`, height: '100%', borderRadius: 4, backgroundColor: meta.dot }} />
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-                            <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>{meta.label}</Text>
-                          </View>
-                          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.faint }}>Tap to select</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </>
-            )}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : colors.ink }}>{Math.round(Number(b.avg_wait_minutes || 0))}m</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: on ? 'rgba(255,255,255,.75)' : colors.muted }}>WAIT</Text>
+            </View>
           </>
         )}
-      </ScrollView>
+      />
+
+      <PickerSheet
+        open={servicePicker}
+        title="Change service"
+        items={lines}
+        selectedId={selected?.id}
+        onClose={() => setServicePicker(false)}
+        onSelect={(s) => setSelectedId(s.id)}
+        renderRow={(s, on) => {
+          const meta = statusMeta(statusFromWait(svcWait(s)));
+          return (
+            <>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: on ? '#fff' : meta.dot }} />
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : colors.ink, letterSpacing: -0.3 }}>{s.name}</Text>
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? 'rgba(255,255,255,.85)' : colors.muted }}>
+                {Number(s.waiting_count || 0)} in line · {svcWait(s)}m
+              </Text>
+            </>
+          );
+        }}
+      />
     </View>
   );
 }

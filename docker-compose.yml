@@ -1,6 +1,6 @@
 
 # ─────────────────────────────────────────────────────────────
-#  Q ME NOW — Docker Compose
+#  LYNE — Docker Compose
 #  Starts: MySQL 8 database + Node.js/Express backend API
 #
 #  Usage:
@@ -14,7 +14,7 @@ services:
   # ── MySQL 8 ─────────────────────────────────────────────────
   db:
     image: mysql:8.0
-    container_name: qmenow_db
+    container_name: lyne_db
     restart: unless-stopped
     # The operational day is a LOCAL day. A container defaulting to UTC sits
     # five hours ahead of Jamaica, so from 7pm local every CURDATE() in the
@@ -24,36 +24,19 @@ services:
     environment:
       TZ: ${APP_TZ:-America/Jamaica}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE:      ${MYSQL_DATABASE:-qme_now}
-      MYSQL_USER:          ${MYSQL_USER:-qmenow}
-      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-qmenow_secret}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-lyne}
+      MYSQL_USER:          ${MYSQL_USER:-lyne}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-lyne_secret}
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       # Auto-run production schema + migrations on first start.
       # Demo seed data belongs on the demo branch only.
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-      - ./database/migrations/001_performance_indexes.sql:/docker-entrypoint-initdb.d/02_001_performance_indexes.sql:ro
-      - ./database/migrations/002_security_and_ocr.sql:/docker-entrypoint-initdb.d/03_002_security_and_ocr.sql:ro
-      - ./database/migrations/003_sessions_and_token_security.sql:/docker-entrypoint-initdb.d/04_003_sessions_and_token_security.sql:ro
-      - ./database/migrations/004_pipeline_and_tenant_hardening.sql:/docker-entrypoint-initdb.d/05_004_pipeline_and_tenant_hardening.sql:ro
-      - ./database/migrations/005_audit_tenant_scope.sql:/docker-entrypoint-initdb.d/06_005_audit_tenant_scope.sql:ro
-      - ./database/migrations/006_roles_and_demo_auth_hardening.sql:/docker-entrypoint-initdb.d/07_006_roles_and_demo_auth_hardening.sql:ro
-      - ./database/migrations/007_admin_dashboard_functionality.sql:/docker-entrypoint-initdb.d/08_007_admin_dashboard_functionality.sql:ro
-      - ./database/migrations/008_executive_employee_kpis.sql:/docker-entrypoint-initdb.d/09_008_executive_employee_kpis.sql:ro
-      - ./database/migrations/009_business_targets.sql:/docker-entrypoint-initdb.d/10_009_business_targets.sql:ro
-      - ./database/migrations/010_user_premium.sql:/docker-entrypoint-initdb.d/11_010_user_premium.sql:ro
-      - ./database/migrations/011_branch_hours.sql:/docker-entrypoint-initdb.d/12_011_branch_hours.sql:ro
-      - ./database/migrations/012_payments.sql:/docker-entrypoint-initdb.d/13_012_payments.sql:ro
-      - ./database/migrations/013_public_holidays.sql:/docker-entrypoint-initdb.d/14_013_public_holidays.sql:ro
-      - ./database/migrations/014_ml_data_collection.sql:/docker-entrypoint-initdb.d/15_014_ml_data_collection.sql:ro
-      - ./database/migrations/015_wtr_channel.sql:/docker-entrypoint-initdb.d/16_015_wtr_channel.sql:ro
-      - ./database/migrations/016_supervisor_role.sql:/docker-entrypoint-initdb.d/17_016_supervisor_role.sql:ro
-      - ./database/migrations/017_kiosk_role.sql:/docker-entrypoint-initdb.d/18_017_kiosk_role.sql:ro
-      - ./database/migrations/018_branch_targets.sql:/docker-entrypoint-initdb.d/19_018_branch_targets.sql:ro
-      - ./database/migrations/019_verification_code_per_queue.sql:/docker-entrypoint-initdb.d/20_019_verification_code_per_queue.sql:ro
-      - ./database/migrations/020_subscription_tiers_reference.sql:/docker-entrypoint-initdb.d/21_020_subscription_tiers_reference.sql:ro
+      # One mount, not thirty. database/docker-init.sh walks migrations/ in
+      # order, so a new migration needs no compose change. See that file.
+      - ./database:/lyne-sql:ro
+      - ./database/docker-init.sh:/docker-entrypoint-initdb.d/00-lyne-init.sh:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -61,14 +44,14 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - qmenow_net
+      - lyne_net
 
   # ── Node.js / Express API ────────────────────────────────────
   api:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    container_name: qmenow_api
+    container_name: lyne_api
     restart: unless-stopped
     depends_on:
       db:
@@ -79,18 +62,19 @@ services:
       PORT:                 4000
       MYSQL_HOST:           db
       MYSQL_PORT:           3306
-      MYSQL_USER:           ${MYSQL_USER:-qmenow}
-      MYSQL_PASSWORD:       ${MYSQL_PASSWORD:-qmenow_secret}
-      MYSQL_DATABASE:       ${MYSQL_DATABASE:-qme_now}
+      MYSQL_USER:           ${MYSQL_USER:-lyne}
+      MYSQL_PASSWORD:       ${MYSQL_PASSWORD:-lyne_secret}
+      MYSQL_DATABASE:       ${MYSQL_DATABASE:-lyne}
       SUPABASE_URL:         ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:8080}
+      PORTAL_HANDOFF_SECRET: ${PORTAL_HANDOFF_SECRET}
       ALLOWED_ORIGINS:      ${ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
     ports:
       - "4000:4000"
     networks:
-      - qmenow_net
+      - lyne_net
 
   analytics-worker:
     profiles:
@@ -98,7 +82,7 @@ services:
     build:
       context: ./apps/model
       dockerfile: Dockerfile
-    container_name: qmenow_analytics
+    container_name: lyne_analytics
     restart: unless-stopped
     depends_on:
       db:
@@ -108,9 +92,9 @@ services:
     environment:
       MYSQL_HOST:             db
       MYSQL_PORT:             3306
-      MYSQL_USER:             ${MYSQL_USER:-qmenow}
-      MYSQL_PASSWORD:         ${MYSQL_PASSWORD:-qmenow_secret}
-      MYSQL_DATABASE:         ${MYSQL_DATABASE:-qme_now}
+      MYSQL_USER:             ${MYSQL_USER:-lyne}
+      MYSQL_PASSWORD:         ${MYSQL_PASSWORD:-lyne_secret}
+      MYSQL_DATABASE:         ${MYSQL_DATABASE:-lyne}
       API_URL:                http://api:4000/api
       SUPABASE_URL:           ${SUPABASE_URL}
       SUPABASE_ANON_KEY:      ${SUPABASE_PUBLISHABLE_KEY}
@@ -123,19 +107,19 @@ services:
       - analytics_exports:/app/data_exports
       - analytics_state:/app/state
     networks:
-      - qmenow_net
+      - lyne_net
 
   # ── Adminer (optional DB GUI) ────────────────────────────────
   adminer:
     image: adminer:latest
-    container_name: qmenow_adminer
+    container_name: lyne_adminer
     restart: unless-stopped
     depends_on:
       - db
     ports:
       - "8081:8080"
     networks:
-      - qmenow_net
+      - lyne_net
     profiles:
       - tools   # Only starts with: docker compose --profile tools up
 
@@ -152,5 +136,5 @@ volumes:
 
 # ── Networks ─────────────────────────────────────────────────
 networks:
-  qmenow_net:
+  lyne_net:
     driver: bridge

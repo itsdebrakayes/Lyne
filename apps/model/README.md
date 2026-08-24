@@ -1,4 +1,4 @@
-# Q ME NOW — Live Model Worker
+# LYNE — Live Model Worker
 
 This app is the analytics/ML layer. A single containerized **live worker**
 (`scripts/live_worker.py`) trains and scores six models directly against the
@@ -44,7 +44,7 @@ Containerized (demo stack) — this is how it runs live:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d model-worker
-docker logs -f qmenow_model_worker
+docker logs -f lyne_model_worker
 ```
 
 Locally against a running DB (for development):

@@ -2,27 +2,27 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow, hexToRgba } from '../lib/theme';
 import { GlassView } from './Glass';
+import Icon, { IconName } from './Icon';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
 
 // Compact dark pill: icon-only tabs, active icon lifted in a white circle,
-// and a cyan center action for the app's core verb — joining a line.
-const LEFT_TABS: Array<{ key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = [
-  { key: 'Home', icon: 'home-outline', iconOn: 'home' },
-  { key: 'Search', icon: 'search-outline', iconOn: 'search' },
+// and a blue center action for the app's core verb — joining a line.
+const LEFT_TABS: Array<{ key: TabKey; icon: IconName; iconOn: IconName }> = [
+  { key: 'Home', icon: 'home', iconOn: 'home' },
+  { key: 'Search', icon: 'search', iconOn: 'search' },
 ];
-const RIGHT_TABS: Array<{ key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = [
-  { key: 'Saved', icon: 'bookmark-outline', iconOn: 'bookmark' },
-  { key: 'Profile', icon: 'person-outline', iconOn: 'person' },
+const RIGHT_TABS: Array<{ key: TabKey; icon: IconName; iconOn: IconName }> = [
+  { key: 'Saved', icon: 'bookmark', iconOn: 'bookmarkFilled' },
+  { key: 'Profile', icon: 'person', iconOn: 'person' },
 ];
 
-function useActiveTicket() {
+export function useActiveTicket() {
   const { data: ticket } = useQuery({
     queryKey: ['active-ticket'],
     queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
@@ -63,7 +63,7 @@ export function ActiveTicketPill() {
   );
 }
 
-function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }; active: boolean; onPress: () => void }) {
+function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: IconName; iconOn: IconName }; active: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -74,12 +74,17 @@ function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: keyof typ
         backgroundColor: active ? '#fff' : 'transparent',
       }}
     >
-      <Ionicons name={active ? tab.iconOn : tab.icon} size={20} color={active ? colors.dark : 'rgba(255,255,255,.55)'} />
+      <Icon name={active ? tab.iconOn : tab.icon} size={22} color={active ? colors.dark : 'rgba(255,255,255,.55)'} />
     </TouchableOpacity>
   );
 }
 
-export function TabBar({ active }: { active: TabKey }) {
+/**
+ * `showTicketPill` exists for screens that surface the live ticket themselves.
+ * Home carries it inline in the v5 layout, and rendering the floating pill on
+ * top of that would state the same thing twice, a few hundred pixels apart.
+ */
+export function TabBar({ active, showTicketPill = true }: { active: TabKey; showTicketPill?: boolean }) {
   const navigation = useNavigation<any>();
   const ticket = useActiveTicket();
 
@@ -99,7 +104,7 @@ export function TabBar({ active }: { active: TabKey }) {
         locations={[0, 0.42, 0.78]}
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
       />
-      <ActiveTicketPill />
+      {showTicketPill && <ActiveTicketPill />}
       <GlassView
         tint="dark"
         intensity={55}
@@ -126,7 +131,7 @@ export function TabBar({ active }: { active: TabKey }) {
             ...(hasTicket ? { shadowColor: colors.accent, shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 } : null),
           }}
         >
-          <Ionicons name="ticket" size={21} color={hasTicket ? colors.accentInk : 'rgba(255,255,255,0.4)'} />
+          <Icon name="ticket" size={23} color={hasTicket ? colors.accentInk : 'rgba(255,255,255,0.4)'} />
         </TouchableOpacity>
         {RIGHT_TABS.map(tab => (
           <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />

@@ -76,9 +76,19 @@ export function ErrorCard({
       </View>
       <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, marginTop: 10 }}>{title}</Text>
       <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 5, lineHeight: 18 }}>{message}</Text>
+      {/* accent/accentInk, not ink + hardcoded white. colors.ink is #eef2f8 in
+          dark mode, so this button was white text on a near-white pill —
+          invisible, on the one screen state where the user most needs something
+          to press. The accent pair flips with the theme. */}
       {onRetry ? (
-        <TouchableOpacity onPress={onRetry} activeOpacity={0.85} style={{ marginTop: 14, backgroundColor: colors.ink, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 22 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 13, color: '#fff' }}>Try again</Text>
+        <TouchableOpacity
+          onPress={onRetry}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+          style={{ marginTop: 14, minHeight: 44, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: 14, paddingHorizontal: 22 }}
+        >
+          <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentInk }}>Try again</Text>
         </TouchableOpacity>
       ) : null}
     </View>

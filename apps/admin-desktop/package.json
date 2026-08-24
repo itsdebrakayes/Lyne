@@ -1,9 +1,9 @@
 {
-  "name": "qme-now-admin-desktop",
+  "name": "lyne-admin-desktop",
   "version": "1.0.0",
-  "description": "QMe Now Admin Desktop App — Electron + React + Vite",
+  "description": "Lyne Admin Desktop App — Electron + React + Vite",
   "main": "dist-electron/main.js",
-  "author": "QMe Now",
+  "author": "Lyne",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"vite\" \"electron .\"",
@@ -22,7 +22,7 @@
     "next-themes": "^0.4.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.0",
+    "react-router-dom": "^7.18.2",
     "recharts": "^2.12.0",
     "sonner": "^1.4.0",
     "tailwind-merge": "^2.2.0"
@@ -42,8 +42,8 @@
     "vite-plugin-electron": "^0.28.4"
   },
   "build": {
-    "appId": "com.qmenow.admin",
-    "productName": "QMe Now Admin",
+    "appId": "com.lyne.admin",
+    "productName": "Lyne Admin",
     "directories": {
       "output": "release"
     },

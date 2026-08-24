@@ -18,9 +18,9 @@ def connect():
     return pymysql.connect(
         host=os.getenv("MYSQL_HOST", "127.0.0.1"),
         port=int(os.getenv("MYSQL_PORT", "3308")),
-        user=os.getenv("MYSQL_USER", "qmenow"),
-        password=os.getenv("MYSQL_PASSWORD", "qmenow_secret"),
-        database=os.getenv("MYSQL_DATABASE", "qme_now"),
+        user=os.getenv("MYSQL_USER", "lyne"),
+        password=os.getenv("MYSQL_PASSWORD", "lyne_secret"),
+        database=os.getenv("MYSQL_DATABASE", "lyne"),
         cursorclass=pymysql.cursors.DictCursor,
     )
 

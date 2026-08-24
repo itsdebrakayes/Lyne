@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-const key = (role: string) => `qme.tour.${role}`;
+const key = (role: string) => `lyne.tour.${role}`;
 
 export function useTour(role?: string) {
   const [running, setRunning] = useState(false);

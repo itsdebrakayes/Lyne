@@ -7,6 +7,7 @@ import { colors, font, t } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 
 interface NotificationRow {
   id: string;
@@ -77,11 +78,11 @@ export default function NotificationsScreen() {
           <ErrorCard title="Notifications unavailable" message="Your notifications could not be loaded right now." onRetry={() => refetch()} />
         )}
         {!isLoading && !error && notifications.length === 0 && (
-          <View style={[t.cardLg, { padding: 22, alignItems: 'center' }]}>
-            <Ionicons name="notifications-off-outline" size={28} color={colors.muted} />
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginTop: 12 }}>Nothing here yet</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', marginTop: 6 }}>Queue calls, wait-time changes and reminders will show up here.</Text>
-          </View>
+          <EmptyState
+            icon="bell"
+            title="Nothing to catch up on"
+            body="When you're called forward, when a wait changes, or when it's time to set off, it lands here."
+          />
         )}
 
         <View style={{ gap: 12 }}>

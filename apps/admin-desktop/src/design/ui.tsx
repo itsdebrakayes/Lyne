@@ -74,7 +74,7 @@ export type QxNav = { key: string; label: string; icon: ElementType; badge?: num
 
 export function Shell({
   brand, brandSub, nav, active, onNav, railCard, account,
-  search, context, notifications, theme, onTheme,
+  search, context, notifications, notify, theme, onTheme,
   head, children,
 }: {
   brand: string; brandSub?: string;
@@ -83,7 +83,10 @@ export function Shell({
   account: { name: string; role: string; email?: string; onSignOut?: () => void };
   search?: { value: string; onChange: (v: string) => void; placeholder?: string };
   context?: ReactNode;
+  /** Unread count on the bell. Kept for callers that only know the number. */
   notifications?: number;
+  /** The panel behind the bell. Without this the bell is a badge that does nothing. */
+  notify?: QxNotify;
   theme?: 'light' | 'dark'; onTheme?: () => void;
   head?: ReactNode;
   children: ReactNode;
@@ -159,10 +162,7 @@ export function Shell({
                 {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
               </button>
             ) : null}
-            <button type="button" className="qx-icon" aria-label={notifications ? `${notifications} notifications` : 'Notifications'}>
-              <BellIcon />
-              {notifications ? <span className="dot">{notifications > 9 ? '9+' : notifications}</span> : null}
-            </button>
+            <NotifyBell count={notifications ?? notify?.items.filter((n) => !n.read).length ?? 0} notify={notify} />
             <button type="button" className="qx-acct" onClick={account.onSignOut}
               aria-label={account.onSignOut ? `Sign out of ${account.name}'s account` : `Signed in as ${account.name}`}
               disabled={!account.onSignOut}>
@@ -175,6 +175,99 @@ export function Shell({
         {head}
         <div className="qx-body">{children}</div>
       </div>
+    </div>
+  );
+}
+
+
+/* ══════════════════════ notifications ══════════════════════
+   The bell used to be a badge with no click handler on every dashboard. This
+   is the panel behind it: newest first, unread called out, click a row to read
+   it (and follow it somewhere if it points anywhere), Escape and click-away to
+   dismiss. It is deliberately a popover rather than a route — checking who
+   needs you should not lose the screen you were working on.
+   ══════════════════════════════════════════════════════════ */
+
+export type QxNotifyItem = {
+  id: string;
+  title: string;
+  body?: string;
+  /** Pre-formatted, e.g. "12 min ago" — the panel does not do date maths. */
+  when?: string;
+  read?: boolean;
+  kind?: 'info' | 'warn' | 'urgent';
+  /** Where this notification wants to take you, if anywhere. */
+  onOpen?: () => void;
+};
+
+export type QxNotify = {
+  items: QxNotifyItem[];
+  loading?: boolean;
+  onRead?: (id: string) => void;
+  onReadAll?: () => void;
+};
+
+function NotifyBell({ count, notify }: { count: number; notify?: QxNotify }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e: MouseEvent) => {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const items = notify?.items ?? [];
+  const unread = items.filter((n) => !n.read).length || count;
+
+  return (
+    <div className="qx-notify" ref={wrap}>
+      <button type="button" className="qx-icon" aria-haspopup="dialog" aria-expanded={open}
+        aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        onClick={() => setOpen((v) => !v)}>
+        <BellIcon />
+        {unread ? <span className="dot">{unread > 9 ? '9+' : unread}</span> : null}
+      </button>
+
+      {open ? (
+        <div className="qx-notifypanel" role="dialog" aria-label="Notifications">
+          <header>
+            <b>Notifications</b>
+            {unread && notify?.onReadAll ? (
+              <button type="button" className="qx-btn ghost" onClick={() => notify.onReadAll?.()}>Mark All Read</button>
+            ) : null}
+          </header>
+
+          <div className="qx-notifylist">
+            {notify?.loading ? (
+              <p className="qx-notifyempty">Loading…</p>
+            ) : items.length === 0 ? (
+              /* Not a bare "nothing here" — say what this space is for, so an
+                 empty bell reads as calm rather than broken. */
+              <div className="qx-notifyempty">
+                <b>You are all caught up</b>
+                <span>Alerts about lines going over target, counters stalling, and requests from your team land here.</span>
+              </div>
+            ) : items.map((n) => (
+              <button key={n.id} type="button"
+                className={`qx-notifyrow${n.read ? '' : ' unread'}${n.kind ? ` ${n.kind}` : ''}`}
+                onClick={() => { notify?.onRead?.(n.id); n.onOpen?.(); if (n.onOpen) setOpen(false); }}>
+                <i aria-hidden="true" />
+                <span className="tx">
+                  <b>{n.title}</b>
+                  {n.body ? <small>{n.body}</small> : null}
+                </span>
+                {n.when ? <em>{n.when}</em> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -326,7 +419,15 @@ export function Chart({
 
   let lo = Math.min(...values, ...(cmp && showB ? cmp : [])), hi = Math.max(...values, ...(cmp && showB ? cmp : []));
   if (target != null) { lo = Math.min(lo, target); hi = Math.max(hi, target); }
+  // Everything this product charts — people, minutes, visits — has a real floor
+  // at zero. Remember whether the data does, BEFORE the headroom padding below
+  // pushes the axis past it.
+  const nonNegative = lo >= 0;
   const sp = (hi - lo) || 1; lo -= sp * 0.16; hi += sp * 0.14;
+  // The 16% breathing room under the lowest point is what put "-525" on an axis
+  // counting customers served. Padding is a layout nicety; it must not invent a
+  // quantity that cannot exist.
+  if (nonNegative && lo < 0) lo = 0;
   const xs = (i: number) => padL + (w - padL - padR) * (n < 2 ? 0.5 : i / (n - 1));
   const ys = (v: number) => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
   const line = smooth(values.map((v, i) => [xs(i), ys(v)]));
@@ -708,7 +809,7 @@ export function Status({ kind, children }: {
 export function Focus({ eyebrow, title, body, stats, action, tone, span }: {
   eyebrow?: string; title: string; body?: string;
   stats?: Array<{ label: string; value: string; dir?: 'good' | 'bad' }>;
-  action?: { label: string; onClick: () => void };
+  action?: { label: string; onClick: () => void; disabled?: boolean };
   tone?: 'bad' | 'warn'; span?: number;
 }) {
   return (
@@ -725,7 +826,7 @@ export function Focus({ eyebrow, title, body, stats, action, tone, span }: {
           ))}
         </div>
       ) : null}
-      {action ? <button type="button" className="qx-btn" onClick={action.onClick}>{action.label}</button> : null}
+      {action ? <button type="button" className="qx-btn" onClick={action.onClick} disabled={action.disabled}>{action.label}</button> : null}
     </div>
   );
 }
@@ -806,7 +907,7 @@ export function Heatmap({ colLabels, rowLabels, data, display, unit = '%' }: {
 
 /* ─────────────────────── channel split ─────────────────────── */
 /**
- * Two real channels only — the QMe app and the branch kiosk. Those are the only
+ * Two real channels only — the Lyne app and the branch kiosk. Those are the only
  * two ways a ticket can be created in this product, so a donut (which implies a
  * whole pie of many slices) is the wrong form. A split bar reads the share at a
  * glance and stays honest at n=2.

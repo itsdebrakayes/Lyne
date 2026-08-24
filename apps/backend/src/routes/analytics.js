@@ -20,6 +20,7 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -642,7 +643,9 @@ router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervi
     const slowdowns = slowRows.map((r) => ({
       counter_label: r.counter_label, service_name: r.service_name, staff_name: r.staff_name,
       current_avg: Number(r.current_avg), baseline: Number(r.baseline), sample: Number(r.sample),
-      message: `${r.counter_label} (${r.service_name}${r.staff_name ? `, ${r.staff_name}` : ''}) is serving ~${Math.round(r.current_avg)} min per customer — well above the usual ~${Math.round(r.baseline)}. Something is slowing this window down.`,
+      // Same reasoning as the idle message below: person first, and the counter
+      // label already carries the service, so it is not repeated.
+      message: `${r.staff_name || r.counter_label} is taking ~${Math.round(r.current_avg)} min per customer at ${r.counter_label}, against a usual ~${Math.round(r.baseline)}.`,
     }));
 
     // (B) Idle-with-demand — staffed window, nobody served lately, people waiting.
@@ -676,7 +679,14 @@ router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervi
       .map((r) => ({
         staff_name: r.staff_name, counter_label: r.counter_label, service_name: r.service_name,
         idle_minutes: r.idle_minutes, waiting: r.waiting,
-        message: `${r.counter_label} (${r.staff_name}, ${r.service_name}): no customer called in ${r.idle_minutes} min while ${r.waiting} are waiting — a stalled window during a rush.`,
+        /* The name goes first because the manager's next action is to speak to
+           a person, not to a window. The counter label already contains the
+           service ("Window 17 - TRN Registration"), so naming the service again
+           produced "Window TRN Registration - 3 (Demo Line Staff, TRN
+           Registration)" — the same words three times in one sentence. The
+           closing clause was also identical on every card, which made eight
+           genuinely different alerts look like one repeated one. */
+        message: `${r.staff_name} has called nobody at ${r.counter_label} for ${r.idle_minutes} min, with ${r.waiting} waiting.`,
       }))
       .sort((a, b) => (b.waiting * b.idle_minutes) - (a.waiting * a.idle_minutes));
 
@@ -811,7 +821,7 @@ router.get('/export-csv', requireAuth, requireStaffRole('supervisor', 'manager',
 });
 
 // POST /api/analytics/refresh — manually trigger analytics summary rebuild (executive only)
-router.post('/refresh', requireAuth, requireStaffRole('executive'), async (req, res) => {
+router.post('/refresh', requireAuth, requireStaffRole('executive'), validate(schemas.refreshAnalytics), async (req, res) => {
   try {
     const { lookback_days = 7 } = req.body;
     const safeDays = Math.min(Math.max(parseInt(lookback_days) || 7, 1), 365);
@@ -999,6 +1009,130 @@ router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', '
   } catch (err) {
     console.error('GET /analytics/counters failed:', err);
     res.status(500).json({ error: 'Could not load counters.' });
+  }
+});
+
+/**
+ * GET /analytics/readiness — whether the pre-visit prompt translated into a
+ * complete visit at the desk. The member's ticks are deliberately not treated
+ * as verification: readiness_outcome is recorded by staff when service ends.
+ */
+router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+
+    const period = ['today', 'this_week', 'last_week', 'month'].includes(req.query.period)
+      ? req.query.period
+      : 'this_week';
+    const range = periodRange(period, req.query.month);
+    const branchId = scopedBranchId(req, req.query.branch_id);
+    const serviceId = safeServiceId(req.query.service_id);
+    const conditions = [
+      'b.business_id = ?',
+      "t.status = 'served'",
+      range.ticketSql,
+    ];
+    const params = [businessId, ...range.params];
+    if (branchId) { conditions.push('q.branch_id = ?'); params.push(branchId); }
+    if (serviceId) { conditions.push('q.service_id = ?'); params.push(serviceId); }
+    const where = conditions.join(' AND ');
+
+    const [summaryRows] = await pool.query(
+      `SELECT COUNT(*) AS served_visits,
+              SUM(t.readiness_shown_at IS NOT NULL) AS checklist_shown,
+              SUM(t.readiness_outcome IN ('ready', 'incomplete')) AS assessed_visits,
+              SUM(t.readiness_outcome = 'ready') AS ready_visits,
+              SUM(t.readiness_outcome = 'incomplete') AS incomplete_visits,
+              SUM(t.readiness_shown_at IS NOT NULL AND t.readiness_outcome = 'not_checked') AS awaiting_outcome
+       FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
+       JOIN branches b ON b.id = q.branch_id
+       WHERE ${where}`,
+      params
+    );
+
+    const [services] = await pool.query(
+      `SELECT s.id AS service_id, s.name AS service_name,
+              (SELECT COUNT(*) FROM service_readiness sr
+                WHERE sr.service_id = s.id AND sr.is_active = TRUE) AS checklist_items,
+              SUM(t.readiness_shown_at IS NOT NULL) AS checklist_shown,
+              SUM(t.readiness_outcome IN ('ready', 'incomplete')) AS assessed_visits,
+              SUM(t.readiness_outcome = 'ready') AS ready_visits,
+              SUM(t.readiness_outcome = 'incomplete') AS incomplete_visits,
+              ROUND(100 * SUM(t.readiness_outcome = 'incomplete') /
+                NULLIF(SUM(t.readiness_outcome IN ('ready', 'incomplete')), 0), 1) AS incomplete_rate
+       FROM services s
+       JOIN businesses biz ON biz.id = s.business_id
+       LEFT JOIN queues q ON q.service_id = s.id
+         ${branchId ? 'AND q.branch_id = ?' : ''}
+       LEFT JOIN queue_tickets t ON t.queue_id = q.id
+         AND t.status = 'served'
+         AND ${range.ticketSql}
+       WHERE s.business_id = ? AND s.is_active = TRUE
+         ${serviceId ? 'AND s.id = ?' : ''}
+       GROUP BY s.id, s.name
+       ORDER BY incomplete_visits DESC, s.name`,
+      [
+        ...(branchId ? [branchId] : []),
+        ...range.params,
+        businessId,
+        ...(serviceId ? [serviceId] : []),
+      ]
+    );
+
+    const [recentIncomplete] = await pool.query(
+      `SELECT t.id, t.ticket_number, t.completed_at, t.readiness_note,
+              s.id AS service_id, s.name AS service_name,
+              b.id AS branch_id, b.name AS branch_name,
+              st.full_name AS staff_name
+       FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id
+       JOIN branches b ON b.id = q.branch_id
+       JOIN services s ON s.id = q.service_id
+       LEFT JOIN staff st ON st.id = t.served_by_staff_id
+       WHERE ${where} AND t.readiness_outcome = 'incomplete'
+       ORDER BY t.completed_at DESC
+       LIMIT 50`,
+      params
+    );
+
+    const row = summaryRows[0] || {};
+    const assessed = Number(row.assessed_visits || 0);
+    const incomplete = Number(row.incomplete_visits || 0);
+    const shown = Number(row.checklist_shown || 0);
+    res.json({
+      period,
+      summary: {
+        served_visits: Number(row.served_visits || 0),
+        checklist_shown: shown,
+        assessed_visits: assessed,
+        ready_visits: Number(row.ready_visits || 0),
+        incomplete_visits: incomplete,
+        awaiting_outcome: Number(row.awaiting_outcome || 0),
+        /* Assessed visits are NOT a subset of shown checklists: staff can record
+           an outcome for a walk-in or kiosk ticket that never saw the prompt. So
+           a branch could legitimately report 1 assessed against 0 shown, and the
+           screen then read as arithmetically impossible. The rate is only
+           meaningful where a checklist was actually shown; null means "not
+           applicable", which the UI states rather than printing a false 0%. */
+        assessed_rate: shown ? Math.round((assessed / shown) * 1000) / 10 : null,
+        incomplete_rate: assessed ? Math.round((incomplete / assessed) * 1000) / 10 : 0,
+      },
+      services: services.map((service) => ({
+        ...service,
+        checklist_items: Number(service.checklist_items || 0),
+        checklist_shown: Number(service.checklist_shown || 0),
+        assessed_visits: Number(service.assessed_visits || 0),
+        ready_visits: Number(service.ready_visits || 0),
+        incomplete_visits: Number(service.incomplete_visits || 0),
+        incomplete_rate: Number(service.incomplete_rate || 0),
+      })),
+      recent_incomplete: recentIncomplete,
+    });
+  } catch (err) {
+    console.error('GET /analytics/readiness failed:', err);
+    res.status(500).json({ error: 'Could not load readiness outcomes.' });
   }
 });
 

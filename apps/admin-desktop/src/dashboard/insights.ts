@@ -51,6 +51,26 @@ export function demandBranches(preds: Pred[], branchId?: string): any[] {
 export const clockLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'a' : 'p'}`;
 
 /**
+ * A MySQL TIME ("08:30:00") as a human clock time ("8:30am").
+ *
+ * Distinct from clockLabel, which takes an hour NUMBER for chart axes. Branch
+ * opening hours arrive as strings, and passing one to clockLabel yields "NaN".
+ * Returns null for a missing/!unparseable value so callers can choose their own
+ * placeholder rather than printing "Invalid Date".
+ */
+export function timeLabel(time?: string | null): string | null {
+  if (!time) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(time));
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mins = m[2];
+  if (!Number.isFinite(h) || h > 23) return null;
+  const suffix = h < 12 ? 'am' : 'pm';
+  const hour12 = ((h + 11) % 12) + 1;
+  return mins === '00' ? `${hour12}${suffix}` : `${hour12}:${mins}${suffix}`;
+}
+
+/**
  * Build the notifications-bell feed from the operational signals the dashboards
  * already compute — the same idle/slowdown/anomaly/target data, gathered into
  * one "needs attention" list. Ordered most-urgent first. Ids are stable per
@@ -59,14 +79,27 @@ export const clockLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'a' :
 export function deriveOpsAlerts(
   preds: Pred[],
   productivity: { slowdowns?: any[]; idle?: any[] } | null,
-  opts: { opsTab?: string; targetsTab?: string; max?: number } = {},
+  opts: {
+    opsTab?: string; targetsTab?: string; max?: number;
+    /** The reader's own "Alerts To Me" preferences (Settings tab). Absent means
+     *  "no preference saved" — show everything, which is what this did before
+     *  the preferences existed. `idleAfterMinutes: null` is a real choice
+     *  ("never"), so it must be distinguished from undefined. */
+    prefs?: { idleAfterMinutes?: number | null; lineOverTarget?: 'on' | 'off' };
+  } = {},
 ): AlertItem[] {
   const opsTab = opts.opsTab ?? 'overview';
   const targetsTab = opts.targetsTab ?? 'targets';
+  const idleAfter = opts.prefs?.idleAfterMinutes;
+  const idleOff = idleAfter === null;
+  const idleFloor = typeof idleAfter === 'number' ? idleAfter : 0;
   const alerts: AlertItem[] = [];
 
   // 1) Idle windows WITH people waiting — the most urgent "act now".
-  for (const i of productivity?.idle || []) {
+  // Honours the reader's threshold: "After 20 min" genuinely suppresses a
+  // window that has only been quiet for twelve.
+  for (const i of idleOff ? [] : (productivity?.idle || [])) {
+    if (Math.round(num(i.idle_minutes)) < idleFloor) continue;
     alerts.push({
       id: `idle:${i.staff_name}:${i.counter_label}`,
       tone: 'crit',
@@ -96,8 +129,9 @@ export function deriveOpsAlerts(
       tab: opsTab,
     });
   }
-  // 4) Targets trending off.
-  const ta = insightData(preds, 'target_attainment');
+  // 4) Targets trending off. Suppressed entirely when the reader has set
+  // "A Line Goes Over Target" to Never.
+  const ta = opts.prefs?.lineOverTarget === 'off' ? null : insightData(preds, 'target_attainment');
   for (const m of (Array.isArray(ta?.metrics) ? ta.metrics : [])) {
     if (m.status && m.status !== 'on_track') {
       alerts.push({

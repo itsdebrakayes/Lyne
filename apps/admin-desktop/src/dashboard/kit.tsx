@@ -78,7 +78,7 @@ export function Shell({
   return (
     <div className="qa-app qa-shell" data-theme={theme}>
       <aside className="qa-side">
-        <div className="qa-brand"><i>Q</i><div><b>QMe Now</b><small>{org}</small></div></div>
+        <div className="qa-brand"><i>Q</i><div><b>Lyne</b><small>{org}</small></div></div>
         <div className="qa-usercard">
           <span className="qa-av" style={{ '--h': hueFor(name) } as CSSProperties}>{initials(name)}</span>
           <div><b>{name}</b><small>{roleLabel}</small></div>
@@ -474,6 +474,30 @@ export function Area({ values, labels, target, targetLabel, marker, unitLabel, c
 
 /* ---------- KPI card ---------- */
 /** Small "open in depth" affordance for a card header. */
+/**
+ * Empty — the admin's one zero-data state.
+ *
+ * It lived inside ManagerDashboard, which is why Manager had eight of them and
+ * the Executive, Supervisor and Line Staff dashboards had none. On day one of a
+ * pilot every panel is empty, and that is the first thing a buyer sees, so the
+ * component belongs in the shared kit where every dashboard can reach it.
+ *
+ * `msg` is kept so the eight existing call sites keep working. Prefer the
+ * title/detail form: a panel that says WHY it is empty and when it will fill
+ * reads as a system that is working, not one that is broken.
+ */
+export function Empty({ msg, title, detail }: { msg?: string; title?: string; detail?: string }) {
+  if (title || detail) {
+    return (
+      <div className="qa-empty">
+        {title ? <b style={{ display: 'block', marginBottom: 4 }}>{title}</b> : null}
+        {detail ? <span>{detail}</span> : null}
+      </div>
+    );
+  }
+  return <div className="qa-empty">{msg}</div>;
+}
+
 export function MoreBtn({ onClick, label = 'View in depth' }: { onClick: () => void; label?: string }) {
   return <button type="button" className="qa-morebtn" onClick={onClick}>{label} →</button>;
 }

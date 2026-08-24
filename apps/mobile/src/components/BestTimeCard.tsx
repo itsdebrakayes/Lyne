@@ -67,7 +67,7 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
     <View style={{ backgroundColor: colors.dark, borderRadius: 20, padding: 16, marginTop: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
         <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="sparkles" size={19} color={colors.accent} />
+          <Ionicons name="time-outline" size={20} color={colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.accent, letterSpacing: 0.8 }}>PREMIUM · SMART TIMING</Text>
@@ -87,8 +87,14 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
               <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#fff' }}>
                 {[s.day_name, formatHour(s.hour)].filter(Boolean).join(' · ')}
               </Text>
-              {typeof s.score === 'number' && (
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent }}>{Math.round(s.score)}</Text>
+              {/* The model's own words ("~9 min predicted wait"), not its 0-100
+                  score. A bare "79" beside a sentence promising a 9 minute wait
+                  reads like the number contradicts the sentence — and nobody
+                  can tell whether higher is better. */}
+              {s.reason && (
+                <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent }}>
+                  {s.reason.replace(/\s*predicted wait\s*$/i, '')}
+                </Text>
               )}
             </View>
           ))}
@@ -97,7 +103,7 @@ export default function BestTimeCard({ businessId, branchId, onPlan }: { busines
 
       {onPlan && (
         <TouchableOpacity onPress={onPlan} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Plan your visit — every service, every branch</Text>
+          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Plan your visit. Every service, every branch</Text>
           <Ionicons name="arrow-forward" size={14} color={colors.accent} />
         </TouchableOpacity>
       )}

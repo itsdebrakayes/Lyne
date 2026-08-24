@@ -2,17 +2,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, initials } from '../../lib/theme';
+import { colors, font, t, type, initials } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
+import { useAuth } from '../../hooks/useAuth';
 import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
+import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
+import Icon from '../../components/Icon';
+import Walkers from '../../components/Walkers';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -24,10 +27,21 @@ const TERMINAL_META: Record<string, { label: string; tone: string; note: string 
   served: { label: 'Completed', tone: colors.light, note: 'This visit is complete. See you next time!' },
 };
 
+/** A label/value pair from the boarding pass's detail grid. */
+function Cell({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
+  return (
+    <View style={{ flex: wide ? 1.4 : 1, minWidth: 0 }}>
+      <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted, letterSpacing: 0.5 }}>{label}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, marginTop: 4, letterSpacing: -0.4 }}>{value}</Text>
+    </View>
+  );
+}
+
 export default function TicketScreen() {
-  const topPad = useTopPad(18);
+  const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
+  const { user } = useAuth();
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -118,16 +132,30 @@ export default function TicketScreen() {
     }
   };
 
-  if (!providedTicketId && activeTicketQuery.isLoading) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
+  if (!providedTicketId && activeTicketQuery.isLoading) {
+    return <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>;
+  }
+
+  // Empty state — the centre tab sits hollow when this is what you'd land on.
   if (!ticketId) return (
-    <View style={[t.root, { alignItems: 'center', justifyContent: 'center', padding: 28 }]}>
-      <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><Ionicons name="ticket-outline" size={30} color={colors.muted} /></View>
-      <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink }}>No active ticket</Text>
-      <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, textAlign: 'center', marginTop: 8 }}>You are not in a line right now. Find a branch and join from anywhere.</Text>
-      <TouchableOpacity style={[t.primaryBtn, { marginTop: 20, alignSelf: 'stretch' }]} onPress={() => navigation.navigate('Main')}><Text style={t.primaryBtnText}>Find a queue</Text></TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+      <View style={{ width: 132, height: 132, borderRadius: 44, backgroundColor: 'rgba(255,255,255,.07)', alignItems: 'center', justifyContent: 'center', marginBottom: 26 }}>
+        <Icon name="ticketOutline" size={62} color="rgba(255,255,255,.4)" />
+      </View>
+      <Text style={{ fontFamily: font.extra, fontSize: 24, color: '#fff', letterSpacing: -0.8 }}>You&apos;re not in a line</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 280 }}>
+        Join one and your ticket lives here — your number, your code, and how long you&apos;ve got.
+      </Text>
+      <TouchableOpacity onPress={() => navigation.navigate('Main')}
+        style={{ backgroundColor: colors.accent, borderRadius: 17, paddingVertical: 16, paddingHorizontal: 26, marginTop: 24 }}>
+        <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Find a branch</Text>
+      </TouchableOpacity>
     </View>
   );
-  if (ticketQuery.isLoading) return <View style={[t.root, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
+
+  if (ticketQuery.isLoading) {
+    return <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={colors.accent} /></View>;
+  }
   if (ticketQuery.error || !ticket) {
     return (
       <View style={[t.root, { justifyContent: 'center', padding: 24 }]}>
@@ -146,125 +174,152 @@ export default function TicketScreen() {
   const inService = ticket.status === 'in_service';
   const terminal = TERMINAL_META[ticket.status];
   const statusLabel = called
-    ? "It's your turn — head to the counter"
+    ? "It's your turn. Head to the counter"
     : inService
       ? 'You are being served now'
       : ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '));
+  const spot = ticket.waiting_position ?? ticket.position;
 
   return (
-    <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 44, flexGrow: 1 }} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
+    <View style={{ flex: 1, backgroundColor: colors.dark }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 32 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+
         {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+        <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Main')} accessibilityRole="button" accessibilityLabel="Go back"
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="back" size={21} color="#fff" />
           </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Queue ticket</Text>
-          <View style={{ width: 44 }} />
+          <Text style={{ fontFamily: font.extra, fontSize: 18, color: '#fff', letterSpacing: -0.4 }}>Your ticket</Text>
         </View>
 
-        {/* ticket card */}
-        <View style={[t.cardLg, { borderRadius: 26, overflow: 'hidden', padding: 0 }]}>
-          {/* dark header */}
-          <View style={{ backgroundColor: colors.dark, padding: 16, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.ink }}>{initials(ticket.branch_name)}</Text>
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{ticket.branch_name || 'Branch'}</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{ticket.service_name || 'Service'}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 14, paddingVertical: 6, paddingHorizontal: 11 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-              <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>LIVE</Text>
-            </View>
+        {/* status banner — the one thing that must never be missed */}
+        {(called || inService) && (
+          <View style={{ backgroundColor: called ? colors.accent : colors.light, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }}>
+            <Icon name="check" size={22} color="#fff" />
+            <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{statusLabel}</Text>
           </View>
+        )}
 
-          {/* body */}
-          <View style={{ padding: 24, paddingTop: 28, alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>{ticket.service_name || 'Your service'}</Text>
-            <Text style={{ fontFamily: font.extra, fontSize: 64, color: colors.ink, letterSpacing: -2, lineHeight: 66, marginVertical: 8 }}>{ticket.ticket_number}</Text>
-            <View style={{ backgroundColor: called ? colors.accent : inService ? colors.light : colors.surfaceAlt, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 15 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: called ? colors.accentInk : inService ? '#fff' : colors.ink }}>{statusLabel}</Text>
-            </View>
-            {called && (
-              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.sub, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
-                Go to the counter and show the code below before the call window closes.
+        {/* the pass */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 28 }}>
+          <View style={{ padding: 24, paddingBottom: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: 0.5 }}>
+                {ticket.ticket_number}{spot ? ` · SPOT ${spot}` : ''}
               </Text>
-            )}
-            {active && !called && !inService && (
-              <View style={{ flexDirection: 'row', marginTop: 24, alignSelf: 'stretch' }}>
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ahead}</Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>ahead of you</Text>
-                </View>
-                <View style={{ width: 1, backgroundColor: colors.border }} />
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink }}>{ticket.estimated_wait_minutes}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, marginTop: 6 }}>est. wait</Text>
-                </View>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{initials(ticket.business_name || ticket.branch_name)}</Text>
+            </View>
+
+            {/* your number → the front of the line */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 26, marginBottom: 6 }}>
+              <View style={{ flexShrink: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 46, color: colors.ink, letterSpacing: -2.2, lineHeight: 48 }}>{ticket.ticket_number}</Text>
+                <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 8 }}>Your number</Text>
               </View>
-            )}
+              <View style={{ marginLeft: 'auto', alignItems: 'flex-end', paddingLeft: 12 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 46, color: called ? colors.accent : colors.ink, letterSpacing: -2.2, lineHeight: 48 }}>
+                  {called ? 'NOW' : ahead}
+                </Text>
+                <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 8 }}>
+                  {called ? "It's your turn" : 'Ahead of you'}
+                </Text>
+              </View>
+            </View>
+
+            {active && !called && <Walkers waiting={ticket.total_waiting ?? ahead + 1} />}
+
+            <View style={{ flexDirection: 'row', marginTop: active && !called ? 20 : 26 }}>
+              <Cell label="EST. WAIT" value={active ? `${ticket.estimated_wait_minutes}m` : '—'} />
+              <Cell label="IN THIS LINE" value={ticket.total_waiting ?? ahead + 1} />
+              <Cell label="STATUS" value={active ? (called ? 'Called' : inService ? 'Serving' : 'Waiting') : (terminal?.label || '—')} wide />
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 22 }}>
+              <Cell label="BRANCH" value={ticket.branch_name || '—'} wide />
+              <Cell label="SERVICE" value={ticket.service_name || '—'} wide />
+            </View>
+
+            {/* The person, not the agency. This read "Passport Office of
+                Jamaica" under a TICKET HOLDER label, which is the one line on
+                a pass that has to name whoever is standing there. */}
+            <View style={{ marginTop: 24 }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted, letterSpacing: 0.5 }}>TICKET HOLDER</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 29, color: colors.ink, letterSpacing: -1.1, marginTop: 5 }}>
+                {user?.full_name || 'You'}
+              </Text>
+            </View>
           </View>
 
-          {/* perforation */}
-          <View style={{ height: 0, position: 'relative' }}>
-            <View style={{ position: 'absolute', left: -13, top: -13, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.bg }} />
-            <View style={{ position: 'absolute', right: -13, top: -13, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.bg }} />
+          {/* perforation — notches punched out of the pass in the page colour */}
+          <View style={{ height: 30, marginTop: 24, justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', left: -15, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.dark }} />
+            <View style={{ position: 'absolute', right: -15, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.dark }} />
+            <View style={{ marginHorizontal: 18, borderTopWidth: 1.8, borderStyle: 'dashed', borderColor: '#D3D9E3' }} />
           </View>
 
-          {/* barcode */}
-          <View style={{ padding: 24, paddingTop: 26, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginHorizontal: 22 }}>
+          {/* the code you hand over */}
+          <View style={{ padding: 24, paddingTop: 4, alignItems: 'center' }}>
             {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
-            <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1, marginTop: 14 }}>{ticket.verification_code || '—'}</Text>
-            <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.faint, marginTop: 5 }}>Show at registration to confirm it&apos;s you</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: 8, marginTop: 13, marginLeft: 8 }}>
+              {ticket.verification_code || '—'}
+            </Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted, marginTop: 6, letterSpacing: 0.5 }}>SHOW THIS CODE AT THE COUNTER</Text>
           </View>
         </View>
 
         {/* terminal note */}
         {terminal && (
-          <View style={[t.card, { marginTop: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }]}>
-            <Ionicons name={ticket.status === 'served' ? 'checkmark-circle' : 'alert-circle'} size={22} color={terminal.tone} style={{ marginTop: 1 }} />
-            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{terminal.note}</Text>
+          <View style={{ backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 19, marginTop: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+            <Icon name={ticket.status === 'served' ? 'check' : 'bell'} size={22} color={terminal.tone} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.8)', lineHeight: 19 }}>{terminal.note}</Text>
           </View>
         )}
 
-        {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 12, textAlign: 'center' }}>{error}</Text>}
+        {!!error && <Text style={{ fontFamily: font.bold, color: colors.busy, marginTop: 12, textAlign: 'center' }}>{error}</Text>}
 
         {/* actions */}
-        <View style={{ marginTop: 28, flexDirection: 'row', gap: 12 }}>
+        <View style={{ marginTop: 22, flexDirection: 'row', gap: 12 }}>
           {active ? (
             <>
               <TouchableOpacity
                 disabled={alerts === 'enabling' || alerts === 'on'}
                 onPress={enableAlerts}
-                style={[t.primaryBtn, { flex: 1, minHeight: 54 }, alerts === 'on' && { backgroundColor: colors.light }]}
+                style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: alerts === 'on' ? colors.light : colors.accent, alignItems: 'center', justifyContent: 'center' }}
               >
                 {alerts === 'enabling' ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                    <Ionicons name={alerts === 'on' ? 'notifications' : 'notifications-outline'} size={16} color={colors.onDark} />
-                    <Text style={t.primaryBtnText}>{alerts === 'on' ? 'Alerts on' : 'Notify me'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Icon name="bell" size={18} color="#fff" />
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>{alerts === 'on' ? 'Alerts on' : 'Notify me'}</Text>
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity disabled={leaving} onPress={() => { haptics.warning(); setConfirmLeave(true); }} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}>
-                {leaving ? <ActivityIndicator color={colors.danger} /> : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Leave queue</Text>}
-              </TouchableOpacity>
+              <Press disabled={leaving} label="Leave this queue"
+                hint="Gives up your place in line"
+                onPress={() => { haptics.warning(); setConfirmLeave(true); }}
+                style={{ flex: 1, minHeight: 56, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 } as never}>
+                {leaving ? <ActivityIndicator color={colors.busy} /> : <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.busy }}>Leave queue</Text>}
+              </Press>
             </>
           ) : terminal && ticket.status !== 'served' ? (
             <>
-              <TouchableOpacity onPress={rejoin} style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Rejoin queue</Text></TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('Main')} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]}><Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Home</Text></TouchableOpacity>
+              <TouchableOpacity onPress={rejoin} style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Rejoin queue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ flex: 1, minHeight: 56, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>Home</Text>
+              </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity onPress={() => navigation.navigate('Main')} style={[t.primaryBtn, { flex: 1, minHeight: 54 }]}><Text style={t.primaryBtnText}>Return home</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Return home</Text>
+            </TouchableOpacity>
           )}
         </View>
-        {active && alerts === 'on' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
-        {active && alerts === 'denied' && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
+        {active && alerts === 'on' && <Text style={{ ...type.caption, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
+        {active && alerts === 'denied' && <Text style={{ ...type.caption, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
 
       <ConfirmSheet

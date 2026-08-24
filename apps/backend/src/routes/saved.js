@@ -8,6 +8,7 @@
 
 const router = require('express').Router();
 const pool = require('../db/pool');
+const { toPublicBusiness } = require('../utils/publicShapes');
 const { requireAuth } = require('../middleware/auth');
 
 router.get('/', requireAuth, async (req, res) => {
@@ -23,7 +24,11 @@ router.get('/', requireAuth, async (req, res) => {
        ORDER BY sb.saved_at DESC`,
       [userId]
     );
-    res.json(rows);
+    /* `SELECT b.*` here carried the same commercial fields the anonymous
+       /api/businesses route was publishing — subscription_tier_id and friends —
+       just to a signed-in customer instead. saved_at is the only thing this
+       route adds beyond the public business shape. */
+    res.json(rows.map((row) => ({ ...toPublicBusiness(row), saved_at: row.saved_at })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch saved businesses.' });

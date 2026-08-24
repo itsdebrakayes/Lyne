@@ -1,4 +1,4 @@
-# Q ME NOW — Admin Desktop App
+# LYNE — Admin Desktop App
 
 A role-based admin desktop application built with **Electron + React + Vite + TypeScript**.
 Packages into a Windows `.exe` installer via `electron-builder`.
@@ -19,7 +19,7 @@ Packages into a Windows `.exe` installer via `electron-builder`.
 
 - Node.js 18+
 - pnpm (or npm/yarn)
-- Running Q ME NOW backend API (`apps/backend`)
+- Running LYNE backend API (`apps/backend`)
 - Supabase project (Auth only)
 
 ---
@@ -56,7 +56,7 @@ The installer will be output to `apps/admin-desktop/release/`.
 Set-Location apps\admin-desktop
 npm install
 npm run build:win
-Start-Process "release\Q ME NOW Admin Setup 1.0.0.exe"
+Start-Process "release\LYNE Admin Setup 1.0.0.exe"
 ```
 
 ---

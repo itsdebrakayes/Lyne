@@ -1,60 +1,62 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=Parisienne&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
- * QME Now design system.
- * Palette derived from the QME Now Design Specification (queue-master-reimagined).
- * Deep violet-tinted canvas, hairline glass, serif accents.
+ * Lyne design system.
+ * Palette: one blue across all three surfaces — see docs/DESIGN_DIAGNOSIS_AND_PALETTE.md.
+ * Deep navy canvas, hairline glass, serif and script accents.
  */
 
 :root {
   --radius: 0.875rem;
 
   /* Default = dark purple marketing surface */
-  --background: #0d0d1a;
+  --background: #08111c;
   --foreground: #ffffff;
   --card: #16162a;
   --card-foreground: #ffffff;
   --popover: #16162a;
   --popover-foreground: #ffffff;
-  --primary: #7b5fff;
+  --primary: #5a93e8;
   --primary-foreground: #ffffff;
   --secondary: #1f1f38;
   --secondary-foreground: #ffffff;
   --muted: #1f1f38;
-  --muted-foreground: #a78bfa;
-  --accent: #533483;
+  --muted-foreground: #8fa3bd;
+  --accent: #1b4b8f;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.14);
-  --ring: #7b5fff;
+  --ring: #5a93e8;
 
   /* Gradients */
   --gradient-hero: radial-gradient(
       120% 120% at 50% 20%,
-      rgba(123, 95, 255, 0.45) 0%,
-      rgba(83, 52, 131, 0.25) 35%,
+      rgba(90, 147, 232, 0.45) 0%,
+      rgba(27, 75, 143, 0.25) 35%,
       transparent 70%
     ),
-    linear-gradient(160deg, #0d0d1a 0%, #1a0a2e 55%, #2a0f3e 100%);
+    linear-gradient(160deg, #08111c 0%, #1a0a2e 55%, #2a0f3e 100%);
   --gradient-warm: radial-gradient(
     60% 60% at 15% 95%,
     rgba(245, 166, 35, 0.5) 0%,
     transparent 70%
   );
-  --gradient-purple: linear-gradient(135deg, #7b5fff 0%, #533483 100%);
+  /* Same hue at two depths, not two different hues — a gradient BETWEEN
+     hues is the thing that reads as generated. */
+  --gradient-purple: linear-gradient(135deg, #2f6bff 0%, #12326b 100%);
   --gradient-glass: linear-gradient(
     160deg,
     rgba(255, 255, 255, 0.08) 0%,
     rgba(255, 255, 255, 0.02) 100%
   );
 
-  --shadow-soft: 0 18px 60px -20px rgba(123, 95, 255, 0.45);
+  --shadow-soft: 0 18px 60px -20px rgba(90, 147, 232, 0.45);
   --shadow-card: 0 10px 40px -12px rgba(0, 0, 0, 0.5);
 }
 
@@ -75,7 +77,7 @@
   }
 
   ::selection {
-    background: rgba(123, 95, 255, 0.35);
+    background: rgba(90, 147, 232, 0.35);
   }
 }
 
@@ -99,15 +101,15 @@
     transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
   }
   .glass-hover:hover {
-    border-color: rgba(123, 95, 255, 0.45);
+    border-color: rgba(90, 147, 232, 0.45);
     transform: translateY(-3px);
-    box-shadow: 0 18px 50px -18px rgba(123, 95, 255, 0.35);
+    box-shadow: 0 18px 50px -18px rgba(90, 147, 232, 0.35);
   }
   .glass-ticket {
-    background: linear-gradient(150deg, rgba(123, 95, 255, 0.16), rgba(83, 52, 131, 0.1));
+    background: linear-gradient(150deg, rgba(90, 147, 232, 0.16), rgba(27, 75, 143, 0.1));
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(123, 95, 255, 0.25);
+    border: 1px solid rgba(90, 147, 232, 0.25);
   }
   .lg-hairline {
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -121,7 +123,7 @@
   }
 }
 
-@keyframes qme-float {
+@keyframes lyne-float {
   0%,
   100% {
     transform: translateY(0);
@@ -131,25 +133,25 @@
   }
 }
 .animate-float {
-  animation: qme-float 6s ease-in-out infinite;
+  animation: lyne-float 6s ease-in-out infinite;
 }
 
-@keyframes qme-pulse-ring {
+@keyframes lyne-pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(123, 95, 255, 0.5);
+    box-shadow: 0 0 0 0 rgba(90, 147, 232, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 22px rgba(123, 95, 255, 0);
+    box-shadow: 0 0 0 22px rgba(90, 147, 232, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(123, 95, 255, 0);
+    box-shadow: 0 0 0 0 rgba(90, 147, 232, 0);
   }
 }
 .animate-pulse-ring {
-  animation: qme-pulse-ring 2s ease-out infinite;
+  animation: lyne-pulse-ring 2s ease-out infinite;
 }
 
-@keyframes qme-aurora {
+@keyframes lyne-aurora {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -162,13 +164,13 @@
   }
 }
 .animate-aurora {
-  animation: qme-aurora 18s ease-in-out infinite;
+  animation: lyne-aurora 18s ease-in-out infinite;
 }
 .animate-aurora-slow {
-  animation: qme-aurora 28s ease-in-out infinite;
+  animation: lyne-aurora 28s ease-in-out infinite;
 }
 
-@keyframes qme-shimmer {
+@keyframes lyne-shimmer {
   0% {
     background-position: -200% 0;
   }
@@ -178,11 +180,11 @@
 }
 .animate-shimmer {
   background-size: 200% 100%;
-  animation: qme-shimmer 6s linear infinite;
+  animation: lyne-shimmer 6s linear infinite;
 }
 
 /* =====================================================================
- * Editorial luxury marketing system (QME Now)
+ * Editorial luxury marketing system (Lyne)
  * ===================================================================== */
 @layer components {
   .lux-container {
@@ -217,8 +219,8 @@
   .panel-elev {
     background: linear-gradient(
       180deg,
-      rgba(33, 26, 56, 0.9),
-      rgba(18, 14, 32, 0.85)
+      rgba(16, 30, 56, 0.9),
+      rgba(10, 18, 36, 0.85)
     );
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius);
@@ -230,7 +232,7 @@
     transition: border-color 0.25s ease, transform 0.25s ease, background 0.25s ease;
   }
   .panel-hover:hover {
-    border-color: rgba(123, 95, 255, 0.45);
+    border-color: rgba(47, 107, 255, 0.45);
     transform: translateY(-3px);
   }
 
@@ -239,11 +241,11 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.4rem 1.15rem;
+    padding: 0.35rem 0.8rem;
     border-radius: 999px;
-    background: rgba(123, 95, 255, 0.1);
-    color: #c4b5fd;
-    border: 1px solid rgba(123, 95, 255, 0.28);
+    background: rgba(47, 107, 255, 0.1);
+    color: #b7d5ff;
+    border: 1px solid rgba(47, 107, 255, 0.28);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.14em;
@@ -251,7 +253,7 @@
   }
   .chip-mute {
     background: rgba(255, 255, 255, 0.04);
-    color: #a9a4c0;
+    color: #9fb3d0;
     border-color: rgba(255, 255, 255, 0.1);
   }
 
@@ -270,15 +272,15 @@
       border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .btn-primary {
-    background: linear-gradient(135deg, #8b73ff 0%, #6b4eff 100%);
+    background: linear-gradient(135deg, #4a86ff 0%, #1d4ed8 100%);
     color: #fff;
-    box-shadow: 0 14px 40px -12px rgba(123, 95, 255, 0.8),
-      0 0 0 1px rgba(123, 95, 255, 0.4) inset;
+    box-shadow: 0 14px 40px -12px rgba(47, 107, 255, 0.8),
+      0 0 0 1px rgba(47, 107, 255, 0.4) inset;
   }
   .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 20px 50px -14px rgba(123, 95, 255, 0.95),
-      0 0 0 1px rgba(123, 95, 255, 0.6) inset;
+    box-shadow: 0 20px 50px -14px rgba(47, 107, 255, 0.95),
+      0 0 0 1px rgba(47, 107, 255, 0.6) inset;
   }
   .btn-ghost {
     background: rgba(255, 255, 255, 0.04);
@@ -287,7 +289,7 @@
   }
   .btn-ghost:hover {
     background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(123, 95, 255, 0.5);
+    border-color: rgba(47, 107, 255, 0.5);
   }
   .btn-lg {
     padding: 1.15rem 2.1rem;
@@ -297,13 +299,13 @@
 
   /* Text gradients */
   .gradient-text {
-    background: linear-gradient(180deg, #ffffff, #b7b2d6);
+    background: linear-gradient(180deg, #ffffff, #b0c6e6);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
   .accent-text {
-    background: linear-gradient(135deg, #c4b5fd 0%, #7b5fff 100%);
+    background: linear-gradient(135deg, #b7d5ff 0%, #2f6bff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -315,15 +317,31 @@
     background-clip: text;
     color: transparent;
     background-size: cover;
-    background-position: center 35%;
+    background-position: center 45%;
     background-repeat: no-repeat;
   }
 
-  /* Very slight glow that reads as light coming from within the letters */
+  /* Soft blue halo around the image-filled hero wordmark. */
   .text-clip-glow {
     filter:
-      drop-shadow(0 0 4px rgba(244, 114, 182, 0.45))
-      drop-shadow(0 0 8px rgba(232, 121, 249, 0.25));
+      drop-shadow(0 1px 1px rgba(6, 13, 28, 0.55))
+      drop-shadow(0 3px 10px rgba(183, 213, 255, 0.3))
+      drop-shadow(0 3px 16px rgba(96, 165, 250, 0.43))
+      drop-shadow(0 7px 36px rgba(47, 107, 255, 0.3));
+  }
+
+  .hero-wordmark {
+    position: relative;
+    top: 0.06em;
+    line-height: 1;
+    padding-bottom: 0.18em;
+  }
+
+  .script {
+    font-family: 'Parisienne', 'Instrument Serif', cursive;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 0.9;
   }
 
   /* Faint grid texture for hero / sections */
@@ -341,11 +359,11 @@
     display: flex;
     gap: 3rem;
     width: max-content;
-    animation: qme-marquee 40s linear infinite;
+    animation: lyne-marquee 40s linear infinite;
   }
 }
 
-@keyframes qme-marquee {
+@keyframes lyne-marquee {
   from {
     transform: translateX(0);
   }
@@ -355,9 +373,9 @@
 }
 
 .blink-dot {
-  animation: qme-blink 1.8s ease-in-out infinite;
+  animation: lyne-blink 1.8s ease-in-out infinite;
 }
-@keyframes qme-blink {
+@keyframes lyne-blink {
   0%,
   100% {
     opacity: 1;
@@ -380,7 +398,7 @@
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 18px 40px -18px rgba(123, 95, 255, 0.6);
+    0 18px 40px -18px rgba(47, 107, 255, 0.6);
   transform: translate(var(--mx, 0), var(--my, 0));
 }
 @keyframes sq-float {
@@ -405,5 +423,5 @@
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #533483;
+  background: #1b4b8f;
 }

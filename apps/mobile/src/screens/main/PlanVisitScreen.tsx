@@ -3,7 +3,7 @@
  *
  * Best time to visit, per service, per branch — computed from the last 90
  * days of real visit history. Free tier sees the branch-level headline and a
- * locked preview; QMe Premium unlocks the per-service planner. The trial
+ * locked preview; Lyne Premium unlocks the per-service planner. The trial
  * button flips the flag server-side so both states are real, not mocked.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -12,15 +12,14 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
+import { openSubscriptionPortal } from '../../lib/subscriptionPortal';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
-import { CardSheet } from '../../components/CardSheet';
-import { idempotencyKey, TokenizedCard } from '../../lib/stripe';
-import { getPremiumPreview } from '../../lib/premiumPreview';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -58,12 +57,13 @@ export default function PlanVisitScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const [preview, setPreview] = useState(false);
-  useFocusEffect(useCallback(() => { getPremiumPreview().then(setPreview); }, []));
-  const premium = Boolean(Number(user?.is_premium || 0)) || preview;
+  /* Entitlement comes from the server record and nothing else. This used to be
+     `|| preview`, where `preview` was a device-local toggle anybody could flip
+     in Settings — it unlocked the paid planner for free, and an App Store
+     reviewer would have found it in the first minute. */
+  const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const { data: branches = [] } = useQuery({
     queryKey: ['mobile-branches'],
@@ -97,19 +97,6 @@ export default function PlanVisitScreen() {
     }
   };
 
-  // Real paid checkout: the card was tokenized on the device; we send only the
-  // pm id + a client idempotency key. Premium flips via the Stripe webhook on
-  // capture, so we refresh the profile after the charge is accepted.
-  const subscribeWithCard = async (card: TokenizedCard) => {
-    await api.post('/payments/create-intent', {
-      payment_method_id: card.id,
-      idempotency_key: idempotencyKey(),
-      purpose: 'premium_subscription',
-      save_card: true,
-    });
-    await refreshProfile();
-    setCheckoutOpen(false);
-  };
 
   return (
     <View style={t.root}>
@@ -150,7 +137,7 @@ export default function PlanVisitScreen() {
             <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="sparkles" size={20} color={colors.accent} />
+                  <Ionicons name="time-outline" size={21} color={colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
@@ -170,6 +157,19 @@ export default function PlanVisitScreen() {
               <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
             </View>
 
+            {/* A branch with no served history yet has nothing to forecast from.
+                That is a real state on day one of a pilot, and saying so beats
+                rendering an empty "Best time by service" heading over nothing. */}
+            {plan.services.length === 0 ? (
+              <EmptyState
+                icon="clock"
+                title="Not enough visits yet"
+                body="Smart Timing needs a few days of real visits at this branch before it can tell you when it's quiet. Check back shortly."
+                actionLabel="See live waits instead"
+                onAction={() => navigation.goBack()}
+              />
+            ) : (
+            <>
             {/* per-service planner */}
             <View style={t.sectionRow}>
               <Text style={t.section}>Best time by service</Text>
@@ -226,8 +226,8 @@ export default function PlanVisitScreen() {
                 {/* upsell */}
                 <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="sparkles" size={15} color={colors.accent} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>QME PREMIUM</Text>
+                    <Ionicons name="time-outline" size={16} color={colors.accent} />
+                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
                   </View>
                   <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
                   {[
@@ -249,19 +249,24 @@ export default function PlanVisitScreen() {
                       </>
                     )}
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setCheckoutOpen(true)} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Ionicons name="card-outline" size={16} color="#fff" />
-                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe with a card</Text>
+                  {/* No card sheet. Apple does not permit an app to sell a
+                      digital subscription outside In-App Purchase, so the
+                      purchase happens on the website — the same pattern
+                      ChatGPT and Claude use. openSubscriptionPortal explains
+                      that before it opens anything. */}
+                  <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Ionicons name="open-outline" size={16} color="#fff" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
                   </TouchableOpacity>
                   <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
                 </View>
               </>
             )}
+            </>
+            )}
           </>
         )}
       </ScrollView>
-
-      <CardSheet visible={checkoutOpen} onClose={() => setCheckoutOpen(false)} onToken={subscribeWithCard} title="Get QMe Premium" submitLabel="Subscribe" />
     </View>
   );
 }

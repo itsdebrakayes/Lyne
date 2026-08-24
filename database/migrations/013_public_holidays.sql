@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 013: Public holiday calendar
+-- LYNE — Migration 013: Public holiday calendar
 -- Government-agency queues (TAJ, NHT, PICA) spike hard around public
 -- holidays and the surrounding days. Until now `is_holiday` was hardcoded
 -- to 0 everywhere (export_csv.py, analytics.js), so the wait-time model
@@ -12,7 +12,7 @@
 -- (3rd Monday in October) are pre-computed per year.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 CREATE TABLE IF NOT EXISTS public_holidays (
     holiday_date  DATE         NOT NULL,

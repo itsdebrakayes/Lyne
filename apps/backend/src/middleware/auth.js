@@ -65,6 +65,38 @@ async function requireAuth(req, res, next) {
 }
 
 /**
+ * optionalAuth — identify the caller if they happen to be signed in, and let
+ * them through regardless if they are not.
+ *
+ * The session portal needs exactly this. A motorist with a court deadline must
+ * be able to register from a browser with no account at all (see rule 2 in
+ * routes/sessions.js), but a mobile user who IS signed in should have that
+ * registration attached to their account so it appears under "my registrations"
+ * rather than becoming an orphan guest row on their own phone.
+ *
+ * Every failure mode here is a pass-through, deliberately: no header, a bad
+ * token, an expired token, Supabase being unreachable. This middleware must
+ * never be the reason an anonymous person cannot register — it only ever ADDS
+ * identity, and no route behind it may grant anything on the strength of it
+ * that an anonymous caller could not also have.
+ */
+async function optionalAuth(req, _res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!supabase || !authHeader?.startsWith('Bearer ')) return next();
+
+    const { data, error } = await supabase.auth.getUser(authHeader.split(' ')[1]);
+    if (error || !data?.user) return next();
+
+    req.supabaseUser = data.user;
+    Object.assign(req, await lookupActorBySupabaseUid(data.user.id));
+  } catch {
+    /* Identification is a bonus here, never a gate. */
+  }
+  return next();
+}
+
+/**
  * requireRole — restrict to specific staff roles.
  * Usage: router.get('/path', requireAuth, requireRole('manager', 'executive'), handler)
  */
@@ -80,4 +112,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole, lookupActorBySupabaseUid };
+module.exports = { requireAuth, optionalAuth, requireRole, lookupActorBySupabaseUid };

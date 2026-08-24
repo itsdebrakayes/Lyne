@@ -1,12 +1,12 @@
 -- =============================================================
--- Q ME NOW — Migration 017: Kiosk clerk role + walk-in guest fields
+-- LYNE — Migration 017: Kiosk clerk role + walk-in guest fields
 -- A branch-scoped intake account that logs in on the mobile app and adds
 -- WALK-IN customers (who don't have the app) to the queue on their behalf.
 -- Its tickets are anonymous (no user account), so queue_tickets gains a guest
 -- name/phone to display to line staff and to notify the customer.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 INSERT IGNORE INTO roles (id, name, label, description) VALUES
 ('role-kiosk-001', 'kiosk_clerk', 'Kiosk Clerk',

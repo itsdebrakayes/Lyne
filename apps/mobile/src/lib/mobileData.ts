@@ -6,6 +6,8 @@ export interface BranchSummary {
   business_name: string;
   business_slug: string;
   name: string;
+  address?: string | null;
+  phone?: string | null;
   city?: string;
   parish?: string;
   latitude?: number;
@@ -23,6 +25,7 @@ export interface ServiceSummary {
   business_id: string;
   business_name: string;
   name: string;
+  description?: string | null;
   waiting_count: number;
   avg_wait_minutes: number;
   base_avg_time_minutes: number;
@@ -30,6 +33,19 @@ export interface ServiceSummary {
    *  requests, matches /queues/live exactly. Null when browsing across branches. */
   estimated_wait_minutes?: number | null;
   active_counters?: number | null;
+  readiness_count?: number;
+  readiness?: ServiceReadinessItem[];
+}
+
+export interface ServiceReadinessItem {
+  id: string;
+  service_id: string;
+  kind: 'bring' | 'prepare';
+  seq: number;
+  label: string;
+  detail?: string | null;
+  is_mandatory: boolean;
+  lead_minutes?: number | null;
 }
 
 export interface TicketRecord {
@@ -39,15 +55,21 @@ export interface TicketRecord {
   verification_code: string;
   position: number;
   waiting_position?: number | null;
+  /** How many are in this line in total — returned by GET /tickets/:id. */
+  total_waiting?: number | null;
   estimated_wait_minutes: number;
   status: string;
   business_id?: string;
   branch_id?: string;
   branch_name?: string;
+  business_name?: string;
   service_id?: string;
   service_name?: string;
   is_next?: boolean;
   status_message?: string | null;
+  readiness_shown_at?: string | null;
+  readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
+  readiness_note?: string | null;
 }
 
 export interface SavedBusiness {

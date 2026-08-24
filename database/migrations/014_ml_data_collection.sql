@@ -1,5 +1,5 @@
 -- =============================================================
--- Q ME NOW — Migration 014: Data collection for the ML layer
+-- LYNE — Migration 014: Data collection for the ML layer
 -- Two gaps the model review surfaced:
 --   1. No customer-experience signal was captured anywhere, so satisfaction
 --      and its link to wait time / churn could never be modelled. Add a
@@ -9,7 +9,7 @@
 --      the ticket so the no-show model and channel analytics are trustworthy.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

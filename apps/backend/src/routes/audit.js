@@ -1,5 +1,5 @@
 /**
- * audit.js — Audit log read route for Q ME NOW
+ * audit.js — Audit log read route for LYNE
  *
  * GET /api/audit              — List audit log entries (manager/executive only)
  * GET /api/audit/:id          — Get a single audit log entry

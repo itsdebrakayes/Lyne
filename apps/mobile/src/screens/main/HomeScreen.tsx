@@ -2,31 +2,73 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t, categoryTints, initials, statusFromWait, statusMeta, waitLabel, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, activeScheme } from '../../lib/theme';
+import { colors, font, shadow, t, sp, type, initials, personInitials, statusFromWait, statusMeta, waitShort, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, TAB_BAR_CLEARANCE } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { TabBar } from '../../components/TabBar';
-import { GlassView, Sheen } from '../../components/Glass';
-import { PremiumBadge } from '../../components/PremiumBadge';
+import { TabBar, useActiveTicket } from '../../components/TabBar';
+import { Sheen } from '../../components/Glass';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import Icon, { IconName } from '../../components/Icon';
+import Appear from '../../components/Appear';
 
-function timeGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning,';
-  if (hour < 17) return 'Good afternoon,';
-  return 'Good evening,';
-}
+/**
+ * Marketplace — v5.
+ *
+ * The old quick-action row (Open now / Agencies / Saved / Visits / Help) was
+ * five peer shortcuts wearing the costume of a category picker. In the approved
+ * design that row IS a category picker, so it now filters by sector — which the
+ * data actually carries. Saved and Profile live in the tab bar, so nothing that
+ * row used to reach has been lost.
+ *
+ * Sectors are derived from the businesses on screen rather than hardcoded from
+ * sector_profiles: a demo that is all government agencies should not show five
+ * dead filters, and a credit union onboarded next week should appear without a
+ * code change.
+ */
 
-const QUICK: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; tint: keyof typeof categoryTints }> = [
-  { label: 'Nearby', icon: 'location-outline', tint: 'blue' },
-  { label: "Gov't", icon: 'business-outline', tint: 'green' },
-  { label: 'Banks', icon: 'card-outline', tint: 'purple' },
-  { label: 'Utilities', icon: 'flash-outline', tint: 'orange' },
-  { label: 'Saved', icon: 'bookmark-outline', tint: 'pink' },
-];
+const SECTOR_ICON: Record<string, IconName> = {
+  government_revenue: 'government',
+  judiciary: 'government',
+  financial_services: 'financial',
+  microfinance: 'financial',
+  university: 'education',
+  diagnostics: 'health',
+};
+
+const SECTOR_LABEL: Record<string, string> = {
+  government_revenue: 'Government',
+  judiciary: 'Courts',
+  financial_services: 'Financial',
+  microfinance: 'Microfinance',
+  university: 'Education',
+  diagnostics: 'Health',
+};
+
+interface BusinessRow { id: string; name: string; sector?: string | null; slug?: string }
+
+/**
+ * Sector filter — parked, not deleted.
+ *
+ * The row only has content worth showing once at least a few sectors have
+ * businesses in them. With just Government populated it rendered as a wide
+ * white box holding two tiles and a lot of nothing. The code stays so it can
+ * come back the day a credit union or a university is onboarded; flip this to
+ * true then. Everything below is sized for the space it frees up.
+ */
+/* Below this many organisations, Home stops pretending to be a marketplace.
+
+   "Shortest waits" above one lonely card, then "Agencies near you" above the
+   same card again, is a screen announcing an emptiness it could have simply not
+   announced. The launch state instead gives the one participating organisation
+   real room and fills the rest with things that are true regardless of how many
+   clients exist — how Lyne works, and that more are coming.
+
+   Two, not one: the same problem exists with a pair. */
+const SPARSE_MAX = 2;
+
+const SHOW_SECTOR_FILTER = false;
 
 function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = colors.ink, border = true }: { label: string; size?: number; radius?: number; bg?: string; fg?: string; border?: boolean }) {
   const onColor = fg === '#fff' || fg === '#ffffff' || fg === colors.onDark;
@@ -41,23 +83,39 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
 }
 
 export default function HomeScreen() {
-  const topPad = useTopPad(24);
+  const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [sector, setSector] = useState<string | null>(null);
+  const [openOnly, setOpenOnly] = useState(true);
   const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
+  const ticket = useActiveTicket();
+
   const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
-
+  const { data: businesses = [] } = useQuery({
+    queryKey: ['mobile-businesses'],
+    queryFn: () => api.get<BusinessRow[]>('/businesses', false),
+  });
   const { data: notifications = [], refetch: refetchNotifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Array<{ id: string; is_read: boolean | number }>>('/notifications'),
     refetchInterval: 30_000,
   });
-  const hasUnread = notifications.some(n => !n.is_read);
+  const unread = notifications.filter(n => !n.is_read).length;
+
+  /* "Good morning" at 9pm is the kind of small lie that makes an app feel
+     unattended. Computed per render, not per session. */
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -65,224 +123,435 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [refetch, refetchNotifications]);
 
+  const sectorOf = useMemo(() => {
+    const map = new Map<string, string>();
+    businesses.forEach(b => { if (b.sector) map.set(b.id, b.sector); });
+    return map;
+  }, [businesses]);
+
+  // Only offer a sector chip when something is actually filed under it.
+  const sectors = useMemo(() => {
+    const present = new Set<string>();
+    branches.forEach(b => { const s = sectorOf.get(b.business_id); if (s) present.add(s); });
+    return Array.from(present);
+  }, [branches, sectorOf]);
+
   // Branches that are actually OPEN now (by their own hours) rank first — a
-  // closed branch's stale low wait must never beat a live line for the hero or
-  // the "near you" list.
+  // closed branch's stale low wait must never beat a live line.
   const sorted = useMemo(() => {
     const now = new Date();
     const openRank = (b: BranchSummary) => (branchOpenInfo(now, hoursFromBranch(b)).state === 'open' ? 1 : 0);
-    return [...branches].sort((a, b) =>
-      (openRank(b) - openRank(a)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
-  }, [branches]);
-  const shortest = sorted[0];
-  // Hero reflects the best branch's state (sorted open-first). Each row below
-  // computes its own state, so branches on different hours read correctly.
-  const open = branchOpenInfo(new Date(), shortest ? hoursFromBranch(shortest) : undefined);
-  const isOpen = open.state === 'open';
-  const soon = open.state === 'about_to_open';
-  const closed = open.state === 'closed';
-  const agencies = useMemo(() => {
-    const seen = new Set<string>();
-    return branches.filter(b => (seen.has(b.business_id) ? false : (seen.add(b.business_id), true))).slice(0, 8);
-  }, [branches]);
-  const liveNear = sorted.slice(0, 4);
+    return [...branches]
+      .filter(b => !sector || sectorOf.get(b.business_id) === sector)
+      .filter(b => !openOnly || branchOpenInfo(now, hoursFromBranch(b)).state === 'open')
+      .sort((a, b) => (openRank(b) - openRank(a)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
+  }, [branches, sector, sectorOf, openOnly]);
+
+  // One row per agency, carrying that agency's best branch — the marketplace
+  // browses agencies, and five rows of the same agency's branches is a list
+  // that repeats itself instead of showing choice.
+  const agencyRows = useMemo(() => {
+    const byBusiness = new Map<string, { best: BranchSummary; count: number }>();
+    sorted.forEach(b => {
+      const hit = byBusiness.get(b.business_id);
+      if (!hit) byBusiness.set(b.business_id, { best: b, count: 1 });
+      else hit.count += 1;
+    });
+    return Array.from(byBusiness.values());
+  }, [sorted]);
 
   const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
-  const openAgency = (b: BranchSummary) => navigation.navigate('Business', { businessId: b.business_id, businessName: b.business_name });
+
+  const ahead = ticket ? Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1) : 0;
 
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={[t.content, { paddingTop: topPad }]}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
-        {/* greeting header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 24 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ borderRadius: 23, ...shadow.depth }}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <Sheen radius={23} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{initials(user?.full_name || 'Q')}</Text>
+        {/* greeting + location */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 52 }}>
+          {/* Visually 38, but hitSlop keeps the real target at 44 — the header
+              is furniture, not the point of the screen, and it was competing
+              with the headline underneath it. */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Your account"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            style={{ borderRadius: 19, ...shadow.depth }}
+          >
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <Sheen radius={19} />
+              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 13.5, ...depthText }}>{personInitials(user?.full_name || 'L')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.sub }}>{timeGreeting()}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3, marginTop: 1 }}>{firstName}</Text>
+            {/* The greeting moved into the headline below — saying "Hello, X"
+                here and "Good morning, X" twenty pixels lower said the same
+                thing twice and made neither land. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="pin" size={13} color={colors.muted} />
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>Kingston, Jamaica</Text>
+              <Icon name="chevronDown" size={11} color={colors.muted} />
+            </View>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={t.iconBtn}>
-            <Ionicons name="notifications-outline" size={19} color={colors.ink} />
-            {hasUnread && <View style={{ position: 'absolute', top: 10, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, borderWidth: 1.5, borderColor: '#fff' }} />}
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name="bell" size={21} color={colors.ink} />
+            {unread > 0 && (
+              <View style={{ position: 'absolute', top: -1, right: -1, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: colors.busy, borderWidth: 2.5, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 10, color: '#fff' }}>{unread}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
+        {/* live ticket — the reminder tile from the reference, doing real work */}
+        {!!ticket && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
+            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14, ...shadow.card }}
+          >
+            <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="clock" size={23} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                {ticket.status === 'called' ? "It's your turn" : "You're in line"}
+              </Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>
+                {ticket.branch_name || 'Your branch'} · {ahead} ahead
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ backgroundColor: colors.dark, borderRadius: 9, paddingVertical: 8, paddingHorizontal: 8, minWidth: 32, alignItems: 'center' }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>{Math.max(0, Number(ticket.estimated_wait_minutes || 0))}</Text>
+              </View>
+              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.muted }}>min</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* The opening. Plain type on the canvas — no card, no border, nothing
+            around it. This is the one place on Home that should be loud, and it
+            is loud by being large rather than by being a coloured box. */}
+        {/* Two lines at the same size, differing only in colour, gave the eye
+            nothing to rank — so neither read as the point. The greeting is
+            context and steps down to it; the question is the screen's actual
+            prompt and keeps the display size. The gap between them is what
+            makes them two thoughts instead of one paragraph. */}
+        <View style={{ marginTop: ticket ? 24 : 20 }}>
+          <Text style={{ ...type.callout, fontSize: 15, color: colors.muted }}>
+            {greeting}, {firstName}.
+          </Text>
+          <Text style={{ ...type.displayLg, color: colors.ink, marginTop: 10 }}>
+            What do you need{'\n'}to get done?
+          </Text>
+        </View>
+
         {/* search */}
-        <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Search')} style={{ marginBottom: 28 }}>
-          <GlassView radius={26} intensity={45} style={{ height: 54, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, ...shadow.card }}>
-            <Ionicons name="search-outline" size={17} color={colors.muted} />
-            <Text style={t.searchText}>Search agencies & branches</Text>
-          </GlassView>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Search')}
+          style={{ height: 56, borderRadius: 18, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 16, paddingRight: 8, marginTop: 22, ...shadow.card }}>
+          <Icon name="search" size={20} color={colors.muted} />
+          <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.muted }}>Search agencies &amp; branches</Text>
+          <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="sliders" size={20} color={colors.accentInk} />
+          </View>
         </TouchableOpacity>
 
-        {/* quick actions — glass cards */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 }}>
-          {QUICK.map(q => {
-            const tint = categoryTints[q.tint];
+        {/* Sector filter. space-between only once the row is full: with two
+            sectors it threw one tile against each edge and read as a layout
+            bug rather than a short list. */}
+        {SHOW_SECTOR_FILTER && sectors.length > 0 && (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 18, paddingHorizontal: 12, flexDirection: 'row', justifyContent: sectors.length >= 4 ? 'space-between' : 'flex-start', gap: sectors.length >= 4 ? 0 : 8, marginTop: 16, ...shadow.card }}>
+            {[null, ...sectors].slice(0, 5).map(s => {
+              const on = sector === s;
+              const label = s === null ? 'All' : (SECTOR_LABEL[s] || s.replace(/_/g, ' '));
+              const icon: IconName = s === null ? 'grid' : (SECTOR_ICON[s] || 'grid');
+              return (
+                <TouchableOpacity key={s ?? 'all'} onPress={() => setSector(s)} accessibilityRole="button" accessibilityLabel={`Filter by ${label}`}
+                  style={{ alignItems: 'center', gap: 9, width: 64 }}>
+                  <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: on ? colors.accent : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name={icon} size={26} color={on ? colors.accentInk : colors.muted} />
+                  </View>
+                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 11, color: on ? colors.accent : colors.muted }}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* open now / all + sort */}
+        {/* Chips, not two elevated cards. A filter is a control, not a
+            surface — giving it its own shadow put it at the same visual weight
+            as the branches it filters. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22 }}>
+          {([['Open now', true], ['All', false]] as const).map(([label, val]) => {
+            const on = openOnly === val;
             return (
-              <TouchableOpacity key={q.label} activeOpacity={0.85} onPress={() => navigation.navigate(q.label === 'Saved' ? 'Saved' : 'Search')} style={{ alignItems: 'center', gap: 10, width: 60 }}>
-                <GlassView radius={20} intensity={38} style={{ width: 58, height: 58, alignItems: 'center', justifyContent: 'center', ...shadow.depth }}>
-                  {/* In dark mode the pastel wash goes translucent so the tile
-                      stays dark and the colored icon carries the identity. */}
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tint.bg, opacity: activeScheme === 'dark' ? 0.14 : 0.55 }} />
-                  <Sheen radius={20} strength={activeScheme === 'dark' ? 0.4 : 0.7} />
-                  <Ionicons name={q.icon} size={22} color={tint.fg} />
-                </GlassView>
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{q.label}</Text>
+              <TouchableOpacity key={label} onPress={() => setOpenOnly(val)}
+                accessibilityRole="button" accessibilityLabel={`${label}${on ? ', selected' : ''}`}
+                /* accent/accentInk, not ink/onDark. In dark mode colors.ink is
+                   #eef2f8 and colors.onDark is #ffffff — white on near-white,
+                   so the selected chip vanished. The accent pair is the one
+                   that flips correctly with the theme: dark blue with white
+                   ink in light, light blue with near-black ink in dark. */
+                style={{ minHeight: 44, justifyContent: 'center', backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.border, borderRadius: 999, paddingHorizontal: 16 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? colors.accentInk : colors.sub }}>{label}</Text>
               </TouchableOpacity>
             );
           })}
+          <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>Shortest first</Text>
         </View>
-
-        {/* join hero */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          disabled={!shortest}
-          onPress={() => shortest && openBranch(shortest)}
-          style={{ backgroundColor: colors.dark, borderRadius: 30, padding: closed ? 20 : 24, marginBottom: 18, ...shadow.hero }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="time-outline" size={22} color={colors.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.4 }}>
-                {isOpen ? 'Tap to join a queue' : soon ? 'Be first in line' : 'Queues are closed'}
-              </Text>
-              {!closed && (
-                <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>
-                  {isOpen ? 'Live waits at every branch, in one tap' : 'Doors open soon — line up before the rush'}
-                </Text>
-              )}
-            </View>
-            <View style={{ width: 42, height: 42, borderRadius: 15, backgroundColor: isOpen ? colors.accent : 'rgba(255,255,255,.12)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={isOpen ? 'arrow-forward' : soon ? 'flash' : 'lock-closed'} size={18} color={isOpen ? colors.accentInk : soon ? colors.accent : 'rgba(255,255,255,.6)'} />
-            </View>
-          </View>
-          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginVertical: closed ? 15 : 22 }} />
-          {isOpen ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
-              <View style={{ flexShrink: 0 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Shortest wait nearby</Text>
-                <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', letterSpacing: -1, marginTop: 8 }}>{waitLabel(shortest?.avg_wait_minutes)}</Text>
-              </View>
-              {shortest && (
-                <View style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,.1)', borderRadius: 13, paddingVertical: 9, paddingHorizontal: 13, marginBottom: 2 }}>
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light, flexShrink: 0 }} />
-                  <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.bold, fontSize: 12.5, color: '#fff' }}>{shortest.business_slug?.toUpperCase() || initials(shortest.business_name)} · {shortest.name}</Text>
-                </View>
-              )}
-            </View>
-          ) : soon ? (
-            <View>
-              <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.accent, textTransform: 'uppercase', letterSpacing: 0.8 }}>About to open</Text>
-              <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.4, marginTop: 7 }}>{open.detail}</Text>
-            </View>
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 18, color: '#fff', letterSpacing: -0.3 }}>Closed now</Text>
-              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,.55)' }}>{open.detail}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* smart timing — plan your visit */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => navigation.navigate('Plan')} style={{ marginBottom: 8 }}>
-          <GlassView radius={24} intensity={40} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 17, paddingHorizontal: 18, ...shadow.card }}>
-            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="sparkles" size={19} color={colors.accentDeep} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 16, color: colors.ink, letterSpacing: -0.2 }}>Plan your visit</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>Best time for every service</Text>
-            </View>
-            <PremiumBadge size="sm" />
-            <Ionicons name="chevron-forward" size={17} color={colors.chevron} />
-          </GlassView>
-        </TouchableOpacity>
 
         {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (
-          <ErrorCard
-            title="Live data unavailable"
-            message="We couldn't reach the queue service. Check your connection and try again."
-            onRetry={() => refetch()}
-          />
+          <ErrorCard title="Live data unavailable" message="We couldn't reach the queue service. Check your connection and try again." onRetry={() => refetch()} />
         )}
 
-        {/* top agencies */}
-        {agencies.length > 0 && (
-          <>
-            <View style={t.sectionRow}>
-              <Text style={t.section}>Top agencies</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>See all</Text></TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingBottom: 2 }} style={{ marginBottom: 4 }}>
-              {agencies.map(a => (
-                <TouchableOpacity key={a.business_id} onPress={() => openAgency(a)} style={{ alignItems: 'center', gap: 9, width: 64 }}>
-                  <Monogram label={a.business_slug?.toUpperCase().slice(0, 4) || initials(a.business_name)} />
-                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 12, color: colors.sub }}>{a.business_slug?.toUpperCase() || initials(a.business_name)}</Text>
+        {/* Featured — the job finder's "Recommended" rail: a horizontal run of
+            cards with the first one filled in the accent, so the shortest wait
+            nearby is the thing your eye lands on rather than a row in a list. */}
+        {/* ── the launch state ───────────────────────────────────────────
+            One or two organisations, given the room a marketplace rail would
+            have wasted on white space. */}
+        {!isLoading && !error && agencyRows.length > 0 && agencyRows.length <= SPARSE_MAX && (
+          <View style={{ marginTop: 30 }}>
+            <Text style={{ ...type.overline, color: colors.muted }}>Available on Lyne</Text>
+
+            {agencyRows.map(({ best, count }) => {
+              const wait = Math.round(Number(best.avg_wait_minutes || 0));
+              const hours = hoursFromBranch(best);
+              const info = branchOpenInfo(new Date(), hours);
+              const isOpen = info.state === 'open';
+              return (
+                <TouchableOpacity
+                  key={best.business_id}
+                  activeOpacity={0.9}
+                  onPress={() => openBranch(best)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${best.business_name}, ${count} branch${count === 1 ? '' : 'es'}, ${isOpen ? `shortest wait ${wait} minutes` : 'closed'}`}
+                  style={{ marginTop: 16 }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
+                    <Monogram label={best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)} size={54} radius={18} bg={colors.dark} fg="#fff" border={false} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ ...type.title, color: colors.ink }}>
+                        {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
+                      </Text>
+                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 4 }}>
+                        {count} branch{count === 1 ? '' : 'es'}{best.city ? ` · ${best.city}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Only claims a live wait when the branch is actually open —
+                      a closed branch's stale number is the screen lying. */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }}>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: isOpen ? colors.light : colors.faint }} />
+                    {isOpen ? (
+                      <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.sub }}>
+                        Open now · shortest wait right now{' '}
+                        <Text style={{ fontFamily: font.extra, color: colors.ink }}>{waitShort(wait)}</Text>
+                      </Text>
+                    ) : (
+                      <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.sub }}>{info.detail}</Text>
+                    )}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16 }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accent }}>Explore</Text>
+                    <Icon name="arrowUpRight" size={15} color={colors.accent} />
+                  </View>
                 </TouchableOpacity>
-              ))}
+              );
+            })}
+
+            {/* Branded content rather than blank space. True on day one and
+                true at fifty clients, so it never has to be taken down. */}
+            <View style={{ marginTop: 34, paddingTop: 26, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Text style={{ ...type.title, color: colors.ink }}>Skip the wait.</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 15, color: colors.muted, marginTop: 6, lineHeight: 21 }}>
+                Find the fastest time to get in and out.
+              </Text>
+
+              <View style={{ marginTop: 22, gap: 16 }}>
+                {[
+                  ['search', 'Find it', 'Search a service, place or agency.'],
+                  ['users', 'Take your place', 'Join the line before you leave home.'],
+                  ['clock', 'Arrive when it\'s time', 'Watch it move, and walk in on your turn.'],
+                ].map(([icon, title, body]) => (
+                  <View key={title} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 13 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name={icon as IconName} size={17} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.3 }}>{title}</Text>
+                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 }}>{body}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.faint, marginTop: 30 }}>
+              More places are coming to Lyne.
+            </Text>
+          </View>
+        )}
+
+        {agencyRows.length > SPARSE_MAX && (
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 26, marginBottom: 14 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>Shortest waits</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accent }}>See all ›</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 13, paddingRight: 4, paddingVertical: 2 }}>
+              {agencyRows.slice(0, 5).map(({ best, count }, i) => {
+                const wait = Math.round(Number(best.avg_wait_minutes || 0));
+                const featured = i === 0;
+                return (
+                  <TouchableOpacity key={best.business_id} activeOpacity={0.9} onPress={() => openBranch(best)}
+                    style={{ width: 252, borderRadius: 24, padding: 17, backgroundColor: featured ? colors.accent : colors.surface, ...shadow.card }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: featured ? '#fff' : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: featured ? colors.accent : '#fff' }}>
+                          {best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: featured ? '#fff' : colors.ink, letterSpacing: -0.3 }}>
+                          {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.medium, fontSize: 11.5, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>
+                            {best.city || 'Jamaica'}
+                          </Text>
+                          <Icon name="check" size={13} color={featured ? '#fff' : colors.accent} knockout={featured ? colors.accent : '#fff'} />
+                          <Text style={{ fontFamily: font.bold, fontSize: 11, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>Verified</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: featured ? '#fff' : colors.ink, letterSpacing: -0.5, marginTop: 15 }}>{best.name}</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 13, color: featured ? 'rgba(255,255,255,.82)' : colors.muted, marginTop: 5 }}>
+                      {waitShort(wait)} wait · {count} branch{count === 1 ? '' : 'es'}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                      <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>
+                        {Number(best.total_waiting || 0)} in line now
+                      </Text>
+                      <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: featured ? '#fff' : colors.infoSoft }}>
+                        <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent }}>Join</Text>
+                        <Icon name="arrowUpRight" size={14} color={colors.accent} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </>
         )}
 
-        {/* live near you */}
-        {liveNear.length > 0 && (
-          <>
-            <View style={t.sectionRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={t.section}>{isOpen ? 'Live near you' : 'Near you'}</Text>
-                {isOpen && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.light }} />}
-                {soon && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />}
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}><Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted }}>View all</Text></TouchableOpacity>
-            </View>
-            <View style={{ gap: 12 }}>
-              {liveNear.map(b => {
-                const wait = Math.round(Number(b.avg_wait_minutes || 0));
-                const meta = statusMeta(statusFromWait(wait));
-                const loc = [b.city, b.parish].filter(Boolean)[0] || b.business_name;
-                const bHours = hoursFromBranch(b);
-                const bInfo = branchOpenInfo(new Date(), bHours);
-                const bOpen = bInfo.state === 'open';
-                const bSoon = bInfo.state === 'about_to_open';
-                const dotColor = bOpen ? meta.dot : bSoon ? colors.accent : colors.faint;
-                const statusLine = bOpen ? `${meta.label} · ${loc}` : bSoon ? `About to open · ${loc}` : `Closed · ${loc}`;
-                return (
-                  <TouchableOpacity key={b.id} activeOpacity={0.85} onPress={() => openBranch(b)} style={[t.listRow, { paddingVertical: 16, paddingRight: 18, gap: 15, ...shadow.card }]}>
-                    <Monogram label={initials(b.business_name)} size={46} radius={15} bg={colors.surfaceAlt} border={false} />
-                    <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-                      <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 16.5, color: colors.ink, letterSpacing: -0.3 }}>{b.name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />
-                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: colors.muted }}>{statusLine}</Text>
-                      </View>
-                    </View>
-                    {bOpen ? (
-                      <Text style={{ fontFamily: font.extra, fontSize: 16.5, color: colors.ink }}>{waitShort(wait)}</Text>
-                    ) : (
-                      <View style={{ backgroundColor: bSoon ? colors.infoSoft : colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
-                        <Text style={{ fontFamily: font.bold, fontSize: 12, color: bSoon ? colors.accentDeep : colors.muted }}>Opens {openTimeLabel(bHours)}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
+        {/* the full list — only once there is a list worth heading */}
+        {agencyRows.length > SPARSE_MAX && (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 28, marginBottom: 14 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>Agencies near you</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+              <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accent }}>See all ›</Text>
+            </TouchableOpacity>
+          </View>
         )}
+
+        {!isLoading && !error && agencyRows.length === 0 && (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 26, alignItems: 'center', ...shadow.card }}>
+            <Icon name="search" size={30} color={colors.faint} />
+            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>Nothing open here yet</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+              {openOnly ? 'Every branch in this filter is closed right now. Switch to All to see them anyway.' : 'No agencies match this filter.'}
+            </Text>
+            {openOnly && (
+              <TouchableOpacity onPress={() => setOpenOnly(false)} style={{ backgroundColor: colors.accent, borderRadius: 15, paddingVertical: 13, paddingHorizontal: 22, marginTop: 16 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.accentInk }}>Show all branches</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {agencyRows.length > SPARSE_MAX && agencyRows.map(({ best, count }, rowIndex) => {
+          const wait = Math.round(Number(best.avg_wait_minutes || 0));
+          const meta = statusMeta(statusFromWait(wait));
+          const hours = hoursFromBranch(best);
+          const info = branchOpenInfo(new Date(), hours);
+          const isOpen = info.state === 'open';
+          return (
+            <Appear key={best.business_id} index={rowIndex}>
+            <TouchableOpacity activeOpacity={0.88} onPress={() => openBranch(best)}
+              style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 11, ...shadow.card }}>
+              <Monogram label={best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)} size={52} radius={17} bg={colors.dark} fg="#fff" border={false} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.4 }}>
+                    {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
+                  </Text>
+                  <Icon name="check" size={15} color={colors.accent} />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>
+                    {count} branch{count === 1 ? '' : 'es'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isOpen ? colors.light : colors.faint }} />
+                    <Text style={{ fontFamily: font.extra, fontSize: 11, color: isOpen ? colors.light : colors.muted }}>{isOpen ? 'Open' : 'Closed'}</Text>
+                  </View>
+                </View>
+              </View>
+              {isOpen ? (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 19, color: meta.dot === colors.busy ? colors.ink : colors.ink, letterSpacing: -0.5 }}>{waitShort(wait)}</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.muted, letterSpacing: 0.4 }}>SHORTEST</Text>
+                </View>
+              ) : (
+                <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
+                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Opens {openTimeLabel(hours)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            </Appear>
+          );
+        })}
+
+        {/* Premium, demoted on purpose.
+
+            It was a 20pt-padded accent-deep card with a 74pt icon, sitting
+            above the actual content — so the first strong thing on Home was an
+            advertisement, and the screen read as promotional before it read as
+            useful. One row now, below the content it was outranking. The value
+            is real; the placement was the problem. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('Plan')}
+          accessibilityRole="button"
+          accessibilityLabel="Lyne Premium — find the quietest time to go"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 18, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}
+        >
+          <Icon name="clock" size={20} color={colors.accent} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>Find the fastest time to go</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>Lyne Premium · free for 14 days</Text>
+          </View>
+          <Icon name="chevronRight" size={16} color={colors.chevron} />
+        </TouchableOpacity>
       </ScrollView>
-      <TabBar active="Home" />
+      <TabBar active="Home" showTicketPill={false} />
     </View>
   );
 }

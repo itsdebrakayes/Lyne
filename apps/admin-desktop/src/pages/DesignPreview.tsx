@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarDays, CheckCircle2, Clock, FileText, Grid3x3,
   Headphones, LayoutGrid, MapPin, Settings, Target, TrendingUp, UserX, Users, Waypoints,
-  UserCheck, Activity, ClipboardList, Gauge, History, PhoneOff, SkipForward, Check, Hand,
+  UserCheck, Activity, ClipboardList, Gauge, History, PhoneOff, SkipForward, Check, Hand, CalendarClock,
 } from 'lucide-react';
 import {
   Shell, Head, Pills, Select, Card, Stat, Chart, LegendToggle, Funnel, Split, Ring,
@@ -19,6 +19,7 @@ import {
 import { execTab, EXEC_TAB_HEAD, ExecDataProvider, EXEC_EMPTY, EXEC_FIXTURES } from '@/dashboard/qx/ExecTabsQX';
 import Spotlight, { TOURS } from '@/components/Spotlight';
 import { mgrTab, MGR_TAB_HEAD, MgrDataProvider, MGR_EMPTY, MGR_FIXTURES } from '@/dashboard/qx/MgrTabsQX';
+import { SessionsScreen, SessionsDataProvider, SESSIONS_EMPTY, SESSIONS_FIXTURES } from '@/components/dashboard/SessionsWorkspace';
 import { supTab, SUP_TAB_HEAD, SupDataProvider, SupOverviewQX, SUP_EMPTY, SUP_FIXTURES } from '@/dashboard/qx/SupTabsQX';
 import { lineTab, LINE_TAB_HEAD, LineDataProvider, LineOverviewQX, LINE_EMPTY, LINE_FIXTURES } from '@/dashboard/qx/LineTabsQX';
 
@@ -66,6 +67,7 @@ const MGR_NAV: QxNav[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid, group: 'Main' },
   { key: 'staff', label: 'Staff & Counters', icon: Users, group: 'Main', badge: 2 },
   { key: 'services', label: 'Services', icon: Waypoints, group: 'Main' },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock, group: 'Main' },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
   { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
   { key: 'reports', label: 'Reports', icon: FileText, group: 'Analyse' },
@@ -114,6 +116,24 @@ const heatData = (counts: number[][]) => {
 type Role = 'executive' | 'manager' | 'supervisor' | 'linestaff';
 const ROLE_LABEL: Record<Role, string> = {
   linestaff: 'Line Staff', supervisor: 'Supervisor', manager: 'Branch Manager', executive: 'Executive',
+};
+
+
+/* Fixture notifications so the bell's panel is reviewable here. Mirrors the
+   real shape: newest first, a couple unread, one that needs action. */
+const PREVIEW_NOTIFY = {
+  items: [
+    { id: 'n1', title: 'Counter assignment requested', kind: 'warn' as const, read: false, when: '4 min ago',
+      body: 'Andre Blake: TRN has 14 waiting on 2 of 4 windows — longest wait 61 min. Please put someone on TRN.' },
+    { id: 'n2', title: 'A line needs more staff', kind: 'warn' as const, read: false, when: '22 min ago',
+      body: 'Passport Collection at Constant Spring is over its 20 minute target.' },
+    { id: 'n3', title: 'A customer was called', kind: 'info' as const, read: true, when: '1 hr ago',
+      body: 'Ticket TRN-014 · Kemar Lewis' },
+    { id: 'n4', title: 'Marked as a no-show', kind: 'warn' as const, read: true, when: 'Yesterday',
+      body: 'Ticket PAY-208 never arrived after two calls.' },
+  ],
+  onRead: () => undefined,
+  onReadAll: () => undefined,
 };
 
 export default function DesignPreview() {
@@ -180,14 +200,15 @@ export default function DesignPreview() {
       ) : null}
 
       <Shell
-        brand="QMe Now"
+        brand="Lyne"
         brandSub="Tax Administration Jamaica"
         nav={NAV_FOR[role]}
         active={tab}
         onNav={setTab}
         theme={theme}
         onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-        notifications={role === 'executive' ? 3 : 2}
+        notifications={PREVIEW_NOTIFY.items.filter((n) => !n.read).length}
+        notify={PREVIEW_NOTIFY}
         // Stubbed so the sign-out affordance is inspectable here; the real
         // dashboards pass useAdminAuth().logout.
         account={{ ...ACCOUNT[role], onSignOut: () => window.alert('Sign out (preview stub)') }}
@@ -201,6 +222,8 @@ export default function DesignPreview() {
             : role === 'manager' && tab !== 'overview' && MGR_TAB_HEAD[tab]
               ? <TabHead key={tab} {...MGR_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
                   options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} />
+            : (role === 'supervisor' || role === 'manager') && tab === 'sessions'
+              ? <TabHead key={tab} title="Sessions" sub="A capped day people register for in advance, then check in on arrival" date="Today" />
             : role === 'supervisor' && tab !== 'overview' && SUP_TAB_HEAD[tab]
               ? <TabHead key={tab} {...SUP_TAB_HEAD[tab]} period="today" date="Mon 28 July 2026"
                   options={[['today', 'Today'], ['7', '7 Days']]} />
@@ -218,9 +241,18 @@ export default function DesignPreview() {
             : <ExecDataProvider value={empty ? EXEC_EMPTY : EXEC_FIXTURES}>{execTab(tab, setTab)}</ExecDataProvider>)
           : role === 'manager'
             ? (tab === 'overview' ? <ManagerOverview onNav={setTab} />
+              : tab === 'sessions'
+                ? <SessionsDataProvider value={empty ? SESSIONS_EMPTY : SESSIONS_FIXTURES}><SessionsScreen /></SessionsDataProvider>
               : <MgrDataProvider value={empty ? MGR_EMPTY : MGR_FIXTURES}>{mgrTab(tab, setTab)}</MgrDataProvider>)
           : role === 'supervisor'
-            ? (
+            ? (tab === 'sessions'
+              /* canEdit=false, exactly as the live supervisor dashboard passes
+                 it: a supervisor checks people in but does not create or close
+                 a day. Rendering it here is what keeps the two from drifting. */
+              ? <SessionsDataProvider value={{ ...(empty ? SESSIONS_EMPTY : SESSIONS_FIXTURES), canEdit: false }}>
+                  <SessionsScreen />
+                </SessionsDataProvider>
+              : (
               /* Same component the live dashboard renders — the preview used to
                  show an older fixture board, which is exactly the drift this
                  architecture is meant to prevent. */
@@ -231,7 +263,7 @@ export default function DesignPreview() {
               }}>
                 {tab === 'overview' ? <SupOverviewQX onNav={setTab} /> : supTab(tab, setTab)}
               </SupDataProvider>
-            )
+            ))
           : (
             <LineDataProvider value={empty ? LINE_EMPTY : LINE_FIXTURES}>
               {tab === 'overview' ? <LineOverviewQX /> : lineTab(tab, setTab)}
@@ -248,9 +280,12 @@ export default function DesignPreview() {
  * Keeping the period control here means every tab is scoped the same way.
  */
 function TabHead({ title, sub, period, options, date }: {
-  title: string; sub: string; period: string; options: Array<[string, string]>; date: string;
+  title: string; sub: string; date: string;
+  /* Optional together: a screen showing ONE fixed day (a session) has no period
+     to pick, and a pill above it would drive nothing. */
+  period?: string; options?: Array<[string, string]>;
 }) {
-  const [p, setP] = useState(period);
+  const [p, setP] = useState(period ?? 'today');
   return (
     <Head
       title={title}
@@ -258,7 +293,7 @@ function TabHead({ title, sub, period, options, date }: {
       live="Live · 2 Min Ago"
       right={
         <>
-          <Pills value={p} onChange={setP} options={options} />
+          {options ? <Pills value={p} onChange={setP} options={options} /> : null}
           <span className="qx-datechip"><CalendarDays size={14} />{date}</span>
           <button type="button" className="qx-btn ghost"><RefreshIcon size={14} />Update</button>
         </>
@@ -373,7 +408,7 @@ function ExecOverview({ onNav }: { onNav: (k: string) => void }) {
       <Card span={4} title="How People Join" cap="The only two ways a ticket gets created">
         <Split note="Every app join is one less person a clerk has to key in."
           segments={[
-            { label: 'QMe App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+            { label: 'Lyne App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
             { label: 'Branch Kiosk', value: 318, color: 'var(--c-second)', sub: 'Added at the branch by a clerk' },
           ]} />
       </Card>
@@ -561,6 +596,7 @@ const SUP_NAV: QxNav[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid, group: 'Main' },
   { key: 'desks', label: 'Desk Assignment', icon: Hand, group: 'Main' },
   { key: 'staff', label: 'Staff', icon: Users, group: 'Main', badge: 1 },
+  { key: 'sessions', label: 'Sessions', icon: CalendarClock, group: 'Main' },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3, group: 'Analyse' },
   { key: 'targets', label: 'Targets', icon: Target, group: 'Analyse' },
   { key: 'support', label: 'Help & Support', icon: Headphones, group: 'Account' },

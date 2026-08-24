@@ -30,6 +30,23 @@ import {
   Chip, Select, Ring, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
+import { fmtN } from '../insights';
+
+/* ══════════════════════ window cover ══════════════════════
+   A branch with no windows configured is NOT a branch where every window is
+   covered — that reading is how "0 of 0" came to sit under the reassuring
+   caption while a queue was building. Zero capacity is its own state, and it
+   is a setup problem rather than a staffing one. */
+export function coverTone(open: number, counters: number): 'primary' | 'warn' {
+  if (!counters) return 'warn';
+  return open < counters ? 'warn' : 'primary';
+}
+export function coverFoot(open: number, counters: number): string {
+  if (!counters) return 'No windows set up for this branch yet';
+  const free = counters - open;
+  if (free <= 0) return 'Every window is covered';
+  return `${free} window${free === 1 ? '' : 's'} free to open`;
+}
 
 /* ══════════════════════ types ══════════════════════ */
 export type MgrStaff = {
@@ -63,7 +80,39 @@ export type MgrTabData = {
   servedToday: number;
   todayByHour: number[];
   yesterdayByHour: number[];
-  funnel: { joined: number; called: number; served: number; left: number; avgLeaveMin: number | null };
+  /* Counts are TODAY's. `typicalLeaveMin` deliberately is not — there is no
+     per-day average-abandonment figure, and one day rarely has enough
+     abandonments to average honestly, so it is a 90-day typical and is
+     labelled as one rather than passed off as today's. */
+  funnel: { joined: number; called: number; served: number; left: number; typicalLeaveMin: number | null };
+  /* A manager does not move people onto desks — the section board is the
+     supervisor's, and two people rearranging one floor is how a queue stalls.
+     So the manager asks, and the ask lands in the supervisor's bell. */
+  onAskSupervisor?: (message: string) => Promise<void> | void;
+  askState?: 'idle' | 'sending' | 'sent' | 'error';
+  askError?: string | null;
+
+  /* A branch manager sets THIS BRANCH's targets; an executive sets the company
+     ones. The tab used to be read-only and told managers to "speak to your
+     executive", which is not how this is supposed to work. */
+  onSaveBranchTargets?: (values: Record<string, number>) => Promise<void> | void;
+  targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
+  targetsSaveError?: string | null;
+  targetsSetBy?: string | null;
+  targetsSetAt?: string | null;
+
+  /* Settings tab. Every control here either persists or is visibly disabled —
+     the tab used to be pure useState, so a manager could switch a policy off,
+     watch it move, and change nothing. */
+  settings?: {
+    branch: { allow_overflow: boolean; updated_by_name?: string | null };
+    alerts: { idle_after_minutes: number | null; line_over_target: 'on' | 'off' };
+    hours: { opening_time: string | null; closing_time: string | null } | null;
+  } | null;
+  onSaveBranchSettings?: (patch: { allow_overflow?: boolean }) => Promise<void> | void;
+  onSaveAlertPrefs?: (patch: { idle_after_minutes?: number | null; line_over_target?: 'on' | 'off' }) => Promise<void> | void;
+  settingsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
+  settingsSaveError?: string | null;
 };
 
 /* ══════════════════════ fixtures ══════════════════════ */
@@ -106,7 +155,7 @@ const FX_FAQ = [
   { q: 'How Do I Move Someone To A Busier Window?', a: 'Open Staff & Counters, choose the person, and pick the counter you want them on. The change takes effect on their next call — anyone already at their window is not interrupted.' },
   { q: 'What Does The Idle Flag Actually Mean?', a: 'It means a counter has called nobody for a sustained stretch while people are waiting for that service. It is not a judgement — a clerk can be legitimately tied up — but it is the first thing to check when a line is not moving.' },
   { q: 'Why Is My Branch Target Different From The Company One?', a: 'An executive can hold a branch to a stricter or looser number than the company target, usually temporarily. Where an override is in force, Targets shows both so you know which one you are being measured against.' },
-  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the QMe app and when remote joining opens. Contact your executive or QMe support to change them.' },
+  { q: 'Can I Change My Branch Opening Hours?', a: 'Hours are shown here but set centrally, because they also drive what customers see in the Lyne app and when remote joining opens. Contact your executive or Lyne support to change them.' },
   { q: 'Someone Took A Ticket And Left. What Happens?', a: 'If they do not answer when called they are recorded as a no-show, and the queue moves on automatically. If they left before being called at all, they are counted as having given up waiting — that figure is on your Overview.' },
 ];
 
@@ -119,7 +168,7 @@ export const MGR_FIXTURES: MgrTabData = {
   servedToday: 218,
   todayByHour: [12, 26, 41, 58, 54, 33, 47, 29, 14],
   yesterdayByHour: [10, 22, 36, 44, 47, 30, 38, 25, 12],
-  funnel: { joined: 252, called: 234, served: 218, left: 18, avgLeaveMin: 26 },
+  funnel: { joined: 252, called: 234, served: 218, left: 18, typicalLeaveMin: 26 },
 };
 
 export const MGR_EMPTY: MgrTabData = {
@@ -127,7 +176,7 @@ export const MGR_EMPTY: MgrTabData = {
   staff: [], services: [], hours: [], svcHeat: [], dow: { labels: [], values: [] },
   targets: [], faq: [], openFrom: '—', openTo: '—', generatedOn: '—',
   servedToday: 0, todayByHour: [], yesterdayByHour: [],
-  funnel: { joined: 0, called: 0, served: 0, left: 0, avgLeaveMin: null },
+  funnel: { joined: 0, called: 0, served: 0, left: 0, typicalLeaveMin: null },
 };
 
 const MgrCtx = createContext<MgrTabData>(MGR_FIXTURES);
@@ -140,6 +189,10 @@ const heatData = (counts: number[][]) => {
   return counts.map((r) => r.map((v) => v / max));
 };
 
+/* ONE label per state, for every tab. Overview and Staff & Counters used to
+   carry separate wording for the same value — "Idle With Demand" here,
+   "Idle With People Waiting" there — so the two screens read as if they
+   disagreed about the same person. */
 const STATE_LABEL: Record<MgrStaff['state'], string> = {
   serving: 'Serving', idle: 'Idle With People Waiting', break: 'On Break', slow: 'Running Slow', off: 'Not On Today',
 };
@@ -162,7 +215,11 @@ export function MgrStaffTab() {
 
   const flagged = d.staff.filter((s) => s.state === 'idle' || s.state === 'slow');
   const onFloor = d.staff.filter((s) => s.state !== 'off');
-  const free = d.staff.filter((s) => s.state === 'break' || s.counter === '—').filter((s) => s.state !== 'off');
+  /* Free to move = here today, but not sat at a desk. This used to read
+     `state === 'break' || counter === '—'`, and `counter` was hardcoded '—' for
+     every single person — so "Free To Move" always equalled the whole floor, and
+     the three KPIs on this tab all showed the same number. */
+  const free = onFloor.filter((s) => s.state === 'break' || s.counter === '—');
 
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
@@ -176,14 +233,17 @@ export function MgrStaffTab() {
   }
 
   const busiest = [...d.services].sort((a, b) => b.waiting - a.waiting)[0];
+  const openWindows = d.services.reduce((t, s) => t + s.open, 0);
+  const allWindows = d.services.reduce((t, s) => t + s.counters, 0);
 
   return (
     <div className="qx-grid">
       <Stat span={3} icon={Users} label="On The Floor" value={onFloor.length}
         foot={`${d.staff.length} rostered to this branch today`} />
       <Stat span={3} icon={CheckCircle2} label="Counters Covered"
-        value={`${d.services.reduce((t, s) => t + s.open, 0)} of ${d.services.reduce((t, s) => t + s.counters, 0)}`}
-        foot="Windows open against windows available" />
+        tone={coverTone(openWindows, allWindows)}
+        value={`${openWindows} of ${allWindows}`}
+        foot={coverFoot(openWindows, allWindows)} />
       <Stat span={3} icon={AlertTriangle} tone={flagged.length ? 'bad' : 'primary'} label="Need Attention"
         value={flagged.length} chip={flagged.length ? { dir: 'bad', text: 'Now' } : { dir: 'flat', text: 'Clear' }}
         foot={flagged.length ? 'Idle or running slow while people wait' : 'Every counter is moving normally'} />
@@ -194,11 +254,30 @@ export function MgrStaffTab() {
         <div className="qx-stack s5">
           {busiest ? (
             <Focus eyebrow="Do This Next"
-              title={`Move Someone Onto ${busiest.code}`}
+              /* The code is an internal abbreviation. "Move Someone Onto SD"
+                 means nothing to a manager reading quickly; the line's name does. */
+              title={`Move Someone Onto ${busiest.name}`}
               body={`${busiest.name} has ${busiest.waiting} people waiting on ${busiest.open} of ${busiest.counters} windows. The longest wait in that line is ${busiest.longest} minutes.`}
               stats={[{ label: 'Waiting', value: String(busiest.waiting), dir: 'bad' },
                       { label: 'Windows Free', value: String(busiest.counters - busiest.open) }]}
-              action={{ label: 'Assign A Counter', onClick: () => undefined }} />
+              action={{
+                label: d.askState === 'sent' ? 'Supervisor Notified'
+                  : d.askState === 'sending' ? 'Sending…'
+                  : 'Ask Supervisor To Staff It',
+                onClick: () => d.onAskSupervisor?.(
+                  `${busiest.name} has ${busiest.waiting} waiting on ${busiest.open} of ${busiest.counters} windows — longest wait ${busiest.longest} min. Please put someone on ${busiest.name}.`),
+                disabled: d.askState === 'sending' || d.askState === 'sent' || !d.onAskSupervisor,
+              }} />
+          ) : null}
+          {/* A send that fails must say so. Previously the button simply never
+              changed, which is indistinguishable from a click that did nothing —
+              and that is precisely how the missing endpoint presented. */}
+          {d.askState === 'error' ? (
+            <Note icon={AlertTriangle} tone="bad" title="The Supervisor Was Not Notified"
+              body={d.askError || 'The request could not be sent. Nothing was changed — try again, or speak to them directly.'} />
+          ) : d.askState === 'sent' ? (
+            <Note icon={CheckCircle2} title="Request Sent"
+              body="Every supervisor on this branch has it in their notifications. You will see the desk filled on the section board once one of them acts." />
           ) : null}
           <Card title="Needs A Look" cap="Flagged automatically — worth checking, not a judgement">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -225,8 +304,8 @@ export function MgrStaffTab() {
                 <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
                 <div style={{ minWidth: 0 }}><b>{s.name}</b><small>Since {s.since}</small></div>
               </div>
-              <div className="qx-num">{s.counter}</div>
-              <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.svc}</div>
+              <div title={s.counter} style={{ fontSize: 12.5, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.counter}</div>
+              <div title={s.svc} style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.svc}</div>
               <div className="qx-num">{s.seen}</div>
               <div className="qx-num">{s.avg ? s.avg : '—'}{s.avg ? <u> min</u> : null}</div>
               <div><Status kind={STATE_KIND[s.state]}>{STATE_LABEL[s.state]}</Status></div>
@@ -300,11 +379,13 @@ export function MgrServicesTab() {
             .sort((a, b) => (view === 'wait' ? b.wait - a.wait : b.waiting - a.waiting))
             .map((s) => ({ name: s.name, value: view === 'wait' ? s.wait : s.waiting }))} />
         <div style={{ marginTop: 13 }}>
-          <Note icon={AlertTriangle} tone={worst.open < worst.counters ? 'bad' : 'warn'}
+          <Note icon={AlertTriangle} tone={worst.open < worst.counters || !worst.counters ? 'bad' : 'warn'}
             title={`${worst.name} Is Your Bottleneck`}
-            body={worst.open < worst.counters
-              ? `${worst.waiting} people are waiting on ${worst.open} of ${worst.counters} windows. Opening one more is the single fastest thing you can do this hour.`
-              : `${worst.waiting} people are waiting and every window is already open. This is a pace problem, not a staffing one.`} />
+            body={!worst.counters
+              ? `${worst.waiting} people are waiting and this line has no windows set up at all. Add its counters before anyone can be put on it.`
+              : worst.open < worst.counters
+                ? `${worst.waiting} people are waiting on ${worst.open} of ${worst.counters} windows. Opening one more is the single fastest thing you can do this hour.`
+                : `${worst.waiting} people are waiting and every window is already open. This is a pace problem, not a staffing one.`} />
         </div>
       </Card>
 
@@ -364,9 +445,18 @@ export function MgrServicesTab() {
 export function MgrBusyTab() {
   const d = useMgr();
   const perHour = d.hours.map((_, i) => d.svcHeat.reduce((t, r) => t + (r[i] ?? 0), 0));
-  const open = perHour.filter((v) => v > 0);
-  const peak = open.length ? perHour.indexOf(Math.max(...open)) : -1;
-  const quiet = open.length ? perHour.indexOf(Math.min(...open)) : -1;
+  /* An hour only counts as one this branch actually OPERATES in. Filtering on
+     v > 0 was not enough: a handful of stray after-hours tickets made midnight
+     the "quietest open hour", so the board recommended scheduling breaks at
+     12am. An hour carrying under 5% of the busiest hour is noise, not a lull —
+     and this holds however the branch's nominal opening window is configured. */
+  const busiest = Math.max(0, ...perHour);
+  const FLOOR = busiest * 0.05;
+  const operating = perHour.map((v, i) => ({ v, i })).filter(({ v }) => v > FLOOR);
+  const peak = operating.length
+    ? operating.reduce((a, b) => (b.v > a.v ? b : a)).i : -1;
+  const quiet = operating.length
+    ? operating.reduce((a, b) => (b.v < a.v ? b : a)).i : -1;
 
   if (!d.svcHeat.length || !d.hours.length || peak < 0) {
     return <EmptyTab title="No Demand Pattern Yet"
@@ -375,18 +465,28 @@ export function MgrBusyTab() {
 
   return (
     <div className="qx-grid">
+      {/* These are 90-day totals — /analytics/demand is a fixed 90-day window,
+          which is right for a PATTERN but was reading as "today" beside a Today
+          pill. The pill is gone from this tab and the window is now stated, so
+          "4,786" is legible as three months rather than one morning. */}
       <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Hour" value={d.hours[peak]}
-        chip={{ dir: 'bad', text: 'Peak' }} foot={`${perHour[peak]} people join in that hour`} />
+        chip={{ dir: 'bad', text: 'Peak' }}
+        foot={`${fmtN(perHour[peak])} joined in that hour over the last 90 days`} />
       <Stat span={3} icon={Coffee} label="Best Hour For Breaks" value={d.hours[quiet]}
         foot="Quietest open hour — schedule cover changes here" />
+      {/* The KPI value was the three-letter code with the real name demoted to
+          the caption — so the biggest text on the card was "SD". Name up top,
+          the number that earns the ranking underneath. */}
       <Stat span={3} icon={Waypoints} tone="bad" label="Heaviest Service"
-        value={d.services.length ? d.services[0].code : '—'}
-        foot={d.services.length ? d.services[0].name : 'No services yet'} />
+        value={d.services.length ? d.services[0].name : '—'}
+        foot={d.services.length
+          ? `${fmtN(d.services[0].waiting)} waiting right now`
+          : 'No services yet'} />
       <Stat span={3} icon={Clock} label="Open" value={`${d.openFrom} – ${d.openTo}`}
         foot="Remote joining opens five minutes before the doors" />
 
       <Card span={12} title="When The Pressure Lands Here"
-        cap="Visits per hour by service. Staff the darkest cells; the pale ones are safe for breaks and training.">
+        cap="Visits per hour by service, last 90 days. Staff the darkest cells; the pale ones are safe for breaks and training.">
         <Heatmap rowLabels={d.services.map((s) => s.name)} colLabels={d.hours}
           data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
       </Card>
@@ -418,21 +518,39 @@ export function MgrBusyTab() {
  * on their branch, and how far off they are. So this screen reads rather than
  * edits, and shows both numbers wherever they differ.
  */
+
+/** "Last changed 4 July by Andre Blake." — or a plain line if we do not know. */
+function mgrLastChanged(who?: string | null, when?: string | null) {
+  if (!who && !when) return 'This branch currently follows the company targets.';
+  const d = when ? new Date(when) : null;
+  const day = d && !Number.isNaN(d.getTime())
+    ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : null;
+  return `Last changed${day ? ` ${day}` : ''}${who ? ` by ${who}` : ''}.`;
+}
+
 export function MgrTargetsTab() {
   const d = useMgr();
+  /* Draft values start from whatever this branch is actually held to — its own
+     override where one exists, otherwise the company number it inherits. */
+  const [vals, setVals] = useState<Record<string, number>>(
+    () => Object.fromEntries(d.targets.map((t) => [t.key, t.branch ?? t.company]))
+  );
+  const [dirty, setDirty] = useState(false);
+  const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
+
   if (!d.targets.length) {
     return <EmptyTab title="No Targets Set Yet"
       body="Targets are set by your executive and apply to every branch unless yours has a specific override. Once they are in place, this shows what you are held to and how far off you are." />;
   }
 
-  const effective = (t: MgrTargetRow) => (t.branch ?? t.company);
+  const effective = (t: MgrTargetRow) => (vals[t.key] ?? t.branch ?? t.company);
   const isMet = (t: MgrTargetRow) => (t.goodWhen === 'down' ? t.now <= effective(t) : t.now >= effective(t));
   const met = d.targets.filter(isMet).length;
 
   return (
     <div className="qx-grid">
       <Card span={7} title="What This Branch Is Held To"
-        cap="Set by your executive. Where a target has been adjusted for this branch, both numbers are shown.">
+        cap="You set these for this branch. Where you do not, the company target applies.">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {d.targets.map((t) => {
             const ok = isMet(t);
@@ -454,30 +572,59 @@ export function MgrTargetsTab() {
                     {t.branch != null ? <span className="qx-tag">Branch Override</span> : null}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.03em' }}>
-                    {eff}<u style={{ textDecoration: 'none', fontSize: 11, color: 'var(--c-faint)', marginLeft: 2 }}>{t.unit}</u>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button type="button" className="qx-btn ghost" aria-label={`Lower ${t.label} target`}
+                    onClick={() => set(t.key, +(eff - 1).toFixed(1))}>−</button>
+                  <div style={{ textAlign: 'center', minWidth: 84 }}>
+                    <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.03em' }}>
+                      {eff}<u style={{ textDecoration: 'none', fontSize: 11, color: 'var(--c-faint)', marginLeft: 2 }}>{t.unit}</u>
+                    </div>
+                    {eff !== t.company ? (
+                      <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
+                        Company {t.company}{t.unit === '%' ? '%' : ` ${t.unit}`}
+                      </small>
+                    ) : null}
                   </div>
-                  {t.branch != null ? (
-                    <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>
-                      Company {t.company}{t.unit === '%' ? '%' : ` ${t.unit}`}
-                    </small>
-                  ) : null}
+                  <button type="button" className="qx-btn ghost" aria-label={`Raise ${t.label} target`}
+                    onClick={() => set(t.key, +(eff + 1).toFixed(1))}>+</button>
                 </div>
               </div>
             );
           })}
         </div>
-        <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600 }}>
-          Targets are set company-wide. To discuss an adjustment for this branch, speak to your executive.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button type="button" className="qx-btn"
+            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveBranchTargets}
+            onClick={async () => { await d.onSaveBranchTargets?.(vals); setDirty(false); }}>
+            {d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Branch Targets'}
+          </button>
+          <button type="button" className="qx-btn ghost" onClick={() => {
+            setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.branch ?? t.company]))); setDirty(false);
+          }}>Reset</button>
+          <button type="button" className="qx-btn ghost" onClick={() => {
+            /* Explicitly hand a target back to the company number, rather than
+               leaving people to guess what value "no override" is. */
+            setVals(Object.fromEntries(d.targets.map((t) => [t.key, t.company]))); setDirty(true);
+          }}>Use Company Targets</button>
+          <span style={{ fontSize: 11.5, color: d.targetsSaveState === 'error' ? 'var(--c-bad)' : 'var(--c-faint)', fontWeight: 600 }}>
+            {d.targetsSaveState === 'error'
+              ? (d.targetsSaveError || 'Could not save. Nothing was changed.')
+              : dirty ? 'Unsaved changes — nothing is applied until you save.'
+              : d.targetsSaveState === 'saved' ? 'Saved. This branch is measured against these from now on.'
+              : mgrLastChanged(d.targetsSetBy, d.targetsSetAt)}
+          </span>
         </div>
       </Card>
 
       <div className="qx-stack s5">
         <Card title="How This Branch Is Tracking" cap="Against the targets in force right now">
           <div style={{ display: 'grid', placeItems: 'center', paddingBottom: 10 }}>
-            <Ring value={Math.round((met / d.targets.length) * 100)} max={100}
-              warn={met < d.targets.length} label="Targets Met" />
+            {/* Was a percentage labelled "Targets Met", so "75" read as
+                seventy-five targets — directly above a note saying "1 Of 4
+                Targets Missed". Same fact, two framings, neither matching. The
+                ring now counts the actual targets. */}
+            <Ring value={met} max={d.targets.length}
+              warn={met < d.targets.length} label={`Of ${d.targets.length} Met`} />
           </div>
           <div className="qx-sbreak">
             {d.targets.map((t) => {
@@ -605,14 +752,30 @@ export function MgrReportsTab() {
 }
 
 /* ══════════════════════ 6 · SETTINGS ══════════════════════ */
+/**
+ * Settings.
+ *
+ * This tab used to be a lie: three toggles backed by `useState` and two selects
+ * wired to `onChange={() => undefined}`. A manager could switch "Text Customers
+ * When Called" off, watch it move, and nothing anywhere changed — the worst kind
+ * of control, because it is indistinguishable from a working one.
+ *
+ * Every control now either persists and takes effect, or is visibly disabled
+ * with the reason. Two are disabled: there is no SMS provider and no kiosk
+ * printer, so those toggles describe features that do not exist. Showing them
+ * greyed with an explanation is honest; storing a preference nothing reads
+ * would just be a prettier version of the same lie.
+ */
 export function MgrSettingsTab() {
   const d = useMgr();
-  const [tog, setTog] = useState<Record<string, boolean>>({ overflow: true, sms: true, kiosk: true });
-  const flip = (k: string) => setTog((p) => ({ ...p, [k]: !p[k] }));
+  const saving = d.settingsSaveState === 'saving';
+  const overflowOn = !!d.settings?.branch.allow_overflow;
+  const idleAfter = d.settings?.alerts.idle_after_minutes ?? null;
+  const lineAlert = d.settings?.alerts.line_over_target ?? 'on';
 
   return (
     <div className="qx-grid">
-      <Card span={7} title="This Branch" cap="Shown to customers in the QMe app and on the lobby kiosk">
+      <Card span={7} title="This Branch" cap="Shown to customers in the Lyne app and on the lobby kiosk">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="qx-setrow"><div><b>Branch Name</b><small>How customers see it when choosing where to go.</small></div><span className="qx-tag">{d.branchName}</span></div>
           <div className="qx-setrow"><div><b>Opening Hours</b><small>Also decides when remote joining opens, five minutes before the doors.</small></div><span className="qx-tag">{d.openFrom} – {d.openTo}</span></div>
@@ -628,29 +791,55 @@ export function MgrSettingsTab() {
       <div className="qx-stack s5">
         <Card title="On The Floor" cap="Settings you control for this branch">
           <div className="qx-setrow">
-            <div><b>Allow Overflow Onto Any Window</b><small>When a line is long, let a free clerk call from it even if it is not their usual service.</small></div>
-            <Toggle on={!!tog.overflow} onClick={() => flip('overflow')} label="Allow overflow" />
+            <div>
+              <b>Allow Overflow Onto Any Window</b>
+              <small>When a line is long, let a free clerk call from it even if it is not their usual service. Applies to this branch only.</small>
+            </div>
+            <Toggle on={overflowOn} label="Allow overflow"
+              disabled={saving || !d.onSaveBranchSettings}
+              onClick={() => d.onSaveBranchSettings?.({ allow_overflow: !overflowOn })} />
+          </div>
+          {/* Disabled, not fake. Neither feature exists: the backend has no SMS
+              integration and the kiosk has no printer driver. */}
+          <div className="qx-setrow">
+            <div>
+              <b>Text Customers When Called</b>
+              <small>Needs an SMS provider connected. Until then everyone is notified in the app.</small>
+            </div>
+            <Toggle on={false} label="Text when called" disabled
+              title="No SMS provider is connected yet"
+              onClick={() => undefined} />
           </div>
           <div className="qx-setrow">
-            <div><b>Text Customers When Called</b><small>People who chose text updates get a message when their number comes up.</small></div>
-            <Toggle on={!!tog.sms} onClick={() => flip('sms')} label="Text when called" />
-          </div>
-          <div className="qx-setrow">
-            <div><b>Lobby Kiosk Prints Tickets</b><small>Turn off if this branch has no printer and relies on text updates.</small></div>
-            <Toggle on={!!tog.kiosk} onClick={() => flip('kiosk')} label="Kiosk printing" />
+            <div>
+              <b>Lobby Kiosk Prints Tickets</b>
+              <small>Needs a receipt printer at the kiosk. Until then the clerk reads the number out.</small>
+            </div>
+            <Toggle on={false} label="Kiosk printing" disabled
+              title="No kiosk printer is connected yet"
+              onClick={() => undefined} />
           </div>
         </Card>
-        <Card title="Alerts To Me" cap="What this branch tells you about">
+        <Card title="Alerts To Me" cap="Yours alone — another manager here can choose differently">
           <div className="qx-setrow">
             <div><b>Someone Idle While People Wait</b><small>A counter that has called nobody for a sustained stretch.</small></div>
-            <Select label="Idle alert" value="20" onChange={() => undefined}
+            <Select label="Idle alert" value={idleAfter === null ? 'off' : String(idleAfter)}
+              onChange={(v) => d.onSaveAlertPrefs?.({ idle_after_minutes: v === 'off' ? null : Number(v) })}
               options={[['10', 'After 10 min'], ['20', 'After 20 min'], ['off', 'Never']]} />
           </div>
           <div className="qx-setrow">
             <div><b>A Line Goes Over Target</b><small>Alerts you when a service passes the wait time this branch is held to.</small></div>
-            <Select label="Line alert" value="on" onChange={() => undefined}
-              options={[['on', 'As It Happens'], ['hourly', 'Hourly Summary'], ['off', 'Never']]} />
+            {/* "Hourly Summary" was offered here and could never work — there is
+                no digest/batching anywhere in the system. On or off is the truth. */}
+            <Select label="Line alert" value={lineAlert}
+              onChange={(v) => d.onSaveAlertPrefs?.({ line_over_target: v === 'off' ? 'off' : 'on' })}
+              options={[['on', 'As It Happens'], ['off', 'Never']]} />
           </div>
+          {d.settingsSaveState === 'error' ? (
+            <div className="qx-note t-bad" style={{ marginTop: 10 }}>
+              <b>Not saved.</b> {d.settingsSaveError || 'Try again.'}
+            </div>
+          ) : null}
         </Card>
       </div>
     </div>
@@ -688,7 +877,7 @@ export function MgrSupportTab() {
         <Card title="Ask Your Executive" cap="For anything set centrally">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Executive</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@qmenow.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
           </div>
           <div style={{ marginTop: 13 }}>
@@ -739,7 +928,7 @@ export const MGR_TAB_HEAD: Record<string, { title: string; sub: string }> = {
  * numbers are "right now" and "today", not the month.
  */
 const MSVC_OGRID = 'minmax(0,2.4fr) 84px 96px 118px 118px';
-const MSTAFF_OGRID = 'minmax(0,1.8fr) 92px minmax(0,1.4fr) 84px 92px minmax(0,1.5fr)';
+const MSTAFF_OGRID = 'minmax(0,1.7fr) minmax(0,1.4fr) minmax(0,1.2fr) 64px 76px minmax(0,1.35fr)';
 
 export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const d = useMgr();
@@ -755,7 +944,16 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const waiting = d.services.reduce((t, s) => t + s.waiting, 0);
   const open = d.services.reduce((t, s) => t + s.open, 0);
   const counters = d.services.reduce((t, s) => t + s.counters, 0);
-  const avgWait = d.targets.find((t) => t.key === 'wait')?.now ?? 0;
+  /* Someone walking in right now waits as long as the line they pick, so the
+     headline is weighted by how many people are in each line rather than a flat
+     mean across services — a ten-deep line matters more than an empty one.
+     Same figure as the table footer below, deliberately: the headline and the
+     board it sits on top of must not disagree. The ACHIEVED wait (what people
+     served today actually experienced) is a different question and lives on
+     Targets, where the branch is measured on it. */
+  const joinNowWait = waiting
+    ? Math.round(d.services.reduce((t, s) => t + s.wait * s.waiting, 0) / waiting)
+    : 0;
   const worst = [...d.services].sort((a, b) => b.wait - a.wait)[0];
   const free = d.staff.find((s) => s.state === 'break' || s.counter === '—');
   const targetWait = d.targets.find((t) => t.key === 'wait');
@@ -766,14 +964,14 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <Stat span={3} icon={Users} tone={waiting > 25 ? 'bad' : 'primary'} label="Waiting Right Now" value={waiting}
         chip={waiting > 25 ? { dir: 'bad', text: 'Over' } : { dir: 'flat', text: 'Steady' }}
         foot={worst ? `Worst line is ${worst.name}` : 'Across every line at this branch'} />
-      <Stat span={3} icon={Clock} tone={avgWait > tWait ? 'bad' : 'primary'} label="Average Wait" value={avgWait} unit="min"
-        chip={avgWait > tWait ? { dir: 'bad', text: `${Math.round(avgWait - tWait)} Over` } : { dir: 'good', text: 'On Target' }}
-        foot={`Your branch target is ${tWait} minutes`} />
+      <Stat span={3} icon={Clock} tone={joinNowWait > tWait ? 'bad' : 'primary'} label="Wait If You Join Now" value={joinNowWait} unit="min"
+        chip={joinNowWait > tWait ? { dir: 'bad', text: `${Math.round(joinNowWait - tWait)} Over` } : { dir: 'good', text: 'On Target' }}
+        foot={`What we are telling people right now · target ${tWait} min`} />
       <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={d.servedToday}
         foot="Seen and finished at a counter today" />
-      <Stat span={3} icon={Users} tone={open < counters ? 'warn' : 'primary'} label="Windows Open"
+      <Stat span={3} icon={Users} tone={coverTone(open, counters)} label="Windows Open"
         value={`${open} of ${counters}`}
-        foot={open < counters ? `${counters - open} window free to open` : 'Every window is covered'} />
+        foot={coverFoot(open, counters)} />
 
       <Card span={8} title="The Line Right Now" cap={`Every service at ${d.branchName}, worst first`}>
         {!d.services.length ? <div className="qx-empty">No services on this branch yet.</div> : (
@@ -806,9 +1004,15 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <div className="qx-stack s4">
         {worst ? (
           <Focus eyebrow="Do This Next"
-            title={free ? `Move ${free.name.split(' ')[0]} Onto ${worst.code}` : `Open Another ${worst.code} Window`}
+            /* First name only produced "Move Demo Onto ITF" — this branch has
+               four people whose first name is Demo, and ITF is an internal code.
+               Both halves now name the thing the manager has to act on. */
+            title={free ? `Move ${free.name} Onto ${worst.name}` : `Open Another ${worst.name} Window`}
             body={`${worst.name} has ${worst.waiting} people waiting on ${worst.open} of ${worst.counters} windows, and the longest wait in that line is ${worst.longest} minutes.`}
-            stats={[{ label: 'Wait Time', value: `−${Math.max(1, Math.round(worst.wait / 3))} min`, dir: 'good' },
+            /* Was "−18 min" under the label "Wait Time", which reads as a wait
+               of minus eighteen minutes rather than a saving of eighteen. Say
+               what the number does. */
+            stats={[{ label: 'Saves About', value: `${Math.max(1, Math.round(worst.wait / 3))} min`, dir: 'good' },
                     { label: 'Waiting', value: String(worst.waiting), dir: 'bad' }]}
             action={{ label: 'Open Staff & Counters', onClick: () => onNav('staff') }} />
         ) : null}
@@ -818,9 +1022,16 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
               {d.targets.slice(0, 3).map((t) => {
                 const eff = t.branch ?? t.company;
                 const ok = t.goodWhen === 'down' ? t.now <= eff : t.now >= eff;
-                const p = Math.max(0, Math.min(100, t.goodWhen === 'down'
-                  ? (eff / Math.max(0.1, t.now)) * 100
-                  : (t.now / Math.max(0.1, eff)) * 100));
+                /* Draw the VALUE on a scale that holds both it and the target,
+                   with the target marked. The old maths was a ratio clamped to
+                   100 — so every metric that met its target rendered a full bar,
+                   and three metrics in a row looked identical no matter how far
+                   inside target they were. A bar that is always full is not a
+                   bar. Scale headroom is 25% so a value sitting exactly on
+                   target does not fill the track. */
+                const scale = Math.max(t.now, eff, 0.1) * 1.25;
+                const p = Math.max(0, Math.min(100, (t.now / scale) * 100));
+                const tp = Math.max(0, Math.min(100, (eff / scale) * 100));
                 return (
                   <div key={t.key}>
                     <div className="r">
@@ -829,7 +1040,10 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
                         {t.now}{t.unit === '%' ? '%' : ` ${t.unit}`}
                       </b>
                     </div>
-                    <div className="qx-bar"><i style={{ width: `${p}%`, background: ok ? 'var(--c-primary)' : 'var(--c-bad)' }} /></div>
+                    <div className="qx-bar tgt" style={{ ['--tgt' as string]: `${tp}%` }}
+                      title={`Target ${eff}${t.unit === '%' ? '%' : ` ${t.unit}`}`}>
+                      <i style={{ width: `${p}%`, background: ok ? 'var(--c-primary)' : 'var(--c-bad)' }} />
+                    </div>
                     <div style={{ fontSize: 10.5, color: 'var(--c-faint)', fontWeight: 700, marginTop: 3 }}>
                       Target {eff}{t.unit === '%' ? '%' : ` ${t.unit}`}
                     </div>
@@ -850,18 +1064,24 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
             <Row key={s.id} grid={MSTAFF_OGRID} onClick={() => onNav('staff')}>
               <div className="qx-cellmain">
                 <span className="qx-av" style={avatarStyle(s.name)}>{initials(s.name)}</span>
-                <div style={{ minWidth: 0 }}><b>{s.name}</b><small>{s.note || `Since ${s.since}`}</small></div>
+                {/* The alert text used to run unbounded here, so a flagged row
+                    grew to four lines and knocked every column out of
+                    alignment. One line, ellipsised, full text on hover — the
+                    Status column already carries the state, this is only a hint. */}
+                <div style={{ minWidth: 0 }}>
+                  <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</b>
+                  <small title={s.note || undefined}
+                    style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {s.note || `Since ${s.since}`}
+                  </small>
+                </div>
               </div>
               <div className="qx-num">{s.counter}</div>
               <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.svc}</div>
               <div className="qx-num">{s.seen}</div>
               <div className="qx-num">{s.avg ? s.avg : '—'}{s.avg ? <u> min</u> : null}</div>
               <div>
-                {s.state === 'idle' ? <Status kind="busy">Idle With Demand</Status>
-                  : s.state === 'slow' ? <Status kind="soon">Slower Than Usual</Status>
-                  : s.state === 'break' ? <Status kind="closed">On Break</Status>
-                  : s.state === 'off' ? <Status kind="closed">Not On Today</Status>
-                  : <Status kind="open">Serving</Status>}
+                <Status kind={STATE_KIND[s.state]}>{STATE_LABEL[s.state]}</Status>
               </div>
             </Row>
           )} />
@@ -888,7 +1108,7 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
             { label: 'Joined The Line', value: d.funnel.joined, pct: 100, sub: 'App and kiosk', tone: 'primary' },
             { label: 'Called Forward', value: d.funnel.called, pct: d.funnel.joined ? (d.funnel.called / d.funnel.joined) * 100 : 0, sub: `${d.funnel.left} left before being called`, tone: 'primary' },
             { label: 'Actually Served', value: d.funnel.served, pct: d.funnel.joined ? (d.funnel.served / d.funnel.joined) * 100 : 0, sub: `${Math.max(0, d.funnel.called - d.funnel.served)} did not answer the call`, tone: 'good' },
-            { label: 'Gave Up Waiting', value: d.funnel.left, pct: d.funnel.joined ? (d.funnel.left / d.funnel.joined) * 100 : 0, sub: d.funnel.avgLeaveMin != null ? `Average ${d.funnel.avgLeaveMin} min before leaving` : 'Average wait before leaving not yet measured', tone: 'bad' },
+            { label: 'Gave Up Waiting', value: d.funnel.left, pct: d.funnel.joined ? (d.funnel.left / d.funnel.joined) * 100 : 0, sub: d.funnel.typicalLeaveMin != null ? `Typically ${d.funnel.typicalLeaveMin} min before giving up (90-day average)` : 'Not enough history to say how long they wait first', tone: 'bad' },
           ]} />
         ) : <div className="qx-empty">No visits recorded yet today.</div>}
       </Card>

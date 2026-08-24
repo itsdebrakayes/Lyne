@@ -1,51 +1,56 @@
 import { Platform, StyleSheet } from 'react-native';
 
 /**
- * QME Now — mobile design system (v4 · fintech style)
+ * Lyne — mobile design system (v5 · boarding-pass style)
  *
- * Ported from the approved Claude Design "QMe Mobile App v4" handoff.
- * Light canvas, white cards with hairline borders, Plus Jakarta Sans,
- * a forest-dark hero tone and a cyan accent. Status/efficiency semantics
- * use green → amber → red.
+ * Ported from the approved v5 preview, which was built literally against
+ * Debra's reference set: a deep navy ground for the "your place in line"
+ * screens (ticket, queue map, service pick), a light paper canvas for
+ * browsing, and one electric blue carrying every primary action.
  *
- * Accent note: v4 ships cyan (#1fc2de) as the default accent. The design's
- * own token set also offers #7a5cf0 (purple) to align with the marketing
- * site — swap `accent` below to change it everywhere.
+ * v5 replaces v4's cyan/forest pairing. The two tokens that moved the whole
+ * app are `dark` (forest → navy) and `accent` (cyan → blue); `accentInk` had
+ * to flip from near-black to white, because blue is a dark accent where cyan
+ * was a light one. Status semantics (green → amber → red) are unchanged.
  */
 
 const lightColors = {
   // surfaces
-  bg: '#f2f3f5',
-  bgSoft: '#e9eaee',
+  bg: '#f1f3f7',
+  bgSoft: '#e6e9ef',
   surface: '#ffffff',
-  surfaceAlt: '#f3f4f6',
-  fieldBg: '#f6f7f9',
+  surfaceAlt: '#f2f4f8',
+  fieldBg: '#f2f4f8',
 
   // ink + text
-  ink: '#101418',
-  text: '#101418',
-  muted: '#8a919b',
-  faint: '#b0b6be',
-  sub: '#5c636d',
-  chevron: '#c2c8d0',
+  ink: '#0c1826',
+  text: '#0c1826',
+  muted: '#7a8699',
+  faint: '#a8b1bf',
+  sub: '#5c6779',
+  chevron: '#c7cdd8',
 
   // borders
-  border: '#eceef1',
-  borderSoft: '#f1f2f4',
+  border: '#e7eaf0',
+  borderSoft: '#eef1f6',
 
   // glass materials (Apple liquid-glass): translucent fills + hairline
   // highlight borders that sit over the ambient wash / content behind.
   glass: 'rgba(255,255,255,0.55)',
   glassStrong: 'rgba(255,255,255,0.72)',
   glassBorder: 'rgba(255,255,255,0.75)',
-  glassDark: 'rgba(16,29,24,0.55)',
+  glassDark: 'rgba(12,24,38,0.62)',
   glassDarkBorder: 'rgba(255,255,255,0.12)',
 
   // brand
-  dark: '#101d18', // forest hero tone (--dk)
-  accent: '#1fc2de', // cyan (--acc)
-  accentInk: '#08110f', // ink on accent
-  accentDeep: '#0f97b3',
+  dark: '#0c1826', // navy hero tone — the boarding-pass ground
+  /* One blue across the whole product. These are the ADMIN QX values verbatim
+     (--c-primary / --c-primary-bright), so the phone, the staff desktop and the
+     website are the same colour rather than three shades of nearly-blue.
+     Was #2e6bff electric blue. */
+  accent: '#1b4b8f', // deep blue — CTAs, links, active states
+  accentInk: '#ffffff', // ink on accent — white; this blue is dark
+  accentDeep: '#143a6e', // deeper still: promo/premium ground, icons on white
 
   // status (green → amber → red)
   light: '#2fbf71',
@@ -67,42 +72,48 @@ const lightColors = {
 
 export type Palette = typeof lightColors;
 
-// Dark palette — same keys, forest-dark surfaces with light ink and a brighter
-// cyan so the brand still pops. Status greens/ambers/reds lifted for contrast.
+// Dark palette — same keys, navy surfaces with light ink and a lifted blue so
+// the accent still carries on a dark ground. Status greens/ambers/reds lifted
+// for contrast. `dark` is a RAISED surface here, not the canvas: on a dark
+// theme the hero has to sit above the background, not below it.
 const darkColors: Palette = {
-  bg: '#0b1210',
-  bgSoft: '#131c18',
-  surface: '#151f1a',
-  surfaceAlt: '#1c2822',
-  fieldBg: '#1c2822',
+  bg: '#080e16',
+  bgSoft: '#0d1622',
+  surface: '#111c2a',
+  surfaceAlt: '#182536',
+  fieldBg: '#182536',
 
-  ink: '#eef2f0',
-  text: '#eef2f0',
-  muted: '#8b978f',
-  faint: '#5c665f',
-  sub: '#b7c0b9',
-  chevron: '#3a453f',
+  ink: '#eef2f8',
+  text: '#eef2f8',
+  muted: '#8d9aae',
+  faint: '#5c687a',
+  sub: '#b6c0ce',
+  chevron: '#3a4658',
 
-  border: '#243029',
-  borderSoft: '#1c2822',
+  border: '#1f2c3d',
+  borderSoft: '#182536',
 
-  glass: 'rgba(28,40,34,0.55)',
-  glassStrong: 'rgba(28,40,34,0.75)',
+  glass: 'rgba(24,37,54,0.55)',
+  glassStrong: 'rgba(24,37,54,0.75)',
   glassBorder: 'rgba(255,255,255,0.10)',
-  glassDark: 'rgba(6,12,10,0.6)',
+  glassDark: 'rgba(5,10,17,0.62)',
   glassDarkBorder: 'rgba(255,255,255,0.10)',
 
-  dark: '#1e2e27', // raised dark surface (heroes / primary buttons)
-  accent: '#22c9e4',
-  accentInk: '#06100e',
-  accentDeep: '#4fd3ea',
+  dark: '#16243a', // raised navy surface (heroes / primary buttons)
+  /* Same hue, lifted — matching the admin's dark theme (--c-primary #5A93E8).
+     A deep navy accent on a near-black ground fails contrast and stops reading
+     as "press me", so the VALUE changes with the theme while the HUE does not.
+     accentDeep stays dark because it is used as ink on white tiles. */
+  accent: '#5a93e8',
+  accentInk: '#0b1220', // dark ink now, because this accent is light
+  accentDeep: '#1b4b8f',
 
   light: '#3fd07f',
   moderate: '#f5b83e',
   busy: '#ef5a5f',
   danger: '#ef5a5f',
 
-  infoSoft: 'rgba(34,201,228,0.13)', infoInk: '#7fdcef',
+  infoSoft: 'rgba(76,130,255,0.14)', infoInk: '#9dbaff',
   successSoft: 'rgba(63,208,127,0.15)', successInk: '#5fd99a',
   warnSoft: 'rgba(245,184,62,0.15)',
   dangerSoft: 'rgba(239,90,95,0.16)',
@@ -223,7 +234,7 @@ export function waitShort(minutes?: number | string | null) {
 /**
  * Branch open/closed by the wall clock. The demo seeds queues for the whole
  * day, so "open_queues > 0" is NOT a truthful "open now" signal — a branch
- * can carry a stale low wait at midnight. Every QMe business here is a
+ * can carry a stale low wait at midnight. Every Lyne business here is a
  * Jamaican government agency (TAJ · PICA · NHT) on standard Mon–Fri
  * 8:30am–4:30pm hours, so we gate live waits on the clock and surface a
  * clear Closed / About-to-open state instead of a fake "Now / Light".
@@ -322,44 +333,141 @@ export function remoteJoinInfo(now: Date = new Date(), hours: BranchHours = DEFA
 // Default agency open time as a plain label, for callers without a branch.
 export const openingTimeLabel = clockLabel(OPEN_MIN);
 
+/* Words that are never part of an organisation's acronym. Taking the first
+   letter of every word regardless is how "Passport Office of Jamaica" came out
+   on screen as POO — next to that agency's real name, in a product we sell to
+   that agency. */
+const CONNECTORS = new Set(['of', 'the', 'and', 'for', 'de', 'la', 'du', 'a', 'an']);
+
+/** A monogram for an ORGANISATION. For a person use personInitials. */
 export function initials(value?: string) {
-  return (value || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(part => part[0])
-    .join('')
-    .toUpperCase() || 'Q';
+  const raw = (value || '').trim();
+  if (!raw) return 'Q';
+
+  // An organisation that states its own acronym gets to keep it. Ours is a
+  // guess; theirs is their name.
+  const stated = raw.match(/\(([A-Za-z]{2,5})\)/);
+  if (stated) return stated[1].toUpperCase();
+
+  const words = raw.split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
+  const solid = words.filter(w => !CONNECTORS.has(w.toLowerCase()));
+  const use = solid.length ? solid : words;
+  if (!use.length) return 'Q';
+  return use.slice(0, 3).map(w => w[0]).join('').toUpperCase();
 }
 
-// Spacing scale — the whole app sits on this rhythm. Sections get xl above
-// and m below their header; cards pad with l; grouped items gap with s/m.
-export const space = { xs: 6, s: 10, m: 14, l: 20, xl: 32, xxl: 44 } as const;
+/** A person's monogram: first and last initial, the way every contacts app does
+    it. Three letters starts reading as a word rather than as initials. */
+export function personInitials(value?: string) {
+  const words = (value || '').trim().split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
+  if (!words.length) return 'Q';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/* ============================================================
+   THE SCALES.
+
+   A previous version of these existed and was used exactly zero
+   times — every screen hand-set its own numbers instead, which is
+   how the app ended up with 28 font sizes (including half-point
+   steps), 29 corner radii and 15 gap values. Nothing lined up
+   because nothing shared a rhythm.
+
+   These are deliberately SMALL. If a value you want is not here,
+   the answer is almost always the nearest one that is, not a new
+   entry. Scarcity is the feature.
+   ============================================================ */
+
+/** 4pt grid. Everything — padding, margin, gap — comes from here. */
+export const sp = {
+  xs: 4,
+  s: 8,
+  m: 12,
+  l: 16,
+  xl: 20,
+  xxl: 28,
+  section: 36,   // air above a section header
+  screen: 20,    // screen side gutter
+} as const;
+
+/** Five radii and a pill. Anything rounder than xl is a pill, not a radius. */
+export const radius = {
+  s: 10,
+  m: 14,
+  l: 18,
+  xl: 24,
+  xxl: 30,
+  pill: 999,
+} as const;
 
 /**
- * Type scale — one consistent ramp with a readable floor (per the typography
- * spec: Headline 24 · Subheadline 16 · Body 14 · Button 16, no big jumps,
- * nothing below ~13). Card content uses `cardTitle` / `subhead` / `bodySm`;
- * screen titles use `display` / `title`. Never hand-set a fontSize below 13
- * for readable text — use `tag`/`overline` (uppercase, tracked) if smaller.
+ * Type ramp — eight roles, one numeral pair. Every size is a whole number and
+ * every step is perceptible; if two roles are hard to tell apart, one of them
+ * should not exist.
+ *
+ *   display   screen hero ("Take your spot from anywhere.")
+ *   title     screen title
+ *   section   section header
+ *   cardTitle the strongest line inside a card
+ *   body      default reading text
+ *   callout   supporting text under a title
+ *   caption   metadata, timestamps, counts
+ *   overline  tracked uppercase eyebrow
+ *
+ * The numerals are for the two places a number IS the content: the ticket
+ * number and the headline wait.
  */
+/**
+ * How much room a scrolling screen must leave at the bottom so the FLOATING tab
+ * bar never sits on top of the last row.
+ *
+ * A named constant because it was being guessed per screen: Home, Saved and
+ * Search used 150, the shared content style used 196, and History used 56 — so
+ * on History the tab bar covered the final entry. One number, one place.
+ */
+export const TAB_BAR_CLEARANCE = 150;
+
 export const type = {
-  display:   { fontFamily: font.extra,    fontSize: 28,   letterSpacing: -0.6, lineHeight: 33 },
-  title:     { fontFamily: font.extra,    fontSize: 22,   letterSpacing: -0.5, lineHeight: 27 },
-  section:   { fontFamily: font.extra,    fontSize: 18,   letterSpacing: -0.3, lineHeight: 23 },
-  cardTitle: { fontFamily: font.bold,     fontSize: 16.5, letterSpacing: -0.3, lineHeight: 21 },
-  subhead:   { fontFamily: font.semibold, fontSize: 14,   lineHeight: 19 },
-  body:      { fontFamily: font.medium,   fontSize: 14.5, lineHeight: 21 },
-  bodySm:    { fontFamily: font.medium,   fontSize: 13.5, lineHeight: 19 },
-  callout:   { fontFamily: font.semibold, fontSize: 13,   lineHeight: 17 },
-  button:    { fontFamily: font.bold,     fontSize: 16 },
-  buttonSm:  { fontFamily: font.bold,     fontSize: 14 },
-  tag:       { fontFamily: font.bold,     fontSize: 12,   letterSpacing: 0.2 },
+  /* One step above `display`, for the single sentence that IS a screen — the
+     Home opening, the line preview's "you'd be second". The ramp stopped at 30,
+     which is why nothing on Home could dominate and every section read at the
+     same volume. Deliberately one step, not a redesign: 34 is as large as
+     Manrope stays comfortable at this line height on a 375pt screen. */
+  displayLg: { fontFamily: font.extra,    fontSize: 34, letterSpacing: -1.0, lineHeight: 38 },
+  display:   { fontFamily: font.extra,    fontSize: 30, letterSpacing: -0.8, lineHeight: 35 },
+  title:     { fontFamily: font.extra,    fontSize: 24, letterSpacing: -0.6, lineHeight: 29 },
+  section:   { fontFamily: font.extra,    fontSize: 19, letterSpacing: -0.4, lineHeight: 24 },
+  cardTitle: { fontFamily: font.bold,     fontSize: 16, letterSpacing: -0.3, lineHeight: 21 },
+  body:      { fontFamily: font.medium,   fontSize: 15, lineHeight: 21 },
+  callout:   { fontFamily: font.semibold, fontSize: 13, lineHeight: 18 },
+  caption:   { fontFamily: font.semibold, fontSize: 12, lineHeight: 16 },
+  overline:  { fontFamily: font.extra,    fontSize: 11, letterSpacing: 1.2, lineHeight: 13, textTransform: 'uppercase' as const },
+  numeral:   { fontFamily: font.extra,    fontSize: 56, letterSpacing: -2.0, lineHeight: 60 },
+  numeralSm: { fontFamily: font.extra,    fontSize: 28, letterSpacing: -0.8, lineHeight: 32 },
+} as const;
+
+/**
+ * Press physics. Opacity alone is the cheapest possible feedback and it is what
+ * all 118 touchables in this app used — it reads flat next to anything from
+ * Apple or Google, where a press has weight. These are the numbers the Press
+ * component springs to.
+ */
+export const press = {
+  scale: 0.97,
+  opacity: 0.92,
+  /** iOS-like: quick to depress, slightly slower to release. */
+  inDuration: 90,
+  outDuration: 160,
 } as const;
 
 const makeT = () => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 148 },
+  // Bottom room for BOTH floating layers: the tab bar (bottom 24 + 50 tall)
+  // and, when a queue is live, the ticket banner above it (bottom 102 +
+  // ~48 tall). At 148 the banner sat exactly on top of whatever the last
+  // control was — on Profile that was Log out.
+  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: TAB_BAR_CLEARANCE },
 
   // typography (mirrors the `type` scale — readable floors, consistent ramp)
   h1: { fontFamily: font.extra, fontSize: 28, color: colors.ink, letterSpacing: -0.6, lineHeight: 33 },

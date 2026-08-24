@@ -1,9 +1,9 @@
 -- =============================================================
--- Q ME NOW — Migration 007: Functional Admin Dashboards
+-- LYNE — Migration 007: Functional Admin Dashboards
 -- Adds timer fields for called tickets and dashboard summary columns.
 -- =============================================================
 
-USE qme_now;
+USE lyne;
 
 SET @db_name = DATABASE();
 

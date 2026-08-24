@@ -1,7 +1,7 @@
 /**
  * helpContent.ts — the Help & Support knowledge base.
  *
- * Static, human-curated content buckets (NOT an AI chatbot): general QMe Now
+ * Static, human-curated content buckets (NOT an AI chatbot): general Lyne
  * FAQs, plus a per-agency guide covering opening hours, what documents to
  * bring for each service, and whether anything needs to be certified by a
  * Justice of the Peace (JP). Content is representative for the demo — the UI
@@ -20,14 +20,14 @@ export interface AgencyGuide {
   general: string;
 }
 
-// ── General QMe Now questions ─────────────────────────────
+// ── General Lyne questions ─────────────────────────────
 export const GENERAL_FAQS: FaqItem[] = [
-  { q: 'What is QMe Now?', a: 'QMe Now lets you join queues at government agencies and businesses from your phone. You can see live wait times, join a line remotely, and arrive right when your turn is close — instead of standing around waiting.' },
+  { q: 'What is Lyne?', a: 'Lyne lets you join queues at government agencies and businesses from your phone. You can see live wait times, join a line remotely, and arrive right when your turn is close, instead of standing around waiting.' },
   { q: 'How do I join a queue?', a: 'Open an agency, choose the branch and the service you need, then tap Join. You’ll get a digital ticket with your number and a live position that updates as the line moves.' },
   { q: 'How accurate are the wait times?', a: 'Wait times are estimated from the live queue and how quickly each service is currently moving, and they update continuously. They’re a close guide, not a guarantee.' },
   { q: 'Can I join before I leave home?', a: 'Yes. You can join remotely and watch your position on the way. We’ll let you know when you’re getting close so you can time your arrival.' },
-  { q: 'What are the opening hours?', a: 'Most agencies on QMe Now are open Monday to Friday, 8:00–8:30 AM to 4:00–4:30 PM, and closed on weekends and public holidays. Exact hours are listed under each agency in “Agencies we work with” below.' },
-  { q: 'What is QMe Premium / Plan Your Visit?', a: 'Premium unlocks Plan Your Visit — per-service “best time to go” predictions built from real visit history, so you can pick the quietest window. Joining queues is always free; Premium is optional.' },
+  { q: 'What are the opening hours?', a: 'Most agencies on Lyne are open Monday to Friday, 8:00–8:30 AM to 4:00–4:30 PM, and closed on weekends and public holidays. Exact hours are listed under each agency in “Agencies we work with” below.' },
+  { q: 'What is Lyne Premium / Plan Your Visit?', a: 'Premium unlocks Plan Your Visit: per-service “best time to go” predictions built from real visit history, so you can pick the quietest window. Joining queues is always free; Premium is optional.' },
   { q: 'What happens if I miss my turn?', a: 'If you’re not there when you’re called, you may be marked as a no-show. You can simply rejoin the queue and take a new position.' },
   { q: 'Who can see my saved documents?', a: 'Details you save to your profile (like your TRN or ID) are only shared with the agency serving you, to speed up verification at the counter. They’re not shown to other users.' },
 ];
@@ -41,11 +41,11 @@ export const AGENCY_GUIDES: AgencyGuide[] = [
     hours: 'Monday – Friday, 8:30 AM – 4:00 PM',
     hoursNote: 'Some locations stay open to 5:00 PM. Closed weekends and public holidays.',
     services: [
-      { name: 'TRN registration', documents: ['A valid photo ID — passport, driver’s licence, national ID, or voter’s ID', 'A completed TRN application form', 'For a minor: the child’s birth certificate'], jp: 'If you’re applying on behalf of someone else (or a minor), the application form and ID copies must be certified by a Justice of the Peace.', jpRequired: true },
+      { name: 'TRN registration', documents: ['A valid photo ID: passport, driver’s licence, national ID, or voter’s ID', 'A completed TRN application form', 'For a minor: the child’s birth certificate'], jp: 'If you’re applying on behalf of someone else (or a minor), the application form and ID copies must be certified by a Justice of the Peace.', jpRequired: true },
       { name: 'Driver’s licence & motor vehicle', documents: ['Your TRN', 'A valid photo ID', 'The relevant vehicle or licence documents (title, fitness, etc.)'], jp: 'No JP certification needed for standard renewals.', jpRequired: false },
-      { name: 'Tax payments', documents: ['Your TRN', 'Your assessment or reference number', 'Payment — cash, card, or manager’s cheque'], jp: 'No JP certification required.', jpRequired: false },
+      { name: 'Tax payments', documents: ['Your TRN', 'Your assessment or reference number', 'Payment: cash, card, or manager’s cheque'], jp: 'No JP certification required.', jpRequired: false },
     ],
-    general: 'Many services — payments and some registrations — can be done online at jamaicatax.gov.jm. However, TRN cards and certain registrations must be collected in person.',
+    general: 'Many services, including payments and some registrations, can be done online at jamaicatax.gov.jm. However, TRN cards and certain registrations must be collected in person.',
   },
   {
     slug: 'pica',
@@ -67,7 +67,7 @@ export const AGENCY_GUIDES: AgencyGuide[] = [
     hoursNote: 'Closed weekends and public holidays.',
     services: [
       { name: 'Contributions refund', documents: ['Your TRN', 'A valid photo ID', 'Your NHT number, if you have it'], jp: 'No JP certification required for a standard refund.', jpRequired: false },
-      { name: 'Mortgage / loan application', documents: ['Your TRN', 'A valid photo ID', 'Proof of income — job letter and recent payslips', 'Proof of your NHT contributions'], jp: 'Some supporting documents, such as a statutory declaration, may need to be signed before a JP.', jpRequired: true },
+      { name: 'Mortgage / loan application', documents: ['Your TRN', 'A valid photo ID', 'Proof of income: job letter and recent payslips', 'Proof of your NHT contributions'], jp: 'Some supporting documents, such as a statutory declaration, may need to be signed before a JP.', jpRequired: true },
     ],
     general: 'Check your contributions and refund eligibility online before visiting. Refunds are typically claimable after a set number of years of contributions.',
   },

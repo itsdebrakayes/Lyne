@@ -1,4 +1,4 @@
-# Q Me Now — Completed Work (what's shipped and ticked off)
+# Lyne — Completed Work (what's shipped and ticked off)
 
 _The record of work actually done, kept in agreement with the task tracker and
 [REMAINING_WORK.md](REMAINING_WORK.md). Newest themes first. Task numbers refer

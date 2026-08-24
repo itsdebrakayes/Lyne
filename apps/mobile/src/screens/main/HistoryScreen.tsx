@@ -9,10 +9,11 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t } from '../../lib/theme';
+import { colors, font, shadow, t, TAB_BAR_CLEARANCE } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
-import { EmptyCard, ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import EmptyState from '../../components/EmptyState';
 
 interface VisitHistoryRow {
   id: string;
@@ -87,7 +88,7 @@ export default function HistoryScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 56 }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
@@ -122,7 +123,15 @@ export default function HistoryScreen() {
           <ErrorCard title="History unavailable" message="Your queue history could not be loaded right now." onRetry={() => refetch()} />
         )}
         {!isLoading && !error && dayVisits.length === 0 && (
-          <EmptyCard icon="time-outline" title={isToday ? 'No visits today' : 'No visits this day'} message="Pick another day above, or join a queue and it will show up here." />
+          <EmptyState
+            icon="clock"
+            title={isToday ? 'No visits today' : 'No visits this day'}
+            body={isToday
+              ? "Nothing yet today. Join a line and it will appear here the moment you're served."
+              : 'Nothing on this day. Pick another date above, or join a line today.'}
+            actionLabel="Find a branch"
+            onAction={() => navigation.navigate('Search')}
+          />
         )}
 
         {/* timeline */}
