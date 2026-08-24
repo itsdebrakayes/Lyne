@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "node godaddy-build.mjs",
+    "postinstall": "node godaddy-build.mjs",
     "start": "node godaddy-server.mjs"
   },
   "dependencies": {
