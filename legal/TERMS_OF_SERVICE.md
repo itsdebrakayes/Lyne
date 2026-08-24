@@ -4,8 +4,6 @@
 
 **Last updated:** 21 August 2026
 
-> **DRAFT — requires review by a Jamaican attorney before publication.** See `COMPLIANCE_NOTES.md`. Placeholders in `[SQUARE BRACKETS]` must be completed.
-
 ---
 
 ## 1. Agreement

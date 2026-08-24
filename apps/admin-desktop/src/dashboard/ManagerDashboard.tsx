@@ -870,8 +870,8 @@ export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[]
         ))}
       </Card>
       <Card span={5} title="Contact Lyne Support" cap="We Reply Within One Business Day">
-        <a className="qa-contact" href="mailto:support@uselyne.com">
-          <i><Mail size={16} /></i><span><b>support@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
+        <a className="qa-contact" href="mailto:customersupport@uselyne.com">
+          <i><Mail size={16} /></i><span><b>customersupport@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
         </a>
         <a className="qa-contact" href="tel:+18765550199">
           <i><Phone size={16} /></i><span><b>+1 (876) 555-0199</b><small>Call us — best when a line is down</small></span>

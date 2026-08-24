@@ -7,6 +7,11 @@ const links = [
   { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/#pricing" },
   { label: "For business", href: "/#partners" },
+  // In the nav as well as the footer. Somebody checking who they are handing
+  // their identification to should not have to scroll a marketing page to the
+  // bottom to find out — and a procurement reviewer looks for these first.
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
 ];
 
 export function MarketingNav() {

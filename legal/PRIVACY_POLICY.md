@@ -6,8 +6,6 @@
 
 **Effective:** on first release
 
-> **DRAFT — requires review by a Jamaican attorney before publication.** See `COMPLIANCE_NOTES.md`. Placeholders in `[SQUARE BRACKETS]` must be completed.
-
 ---
 
 ## 1. Who we are
@@ -17,7 +15,7 @@ Lyne ("Lyne", "we", "us") is operated by **[REGISTERED COMPANY NAME]**, a busine
 Lyne is operated as a **sole trader**. That does not change your rights under this policy or under the Data Protection Act, and it does not change who is accountable to you: the proprietor of the business is the data controller.
 
 - **Privacy contact:** [PRIVACY EMAIL]
-- **Data Protection Officer:** [NAME / "not currently required — see s.20 DPA"]
+- **Data Protection Officer:** not currently required (see s.20, Data Protection Act)
 - **Registration with the Office of the Information Commissioner:** [REGISTRATION NUMBER]
 
 This policy is written to meet the **Data Protection Act, 2020 (Jamaica)** ("the DPA") and is intended to remain workable as we extend to other Caribbean jurisdictions.
@@ -133,11 +131,10 @@ These act on our instructions under contract, may not use your data for their ow
 | Provider | Purpose | Where |
 |---|---|---|
 | Supabase | Authentication and database hosting | United States (US East, Ohio) |
-| [HOSTING PROVIDER] | Application and API hosting | [REGION] |
-| Sentry | Crash and error monitoring | [REGION] |
+| GoDaddy | Website and API hosting | United States |
+| Sentry | Crash and error monitoring | United States |
 | Stripe / Apple | Payment processing | United States / Ireland |
 | Expo / Apple / Google | Push notification delivery | United States |
-| [SMS PROVIDER] | Text message delivery, where used | Jamaica / United States |
 
 We maintain the current list here and will give organisational customers advance notice of a change under their agreement.
 
@@ -239,4 +236,4 @@ We will update this policy as the service develops. For **material** changes we 
 [ADDRESS]
 [PRIVACY EMAIL]
 
-**Office of the Information Commissioner (Jamaica)** — for complaints, and you may go to them directly: [OIC CONTACT]
+**Office of the Information Commissioner (Jamaica)** — for complaints, and you may go to them directly. Their current contact details are published on their official website.

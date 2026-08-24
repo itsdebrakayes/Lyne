@@ -14,6 +14,7 @@ import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
+import { ScrollToTop } from './components/ScrollToTop';
 import MobileMarketingHome from './pages/mobile/MobileMarketingHome';
 import MobileAbout from './pages/mobile/MobileAbout';
 import MobileJoinUs from './pages/mobile/MobileJoinUs';
@@ -48,6 +49,7 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<ResponsivePage desktop={<MarketingHome />} mobile={<MobileMarketingHome />} />} />
             <Route path="/about" element={<ResponsivePage desktop={<About />} mobile={<MobileAbout />} />} />

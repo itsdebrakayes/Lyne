@@ -44,13 +44,22 @@ export interface LegalEntity {
 }
 
 export const LEGAL_ENTITY: LegalEntity = {
+  // From the Certificate of Registration, Form B.N.9, dated 9 August 2026.
   registeredName: "DKS Technologies",
-  businessRegistrationNumber: "",
-  registeredAddress: "",
-  // These two are already used in the product, so they are not guesses.
-  privacyEmail: "privacy@uselyne.com",
-  supportEmail: "support@uselyne.com",
-  oicRegistration: "",
+  businessRegistrationNumber: "11602/2026",
+  registeredAddress:
+    "31 Claude O'Reagan Close, Unions Estate, Central Village P.A., Saint Catherine, Jamaica",
+  /* One mailbox, used for both. A privacy policy that routes data-subject
+     requests to an address nobody has created is worse than one that shares an
+     inbox — the request simply bounces, and the obligation is missed. Split
+     these the day privacy@ exists. */
+  privacyEmail: "customersupport@uselyne.com",
+  supportEmail: "customersupport@uselyne.com",
+  /* The honest position. Jamaica's Data Protection Act requires controllers to
+     register with the Office of the Information Commissioner, so this line is
+     an admission — but an unregistered controller claiming otherwise is worse,
+     and a procurement reviewer will check. Change it the moment it is done. */
+  oicRegistration: "Not yet registered",
 };
 
 /** Which identity fields are still outstanding. Empty array = ready to publish. */

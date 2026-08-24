@@ -588,7 +588,7 @@ export function SupSupportTab() {
         <Card title="Ask Your Manager" cap="For anything set above this section">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Manager</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
           </div>
         </Card>
