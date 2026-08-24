@@ -38,7 +38,7 @@ const idSchema = z.string().min(1).max(64);
 const scanSchema = z.object({
   image_base64: z.string().min(100, 'image_base64 must be a valid base64-encoded image'),
   mime_type:    z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], {
-    errorMap: () => ({ message: 'mime_type must be image/jpeg, image/png, image/webp, or application/pdf' }),
+    error: 'mime_type must be image/jpeg, image/png, image/webp, or application/pdf',
   }),
   document_type: z.enum(['national_id', 'trn', 'passport', 'drivers_license', 'other']).optional(),
 });

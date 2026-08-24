@@ -87,7 +87,11 @@ const walkInSchema = z.object({
 
 const updateStatusSchema = z.object({
   new_status: z.enum(['called', 'in_service', 'served', 'left', 'cancelled', 'no_show'], {
-    errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
+    /* `error`, not `errorMap` — zod 4 renamed it, so the custom message was
+       being dropped and callers got the library's own "Invalid option:
+       expected one of ..." instead, which never names the field. On a 400 the
+       field name is the only part that tells you what to fix. */
+    error: 'new_status must be one of: called, in_service, served, left, cancelled, no_show',
   }),
   verification_code: z.string().max(12).optional(),
   call_timeout_seconds: z.number().int().min(MIN_CALL_TIMEOUT_SECONDS).max(MAX_CALL_TIMEOUT_SECONDS).optional(),
