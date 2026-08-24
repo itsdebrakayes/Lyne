@@ -11,7 +11,20 @@
  * entry recording how many there are. Reading reassembles them; writing always
  * clears the previous chunks first, so a shorter session can never leave a stale
  * tail behind that would corrupt the next read.
+ *
+ * WEB. expo-secure-store has no web implementation — ExpoSecureStore.web.js is
+ * literally `export default {}`, so every method is undefined and the first
+ * session read throws rather than returning null. Pointing Supabase at this
+ * module unconditionally is what broke sign-in in the browser.
+ *
+ * A browser has no keychain, so there is nothing to fall back TO except its own
+ * storage. That is not a downgrade being tolerated: the App Review requirement
+ * is about tokens on a device somebody can jailbreak or restore from a backup,
+ * and neither applies to a tab. The native paths are unchanged and still use
+ * the Keychain and the Keystore.
  */
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 const CHUNK_SIZE = 1800;              // headroom under SecureStore's 2048-byte limit
@@ -39,7 +52,17 @@ async function clearChunks(key: string, count: number) {
   await Promise.all(deletions);
 }
 
-export const secureSessionStorage = {
+const isWeb = Platform.OS === 'web';
+
+/** The browser has no keychain; its own storage is the only place a session
+    can live. Native platforms never take this path. */
+const webStorage = {
+  getItem: (key: string) => AsyncStorage.getItem(key),
+  setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
+  removeItem: (key: string) => AsyncStorage.removeItem(key),
+};
+
+const keychainStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
       const count = await readCount(key);
@@ -89,5 +112,9 @@ export const secureSessionStorage = {
     await SecureStore.deleteItemAsync(countKey(key));
   },
 };
+
+/** Keychain on a device, browser storage in a tab. Chosen once, here, so no
+    caller has to know which platform it is running on. */
+export const secureSessionStorage = isWeb ? webStorage : keychainStorage;
 
 export default secureSessionStorage;

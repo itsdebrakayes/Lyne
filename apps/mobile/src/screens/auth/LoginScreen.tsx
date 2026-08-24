@@ -13,13 +13,49 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
-import { QueueScene } from '../../components/QueueScene';
 
+type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
 
+// Two rows of brand tiles — one frames the top edge, one the bottom.
+const TOP_TILES: Tile[] = [
+  { icon: 'ticket', bg: colors.dark, fg: colors.accent },
+  { icon: 'time-outline', bg: '#ffffff', fg: colors.accentDeep },
+  { icon: 'barcode-outline', bg: colors.accent, fg: colors.accentInk },
+  { icon: 'location', bg: colors.dark, fg: '#ffffff' },
+  { icon: 'notifications', bg: '#ffffff', fg: colors.accentDeep },
+];
+const BOTTOM_TILES: Tile[] = [
+  { icon: 'qr-code-outline', bg: colors.dark, fg: '#ffffff' },
+  { icon: 'people-outline', bg: colors.accent, fg: colors.accentInk },
+  { icon: 'sparkles', bg: '#ffffff', fg: colors.accentDeep },
+  { icon: 'navigate', bg: colors.dark, fg: colors.accent },
+  { icon: 'checkmark-done', bg: colors.accent, fg: colors.accentInk },
+];
+
+function MotifRow({ tiles }: { tiles: Tile[] }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 13, transform: [{ rotate: '-7deg' }] }}>
+      {tiles.map((tile, index) => (
+        <View
+          key={index}
+          style={{
+            width: 84, height: 84, borderRadius: 25, backgroundColor: tile.bg,
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: tile.bg === '#ffffff' ? 1 : 0, borderColor: colors.border,
+            ...shadow.card,
+          }}
+        >
+          <Ionicons name={tile.icon} size={31} color={tile.fg} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -43,13 +79,30 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.scene} pointerEvents="none"><QueueScene height={180} /></View>
+      {/* top motif — brand tiles bleeding off the top edge, fading into white */}
+      <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255,255,255,0)', colors.surface]}
+        locations={[0, 0.82]}
+        style={styles.topFade}
+      />
+
+      {/* bottom motif — mirrored off the bottom edge */}
+      <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[colors.surface, 'rgba(255,255,255,0)']}
+        locations={[0.18, 1]}
+        style={styles.bottomFade}
+      />
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
           {/* brand lockup */}
           <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
           <Text style={styles.brand}>Lyne</Text>
-          <Text style={styles.subtitle}>Sign in to hold your place.</Text>
+          <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
           {!!error && (
             <View style={styles.errorBanner}>
@@ -107,27 +160,23 @@ export default function LoginScreen() {
 }
 
 const makeStyles = () => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: colors.surface },
 
-  /* Was `justifyContent: 'center'`, which left the form floating with large
-     dead regions above and below. It now sits on a raised sheet anchored to the
-     bottom edge, with the queue scene above it. */
-  scene: { flex: 1, justifyContent: 'flex-end', minHeight: 150 },
-  inner: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 30, borderTopRightRadius: 30,
-    paddingHorizontal: 30, paddingTop: 30, paddingBottom: 34,
-    ...shadow.hero,
-  },
+  topMotif: { position: 'absolute', top: -46, left: -44, right: -44, alignItems: 'center' },
+  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 210 },
+  bottomMotif: { position: 'absolute', bottom: -46, left: -44, right: -44, alignItems: 'center' },
+  bottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 210 },
+
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
 
   logo: {
-    width: 52, height: 52, borderRadius: 18,
+    width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
     backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center',
     marginBottom: 16, ...shadow.card,
   },
   logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 26 },
-  brand: { fontFamily: font.extra, fontSize: 26, color: colors.ink, letterSpacing: -0.6 },
-  subtitle: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted, marginTop: 6, marginBottom: 24 },
+  brand: { fontFamily: font.extra, fontSize: 24, color: colors.ink, textAlign: 'center', letterSpacing: -0.5 },
+  subtitle: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 7, marginBottom: 28 },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
