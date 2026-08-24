@@ -172,21 +172,31 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
         {/* greeting + location */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, height: 64 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} activeOpacity={0.85} style={{ borderRadius: 23, ...shadow.depth }}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <Sheen radius={23} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16, ...depthText }}>{personInitials(user?.full_name || 'Q')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 52 }}>
+          {/* Visually 38, but hitSlop keeps the real target at 44 — the header
+              is furniture, not the point of the screen, and it was competing
+              with the headline underneath it. */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Your account"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            style={{ borderRadius: 19, ...shadow.depth }}
+          >
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <Sheen radius={19} />
+              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 13.5, ...depthText }}>{personInitials(user?.full_name || 'L')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
             {/* The greeting moved into the headline below — saying "Hello, X"
                 here and "Good morning, X" twenty pixels lower said the same
                 thing twice and made neither land. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Icon name="pin" size={15} color={colors.ink} />
-              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.3 }}>Kingston, Jamaica</Text>
-              <Icon name="chevronDown" size={12} color={colors.ink} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="pin" size={13} color={colors.muted} />
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>Kingston, Jamaica</Text>
+              <Icon name="chevronDown" size={11} color={colors.muted} />
             </View>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
@@ -230,9 +240,18 @@ export default function HomeScreen() {
         {/* The opening. Plain type on the canvas — no card, no border, nothing
             around it. This is the one place on Home that should be loud, and it
             is loud by being large rather than by being a coloured box. */}
-        <View style={{ marginTop: ticket ? 22 : 18 }}>
-          <Text style={{ ...type.displayLg, color: colors.ink }}>{greeting}, {firstName}.</Text>
-          <Text style={{ ...type.displayLg, color: colors.muted }}>What do you need{'\n'}to get done?</Text>
+        {/* Two lines at the same size, differing only in colour, gave the eye
+            nothing to rank — so neither read as the point. The greeting is
+            context and steps down to it; the question is the screen's actual
+            prompt and keeps the display size. The gap between them is what
+            makes them two thoughts instead of one paragraph. */}
+        <View style={{ marginTop: ticket ? 24 : 20 }}>
+          <Text style={{ ...type.callout, fontSize: 15, color: colors.muted }}>
+            {greeting}, {firstName}.
+          </Text>
+          <Text style={{ ...type.displayLg, color: colors.ink, marginTop: 10 }}>
+            What do you need{'\n'}to get done?
+          </Text>
         </View>
 
         {/* search */}
@@ -277,8 +296,13 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity key={label} onPress={() => setOpenOnly(val)}
                 accessibilityRole="button" accessibilityLabel={`${label}${on ? ', selected' : ''}`}
-                style={{ minHeight: 44, justifyContent: 'center', backgroundColor: on ? colors.ink : 'transparent', borderWidth: 1, borderColor: on ? colors.ink : colors.border, borderRadius: 999, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? colors.onDark : colors.sub }}>{label}</Text>
+                /* accent/accentInk, not ink/onDark. In dark mode colors.ink is
+                   #eef2f8 and colors.onDark is #ffffff — white on near-white,
+                   so the selected chip vanished. The accent pair is the one
+                   that flips correctly with the theme: dark blue with white
+                   ink in light, light blue with near-black ink in dark. */
+                style={{ minHeight: 44, justifyContent: 'center', backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.border, borderRadius: 999, paddingHorizontal: 16 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? colors.accentInk : colors.sub }}>{label}</Text>
               </TouchableOpacity>
             );
           })}

@@ -325,8 +325,16 @@
   .text-clip-glow {
     filter:
       drop-shadow(0 1px 1px rgba(6, 13, 28, 0.55))
-      drop-shadow(0 0 14px rgba(96, 165, 250, 0.32))
-      drop-shadow(0 0 34px rgba(47, 107, 255, 0.22));
+      drop-shadow(0 3px 10px rgba(183, 213, 255, 0.3))
+      drop-shadow(0 3px 16px rgba(96, 165, 250, 0.43))
+      drop-shadow(0 7px 36px rgba(47, 107, 255, 0.3));
+  }
+
+  .hero-wordmark {
+    position: relative;
+    top: 0.06em;
+    line-height: 1;
+    padding-bottom: 0.08em;
   }
 
   .script {
