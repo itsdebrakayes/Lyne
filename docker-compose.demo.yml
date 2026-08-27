@@ -39,7 +39,16 @@ services:
       # first database comes up empty and sellable.
       LYNE_LOAD_DEMO_SEEDS: "true"
     ports:
-      - "3308:3306"
+      # Bound to the loopback interface, not 0.0.0.0.
+      #
+      # "3307:3306" publishes on every interface the host has, so on any machine
+      # with a routable address — a laptop on cafe wifi, a cloud VM, a demo box
+      # at a client site — the database was listening to the network, defended
+      # only by a password that lives in a .env recoverable from git history.
+      # Nothing outside this machine has ever needed to reach it: the API talks
+      # to the container over the compose network, and local tooling connects
+      # through 127.0.0.1.
+      - "127.0.0.1:3308:3306"
     volumes:
       - mysql_demo_data:/var/lib/mysql
       # One mount, not thirty. database/docker-init.sh walks migrations/ in

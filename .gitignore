@@ -107,3 +107,7 @@ outputs/*
 * [0-9].*
 * [0-9]
 * [0-9].*
+
+# Database dumps. Large, and full of every customer record we hold —
+# a backup committed to a repository is a breach with a git history.
+backups/

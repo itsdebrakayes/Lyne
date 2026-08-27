@@ -32,11 +32,16 @@ const { issueTicketSlot } = require(path.join(here, '..', 'src', 'utils', 'ticke
 dotenv.config({ path: path.resolve(here, '../../../.env') });
 dotenv.config({ path: path.resolve(here, '../.env'), override: false });
 
+/* Connects as the APPLICATION user, not root, and that is deliberate on two
+   counts. root@'%' no longer exists (see database/security/harden_database.sql),
+   so a root-over-TCP default would simply fail. More usefully: the allocator is
+   application code, so checking it through the application's own privileges
+   proves the least-privilege grant is actually sufficient for it. */
 const conn = await mysql.createConnection({
   host: process.env.CHECK_MYSQL_HOST || '127.0.0.1',
   port: Number(process.env.CHECK_MYSQL_PORT || 3308),
-  user: process.env.CHECK_MYSQL_USER || 'root',
-  password: process.env.CHECK_MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD,
+  user: process.env.CHECK_MYSQL_USER || process.env.MYSQL_USER || 'lyne',
+  password: process.env.CHECK_MYSQL_PASSWORD || process.env.MYSQL_PASSWORD,
   database: process.env.CHECK_MYSQL_DATABASE || process.env.MYSQL_DATABASE || 'lyne',
 });
 
