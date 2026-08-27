@@ -345,6 +345,7 @@ SELECT
 FROM queues q
 JOIN services s ON s.id = q.service_id
 JOIN branches b ON b.id = q.branch_id
+JOIN businesses bz ON bz.id = b.business_id
 JOIN (
   SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
   UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
@@ -356,6 +357,20 @@ WHERE q.queue_date = CURDATE()
   -- moments later, and both blocks number from 1: LDR-001 written twice into
   -- one line, two live tickets on position 1, and "you're next" shown to both.
   AND b.business_id IN ('biz-taj-001', 'biz-nht-001', 'biz-pica-001')
+  -- Only where the doors are actually open right now.
+  --
+  -- Without this the seed writes a busy mid-morning line regardless of the
+  -- clock, so at 22:13 the Traffic Court showed 320 people queuing six hours
+  -- after it shut at 16:00 — and the expiry sweep then correctly cancelled all
+  -- of them fifteen minutes later, and the next re-seed put them back. The demo
+  -- and the sweep were fighting each other every quarter of an hour.
+  --
+  -- A demo that contradicts the wall clock is not a demo of a live system. The
+  -- tenants that run to 23:59 stay busy at any hour, which is what keeps a late
+  -- evening walkthrough worth doing; the ones with real closing times go quiet
+  -- when they close, because that is the truth and the product should show it.
+  AND CURTIME() BETWEEN COALESCE(b.opening_time, bz.default_opening_time)
+                    AND COALESCE(b.closing_time, bz.default_closing_time)
   AND seq.n <= 3 + MOD(CRC32(q.id), 8)
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),

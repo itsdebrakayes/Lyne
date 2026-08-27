@@ -462,10 +462,25 @@ SELECT
   END
 FROM queues q
 JOIN branches b ON b.id = q.branch_id
+JOIN businesses bz ON bz.id = b.business_id
 JOIN services s ON s.id = q.service_id
 JOIN _seq seq
 WHERE q.queue_date = CURDATE()
   AND b.business_id IN ('biz-court-001','biz-uwi-001','biz-utech-001','biz-fhc-001')
+  -- Only where the doors are actually open right now.
+  --
+  -- Without this the seed writes a busy mid-morning line regardless of the
+  -- clock, so at 22:13 the Traffic Court showed 320 people queuing six hours
+  -- after it shut at 16:00 — and the expiry sweep then correctly cancelled all
+  -- of them fifteen minutes later, and the next re-seed put them back. The demo
+  -- and the sweep were fighting each other every quarter of an hour.
+  --
+  -- A demo that contradicts the wall clock is not a demo of a live system. The
+  -- tenants that run to 23:59 stay busy at any hour, which is what keeps a late
+  -- evening walkthrough worth doing; the ones with real closing times go quiet
+  -- when they close, because that is the truth and the product should show it.
+  AND CURTIME() BETWEEN COALESCE(b.opening_time, bz.default_opening_time)
+                    AND COALESCE(b.closing_time, bz.default_closing_time)
   AND seq.n <= CASE
     -- Camp Road is the flagship congestion story.
     WHEN b.id = 'br-court-camp' THEN 34 + MOD(CRC32(q.id), 22)
