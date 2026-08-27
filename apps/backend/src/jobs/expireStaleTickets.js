@@ -93,12 +93,24 @@ const ENABLED = process.env.TICKET_EXPIRY_ENABLED !== 'false';
 const CANDIDATE_SQL = `
   SELECT t.id,
          t.status,
+         t.user_id,
+         t.ticket_number,
+         t.channel,
+         t.joined_at,
+         t.queue_id,
+         q.queue_date,
+         q.service_id,
+         b.id   AS branch_id,
+         bz.id  AS business_id,
+         bz.name AS business_name,
+         s.name  AS service_name,
          TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time)) AS closed_at,
          b.name AS branch_name
     FROM queue_tickets t
     JOIN queues     q  ON q.id  = t.queue_id
     JOIN branches   b  ON b.id  = q.branch_id
     JOIN businesses bz ON bz.id = b.business_id
+    JOIN services   s  ON s.id  = q.service_id
    WHERE t.status = ?
      AND TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time))
          + INTERVAL ? MINUTE < NOW()
@@ -109,8 +121,9 @@ async function closeOut(conn, fromStatus, toStatus, note, reason) {
   const [rows] = await conn.query(CANDIDATE_SQL, [fromStatus, GRACE_MINUTES]);
   if (!rows.length) return 0;
 
+  let closed = 0;
   for (const r of rows) {
-    await conn.query(
+    const [res] = await conn.query(
       `UPDATE queue_tickets
           SET status = ?,
               closed_reason = ?,
@@ -118,6 +131,62 @@ async function closeOut(conn, fromStatus, toStatus, note, reason) {
         WHERE id = ? AND status = ?`,
       [toStatus, reason, r.closed_at, r.id, fromStatus]
     );
+    // Lost the race to a clerk who touched the ticket between the SELECT and
+    // here. Skip the history too, or the visit is recorded twice.
+    if (!res.affectedRows) continue;
+    closed += 1;
+
+    /* The same history the status route writes, because this is the same event.
+     *
+     * PUT /tickets/:id/status records every terminal status into
+     * wait_time_records and visit_history. This job bypasses that route
+     * entirely — it issues its own UPDATE — so everything it closed was
+     * dequeued and then vanished: absent from the analytics that measure
+     * abandonment, and absent from the customer's own visit history. A person
+     * who queued for two hours and was sent home when the branch shut had no
+     * record they were ever there.
+     *
+     * The wait is measured to CLOSING TIME, not to now, for the same reason
+     * completed_at is: stamping the current time would bake the overnight gap
+     * into the recorded wait and reproduce the 900-minute figures this file
+     * exists to prevent. service_time is NULL — nobody was served. */
+    await conn.query(
+      `INSERT INTO wait_time_records
+         (id, ticket_id, business_id, branch_id, service_id, visit_date,
+          day_of_week, hour_of_day, month_of_year,
+          wait_time_minutes, service_time_minutes, status, channel,
+          staff_count_at_time, queue_length_at_time, active_counters_at_time)
+       SELECT UUID(), ?, ?, ?, ?, ?,
+              DAYOFWEEK(?) - 1, HOUR(?), MONTH(?),
+              GREATEST(0, TIMESTAMPDIFF(MINUTE, ?, ?)), NULL, ?, ?,
+              (SELECT COUNT(*) FROM staff_assignments sa
+                JOIN counters c2 ON c2.id = sa.counter_id
+                WHERE c2.branch_id = ? AND sa.assignment_date = ?),
+              (SELECT COUNT(*) FROM queue_tickets t2
+                WHERE t2.queue_id = ? AND t2.status = 'waiting'),
+              (SELECT COUNT(*) FROM counters c3
+                WHERE c3.branch_id = ? AND c3.service_id = ? AND c3.is_active = TRUE)`,
+      [r.id, r.business_id, r.branch_id, r.service_id, r.queue_date,
+       r.queue_date, r.closed_at, r.queue_date,
+       r.joined_at, r.closed_at, toStatus, r.channel || 'app',
+       r.branch_id, r.queue_date, r.queue_id, r.branch_id, r.service_id]
+    );
+
+    // Only signed-in customers have a visit history to appear in; a walk-in
+    // ticket has nobody to show it to.
+    if (r.user_id) {
+      await conn.query(
+        `INSERT INTO visit_history
+           (id, user_id, ticket_id, business_id, branch_id, service_id,
+            business_name, branch_name, service_name, ticket_number, visit_date,
+            wait_time_minutes, service_time_minutes, status)
+         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 GREATEST(0, TIMESTAMPDIFF(MINUTE, ?, ?)), NULL, ?)`,
+        [r.user_id, r.id, r.business_id, r.branch_id, r.service_id,
+         r.business_name, r.branch_name, r.service_name, r.ticket_number,
+         r.queue_date, r.joined_at, r.closed_at, toStatus]
+      );
+    }
     // An audit trail matters here: this is the system changing somebody's
     // ticket without a human touching it, and "why did my ticket cancel?" has
     // to be answerable.
@@ -127,7 +196,7 @@ async function closeOut(conn, fromStatus, toStatus, note, reason) {
       [r.id, fromStatus, toStatus, r.closed_at, note]
     );
   }
-  return rows.length;
+  return closed;
 }
 
 async function runTicketExpiry() {
