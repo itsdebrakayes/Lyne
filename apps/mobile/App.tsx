@@ -16,6 +16,7 @@ import {
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import OnboardingScreen from './src/screens/auth/OnboardingScreen';
+import OnboardingSteps from './src/screens/auth/OnboardingSteps';
 import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
 
 // Before anything else renders, so a crash during boot is still reported.
@@ -60,6 +61,12 @@ function App() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded]);
 
+  /* Two beats before the app proper: the welcome, then the setup steps.
+     Kept as separate stages rather than one component, because the welcome is
+     the brand moment and finished — the explainers and questions after it are
+     a different job and change independently of it. */
+  const [welcomeSeen, setWelcomeSeen] = useState(false);
+
   const completeTutorial = async () => {
     await AsyncStorage.setItem('lyne:first-run-tutorial-v1', 'complete').catch(() => {});
     setTutorialSeen(true);
@@ -71,8 +78,13 @@ function App() {
   let body: React.ReactNode;
   if (launching || tutorialSeen === null || !fontsLoaded) {
     body = <LaunchScreen />;
+  } else if (!tutorialSeen && !welcomeSeen) {
+    body = <OnboardingScreen onComplete={() => setWelcomeSeen(true)} />;
   } else if (!tutorialSeen) {
-    body = <OnboardingScreen onComplete={completeTutorial} />;
+    /* Finishing OR skipping both land here — the flow is never a trap, so both
+       paths mark the tutorial done and neither can strand somebody part-way
+       through on the next launch. */
+    body = <OnboardingSteps onDone={completeTutorial} />;
   } else {
     body = (
       <QueryClientProvider client={queryClient}>

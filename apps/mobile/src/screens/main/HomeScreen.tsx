@@ -9,7 +9,8 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar, useActiveTicket } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
-import { ErrorCard, SkeletonRows } from '../../components/Feedback';
+import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
+import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
 
@@ -91,22 +92,34 @@ export default function HomeScreen() {
   const [openOnly, setOpenOnly] = useState(true);
   const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
   const ticket = useActiveTicket();
+  const { prefs } = usePreferences();
 
   const { data: branches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
-  const { data: businesses = [] } = useQuery({
+  /* These two used to be destructured for their data alone, so a failure in
+     either was completely silent: the agency names quietly went missing from
+     the cards, and the bell showed "0 unread" whether there were none or the
+     request had failed. Silence is the worst of the four states — the screen
+     looks correct and is wrong. */
+  const { data: businesses = [], isError: businessesFailed } = useQuery({
     queryKey: ['mobile-businesses'],
     queryFn: () => api.get<BusinessRow[]>('/businesses', false),
   });
-  const { data: notifications = [], refetch: refetchNotifications } = useQuery({
+  const {
+    data: notifications = [],
+    refetch: refetchNotifications,
+    isError: notificationsFailed,
+  } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Array<{ id: string; is_read: boolean | number }>>('/notifications'),
     refetchInterval: 30_000,
   });
-  const unread = notifications.filter(n => !n.is_read).length;
+  /* null, not 0, when we could not ask. The badge renders nothing at all rather
+     than asserting an all-clear it has no basis for. */
+  const unread = notificationsFailed ? null : notifications.filter(n => !n.is_read).length;
 
   /* "Good morning" at 9pm is the kind of small lie that makes an app feel
      unattended. Computed per render, not per session. */
@@ -195,14 +208,19 @@ export default function HomeScreen() {
                 thing twice and made neither land. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="pin" size={13} color={colors.muted} />
-              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>Kingston, Jamaica</Text>
+              {/* The town they told us in setup, not a hardcoded capital. This is the
+                  first place an onboarding answer has to show up — if it does not,
+                  the questions were theatre. */}
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>{homeLocationLabel(prefs)}</Text>
               <Icon name="chevronDown" size={11} color={colors.muted} />
             </View>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
             style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
             <Icon name="bell" size={21} color={colors.ink} />
-            {unread > 0 && (
+            {/* null means we could not ask — draw no badge rather than an
+                all-clear we have no basis for. */}
+            {unread !== null && unread > 0 && (
               <View style={{ position: 'absolute', top: -1, right: -1, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: colors.busy, borderWidth: 2.5, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 10, color: '#fff' }}>{unread}</Text>
               </View>
@@ -309,10 +327,18 @@ export default function HomeScreen() {
           <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>Shortest first</Text>
         </View>
 
-        {isLoading && <SkeletonRows count={4} />}
-        {!!error && !isLoading && (
-          <ErrorCard title="Live data unavailable" message="We couldn't reach the queue service. Check your connection and try again." onRetry={() => refetch()} />
-        )}
+        {/* The page-wide skeleton and error card used to sit here, and between
+            them they blanked everything below on a single query's failure. Each
+            region reports for itself now. */}
+        {businessesFailed && !error ? (
+          <View style={{ marginTop: 18 }}>
+            <ErrorCard
+              compact
+              title="Some agency details are missing"
+              message="Waits and opening times below are live; the agency names and logos are not. Pull down to refresh."
+            />
+          </View>
+        ) : null}
 
         {/* Featured — the job finder's "Recommended" rail: a horizontal run of
             cards with the first one filled in the accent, so the shortest wait
@@ -405,14 +431,18 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {agencyRows.length > SPARSE_MAX && (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 26, marginBottom: 14 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>Shortest waits</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-                <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accent }}>See all ›</Text>
-              </TouchableOpacity>
-            </View>
+        {/* The heading and its "See all" render straight away and stay put; only
+            what sits under them changes. A slow or failed rail leaves a labelled
+            frame with a retry in it rather than a hole in the page. */}
+        {(isLoading || !!error || agencyRows.length > SPARSE_MAX) && (
+          <Section
+            title="Shortest waits"
+            action={{ label: 'See all', onPress: () => navigation.navigate('Search') }}
+            loading={isLoading}
+            error={error}
+            onRetry={() => refetch()}
+            skeleton={<SkeletonRows count={2} />}
+          >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 13, paddingRight: 4, paddingVertical: 2 }}>
               {agencyRows.slice(0, 5).map(({ best, count }, i) => {
                 const wait = Math.round(Number(best.avg_wait_minutes || 0));
@@ -458,7 +488,7 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
-          </>
+          </Section>
         )}
 
         {/* the full list — only once there is a list worth heading */}
