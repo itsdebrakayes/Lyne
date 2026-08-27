@@ -132,8 +132,51 @@ async function refreshDemoData(connection = pool) {
   }
 
   await normaliseHistoryPositions(connection);
+  await enforceOneLiveTicketPerPerson(connection);
 
   return statements.length;
+}
+
+/**
+ * One live ticket per person, which is the rule the product itself enforces.
+ *
+ * POST /api/tickets refuses to put somebody in a second line while they are
+ * still standing in the first — "You are already in line (MEM-004)". The seeds
+ * write rows directly and never meet that check, so a pool of ten demo
+ * customers was spread across every queue in the country: usr-demo-04 held 29
+ * live tickets at once. Nobody can sign in as those accounts, so it was never
+ * visible in the app, but it is data that contradicts a rule the same database
+ * enforces a few tables away — and the integrity checker is right to fail on
+ * it rather than be taught to ignore it.
+ *
+ * The earliest ticket keeps the person; the rest become walk-ins. Deliberately
+ * NOT deleted: those rows are what make a line look like a line, and the demo
+ * needs the queue depth. `channel` is left alone, so the app-versus-walk-in mix
+ * the seeds construct for the channel card survives — a ticket with no user_id
+ * is exactly how a guest join is already stored.
+ */
+async function enforceOneLiveTicketPerPerson(connection) {
+  const [result] = await connection.query(`
+    UPDATE queue_tickets tgt
+    JOIN (
+      SELECT id FROM (
+        /* ROW_NUMBER, not MIN(joined_at). The seeds stamp arrival times from
+           NOW() minus a whole number of minutes, so two of a person's tickets
+           routinely land on the identical second — and "later than the earliest"
+           then excludes neither of them. Ranking with id as the tie-break leaves
+           exactly one row per person however the timestamps fall. */
+        SELECT t.id,
+               ROW_NUMBER() OVER (PARTITION BY t.user_id ORDER BY t.joined_at, t.id) AS rn
+          FROM queue_tickets t
+         WHERE t.status IN ('waiting','called','in_service')
+           AND t.user_id IS NOT NULL
+      ) ranked WHERE ranked.rn > 1
+    ) extra ON extra.id = tgt.id
+    SET tgt.user_id = NULL
+  `);
+  const freed = result.affectedRows || 0;
+  if (freed) console.log(`Released ${freed} duplicate live ticket(s) to walk-in.`);
+  return freed;
 }
 
 /**
@@ -199,4 +242,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { refreshDemoData, clearSeedTickets, normaliseHistoryPositions };
+module.exports = { refreshDemoData, clearSeedTickets, normaliseHistoryPositions, enforceOneLiveTicketPerPerson };
