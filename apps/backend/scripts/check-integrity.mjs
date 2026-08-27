@@ -112,6 +112,15 @@ await check(
 );
 
 await check(
+  'Every live ticket has a code the counter screen can actually accept',
+  'The clerk cannot type it, so Start Service can never succeed and the button reads as broken.',
+  `SELECT t.id, t.ticket_number, t.verification_code
+     FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
+    WHERE q.queue_date = CURDATE() AND t.status IN ${LIVE}
+      AND t.verification_code NOT REGEXP '^[0-9]{6}$'`
+);
+
+await check(
   'Positions are positive',
   'A zero or negative position sorts ahead of everyone, forever.',
   `SELECT id, ticket_number, position FROM queue_tickets

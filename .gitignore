@@ -111,3 +111,7 @@ outputs/*
 # Database dumps. Large, and full of every customer record we hold —
 # a backup committed to a repository is a breach with a git history.
 backups/
+
+# Playwright
+test-results/
+playwright-report/

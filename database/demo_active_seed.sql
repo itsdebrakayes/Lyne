@@ -304,7 +304,14 @@ SELECT
   CONCAT('usr-demo-', LPAD(1 + MOD(seq.n + CRC32(q.id), 20), 2, '0')),
   NULL,
   CONCAT(s.ticket_prefix, '-', LPAD(seq.n, 3, '0')),
-  UPPER(SUBSTRING(MD5(CONCAT('verify:', q.id, ':', seq.n, ':', CURDATE())), 1, 8)),
+  -- Six numeric digits, matching what the server issues and what the desk can
+  -- accept. This was UPPER(SUBSTRING(MD5(...), 1, 8)) — an eight-character hex
+  -- string with letters in it — while createVerificationCode() mints
+  -- String(randomInt(100000, 1000000)) and the counter screen renders exactly
+  -- six numeric boxes. 590 demo tickets carried a code a clerk physically could
+  -- not type, so Start Service could never be completed against them and the
+  -- button read as broken.
+  LPAD(CONV(SUBSTRING(MD5(CONCAT('verify:', q.id, ':', seq.n, ':', CURDATE())), 1, 6), 16, 10) MOD 1000000, 6, '0'),
   seq.n,
   CASE
     WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n = 1 THEN 'in_service'
@@ -416,7 +423,7 @@ SELECT
   q.id,
   NULL,
   CONCAT(s.ticket_prefix, '-P', LPAD(seq.n, 2, '0'), SUBSTRING(MD5(sa.id), 1, 2)),
-  UPPER(SUBSTRING(MD5(CONCAT('pv:', sa.id, ':', seq.n)), 1, 8)),
+  LPAD(CONV(SUBSTRING(MD5(CONCAT('pv:', sa.id, ':', seq.n)), 1, 6), 16, 10) MOD 1000000, 6, '0'),
   900 + seq.n,
   'served',
   0,

@@ -140,6 +140,44 @@ const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy
 
 /* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
 /**
+ * Turn a thrown request into something a clerk can act on.
+ *
+ * The rule: say what happened, why, and what to do next. "Request failed" fails
+ * all three — it names no cause and offers no move, so the only thing left is
+ * to press the button again, which is exactly the behaviour that produced this
+ * function.
+ *
+ * The server's own message is preferred and shown verbatim wherever there is
+ * one, because it knows the actual reason ("Only waiting tickets can be
+ * called.") in a way the browser never can. A recovery line is appended only
+ * where the message alone does not imply the next move.
+ */
+function describeFailure(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const text = raw.trim();
+
+  // Nothing left the machine. The clerk's next move is about the connection,
+  // not the queue, and no amount of re-pressing will change it.
+  if (/failed to fetch|networkerror|load failed|ERR_(CONNECTION|NETWORK|INTERNET)/i.test(text)) {
+    return 'Could not reach the server, so nothing was changed. Check the branch connection, then try again — the customer keeps their place either way.';
+  }
+  if (/\b401\b|unauthori[sz]ed|invalid or expired token/i.test(text)) {
+    return 'Your session has expired, so the change was not saved. Sign in again and the queue will be exactly as you left it.';
+  }
+  if (/\b403\b|forbidden|do not have access/i.test(text)) {
+    return `${text || 'You do not have permission for that.'} Ask a supervisor to make the change.`;
+  }
+  if (/\b409\b|already|only waiting tickets/i.test(text)) {
+    return `${text} Someone else may have moved this ticket — the list will refresh with what is true now.`;
+  }
+  if (/\b404\b|not found/i.test(text)) {
+    return 'That ticket is no longer in this queue — it may have been served or cancelled at another counter. The list is refreshing.';
+  }
+  if (text) return text;
+  return 'That did not go through, and nothing was changed. Try again, and tell a supervisor if it keeps happening.';
+}
+
+/**
  * Live Line — the desk station, and the one screen this person lives on.
  *
  * This is the OVERVIEW, not Tickets. Tickets is a list; this is the window.
@@ -217,6 +255,7 @@ export function LineOverviewQX() {
   const [readinessChoice, setReadinessChoice] = useState<'ready' | 'incomplete' | null>(null);
   const [readinessNote, setReadinessNote] = useState('');
   const [readinessError, setReadinessError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
   // service is under way that is who is in front of you.
@@ -255,10 +294,32 @@ export function LineOverviewQX() {
   const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
   const calls = d.callCount ?? 1;
 
+  /**
+   * Every desk action goes through here, and it now does three things instead
+   * of one.
+   *
+   * It marks the desk busy, so the press is acknowledged — a clerk pressing
+   * Complete on a slow connection saw nothing change and pressed it again.
+   *
+   * It refuses to start a second action while one is in flight, which is what
+   * that second press was doing.
+   *
+   * And it CATCHES. This used to be a bare try/finally: a rejected request
+   * propagated as an unhandled rejection and the screen said nothing at all, so
+   * "the server refused this" and "the button is broken" looked identical from
+   * the desk, and whatever the server had explained went nowhere.
+   */
   const run = async (fn?: () => Promise<void> | void) => {
     if (!fn || busy) return;
     setBusy(true);
-    try { await fn(); } finally { setBusy(false); }
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(describeFailure(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const callNext = () => { if (next) run(() => d.onCall?.(next.id)); };
@@ -513,10 +574,18 @@ export function LineOverviewQX() {
         ) : null}
 
         {/* ── actions, always the next likely thing first ── */}
+        {/* The desk's own failures, said out loud. Whatever the server
+            explained is shown verbatim, because the server's reason is almost
+            always the useful one. */}
+        {actionError ? (
+          <div className="ql-verifymsg bad" role="alert" aria-live="assertive">{actionError}</div>
+        ) : null}
+
         <div className="ql-acts">
           {stage === 'idle' ? (
-            <button type="button" className="ql-btn primary" onClick={callNext} disabled={!next}>
-              <Users size={18} />{next ? `Call ${next.no}` : 'Nobody To Call'}
+            <button type="button" className="ql-btn primary" onClick={callNext}
+              disabled={!next || busy} aria-busy={busy}>
+              <Users size={18} />{busy ? 'Calling…' : (next ? `Call ${next.no}` : 'Nobody To Call')}
             </button>
           ) : null}
 
@@ -551,12 +620,20 @@ export function LineOverviewQX() {
                 disabled={busy || Boolean(active?.readinessExpected && !readinessChoice)}>
                 <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete And Call Next'}
               </button>
-              <button type="button" className="ql-btn" onClick={finish}>
-                <SkipForward size={17} />Transfer
-              </button>
-              <button type="button" className="ql-btn" onClick={finish}>
-                <Timer size={17} />Requeue
-              </button>
+              {/* Transfer and Requeue used to sit here, and BOTH were wired to
+                  `finish` — the Complete action. Three buttons, three labels,
+                  one behaviour: pressing Transfer silently closed the visit as
+                  served and called the next person, and the clerk had no way to
+                  know the customer they meant to move had just been marked
+                  served instead.
+                  Neither can be wired correctly yet. There is no transfer
+                  endpoint at all, and /skip only accepts a ticket that is still
+                  `waiting` — not one already in service — so requeueing from
+                  the counter has nothing to call either. A control that quietly
+                  does something else is worse than one that is not there, so
+                  they are gone until there is something real behind them.
+                  The FAQ at the top of this file still describes Transfer; that
+                  copy is the promise this needs to be built to keep. */}
             </>
           ) : null}
         </div>
