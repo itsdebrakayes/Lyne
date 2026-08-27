@@ -33,6 +33,37 @@ export default defineConfig({
     actionTimeout: 15_000,
   },
   projects: [
-    { name: 'admin', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'admin',
+      testMatch: /admin-.*\.spec\.ts|api-.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      /* The Expo web build, at phone size. Same React tree the native app
+         renders — this tests the components, not the platform beneath them. */
+      name: 'mobile',
+      /* Three minutes, not one. This runs against the Expo DEV server, which
+         compiles a route the first time it is asked for — a cold test pays that
+         once and a warm one does not, so the same test passed in a full run and
+         failed on its own. A timeout that only holds when something else warmed
+         the bundle first is not a timeout. */
+      timeout: 180_000,
+      /* One retry, and only on this project. The admin suite runs against a
+         warm Vite server and gets none — a flake there is a real signal.
+         This drives the Expo DEV server, which compiles routes on demand and
+         intermittently swallows the first press while it does.
+         The proper fix is a static export (expo export --platform web) with
+         nothing left to compile. That is attempted and NOT yet working: the
+         exported bundle needs the Supabase and API values inlined at build
+         time, and without them the app cannot reach anything. Until that is
+         wired, this points at the dev server and tolerates one retry. */
+      retries: 1,
+      testMatch: /mobile-.*\.spec\.ts/,
+      /* Pixel 5, not an iPhone: the iPhone profiles run WebKit, and only
+         Chromium is installed here. What is under test is the React tree the
+         native app also renders, so the engine is not the variable that
+         matters — the phone-sized viewport and touch emulation are. */
+      use: { ...devices['Pixel 5'], baseURL: process.env.MOBILE_URL || 'http://localhost:5173' },
+    },
   ],
 });

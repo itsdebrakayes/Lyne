@@ -123,6 +123,8 @@ async function clearSeedTickets(connection) {
 async function refreshDemoData(connection = pool) {
   const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, SECTOR_SEED_PATH]
     .filter(seedPath => fs.existsSync(seedPath));
+  const stranded = await closeOutStrandedTickets(connection);
+  if (stranded) console.log(`Closed out ${stranded} ticket(s) stranded from a previous day.`);
   const cleared = await clearSeedTickets(connection);
   if (cleared) console.log(`Cleared ${cleared} seed-authored ticket(s) before reseeding.`);
   const statements = seedPaths.flatMap(seedPath => splitStatements(fs.readFileSync(seedPath, 'utf8')));
@@ -177,6 +179,38 @@ async function enforceOneLiveTicketPerPerson(connection) {
   const freed = result.affectedRows || 0;
   if (freed) console.log(`Released ${freed} duplicate live ticket(s) to walk-in.`);
   return freed;
+}
+
+
+/**
+ * Close out anyone left standing in a line the refresh is about to re-date.
+ *
+ * The seeds re-date a fixed set of queue rows rather than opening a new one
+ * each morning, so a queue whose date moves forward drags yesterday's live
+ * tickets into today with it. Their joined_at still says yesterday; their
+ * queue_date now says today. They are live, so they hold positions, feed
+ * waiting_position, and inflate every ETA on that line.
+ *
+ * expireStaleTickets cannot help, and the reason is worth stating: it expires
+ * a ticket sixty minutes after ITS QUEUE'S closing time. Once the row is
+ * re-dated to today, that moment is tonight — and for the four tenants whose
+ * closing_time is the 23:59:59 placeholder, it is 00:59:59 TOMORROW. So the
+ * stragglers survive an entire business day, which is exactly the fault the
+ * daily sweep exists to prevent, arriving by a different road.
+ *
+ * They are closed the same way the sweep closes them — cancelled, with a reason
+ * — so the history stays honest rather than the rows being deleted.
+ */
+async function closeOutStrandedTickets(connection) {
+  const [result] = await connection.query(
+    `UPDATE queue_tickets
+        SET status = 'cancelled',
+            closed_reason = 'branch_closed_before_called',
+            completed_at = COALESCE(completed_at, joined_at)
+      WHERE status IN ('waiting', 'called', 'in_service')
+        AND DATE(joined_at) < CURDATE()`
+  );
+  return result.affectedRows || 0;
 }
 
 /**
@@ -242,4 +276,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { refreshDemoData, clearSeedTickets, normaliseHistoryPositions, enforceOneLiveTicketPerPerson };
+module.exports = { refreshDemoData, clearSeedTickets, normaliseHistoryPositions, enforceOneLiveTicketPerPerson, closeOutStrandedTickets };

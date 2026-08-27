@@ -324,7 +324,18 @@ SELECT
     SELECT COUNT(*) FROM counters c
     WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE
   )) * s.base_avg_time_minutes)),
-  DATE_SUB(NOW(), INTERVAL (seq.n * 6 + MOD(CRC32(q.id), 9)) MINUTE),
+  -- Never earlier than the day this queue belongs to.
+  -- Arrivals are written as "n * 6 minutes ago", which is fine at 10am and
+  -- wrong just after midnight: refreshed at 01:05, the tenth person in line
+  -- gets an arrival time of 23:58 YESTERDAY, on a queue dated TODAY. A ticket
+  -- standing in today's line that arrived yesterday is the exact inconsistency
+  -- the daily model exists to rule out, and the integrity check rightly fails
+  -- on it. GREATEST pins the earliest arrival to just after the queue's own
+  -- midnight, so a line refreshed in the small hours simply looks young.
+  GREATEST(
+    DATE_SUB(NOW(), INTERVAL (seq.n * 6 + MOD(CRC32(q.id), 9)) MINUTE),
+    TIMESTAMP(q.queue_date, '00:00:30')
+  ),
   CASE
     WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n IN (1, 2) THEN DATE_SUB(NOW(), INTERVAL 4 MINUTE)
     WHEN seq.n = 1 AND MOD(CRC32(q.id), 5) = 0 THEN DATE_SUB(NOW(), INTERVAL 3 MINUTE)
