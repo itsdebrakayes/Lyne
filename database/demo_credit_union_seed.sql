@@ -120,6 +120,52 @@ ON DUPLICATE KEY UPDATE
   position = VALUES(position), status = VALUES(status), estimated_wait_minutes = VALUES(estimated_wait_minutes),
   joined_at = VALUES(joined_at), readiness_shown_at = VALUES(readiness_shown_at), readiness_outcome = VALUES(readiness_outcome);
 
+-- A live counter on the queue the demo LINE-STAFF account actually works.
+--
+-- staff-creditunion@test.com is assigned to Membership & Account Opening at
+-- Half Way Tree, and until now that queue was seeded with nothing but `served`
+-- history. So the one account you would sign into to demonstrate the counter —
+-- Now Serving, Call Next, verify the code, complete the visit — opened onto an
+-- empty line at every hour of the day. Not a closing-time artefact: this branch
+-- runs to 23:59, so the sweep never touched it. The line was simply never
+-- given anyone to serve.
+--
+-- One at the counter, one just called, four waiting: enough for the whole
+-- call → verify → serve loop to be walked in front of somebody, and for the
+-- position and ETA behind it to be worth looking at.
+INSERT INTO queue_tickets
+  (id, queue_id, user_id, ticket_number, verification_code, position, status,
+   estimated_wait_minutes, channel, joined_at, called_at, call_timeout_seconds,
+   call_expires_at, started_serving_at, served_by_staff_id, served_at_counter_id)
+VALUES
+  ('t-cfcu-mem-live-01', 'q-cfcu-hwt-member', NULL, 'MEM-001', '420301', 1, 'in_service', 0, 'walk_in',
+   DATE_SUB(NOW(), INTERVAL 34 MINUTE), DATE_SUB(NOW(), INTERVAL 9 MINUTE), 120,
+   DATE_ADD(NOW(), INTERVAL 111 SECOND), DATE_SUB(NOW(), INTERVAL 7 MINUTE),
+   'stf-cfcu-member', 'ctr-cfcu-member-1'),
+  ('t-cfcu-mem-live-02', 'q-cfcu-hwt-member', 'usr-demo-02', 'MEM-002', '420302', 2, 'called', 0, 'app',
+   DATE_SUB(NOW(), INTERVAL 27 MINUTE), DATE_SUB(NOW(), INTERVAL 40 SECOND), 120,
+   DATE_ADD(NOW(), INTERVAL 80 SECOND), NULL, NULL, NULL),
+  ('t-cfcu-mem-live-03', 'q-cfcu-hwt-member', 'usr-demo-03', 'MEM-003', '420303', 3, 'waiting', 8, 'app',
+   DATE_SUB(NOW(), INTERVAL 19 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
+  ('t-cfcu-mem-live-04', 'q-cfcu-hwt-member', NULL, 'MEM-004', '420304', 4, 'waiting', 16, 'walk_in',
+   DATE_SUB(NOW(), INTERVAL 14 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
+  ('t-cfcu-mem-live-05', 'q-cfcu-hwt-member', 'usr-demo-04', 'MEM-005', '420305', 5, 'waiting', 24, 'app',
+   DATE_SUB(NOW(), INTERVAL 8 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
+  ('t-cfcu-mem-live-06', 'q-cfcu-hwt-member', NULL, 'MEM-006', '420306', 6, 'waiting', 32, 'walk_in',
+   DATE_SUB(NOW(), INTERVAL 3 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
+  -- And two on Loan & Repayment Support, so the third Half Way Tree desk is
+  -- not the only one standing empty behind the demo.
+  ('t-cfcu-sup-live-01', 'q-cfcu-hwt-support', 'usr-demo-01', 'LRS-001', '430301', 1, 'waiting', 5, 'app',
+   DATE_SUB(NOW(), INTERVAL 11 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
+  ('t-cfcu-sup-live-02', 'q-cfcu-hwt-support', NULL, 'LRS-002', '430302', 2, 'waiting', 10, 'walk_in',
+   DATE_SUB(NOW(), INTERVAL 4 MINUTE), NULL, 120, NULL, NULL, NULL, NULL)
+ON DUPLICATE KEY UPDATE
+  queue_id = VALUES(queue_id), user_id = VALUES(user_id), ticket_number = VALUES(ticket_number),
+  position = VALUES(position), status = VALUES(status), estimated_wait_minutes = VALUES(estimated_wait_minutes),
+  joined_at = VALUES(joined_at), called_at = VALUES(called_at), call_expires_at = VALUES(call_expires_at),
+  started_serving_at = VALUES(started_serving_at), served_by_staff_id = VALUES(served_by_staff_id),
+  served_at_counter_id = VALUES(served_at_counter_id);
+
 -- Ten assessed visits make the value visible on first launch: seven ready,
 -- three incomplete with safe, actionable reasons.
 INSERT INTO queue_tickets

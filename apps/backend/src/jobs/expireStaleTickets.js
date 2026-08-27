@@ -20,14 +20,34 @@
  *   called   → no_show     Their number WAS called and they never came. That is
  *                          precisely what no_show means, so it counts.
  *
- *   in_service → untouched Someone was at the counter and the clerk never
- *                          finished the ticket. Guessing an outcome would
- *                          either invent a service that may not have completed
- *                          or discard one that did. These are counted and
- *                          reported instead: a customer left in service
- *                          overnight is an operational problem a manager should
- *                          see, not something a cleanup job should quietly tidy
- *                          away.
+ *   in_service → cancelled  Someone was at the counter and the clerk never
+ *                          finished the ticket.
+ *
+ *                          This used to be reported and left alone, on the
+ *                          reasoning that a manager should see it rather than
+ *                          have a job tidy it away. That reasoning holds for an
+ *                          hour and fails completely over days: six tickets sat
+ *                          `in_service` on queues dated 2026-08-21 for five
+ *                          days, nobody ever actioned them, and all the while
+ *                          they counted as live — holding positions, feeding
+ *                          waiting_position, and keeping a queue row alive
+ *                          across dates so the next arrival could be numbered
+ *                          on top of people already in it.
+ *
+ *                          `cancelled` rather than `served`, and the choice is
+ *                          load-bearing. Every ETA in the product comes from
+ *                          AVG(started_serving_at → completed_at) over SERVED
+ *                          tickets. Marking one served with completed_at at
+ *                          closing time books a service that ran from 10am to
+ *                          4pm, and a handful of those drag the branch's
+ *                          average service time — and therefore every wait
+ *                          estimate shown to every customer — into nonsense.
+ *                          That is the exact corruption this file was written
+ *                          to stop, so it must not be reintroduced by the fix.
+ *                          The branch loses credit for a visit it probably did
+ *                          perform; closed_reason keeps that recoverable, and
+ *                          a wrong ETA shown to everyone costs more than a
+ *                          throughput count that can be recounted later.
  *
  * ── The part that actually fixes the metric ─────────────────────────────────
  *
@@ -60,21 +80,32 @@ const ENABLED = process.env.TICKET_EXPIRY_ENABLED !== 'false';
  * deliberately — without it there is no defensible moment to expire anything,
  * and guessing would close tickets on a branch that is genuinely still open.
  */
+/**
+ * The branch's own closing time, or the business default when it has not stated
+ * one. Migration 032 makes businesses.default_closing_time NOT NULL, so this
+ * COALESCE always resolves and there is no branch the sweep can silently skip.
+ *
+ * The old query required branches.closing_time IS NOT NULL. Every demo branch
+ * happens to have one, so it never showed — but nothing enforced it, and a
+ * tenant onboarded without one would have had a queue that never emptied and
+ * numbering that restarted on top of live people every morning.
+ */
 const CANDIDATE_SQL = `
   SELECT t.id,
          t.status,
-         TIMESTAMP(q.queue_date, b.closing_time) AS closed_at,
+         TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time)) AS closed_at,
          b.name AS branch_name
     FROM queue_tickets t
-    JOIN queues   q ON q.id = t.queue_id
-    JOIN branches b ON b.id = q.branch_id
+    JOIN queues     q  ON q.id  = t.queue_id
+    JOIN branches   b  ON b.id  = q.branch_id
+    JOIN businesses bz ON bz.id = b.business_id
    WHERE t.status = ?
-     AND b.closing_time IS NOT NULL
-     AND TIMESTAMP(q.queue_date, b.closing_time) + INTERVAL ? MINUTE < NOW()
+     AND TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time))
+         + INTERVAL ? MINUTE < NOW()
    LIMIT 5000
 `;
 
-async function closeOut(conn, fromStatus, toStatus, note) {
+async function closeOut(conn, fromStatus, toStatus, note, reason) {
   const [rows] = await conn.query(CANDIDATE_SQL, [fromStatus, GRACE_MINUTES]);
   if (!rows.length) return 0;
 
@@ -82,9 +113,10 @@ async function closeOut(conn, fromStatus, toStatus, note) {
     await conn.query(
       `UPDATE queue_tickets
           SET status = ?,
+              closed_reason = ?,
               completed_at = COALESCE(completed_at, ?)
         WHERE id = ? AND status = ?`,
-      [toStatus, r.closed_at, r.id, fromStatus]
+      [toStatus, reason, r.closed_at, r.id, fromStatus]
     );
     // An audit trail matters here: this is the system changing somebody's
     // ticket without a human touching it, and "why did my ticket cancel?" has
@@ -107,21 +139,30 @@ async function runTicketExpiry() {
 
     const cancelled = await closeOut(
       conn, 'waiting', 'cancelled',
-      'Branch closed before this number was called.'
+      'Branch closed before this number was called.',
+      'branch_closed_before_called'
     );
     const noShow = await closeOut(
       conn, 'called', 'no_show',
-      'Called, but the branch closed before they came forward.'
+      'Called, but the branch closed before they came forward.',
+      'branch_closed_after_called'
     );
-
-    // Reported, never touched — see the header.
+    // Still surfaced by name, because a clerk repeatedly leaving tickets open
+    // IS worth a manager's attention. It is now reported AND closed, rather
+    // than reported and left to accumulate.
     const [stuck] = await conn.query(CANDIDATE_SQL, ['in_service', GRACE_MINUTES]);
+    const unfinished = await closeOut(
+      conn, 'in_service', 'cancelled',
+      'Service was never completed before the branch closed.',
+      'service_not_finalised'
+    );
 
     await conn.commit();
     return {
       enabled: true,
       cancelled,
       noShow,
+      unfinished,
       stuckInService: stuck.length,
       stuckBranches: [...new Set(stuck.map((r) => r.branch_name))],
     };
