@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { LineDataProvider, LineOverviewQX, lineTab, LINE_TAB_HEAD } from './qx/LineTabsQX';
 import { buildLineData } from './qx/lineLiveData';
 
@@ -86,6 +86,19 @@ export default function LineStaffDashboard() {
   const ticketsQuery = useQuery({ queryKey: ['ls-tickets', activeQueue?.id], queryFn: () => api.get<TicketRow[]>(`/tickets/queue/${activeQueue!.id}`), enabled: !!activeQueue?.id, refetchInterval: 4_000 });
   const analytics = useQuery({ queryKey: ['ls-analytics', period], queryFn: () => api.get<Analytics>(`/analytics/line-staff?period=${period}`), enabled: !!admin, refetchInterval: 30_000 });
   const history = useQuery({ queryKey: ['ls-history', period, activeQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${activeQueue?.service_id ? `&service_id=${activeQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
+
+  /* Freshness for the header pill. This screen has its own queries rather than
+     useDashboardData, so the same derivation is repeated here: the OLDEST panel
+     on screen decides the label, because "Updated 14:32" has to be true of
+     everything the clerk can see — not just the 4-second ticket poll vouching
+     for a 30-second analytics panel that last failed. */
+  const lsQueries = [queues, ticketsQuery, analytics, history];
+  const lsLoaded = lsQueries.filter((q) => q.dataUpdatedAt > 0);
+  const lastUpdatedAt = lsLoaded.length ? Math.min(...lsLoaded.map((q) => q.dataUpdatedAt)) : 0;
+  const isFetching = lsQueries.some((q) => q.isFetching);
+  /* failureCount, not isError — see useDashboardData. A query that has ever
+     succeeded keeps status 'success' through every later failure. */
+  const hasError = lsQueries.some((q) => q.failureCount > 0);
 
   const tickets = ticketsQuery.data || [];
   const waiting = tickets.filter((t) => t.status === 'waiting').sort((a, b) => a.position - b.position);
@@ -203,7 +216,7 @@ export default function LineStaffDashboard() {
           sub={tab === 'live'
             ? `${branch}${service ? ` · ${service}` : ''} — here's your line.`
             : (LINE_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={lastUpdatedAt} fetching={isFetching} failed={hasError} />}
           right={<>
             <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
             <button type="button" className="qx-btn ghost"

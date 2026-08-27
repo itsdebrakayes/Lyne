@@ -20,7 +20,7 @@ import { Sparkline, Area, Card, Rec, Empty, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, timeLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
@@ -281,7 +281,7 @@ export default function ManagerDashboard() {
           sub={tab === 'overview'
             ? `Here's what's happening on the floor at ${branchName}.`
             : (MGR_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
             {/* Only show the period pill on tabs it actually drives.
                   · readiness — has its own Today/Week/Month control

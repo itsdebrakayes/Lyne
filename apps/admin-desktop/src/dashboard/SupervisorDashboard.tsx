@@ -15,7 +15,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
-import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { SupDataProvider, supTab, SupOverviewQX, SUP_TAB_HEAD } from './qx/SupTabsQX';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { buildSupData } from './qx/supLiveData';
@@ -185,7 +185,7 @@ export default function SupervisorDashboard() {
           sub={tab === 'overview'
             ? `Here's how ${branchName} is covered right now.`
             : (SUP_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
             {/* A session is one fixed DAY — a period pill over it would drive
                 nothing and imply the screen below is a period view. */}
