@@ -211,8 +211,15 @@ The pilot is free / agency-paid, so live card capture is stubbed pending a Jamai
 
 - **Local/demo:** `docker compose` (two MySQL + API); the demo overlay adds the seeded DB. This is the current state.
 - **Pilot target:** a single hardened DigitalOcean droplet — hosted web admin at a real URL (+ installable PWA) and the mobile app on real devices via TestFlight/Expo. Public App Store / Play Store listings come right after (review lead times).
-- **Rough pilot cost:** a small droplet + managed DB + domain (already owned) + Apple Developer ($99/yr) + Google Play ($25 once). Full breakdown lived in the retired launch doc; carry it forward when the droplet is provisioned.
-- **Blocked on your accounts:** DigitalOcean (hosting) and Apple Developer (real-device push via APNs + Firebase FCM). Claude wires the code/infra; you create the accounts.
+- **Rough pilot cost:** ~US$44/month — a 2 vCPU / 4 GB droplet ($24), managed MySQL ($15) and Spaces for off-box backups ($5) — plus Apple Developer ($99/yr) and Google Play ($25 once). Sized for one agency with a dozen branches, deliberately not for a national rollout.
+- **D-U-N-S approved 2026-08-31**, which unblocks the Apple Developer Program enrolment and therefore Sign in with Apple, Sign in with Google (they must ship together under Guideline 4.8) and Windows code signing.
+
+**Two documents carry the detail, and they are the place to start if you are setting any of this up:**
+
+- **[docs/PROVIDER_SETUP.md](docs/PROVIDER_SETUP.md)** — every account, credential and profile: the Apple Developer Program, Sign in with Apple (App ID vs Services ID vs key — the step everyone gets wrong), Google's three OAuth clients, the Supabase provider config, code signing for iOS/macOS/Windows, and the full environment-variable contract. Contains no secrets and must never contain any.
+- **[docs/HOSTING.md](docs/HOSTING.md)** — what to provision, the hardening checklist that must be true before anything is public, backups and restore rehearsal, how to deploy, and the evidence-based triggers for growing.
+
+**Two known blockers** live in `apps/mobile/app.json` and are called out in PROVIDER_SETUP: there is no `scheme` (so OAuth has no way to redirect back into the app) and `expo.extra.eas.projectId` is empty (so no signed builds). Both are small; both change the app's identity, so they are deliberately left for a decision rather than assumed.
 
 ---
 
