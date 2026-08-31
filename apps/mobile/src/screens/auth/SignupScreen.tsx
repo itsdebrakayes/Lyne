@@ -18,6 +18,7 @@ import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
+import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 
 
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
@@ -139,13 +140,16 @@ export default function SignupScreen() {
             )}
           </TouchableOpacity>
 
+          <SocialAuthButtons />
+
           <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
           </TouchableOpacity>
           </>
           )}
 
-          {/* bottom motif */}        </ScrollView>
+          {/* bottom motif */}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <CalendarSheet visible={calendarOpen} value={dob} onClose={() => setCalendarOpen(false)} onSelect={(d) => { setDob(d); setCalendarOpen(false); }} />
