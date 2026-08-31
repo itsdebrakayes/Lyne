@@ -38,13 +38,16 @@ The branches are split by *what data is in them*, not by what code is in them. *
 | **`features`** | Where new features were explored before being folded in. Behind the three above. | History only. |
 | **`sector-foundations`**, **`testing`** | Older exploration branches. Behind. | History only. |
 
-So: `demo` = `main` + sample data. Nothing is fixed on `demo` that is missing from `main`; the only files that differ are the seeds and the tooling that loads them (`database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `apps/backend/scripts/*demo*`, `README.demo.md`).
+So: `demo` = `main` + sample data. Nothing is fixed on `demo` that is missing from `main`. Don't take that on trust — the diff is ten files, all additions, all of them seeds or the tooling that loads them:
 
 ```bash
 git fetch --all
-git checkout demo    # to run it with data
-git checkout main    # to read/deploy the empty production tree
+git diff --stat main demo     # 10 files, insertions only, zero code differences
+git checkout demo             # to run it with data
+git checkout main             # to read or deploy the empty production tree
 ```
+
+The ten: `database/demo_active_seed.sql`, `demo_credit_union_seed.sql`, `demo_sector_seed.sql`, `demo_data.sql`, `seed.sql`, `docker-compose.demo.yml`, `apps/backend/scripts/refresh-demo-data.js`, `sync-demo-test-accounts.js`, the two npm scripts that call them in `apps/backend/package.json`, and `README.demo.md`.
 
 **If you are reviewing this code:** read [docs/COMPLETED_WORK.md](docs/COMPLETED_WORK.md) before filing anything. A number of things that look like obvious bugs have already been found and fixed — the position allocator, the day-boundary on queues, the database's own privileges, the admin liveness pill, verification codes leaking into staff responses. That document says what was wrong and what the fix was, newest first.
 
