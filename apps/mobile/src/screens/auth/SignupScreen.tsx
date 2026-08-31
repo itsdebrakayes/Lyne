@@ -18,6 +18,7 @@ import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
+import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 
 
@@ -72,9 +73,10 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
+      <AuthMotifFrame />
+
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* top motif */}
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
             <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
@@ -148,7 +150,6 @@ export default function SignupScreen() {
           </>
           )}
 
-          {/* bottom motif */}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -159,7 +160,9 @@ export default function SignupScreen() {
 
 const makeStyles = () => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 40 },
+  /* paddingBottom clears the docked bottom motif — at 40 the last row of the
+     form ended underneath the fade instead of above it. */
+  inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 150 },
 
   logo: {
     width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
