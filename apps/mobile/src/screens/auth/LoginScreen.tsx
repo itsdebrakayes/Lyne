@@ -1,11 +1,11 @@
 /**
  * LoginScreen — brand-framed sign in.
  *
- * Carries the welcome screen's visual language onto auth: a white canvas with
- * the Lyne brand-tile mosaic bleeding in from the top and bottom edges (you see
- * half of it at each end), fading into white around a centred Lyne lockup,
- * the sign-in form, and one black button — the same forest button as the
- * intro's "Start queuing".
+ * Carries the welcome screen's visual language onto auth: the shared
+ * AuthMotifFrame docks a row of Lyne brand tiles to the top and bottom edges
+ * and fades them into the page, around a centred Lyne lockup, the sign-in
+ * form, and one black button — the same button as the intro's "Start queuing".
+ * Sign up renders the identical frame, which is the point of sharing it.
  */
 import React, { useMemo, useState } from 'react';
 import {
@@ -13,50 +13,12 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
-import { colors, font, hexToRgba, shadow, inputReset } from '../../lib/theme';
+import { colors, font, shadow, inputReset } from '../../lib/theme';
+import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
-
-type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
-
-// Two rows of brand tiles — one frames the top edge, one the bottom.
-const TOP_TILES: Tile[] = [
-  { icon: 'ticket', bg: colors.dark, fg: colors.accent },
-  { icon: 'time-outline', bg: '#ffffff', fg: colors.accentDeep },
-  { icon: 'barcode-outline', bg: colors.accent, fg: colors.accentInk },
-  { icon: 'location', bg: colors.dark, fg: '#ffffff' },
-  { icon: 'notifications', bg: '#ffffff', fg: colors.accentDeep },
-];
-const BOTTOM_TILES: Tile[] = [
-  { icon: 'qr-code-outline', bg: colors.dark, fg: '#ffffff' },
-  { icon: 'people-outline', bg: colors.accent, fg: colors.accentInk },
-  { icon: 'sparkles', bg: '#ffffff', fg: colors.accentDeep },
-  { icon: 'navigate', bg: colors.dark, fg: colors.accent },
-  { icon: 'checkmark-done', bg: colors.accent, fg: colors.accentInk },
-];
-
-function MotifRow({ tiles }: { tiles: Tile[] }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 13, transform: [{ rotate: '-7deg' }] }}>
-      {tiles.map((tile, index) => (
-        <View
-          key={index}
-          style={{
-            width: 84, height: 84, borderRadius: 25, backgroundColor: tile.bg,
-            alignItems: 'center', justifyContent: 'center',
-            borderWidth: tile.bg === '#ffffff' ? 1 : 0, borderColor: colors.border,
-            ...shadow.card,
-          }}
-        >
-          <Ionicons name={tile.icon} size={31} color={tile.fg} />
-        </View>
-      ))}
-    </View>
-  );
-}
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -80,23 +42,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* top motif — brand tiles bleeding off the top edge, fading into white */}
-      <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
-      <LinearGradient
-        pointerEvents="none"
-        colors={[hexToRgba(colors.surface, 0), colors.surface]}
-        locations={[0, 0.82]}
-        style={styles.topFade}
-      />
-
-      {/* bottom motif — mirrored off the bottom edge */}
-      <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
-      <LinearGradient
-        pointerEvents="none"
-        colors={[colors.surface, hexToRgba(colors.surface, 0)]}
-        locations={[0.18, 1]}
-        style={styles.bottomFade}
-      />
+      <AuthMotifFrame />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inner}>
@@ -165,15 +111,6 @@ export default function LoginScreen() {
 const makeStyles = () => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
 
-  /* The tiles are 84 tall and were offset -46, so barely half a row survived at
-     each edge and the brand read as a stray sliver. At -18 most of the row is
-     on screen and the frame carries the page. The fades come down to match —
-     at 210 they were erasing what the smaller offset had just revealed. */
-  topMotif: { position: 'absolute', top: -18, left: -44, right: -44, alignItems: 'center' },
-  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 186 },
-  bottomMotif: { position: 'absolute', bottom: -18, left: -44, right: -44, alignItems: 'center' },
-  bottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 186 },
-
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
 
   logo: {
@@ -207,7 +144,6 @@ const makeStyles = () => StyleSheet.create({
     marginTop: 8, ...shadow.hero,
   },
   btnText: { fontFamily: font.extra, color: '#ffffff', fontSize: 16 },
-
 
   switchRow: { alignItems: 'center', marginTop: 20 },
   switchText: { fontFamily: font.medium, fontSize: 13.5, color: colors.muted },
