@@ -135,8 +135,53 @@ async function refreshDemoData(connection = pool) {
 
   await normaliseHistoryPositions(connection);
   await enforceOneLiveTicketPerPerson(connection);
+  await clearRevivedTicketResidue(connection);
 
   return statements.length;
+}
+
+/**
+ * A live ticket may not carry the remains of a finished one.
+ *
+ * The seeds now clear this themselves on re-seed, so nothing new arrives in
+ * this state. This exists for the boxes that already have it: 460 tickets sat
+ * `waiting` while holding a completed_at three days older than their own
+ * joined_at, and a closed_reason from a sweep that had genuinely closed them
+ * before a re-seed flipped the status back.
+ *
+ * Two things came out of that, and both were visible to staff. Every average
+ * that touched those rows was poisoned by a negative wait. And on the counter
+ * screen a called customer showed the previous occupant's timings — the "stale
+ * prior information" the line staff reported.
+ *
+ * A ticket that is waiting, called or in service has not completed and has not
+ * been closed. `called` additionally needs an expiry, or the no-show countdown
+ * has nothing to count to and renders empty; it is derived from called_at and
+ * the ticket's own timeout so a revived row gets a timer that means something.
+ */
+async function clearRevivedTicketResidue(connection) {
+  const [cleared] = await connection.query(
+    `UPDATE queue_tickets
+        SET completed_at = NULL,
+            closed_reason = NULL
+      WHERE status IN ('waiting', 'called', 'in_service')
+        AND (completed_at IS NOT NULL OR closed_reason IS NOT NULL)`
+  );
+  if (cleared.affectedRows) {
+    console.log(`Cleared completion residue from ${cleared.affectedRows} live ticket(s).`);
+  }
+
+  const [expiries] = await connection.query(
+    `UPDATE queue_tickets
+        SET called_at = COALESCE(called_at, NOW()),
+            call_expires_at = DATE_ADD(COALESCE(called_at, NOW()),
+                                       INTERVAL COALESCE(call_timeout_seconds, 120) SECOND)
+      WHERE status = 'called'
+        AND call_expires_at IS NULL`
+  );
+  if (expiries.affectedRows) {
+    console.log(`Gave ${expiries.affectedRows} called ticket(s) a no-show expiry.`);
+  }
 }
 
 /**

@@ -433,7 +433,8 @@ SELECT (a.d + b.d * 10) + 1 FROM
 
 INSERT INTO queue_tickets
   (id, queue_id, user_id, ticket_number, verification_code, position, status,
-   estimated_wait_minutes, joined_at, called_at, started_serving_at, completed_at, channel)
+   estimated_wait_minutes, joined_at, called_at, call_timeout_seconds, call_expires_at,
+   started_serving_at, completed_at, channel)
 SELECT
   CONCAT('tsec-', SUBSTRING(MD5(CONCAT(q.id, ':', seq.n)), 1, 26)),
   q.id,
@@ -449,7 +450,21 @@ SELECT
   -- Arrivals spread back across the morning. The court's are older, because the
   -- court's queue genuinely starts before the doors open.
   DATE_SUB(NOW(), INTERVAL (seq.n * CASE WHEN b.business_id = 'biz-court-001' THEN 4 ELSE 7 END) MINUTE),
-  CASE WHEN seq.n <= 2 THEN DATE_SUB(NOW(), INTERVAL 5 MINUTE) ELSE NULL END,
+  -- called_at. Seat 1 is already in service, so its call is safely in the past.
+  -- Seat 2 is the one standing at the desk right now, and the counter screen
+  -- runs a no-show countdown off call_expires_at — so it has to have been
+  -- called RECENTLY or the timer is born expired. Forty seconds leaves a live
+  -- countdown to watch, which is the whole point of showing it in a demo.
+  CASE WHEN seq.n = 1 THEN DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+       WHEN seq.n = 2 THEN DATE_SUB(NOW(), INTERVAL 40 SECOND)
+       ELSE NULL END,
+  -- The product's own default (schema: 120s). Seeding status='called' without
+  -- these two columns is what left 46 called tickets with an empty "time until
+  -- no-show" on the line-staff screen: the timer had nothing to count to.
+  120,
+  CASE WHEN seq.n = 1 THEN DATE_SUB(NOW(), INTERVAL 3 MINUTE)
+       WHEN seq.n = 2 THEN DATE_ADD(NOW(), INTERVAL 80 SECOND)
+       ELSE NULL END,
   CASE WHEN seq.n = 1 THEN DATE_SUB(NOW(), INTERVAL 4 MINUTE) ELSE NULL END,
   NULL,
   -- Court users overwhelmingly arrive in person; a university cohort is the
@@ -488,7 +503,30 @@ WHERE q.queue_date = CURDATE()
     WHEN b.business_id IN ('biz-uwi-001','biz-utech-001') THEN 6 + MOD(CRC32(q.id), 11)
     ELSE 3 + MOD(CRC32(q.id), 8)
   END
-ON DUPLICATE KEY UPDATE status = VALUES(status), position = VALUES(position);
+-- Re-seeding has to restore the WHOLE lifecycle, not just the status.
+--
+-- This clause used to be `status, position` only, and that is a data-corruption
+-- bug rather than an omission. The ticket ids are stable per (queue, seat), so
+-- every re-seed lands on the same rows — including rows the expiry sweep has
+-- since closed, which by then carry completed_at and a closed_reason. Setting
+-- status back to 'waiting' while leaving that residue in place produced 460
+-- tickets that were simultaneously waiting and completed three days earlier:
+-- a negative wait in every average that touched them, and, on the counter
+-- screen, a called customer showing the previous occupant's timings. That is
+-- the "stale prior information" the line staff kept seeing.
+--
+-- Every column the lifecycle writes is now reset together, and closed_reason
+-- is cleared explicitly because a revived ticket was never closed.
+ON DUPLICATE KEY UPDATE
+  status                = VALUES(status),
+  position              = VALUES(position),
+  joined_at             = VALUES(joined_at),
+  called_at             = VALUES(called_at),
+  call_timeout_seconds  = VALUES(call_timeout_seconds),
+  call_expires_at       = VALUES(call_expires_at),
+  started_serving_at    = VALUES(started_serving_at),
+  completed_at          = VALUES(completed_at),
+  closed_reason         = NULL;
 
 DROP TEMPORARY TABLE IF EXISTS _seq;
 

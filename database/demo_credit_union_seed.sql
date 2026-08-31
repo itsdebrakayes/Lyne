@@ -164,7 +164,14 @@ ON DUPLICATE KEY UPDATE
   position = VALUES(position), status = VALUES(status), estimated_wait_minutes = VALUES(estimated_wait_minutes),
   joined_at = VALUES(joined_at), called_at = VALUES(called_at), call_expires_at = VALUES(call_expires_at),
   started_serving_at = VALUES(started_serving_at), served_by_staff_id = VALUES(served_by_staff_id),
-  served_at_counter_id = VALUES(served_at_counter_id);
+  served_at_counter_id = VALUES(served_at_counter_id),
+  -- Same rule as the other two seeds: a ticket revived into a live status was
+  -- never completed and was never closed, so the sweep's residue has to go with
+  -- it. Leaving it produced waiting tickets carrying a completion time.
+  completed_at = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                      THEN NULL ELSE completed_at END,
+  closed_reason = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                       THEN NULL ELSE closed_reason END;
 
 -- Ten assessed visits make the value visible on first launch: seven ready,
 -- three incomplete with safe, actionable reasons.

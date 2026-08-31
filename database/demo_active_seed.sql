@@ -400,7 +400,22 @@ ON DUPLICATE KEY UPDATE
   called_at = VALUES(called_at),
   call_timeout_seconds = VALUES(call_timeout_seconds),
   call_expires_at = VALUES(call_expires_at),
-  started_serving_at = VALUES(started_serving_at);
+  started_serving_at = VALUES(started_serving_at),
+  -- A revived ticket was never completed, and it was never closed.
+  --
+  -- Ticket ids here are stable per (queue, seat), so a re-seed lands on rows
+  -- the expiry sweep may already have closed — and those carry completed_at
+  -- and closed_reason='branch_closed_before_called'. Restoring status to
+  -- 'waiting' while leaving that behind produced tickets that were waiting and
+  -- completed three days earlier: a negative wait in every average, and the
+  -- previous occupant's timings showing under a freshly called customer.
+  --
+  -- Only the live statuses are cleared. A row the seed genuinely writes as
+  -- served keeps the completion it was given.
+  completed_at = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                      THEN NULL ELSE VALUES(completed_at) END,
+  closed_reason = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                       THEN NULL ELSE closed_reason END;
 
 INSERT INTO queue_events (id, ticket_id, previous_status, new_status, event_timestamp, triggered_by_staff_id, notes)
 SELECT
