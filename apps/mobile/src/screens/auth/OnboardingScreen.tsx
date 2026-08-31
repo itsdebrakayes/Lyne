@@ -10,7 +10,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, font, shadow } from '../../lib/theme';
+import { activeScheme, colors, font, hexToRgba, shadow } from '../../lib/theme';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string; h: number };
 
@@ -42,7 +42,12 @@ function MosaicColumn({ tiles, offset = 0 }: { tiles: Tile[]; offset?: number })
           style={{
             height: tile.h, borderRadius: 30, backgroundColor: tile.bg,
             alignItems: 'center', justifyContent: 'center',
-            borderWidth: tile.bg === '#ffffff' ? 1 : 0, borderColor: colors.border,
+            /* The white tiles are the approved look and stay white in both
+               schemes — they read as cards in the mosaic. Only the hairline is
+               conditional: it separates a white tile from a white page in light
+               mode, and would be invisible clutter on a dark one. */
+            borderWidth: tile.bg === '#ffffff' && activeScheme === 'light' ? 1 : 0,
+            borderColor: colors.border,
             ...shadow.card,
           }}
         >
@@ -59,7 +64,14 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#dff3f8', '#eef6f8', colors.bg]}
+        /* The light-mode values are untouched — this screen is approved as it
+           looks. Dark mode was the bug: a pale cyan wash sat over a near-black
+           app, because both stops were fixed light hues while colors.bg moved
+           with the scheme. The dark branch tints the same accent instead, so
+           the shape of the fade is identical and only the hues follow. */
+        colors={activeScheme === 'dark'
+          ? [hexToRgba(colors.accent, 0.16), hexToRgba(colors.accent, 0.06), colors.bg]
+          : ['#dff3f8', '#eef6f8', colors.bg]}
         locations={[0, 0.45, 0.8]}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: height * 0.72 }}
       />
@@ -80,7 +92,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         {/* fade the mosaic into the content area */}
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(242,243,245,0)', colors.bg]}
+          colors={[hexToRgba(colors.bg, 0), colors.bg]}
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 110 }}
         />
       </View>

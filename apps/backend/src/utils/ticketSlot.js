@@ -51,11 +51,30 @@ async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avg
      row per day, which production guarantees (ensureQueuesForToday creates a
      fresh row) but the demo does not — it re-dates a fixed row, so MAX(position)
      kept climbing and a customer seventh in line was handed ticket PAY-904.
-     Daily numbering is also just the universal convention: A-001 each morning. */
+     Daily numbering is also just the universal convention: A-001 each morning.
+
+     The second clause is what keeps that restart honest. Scoping to CURDATE()
+     alone means the count of live tickets is irrelevant to the number handed
+     out, so a queue that still holds anyone from yesterday restarts at 1 ON TOP
+     of them: two tickets share position 1, both are told "you're next", and
+     whoever just walked in is ranked ahead of someone who waited overnight.
+     waiting_position counts every waiting ticket regardless of date, so the
+     allocator has to respect the same set the consumer reads.
+
+     Nothing guarantees the queue is empty at rollover. expireStaleTickets
+     clears it, but only for branches that have a closing_time recorded, only
+     when TICKET_EXPIRY_ENABLED is not false, and only if the job actually ran.
+     A person's place in line should not depend on a cleanup job having
+     succeeded, so the ordering is made self-enforcing here instead: never issue
+     a position at or below one that is still live. On a queue that WAS tidied,
+     no live tickets remain, nothing matches the second clause, and numbering
+     restarts at 1 exactly as before. */
   const [posRows] = await conn.query(
     `SELECT COALESCE(MAX(position), 0) + 1 AS next_pos
        FROM queue_tickets
-      WHERE queue_id = ? AND DATE(joined_at) = CURDATE()`,
+      WHERE queue_id = ?
+        AND (DATE(joined_at) = CURDATE()
+             OR status IN ('waiting', 'called', 'in_service'))`,
     [queueId]
   );
   const position = posRows[0].next_pos;

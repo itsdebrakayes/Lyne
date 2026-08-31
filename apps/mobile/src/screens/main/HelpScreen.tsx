@@ -15,7 +15,7 @@ import { GENERAL_FAQS, AGENCY_GUIDES } from '../../lib/helpContent';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
 import { Sheen } from '../../components/Glass';
 
-const SUPPORT_EMAIL = 'support@uselyne.com';
+const SUPPORT_EMAIL = 'customersupport@uselyne.com';
 const SUPPORT_PHONE = '+18760000000';
 
 export default function HelpScreen() {

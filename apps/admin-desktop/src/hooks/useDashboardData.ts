@@ -7,7 +7,7 @@
  * and returns them as flat, ready-to-render arrays.
  */
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
 
@@ -96,6 +96,7 @@ export function analysisMonthKey(rows: SummaryRow[] = []) {
 }
 
 export function useDashboardData(serviceId = '') {
+  const queryClient = useQueryClient();
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
   const branchId = admin?.staffRecord.branch_id;
@@ -222,8 +223,36 @@ export function useDashboardData(serviceId = '') {
     enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 25_000,
   });
 
+  /* Every query on the dashboard, in one list, so freshness and refresh are
+     derived from the same set rather than two hand-maintained ones that drift
+     apart the first time somebody adds a panel. */
+  const allQueries = [
+    queues, summary, services, staff, branchTrends, heatmap, demandHourly,
+    demandWeekly, targets, branchTargets, branchSettings, counters,
+    employeeKpis, predictions, pipeline, balking, channels, productivity,
+  ];
+  const activeQueries = allQueries.filter((q) => q.dataUpdatedAt > 0);
+
   return {
     admin, businessId, branchId,
+    /* The OLDEST panel on screen, not the newest.
+       "Updated 14:32" has to be a promise about everything the reader can see.
+       Taking the newest would let one 10-second queue poll vouch for an
+       analytics panel that last loaded two hours ago, which is precisely the
+       staleness this is meant to expose. */
+    lastUpdatedAt: activeQueries.length
+      ? Math.min(...activeQueries.map((q) => q.dataUpdatedAt))
+      : 0,
+    isFetching: allQueries.some((q) => q.isFetching),
+    /* failureCount, NOT isError.
+       Once a query has succeeded, react-query keeps status 'success' and serves
+       the cached data through every later failure — isError stays false forever.
+       So a dashboard left open while the API goes down would have gone on
+       reporting healthy, which is the exact "cannot go un-live" fault this
+       indicator exists to remove. failureCount counts consecutive failed
+       attempts and resets on the next success, which is the signal that
+       actually means "we are no longer getting through". */
+    hasError: allQueries.some((q) => q.failureCount > 0),
     queues: queues.data || [],
     summary: summary.data || [],
     services: services.data || [],
@@ -246,8 +275,17 @@ export function useDashboardData(serviceId = '') {
     balking: balking.data || null,
     channels: channels.data || null,
     productivity: productivity.data || null,
-    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
-      branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), branchTargets.refetch(), branchSettings.refetch(), counters.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
+    /* Only what this role is actually allowed to load.
+       This used to call .refetch() on all eighteen queries by name, and
+       react-query honours refetch() even on a query whose `enabled` is false.
+       So a supervisor pressing Update fired the executive-only KPI endpoint,
+       collected a 403, and — because a disabled query never refetches again —
+       carried a failure that could not clear for the rest of the session. The
+       freshness pill then read "Not updating" forever on a perfectly healthy
+       dashboard, which is the same lie as the old hardcoded "Live", just
+       pointed the other way.
+       refetchQueries({ type: 'active' }) refetches exactly the queries that are
+       mounted AND enabled, which is the set the reader can actually see. */
+    refreshAll: () => queryClient.refetchQueries({ type: 'active' }),
   };
 }

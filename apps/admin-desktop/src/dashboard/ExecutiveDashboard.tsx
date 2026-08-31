@@ -13,7 +13,7 @@ import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { type NavItem } from './kit';
-import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
 import { ExecDataProvider, execTab, EXEC_TAB_HEAD } from './qx/ExecTabsQX';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
@@ -309,7 +309,7 @@ export default function ExecutiveDashboard() {
           sub={isOverview
             ? `Here's how ${org} is running over the last ${windowDays === 1 ? 'day' : `${windowDays} days`}.`
             : (EXEC_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
             {/* A session is one fixed DAY — a period pill over it would drive
                 nothing and imply the screen below is a period view. */}

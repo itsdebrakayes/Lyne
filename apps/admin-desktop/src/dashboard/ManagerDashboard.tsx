@@ -20,7 +20,7 @@ import { Sparkline, Area, Card, Rec, Empty, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, timeLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
@@ -281,7 +281,7 @@ export default function ManagerDashboard() {
           sub={tab === 'overview'
             ? `Here's what's happening on the floor at ${branchName}.`
             : (MGR_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
             {/* Only show the period pill on tabs it actually drives.
                   · readiness — has its own Today/Week/Month control
@@ -870,8 +870,8 @@ export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[]
         ))}
       </Card>
       <Card span={5} title="Contact Lyne Support" cap="We Reply Within One Business Day">
-        <a className="qa-contact" href="mailto:support@uselyne.com">
-          <i><Mail size={16} /></i><span><b>support@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
+        <a className="qa-contact" href="mailto:customersupport@uselyne.com">
+          <i><Mail size={16} /></i><span><b>customersupport@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
         </a>
         <a className="qa-contact" href="tel:+18765550199">
           <i><Phone size={16} /></i><span><b>+1 (876) 555-0199</b><small>Call us — best when a line is down</small></span>

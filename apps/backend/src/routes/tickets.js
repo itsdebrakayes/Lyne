@@ -87,7 +87,11 @@ const walkInSchema = z.object({
 
 const updateStatusSchema = z.object({
   new_status: z.enum(['called', 'in_service', 'served', 'left', 'cancelled', 'no_show'], {
-    errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
+    /* `error`, not `errorMap` — zod 4 renamed it, so the custom message was
+       being dropped and callers got the library's own "Invalid option:
+       expected one of ..." instead, which never names the field. On a 400 the
+       field name is the only part that tells you what to fix. */
+    error: 'new_status must be one of: called, in_service, served, left, cancelled, no_show',
   }),
   verification_code: z.string().max(12).optional(),
   call_timeout_seconds: z.number().int().min(MIN_CALL_TIMEOUT_SECONDS).max(MAX_CALL_TIMEOUT_SECONDS).optional(),
@@ -1001,8 +1005,23 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
-    res.json(updated[0]);
+    /* SELECT * includes verification_code, and this route is staff-only.
+     *
+     * That code exists so the CUSTOMER can prove the ticket is theirs — they
+     * read it out, the clerk types it, and the server checks it. Returning it
+     * in the response to Call handed the clerk the answer to the question they
+     * are supposed to be asking, so a service could be started, and a visit
+     * recorded as served, with nobody standing at the counter. The list and
+     * single-ticket endpoints already withhold it; this one did not, and it
+     * also went out over SSE to every subscriber on the queue.
+     *
+     * The customer still sees their own code: it comes from /tickets/active
+     * and their own ticket, both scoped to them. */
+    // Renamed on the way out: `verification_code` is already bound in this
+    // scope from the request body, which is the code the CLERK typed.
+    const { verification_code: _customerCode, ...staffSafe } = updated[0];
+    broadcast(ticket.queue_id, staffSafe);
+    res.json(staffSafe);
   } catch (err) {
     await conn.rollback();
     console.error(err);

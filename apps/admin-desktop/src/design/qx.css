@@ -242,6 +242,16 @@
   white-space: nowrap; border: 1px solid color-mix(in oklab, var(--c-good) 24%, transparent);
 }
 .qx-live i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: qx-pulse 2s ease-out infinite; }
+/* Stale: the last refresh failed, or nothing on screen has loaded in fifteen
+   minutes. Red is reserved for problems in this design system and this is one —
+   a manager acting on figures they believe are current is the whole risk. The
+   pulse stops, because a pulsing dot reads as a live feed and that is precisely
+   what has stopped. */
+.qx-live.stale {
+  background: var(--c-bad-soft); color: var(--c-bad);
+  border-color: color-mix(in oklab, var(--c-bad) 24%, transparent);
+}
+.qx-live.stale i { animation: none; opacity: .8; }
 @keyframes qx-pulse { 0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; } 70% { box-shadow: 0 0 0 7px transparent; opacity: .75; } 100% { box-shadow: 0 0 0 0 transparent; opacity: 1; } }
 
 .qx-pills { display: inline-flex; gap: 2px; padding: 3px; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 13px; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--sh-glass); }

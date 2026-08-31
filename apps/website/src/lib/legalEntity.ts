@@ -29,8 +29,14 @@ export interface LegalEntity {
    * "company number" on a published policy would be a misstatement.
    */
   businessRegistrationNumber: string;
-  /** Principal place of business, as filed. */
-  registeredAddress: string;
+  /**
+   * Where post reaches us — deliberately NOT the principal place of business
+   * from the certificate, which is residential. The Act requires the controller
+   * be contactable; it does not require a home address on a public page. The
+   * registered particulars stay with the Companies Office, which is the record
+   * that is meant to hold them.
+   */
+  correspondenceAddress: string;
   /** Where data-protection requests and complaints go. */
   privacyEmail: string;
   /** General support and contractual notices. */
@@ -44,13 +50,22 @@ export interface LegalEntity {
 }
 
 export const LEGAL_ENTITY: LegalEntity = {
+  // From the Certificate of Registration, Form B.N.9, dated 9 August 2026.
   registeredName: "DKS Technologies",
-  businessRegistrationNumber: "",
-  registeredAddress: "",
-  // These two are already used in the product, so they are not guesses.
-  privacyEmail: "privacy@uselyne.com",
-  supportEmail: "support@uselyne.com",
-  oicRegistration: "",
+  businessRegistrationNumber: "11602/2026",
+  correspondenceAddress:
+    "Debra-Kaye Samantha Smith, c/o Marvaley Post Office, Kingston 20, Jamaica",
+  /* One mailbox, used for both. A privacy policy that routes data-subject
+     requests to an address nobody has created is worse than one that shares an
+     inbox — the request simply bounces, and the obligation is missed. Split
+     these the day privacy@ exists. */
+  privacyEmail: "customersupport@uselyne.com",
+  supportEmail: "customersupport@uselyne.com",
+  /* The honest position. Jamaica's Data Protection Act requires controllers to
+     register with the Office of the Information Commissioner, so this line is
+     an admission — but an unregistered controller claiming otherwise is worse,
+     and a procurement reviewer will check. Change it the moment it is done. */
+  oicRegistration: "Not yet registered",
 };
 
 /** Which identity fields are still outstanding. Empty array = ready to publish. */
@@ -58,7 +73,7 @@ export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): stri
   const labels: Record<keyof LegalEntity, string> = {
     registeredName: "Registered business name",
     businessRegistrationNumber: "Business Name (BN) registration number",
-    registeredAddress: "Principal place of business",
+    correspondenceAddress: "Correspondence address",
     privacyEmail: "Privacy contact address",
     supportEmail: "Support contact address",
     oicRegistration: "Information Commissioner registration",
@@ -80,7 +95,7 @@ export function applyLegalEntity(markdown: string, entity: LegalEntity = LEGAL_E
   const map: Record<string, string> = {
     "[REGISTERED COMPANY NAME]": entity.registeredName,
     "[NUMBER]": entity.businessRegistrationNumber,
-    "[ADDRESS]": entity.registeredAddress,
+    "[ADDRESS]": entity.correspondenceAddress,
     "[PRIVACY EMAIL]": entity.privacyEmail,
     "[SUPPORT EMAIL]": entity.supportEmail,
     "[REGISTRATION NUMBER]": entity.oicRegistration,

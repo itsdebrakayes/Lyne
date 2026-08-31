@@ -272,13 +272,77 @@ function NotifyBell({ count, notify }: { count: number; notify?: QxNotify }) {
   );
 }
 
-export function Head({ title, sub, live, right }: { title: ReactNode; sub?: string; live?: string; right?: ReactNode }) {
+/**
+ * Freshness — what the header used to assert, now measured.
+ *
+ * The pill was the literal string "Live" on every dashboard. It said Live
+ * while a refetch was failing, Live on a laptop that had been asleep since
+ * lunch, and Live over an analytics panel whose last successful load was two
+ * hours ago. A liveness indicator that cannot go un-live is decoration, and
+ * worse than none: it is read as confirmation.
+ *
+ * Four states, and the reader is told which:
+ *
+ *   Updating…      a fetch is in flight
+ *   Live           everything on screen is under a minute old
+ *   Updated 14:32  older than that, so the actual time is named
+ *   Not updating   the last attempt failed — the numbers may be anything
+ *
+ * The age comes from the OLDEST panel on screen (see useDashboardData), so it
+ * is a promise about the whole page rather than the fastest thing on it.
+ */
+export function Freshness({ at, fetching, failed }: { at: number; fetching?: boolean; failed?: boolean }) {
+  /* Ticks so the label ages on its own. Without it "Updated 14:32" is written
+     once and then sits there while the clock moves, which is the same lie in a
+     more specific font. */
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 20_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (failed) {
+    return (
+      <span className="qx-live stale" title="The last refresh did not complete. What you are looking at may be out of date.">
+        <i />Not updating
+      </span>
+    );
+  }
+  if (fetching || !at) {
+    return <span className="qx-live" title="Fetching the latest figures."><i />Updating…</span>;
+  }
+
+  const ageSeconds = Math.round((Date.now() - at) / 1000);
+  if (ageSeconds < 60) {
+    return <span className="qx-live" title="Everything on this screen loaded within the last minute."><i />Live</span>;
+  }
+
+  const clock = new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const ageLabel = ageSeconds < 3600
+    ? `${Math.round(ageSeconds / 60)} min ago`
+    : `${Math.round(ageSeconds / 3600)} hr ago`;
+  return (
+    <span className={`qx-live${ageSeconds > 900 ? ' stale' : ''}`} title={`Last successful refresh: ${ageLabel}`}>
+      <i />Updated {clock}
+    </span>
+  );
+}
+
+export function Head({ title, sub, live, right }: { title: ReactNode; sub?: string; live?: ReactNode; right?: ReactNode }) {
   return (
     <section className="qx-head">
       <div className="qx-headL">
         <div className="qx-headtop">
           <h1>{title}</h1>
-          {live ? <span className="qx-live"><i />{live}</span> : null}
+          {/* A string is a plain label and gets the pill wrapper; anything else
+              renders as given. Wrapping unconditionally nested <Freshness />
+              inside a second .qx-live, which drew two dots and left the outer
+              span without the `stale` class — so the failure state was styled
+              green while reading "Not updating". DesignPreview still passes
+              strings, so both forms have to work. */}
+          {typeof live === 'string'
+            ? <span className="qx-live"><i />{live}</span>
+            : live ?? null}
         </div>
         {sub ? <p>{sub}</p> : null}
       </div>

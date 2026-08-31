@@ -72,8 +72,13 @@ test('the recorded wait stops at CLOSING TIME, not at the moment the job runs', 
   const update = queries.find((q) => /UPDATE queue_tickets/.test(q.sql));
   // THE bug this job exists to fix. Stamping "now" would bake the whole
   // overnight gap into the wait and leave the metric exactly as wrong.
-  assert.equal(update.params[1], closing,
+  // Params are [status, closed_reason, completed_at, id, status].
+  assert.equal(update.params[2], closing,
     'completed_at must be the branch closing time, not the current time');
+  // Order-independent backstop, so a future column added to the SET clause
+  // shifts the index without quietly turning this assertion into a no-op.
+  assert.ok(update.params.includes(closing),
+    'the closing time must be bound somewhere in the UPDATE');
 });
 
 test('an existing completed_at is never overwritten', async () => {
@@ -105,21 +110,46 @@ test('called-but-absent tickets become no_show', async () => {
   assert.equal(update.params[0], 'no_show');
 });
 
-test('tickets left in service are reported but never given an invented outcome', async () => {
+test('tickets left in service are closed out AND still reported', async () => {
   reset();
   candidateRows.in_service = [
     { id: 't3', status: 'in_service', closed_at: '2026-08-17 16:00:00', branch_name: 'Kingston' },
   ];
   const out = await runTicketExpiry();
 
+  // Reported by branch, because a clerk repeatedly leaving people open at a
+  // counter is a floor problem and closing the tickets does not stop it.
   assert.equal(out.stuckInService, 1);
   assert.deepEqual(out.stuckBranches, ['Kingston']);
-  // Someone WAS at the counter. Marking them served invents a completion;
-  // cancelling them discards a real one. Surface it for a human instead.
-  assert.equal(out.cancelled, 0);
-  assert.equal(out.noShow, 0);
-  assert.ok(!queries.some((q) => /UPDATE queue_tickets/.test(q.sql)),
-    'in_service tickets must not be modified');
+
+  // But closed, not left. These used to be reported and untouched, which meant
+  // they stayed LIVE — holding positions, feeding waiting_position, and keeping
+  // a queue row alive across dates. Six sat that way for five days.
+  assert.equal(out.unfinished, 1, 'an unfinished service must not stay live overnight');
+  const update = queries.find((q) => /UPDATE queue_tickets/.test(q.sql));
+  assert.ok(update, 'in_service tickets must be closed out');
+  assert.equal(update.params[4], 'in_service', 'the UPDATE must target in_service rows');
+  assert.equal(update.params[1], 'service_not_finalised',
+    'the history must say the clerk never finalised it, not that the customer left');
+});
+
+test('an unfinished service is never booked as SERVED', async () => {
+  reset();
+  candidateRows.in_service = [
+    { id: 't3', status: 'in_service', closed_at: '2026-08-17 16:00:00', branch_name: 'Kingston' },
+  ];
+  await runTicketExpiry();
+
+  const update = queries.find((q) => /UPDATE queue_tickets/.test(q.sql));
+  // Every ETA in the product is AVG(started_serving_at -> completed_at) over
+  // SERVED tickets. Booking this as served with completed_at at closing time
+  // records a service that ran from 10am to 4pm; a handful of those drag the
+  // branch's average service time, and therefore every wait estimate shown to
+  // every customer, into nonsense. Losing credit for the visit is the cheaper
+  // mistake, and closed_reason keeps it recoverable.
+  assert.notEqual(update.params[0], 'served',
+    'marking an abandoned in_service ticket as served corrupts every wait estimate');
+  assert.equal(update.params[0], 'cancelled');
 });
 
 test('every automatic change writes an audit event', async () => {
@@ -133,11 +163,36 @@ test('every automatic change writes an audit event', async () => {
   assert.match(String(event.params[4]), /closed/i);
 });
 
-test('a branch with no closing time recorded is left alone', async () => {
+test('no branch can be skipped: a missing closing time falls back to the business', async () => {
   reset();
   await runTicketExpiry();
   const select = queries.find((q) => /SELECT/.test(q.sql));
-  // Without a closing time there is no defensible moment to expire anything,
-  // and guessing would cancel tickets at a branch that is genuinely still open.
-  assert.match(select.sql, /b\.closing_time IS NOT NULL/);
+
+  // This used to require b.closing_time IS NOT NULL, which meant a branch
+  // without one was skipped forever and its tickets accrued indefinitely.
+  // Every demo branch happens to have one and nothing enforced it, so the
+  // first tenant onboarded without one would have had a queue that never
+  // emptied and numbering that restarted on top of live people each morning.
+  assert.doesNotMatch(select.sql, /closing_time IS NOT NULL/,
+    'a branch must never be excluded from the sweep for lacking a closing time');
+
+  // Migration 032 makes businesses.default_closing_time NOT NULL, so this
+  // COALESCE always resolves to a real time.
+  assert.match(select.sql, /COALESCE\(b\.closing_time,\s*bz\.default_closing_time\)/,
+    'the sweep must fall back to the business default');
+  assert.match(select.sql, /JOIN businesses/, 'the fallback needs the business joined');
+});
+
+test('every live status is swept — nothing may survive the day', async () => {
+  reset();
+  await runTicketExpiry();
+  // The invariant the whole daily model rests on: a line belongs to the day it
+  // was formed. If a status is live and no pass closes it, tickets in that
+  // status accumulate forever — which is exactly how in_service leaked.
+  const swept = queries
+    .filter((q) => /SELECT/.test(q.sql) && /FROM queue_tickets t/.test(q.sql))
+    .map((q) => q.params[0]);
+  for (const status of ['waiting', 'called', 'in_service']) {
+    assert.ok(swept.includes(status), `${status} tickets are never closed out`);
+  }
 });

@@ -283,16 +283,19 @@ app.listen(PORT, () => {
     runTicketExpiry()
       .then((out) => {
         if (!out.enabled) return;
-        if (out.cancelled || out.noShow) {
+        if (out.cancelled || out.noShow || out.unfinished) {
           console.log(
-            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, ${out.noShow} called but absent.`
+            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, `
+            + `${out.noShow} called but absent, ${out.unfinished} left unfinished at a counter.`
           );
         }
-        // Surfaced every pass, because it means a clerk left somebody at a
-        // counter overnight. Silence here would hide a real floor problem.
+        // Still surfaced by name: a clerk repeatedly leaving people open at a
+        // counter is a floor problem, and the sweep closing the tickets does
+        // not make it stop happening. Reported AND closed, rather than reported
+        // and left to pile up across days.
         if (out.stuckInService) {
           console.warn(
-            `[TicketExpiry] ${out.stuckInService} ticket(s) still IN SERVICE past closing at: `
+            `[TicketExpiry] ${out.stuckInService} ticket(s) were still IN SERVICE past closing at: `
             + `${out.stuckBranches.join(', ')} — a clerk did not finish them.`
           );
         }

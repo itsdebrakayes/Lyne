@@ -6,6 +6,62 @@ to the session tracker._
 
 ---
 
+## The queue lifecycle, fixed at the root (August 2026)
+
+This block started as one reported symptom — a new arrival appearing ahead of people already waiting — and ended up being four separate faults sharing a cause: nothing in the system decided which *day* a line belonged to.
+
+- **A new arrival could be placed ahead of the people waiting.** The position allocator took `MAX(position) + 1` over live tickets only. A queue row that survived past midnight still had live tickets on it, but a queue that had been swept clean did not — so the next person started again at 1 and landed in front of everyone. The allocator now counts every ticket from today *plus* anything still live, so neither a swept queue nor a stale row can produce a leapfrog. Three property checks cover it, including the awkward case where someone is mid-service at rollover (`check-position-allocator.mjs`).
+- **A line now belongs to the day it was formed** (migration 032). There is no advance joining, so nothing may survive the night. The sweep previously left `in_service` tickets alone on the reasoning that an unfinished ticket is a manager's problem, not a cleanup job's — which holds for an hour and not for the five days six tickets had actually been sitting there, counting as live, holding positions and inflating `waiting_position`.
+- **Closing time is now something the platform has, not something it hopes for.** The sweep required `branches.closing_time IS NOT NULL`, so a branch without one was silently skipped forever and its queue never emptied. All 32 demo branches happened to have one; nothing enforced it, and the first tenant onboarded without one would have had a permanently growing line. `businesses.default_opening_time` / `default_closing_time` are now `NOT NULL` and the sweep resolves `COALESCE(branch, business)`.
+- **The people a branch could not serve now reach history.** They were dequeued and then simply gone. They are now written into `wait_time_records` and `visit_history` with their wait measured to the closing bell and no service time, under the day it happened, with a `closed_reason` — and the customer gets a real answer to "why did my ticket cancel?". Ten assertions hold that contract (`check-end-of-day.mjs`).
+- **Indexes.** Migration 032 adds `idx_qt_status_joined` and drops four duplicate indexes, so the sweep and the allocator read an index instead of scanning.
+
+## The database itself could be held to ransom
+
+- **The app's own login could drop every table.** It held `ALL PRIVILEGES` — including `DROP` and `ALTER` — in a 20-connection pool open for the life of the process. Any path that reached the database as the app (an injection, a leaked `.env`, a compromised dependency, RCE on the container) could run `DROP DATABASE lyne`. That is not data theft, it is the ransom scenario: destroy it and wait for the call. The login now holds four DML verbs plus `CREATE TEMPORARY TABLES`, and `root`@`%` is dropped. Written GRANT → REVOKE → GRANT so it is idempotent — an earlier draft revoked without re-granting and took the API down on the second run.
+- **MySQL was published on every interface.** `3307:3306` binds `0.0.0.0`, so on any machine with a routable address the database was listening to the network behind a password recoverable from git history. Now `127.0.0.1:3307:3306`.
+- **There was no backup of any kind.** Least privilege still leaves `DELETE`, and does nothing about a bad migration or a lost volume. `scripts/backup-database.sh` dumps with `--single-transaction`, then *verifies* — gunzips the dump, checks MySQL's completion marker, confirms the tables the product cannot run without are present — because a dump never read back is a file, not a backup. `--restore FILE` restores with confirmation; retention defaults to 14 days. (An early version of the verifier condemned the 37 MB demo dump and passed the 12 KB production one: `gunzip -c | grep -q` takes SIGPIPE under `pipefail` on a large stream. It decompresses once into memory now.)
+
+## Leaks, feedback and the things line staff actually noticed
+
+- **Verification codes were leaking into staff responses.** The customer's six-digit code was present in the queue-list payload and the SSE broadcast, which means anyone who could see the staff stream could serve a ticket without the customer present. Stripped from both. An e2e spec (`api-leaks.spec.ts`) now fails if any response carries one it shouldn't.
+- **The admin "Live" pill was doubled and could not stop being live.** Two ovals and two dots, because `Head` wrapped a non-string `live` value in its own pill. And the freshness state latched: `isError` never becomes true in react-query after a first success, so a later failure read as fresh — it uses `failureCount` now. A supervisor 403 also latched it the other way, because `refetch()` fires on disabled queries; it refetches only `{ type: 'active' }`.
+- **Call Next gave an eight-minute no-show timer and an empty countdown.** Both came from the demo data, and both are fixed in the seeds rather than papered over — see the next section.
+- **Buttons that did not acknowledge a press.** Call Next and the counter actions now gate on `busy`, show "Calling…", and surface a real failure message naming what went wrong instead of failing silently. Transfer and Requeue were removed rather than left as controls that did nothing.
+- **Independent section loading on mobile.** The Home screen had three queries and one `isLoading` taken from whichever was first, so a slow branch list held the whole page blank and a failure in either of the other two rendered a heading with a gap under it — no message, no retry. Each section now loads, fails and recovers on its own (`Feedback.tsx`'s `Section`), with errors that say what is wrong and what to do about it.
+
+## Demo data that contradicted itself
+
+The demo is what a reviewer or a prospect actually sees, so a fault here reads as a fault in the product. Three, all found by the invariant checker:
+
+- **460 tickets were waiting and completed at the same time.** All three seeds use ids that are stable per (queue, seat) so a re-seed updates in place — but their `ON DUPLICATE KEY UPDATE` restored `status` while leaving `completed_at` and `closed_reason` from a sweep that had genuinely closed them. Result: a `waiting` ticket carrying a completion three days older than its own `joined_at` — a negative wait in every average that touched it, and, on the counter screen, the previous occupant's timings under a freshly called customer. That is the "stale prior information" line staff reported. All three seeds now clear the residue for live statuses only, so genuine served history is untouched.
+- **46 called tickets had no no-show expiry.** The sector seed set `status='called'` without `call_timeout_seconds` or `call_expires_at`, so the "time until no-show" countdown had nothing to count to and rendered empty. It now seeds both, and calls the ticket 40 seconds ago so the countdown is live rather than born expired.
+- **Queues were seeded into branches that were shut**, so the Traffic Court showed 320 people six hours after closing, the sweep correctly cancelled them, and the next re-seed put them back — the demo and the sweep fighting each other every fifteen minutes. Seeding is now gated on the wall clock.
+
+`refresh-demo-data.js` also repairs an already-corrupted box, so an existing checkout heals on the next refresh instead of needing a volume reset.
+
+## Test infrastructure
+
+- **220 backend tests** across 18 files (up from 39).
+- **18 data invariants** asserted against the live database as the application user — which also proves the hardened grants are sufficient for real work.
+- **Property checks** for the position allocator (3) and the end-of-day lifecycle (10).
+- **4 Playwright specs** covering the things only a person would catch: the line-staff call/serve loop, visual feedback and disabled states on both admin and mobile, and API leakage.
+
+## Website, legal and hosting
+
+- **A blank page now explains itself on the page** rather than in a console nobody has open, and the hosting build runs on install and says so when it did not.
+- **Real registration details** on the legal pages, contact via a post office box rather than a home address, and pages that land at the top instead of mid-scroll.
+- **Footer and billing switch are tappable on a phone** — they were not.
+- **API validation messages name the field again**; a refactor had reduced them to a generic failure.
+
+## Repository and build health
+
+- **The repo was inside iCloud Drive.** `~/Documents` is covered by Desktop & Documents sync, so every file carried File Provider extended attributes. Two consequences, both of which had been blocking work: `codesign` refused the embedded `React.framework` ("resource fork, Finder information, or similar detritus not allowed"), and Node's `process.cwd()` threw inside a File Provider path during React Native codegen. The repo now lives at `~/Developer/Lyne`.
+- **The iOS native project had a half-finished rename.** `project.pbxproj` said `LYNE` everywhere while the folder on disk was still `ios/QMENOW/`, so `pod install` had failed since 21 August (`No such file or directory — ios/LYNE/PrivacyInfo.xcprivacy`) and no native build had succeeded since. Meanwhile the JS had gained `expo-secure-store`, which the last-good binary did not contain — so the simulator silently fell back to a three-week-old bundle and showed a sign-in screen that had been replaced twice. Regenerated with `expo prebuild --clean`; the build is green and the simulator runs current code.
+- **108 Finder duplicates removed** and the pattern that produced them blocked in `.gitignore`.
+
+---
+
 ## Admin dashboards — the design overhaul
 - **Redesign bug list §8 verified (#48)** — code-audited the six flagged items and confirmed every one is already resolved: the "All-Services filter no-op" control no longer exists (nothing dead is rendered); the executive Settings and Support tabs render real content rather than routing to a missing Operations tab; there is no empty Operations tab in any role's nav; there are no leftover notebook/"Review" links (only descriptive prose and legitimate `mailto:`/`tel:` links); chart date labels format correctly per range via `toLocaleDateString` (numeric day, short weekday, `9a`/`2p` hours, `July 2026` months); and every KPI carries a base with every percentage headline showing its underlying count. No code changes were needed — the verification's finding is "already fixed". (A visual click-through remains welcome once a linked admin login is available, but the code shows no remaining §8 bug.)
 - **Notifications bell made real (#24)** — the admin bell was a dead icon (no handler, no badge, and `GET /notifications` is customer-only, so staff had no feed). It's now a live **"needs attention"** feed built from the operational signals the dashboards already compute (`deriveOpsAlerts`): idle-with-demand windows, service slowdowns, chronic anomalies, and off-target metrics — ranked most-urgent first. It carries an unread **badge**, **shakes** when a genuinely new condition appears, opens a dropdown panel where each alert **jumps to the relevant tab**, and tracks read/unread per-user in `localStorage` keyed by a stable per-condition id (acknowledging a persistent condition keeps it quiet; a new one re-badges). Wired into every admin role via the shared `Shell` (populated for Executive/Manager/Supervisor; Line Staff correctly shows "all caught up"). The mobile bell already worked (unread dot → NotificationsScreen with mark-all-read). _Deferred: a ping sound (blocked by browser autoplay without a gesture; low value, easy to make obnoxious)._

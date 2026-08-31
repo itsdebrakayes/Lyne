@@ -9,6 +9,7 @@ First market is Jamaica (TAJ, PICA, NHT and similar). Because that market has de
 ---
 
 ## Contents
+- [Branches — read this first](#branches--read-this-first)
 - [The five surfaces](#the-five-surfaces)
 - [Feature inventory](#feature-inventory)
 - [Roles](#roles)
@@ -22,6 +23,30 @@ First market is Jamaica (TAJ, PICA, NHT and similar). Because that market has de
 - [Onboarding a new agency](#onboarding-a-new-agency)
 - [Quick start](#quick-start)
 - [Project tracking](#project-tracking)
+
+---
+
+## Branches — read this first
+
+The branches are split by *what data is in them*, not by what code is in them. **`main` and `demo` carry the same application code.** If you clone and read whichever branch you happened to land on, you may be looking at an older tree — check the table.
+
+| Branch | What is on it | Pull this to… |
+|---|---|---|
+| **`demo`** | The whole system **plus** the seeded sandbox: three agencies, staff logins for every role, and a day of live queue activity. | **See it running.** This is the one to start with — bring up Docker, log in, watch a line move. |
+| **`main`** | The same system with **the demo data removed** — empty tables, no seed files, no demo tooling, no demo compose overlay. This is what gets hosted for a real agency on day one, so it must start empty. | Read or deploy the production tree. |
+| **`ux-and-security-hardening`** | Where fixes are made. Once a fix is confirmed, it is merged into `main` (without demo data) and into `demo` (with it). | See work in flight before it is promoted. |
+| **`features`** | Where new features were explored before being folded in. Behind the three above. | History only. |
+| **`sector-foundations`**, **`testing`** | Older exploration branches. Behind. | History only. |
+
+So: `demo` = `main` + sample data. Nothing is fixed on `demo` that is missing from `main`; the only files that differ are the seeds and the tooling that loads them (`database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `apps/backend/scripts/*demo*`, `README.demo.md`).
+
+```bash
+git fetch --all
+git checkout demo    # to run it with data
+git checkout main    # to read/deploy the empty production tree
+```
+
+**If you are reviewing this code:** read [docs/COMPLETED_WORK.md](docs/COMPLETED_WORK.md) before filing anything. A number of things that look like obvious bugs have already been found and fixed — the position allocator, the day-boundary on queues, the database's own privileges, the admin liveness pill, verification codes leaking into staff responses. That document says what was wrong and what the fix was, newest first.
 
 ---
 
@@ -124,6 +149,14 @@ Additional guarantees:
 - **No secrets in the repo** — no checked-in `.env`; Supabase service-role keys live only in a local `.env` when running the pipeline.
 - **PII stance** — the app stores `national_id` and `trn`. Before any signed contract we owe a **privacy policy, a retention/erasure policy, and encryption-at-rest confirmation** (tracked in remaining work). A government CIO will ask — the honest answer is that isolation, TLS, and access controls are in place and the formal DPA is a pre-contract deliverable.
 
+### The database itself
+
+The eight layers above defend the API. They do nothing if the attacker reaches MySQL directly or arrives holding the app's own credentials, which is the ransom scenario — destroy the data and wait for the call. Three separate changes address it:
+
+- **Least privilege** (`database/security/harden_database.sql`) — the app's login held `ALL PRIVILEGES`, which includes `DROP` and `ALTER`, in a 20-connection pool open for the life of the process. It now holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` and nothing else, and `root`@`%` is dropped. This does not prevent a break-in; it decides what one is worth. Without DDL the worst outcome is modified rows — serious, and recoverable. With DDL there is nothing to restore *to*. Written GRANT → REVOKE → GRANT so it is idempotent and cannot leave the app on `USAGE` if re-run.
+- **Loopback binding** (`docker-compose.yml`) — MySQL published on `3307:3306`, i.e. every interface the host has, defended by a password recoverable from git history. Now `127.0.0.1:3307:3306`. The API reaches it over the compose network; nothing outside the machine ever needed to.
+- **Verified backups** (`scripts/backup-database.sh`) — there were none. Least privilege still leaves `DELETE`, and it does nothing about a bad migration or a lost volume. Each run checks the dump gunzips cleanly, carries MySQL's completion marker, and contains the tables the product cannot run without — a dump never read back is a file, not a backup. `--restore FILE` restores with confirmation; retention defaults to 14 days.
+
 ---
 
 ## Machine learning & analytics
@@ -153,8 +186,10 @@ Full pipeline: the containerized **live worker** (`scripts/live_worker.py`) runs
 
 - **`main` is production-oriented and starts empty** for a new company. Demo businesses, demo accounts, and synthetic history live **only on `demo`**.
 - **Two-database demo overlay:** `db` (port 3307, clean production schema) and `demo-db` (port 3308, seeded). The demo overlay repoints the API at the seeded DB so end-to-end testing never touches production data.
-- **Per-day queues by design** — the app looks for `queue_date = CURDATE()`; lines don't roll over. A demo box re-seeds the day automatically on boot and at 00:05 (double-gated so it can never run in production).
-- **16 migrations** cover indexes, security + OCR, sessions/token security, pipeline + tenant hardening, audit tenant scope, roles + demo-auth hardening, admin dashboard functionality, executive/employee KPIs, business targets, user premium, branch hours, payments, public holidays, ML data collection, `wait_time_records.channel` (walk-in vs online), and the supervisor role.
+- **A line belongs to the day it was formed.** There is no advance joining, so nothing may survive the night. At closing time the sweep (`apps/backend/src/jobs/expireStaleTickets.js`) closes every ticket still open — `waiting`, `called`, *and* `in_service` — stamps a `closed_reason`, and writes each person into `wait_time_records` and `visit_history` with their wait measured to the closing bell and no service time. They leave the queue but they do not leave the record: "people the branch could not serve today" is a number the manager should have to look at. Tomorrow's line starts at position 1.
+- **Closing time is required, not hoped for.** The sweep used to skip any branch whose `closing_time` was NULL, so that branch's queue would never empty. Migration 032 makes `businesses.default_opening_time` / `default_closing_time` `NOT NULL`, and the sweep resolves `COALESCE(branch.closing_time, business.default_closing_time)` — so every branch is covered whether it sets its own hours or inherits the company's.
+- **Position allocation counts today's line only.** A new arrival is numbered above every ticket from today plus anything still live, which stops a new arrival being placed ahead of people already waiting (the bug that started this work) without letting a stale row from last week inflate the count.
+- **34 migrations** cover indexes, security + OCR, sessions/token security, pipeline + tenant hardening, audit tenant scope, roles + demo-auth hardening, admin dashboard functionality, executive/employee KPIs, business targets, user premium, branch hours, payments, public holidays, ML data collection, `wait_time_records.channel` (walk-in vs online), the supervisor role, and the daily queue expiry + required hours above. Migration 032 also adds `idx_qt_status_joined` and drops four duplicate indexes, so the sweep and the allocator both read an index instead of scanning.
 
 ---
 
@@ -180,9 +215,25 @@ The pilot is free / agency-paid, so live card capture is stubbed pending a Jamai
 
 ## Testing
 
-- **Automated:** 39 backend unit tests (security wiring, model-ETA logic, join-window, eta-math), 9 ML helper tests, GitHub Actions CI (backend + admin typecheck + model tests on push), and a live e2e smoke.
-- **Highest-leverage gap:** route-level integration coverage for the queue engine (join → call → serve → notify) and payments — started, not finished.
-- **Manual pass:** a use-case/edge-case catalogue exercised with Playwright, using **business-person personas** (not technical users) — pending execution.
+Four layers, because they catch different things. All four are green as of the latest commit.
+
+| Layer | What it is | Run it |
+|---|---|---|
+| **Unit / route-wiring** | **220 tests** across 18 files — security middleware chains, tenant scoping, eta-math, join-window, the payment ledger's forward-only projection, the daily expiry contract. | `cd apps/backend && npm test` |
+| **Data invariants** | **18 invariants** the data is never allowed to break, asserted against the *live* database rather than a fixture — duplicate positions, live tickets predating today, verification-code reuse, a called ticket with no no-show expiry, a ticket served before it was joined. | `node apps/backend/scripts/check-integrity.mjs` |
+| **Property checks** | **3 properties** of the position allocator (a new arrival is never placed ahead of someone already waiting, including the mid-service-at-rollover case) and **10 assertions** on the end-of-day lifecycle (an unserved person is dequeued, reaches history with a reason, and their wait stops at closing time). | `check-position-allocator.mjs`, `check-end-of-day.mjs` |
+| **End-to-end (Playwright)** | 4 specs against the real admin and mobile builds: the line-staff call/serve loop, visual-feedback and disabled-state behaviour on both surfaces, and an API-leak check that no response carries a verification code it shouldn't. | `npm run test:e2e` |
+
+Plus 9 ML helper tests and GitHub Actions CI (backend + admin typecheck + model tests on push).
+
+The invariant and property scripts need the database's connection details in the environment — they connect as the *application* user on purpose, so they also prove the hardened grants are sufficient for real work:
+
+```bash
+MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 MYSQL_USER=lyne MYSQL_PASSWORD=… MYSQL_DATABASE=lyne \
+  node apps/backend/scripts/check-integrity.mjs      # 3307 for production, 3308 for demo
+```
+
+**Still open:** route-level integration coverage for the full queue engine (join → call → serve → notify) is partial, and the manual business-persona walkthrough has not been executed end to end.
 
 ---
 

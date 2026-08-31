@@ -3,7 +3,15 @@ const mysql = require('mysql2/promise');
 const pool = mysql.createPool({
   host:               process.env.MYSQL_HOST     || 'localhost',
   port:               parseInt(process.env.MYSQL_PORT || '3306'),
-  user:               process.env.MYSQL_USER     || 'root',
+  /* 'lyne', never 'root'. A missing MYSQL_USER used to fall back to a
+     superuser, so a deploy that forgot one environment variable ran the entire
+     API as root — silently, because it works perfectly. The fallback should be
+     the least-privileged account (see database/security/harden_database.sql),
+     so a missing variable degrades into the safe case instead of the dangerous
+     one. root@'%' no longer exists either, so the old default would now fail
+     loudly rather than succeed dangerously — but the default should be right
+     on its own, not right because something else was removed. */
+  user:               process.env.MYSQL_USER     || 'lyne',
   password:           process.env.MYSQL_PASSWORD || '',
   database:           process.env.MYSQL_DATABASE || 'lyne',
   waitForConnections: true,
