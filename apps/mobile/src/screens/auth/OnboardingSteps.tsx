@@ -286,11 +286,16 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
 
 function ExplainStep({ art: Art, title, body }: { art: () => React.JSX.Element; title: string; body: string }) {
   return (
-    <View style={{ flex: 1, paddingHorizontal: sp.xxl }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    /* The illustration and the words it is illustrating are ONE block, centred
+       together. They used to be two: the art took flex:1 and centred itself in
+       whatever space was left, while the text was pinned to the bottom — so on
+       a tall phone a third of the screen opened up between a picture and the
+       sentence explaining it, and the two stopped reading as related. */
+    <View style={{ flex: 1, paddingHorizontal: sp.xxl, justifyContent: 'center', paddingBottom: sp.xxl }}>
+      <View style={{ alignItems: 'center', marginBottom: 38 }}>
         <Art />
       </View>
-      <View style={{ paddingBottom: sp.xxl }}>
+      <View>
         <Text style={{ fontFamily: font.extra, fontSize: 30, lineHeight: 36, color: colors.ink, letterSpacing: -1 }}>{title}</Text>
         <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 22, color: colors.muted, marginTop: 12, maxWidth: 330 }}>{body}</Text>
       </View>

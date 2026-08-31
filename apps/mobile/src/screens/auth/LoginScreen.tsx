@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
-import { colors, font, shadow, inputReset } from '../../lib/theme';
+import { colors, font, hexToRgba, shadow, inputReset } from '../../lib/theme';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
 
@@ -35,6 +35,14 @@ const BOTTOM_TILES: Tile[] = [
   { icon: 'sparkles', bg: '#ffffff', fg: colors.accentDeep },
   { icon: 'navigate', bg: colors.dark, fg: colors.accent },
   { icon: 'checkmark-done', bg: colors.accent, fg: colors.accentInk },
+];
+
+/* Sized per glyph rather than one number: Ionicons draws the Apple mark with
+   more optical weight than the Google G, so a shared size makes Apple look
+   bigger than Google beside it. */
+const SOCIAL: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; size: number }> = [
+  { label: 'Apple', icon: 'logo-apple', size: 19 },
+  { label: 'Google', icon: 'logo-google', size: 17 },
 ];
 
 function MotifRow({ tiles }: { tiles: Tile[] }) {
@@ -83,7 +91,7 @@ export default function LoginScreen() {
       <View style={styles.topMotif} pointerEvents="none"><MotifRow tiles={TOP_TILES} /></View>
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(255,255,255,0)', colors.surface]}
+        colors={[hexToRgba(colors.surface, 0), colors.surface]}
         locations={[0, 0.82]}
         style={styles.topFade}
       />
@@ -92,7 +100,7 @@ export default function LoginScreen() {
       <View style={styles.bottomMotif} pointerEvents="none"><MotifRow tiles={BOTTOM_TILES} /></View>
       <LinearGradient
         pointerEvents="none"
-        colors={[colors.surface, 'rgba(255,255,255,0)']}
+        colors={[colors.surface, hexToRgba(colors.surface, 0)]}
         locations={[0.18, 1]}
         style={styles.bottomFade}
       />
@@ -150,6 +158,35 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Apple and Google, present but not yet live.
+              They are rendered as genuinely disabled buttons rather than as
+              decoration, so a screen reader announces them as unavailable
+              instead of reading two words with no role. The caption underneath
+              is the point: a greyed control with no explanation reads as broken,
+              and the honest reason is simply that they are not wired yet. */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialRow}>
+            {SOCIAL.map(provider => (
+              <TouchableOpacity
+                key={provider.label}
+                disabled
+                accessibilityRole="button"
+                accessibilityState={{ disabled: true }}
+                accessibilityLabel={`Continue with ${provider.label} — not available yet`}
+                style={styles.socialBtn}
+              >
+                <Ionicons name={provider.icon} size={provider.size} color={colors.faint} />
+                <Text style={styles.socialText}>{provider.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.socialNote}>Apple and Google sign-in arrive with the App Store release.</Text>
+
           <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
           </TouchableOpacity>
@@ -162,10 +199,14 @@ export default function LoginScreen() {
 const makeStyles = () => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
 
-  topMotif: { position: 'absolute', top: -46, left: -44, right: -44, alignItems: 'center' },
-  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 210 },
-  bottomMotif: { position: 'absolute', bottom: -46, left: -44, right: -44, alignItems: 'center' },
-  bottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 210 },
+  /* The tiles are 84 tall and were offset -46, so barely half a row survived at
+     each edge and the brand read as a stray sliver. At -18 most of the row is
+     on screen and the frame carries the page. The fades come down to match —
+     at 210 they were erasing what the smaller offset had just revealed. */
+  topMotif: { position: 'absolute', top: -18, left: -44, right: -44, alignItems: 'center' },
+  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 186 },
+  bottomMotif: { position: 'absolute', bottom: -18, left: -44, right: -44, alignItems: 'center' },
+  bottomFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 186 },
 
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
 
@@ -201,7 +242,24 @@ const makeStyles = () => StyleSheet.create({
   },
   btnText: { fontFamily: font.extra, color: '#ffffff', fontSize: 16 },
 
-  switchRow: { alignItems: 'center', marginTop: 24 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontFamily: font.medium, fontSize: 12.5, color: colors.faint },
+
+  socialRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  socialBtn: {
+    flex: 1, height: 52, borderRadius: 16,
+    backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    opacity: 0.6,
+  },
+  socialText: { fontFamily: font.bold, fontSize: 14.5, color: colors.faint },
+  socialNote: {
+    fontFamily: font.medium, fontSize: 11.5, lineHeight: 16,
+    color: colors.faint, textAlign: 'center', marginTop: 10,
+  },
+
+  switchRow: { alignItems: 'center', marginTop: 20 },
   switchText: { fontFamily: font.medium, fontSize: 13.5, color: colors.muted },
   switchBold: { fontFamily: font.bold, color: colors.ink },
 });
