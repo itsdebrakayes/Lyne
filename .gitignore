@@ -115,3 +115,14 @@ backups/
 # Playwright
 test-results/
 playwright-report/
+
+# Apple/Windows signing artifacts (local only, never commit)
+certs/
+
+# The macOS entitlements file lives under a `build/` directory, which the rule
+# above ignores as a compiler output. It is source, not output: without it
+# electron-builder fails on any machine but the one it was written on. Git will
+# not descend into an ignored directory, so the directory has to be un-ignored
+# before the file inside it can be.
+!apps/admin-desktop/build/
+!apps/admin-desktop/build/entitlements.mac.plist
