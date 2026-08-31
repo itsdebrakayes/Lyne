@@ -58,7 +58,7 @@ The ten: `database/demo_active_seed.sql`, `demo_credit_union_seed.sql`, `demo_se
 | Surface | Path | What it is |
 |---|---|---|
 | **Consumer mobile** | `apps/mobile` | Expo (React Native) app for the public — join queues, track position, plan visits, keep documents. ~20 screens. |
-| **Admin desktop** | `apps/admin-desktop` | Electron + React dashboards for the four staff roles (line staff, supervisor, manager, executive). Also servable as a PWA once hosted. |
+| **Admin desktop** | `apps/admin-desktop` | Electron + React dashboards for the four staff roles (line staff, supervisor, manager, executive). Packaged for **macOS, Windows and Linux** — staff do not choose their hardware. |
 | **Backend API** | `apps/backend` | Node/Express API over MySQL, with Supabase for auth verification. 21 route modules, real-time SSE, immutable payment ledger. |
 | **Model worker** | `apps/model` | Python analytics worker: trains/scores six models against the live DB and writes insights back for the dashboards and the customer ETA. |
 | **Marketing website** | `apps/website` | Public marketing site only — product info, quote/contact, app-store links. Never touches customer data. |
@@ -112,7 +112,7 @@ The separation is strict and deliberate: **no admin screen ever enters the consu
 ```text
 Public marketing website (data-free)
 
-Consumer mobile  +  Admin desktop (Electron / PWA)
+Consumer mobile  +  Admin desktop (Electron: macOS / Windows / Linux)
         |
         |  Supabase Auth JWT in Authorization header
         v
@@ -210,7 +210,8 @@ The pilot is free / agency-paid, so live card capture is stubbed pending a Jamai
 ## Deployment & hosting
 
 - **Local/demo:** `docker compose` (two MySQL + API); the demo overlay adds the seeded DB. This is the current state.
-- **Pilot target:** a single hardened DigitalOcean droplet — hosted web admin at a real URL (+ installable PWA) and the mobile app on real devices via TestFlight/Expo. Public App Store / Play Store listings come right after (review lead times).
+- **Pilot target:** a single hardened DigitalOcean droplet — the admin served over HTTPS at a real URL, and the mobile app on real devices via TestFlight/Expo. Public App Store / Play Store listings come right after (review lead times).
+- **The admin is a browser app first.** It is a Vite React build, so once it is hosted, any staff machine with a browser can reach it — Mac, Windows, Linux or a Chromebook — with no installer and no code signing. The Electron packages are a convenience on top of that, not the delivery mechanism. Worth weighing before buying certificates: the browser path costs nothing and covers every platform on day one.
 - **Rough pilot cost:** ~US$44/month — a 2 vCPU / 4 GB droplet ($24), managed MySQL ($15) and Spaces for off-box backups ($5) — plus Apple Developer ($99/yr) and Google Play ($25 once). Sized for one agency with a dozen branches, deliberately not for a national rollout.
 - **D-U-N-S approved 2026-08-31**, which unblocks the Apple Developer Program enrolment and therefore Sign in with Apple, Sign in with Google (they must ship together under Guideline 4.8) and Windows code signing.
 
