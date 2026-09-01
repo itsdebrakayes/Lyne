@@ -51,6 +51,7 @@ const {
   scopedBusinessId, scopedBranchId, roleName,
 } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
+const { planSession, sittingHours } = require('../utils/sessionPlan');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 
@@ -846,6 +847,138 @@ router.post('/', requireAuth, requireStaffRole(...STAFF_EDIT), requireBranchAcce
   });
 
 // GET /api/sessions/:id — one session, staff view
+/**
+ * GET /api/sessions/:id/plan
+ *
+ * What this sitting needs, answered before it happens.
+ *
+ * Every other forecast in this product has to guess how many people will turn
+ * up. A session does not: they registered. That leaves one unknown — how long
+ * a person takes at the window — and history answers it. Known demand plus
+ * measured service time is arithmetic, not a forecast, which is why this is
+ * worth putting in front of an administrator a week out.
+ *
+ * Where the service time comes from, in order, because the honesty of the whole
+ * answer rests on it:
+ *
+ *   1. previous sittings of this same service — a Saturday clearing sitting is
+ *      not a Tuesday morning, so its own history is the best evidence
+ *   2. all served tickets for the service
+ *   3. the service's declared base time
+ *
+ * The response always names which was used and how many tickets back it, so
+ * nobody mistakes a declared default for a measurement. A number derived from
+ * three samples should not be presented with the same confidence as one derived
+ * from three thousand.
+ *
+ * `windows` and `target_wait` are query parameters so the administrator can try
+ * arrangements — this is a planner, not a report.
+ */
+router.get('/:id/plan', requireAuth, requireStaffRole(...STAFF_VIEW), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ${SESSION_SELECT} ${SESSION_FROM} WHERE ss.id = ? LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Session not found.' });
+    const session = rows[0];
+
+    if (req.dbStaff?.business_id && session.business_id !== req.dbStaff.business_id) {
+      return res.status(403).json({ error: 'This session belongs to another organisation.' });
+    }
+
+    // Known demand. Registrations that are still live — a cancelled one is not
+    // a person who is coming.
+    const [[reg]] = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM session_registrations
+        WHERE session_id = ? AND status IN ('registered','checked_in')`,
+      [session.id]
+    );
+    const registered = Number(reg.cnt) || 0;
+
+    // Service time, best evidence first.
+    const [[fromSessions]] = await pool.query(
+      `SELECT COUNT(*) AS n,
+              AVG(TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at)) / 60 AS mins
+         FROM session_registrations sr
+         JOIN queue_tickets t ON t.id = sr.queue_ticket_id
+         JOIN scheduled_sessions s2 ON s2.id = sr.session_id
+        WHERE s2.service_id = ? AND t.status = 'served'
+          AND t.started_serving_at IS NOT NULL AND t.completed_at IS NOT NULL`,
+      [session.service_id]
+    );
+    const [[fromService]] = await pool.query(
+      `SELECT COUNT(*) AS n,
+              AVG(TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at)) / 60 AS mins
+         FROM queue_tickets t
+         JOIN queues q ON q.id = t.queue_id
+        WHERE q.service_id = ? AND t.status = 'served'
+          AND t.started_serving_at IS NOT NULL AND t.completed_at IS NOT NULL`,
+      [session.service_id]
+    );
+
+    let serviceMinutes = null;
+    let basis = null;
+    let samples = 0;
+    if (Number(fromSessions.n) >= 20 && Number(fromSessions.mins) > 0) {
+      serviceMinutes = Number(fromSessions.mins); basis = 'previous_sittings'; samples = Number(fromSessions.n);
+    } else if (Number(fromService.n) >= 20 && Number(fromService.mins) > 0) {
+      serviceMinutes = Number(fromService.mins); basis = 'service_history'; samples = Number(fromService.n);
+    } else if (Number(fromService.n) > 0 && Number(fromService.mins) > 0) {
+      serviceMinutes = Number(fromService.mins); basis = 'service_history_thin'; samples = Number(fromService.n);
+    } else {
+      serviceMinutes = Number(session.base_avg_time_minutes) || 0; basis = 'declared'; samples = 0;
+    }
+
+    // Windows the venue physically has, which bounds any recommendation.
+    const [[counters]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ?',
+      [session.branch_id, session.service_id]
+    );
+
+    const hours = sittingHours(session.starts_at, session.ends_at);
+    const expected = req.query.expected != null ? Number(req.query.expected) : registered;
+    const windows = req.query.windows != null ? Number(req.query.windows) : null;
+    const targetWait = req.query.target_wait != null ? Number(req.query.target_wait) : null;
+
+    const plan = planSession({
+      expected, hours, serviceMinutes, windows,
+      targetWaitMinutes: Number.isFinite(targetWait) ? targetWait : null,
+      /* Not capped at the counters the branch has today: the point of planning
+         an arena sitting is to find out how many you need, which may be more
+         than exist. The gap is reported rather than hidden by a ceiling. */
+      maxWindows: 400,
+    });
+
+    res.json({
+      session: {
+        id: session.id, name: session.name, session_date: session.session_date,
+        starts_at: session.starts_at, ends_at: session.ends_at,
+        capacity: session.capacity, service_name: session.service_name,
+      },
+      demand: {
+        registered,
+        capacity: session.capacity,
+        /* An uncapped sitting keeps taking registrations until the deadline, so
+           today's count is a floor, not the final number. Says which it is. */
+        registration_closes_at: session.registration_closes_at,
+        is_final: Boolean(session.registration_closes_at && new Date(session.registration_closes_at) <= new Date()),
+      },
+      service_time: {
+        minutes: Math.round(serviceMinutes * 10) / 10,
+        basis,
+        samples,
+        declared: Number(session.base_avg_time_minutes) || null,
+      },
+      counters_available: Number(counters.cnt) || 0,
+      plan,
+    });
+  } catch (err) {
+    console.error('sessions/plan:', err);
+    res.status(500).json({ error: 'Failed to build a plan for this session.' });
+  }
+});
+
 router.get('/:id', requireAuth, requireStaffRole(...STAFF_VIEW), async (req, res) => {
   try {
     const session = await loadOwnedSession(req, res);
