@@ -117,7 +117,15 @@ export default function LineStaffDashboard() {
       kind === 'status' ? api.put(`/tickets/${id}/status`, body || {})
         : kind === 'skip' ? api.put(`/tickets/${id}/skip`, body || {})
           : api.put(`/tickets/${id}/${kind}`, body || {}),
-    onSuccess: async () => { setCode(''); setMsg('Queue updated.'); await qc.invalidateQueries(); },
+    /* Was a bare invalidateQueries() — no key, so every query in the cache
+       refetched on a single reorder, including panels the clerk is not looking
+       at. Scoped to what a reorder actually changes. */
+    onSuccess: async () => {
+      setCode('');
+      setMsg('Queue updated.');
+      await qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+      qc.invalidateQueries({ queryKey: ['ls-history'] });
+    },
     onError: (e) => setMsg(e instanceof Error ? e.message : 'The queue could not be updated.'),
   });
   const setStatus = (t: TicketRow | undefined, newStatus: string, body: Record<string, unknown> = {}) => { if (!t) return; setMsg(''); action.mutate({ id: t.id, kind: 'status', body: { new_status: newStatus, ...body } }); };
@@ -134,18 +142,55 @@ export default function LineStaffDashboard() {
      server answers with a 403 when it does not match.
 
      Every action refetches, so what the desk shows is what the database says. */
+  /* These keys were 'line-tickets' and 'line-history'. Nothing in the app has
+     ever used those names — the queries above are 'ls-tickets' and 'ls-history'
+     — so every desk action invalidated NOTHING and the board only caught up
+     when the 4-second poll came round. That is the whole "I pressed it, nothing
+     happened, I pressed it again and got an error in red" report: the second
+     press was a real second request, and the server correctly refused to call a
+     ticket that was already called.
+
+     Only the desk's own list is awaited. History is a 30-second panel nobody is
+     looking at mid-action; making the button wait for it doubled the delay for
+     nothing. */
   const refetchDesk = useCallback(async () => {
-    await qc.invalidateQueries({ queryKey: ['line-tickets'] });
-    await qc.invalidateQueries({ queryKey: ['line-history'] });
+    await qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+    qc.invalidateQueries({ queryKey: ['ls-history'] });
   }, [qc]);
 
   /* Deliberately a direct awaited call rather than the `action` mutation above:
      that one funnels failures into onError, and the desk needs a wrong code to
      REJECT so the six-box entry can show "does not match". */
   const deskStatus = useCallback(async (ticketId: string, body: Record<string, unknown>) => {
-    await api.put(`/tickets/${ticketId}/status`, body);
+    const listKey = ['ls-tickets', activeQueue?.id];
+    const nextStatus = typeof body.new_status === 'string' ? body.new_status : null;
+
+    /* Move the board first, then confirm — but ONLY where the outcome is not in
+       question. Calling, re-calling, no-showing and completing are decisions the
+       clerk is making; the server records them and cannot refuse.
+
+       Starting service is different: the server is adjudicating a code it has
+       and we do not. Guessing "serving" there would flash the stage to Serving
+       and snatch it back on every mistyped digit, which is worse than the
+       wait. So anything carrying a verification code stays pessimistic. */
+    const optimistic = nextStatus && !body.verification_code;
+    const previous = optimistic ? qc.getQueryData<TicketRow[]>(listKey) : undefined;
+
+    if (optimistic && previous) {
+      qc.setQueryData<TicketRow[]>(listKey, (rows) =>
+        (rows || []).map((r) => (r.id === ticketId ? { ...r, status: nextStatus } : r)));
+    }
+
+    try {
+      await api.put(`/tickets/${ticketId}/status`, body);
+    } catch (err) {
+      // Put the board back exactly as it was before re-throwing, or the desk is
+      // left showing a transition that never happened.
+      if (previous) qc.setQueryData(listKey, previous);
+      throw err;
+    }
     await refetchDesk();
-  }, [refetchDesk]);
+  }, [qc, refetchDesk, activeQueue?.id]);
 
   const deskActions = useMemo(() => ({
     onCall: (id: string) => deskStatus(id, { new_status: 'called' }),

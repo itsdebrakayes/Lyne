@@ -504,8 +504,14 @@ export function LineOverviewQX() {
                   onKeyDown={(e) => onDigitKey(i, e)}
                   onFocus={(e) => e.currentTarget.select()} />
               ))}
-              <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify} disabled={!codeReady}>
-                <Check size={16} />Check
+              {/* `busy` was missing here while every other desk button had it.
+                  run() still refused the second call, so the action was safe —
+                  but the button stayed lit and did nothing when pressed, which
+                  is indistinguishable from a broken button and is exactly what
+                  makes somebody press it a third time. */}
+              <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify}
+                disabled={!codeReady || busy} aria-busy={busy}>
+                <Check size={16} />{busy ? 'Checking…' : 'Check'}
               </button>
             </div>
             {codeState === 'ok' ? <div className="ql-verifymsg ok">Code matches — this is the right person.</div> : null}
@@ -682,7 +688,11 @@ export function LineOverviewQX() {
                   {t.waited}<u> min</u>
                 </div>
                 <div className="qx-end">
-                  <button type="button" className="qx-btn ghost" disabled={stage !== 'idle'}
+                  {/* Same busy guard as the stage buttons. The row self-disables
+                      a moment later anyway once the stage leaves idle, but "a
+                      moment later" is the window a second press lands in. */}
+                  <button type="button" className="qx-btn ghost" disabled={stage !== 'idle' || busy}
+                    aria-busy={busy}
                     title={stage === 'idle' ? undefined : 'Finish with the person at your window first'}
                     onClick={() => run(() => d.onCall?.(t.id))}>
                     {t.state === 'noresponse' ? 'Call Back' : 'Call'}
