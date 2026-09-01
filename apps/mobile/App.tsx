@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
+import OfflineBanner from './src/components/OfflineBanner';
+import { startNetworkWatch } from './src/lib/network';
 import {
   useFonts,
   Manrope_400Regular,
@@ -22,6 +25,12 @@ import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring'
 // Before anything else renders, so a crash during boot is still reported.
 // No-ops entirely until a DSN is configured.
 initMonitoring();
+
+/* Point React Query at the device's real connectivity, so queries pause while
+   offline and refetch themselves on reconnect instead of burning retries into a
+   dead radio. This was written and then never called — the whole network module
+   was orphaned, which is also why nobody noticed the banner was unmounted. */
+startNetworkWatch();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -95,9 +104,20 @@ function App() {
     );
   }
 
+  /* The offline banner sits ABOVE everything, including the launch and
+     onboarding stages, because losing the connection is true across all of
+     them. It was written for this and then never mounted — the component
+     existed, rendered nowhere, so the app has been silently pretending to be
+     online since it was added. It renders nothing at all when connected, which
+     is why nobody noticed. */
   return (
     <SafeAreaProvider>
-      <ThemeProvider>{body}</ThemeProvider>
+      <ThemeProvider>
+        <View style={{ flex: 1 }}>
+          <OfflineBanner />
+          <View style={{ flex: 1 }}>{body}</View>
+        </View>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

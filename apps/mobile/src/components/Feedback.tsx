@@ -8,6 +8,8 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { useIsOffline } from '../lib/network';
+import OfflineState from './OfflineState';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t } from '../lib/theme';
 
@@ -160,8 +162,15 @@ export function Section({
   errorMessage?: string;
   children?: React.ReactNode;
 }) {
+  const offline = useIsOffline();
+
   const body = () => {
     if (error) {
+      /* "Shortest waits didn't load. Retry." is a small lie when the phone has
+         no signal: nothing went wrong with the section, and retrying will fail
+         identically until the connection comes back. Name the real cause — one
+         change here covers every section in the app. */
+      if (offline) return <OfflineState compact tone="light" reassure={false} onRetry={onRetry} />;
       return (
         <ErrorCard
           compact
