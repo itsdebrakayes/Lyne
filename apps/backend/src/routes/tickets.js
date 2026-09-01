@@ -554,6 +554,10 @@ router.get('/active', requireAuth, async (req, res) => {
 
     const ticket = rows[0];
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
+    /* verification_code stays: this is the caller's own ticket and the code is
+       the thing they hold up at the counter. The guest token does not — see
+       GET /:id. */
+    delete ticket.guest_access_token;
     res.json({
       ...ticket,
       estimated_wait_minutes: liveTicketWait(ticket),
@@ -714,8 +718,17 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
 
     if (req.dbStaff) {
+      /* The clerk must be TOLD the code by the person in front of them — that
+         is the whole check. Showing it on their screen would let them serve
+         anybody. The customer keeps theirs; it is what they read out. */
       delete ticket.verification_code;
     }
+
+    /* Nobody reads this from a fetch. It is a bearer credential for
+       GET /tickets/guest/:token, handed to a guest once when they check in, and
+       anyone holding it can open that ticket without signing in — including a
+       clerk who was only supposed to see the line. */
+    delete ticket.guest_access_token;
 
     res.json({
       ...ticket,
