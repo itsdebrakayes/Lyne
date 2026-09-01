@@ -20,6 +20,7 @@ import HistoryScreen    from '../screens/main/HistoryScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
 import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
+import SessionScreen    from '../screens/main/SessionScreen';
 import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
@@ -50,6 +51,9 @@ export type RootStackParamList = {
   PaymentMethods: undefined;
   PrivacySecurity: undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
+  /* A sitting you must hold a place at in advance — only reachable when one is
+     actually open, so the app never shows a door that leads nowhere. */
+  Session:    { sessionId: string };
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -143,6 +147,7 @@ export default function AppNavigator() {
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
+            <Stack.Screen name="Session"   component={SessionScreen}   />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />
