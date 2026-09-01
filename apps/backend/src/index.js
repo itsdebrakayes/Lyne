@@ -247,9 +247,18 @@ app.listen(PORT, () => {
   if (nextEvenHour.getHours() % 2 !== 0) nextEvenHour.setHours(nextEvenHour.getHours() + 1);
   const msUntilAligned = nextEvenHour - now;
 
+  /* bootstrap, not runRefresh — on a demo box the tickets must be re-dated on
+     this cadence too, not only at 00:05.
+     The seeds stamp joined_at as NOW() minus a few minutes, so a box that came
+     up at 11am was, by 20:46, showing a line whose oldest arrival had been
+     "waiting" for ten hours: 604-minute waits on the manager screen and "9h
+     32m since the last call" on the counter. The data was not corrupt — it was
+     just old, and nothing re-dated it between midnights. bootstrap() already
+     sequences seed-then-analytics (they deadlock if run together) and degrades
+     to runRefresh alone when demo refresh is off, so production is unchanged. */
   setTimeout(() => {
-    runRefresh('scheduled');
-    setInterval(() => runRefresh('scheduled'), TWO_HOURS_MS);
+    bootstrap('scheduled');
+    setInterval(() => bootstrap('scheduled'), TWO_HOURS_MS);
   }, msUntilAligned);
 
   console.log(

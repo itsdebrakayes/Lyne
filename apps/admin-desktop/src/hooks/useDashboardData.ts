@@ -102,6 +102,35 @@ export function useDashboardData(serviceId = '') {
   const branchId = admin?.staffRecord.branch_id;
   const branchScoped = admin?.role === 'manager' || admin?.role === 'supervisor';
   const canAnalytics = branchScoped || admin?.role === 'executive';
+  /* How often the heavy analytics queries re-run, by role.
+   *
+   * Every one of them polled on a fixed 60s (a few on 25s or 120s) regardless
+   * of who was looking, so sixteen aggregate queries hit the API every minute
+   * of every open dashboard. None of that data changes that fast: the model
+   * worker rebuilds predictive_results every two hours, so an executive was
+   * re-fetching the same numbers 120 times between the two occasions they could
+   * possibly differ.
+   *
+   * The cadence now matches how quickly each role's decisions actually move —
+   * a counter clerk works in minutes, an executive in hours — and every
+   * dashboard carries a manual refresh for when you want it now.
+   */
+  const ANALYTICS_INTERVAL: Record<string, number> = {
+    line_staff: 5 * 60_000,
+    supervisor: 30 * 60_000,
+    manager: 60 * 60_000,
+    executive: 120 * 60_000,
+  };
+  const analyticsEvery = ANALYTICS_INTERVAL[admin?.role ?? ''] ?? 60 * 60_000;
+
+  /* The live line is deliberately NOT on that cadence. It is the one thing a
+     person running a counter needs to be true right now — a customer who joined
+     two minutes ago has to appear before they reach the desk. 30s is a
+     compromise: the admin app has no realtime connection at all despite the
+     backend exposing SSE, so polling is the only mechanism it has. Wiring SSE
+     is the real fix and would let this drop to a slow backstop. */
+  const LIVE_INTERVAL = 30_000;
+
   const analyticsQuery = businessId
     ? `business_id=${businessId}${branchId && branchScoped ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
     : '';
@@ -109,7 +138,7 @@ export function useDashboardData(serviceId = '') {
   const queues = useQuery({
     queryKey: ['ops-queues', businessId, branchId, admin?.role],
     queryFn: () => api.get<QueueRow[]>('/queues/mine'),
-    enabled: Boolean(admin), refetchInterval: 10_000,
+    enabled: Boolean(admin), refetchInterval: LIVE_INTERVAL,
   });
   // The summary endpoint defaults to only 30 days. Ask for a wider window so the
   // drill-down's 30/90-day ranges are genuinely 30/90 days, not silently capped.
@@ -117,7 +146,7 @@ export function useDashboardData(serviceId = '') {
   const summary = useQuery({
     queryKey: ['ops-summary', analyticsQuery, historyFrom],
     queryFn: () => api.get<SummaryRow[]>(`/analytics/summary?${analyticsQuery}&from=${historyFrom}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Scope services to exactly the SAME dates the dashboards headline — the last
   // 7 dates that actually have data. A calendar guess (today-6) drifts whenever
@@ -131,46 +160,46 @@ export function useDashboardData(serviceId = '') {
     queryKey: ['ops-services', analyticsQuery, weekWindow.from, weekWindow.to],
     queryFn: () => api.get<ServiceInsight[]>(`/analytics/services?${analyticsQuery}&from=${weekWindow.from}&to=${weekWindow.to}`),
     // wait for the summary so we know which 7 dates to scope to
-    enabled: Boolean(canAnalytics && analyticsQuery && weekWindow.from), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery && weekWindow.from), refetchInterval: analyticsEvery,
   });
   const staff = useQuery({
     queryKey: ['ops-staff-insights', analyticsQuery],
     queryFn: () => api.get<StaffInsight[]>(`/analytics/staff?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const branchTrends = useQuery({
     queryKey: ['ops-branch-trends', analyticsQuery],
     queryFn: () => api.get<BranchTrend[]>(`/analytics/branch-trends?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const heatmap = useQuery({
     queryKey: ['ops-heatmap', analyticsQuery],
     queryFn: () => api.get<HeatmapCell[]>(`/analytics/heatmap?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Rows are services for managers, branches for executives.
   const demandRows = admin?.role === 'executive' ? 'branch' : 'service';
   const demandHourly = useQuery({
     queryKey: ['ops-demand-hourly', analyticsQuery, demandRows],
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=hour`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const demandWeekly = useQuery({
     queryKey: ['ops-demand-weekly', analyticsQuery, demandRows],
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const targets = useQuery({
     queryKey: ['ops-targets', businessId],
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 120_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   // A branch manager/supervisor also measures against their OWN branch target
   // (which overlays the company target). Executives stay company-scoped.
   const branchTargets = useQuery({
     queryKey: ['ops-branch-targets', branchId],
     queryFn: () => api.get<BranchTargets>(`/targets/branch?branch_id=${branchId}`),
-    enabled: Boolean(branchScoped && branchId), refetchInterval: 120_000,
+    enabled: Boolean(branchScoped && branchId), refetchInterval: analyticsEvery,
   });
   /* Who is actually sat at a desk. The manager's floor view used to infer this
      from tickets_handled, which marked anyone who had touched a ticket all day
@@ -180,7 +209,7 @@ export function useDashboardData(serviceId = '') {
   const counters = useQuery({
     queryKey: ['ops-counters', businessId, branchId],
     queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   // Settings tab: branch policy + this person's own alert thresholds + the
   // read-only hours. Not polled — these change when somebody saves them, not on
@@ -193,34 +222,34 @@ export function useDashboardData(serviceId = '') {
   const employeeKpis = useQuery({
     queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
     queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
-    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: 60_000,
+    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: analyticsEvery,
   });
   const predictions = useQuery({
     queryKey: ['ops-predictions', businessId],
     queryFn: () => api.get<PredictionRow[]>(`/predictions?business_id=${businessId}&max_age_minutes=60`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const pipeline = useQuery({
     queryKey: ['ops-pipeline', businessId],
     queryFn: () => api.get<any>(`/pipeline/status?business_id=${businessId}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const balking = useQuery({
     queryKey: ['ops-balking', businessId, branchId, admin?.role, serviceId],
     queryFn: () => api.get<BalkingData>(`/analytics/balking?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const channels = useQuery({
     queryKey: ['ops-channels', analyticsQuery],
     queryFn: () => api.get<ChannelMix>(`/analytics/channels?${analyticsQuery}&days=90`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 120_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Live productivity signals (idle windows / slowdowns) — refreshes often; it's
   // a "do something now" board, not a trend.
   const productivity = useQuery({
     queryKey: ['ops-productivity', analyticsQuery],
     queryFn: () => api.get<ProductivitySignals>(`/analytics/productivity?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 25_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
 
   /* Every query on the dashboard, in one list, so freshness and refresh are
