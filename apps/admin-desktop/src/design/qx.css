@@ -1260,3 +1260,27 @@
   background: var(--glass); color: var(--c-text);
 }
 .qx-datepop-today { justify-content: center; }
+
+/* ── Session planner ───────────────────────────────────────────────────────
+   Two answers side by side, deliberately equal in weight: what it takes to get
+   everyone through the door, and what it takes to get them through without a
+   queue. They are different promises and the layout should not imply one is a
+   footnote of the other. */
+.qx-planrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.qx-planbox {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--glass); border: 1px solid var(--glass-line);
+}
+.qx-planbox.accent { border-color: var(--c-primary); }
+.qx-planbox b { font-size: 30px; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.qx-planbox small { font-size: 12px; font-weight: 700; color: var(--c-text); }
+.qx-planbox em { font-size: 11.5px; font-style: normal; color: var(--c-dim); line-height: 1.45; }
+@media (max-width: 720px) { .qx-planrow { grid-template-columns: 1fr; } }
+
+.qx-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--glass-line); border-radius: 11px; background: var(--glass); overflow: hidden; }
+.qx-stepper button { border: 0; background: none; color: var(--c-text); font-size: 16px; font-weight: 700; width: 34px; height: 34px; cursor: pointer; }
+.qx-stepper button:hover { background: var(--c-primary); color: #fff; }
+.qx-stepper span { min-width: 34px; text-align: center; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.qx-tag.warn { border-color: var(--c-warn, #b4801f); color: var(--c-warn, #b4801f); }
