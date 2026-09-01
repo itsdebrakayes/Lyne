@@ -121,21 +121,37 @@ customer is holding, and that check is real — the API rejects a missing code
 with a 400 and a wrong one with a 403. It is the reason a ticket cannot be
 served to the wrong person, so it is not being softened.
 
-For testing alone, set one code that any ticket will accept:
+There is one code that any ticket will accept, and it is already configured:
+
+## `246810`
+
+Call a ticket on the line-staff screen, type it where the customer's code goes,
+and service starts. Works for any customer, any branch, any service.
+
+It only exists on the **demo stack**. Bring the stack up with both files:
 
 ```bash
-# in .env — six digits, any value you like
-STAFF_TEST_VERIFICATION_CODE=246810
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 ```
 
-Then rebuild the API (it is a built image, so a source change needs it):
+`docker-compose.demo.yml` is what passes `STAFF_TEST_VERIFICATION_CODE` to the
+API, alongside the other demo-only switches. Starting the base stack on its own
+leaves the override off, which is the intended behaviour rather than a gap.
+
+To change the number, edit the line in `.env` and re-create the container:
 
 ```bash
-docker compose build api && docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d api
 ```
 
-Now call a ticket, type `246810`, and service starts. Four things stop this
-becoming a hole in the product:
+No rebuild is needed — the value is an environment variable, not something baked
+into the image. Confirm it took by looking for this in the boot log:
+
+```
+[verification-bypass] ACTIVE. Any ticket will accept 246810 as its code.
+```
+
+Four things stop this becoming a hole in the product:
 
 - **It does not exist unless you set it.** No default, no fallback in the code.
 - **It refuses to run when `NODE_ENV=production`**, whatever the variable says —
@@ -144,14 +160,17 @@ becoming a hole in the product:
   any other code rather than announcing itself.
 - **Every use is logged** with the ticket id and the staff member.
 
-The startup log tells you plainly when it is on:
+Every use also writes a second line naming who used it and on which ticket:
 
 ```
-[verification-bypass] ACTIVE. Any ticket will accept 246810 as its code.
-Remove STAFF_TEST_VERIFICATION_CODE before deploying.
+[verification-bypass] ticket=t-b9eb93… staff=stf-test-line — served without the customer's code
 ```
 
-Turning it off is deleting that one line from `.env`.
+Turning it off is deleting that one line from `.env` and re-creating the API.
+
+> The production compose file has no way to pass this variable at all, and hard-
+> codes `NODE_ENV=production`, which the code refuses independently. Two
+> unrelated reasons it cannot reach a real deployment.
 
 ---
 

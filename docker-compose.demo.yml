@@ -77,6 +77,15 @@ services:
       # "closed" everywhere today. Re-seed the demo day just after midnight.
       # Demo overlay only — the production stack never sets this.
       ALLOW_DEMO_DATA_REFRESH: "true"
+      # The counter's six-digit override, for demos and for a reviewer who has
+      # no second phone to read a real code from.
+      #
+      # It lives in the DEMO overlay, not the base file, for the same reason
+      # ALLOW_DEMO_DATA_REFRESH does: the production stack must have no way to
+      # pass it at all. Adding it to .env alone does nothing — compose lists
+      # environment keys explicitly, which is why the documented "set it in .env
+      # and rebuild" never actually worked.
+      STAFF_TEST_VERIFICATION_CODE: ${STAFF_TEST_VERIFICATION_CODE:-}
       DEMO_SEED_PATH: /seed/demo_active_seed.sql
       DEMO_CREDIT_UNION_SEED_PATH: /seed/demo_credit_union_seed.sql
       DEMO_SECTOR_SEED_PATH: /seed/demo_sector_seed.sql
