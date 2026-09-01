@@ -15,7 +15,6 @@ import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import Icon from '../../components/Icon';
-import Walkers from '../../components/Walkers';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -248,9 +247,7 @@ export default function TicketScreen() {
               </View>
             </View>
 
-            {active && !called && <Walkers waiting={ticket.total_waiting ?? ahead + 1} />}
-
-            <View style={{ flexDirection: 'row', marginTop: active && !called ? 20 : 26 }}>
+            <View style={{ flexDirection: 'row', marginTop: 26 }}>
               <Cell label="EST. WAIT" value={active ? `${ticket.estimated_wait_minutes}m` : '—'} />
               <Cell label="IN THIS LINE" value={ticket.total_waiting ?? ahead + 1} />
               <Cell label="STATUS" value={active ? (called ? 'Called' : inService ? 'Serving' : 'Waiting') : (terminal?.label || '—')} wide />

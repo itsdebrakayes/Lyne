@@ -7,10 +7,16 @@
  *
  * Why this is not the ordinary join flow: a court sitting is a capped event on
  * an announced day at an announced venue, and you must be entitled to attend.
- * You are not given a time — you are given a DAY and a place in the order,
- * which is what a capped venue can honestly promise. So the screen asks a
- * different question from the queue screens: not "how long is the wait" but
- * "are you on the list, and is there room".
+ * So the screen asks a different question from the queue screens: not "how long
+ * is the wait" but "are you on the list, and is there room".
+ *
+ * What registering actually buys, because the wording here matters and an
+ * earlier draft of this screen got it wrong: it reserves your RIGHT TO ATTEND
+ * on the day, not a position. Check-in allocates the position from whoever is
+ * waiting at that moment (issueTicketSlot with the live waiting count), so
+ * registering at 9am on Monday and arriving at 11am on Saturday puts you behind
+ * whoever arrived at 10. Registration is a pre-layer over the queue; the queue
+ * itself still forms on the day, in arrival order.
  *
  * Three steps, and the middle one is the point:
  *
@@ -158,7 +164,7 @@ export default function SessionScreen() {
               Your place is held
             </Text>
             <Text style={{ fontFamily: font.medium, fontSize: 13.5, lineHeight: 20, color: colors.muted, textAlign: 'center', marginTop: 6, maxWidth: 290 }}>
-              Show this code when you arrive. It is what turns your registration into a place in the line on the day.
+              Show this code when you arrive on the day. Your place in the line is taken from when you check in, so come whenever suits you inside the sitting hours.
             </Text>
 
             <Text style={{ fontFamily: font.extra, fontSize: 40, letterSpacing: 6, color: colors.ink, marginTop: 22 }}>
@@ -174,7 +180,7 @@ export default function SessionScreen() {
             <Detail icon="clock" label="Arrive by" value={`${arriveBy(s.starts_at, s.arrive_minutes_before)} on ${sessionDayLabel(s.session_date)}`} />
             {s.location_address ? <Detail icon="pin" label="Where" value={s.location_address} /> : null}
             <Text style={{ fontFamily: font.medium, fontSize: 12.5, lineHeight: 19, color: colors.muted }}>
-              Screening takes time — {s.arrive_minutes_before} minutes before the sitting starts is the court&apos;s own instruction, not a suggestion.
+              Arrive any time while the sitting is running — you join the line when you check in, not when you registered. If you come for the start, be there {s.arrive_minutes_before} minutes early for screening.
             </Text>
           </View>
 
@@ -224,7 +230,7 @@ export default function SessionScreen() {
             <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>
               {full
                 ? 'No further places are available for this day.'
-                : `of ${s.capacity} · you are given a place in the order, not a time`}
+                : `of ${s.capacity} · registering holds your right to attend that day`}
             </Text>
           </View>
         </View>
