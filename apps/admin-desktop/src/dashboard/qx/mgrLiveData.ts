@@ -16,6 +16,8 @@ const CODE = (name?: string) => (titleCase(name) || '')
   .split(/\s+/).map((w) => w[0] || '').join('').slice(0, 3).toUpperCase() || 'SVC';
 
 export type MgrLiveInput = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   branchName: string; org: string; managerName: string;
   /** live queue rows for today, one per service */
   queues: any[];
@@ -193,6 +195,8 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     staff, services, hours, svcHeat, dow, targets,
     faq: i.faq,
     servedToday: i.servedToday,
+    /* Forwarded so the stat labels can name the window they are summing. */
+    periodLabel: i.periodLabel,
     todayByHour: i.todayByHour,
     yesterdayByHour: i.yesterdayByHour,
     /* The card is captioned "Today", so every COUNT in it is today's, straight

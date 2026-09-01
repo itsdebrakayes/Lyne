@@ -44,6 +44,8 @@ export type SupTargetRow = {
 };
 
 export type SupTabData = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   sectionName: string; branchName: string; supervisorName: string;
   desks: SupDesk[];
   staff: SupStaff[];
@@ -720,6 +722,10 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <Stat span={3} icon={Clock} tone={avgWait > 30 ? 'bad' : 'primary'} label="Average Wait"
         value={avgWait} unit="min" foot="From joining this section's line to being called"
         spark={{ values: d.sparks.wait, tone: avgWait > 30 ? 'bad' : 'primary' }} />
+      {/* Deliberately NOT period-labelled. `served` is summed from the staff
+          productivity feed — what the people currently on shift have finished
+          today — not from the summary window. Naming a date range over it would
+          describe the number as something it is not. */}
       <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={served}
         foot="Finished at a desk in this section"
         spark={{ values: d.sparks.served }} />

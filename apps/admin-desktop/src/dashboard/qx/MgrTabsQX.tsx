@@ -66,6 +66,8 @@ export type MgrTargetRow = {
 };
 
 export type MgrTabData = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   branchName: string; org: string; managerName: string;
   staff: MgrStaff[];
   services: MgrSvc[];
@@ -967,8 +969,8 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <Stat span={3} icon={Clock} tone={joinNowWait > tWait ? 'bad' : 'primary'} label="Wait If You Join Now" value={joinNowWait} unit="min"
         chip={joinNowWait > tWait ? { dir: 'bad', text: `${Math.round(joinNowWait - tWait)} Over` } : { dir: 'good', text: 'On Target' }}
         foot={`What we are telling people right now · target ${tWait} min`} />
-      <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={d.servedToday}
-        foot="Seen and finished at a counter today" />
+      <Stat span={3} icon={CheckCircle2} tone="primary" label={d.periodLabel ? `Served · ${d.periodLabel}` : 'Served Today'} value={d.servedToday}
+        foot={d.periodLabel ? `Seen and finished at a counter, ${d.periodLabel}` : 'Seen and finished at a counter today'} />
       <Stat span={3} icon={Users} tone={coverTone(open, counters)} label="Windows Open"
         value={`${open} of ${counters}`}
         foot={coverFoot(open, counters)} />

@@ -10,6 +10,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { DateWindowChip } from './DateWindowChip';
 import { type NavItem } from './kit';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
@@ -91,9 +93,17 @@ export default function SupervisorDashboard() {
   const last = summary[summary.length - 1] || {};
   const waitingNow = d.queues.reduce((t, q: any) => t + num(q.waiting_count), 0);
   const liveWait = Math.round(d.queues.reduce((t, q: any) => t + num(q.avg_wait_minutes), 0) / Math.max(1, d.queues.length)) || Math.round(num(last.avg_wait_time_minutes));
-  const completed = num(last.completed_count);
-  const totalToday = num(last.total_visitors) || completed + num(last.no_show_count);
-  const noShows = num(last.no_show_count);
+  /* Same fault as the manager's: `period` was written by the pills and read by
+     nothing, the chip printed a hardcoded today, and every number came off one
+     day. Aggregated across the selected window now; with the default "Today"
+     window the values are unchanged, so the screen opens as it did. */
+  const [anchor, setAnchor] = useState(today());
+  const win = useMemo(() => makeWindow(anchor, windowDaysOf(period)), [anchor, period]);
+  const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
+  const sumIn = (k: string) => windowRows.reduce((t, s: any) => t + num(s[k]), 0);
+  const completed = sumIn('completed_count');
+  const totalToday = sumIn('total_visitors') || completed + sumIn('no_show_count');
+  const noShows = sumIn('no_show_count');
 
   // Contextual search — supervisors only have a staff list to filter.
   const [q, setQ] = useState('');
@@ -119,6 +129,7 @@ export default function SupervisorDashboard() {
   const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   const liveData = useMemo(() => buildSupData({
+    periodLabel: win.days > 1 ? labelFor(win) : undefined,
     /* Sections are not modelled on the staff record — a supervisor is attached
        to a branch. Labelled by branch rather than inventing a section name. */
     sectionName: branchName,
@@ -191,7 +202,9 @@ export default function SupervisorDashboard() {
                 nothing and imply the screen below is a period view. */}
             {tab !== 'sessions' ? <QxPills value={period} onChange={setPeriod}
               options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
-            <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+            {tab === 'sessions'
+              ? <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+              : <DateWindowChip window={win} onChange={setAnchor} />}
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
