@@ -14,6 +14,7 @@ import Code39Barcode from '../../components/Code39Barcode';
 import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
+import { HoldButton } from '../../components/HoldButton';
 import Icon from '../../components/Icon';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -313,12 +314,26 @@ export default function TicketScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <Press disabled={leaving} label="Leave this queue"
-                hint="Gives up your place in line"
-                onPress={() => { haptics.warning(); setConfirmLeave(true); }}
-                style={{ flex: 1, minHeight: 56, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 } as never}>
-                {leaving ? <ActivityIndicator color={colors.busy} /> : <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.busy }}>Leave queue</Text>}
-              </Press>
+              {/* Tap opens the sheet, hold leaves outright.
+                  The same gesture on the same button, so the sheet teaches it:
+                  you open it once, meet "Hold to leave" inside, and afterwards
+                  you can do it from here without the round trip. Anyone who has
+                  not learned it yet still gets the sheet and its warning, which
+                  is why the shortcut costs nothing to offer. */}
+              <View style={{ flex: 1 }}>
+                <HoldButton
+                  variant="ghost"
+                  tone="danger"
+                  label="Leave queue"
+                  doneLabel="Left the line"
+                  hint="Tap to see what you give up, or hold to leave now"
+                  busy={leaving}
+                  disabled={leaving}
+                  style={{ minHeight: 56, paddingHorizontal: 16 }}
+                  onPress={() => { haptics.warning(); setConfirmLeave(true); }}
+                  onComplete={leaveQueue}
+                />
+              </View>
             </>
           ) : terminal && ticket.status !== 'served' ? (
             <>
