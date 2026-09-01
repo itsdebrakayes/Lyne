@@ -54,15 +54,29 @@ Sign into the admin app, not the mobile app.
 | `executive@test.com` | Executive | The whole company across branches: trends, targets, reports, demand heatmap. |
 | `platform@test.com` | Platform admin | Lyne's own internal role — the only one that can create a business. **Backend-gated with no UI yet**, so signing in shows you nothing useful. Documented so you know it is deliberate. |
 
-### The same four roles in two other tenants
+### The same four roles in three other tenants
 
 Useful for checking that tenant isolation actually holds — sign in as one and
-confirm you cannot see the other's data.
+confirm you cannot see the other's data. The wording changes with the tenant
+too: the same screens read *Customers* at PICA and *Members* at the credit
+union, which is only testable with a login on each.
 
 | Tenant | Staff | Supervisor | Manager | Executive |
 |---|---|---|---|---|
 | **PICA** (Passport Office) | `staff-pica@test.com` | `supervisor-pica@test.com` | `manager-pica@test.com` | `executive-pica@test.com` |
 | **Community First Credit Union** | `staff-creditunion@test.com` | `supervisor-creditunion@test.com` | `manager-creditunion@test.com` | `executive-creditunion@test.com` |
+| **Traffic Court** (Camp Road) | `staff-court@test.com` | `supervisor-court@test.com` | `manager-court@test.com` | `executive-court@test.com` |
+
+> **The court accounts are the only way to see Sessions.** A scheduled session
+> is a sitting the public registers for in advance rather than a line you join
+> on the day, and the court is the only seeded tenant that holds one — the
+> Saturday traffic ticket sitting at Camp Road, with its cause list, its
+> registration desk, and the planner that works out how many windows it needs.
+> Signed in as any other tenant the Sessions tab is empty, correctly.
+>
+> Use `manager-court@test.com` for that. The manager is the only one of the four
+> who can **edit** a session; the supervisor sees the same workspace read-only
+> and the executive sees both courthouses at once.
 
 ---
 
@@ -73,8 +87,30 @@ confirm you cannot see the other's data.
 | `kiosk@test.com` | Kiosk clerk | Branch intake on a phone or iPad — adds **walk-in** customers who have no app. Single-purpose console: pick a service, type a name, issue a ticket number. |
 
 > **This one is not linked yet.** Its `supabase_uid` is null, so it will not sign
-> in until you create the Supabase account and run the sync command above. Every
-> other account in this document is already linked.
+> in until you create the Supabase account and run the sync command above.
+
+### Which accounts still need creating
+
+Everything in this document is wired into `sync:demo-test-accounts`, but the
+script can only attach a Supabase account that already exists — it deliberately
+does not create logins. Five addresses are declared and not yet created:
+
+| Address | Blocks |
+|---|---|
+| `kiosk@test.com` | Walk-in intake |
+| `staff-court@test.com` | The court line, and calling a session registrant to a window |
+| `supervisor-court@test.com` | The read-only view of a sitting |
+| `manager-court@test.com` | **Sessions and the sitting planner** — the one that matters most |
+| `executive-court@test.com` | Both courthouses at once |
+
+Create them in the Supabase dashboard with password `test1234`, mark them
+email-confirmed, then run the sync command above. Running it before they exist
+fails cleanly and lists exactly which ones are missing — it changes nothing in
+the database until every account in the list resolves.
+
+The court four **adopt staff the demo seed already created** rather than adding
+new people, so they arrive with real service history behind them instead of the
+empty dashboards a fresh row would show.
 
 ---
 
@@ -133,6 +169,11 @@ Turning it off is deleting that one line from `.env`.
    the branch's numbers.
 6. **Isolation** — sign in as `manager-pica@test.com` and confirm TAJ's data is
    nowhere in sight.
+7. **A sitting, not a line** — sign in as `manager-court@test.com`, open
+   **Sessions**, and read *What This Sitting Needs*. It states the service time
+   it measured and from how many people first, then how many windows clear the
+   room and how many hold a stated wait. Step the window count to the five the
+   courthouse actually has and watch it say what that leaves undone.
 
 ---
 

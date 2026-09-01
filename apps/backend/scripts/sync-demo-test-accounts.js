@@ -219,6 +219,71 @@ const accounts = [
     branchId: null,
     assignedServiceId: null,
   },
+
+  /* ── Traffic Court — every admin level ─────────────────────────────────
+     The court is the only tenant that owns a scheduled session, so until these
+     existed the entire Sessions feature — the cause list, the registration
+     desk, and the sitting planner — was unreachable by anybody. It could be
+     described but not shown, which for a feature built to be demonstrated a
+     week before a sitting is the same as not shipping it.
+
+     These four differ from the blocks above in one deliberate way: they do NOT
+     mint fresh stf-test-* rows. They adopt the court staff the demo seed
+     already created, so each account arrives with its own service history,
+     productivity rows and no-show record. A brand-new row logs in to empty
+     dashboards and makes a working product look broken — which is exactly what
+     happened to the TAJ supervisor before it was pointed at staff-sup-taj-kgn.
+
+     Camp Road, not Melbourne Road, because ses-court-sat sits at Camp Road.
+     A manager scoped to the wrong branch sees the Sessions tab and nothing in
+     it. */
+  {
+    email: 'staff-court@test.com',
+    kind: 'staff',
+    id: 'stf-court-clerk-1',
+    fullName: 'Sasha-Gay Lawrence',
+    staffCode: 'CRT-0001',
+    roleId: 'role-staff-001',
+    businessId: 'biz-court-001',
+    branchId: 'br-court-camp',
+    assignedServiceId: 'svc-court-pay',
+    /* No counterId on purpose. The seed already seats every court clerk each
+       day, so naming a counter here would move her off the desk the demo data
+       has been building history against. */
+  },
+  {
+    email: 'supervisor-court@test.com',
+    kind: 'staff',
+    id: 'stf-court-sup-1',
+    fullName: 'Georgia Palmer',
+    staffCode: 'CRT-SUP-1',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-court-001',
+    branchId: 'br-court-camp',
+    assignedServiceId: null,
+  },
+  {
+    email: 'manager-court@test.com',
+    kind: 'staff',
+    id: 'stf-court-mgr-1',
+    fullName: 'Everton Brissett',
+    staffCode: 'CRT-ADM-1',
+    roleId: 'role-mgr-001',
+    businessId: 'biz-court-001',
+    branchId: 'br-court-camp',
+    assignedServiceId: null,
+  },
+  {
+    email: 'executive-court@test.com',
+    kind: 'staff',
+    id: 'stf-court-exec-1',
+    fullName: 'Carlton Bailey',
+    staffCode: 'CRT-DCS-1',
+    roleId: 'role-exec-001',
+    businessId: 'biz-court-001',
+    branchId: null,
+    assignedServiceId: null,
+  },
 ];
 
 const demoQueues = [
@@ -250,6 +315,11 @@ async function assertDemoDataExists(connection) {
     ['branches', 'br-taj-kgn'],
     ['services', 'svc-taj-trn'],
     ['counters', 'ctr-taj-kgn-1'],
+    /* The court accounts adopt seeded rows rather than creating their own, so
+       an older seed without the court tenant fails on a foreign key deep inside
+       the transaction. Name the missing record instead. */
+    ['branches', 'br-court-camp'],
+    ['services', 'svc-court-pay'],
   ];
 
   for (const [table, id] of checks) {
@@ -422,10 +492,20 @@ async function main() {
   const supabaseUsers = await getAllSupabaseUsers();
   const usersByEmail = new Map(supabaseUsers.map((user) => [user.email?.toLowerCase(), user]));
 
-  for (const account of accounts) {
-    if (!usersByEmail.has(account.email)) {
-      throw new Error(`Supabase Auth user ${account.email} was not found. Create it first, then rerun this script.`);
-    }
+  /* Report every missing account at once. Throwing on the first one turns
+     adding a tenant into one run per address — you create it, rerun, and are
+     told about the next. The list is the useful thing: it is the to-do for the
+     Supabase dashboard. */
+  const missing = accounts
+    .filter((account) => !usersByEmail.has(account.email))
+    .map((account) => account.email);
+
+  if (missing.length) {
+    throw new Error(
+      `${missing.length} Supabase Auth user${missing.length === 1 ? ' was' : 's were'} not found. `
+      + `Create ${missing.length === 1 ? 'it' : 'them'}, then rerun this script:\n  `
+      + missing.join('\n  ')
+    );
   }
 
   const connection = await pool.getConnection();
