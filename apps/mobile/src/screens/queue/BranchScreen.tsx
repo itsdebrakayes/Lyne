@@ -11,6 +11,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import BestTimeCard from '../../components/BestTimeCard';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
+import { Press } from '../../components/Press';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -254,6 +255,45 @@ export default function BranchScreen() {
             <Text style={{ fontFamily: font.bold, fontSize: 14, color: 'rgba(255,255,255,.65)' }}>Later</Text>
           </TouchableOpacity>
         </View>
+
+        {/* The way forward.
+            Advancing used to require knowing that a *second* tap on an already
+            selected service card would do it — and choosing the service from
+            the picker sheet instead set the selection and offered nothing at
+            all, so that route simply dead-ended. Either way the person had
+            named what they came for and had no button to press.
+            The card double-tap still works; this is the obvious path. */}
+        <Press
+          onPress={() => seeLine(selected)}
+          disabled={!selected || !joinState.allowed}
+          role="button"
+          haptic
+          label={
+            !selected ? 'Choose a service first'
+              : !joinState.allowed ? `Cannot join — ${joinState.label}`
+              : `See the line for ${selected.name}`
+          }
+          style={{
+            marginTop: 20, height: 58, borderRadius: 20,
+            backgroundColor: selected && joinState.allowed ? colors.accent : 'rgba(255,255,255,.12)',
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+          }}
+        >
+          <Text style={{
+            fontFamily: font.extra, fontSize: 16,
+            color: selected && joinState.allowed ? '#fff' : 'rgba(255,255,255,.5)',
+          }}>
+            {!selected ? 'Choose a service' : !joinState.allowed ? joinState.label : `See the line · ${svcWait(selected)}m`}
+          </Text>
+          {selected && joinState.allowed ? <Icon name="arrowRight" size={18} color="#fff" /> : null}
+        </Press>
+
+        {/* Never a dead button with no explanation: say why it cannot be pressed. */}
+        {selected && !joinState.allowed ? (
+          <Text style={{ fontFamily: font.medium, fontSize: 12.5, lineHeight: 18, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 10 }}>
+            {joinState.detail}
+          </Text>
+        ) : null}
 
         {/* open lines */}
         <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.5, marginTop: 24, marginBottom: 13 }}>Open lines</Text>
