@@ -211,7 +211,7 @@ The pilot is free / agency-paid, so live card capture is stubbed pending a Jamai
 
 - **Local/demo:** `docker compose` (two MySQL + API); the demo overlay adds the seeded DB. This is the current state.
 - **Pilot target:** a single hardened DigitalOcean droplet — the admin served over HTTPS at a real URL, and the mobile app on real devices via TestFlight/Expo. Public App Store / Play Store listings come right after (review lead times).
-- **The admin is a browser app first.** It is a Vite React build, so once it is hosted, any staff machine with a browser can reach it — Mac, Windows, Linux or a Chromebook — with no installer and no code signing. The Electron packages are a convenience on top of that, not the delivery mechanism. Worth weighing before buying certificates: the browser path costs nothing and covers every platform on day one.
+- **The admin is an installed desktop application** — downloaded, run through a setup wizard, and launched from the dock or Start menu like any other business software. It ships as a signed installer for **macOS, Windows and Linux**, because an agency issues whatever hardware it issues and staff do not get to choose. Code-signing certificates are therefore required, not optional: see [docs/PROVIDER_SETUP.md](docs/PROVIDER_SETUP.md).
 - **Rough pilot cost:** ~US$44/month — a 2 vCPU / 4 GB droplet ($24), managed MySQL ($15) and Spaces for off-box backups ($5) — plus Apple Developer ($99/yr) and Google Play ($25 once). Sized for one agency with a dozen branches, deliberately not for a national rollout.
 - **D-U-N-S approved 2026-08-31**, which unblocks the Apple Developer Program enrolment and therefore Sign in with Apple, Sign in with Google (they must ship together under Guideline 4.8) and Windows code signing.
 

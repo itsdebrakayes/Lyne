@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, t, type, initials } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
@@ -9,7 +9,7 @@ import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
+import { cancelDepartureReminder, dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import Code39Barcode from '../../components/Code39Barcode';
 import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
@@ -102,17 +102,37 @@ export default function TicketScreen() {
       }).catch(() => {});
     } else if (previous.current.status && liveStatuses.includes(previous.current.status)) {
       dismissLiveTicketNotification();
+      // The ticket has gone terminal by any route — served, no-showed, swept at
+      // closing. Whatever armed the "head out" alert, it is no longer true.
+      cancelDepartureReminder();
     }
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket]);
 
   // Leaving is irreversible — the place in line is released to the next person
   // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
+  const queryClient = useQueryClient();
+
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
       setLeaving(true); setError('');
       await api.put(`/tickets/${ticketId}/leave`, {});
+
+      /* Tear down everything that says "you are in a line" before navigating.
+         Leaving used to do none of this: the cached ticket stayed in
+         react-query for its 30s staleTime, so the tab bar's ticket button and
+         the home banner kept insisting the person was still queued for half a
+         minute after they had left — and the departure reminder, which had no
+         identifier and so no way to be cancelled, went off later for a queue
+         they were no longer in. */
+      await Promise.all([
+        cancelDepartureReminder(),
+        dismissLiveTicketNotification(),
+        queryClient.invalidateQueries({ queryKey: ['active-ticket'] }),
+        queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] }),
+      ]);
+
       setConfirmLeave(false);
       navigation.navigate('Main');
     } catch (caught: unknown) {
