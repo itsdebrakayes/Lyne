@@ -219,6 +219,7 @@ The pilot is free / agency-paid, so live card capture is stubbed pending a Jamai
 
 - **[docs/PROVIDER_SETUP.md](docs/PROVIDER_SETUP.md)** — every account, credential and profile: the Apple Developer Program, Sign in with Apple (App ID vs Services ID vs key — the step everyone gets wrong), Google's three OAuth clients, the Supabase provider config, code signing for iOS/macOS/Windows, and the full environment-variable contract. Contains no secrets and must never contain any.
 - **[docs/HOSTING.md](docs/HOSTING.md)** — what to provision, the hardening checklist that must be true before anything is public, backups and restore rehearsal, how to deploy, and the evidence-based triggers for growing.
+- **[docs/TEST_ACCOUNTS.md](docs/TEST_ACCOUNTS.md)** — every login that works against the seeded demo, what each role is for, the Supabase-UID gotcha that blocks staff sign-in, and how to serve a ticket without a second device in your hand.
 
 **Two known blockers** live in `apps/mobile/app.json` and are called out in PROVIDER_SETUP: there is no `scheme` (so OAuth has no way to redirect back into the app) and `expo.extra.eas.projectId` is empty (so no signed builds). Both are small; both change the app's identity, so they are deliberately left for a decision rather than assumed.
 

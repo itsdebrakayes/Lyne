@@ -173,6 +173,15 @@ await check(
      LEFT JOIN roles r ON r.id = s.role_id WHERE r.id IS NULL`
 );
 
+await check(
+  'No staff member is attached to another tenant\'s branch',
+  'Their dashboard scopes by business AND branch, so a mismatch shows them an empty screen — and it is a tenant boundary the data model should make impossible.',
+  `SELECT s.id, s.email, s.business_id AS staff_business, b.business_id AS branch_business
+     FROM staff s
+     JOIN branches b ON b.id = s.branch_id
+    WHERE b.business_id <> s.business_id`
+);
+
 /* ── states that contradict themselves ────────────────────────────────────── */
 
 await check(
