@@ -455,10 +455,22 @@ export function LineOverviewQX() {
               <small>{stage === 'called' ? 'Since You Called' : 'This Visit'}</small>
             </div>
             {stage === 'called' ? (
-              <div className="ql-clock">
-                <b>{clock(Math.max(0, NO_SHOW_AFTER - elapsed))}</b>
-                <small>Until No Show Allowed</small>
-              </div>
+              /* Once the wait is served, this stops counting DOWN to something
+                 and starts stating what is now true. It used to render "0:00"
+                 under "Until No Show Allowed" indefinitely — a dead zero
+                 describing a countdown that had already finished, which reads as
+                 a broken timer rather than as permission. */
+              elapsed >= NO_SHOW_AFTER ? (
+                <div className="ql-clock warn">
+                  <b>Now</b>
+                  <small>No Show Allowed</small>
+                </div>
+              ) : (
+                <div className="ql-clock">
+                  <b>{clock(NO_SHOW_AFTER - elapsed)}</b>
+                  <small>Until No Show Allowed</small>
+                </div>
+              )
             ) : (
               <div className="ql-clock">
                 <b>{d.avgHandle}<span style={{ fontSize: 15 }}> min</span></b>

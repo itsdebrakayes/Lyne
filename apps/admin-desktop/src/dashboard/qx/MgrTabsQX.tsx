@@ -930,7 +930,11 @@ export const MGR_TAB_HEAD: Record<string, { title: string; sub: string }> = {
  * numbers are "right now" and "today", not the month.
  */
 const MSVC_OGRID = 'minmax(0,2.4fr) 84px 96px 118px 118px';
-const MSTAFF_OGRID = 'minmax(0,1.7fr) minmax(0,1.4fr) minmax(0,1.2fr) 64px 76px minmax(0,1.35fr)';
+/* The Staff cell stacks the name over "Since 9:26 AM" now that the sign-in
+   time is real rather than an em-dash, so it needs more room than a bare
+   name did — at 1.7fr the names were truncating to "Kem…" and "Alici…".
+   Taken from Counter and Service, which carry short labels. */
+const MSTAFF_OGRID = 'minmax(0,2.4fr) minmax(0,1.15fr) minmax(0,1fr) 64px 76px minmax(0,1.2fr)';
 
 export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const d = useMgr();
