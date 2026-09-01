@@ -28,12 +28,11 @@
  *    working state. So it is reported in plain type with the reason next to it,
  *    never in red. Red is for things that are wrong.
  */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState, useEffect} from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock, FileUp,
-  MapPin, Plus, ShieldCheck, ShieldQuestion, Ticket, UserCheck, Users, X,
-} from 'lucide-react';
+  MapPin, Plus, ShieldCheck, ShieldQuestion, Ticket, UserCheck, Users, X, ChevronDown} from 'lucide-react';
 import api from '@/lib/apiClient';
 import { Card, InlineSearch, Note, Row, Stat, Status, Table } from '@/design/ui';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
@@ -160,6 +159,160 @@ const STATUS_WORD: Record<AdminSession['status'], string> = {
  * that has already gone is useless. Errors are equally sticky and say what to do
  * next, because "not recognised" with no follow-up leaves a queue standing.
  */
+type SessionPlan = {
+  demand: { registered: number; capacity: number; registration_closes_at?: string | null; is_final: boolean };
+  service_time: { minutes: number; basis: string; samples: number; declared?: number | null };
+  counters_available: number;
+  plan: {
+    usable: boolean; reason?: string;
+    people: number; hours: number; service_minutes: number; per_window: number;
+    windows_to_clear: number | null;
+    windows_for_target: number | null;
+    target_wait_minutes: number | null;
+    target_unreachable: boolean;
+    proposal: null | {
+      windows: number; capacity: number; clears: boolean; shortfall: number;
+      hours_to_clear: number; overruns_by_minutes: number;
+      expected_wait_minutes: number | null; utilisation_pct: number;
+    };
+  };
+};
+
+/** How much weight the service time can carry, said plainly rather than implied. */
+const BASIS_NOTE: Record<string, (n: number) => string> = {
+  previous_sittings: (n) => `Measured from ${n} people served at previous sittings of this service.`,
+  service_history: (n) => `Measured from ${n} people served on this service.`,
+  service_history_thin: (n) => `Measured from only ${n} served — treat as indicative until more of this service has run.`,
+  declared: () => 'No history yet for this service, so this is the time the service declares. Replace it with a measurement before promising anything on it.',
+};
+
+/**
+ * SessionPlanPanel — how many windows this sitting needs.
+ *
+ * The one forecast in this product that is not a guess. Everything else has to
+ * predict how many people will arrive; here they registered, so the headcount is
+ * known and the only unknown — minutes per person — comes from history.
+ *
+ * Two numbers, deliberately separated, because they answer different promises:
+ * what it takes to get everyone through the door, and what it takes to get them
+ * through without a queue. The second is always the larger, and it is the one an
+ * administrator can put in a press release.
+ */
+function SessionPlanPanel({ session }: { session: AdminSession }) {
+  const [windows, setWindows] = useState<number | null>(null);
+  const [target, setTarget] = useState(30);
+
+  const q = useQuery({
+    queryKey: ['session-plan', session.id, windows, target],
+    queryFn: () => api.get<SessionPlan>(
+      `/sessions/${session.id}/plan?target_wait=${target}${windows != null ? `&windows=${windows}` : ''}`
+    ),
+  });
+
+  const d = q.data;
+  /* Defaults to what the venue actually has, so the first thing an
+     administrator sees is their own arrangement judged, not a blank form. */
+  const effectiveWindows = windows ?? d?.counters_available ?? 0;
+  useEffect(() => {
+    if (windows == null && d?.counters_available) setWindows(d.counters_available);
+  }, [d?.counters_available, windows]);
+
+  if (q.isLoading) return <Card title="What This Sitting Needs" cap="Working it out…"><div className="qx-skel" style={{ height: 120, borderRadius: 14 }} /></Card>;
+  if (q.error || !d?.plan) {
+    return (
+      <Card title="What This Sitting Needs" cap="Planning">
+        <Note icon={AlertTriangle} tone="warn" title="Could Not Build A Plan"
+          body="The sitting needs a length and a service before it can be planned." />
+      </Card>
+    );
+  }
+  if (!d.plan.usable) {
+    return (
+      <Card title="What This Sitting Needs" cap="Planning">
+        <Note icon={AlertTriangle} tone="warn" title="Not Enough To Plan On" body={d.plan.reason || ''} />
+      </Card>
+    );
+  }
+
+  const p = d.plan;
+  const prop = p.proposal;
+  const short = prop && !prop.clears;
+
+  return (
+    <Card
+      title="What This Sitting Needs"
+      cap={d.demand.is_final
+        ? `${d.demand.registered} registered · registration has closed`
+        : `${d.demand.registered} registered so far · more may still register`}
+    >
+      {/* The evidence the whole answer rests on, stated before the answer. */}
+      <div className="qx-setrow">
+        <div>
+          <b>{p.service_minutes} min per person</b>
+          <small>{(BASIS_NOTE[d.service_time.basis] || (() => ''))(d.service_time.samples)}</small>
+        </div>
+        <span className={`qx-tag${d.service_time.basis === 'declared' ? ' warn' : ''}`}>
+          {d.service_time.basis === 'declared' ? 'Declared' : `${d.service_time.samples} served`}
+        </span>
+      </div>
+
+      {/* The two answers. */}
+      <div className="qx-planrow">
+        <div className="qx-planbox">
+          <b>{p.windows_to_clear ?? '—'}</b>
+          <small>Windows to get everyone through</small>
+          <em>{p.per_window} people per window over {p.hours}h</em>
+        </div>
+        <div className="qx-planbox accent">
+          <b>{p.target_unreachable ? '—' : (p.windows_for_target ?? '—')}</b>
+          <small>Windows to hold a {p.target_wait_minutes}-minute wait</small>
+          <em>{p.target_unreachable
+            ? 'Not reachable at any practical number of windows'
+            : 'What you could promise publicly'}</em>
+        </div>
+      </div>
+
+      <div className="qx-setrow">
+        <div><b>The Promise You Want To Make</b><small>Nobody waiting longer than this.</small></div>
+        <label className="qx-select">
+          <select value={target} onChange={(e) => setTarget(Number(e.target.value))} aria-label="Wait time to plan for">
+            {[10, 15, 20, 30, 45, 60].map((m) => <option key={m} value={m}>{m} minutes</option>)}
+          </select>
+          <ChevronDown />
+        </label>
+      </div>
+
+      {/* Their own arrangement, judged. */}
+      <div className="qx-setrow">
+        <div><b>If You Open This Many</b><small>{d.counters_available} windows exist at this venue today.</small></div>
+        <div className="qx-stepper">
+          <button type="button" onClick={() => setWindows(Math.max(1, effectiveWindows - 1))} aria-label="One window fewer">−</button>
+          <span>{effectiveWindows}</span>
+          <button type="button" onClick={() => setWindows(effectiveWindows + 1)} aria-label="One window more">+</button>
+        </div>
+      </div>
+
+      {prop ? (
+        <Note
+          icon={short ? AlertTriangle : CheckCircle2}
+          tone={short ? 'warn' : undefined}
+          title={short
+            ? `${prop.windows} windows clears ${prop.capacity} of ${p.people}`
+            : `${prop.windows} windows clears all ${p.people}`}
+          body={short
+            ? `${prop.shortfall} people would not be seen. At this width the room takes ${prop.hours_to_clear}h — ${Math.round(prop.overruns_by_minutes / 60 * 10) / 10}h past the end of the sitting.`
+            : `Expected wait ${prop.expected_wait_minutes ?? '—'} min at ${prop.utilisation_pct}% utilisation. Finishes in ${prop.hours_to_clear}h of the ${p.hours}h available.`}
+        />
+      ) : null}
+
+      {prop && !short && prop.utilisation_pct > 85 ? (
+        <Note icon={AlertTriangle} tone="warn" title="Running Very Close To Capacity"
+          body={`At ${prop.utilisation_pct}% utilisation a single late start or slow customer pushes the whole queue. One more window buys a lot of resilience.`} />
+      ) : null}
+    </Card>
+  );
+}
+
 function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => void }) {
   const [code, setCode] = useState('');
   const [result, setResult] = useState<
@@ -874,6 +1027,8 @@ export function SessionsScreen() {
                   />
                 </Card>
               )}
+
+            <SessionPlanPanel session={session} />
 
             <Card title="Where And What" cap="What people were told when they registered">
               <div className="qx-setrow">
