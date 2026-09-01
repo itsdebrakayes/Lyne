@@ -30,6 +30,7 @@ const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
+const { isTestVerificationCode } = require('../utils/testVerificationCode');
 
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
@@ -829,9 +830,17 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       await conn.rollback();
       return res.status(400).json({ error: 'Ticket verification code is required to start service.' });
     }
-    if (new_status === 'in_service' && verification_code.trim().toUpperCase() !== ticket.verification_code) {
+    if (new_status === 'in_service' && verification_code.trim().toUpperCase() !== ticket.verification_code
+        && !isTestVerificationCode(verification_code)) {
       await conn.rollback();
       return res.status(403).json({ error: 'Invalid ticket verification code.' });
+    }
+    if (new_status === 'in_service' && isTestVerificationCode(verification_code)
+        && verification_code.trim().toUpperCase() !== ticket.verification_code) {
+      /* Loud on purpose. A code that skips customer verification is the kind of
+         thing that gets switched on for a demo and quietly forgotten, so every
+         use leaves a line in the log naming the ticket and the staff member. */
+      console.warn(`[verification-bypass] ticket=${ticket.id} staff=${req.dbStaff?.id || 'unknown'} — served without the customer's code`);
     }
 
     const now = new Date();

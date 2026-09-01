@@ -7,7 +7,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lyne.app",
+      "bundleIdentifier": "com.lyne.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "LYNE uses your location to estimate when you should leave for your queue.",
         "NSUserNotificationUsageDescription": "LYNE sends queue updates and departure reminders.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.lyne.app",
+      "package": "com.lyne.mobile",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
