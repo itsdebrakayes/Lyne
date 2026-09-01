@@ -713,7 +713,19 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
     const [rows] = await pool.query(
       `SELECT st.id AS staff_id, st.full_name, st.staff_code,
               COUNT(t.id)                                                   AS tickets_handled,
-              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS avg_handle_minutes
+              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS avg_handle_minutes,
+              /* When this person actually started work today, for the "on since"
+                 column that has been showing a hardcoded em-dash.
+                 Their sign-in is the honest answer — user_sessions.created_at is
+                 written when they authenticate — and it beats the roster, which
+                 says when they were SUPPOSED to be there. Falls back to their
+                 first ticket of the day for anyone whose session predates this
+                 column being read, so the field is never blank for someone who
+                 is demonstrably working. */
+              (SELECT MIN(us.created_at) FROM user_sessions us
+                WHERE us.staff_id = st.id AND us.session_type = 'staff'
+                  AND DATE(us.created_at) = CURDATE())                      AS signed_in_at,
+              MIN(COALESCE(t.called_at, t.started_serving_at))              AS first_activity_at
        FROM queue_tickets t
        JOIN staff st ON t.served_by_staff_id = st.id
        JOIN queues q ON q.id = t.queue_id

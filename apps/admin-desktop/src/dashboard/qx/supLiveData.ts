@@ -10,6 +10,16 @@
 import type { SupTabData, SupDesk, SupStaff, SupTargetRow } from './SupTabsQX';
 import { num, titleCase } from '../insights';
 
+/** "8:04 AM" from a timestamp, or a dash when there is genuinely nothing. */
+const onSinceLabel = (signedIn?: unknown, firstActivity?: unknown) => {
+  const raw = signedIn || firstActivity;
+  if (!raw) return '—';
+  const t = new Date(String(raw));
+  return Number.isFinite(t.getTime())
+    ? t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '—';
+};
+
 export type SupLiveInput = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
@@ -75,7 +85,7 @@ export function buildSupData(i: SupLiveInput): SupTabData {
       seen,
       avg: Math.round(num(s.avg_handle_minutes)),
       // The staff endpoint reports throughput, not a clock-in time.
-      onSince: '—',
+      onSince: onSinceLabel(s.signed_in_at, s.first_activity_at),
       state,
       // Break tracking is not recorded anywhere yet, so this is never asserted.
       breakDue: false,

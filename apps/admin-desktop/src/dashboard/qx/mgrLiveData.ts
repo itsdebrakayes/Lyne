@@ -12,6 +12,16 @@
 import type { MgrTabData, MgrStaff, MgrSvc, MgrTargetRow } from './MgrTabsQX';
 import { num, titleCase } from '../insights';
 
+/** "8:04 AM" from a timestamp, or a dash when there is genuinely nothing. */
+const onSinceLabel = (signedIn?: unknown, firstActivity?: unknown) => {
+  const raw = signedIn || firstActivity;
+  if (!raw) return '—';
+  const t = new Date(String(raw));
+  return Number.isFinite(t.getTime())
+    ? t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '—';
+};
+
 const CODE = (name?: string) => (titleCase(name) || '')
   .split(/\s+/).map((w) => w[0] || '').join('').slice(0, 3).toUpperCase() || 'SVC';
 
@@ -150,7 +160,7 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
       svc: desk?.svc || '—',
       seen,
       avg: Math.round(num(s.avg_handle_minutes)),
-      since: '—',
+      since: onSinceLabel(s.signed_in_at, s.first_activity_at),
       state,
       note: idle.get(s.full_name) || slow.get(s.full_name),
     };
