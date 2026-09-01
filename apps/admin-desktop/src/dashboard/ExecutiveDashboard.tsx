@@ -37,6 +37,8 @@ const EXEC_FAQ = [
 ];
 import { CalendarDays, MapPin } from 'lucide-react';
 import { num, fmtN, titleCase, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
+import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { DateWindowChip } from './DateWindowChip';
 import { Empty } from './ManagerDashboard';
 
 const NAV: NavItem[] = [
@@ -85,13 +87,18 @@ export default function ExecutiveDashboard() {
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
   // The period pills drive the reporting window for real — every headline number
   // below recomputes from it, so the control is never decorative.
-  const windowDays = period === 'today' ? 1 : Number(period) || 7;
-  const week = summary.slice(-windowDays);
-  const rangeLabel = week.length
-    ? (week.length === 1
-      ? new Date(week[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })
-      : `${new Date(week[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${new Date(week[week.length - 1].summary_date).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}`)
-    : 'No data yet';
+  const windowDays = windowDaysOf(period);
+  /* The window ENDS on the anchor, which defaults to today but the chip can
+     move — so "last week" is reachable, which it never was before. */
+  const [anchor, setAnchor] = useState(today());
+  const win = useMemo(() => makeWindow(anchor, windowDays), [anchor, windowDays]);
+  /* Selected by DATE, not by array position. `summary.slice(-windowDays)` took
+     the last N rows that happened to exist: with sixteen dated rows spread over
+     twenty-four days, "7 Days" reached back to 15 August and "30 Days" and
+     "90 Days" returned the identical sixteen rows — which is why the pills
+     appeared to do nothing and the chip showed a range nobody asked for. */
+  const week = useMemo(() => rowsIn(summary, win), [summary, win]);
+  const rangeLabel = labelFor(win);
   const served = week.reduce((t, s) => t + num(s.total_visitors), 0);
   const completed = week.reduce((t, s) => t + num(s.completed_count), 0);
   const noShows = week.reduce((t, s) => t + num(s.no_show_count), 0);
@@ -315,7 +322,9 @@ export default function ExecutiveDashboard() {
                 nothing and imply the screen below is a period view. */}
             {tab !== 'sessions' ? <QxPills value={period} onChange={setPeriod}
               options={[['today', 'Today'], ['7', '7 Days'], ['14', '14 Days'], ['30', '30 Days'], ['90', '90 Days']]} /> : null}
-            <span className="qx-datechip"><CalendarDays size={14} />{tab === 'sessions' ? new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : rangeLabel}</span>
+            {tab === 'sessions'
+              ? <span className="qx-datechip"><CalendarDays size={14} />{new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              : <DateWindowChip window={win} onChange={setAnchor} />}
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
@@ -323,6 +332,7 @@ export default function ExecutiveDashboard() {
     >
       {isOverview && (
         <ExecutiveOverviewQX
+          win={win}
           summary={summary} rawSummary={d.summary as any[]} week={week} served={served} completed={completed} noShows={noShows}
           avgWait={avgWait} target={target} managers={managers} branches={liveTabData.branches} branchWeek={branchWeek}
           branchTrends={d.branchTrends} channels={d.channels} balking={d.balking}

@@ -13,6 +13,7 @@ import {
   IconBtn, Status, Focus, Note, Heatmap, Chip, Select, RefreshIcon, avatarStyle, initials,
 } from '@/design/ui';
 import { num, fmtN, titleCase, insightData } from '../insights';
+import { DateWindow, labelFor, previousWindow, shiftDays } from '../dateWindow';
 
 const BRANCH_GRID = 'minmax(0,2.2fr) minmax(0,1.2fr) 84px 96px 96px';
 
@@ -30,6 +31,8 @@ function scopedDaily(rows: any[], branchId: string) {
 }
 
 export type ExecOverviewData = {
+  /** The reporting window the header chip is showing. */
+  win: DateWindow;
   /** daily rollup rows, oldest → newest */
   summary: any[];
   /** un-rolled analytics rows, so the chart can re-scope to one branch */
@@ -62,6 +65,7 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
   // Branch scope for the chart — "all" plus every branch we have a score for.
   const [scope, setScope] = useState('all');
   const {
+    win,
     summary, rawSummary, week, served, completed, noShows, avgWait, target, managers, branches,
     branchWeek, channels, balking, preds, heat, search, onSearch,
     showA, setShowA, showB, setShowB, onNav, onRefresh,
@@ -71,26 +75,46 @@ export function ExecutiveOverviewQX(d: ExecOverviewData) {
   const completionPct = served ? Math.round((completed / served) * 100) : 0;
   const noShowPct = served ? +((noShows / served) * 100).toFixed(1) : 0;
 
-  /* Period A = the last 14 days with data. Period B = the 14 immediately before,
-     so the two lines are like-for-like. */
+  /* Period A is the selected window; period B is the equal-length window
+     immediately before it.
+     Both used to be taken by row position — A = slice(-14), B = slice(-28,-14) —
+     and then B was thrown away entirely unless it happened to contain the same
+     NUMBER of rows as A. With sixteen dated rows in the demo, B held two, the
+     lengths disagreed, and the comparison silently became "not enough history"
+     with its legend tag missing. That is the vanished second tag.
+     Windows are calendar dates now, so B is genuinely the previous period and a
+     day with no records is a gap in the line rather than a reason to abandon the
+     comparison. It also follows the period pills, which the hardcoded 14 did not. */
   const { valuesA, valuesB, labels, rangeA, rangeB } = useMemo(() => {
     // `summary` is already rolled up per day. When a single branch is picked we
     // re-roll from the raw rows so the line genuinely narrows to that branch.
     const rows = scope === 'all' ? summary.slice() : scopedDaily(rawSummary, scope);
-    const a = rows.slice(-14);
-    const b = rows.slice(-28, -14);
-    const day = (r: any) => new Date(r.summary_date).toLocaleDateString([], { day: 'numeric' });
-    const span = (rs: any[]) => (rs.length
-      ? `${new Date(rs[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${new Date(rs[rs.length - 1].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
-      : '—');
-    return {
-      valuesA: a.map((r) => num(r.total_visitors)),
-      valuesB: b.length === a.length ? b.map((r) => num(r.total_visitors)) : null,
-      labels: a.map(day),
-      rangeA: span(a),
-      rangeB: span(b),
+    const prev = previousWindow(win);
+    const byDate = new Map(rows.map((r: any) => [String(r.summary_date).slice(0, 10), r]));
+
+    /* Walked day by day rather than filtered, so both series have one point per
+       DAY of the window and the two lines stay aligned. A missing day is a zero
+       in its own slot; filtering would shorten one series and shift it. */
+    const walk = (w: typeof win) => Array.from({ length: w.days }, (_, i) => {
+      const iso = shiftDays(w.from, i);
+      return { iso, row: byDate.get(iso) };
+    });
+    const a = walk(win);
+    const b = walk(prev);
+    const dayLabel = (iso: string) => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString([], { day: 'numeric' });
     };
-  }, [summary, rawSummary, scope]);
+    return {
+      valuesA: a.map((p) => num(p.row?.total_visitors)),
+      /* Shown whenever the previous window holds anything at all. Requiring a
+         full period is what hid it — no real history is ever perfectly dense. */
+      valuesB: b.some((p) => p.row) ? b.map((p) => num(p.row?.total_visitors)) : null,
+      labels: a.map((p) => dayLabel(p.iso)),
+      rangeA: labelFor(win),
+      rangeB: labelFor(prev),
+    };
+  }, [summary, rawSummary, scope, win]);
 
   /* The queue funnel, from real counts: joined → called → served, and who left. */
   const funnel = useMemo(() => {

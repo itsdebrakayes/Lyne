@@ -1235,3 +1235,28 @@
   .qx-checkin input { font-size: 16px; }
   .qx-callout b { font-size: 32px; }
 }
+
+/* ── Date window chip ──────────────────────────────────────────────────────
+   The chip became a control, so it needs a popover. Positioned from the right
+   because it sits in a right-aligned header cluster — anchoring left would push
+   it off-screen on a narrow window. */
+.qx-datewrap { position: relative; display: inline-flex; }
+.qx-datechip.as-button { cursor: pointer; font-family: inherit; }
+.qx-datechip.as-button:hover { border-color: var(--c-primary); }
+.qx-datepop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; gap: 10px;
+  min-width: 250px; padding: 14px;
+  border: 1px solid var(--glass-line); border-radius: 14px;
+  background: var(--c-surface); box-shadow: 0 18px 44px -18px rgba(0,0,0,.45);
+}
+.qx-datepop-row { display: flex; gap: 8px; }
+.qx-datepop-row .qx-btn { flex: 1; justify-content: center; }
+.qx-datepop-field { display: flex; flex-direction: column; gap: 5px; }
+.qx-datepop-field span { font-size: 11px; font-weight: 700; color: var(--c-dim); letter-spacing: .04em; text-transform: uppercase; }
+.qx-datepop-field input {
+  font: inherit; font-size: 12.5px; padding: 8px 10px;
+  border: 1px solid var(--glass-line); border-radius: 10px;
+  background: var(--glass); color: var(--c-text);
+}
+.qx-datepop-today { justify-content: center; }
