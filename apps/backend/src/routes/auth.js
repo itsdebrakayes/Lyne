@@ -17,6 +17,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { NEVER_EXPOSE } = require('../utils/publicShapes');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { createRevocation } = require('../middleware/sessionLimiter');
@@ -69,10 +70,23 @@ async function getStaffProfile(staffId) {
     [staffId]
   );
 
+  if (!rows[0]) return null;
+
+  /* s.* carries password_hash and supabase_uid, and both went out on every
+     sign-in. publicShapes.js already names them in NEVER_EXPOSE; this route
+     simply never asked. The whitelist itself is the wrong instrument here — a
+     staff member's own profile legitimately carries far more than a colleague's
+     listing does (sector vocabulary, today's counter, shift times), so
+     projecting it through PUBLIC_STAFF_FIELDS would strip what the admin app
+     paints its first screen from. Subtract the forbidden columns instead, from
+     the same list, so a credential column added later is excluded here too. */
+  const profile = { ...rows[0] };
+  for (const field of NEVER_EXPOSE) delete profile[field];
+
   // Staff learn their organisation's vocabulary at sign-in, so every admin
   // screen can be worded correctly on first paint rather than saying "Customer"
   // and then correcting itself once a business lookup returns.
-  return rows[0] ? withTerms(rows[0]) : null;
+  return withTerms(profile);
 }
 
 // ── POST /api/auth/sync-user ──────────────────────────────────

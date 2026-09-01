@@ -249,7 +249,11 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
       [id, scopedBusinessId(req, business_id), scopedBranchId(req, branch_id) || null, role_id, null, staffCode, full_name, email, phone || null, assigned_service_id || null, availabilityStatus]
     );
     const [created] = await pool.query('SELECT * FROM staff WHERE id = ?', [id]);
-    res.status(201).json(created[0]);
+    /* The list and detail routes above already project through toPublicStaff;
+       create and update returned the raw row, so the two endpoints that hand
+       back a staff record right after writing it were the two still publishing
+       password_hash and supabase_uid. Same shape as everywhere else now. */
+    res.status(201).json(toPublicStaff(created[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create staff member.' });
@@ -289,7 +293,7 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
       [scopedBranchId(req, branch_id), role_id, full_name, email, phone, assigned_service_id, availability_status, is_active, req.params.id]
     );
     const [updated] = await pool.query('SELECT * FROM staff WHERE id = ?', [req.params.id]);
-    res.json(updated[0]);
+    res.json(toPublicStaff(updated[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update staff member.' });
