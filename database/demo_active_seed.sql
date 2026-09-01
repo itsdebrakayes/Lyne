@@ -315,9 +315,16 @@ SELECT
   seq.n,
   CASE
     WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n = 1 THEN 'in_service'
-    WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n = 2 THEN 'called'
+    /* Deliberately NOT pre-called.
+       A seeded 'called' ticket carries a called_at stamped when the seed ran,
+       and the no-show countdown is five minutes long — so within minutes it is
+       already expired, and pressing "Complete And Call Next" surfaces that
+       stale person rather than calling somebody fresh. The clerk sees "23:18
+       since you called" on a customer they called a second ago.
+       Leaving seat 2 waiting means Call Next genuinely calls: the API stamps
+       called_at = now, the countdown starts at a full 5:00 and runs live, and
+       the no-show state is reached by actually waiting for it. */
     WHEN seq.n = 1 AND MOD(CRC32(q.id), 5) = 0 THEN 'in_service'
-    WHEN seq.n = 2 AND MOD(CRC32(q.id), 7) = 0 THEN 'called'
     ELSE 'waiting'
   END,
   GREATEST(0, ROUND((seq.n - 1) / GREATEST(1, (

@@ -442,7 +442,10 @@ SELECT
   CONCAT(s.ticket_prefix, '-', LPAD(seq.n, 3, '0')),
   LPAD(FLOOR(RAND(CRC32(CONCAT(q.id, seq.n))) * 1000000), 6, '0'),
   seq.n,
-  CASE WHEN seq.n = 1 THEN 'in_service' WHEN seq.n = 2 THEN 'called' ELSE 'waiting' END,
+  /* Seat 1 serves; nobody is left 'called'. Same reason as the active seed: a
+     seeded call ages against a five-minute countdown, so it is expired before
+     anyone looks and it hijacks the next Call Next. */
+  CASE WHEN seq.n = 1 THEN 'in_service' ELSE 'waiting' END,
   GREATEST(0, ROUND((seq.n - 1) / GREATEST(1, (
     SELECT COUNT(*) FROM counters c2
      WHERE c2.branch_id = q.branch_id AND c2.service_id = q.service_id AND c2.is_active = TRUE

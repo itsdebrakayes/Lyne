@@ -142,9 +142,15 @@ VALUES
    DATE_SUB(NOW(), INTERVAL 34 MINUTE), DATE_SUB(NOW(), INTERVAL 9 MINUTE), 120,
    DATE_ADD(NOW(), INTERVAL 111 SECOND), DATE_SUB(NOW(), INTERVAL 7 MINUTE),
    'stf-cfcu-member', 'ctr-cfcu-member-1'),
-  ('t-cfcu-mem-live-02', 'q-cfcu-hwt-member', 'usr-demo-02', 'MEM-002', '420302', 2, 'called', 0, 'app',
-   DATE_SUB(NOW(), INTERVAL 27 MINUTE), DATE_SUB(NOW(), INTERVAL 40 SECOND), 120,
-   DATE_ADD(NOW(), INTERVAL 80 SECOND), NULL, NULL, NULL),
+  /* Waiting, not called. A seeded call ages against a five-minute no-show
+     countdown, so it is expired long before anyone opens the desk — and worse,
+     "Complete And Call Next" then surfaces that stale person instead of calling
+     somebody, which is how a clerk ends up looking at "23:18 since you called"
+     on a customer they called a second ago. Left waiting so Call Next actually
+     calls. */
+  ('t-cfcu-mem-live-02', 'q-cfcu-hwt-member', 'usr-demo-02', 'MEM-002', '420302', 2, 'waiting', 0, 'app',
+   DATE_SUB(NOW(), INTERVAL 27 MINUTE), NULL, 120,
+   NULL, NULL, NULL, NULL),
   ('t-cfcu-mem-live-03', 'q-cfcu-hwt-member', 'usr-demo-03', 'MEM-003', '420303', 3, 'waiting', 8, 'app',
    DATE_SUB(NOW(), INTERVAL 19 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
   ('t-cfcu-mem-live-04', 'q-cfcu-hwt-member', NULL, 'MEM-004', '420304', 4, 'waiting', 16, 'walk_in',
