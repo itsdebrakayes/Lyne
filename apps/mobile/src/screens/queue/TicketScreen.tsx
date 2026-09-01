@@ -15,6 +15,7 @@ import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { HoldButton } from '../../components/HoldButton';
+import { TicketPrinter } from '../../components/TicketPrinter';
 import Icon from '../../components/Icon';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -202,10 +203,10 @@ export default function TicketScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.dark }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 32 }} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
-
-        {/* top bar */}
+      {/* The terminal does not scroll; the paper does. Keeping the header above
+          the slot is what lets the ticket feed back INTO the machine when you
+          scroll it up, instead of sliding under a picture of one. */}
+      <View style={{ paddingHorizontal: 20, paddingTop: topPad }}>
         <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Main')} accessibilityRole="button" accessibilityLabel="Go back"
             style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
@@ -213,6 +214,14 @@ export default function TicketScreen() {
           </TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 18, color: '#fff', letterSpacing: -0.4 }}>Your ticket</Text>
         </View>
+      </View>
+
+      {/* Prints once, on the visit the ticket was issued — never again for the
+          same ticket. This screen is checked over and over while somebody
+          waits. */}
+      <TicketPrinter printKey={active ? ticketId : undefined}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32 }} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* status banner — the one thing that must never be missed */}
         {(called || inService) && (
@@ -353,6 +362,7 @@ export default function TicketScreen() {
         {active && alerts === 'on' && <Text style={{ ...type.caption, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
         {active && alerts === 'denied' && <Text style={{ ...type.caption, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
+      </TicketPrinter>
 
       <ConfirmSheet
         visible={confirmLeave}
