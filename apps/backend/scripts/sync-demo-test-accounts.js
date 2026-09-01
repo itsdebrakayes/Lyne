@@ -541,6 +541,14 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  /* Print the whole error when there is no message. A mysql2 failure can arrive
+     with an empty `message` and everything useful in `code` / `sqlMessage` /
+     `sqlState`, and printing only `.message` turned that into a blank line and
+     exit 1 — a failure report containing no information about the failure. */
+  if (error && error.message) {
+    console.error(error.message);
+  } else {
+    console.error(error);
+  }
   process.exit(1);
 });

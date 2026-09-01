@@ -120,6 +120,84 @@ async function clearSeedTickets(connection) {
   return result.affectedRows || 0;
 }
 
+/**
+ * Absorb a runtime-created queue into the seed's own row for the same line.
+ *
+ * The seeds re-date a fixed set of queue rows onto CURDATE() rather than
+ * opening a new line each morning. That is fine until somebody uses the product
+ * before the day's first refresh: the API finds no queue open for that
+ * branch+service today and correctly opens one, with a UUID id. The refresh then
+ * tries to move its own row onto the same day and hits uk_queue_day
+ * (branch, service, date) — one line per service per day, which is right.
+ *
+ * ON DUPLICATE KEY UPDATE cannot absorb it, for the same reason documented in
+ * sync-demo-test-accounts.js: the incoming row matches the PRIMARY key of the
+ * seed's stale row first, and it is the resulting UPDATE that collides. So the
+ * whole refresh aborted — which is how it was found. A session check-in opened
+ * a court line at 11:40, and every refresh after that failed with a duplicate
+ * key on a date nobody had typed.
+ *
+ * Deleting either row is wrong. The runtime row holds real tickets — somebody
+ * actually joined that line. The seed row's id is referenced literally in
+ * seed.sql and demo_credit_union_seed.sql, so dropping it breaks those inserts.
+ * Merge instead: move the real tickets onto the seed's id, drop the now-empty
+ * runtime row, and let the seed have its line back. Nothing a person did is
+ * lost and the day ends with exactly one queue per service, as the key intends.
+ *
+ * The tickets move before the delete, not after: queue_tickets cascades on
+ * queue delete, so the other order silently destroys the very rows this exists
+ * to protect.
+ */
+async function absorbRuntimeQueues(connection) {
+  const [pairs] = await connection.query(
+    `SELECT live.id AS liveId,
+            (SELECT seed.id
+               FROM queues seed
+              WHERE seed.branch_id = live.branch_id
+                AND seed.service_id = live.service_id
+                AND seed.id <> live.id
+                AND seed.id NOT REGEXP ?
+                AND seed.queue_date <> CURDATE()
+              ORDER BY seed.queue_date DESC
+              LIMIT 1) AS seedId
+       FROM queues live
+      WHERE live.queue_date = CURDATE()
+        AND live.id REGEXP ?`,
+    [UUID_SHAPED, UUID_SHAPED]
+  );
+
+  let absorbed = 0;
+  for (const { liveId, seedId } of pairs) {
+    // No seed row for this line — the API opened a service the seeds never
+    // cover. Nothing to collide with, so leave it exactly where it is.
+    if (!seedId) continue;
+
+    /* verification_code is unique per queue, so a seeded code could in
+       principle already occupy an arriving one. Yield to the real ticket: the
+       seed rewrites its own a moment later, and a person holding a code they
+       were shown must keep it. */
+    await connection.query(
+      `DELETE seeded FROM queue_tickets seeded
+         JOIN queue_tickets arriving
+           ON arriving.verification_code = seeded.verification_code
+        WHERE seeded.queue_id = ?
+          AND arriving.queue_id = ?
+          AND seeded.id NOT REGEXP ?`,
+      [seedId, liveId, UUID_SHAPED]
+    );
+
+    await connection.query('UPDATE queue_tickets SET queue_id = ? WHERE queue_id = ?', [seedId, liveId]);
+    await connection.query('DELETE FROM queues WHERE id = ?', [liveId]);
+    await connection.query(
+      'UPDATE queues SET queue_date = CURDATE(), is_active = TRUE WHERE id = ?',
+      [seedId]
+    );
+    absorbed += 1;
+  }
+
+  return absorbed;
+}
+
 async function refreshDemoData(connection = pool) {
   const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, SECTOR_SEED_PATH]
     .filter(seedPath => fs.existsSync(seedPath));
@@ -127,6 +205,8 @@ async function refreshDemoData(connection = pool) {
   if (stranded) console.log(`Closed out ${stranded} ticket(s) stranded from a previous day.`);
   const cleared = await clearSeedTickets(connection);
   if (cleared) console.log(`Cleared ${cleared} seed-authored ticket(s) before reseeding.`);
+  const absorbed = await absorbRuntimeQueues(connection);
+  if (absorbed) console.log(`Absorbed ${absorbed} live-opened queue(s) into the seed's own line.`);
   const statements = seedPaths.flatMap(seedPath => splitStatements(fs.readFileSync(seedPath, 'utf8')));
 
   for (const statement of statements) {
