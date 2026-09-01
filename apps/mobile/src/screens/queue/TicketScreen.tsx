@@ -343,10 +343,15 @@ export default function TicketScreen() {
         visible={confirmLeave}
         title="Leave this queue?"
         message={`You'll give up place ${ticket.waiting_position ?? ticket.position} for ${ticket.service_name || 'this service'}, and it goes to the next person straight away. If you change your mind you can rejoin, but you'll start again at the back of the line.`}
-        confirmLabel="Leave queue"
+        confirmLabel="Hold to leave"
         cancelLabel="Stay in line"
         icon="exit-outline"
         busy={leaving}
+        /* Held, not tapped. Giving up a place is the one thing in this app that
+           cannot be undone — rejoining puts you at the back — so it should take
+           a gesture nobody performs by accident. */
+        hold
+        holdDoneLabel="Left the line"
         onConfirm={leaveQueue}
         onCancel={() => setConfirmLeave(false)}
       />

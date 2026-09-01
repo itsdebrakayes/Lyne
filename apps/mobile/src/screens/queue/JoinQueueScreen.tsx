@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
+import { HoldButton } from '../../components/HoldButton';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
@@ -22,6 +23,10 @@ export default function JoinQueueScreen() {
   const { branchId, serviceId } = route.params;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  /* Bumped when a join fails, to send the hold button back to rest. Without
+     it a failed request leaves a tick sitting above the error explaining the
+     join did not happen. */
+  const [resetTick, setResetTick] = useState(0);
   const [checkedReadiness, setCheckedReadiness] = useState<string[]>([]);
   const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false) });
   const serviceQuery = useQuery({ queryKey: ['service', serviceId], queryFn: () => api.get<ServiceSummary>(`/services/${serviceId}`, false) });
@@ -86,7 +91,9 @@ export default function JoinQueueScreen() {
         queue_id: liveQueue.id,
         readiness_acknowledged: readiness.length > 0 ? readinessConfirmed : undefined,
       });
-      haptics.success();
+      /* No haptic here: HoldButton already fired success the moment the hold
+         landed, which is the beat the user is actually feeling. A second one
+         when the request returns reads as a stutter, not as confirmation. */
       registerPushNotifications().catch(() => {});
       scheduleDepartureReminder({
         ticketId: ticket.id,
@@ -99,6 +106,7 @@ export default function JoinQueueScreen() {
       navigation.navigate('Ticket', { ticketId: ticket.id, businessId: branch.business_id, branchId, serviceId });
     } catch (caught: unknown) {
       haptics.error();
+      setResetTick(n => n + 1);
       setError(caught instanceof Error ? caught.message : 'Could not join this queue. Please try again.');
     } finally {
       setLoading(false);
@@ -302,11 +310,28 @@ export default function JoinQueueScreen() {
           The accent is what the sibling "Join this line" button already uses on
           the same ground. The scrim keeps the card behind from running into it. */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28, backgroundColor: colors.dark }}>
-        <TouchableOpacity disabled={loading || pageLoading || !canJoin}
-          style={[t.primaryBtn, { backgroundColor: colors.accent }, (!canJoin || pageLoading) && { opacity: 0.45 }]}
-          onPress={joinQueue}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>{ctaLabel}</Text>}
-        </TouchableOpacity>
+        {/* Held when it can be pressed, plain when it cannot.
+            A hold button that refuses to fill is a worse blocked state than a
+            dimmed one: the person holds, nothing happens, and the interface has
+            told them nothing about why. So the blocked case keeps the label
+            that explains itself and stays an ordinary disabled control. */}
+        {canJoin ? (
+          <HoldButton
+            label="Hold to join the line"
+            doneLabel="You're in"
+            hint="Holds your place in this queue"
+            busy={loading}
+            disabled={pageLoading}
+            resetSignal={resetTick}
+            style={{ borderRadius: 19, minHeight: 58 }}
+            onComplete={joinQueue}
+          />
+        ) : (
+          <TouchableOpacity disabled
+            style={[t.primaryBtn, { backgroundColor: colors.accent }, { opacity: 0.45 }]}>
+            {pageLoading ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>{ctaLabel}</Text>}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
