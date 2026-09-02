@@ -196,6 +196,20 @@ export default function LineStaffDashboard() {
      staff member and nobody else. A supervisor clocking their team in is a
      supervisor guessing, and the number is only worth having if the person it
      describes pressed the button. */
+  /* The models run every two hours and wrote this for nobody — the generic
+     predictions route is supervisor-and-up, so the person doing the work could
+     not see the one prediction that is about them. /my-desk is scoped to their
+     own service. */
+  const deskForecast = useQuery({
+    queryKey: ['desk-forecast'],
+    queryFn: () => api.get<{
+      predicted: { minutes: number | null; basis: string; sample_size: number; model_version: string } | null;
+      actual: { served_today: number; avg_minutes: number | null };
+    }>('/predictions/my-desk'),
+    // The model refreshes on the hour scale; polling it faster is noise.
+    refetchInterval: 10 * 60_000,
+  });
+
   const shift = useQuery({
     queryKey: ['my-shift'],
     queryFn: () => api.get<{ on_shift: boolean; on_break: boolean }>('/staff/me/shift'),
@@ -248,13 +262,14 @@ export default function LineStaffDashboard() {
     /* undefined while the first read is in flight — the desk treats only an
        explicit false as "closed", so it never flashes the clock-in gate at
        somebody who is already on shift. */
+    deskForecast: deskForecast.data || null,
     onShift: shift.data?.on_shift,
     onBreak: Boolean(shift.data?.on_break),
     onClockIn: () => attendance('clock-in'),
     onBreakStart: () => attendance('break'),
     onResume: () => attendance('resume'),
     onClockOut: () => attendance('clock-out'),
-  }), [liveData, deskActions, shift.data, attendance]);
+  }), [liveData, deskActions, shift.data, deskForecast.data, attendance]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';

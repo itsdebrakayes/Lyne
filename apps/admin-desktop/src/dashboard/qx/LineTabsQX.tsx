@@ -67,6 +67,14 @@ export type LineTabData = {
   /* Attendance. The desk is gated on it: a clerk who has not clocked in is not
      at the window, and calling somebody forward to an empty chair is the one
      failure a queue system must never cause. */
+  /* What the model expects at this desk, next to what the clerk is actually
+     doing. Shown together deliberately: a prediction alone is a claim; beside
+     their own morning it is confirmation or a question, and either beats the
+     number on its own. */
+  deskForecast?: {
+    predicted: { minutes: number | null; basis: string; sample_size: number; model_version: string } | null;
+    actual: { served_today: number; avg_minutes: number | null };
+  } | null;
   onShift?: boolean;
   onBreak?: boolean;
   onClockIn?: () => Promise<void> | void;
@@ -724,6 +732,29 @@ export function LineOverviewQX() {
             always the useful one. */}
         {actionError ? (
           <div className="ql-verifymsg bad" role="alert" aria-live="assertive">{actionError}</div>
+        ) : null}
+
+        {/* What the model expects at this desk, beside what the clerk is
+            actually doing. Shown together deliberately: a prediction on its own
+            is a claim; next to their own morning it is confirmation or a
+            question worth asking. Rendered only once the model has produced a
+            figure — an empty box claiming a prediction is worse than no box. */}
+        {d.deskForecast?.predicted?.minutes ? (
+          <div className="ql-meta" style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 12 }}>
+            <span>
+              <b>{d.deskForecast.predicted.minutes} min</b> expected per person{' '}
+              {d.deskForecast.predicted.basis === 'this hour' ? 'this hour' : 'today'}
+              <small style={{ opacity: 0.65 }}>
+                {' '}· {d.deskForecast.predicted.model_version} on {d.deskForecast.predicted.sample_size.toLocaleString()} visits
+              </small>
+            </span>
+            {d.deskForecast.actual.avg_minutes != null ? (
+              <span>
+                <b>{d.deskForecast.actual.avg_minutes} min</b> your average today
+                <small style={{ opacity: 0.65 }}> · {d.deskForecast.actual.served_today} served</small>
+              </span>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="ql-acts">

@@ -265,13 +265,19 @@ FROM businesses biz
 JOIN branches br ON br.business_id = biz.id AND br.name = 'Kingston Branch';
 
 -- Peak hours heatmap — one per branch
-INSERT INTO predictive_results
-  (id, business_id, branch_id, insight_type, insight_data, generated_at, model_version, confidence_score)
-SELECT
-  UUID(),
-  biz.id,
-  br.id,
-  'peak_hours',
+-- peak_hours was removed here.
+--
+-- It sat in predictive_results looking like a model output and was nothing of
+-- the kind: no script in apps/model/scripts writes it, so it was a static
+-- fixture dated whenever the seed last ran, presented among genuine
+-- predictions. Nothing in the product read it, which is the only reason it
+-- never misled anybody on screen — but a table of predictions is only worth
+-- believing if everything in it came from a model.
+--
+-- The demand heatmap the UI actually shows is fed by demand_forecast, which
+-- forecast_demand.py really does produce. If peak hours is wanted as its own
+-- insight, it belongs in a script, not here.
+ see note
   JSON_OBJECT(
     'heatmap', JSON_ARRAY(
       JSON_OBJECT('day', 'Monday',    'hour', 9,  'volume', 85, 'avg_wait', 28),

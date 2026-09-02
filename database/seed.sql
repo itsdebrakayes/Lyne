@@ -366,19 +366,6 @@ INSERT INTO predictive_results (id, business_id, branch_id, insight_type, insigh
  ),
  'v1.0'),
 
-('pred-taj-002', 'biz-taj-001', 'br-taj-kgn', 'peak_hours',
- JSON_OBJECT(
-    'generated_at', NOW(),
-    'heatmap', JSON_ARRAY(
-        JSON_OBJECT('day', 1, 'hour', 9,  'level', 'high',     'avg_wait', 38),
-        JSON_OBJECT('day', 1, 'hour', 13, 'level', 'high',     'avg_wait', 35),
-        JSON_OBJECT('day', 3, 'hour', 9,  'level', 'moderate', 'avg_wait', 22),
-        JSON_OBJECT('day', 5, 'hour', 15, 'level', 'low',      'avg_wait', 8)
-    ),
-    'top_busy_slots', JSON_ARRAY('Monday 9am', 'Monday 1pm', 'Wednesday 9am')
- ),
- 'v1.0'),
-
 ('pred-pica-001', 'biz-pica-001', 'br-pica-kgn', 'best_time_to_visit',
  JSON_OBJECT(
     'generated_at', NOW(),

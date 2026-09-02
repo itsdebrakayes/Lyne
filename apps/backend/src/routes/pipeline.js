@@ -27,7 +27,9 @@ const INSIGHT_TYPES = new Set([
   'wait_time_predictions',
   'abandonment_thresholds',
   'heatmap_data',
-  'peak_hours',
+  /* peak_hours removed: no script in apps/model/scripts ever wrote it, so
+     listing it here advertised an insight the pipeline cannot produce. The
+     demand heatmap is fed by demand_forecast, which is real. */
   'model_performance',
   'manager_performance',
 ]);
