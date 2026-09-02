@@ -148,7 +148,7 @@ export const TOURS: Record<string, TourStep[]> = {
   line_staff: [
     { target: '.ql-big', title: 'Who You Are Serving', body: 'The ticket number in front of you, and how long they waited. When nobody is called it shows dashes.' },
     { target: '.ql-clocks', title: 'Your Timers', body: 'How long since you called them, and how long until a no-show is allowed. Marking a no-show unlocks after five minutes.' },
-    { target: '.ql-verify, .ql-acts', title: 'Check Their Code', body: 'The customer has a six-digit code on their phone or ticket. Type it straight through — it moves between boxes on its own.' },
+    { target: '.ql-verify, .ql-acts', title: 'Check Their Code', body: 'The customer has a six-character code on their phone or ticket. Type it straight through — it moves between boxes on its own.' },
     { target: '.ql-acts', title: 'What You Can Do', body: 'The big button is always the next thing: call someone, start serving, or finish and call the next. Call Again re-chimes the lobby and texts their phone.' },
     { target: '.qx-acct', title: 'That Is It', body: 'Replay this any time from Help & Support.' },
   ],

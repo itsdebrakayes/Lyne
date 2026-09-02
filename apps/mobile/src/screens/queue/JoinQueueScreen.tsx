@@ -260,7 +260,7 @@ export default function JoinQueueScreen() {
             <View style={{ marginTop: 22, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 18 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.ink, marginBottom: 14 }}>What happens next</Text>
               {[
-                { icon: 'ticket-outline', text: 'You get a ticket number and a six-digit code, straight away.' },
+                { icon: 'ticket-outline', text: 'You get a ticket number and a six-character code, straight away.' },
                 { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
                 { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
               ].map(step => (

@@ -317,7 +317,13 @@ SELECT
   -- six numeric boxes. 590 demo tickets carried a code a clerk physically could
   -- not type, so Start Service could never be completed against them and the
   -- button read as broken.
-  LPAD(CONV(SUBSTRING(MD5(CONCAT('verify:', q.id, ':', seq.n, ':', CURDATE())), 1, 6), 16, 10) MOD 1000000, 6, '0'),
+  -- Six characters from the same alphabet the API uses (ACDEFGHJKMNPQRTUVWXY34679).
+  -- MD5 is hex, so the characters our alphabet deliberately excludes — 0,1,2,5,8
+  -- and B, the ones that look like O,I,Z,S,B and 8 — are mapped out rather than
+  -- left to appear in a demo code somebody has to read aloud.
+  UPPER(SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+    MD5(CONCAT('verify:', q.id, ':', seq.n, ':', CURDATE())),
+    '0','K'),'1','M'),'2','N'),'5','P'),'8','Q'),'b','R'), 1, 6)),
   seq.n,
   CASE
     WHEN q.branch_id = 'br-taj-kgn' AND q.service_id = 'svc-taj-trn' AND seq.n = 1 THEN 'in_service'

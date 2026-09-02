@@ -111,10 +111,10 @@ INSERT INTO queue_tickets
   (id, queue_id, user_id, ticket_number, verification_code, position, status,
    estimated_wait_minutes, channel, joined_at, readiness_shown_at, readiness_outcome)
 VALUES
-  ('t-cfcu-live-01', 'q-cfcu-hwt-loan', 'usr-demo-01', 'LDR-001', '410201', 1, 'waiting', 0, 'app', DATE_SUB(NOW(), INTERVAL 21 MINUTE), DATE_SUB(NOW(), INTERVAL 21 MINUTE), 'not_checked'),
-  ('t-cfcu-live-02', 'q-cfcu-hwt-loan', 'usr-demo-02', 'LDR-002', '410202', 2, 'waiting', 12, 'app', DATE_SUB(NOW(), INTERVAL 16 MINUTE), DATE_SUB(NOW(), INTERVAL 16 MINUTE), 'not_checked'),
-  ('t-cfcu-live-03', 'q-cfcu-hwt-loan', 'usr-demo-03', 'LDR-003', '410203', 3, 'waiting', 24, 'app', DATE_SUB(NOW(), INTERVAL 10 MINUTE), DATE_SUB(NOW(), INTERVAL 10 MINUTE), 'not_checked'),
-  ('t-cfcu-live-04', 'q-cfcu-hwt-loan', 'usr-demo-04', 'LDR-004', '410204', 4, 'waiting', 36, 'app', DATE_SUB(NOW(), INTERVAL 5 MINUTE), DATE_SUB(NOW(), INTERVAL 5 MINUTE), 'not_checked')
+  ('t-cfcu-live-01', 'q-cfcu-hwt-loan', 'usr-demo-01', 'LDR-001', 'CDKRMF', 1, 'waiting', 0, 'app', DATE_SUB(NOW(), INTERVAL 21 MINUTE), DATE_SUB(NOW(), INTERVAL 21 MINUTE), 'not_checked'),
+  ('t-cfcu-live-02', 'q-cfcu-hwt-loan', 'usr-demo-02', 'LDR-002', 'QC9NC7', 2, 'waiting', 12, 'app', DATE_SUB(NOW(), INTERVAL 16 MINUTE), DATE_SUB(NOW(), INTERVAL 16 MINUTE), 'not_checked'),
+  ('t-cfcu-live-03', 'q-cfcu-hwt-loan', 'usr-demo-03', 'LDR-003', 'CP6APF', 3, 'waiting', 24, 'app', DATE_SUB(NOW(), INTERVAL 10 MINUTE), DATE_SUB(NOW(), INTERVAL 10 MINUTE), 'not_checked'),
+  ('t-cfcu-live-04', 'q-cfcu-hwt-loan', 'usr-demo-04', 'LDR-004', 'EMQR4P', 4, 'waiting', 36, 'app', DATE_SUB(NOW(), INTERVAL 5 MINUTE), DATE_SUB(NOW(), INTERVAL 5 MINUTE), 'not_checked')
 ON DUPLICATE KEY UPDATE
   queue_id = VALUES(queue_id), user_id = VALUES(user_id), ticket_number = VALUES(ticket_number),
   position = VALUES(position), status = VALUES(status), estimated_wait_minutes = VALUES(estimated_wait_minutes),
@@ -138,7 +138,7 @@ INSERT INTO queue_tickets
    estimated_wait_minutes, channel, joined_at, called_at, call_timeout_seconds,
    call_expires_at, started_serving_at, served_by_staff_id, served_at_counter_id)
 VALUES
-  ('t-cfcu-mem-live-01', 'q-cfcu-hwt-member', NULL, 'MEM-001', '420301', 1, 'in_service', 0, 'walk_in',
+  ('t-cfcu-mem-live-01', 'q-cfcu-hwt-member', NULL, 'MEM-001', 'RRDF6C', 1, 'in_service', 0, 'walk_in',
    DATE_SUB(NOW(), INTERVAL 34 MINUTE), DATE_SUB(NOW(), INTERVAL 9 MINUTE), 120,
    DATE_ADD(NOW(), INTERVAL 111 SECOND), DATE_SUB(NOW(), INTERVAL 7 MINUTE),
    'stf-cfcu-member', 'ctr-cfcu-member-1'),
@@ -148,22 +148,22 @@ VALUES
      somebody, which is how a clerk ends up looking at "23:18 since you called"
      on a customer they called a second ago. Left waiting so Call Next actually
      calls. */
-  ('t-cfcu-mem-live-02', 'q-cfcu-hwt-member', 'usr-demo-02', 'MEM-002', '420302', 2, 'waiting', 0, 'app',
+  ('t-cfcu-mem-live-02', 'q-cfcu-hwt-member', 'usr-demo-02', 'MEM-002', 'NAR3K3', 2, 'waiting', 0, 'app',
    DATE_SUB(NOW(), INTERVAL 27 MINUTE), NULL, 120,
    NULL, NULL, NULL, NULL),
-  ('t-cfcu-mem-live-03', 'q-cfcu-hwt-member', 'usr-demo-03', 'MEM-003', '420303', 3, 'waiting', 8, 'app',
+  ('t-cfcu-mem-live-03', 'q-cfcu-hwt-member', 'usr-demo-03', 'MEM-003', '39FC9E', 3, 'waiting', 8, 'app',
    DATE_SUB(NOW(), INTERVAL 19 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
-  ('t-cfcu-mem-live-04', 'q-cfcu-hwt-member', NULL, 'MEM-004', '420304', 4, 'waiting', 16, 'walk_in',
+  ('t-cfcu-mem-live-04', 'q-cfcu-hwt-member', NULL, 'MEM-004', 'DFKD9F', 4, 'waiting', 16, 'walk_in',
    DATE_SUB(NOW(), INTERVAL 14 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
-  ('t-cfcu-mem-live-05', 'q-cfcu-hwt-member', 'usr-demo-04', 'MEM-005', '420305', 5, 'waiting', 24, 'app',
+  ('t-cfcu-mem-live-05', 'q-cfcu-hwt-member', 'usr-demo-04', 'MEM-005', 'KFMK39', 5, 'waiting', 24, 'app',
    DATE_SUB(NOW(), INTERVAL 8 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
-  ('t-cfcu-mem-live-06', 'q-cfcu-hwt-member', NULL, 'MEM-006', '420306', 6, 'waiting', 32, 'walk_in',
+  ('t-cfcu-mem-live-06', 'q-cfcu-hwt-member', NULL, 'MEM-006', '9MF4KM', 6, 'waiting', 32, 'walk_in',
    DATE_SUB(NOW(), INTERVAL 3 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
   -- And two on Loan & Repayment Support, so the third Half Way Tree desk is
   -- not the only one standing empty behind the demo.
-  ('t-cfcu-sup-live-01', 'q-cfcu-hwt-support', 'usr-demo-01', 'LRS-001', '430301', 1, 'waiting', 5, 'app',
+  ('t-cfcu-sup-live-01', 'q-cfcu-hwt-support', 'usr-demo-01', 'LRS-001', 'CRP4C9', 1, 'waiting', 5, 'app',
    DATE_SUB(NOW(), INTERVAL 11 MINUTE), NULL, 120, NULL, NULL, NULL, NULL),
-  ('t-cfcu-sup-live-02', 'q-cfcu-hwt-support', NULL, 'LRS-002', '430302', 2, 'waiting', 10, 'walk_in',
+  ('t-cfcu-sup-live-02', 'q-cfcu-hwt-support', NULL, 'LRS-002', 'PCDADN', 2, 'waiting', 10, 'walk_in',
    DATE_SUB(NOW(), INTERVAL 4 MINUTE), NULL, 120, NULL, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE
   queue_id = VALUES(queue_id), user_id = VALUES(user_id), ticket_number = VALUES(ticket_number),
@@ -186,16 +186,16 @@ INSERT INTO queue_tickets
    estimated_wait_minutes, channel, joined_at, called_at, started_serving_at, completed_at,
    served_by_staff_id, served_at_counter_id, readiness_shown_at, readiness_outcome, readiness_note)
 VALUES
-  ('t-cfcu-done-01', 'q-cfcu-hwt-loan', NULL, 'LDR-P01', '510201', 101, 'served', 14, 'app', DATE_SUB(NOW(), INTERVAL 6 HOUR), DATE_SUB(NOW(), INTERVAL 340 MINUTE), DATE_SUB(NOW(), INTERVAL 338 MINUTE), DATE_SUB(NOW(), INTERVAL 315 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 6 HOUR), 'ready', NULL),
-  ('t-cfcu-done-02', 'q-cfcu-hwt-loan', NULL, 'LDR-P02', '510202', 102, 'served', 18, 'app', DATE_SUB(NOW(), INTERVAL 5 HOUR), DATE_SUB(NOW(), INTERVAL 278 MINUTE), DATE_SUB(NOW(), INTERVAL 276 MINUTE), DATE_SUB(NOW(), INTERVAL 250 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 5 HOUR), 'incomplete', 'Proof of address was older than three months.'),
-  ('t-cfcu-done-03', 'q-cfcu-hwt-loan', NULL, 'LDR-P03', '510203', 103, 'served', 12, 'app', DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_SUB(NOW(), INTERVAL 225 MINUTE), DATE_SUB(NOW(), INTERVAL 223 MINUTE), DATE_SUB(NOW(), INTERVAL 201 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 4 HOUR), 'ready', NULL),
-  ('t-cfcu-done-04', 'q-cfcu-hwt-loan', NULL, 'LDR-P04', '510204', 104, 'served', 16, 'app', DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 166 MINUTE), DATE_SUB(NOW(), INTERVAL 164 MINUTE), DATE_SUB(NOW(), INTERVAL 141 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-2', DATE_SUB(NOW(), INTERVAL 3 HOUR), 'incomplete', 'Only one of the two required payslips was available.'),
-  ('t-cfcu-done-05', 'q-cfcu-hwt-loan', NULL, 'LDR-P05', '510205', 105, 'served', 11, 'app', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 105 MINUTE), DATE_SUB(NOW(), INTERVAL 103 MINUTE), DATE_SUB(NOW(), INTERVAL 82 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-2', DATE_SUB(NOW(), INTERVAL 2 HOUR), 'ready', NULL),
-  ('t-cfcu-done-06', 'q-cfcu-hwt-member', NULL, 'MEM-P01', '520201', 101, 'served', 8, 'kiosk', DATE_SUB(NOW(), INTERVAL 5 HOUR), DATE_SUB(NOW(), INTERVAL 287 MINUTE), DATE_SUB(NOW(), INTERVAL 285 MINUTE), DATE_SUB(NOW(), INTERVAL 266 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 5 HOUR), 'ready', NULL),
-  ('t-cfcu-done-07', 'q-cfcu-hwt-member', NULL, 'MEM-P02', '520202', 102, 'served', 10, 'app', DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_SUB(NOW(), INTERVAL 226 MINUTE), DATE_SUB(NOW(), INTERVAL 224 MINUTE), DATE_SUB(NOW(), INTERVAL 205 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 4 HOUR), 'incomplete', 'Member did not have their TRN available.'),
-  ('t-cfcu-done-08', 'q-cfcu-hwt-member', NULL, 'MEM-P03', '520203', 103, 'served', 7, 'app', DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 169 MINUTE), DATE_SUB(NOW(), INTERVAL 167 MINUTE), DATE_SUB(NOW(), INTERVAL 149 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 3 HOUR), 'ready', NULL),
-  ('t-cfcu-done-09', 'q-cfcu-hwt-support', NULL, 'LRS-P01', '530201', 101, 'served', 5, 'app', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 111 MINUTE), DATE_SUB(NOW(), INTERVAL 109 MINUTE), DATE_SUB(NOW(), INTERVAL 95 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-support-1', DATE_SUB(NOW(), INTERVAL 2 HOUR), 'ready', NULL),
-  ('t-cfcu-done-10', 'q-cfcu-hwt-support', NULL, 'LRS-P02', '530202', 102, 'served', 6, 'app', DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 50 MINUTE), DATE_SUB(NOW(), INTERVAL 48 MINUTE), DATE_SUB(NOW(), INTERVAL 34 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-support-1', DATE_SUB(NOW(), INTERVAL 1 HOUR), 'ready', NULL)
+  ('t-cfcu-done-01', 'q-cfcu-hwt-loan', NULL, 'LDR-P01', 'D777E4', 101, 'served', 14, 'app', DATE_SUB(NOW(), INTERVAL 6 HOUR), DATE_SUB(NOW(), INTERVAL 340 MINUTE), DATE_SUB(NOW(), INTERVAL 338 MINUTE), DATE_SUB(NOW(), INTERVAL 315 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 6 HOUR), 'ready', NULL),
+  ('t-cfcu-done-02', 'q-cfcu-hwt-loan', NULL, 'LDR-P02', '7NN9D9', 102, 'served', 18, 'app', DATE_SUB(NOW(), INTERVAL 5 HOUR), DATE_SUB(NOW(), INTERVAL 278 MINUTE), DATE_SUB(NOW(), INTERVAL 276 MINUTE), DATE_SUB(NOW(), INTERVAL 250 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 5 HOUR), 'incomplete', 'Proof of address was older than three months.'),
+  ('t-cfcu-done-03', 'q-cfcu-hwt-loan', NULL, 'LDR-P03', 'FPNNDD', 103, 'served', 12, 'app', DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_SUB(NOW(), INTERVAL 225 MINUTE), DATE_SUB(NOW(), INTERVAL 223 MINUTE), DATE_SUB(NOW(), INTERVAL 201 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-1', DATE_SUB(NOW(), INTERVAL 4 HOUR), 'ready', NULL),
+  ('t-cfcu-done-04', 'q-cfcu-hwt-loan', NULL, 'LDR-P04', '437ECK', 104, 'served', 16, 'app', DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 166 MINUTE), DATE_SUB(NOW(), INTERVAL 164 MINUTE), DATE_SUB(NOW(), INTERVAL 141 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-2', DATE_SUB(NOW(), INTERVAL 3 HOUR), 'incomplete', 'Only one of the two required payslips was available.'),
+  ('t-cfcu-done-05', 'q-cfcu-hwt-loan', NULL, 'LDR-P05', '6NNE6P', 105, 'served', 11, 'app', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 105 MINUTE), DATE_SUB(NOW(), INTERVAL 103 MINUTE), DATE_SUB(NOW(), INTERVAL 82 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-loan-2', DATE_SUB(NOW(), INTERVAL 2 HOUR), 'ready', NULL),
+  ('t-cfcu-done-06', 'q-cfcu-hwt-member', NULL, 'MEM-P01', '663EAN', 101, 'served', 8, 'kiosk', DATE_SUB(NOW(), INTERVAL 5 HOUR), DATE_SUB(NOW(), INTERVAL 287 MINUTE), DATE_SUB(NOW(), INTERVAL 285 MINUTE), DATE_SUB(NOW(), INTERVAL 266 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 5 HOUR), 'ready', NULL),
+  ('t-cfcu-done-07', 'q-cfcu-hwt-member', NULL, 'MEM-P02', 'DCRM37', 102, 'served', 10, 'app', DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_SUB(NOW(), INTERVAL 226 MINUTE), DATE_SUB(NOW(), INTERVAL 224 MINUTE), DATE_SUB(NOW(), INTERVAL 205 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 4 HOUR), 'incomplete', 'Member did not have their TRN available.'),
+  ('t-cfcu-done-08', 'q-cfcu-hwt-member', NULL, 'MEM-P03', 'MP3RF9', 103, 'served', 7, 'app', DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 169 MINUTE), DATE_SUB(NOW(), INTERVAL 167 MINUTE), DATE_SUB(NOW(), INTERVAL 149 MINUTE), 'stf-cfcu-member', 'ctr-cfcu-member-1', DATE_SUB(NOW(), INTERVAL 3 HOUR), 'ready', NULL),
+  ('t-cfcu-done-09', 'q-cfcu-hwt-support', NULL, 'LRS-P01', '3PP3AD', 101, 'served', 5, 'app', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 111 MINUTE), DATE_SUB(NOW(), INTERVAL 109 MINUTE), DATE_SUB(NOW(), INTERVAL 95 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-support-1', DATE_SUB(NOW(), INTERVAL 2 HOUR), 'ready', NULL),
+  ('t-cfcu-done-10', 'q-cfcu-hwt-support', NULL, 'LRS-P02', 'Q4D7RK', 102, 'served', 6, 'app', DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 50 MINUTE), DATE_SUB(NOW(), INTERVAL 48 MINUTE), DATE_SUB(NOW(), INTERVAL 34 MINUTE), 'stf-cfcu-loan', 'ctr-cfcu-support-1', DATE_SUB(NOW(), INTERVAL 1 HOUR), 'ready', NULL)
 ON DUPLICATE KEY UPDATE
   status = VALUES(status), joined_at = VALUES(joined_at), called_at = VALUES(called_at),
   started_serving_at = VALUES(started_serving_at), completed_at = VALUES(completed_at),
@@ -283,15 +283,15 @@ INSERT INTO queue_tickets
   (id, queue_id, user_id, ticket_number, verification_code, position, status,
    estimated_wait_minutes, channel, joined_at)
 VALUES
-  ('t-cfcu-por-01', 'q-cfcu-por-loan', NULL, 'LDR-201', '610201', 1, 'waiting', 0,  'walk_in', DATE_SUB(NOW(), INTERVAL 38 MINUTE)),
-  ('t-cfcu-por-02', 'q-cfcu-por-loan', NULL, 'LDR-202', '610202', 2, 'waiting', 22, 'app',     DATE_SUB(NOW(), INTERVAL 31 MINUTE)),
-  ('t-cfcu-por-03', 'q-cfcu-por-loan', NULL, 'LDR-203', '610203', 3, 'waiting', 44, 'app',     DATE_SUB(NOW(), INTERVAL 24 MINUTE)),
-  ('t-cfcu-por-04', 'q-cfcu-por-loan', NULL, 'LDR-204', '610204', 4, 'waiting', 66, 'walk_in', DATE_SUB(NOW(), INTERVAL 17 MINUTE)),
-  ('t-cfcu-por-05', 'q-cfcu-por-loan', NULL, 'LDR-205', '610205', 5, 'waiting', 88, 'app',     DATE_SUB(NOW(), INTERVAL 9 MINUTE)),
-  ('t-cfcu-por-06', 'q-cfcu-por-member', NULL, 'MEM-201', '620201', 1, 'waiting', 0,  'app',   DATE_SUB(NOW(), INTERVAL 14 MINUTE)),
-  ('t-cfcu-por-07', 'q-cfcu-por-member', NULL, 'MEM-202', '620202', 2, 'waiting', 20, 'app',   DATE_SUB(NOW(), INTERVAL 6 MINUTE)),
-  ('t-cfcu-mob-01', 'q-cfcu-mob-loan', NULL, 'LDR-301', '710301', 1, 'waiting', 0,  'app',     DATE_SUB(NOW(), INTERVAL 11 MINUTE)),
-  ('t-cfcu-mob-02', 'q-cfcu-mob-member', NULL, 'MEM-301', '720301', 1, 'waiting', 0, 'walk_in', DATE_SUB(NOW(), INTERVAL 4 MINUTE))
+  ('t-cfcu-por-01', 'q-cfcu-por-loan', NULL, 'LDR-201', '664RQ4', 1, 'waiting', 0,  'walk_in', DATE_SUB(NOW(), INTERVAL 38 MINUTE)),
+  ('t-cfcu-por-02', 'q-cfcu-por-loan', NULL, 'LDR-202', 'MNQKDA', 2, 'waiting', 22, 'app',     DATE_SUB(NOW(), INTERVAL 31 MINUTE)),
+  ('t-cfcu-por-03', 'q-cfcu-por-loan', NULL, 'LDR-203', '4MCC49', 3, 'waiting', 44, 'app',     DATE_SUB(NOW(), INTERVAL 24 MINUTE)),
+  ('t-cfcu-por-04', 'q-cfcu-por-loan', NULL, 'LDR-204', '6FN933', 4, 'waiting', 66, 'walk_in', DATE_SUB(NOW(), INTERVAL 17 MINUTE)),
+  ('t-cfcu-por-05', 'q-cfcu-por-loan', NULL, 'LDR-205', 'FDM3RF', 5, 'waiting', 88, 'app',     DATE_SUB(NOW(), INTERVAL 9 MINUTE)),
+  ('t-cfcu-por-06', 'q-cfcu-por-member', NULL, 'MEM-201', 'QMP7ER', 1, 'waiting', 0,  'app',   DATE_SUB(NOW(), INTERVAL 14 MINUTE)),
+  ('t-cfcu-por-07', 'q-cfcu-por-member', NULL, 'MEM-202', 'D4PNE9', 2, 'waiting', 20, 'app',   DATE_SUB(NOW(), INTERVAL 6 MINUTE)),
+  ('t-cfcu-mob-01', 'q-cfcu-mob-loan', NULL, 'LDR-301', 'DDM9M6', 1, 'waiting', 0,  'app',     DATE_SUB(NOW(), INTERVAL 11 MINUTE)),
+  ('t-cfcu-mob-02', 'q-cfcu-mob-member', NULL, 'MEM-301', 'RF9MQA', 1, 'waiting', 0, 'walk_in', DATE_SUB(NOW(), INTERVAL 4 MINUTE))
 ON DUPLICATE KEY UPDATE
   queue_id = VALUES(queue_id), ticket_number = VALUES(ticket_number), position = VALUES(position),
   status = VALUES(status), estimated_wait_minutes = VALUES(estimated_wait_minutes),
@@ -304,13 +304,13 @@ INSERT INTO queue_tickets
    estimated_wait_minutes, channel, joined_at, called_at, started_serving_at, completed_at,
    served_by_staff_id, served_at_counter_id)
 VALUES
-  ('t-cfcu-por-h1', 'q-cfcu-por-loan', NULL, 'LDR-P21', '611201', 101, 'served', 41, 'app',     DATE_SUB(NOW(), INTERVAL 5 HOUR),   DATE_SUB(NOW(), INTERVAL 259 MINUTE), DATE_SUB(NOW(), INTERVAL 257 MINUTE), DATE_SUB(NOW(), INTERVAL 231 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-loan'),
-  ('t-cfcu-por-h2', 'q-cfcu-por-loan', NULL, 'LDR-P22', '611202', 102, 'served', 38, 'walk_in', DATE_SUB(NOW(), INTERVAL 4 HOUR),   DATE_SUB(NOW(), INTERVAL 202 MINUTE), DATE_SUB(NOW(), INTERVAL 200 MINUTE), DATE_SUB(NOW(), INTERVAL 176 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-loan'),
-  ('t-cfcu-por-h3', 'q-cfcu-por-member', NULL, 'MEM-P21', '621201', 101, 'served', 19, 'app',   DATE_SUB(NOW(), INTERVAL 3 HOUR),   DATE_SUB(NOW(), INTERVAL 161 MINUTE), DATE_SUB(NOW(), INTERVAL 159 MINUTE), DATE_SUB(NOW(), INTERVAL 141 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-member'),
-  ('t-cfcu-por-h4', 'q-cfcu-por-loan', NULL, 'LDR-P23', '611203', 103, 'no_show', 45, 'app',    DATE_SUB(NOW(), INTERVAL 2 HOUR),   DATE_SUB(NOW(), INTERVAL 96 MINUTE),  NULL, NULL, NULL, NULL),
-  ('t-cfcu-mob-h1', 'q-cfcu-mob-loan', NULL, 'LDR-P31', '711301', 101, 'served', 9,  'app',     DATE_SUB(NOW(), INTERVAL 5 HOUR),   DATE_SUB(NOW(), INTERVAL 291 MINUTE), DATE_SUB(NOW(), INTERVAL 289 MINUTE), DATE_SUB(NOW(), INTERVAL 271 MINUTE), 'stf-cfcu-mob-loan', 'ctr-cfcu-mob-loan'),
-  ('t-cfcu-mob-h2', 'q-cfcu-mob-loan', NULL, 'LDR-P32', '711302', 102, 'served', 7,  'walk_in', DATE_SUB(NOW(), INTERVAL 3 HOUR),   DATE_SUB(NOW(), INTERVAL 172 MINUTE), DATE_SUB(NOW(), INTERVAL 170 MINUTE), DATE_SUB(NOW(), INTERVAL 156 MINUTE), 'stf-cfcu-mob-loan', 'ctr-cfcu-mob-loan'),
-  ('t-cfcu-mob-h3', 'q-cfcu-mob-member', NULL, 'MEM-P31', '721301', 101, 'served', 11, 'app',   DATE_SUB(NOW(), INTERVAL 90 MINUTE), DATE_SUB(NOW(), INTERVAL 82 MINUTE),  DATE_SUB(NOW(), INTERVAL 80 MINUTE),  DATE_SUB(NOW(), INTERVAL 66 MINUTE),  'stf-cfcu-mob-loan', 'ctr-cfcu-mob-member')
+  ('t-cfcu-por-h1', 'q-cfcu-por-loan', NULL, 'LDR-P21', 'ARQC3C', 101, 'served', 41, 'app',     DATE_SUB(NOW(), INTERVAL 5 HOUR),   DATE_SUB(NOW(), INTERVAL 259 MINUTE), DATE_SUB(NOW(), INTERVAL 257 MINUTE), DATE_SUB(NOW(), INTERVAL 231 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-loan'),
+  ('t-cfcu-por-h2', 'q-cfcu-por-loan', NULL, 'LDR-P22', '7EA664', 102, 'served', 38, 'walk_in', DATE_SUB(NOW(), INTERVAL 4 HOUR),   DATE_SUB(NOW(), INTERVAL 202 MINUTE), DATE_SUB(NOW(), INTERVAL 200 MINUTE), DATE_SUB(NOW(), INTERVAL 176 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-loan'),
+  ('t-cfcu-por-h3', 'q-cfcu-por-member', NULL, 'MEM-P21', '4M73AK', 101, 'served', 19, 'app',   DATE_SUB(NOW(), INTERVAL 3 HOUR),   DATE_SUB(NOW(), INTERVAL 161 MINUTE), DATE_SUB(NOW(), INTERVAL 159 MINUTE), DATE_SUB(NOW(), INTERVAL 141 MINUTE), 'stf-cfcu-por-loan', 'ctr-cfcu-por-member'),
+  ('t-cfcu-por-h4', 'q-cfcu-por-loan', NULL, 'LDR-P23', 'PQKQCP', 103, 'no_show', 45, 'app',    DATE_SUB(NOW(), INTERVAL 2 HOUR),   DATE_SUB(NOW(), INTERVAL 96 MINUTE),  NULL, NULL, NULL, NULL),
+  ('t-cfcu-mob-h1', 'q-cfcu-mob-loan', NULL, 'LDR-P31', 'MQFAC6', 101, 'served', 9,  'app',     DATE_SUB(NOW(), INTERVAL 5 HOUR),   DATE_SUB(NOW(), INTERVAL 291 MINUTE), DATE_SUB(NOW(), INTERVAL 289 MINUTE), DATE_SUB(NOW(), INTERVAL 271 MINUTE), 'stf-cfcu-mob-loan', 'ctr-cfcu-mob-loan'),
+  ('t-cfcu-mob-h2', 'q-cfcu-mob-loan', NULL, 'LDR-P32', '6P4RMC', 102, 'served', 7,  'walk_in', DATE_SUB(NOW(), INTERVAL 3 HOUR),   DATE_SUB(NOW(), INTERVAL 172 MINUTE), DATE_SUB(NOW(), INTERVAL 170 MINUTE), DATE_SUB(NOW(), INTERVAL 156 MINUTE), 'stf-cfcu-mob-loan', 'ctr-cfcu-mob-loan'),
+  ('t-cfcu-mob-h3', 'q-cfcu-mob-member', NULL, 'MEM-P31', 'ANAEAN', 101, 'served', 11, 'app',   DATE_SUB(NOW(), INTERVAL 90 MINUTE), DATE_SUB(NOW(), INTERVAL 82 MINUTE),  DATE_SUB(NOW(), INTERVAL 80 MINUTE),  DATE_SUB(NOW(), INTERVAL 66 MINUTE),  'stf-cfcu-mob-loan', 'ctr-cfcu-mob-member')
 ON DUPLICATE KEY UPDATE
   status = VALUES(status), joined_at = VALUES(joined_at), called_at = VALUES(called_at),
   started_serving_at = VALUES(started_serving_at), completed_at = VALUES(completed_at),

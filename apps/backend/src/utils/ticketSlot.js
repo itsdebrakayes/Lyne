@@ -21,17 +21,37 @@ const { projectedWaitMinutes } = require('./etaMath');
 const { estimateWaitMinutes } = require('./waitEstimator');
 
 /**
- * A six-digit numeric code, read off a phone or a printed ticket and typed at
- * the counter. Digits rather than hex because it is read aloud across a desk,
- * typed on a numeric keypad, and never has to survive "is that a B or an 8".
+ * A six-character code, read off a phone or a printed ticket and typed at the
+ * counter.
  *
- * Six digits is 900,000 values, which is not enough to stay unique across every
- * ticket a branch will ever issue — so uniqueness is scoped to the queue (one
- * service, one day) by migration 019. Collisions inside that window are
- * retried at insert.
+ * This was six digits, and the reasoning for digits was that a code gets read
+ * aloud across a desk and should never have to survive "is that a B or an 8".
+ * That argument is answered by the alphabet rather than by dropping letters:
+ * 0/O, 1/I/L, 2/Z, 5/S and 8/B are simply not in it, so no two characters in
+ * the set look or sound alike. What is left is 25 characters.
+ *
+ * The reason to change was the other side of it. Six digits is 900,000 values
+ * and a generator walks that in seconds; 25^6 is 244 million — about 270 times
+ * the work, for the same six boxes on screen and the same effort for the person
+ * reading it out. The code is the only thing standing between a queue position
+ * and whoever claims it, so a free 270-fold is worth taking.
+ *
+ * Still not unique across every ticket a branch will ever issue — uniqueness is
+ * scoped to the queue (one service, one day) by migration 019, and collisions
+ * inside that window are retried at insert.
+ *
+ * randomInt, not Math.random: this is a credential, and it is drawn without
+ * modulo bias because the alphabet size is passed to the generator itself.
  */
+const CODE_ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
+const CODE_LENGTH = 6;
+
 function createVerificationCode() {
-  return String(crypto.randomInt(100000, 1000000));
+  let out = '';
+  for (let i = 0; i < CODE_LENGTH; i += 1) {
+    out += CODE_ALPHABET[crypto.randomInt(0, CODE_ALPHABET.length)];
+  }
+  return out;
 }
 
 /**
@@ -107,4 +127,6 @@ async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avg
   };
 }
 
-module.exports = { issueTicketSlot, createVerificationCode };
+module.exports = {
+  CODE_ALPHABET,
+  CODE_LENGTH, issueTicketSlot, createVerificationCode };

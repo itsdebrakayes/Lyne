@@ -440,7 +440,7 @@ SELECT
   q.id,
   NULL,
   CONCAT(s.ticket_prefix, '-', LPAD(seq.n, 3, '0')),
-  LPAD(FLOOR(RAND(CRC32(CONCAT(q.id, seq.n))) * 1000000), 6, '0'),
+  UPPER(SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(MD5(CONCAT(q.id, ':', seq.n)),'0','K'),'1','M'),'2','N'),'5','P'),'8','Q'),'b','R'), 1, 6)),
   seq.n,
   /* Seat 1 serves; nobody is left 'called'. Same reason as the active seed: a
      seeded call ages against a five-minute countdown, so it is expired before
@@ -610,7 +610,7 @@ SELECT
   -- The motorist's own reference: the ticket number, which is what they hold and
   -- what the court's cause list keys on.
   CONCAT('TKT-', LPAD(40000 + seq.n * 13, 6, '0')),
-  LPAD(FLOOR(RAND(seq.n * 977) * 1000000), 6, '0'),
+  UPPER(SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(MD5(CONCAT('s:', seq.n)),'0','K'),'1','M'),'2','N'),'5','P'),'8','Q'),'b','R'), 1, 6)),
   DATE_SUB(NOW(), INTERVAL MOD(seq.n, 5) DAY),
   'registered'
 FROM (SELECT (a.d + b.d * 10) + 1 AS n FROM
