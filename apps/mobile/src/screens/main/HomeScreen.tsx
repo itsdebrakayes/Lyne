@@ -11,7 +11,6 @@ import { TabBar, useActiveTicket } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
-import { sessionDayLabel } from './SessionScreen';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
@@ -106,24 +105,6 @@ export default function HomeScreen() {
      the cards, and the bell showed "0 unread" whether there were none or the
      request had failed. Silence is the worst of the four states — the screen
      looks correct and is wrong. */
-  /* Sittings you have to hold a place at in advance.
-     Deliberately conditional: this returns nothing on almost every day, and on
-     those days the card does not exist at all. A permanent "Sessions" entry
-     pointing at an empty list is a door to nowhere — the feature should appear
-     when there is something to register for and be invisible otherwise.
-     Failures are swallowed for the same reason: a sitting nobody can see is
-     the normal state, so a broken fetch must not put an error on a Home screen
-     that is otherwise fine. */
-  const { data: openSessions = [] } = useQuery({
-    queryKey: ['public-sessions'],
-    queryFn: () => api.get<Array<{
-      id: string; name: string; session_date: string; starts_at: string;
-      places_remaining: number; business_name?: string | null; location_name?: string | null;
-    }>>('/sessions/public'),
-    staleTime: 5 * 60_000,
-    retry: 0,
-  });
-  const sitting = openSessions[0];
 
   const { data: businesses = [], isError: businessesFailed } = useQuery({
     queryKey: ['mobile-businesses'],
@@ -452,35 +433,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Only rendered when a sitting is actually open. */}
-        {sitting ? (
-          <Press
-            role="button" haptic
-            label={`Register for ${sitting.name}`}
-            onPress={() => navigation.navigate('Session', { sessionId: sitting.id })}
-            style={{
-              marginTop: 26, borderRadius: radius.xl, padding: 18,
-              backgroundColor: colors.dark, gap: 10, ...shadow.hero,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />
-              <Text style={{ fontFamily: font.bold, fontSize: 11, letterSpacing: 0.7, color: 'rgba(255,255,255,.66)' }}>
-                REGISTRATION OPEN
-              </Text>
-            </View>
-            <Text style={{ fontFamily: font.extra, fontSize: 18, lineHeight: 24, color: '#fff', letterSpacing: -0.3 }}>
-              {sitting.name}
-            </Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.72)' }}>
-              {sessionDayLabel(sitting.session_date)} · {sitting.places_remaining} places left
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.accent }}>Hold a place</Text>
-              <Icon name="arrowRight" size={15} color={colors.accent} />
-            </View>
-          </Press>
-        ) : null}
 
         {/* The heading and its "See all" render straight away and stay put; only
             what sits under them changes. A slow or failed rail leaves a labelled
