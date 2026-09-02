@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lyne">
+  <!-- Provisional mark: the navy ground and the accent blue are the real tokens
+       (colors.dark #0c1826, colors.accent #1b4b8f), the letterform is a stand-in
+       until the logo lands. A wrong-but-branded icon beats the browser's default
+       page glyph, which is what was showing. -->
+  <rect width="64" height="64" rx="16" fill="#0c1826"/>
+  <path d="M23 17.5h6.4v22.6h12.1v6.4H23z" fill="#3d7fd6"/>
+</svg>
