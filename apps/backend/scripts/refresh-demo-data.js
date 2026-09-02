@@ -111,10 +111,16 @@ const UUID_SHAPED = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 async function clearSeedTickets(connection) {
   const [result] = await connection.query(
+    /* served_by_staff_id is only ever written by a real desk action, so a row
+       carrying one is no longer seed data no matter what its id looks like. It
+       stays. Without this, a clerk's completed visit was deleted two hours
+       later and re-created as 'in_service' — the work saved correctly and then
+       vanished, which reads as the product forgetting. */
     `DELETE t FROM queue_tickets t
        JOIN queues q ON q.id = t.queue_id
       WHERE q.queue_date = CURDATE()
-        AND t.id NOT REGEXP ?`,
+        AND t.id NOT REGEXP ?
+        AND t.served_by_staff_id IS NULL`,
     [UUID_SHAPED]
   );
   return result.affectedRows || 0;

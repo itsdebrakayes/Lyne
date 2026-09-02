@@ -979,8 +979,15 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       extraFields = ', started_serving_at = ?, served_by_staff_id = ?, served_at_counter_id = COALESCE(?, served_at_counter_id)';
       extraParams = [now, req.dbStaff?.id || null, activeCounterId];
     } else if (new_status === 'served') {
-      extraFields = ', completed_at = ?';
-      extraParams = [now];
+      /* Stamp who closed it, not just when.
+       *
+       * served_by_staff_id was written on the call and the in_service
+       * transitions only. A ticket that arrives already in_service — every
+       * seeded one does — and is simply completed therefore had no staff
+       * against it at all, so the record could not say who dealt with the
+       * person. COALESCE keeps whoever called them if that is already set. */
+      extraFields = ', completed_at = ?, served_by_staff_id = COALESCE(served_by_staff_id, ?)';
+      extraParams = [now, req.dbStaff?.id || null];
       if (readiness_outcome) {
         extraFields += ', readiness_outcome = ?, readiness_note = ?';
         extraParams.push(readiness_outcome, readiness_outcome === 'incomplete' ? readiness_note.trim() : null);

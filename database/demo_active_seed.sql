@@ -403,17 +403,30 @@ WHERE q.queue_date = CURDATE()
   AND CURTIME() BETWEEN COALESCE(b.opening_time, bz.default_opening_time)
                     AND COALESCE(b.closing_time, bz.default_closing_time)
   AND seq.n <= 3 + MOD(CRC32(q.id), 8)
+/* A ticket a real member of staff has handled is not seed data any more.
+ *
+ * Ticket ids are stable per (queue, seat), so every re-seed lands on the same
+ * rows — and this clause used to overwrite status unconditionally. A clerk who
+ * called TRN-001, verified them and completed the visit watched the re-seed put
+ * TRN-001 back to 'in_service' two hours later with the completion erased. The
+ * work WAS saved; the seeder took it away again, which is worse than not saving
+ * it, because it looks like the product forgot.
+ *
+ * served_by_staff_id is the signal: nothing but a real desk action writes it.
+ * Where it is set, the row keeps everything it earned and the seed only tops up
+ * the seats nobody has touched. `queue_tickets.col` inside ON DUPLICATE KEY
+ * UPDATE is the EXISTING value; VALUES(col) is the incoming one. */
 ON DUPLICATE KEY UPDATE
-  user_id = VALUES(user_id),
-  ticket_number = VALUES(ticket_number),
-  position = VALUES(position),
-  status = VALUES(status),
-  estimated_wait_minutes = VALUES(estimated_wait_minutes),
-  joined_at = VALUES(joined_at),
-  called_at = VALUES(called_at),
-  call_timeout_seconds = VALUES(call_timeout_seconds),
-  call_expires_at = VALUES(call_expires_at),
-  started_serving_at = VALUES(started_serving_at),
+  user_id       = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.user_id,       VALUES(user_id)),
+  ticket_number = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.ticket_number, VALUES(ticket_number)),
+  position      = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.position,      VALUES(position)),
+  status        = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.status,        VALUES(status)),
+  estimated_wait_minutes = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.estimated_wait_minutes, VALUES(estimated_wait_minutes)),
+  joined_at     = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.joined_at,     VALUES(joined_at)),
+  called_at     = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.called_at,     VALUES(called_at)),
+  call_timeout_seconds = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.call_timeout_seconds, VALUES(call_timeout_seconds)),
+  call_expires_at = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.call_expires_at, VALUES(call_expires_at)),
+  started_serving_at = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.started_serving_at, VALUES(started_serving_at)),
   -- A revived ticket was never completed, and it was never closed.
   --
   -- Ticket ids here are stable per (queue, seat), so a re-seed lands on rows
@@ -425,10 +438,12 @@ ON DUPLICATE KEY UPDATE
   --
   -- Only the live statuses are cleared. A row the seed genuinely writes as
   -- served keeps the completion it was given.
-  completed_at = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
-                      THEN NULL ELSE VALUES(completed_at) END,
-  closed_reason = CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
-                       THEN NULL ELSE closed_reason END;
+  completed_at = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.completed_at,
+                    CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                         THEN NULL ELSE VALUES(completed_at) END),
+  closed_reason = IF(queue_tickets.served_by_staff_id IS NOT NULL, queue_tickets.closed_reason,
+                     CASE WHEN VALUES(status) IN ('waiting', 'called', 'in_service')
+                          THEN NULL ELSE closed_reason END);
 
 INSERT INTO queue_events (id, ticket_id, previous_status, new_status, event_timestamp, triggered_by_staff_id, notes)
 SELECT
