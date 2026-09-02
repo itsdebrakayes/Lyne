@@ -143,7 +143,13 @@ SELECT
   br.id,
   s.id,
   200 + ROW_NUMBER() OVER (PARTITION BY br.id ORDER BY s.name, seq.n) AS counter_number,
-  CONCAT('Window ', s.name, ' - ', seq.n) AS label,
+  -- seq.n first, then the service: "Window 3 - TRN Registration".
+  -- It was CONCAT('Window ', s.name, ' - ', seq.n), which produced
+  -- "Window TRN Registration - 3" — the number reading as part of the service
+  -- name. seq.n is the nth window FOR THIS SERVICE, which is how a branch
+  -- refers to them out loud, and it is what the header chip shows a clerk all
+  -- day.
+  CONCAT('Window ', seq.n, ' - ', s.name) AS label,
   TRUE
 FROM branches br
 JOIN services s ON s.business_id = br.business_id AND s.is_active = TRUE
