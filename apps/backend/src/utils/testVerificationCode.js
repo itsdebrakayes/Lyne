@@ -1,5 +1,5 @@
 /**
- * testVerificationCode.js — a six-digit code that skips customer verification,
+ * testVerificationCode.js — a six-character code that skips customer verification,
  * for testing only.
  *
  * The counter screen will not start service without the code the customer is
@@ -15,7 +15,8 @@
  *      There is no default, and no fallback value in this file to discover.
  *   2. It refuses to work when NODE_ENV is 'production', whatever is set.
  *      A .env copied from a laptop to the server does not carry it across.
- *   3. It must be exactly six digits, so it cannot be a word someone guesses,
+ *   3. It must be exactly six letters or digits, so it cannot be a phrase
+ *      somebody guesses,
  *      and it looks like every other code in the system rather than announcing
  *      itself in the UI.
  *   4. Every use is logged with the ticket and the staff member. A bypass that
@@ -34,8 +35,8 @@ const ENABLED = (() => {
     console.warn('[verification-bypass] STAFF_TEST_VERIFICATION_CODE is set but IGNORED: NODE_ENV is production.');
     return null;
   }
-  if (!/^\d{6}$/.test(RAW.trim())) {
-    console.warn('[verification-bypass] STAFF_TEST_VERIFICATION_CODE is set but IGNORED: it must be exactly six digits.');
+  if (!/^[A-Za-z0-9]{6}$/.test(RAW.trim())) {
+    console.warn('[verification-bypass] STAFF_TEST_VERIFICATION_CODE is set but IGNORED: it must be exactly six letters or digits.');
     return null;
   }
   console.warn(`[verification-bypass] ACTIVE. Any ticket will accept ${RAW.trim()} as its code. Remove STAFF_TEST_VERIFICATION_CODE before deploying.`);
@@ -50,7 +51,10 @@ const ENABLED = (() => {
  */
 function isTestVerificationCode(submitted) {
   if (!ENABLED) return false;
-  return String(submitted || '').trim() === ENABLED;
+  /* Case-insensitive, because real codes are: the counter uppercases what the
+     clerk types before comparing, and an override that only matched one casing
+     would fail in the one situation it exists for. */
+  return String(submitted || '').trim().toUpperCase() === ENABLED.toUpperCase();
 }
 
 /** Whether the bypass is live, for the health endpoint to report honestly. */

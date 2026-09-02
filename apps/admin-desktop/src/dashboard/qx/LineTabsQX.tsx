@@ -413,7 +413,7 @@ export function LineOverviewQX() {
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
 
-  /* One continuous six-digit entry, not six separate fields. Type straight
+  /* One continuous six-character entry, not six separate fields. Type straight
      through and focus follows; backspace on an empty box steps back; pasting or
      an SMS autofill drops the whole code in at once. Anything non-numeric is
      ignored rather than rejected with an error. */
@@ -432,10 +432,16 @@ export function LineOverviewQX() {
     setCodeState('idle');
   };
 
+  /* Codes are alphanumeric now, so this can no longer strip anything that is not
+     a digit — that silently ate every letter and left the clerk staring at boxes
+     that would not fill. Uppercased on the way in because the codes are, and
+     because nobody types shift while reading a number off a stranger's phone.
+     The ambiguous characters (0/O, 1/I/L, 2/Z, 5/S, 8/B) are not in the
+     generator's alphabet, so there is nothing to disambiguate here. */
   const onDigitChange = (i: number, raw: string) => {
-    const digits = raw.replace(/\D/g, '');
-    if (!digits) { setCode((p) => { const n = [...p]; n[i] = ''; return n; }); setCodeState('idle'); return; }
-    writeFrom(i, digits);
+    const chars = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!chars) { setCode((p) => { const n = [...p]; n[i] = ''; return n; }); setCodeState('idle'); return; }
+    writeFrom(i, chars);
   };
 
   const onDigitKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -452,7 +458,7 @@ export function LineOverviewQX() {
 
   /* The code is checked by the SERVER, against the code stored on the ticket.
      This used to be `setCodeState(codeReady ? 'ok' : 'bad')` — it passed if six
-     digits were present, whatever they were, so any six digits started a
+     characters were present, whatever they were, so any six started a
      service on someone else's ticket. PUT /tickets/:id/status refuses the
      transition with a 403 unless the code matches, so starting the service IS
      the check: if it succeeds the code was right. */
@@ -606,7 +612,7 @@ export function LineOverviewQX() {
           <div className="ql-verify">
             <b>Check Their Code Before You Start</b>
             <small>
-              The customer has a six-digit code on their phone, or printed on their kiosk ticket.
+              The customer has a six-character code on their phone, or printed on their kiosk ticket.
               It confirms you have the right person. Tickets issued without a code can be started without one.
             </small>
             <div className="ql-code" onPaste={(e) => {
@@ -615,7 +621,7 @@ export function LineOverviewQX() {
             }}>
               {code.map((c, i) => (
                 <input key={i} ref={(el) => { boxes.current[i] = el; }}
-                  inputMode="numeric" autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  inputMode="text" autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   // Not maxLength=1: typing through, or an autofill, delivers
                   // several digits at once and they should spread across boxes.
                   value={c}
@@ -746,7 +752,7 @@ export function LineOverviewQX() {
                   transition unless the code matches, so there is no way to
                   start one without a verified customer. */}
               <button type="button" className="ql-btn primary" onClick={verify} disabled={!codeReady || busy}
-                title={codeReady ? undefined : 'Enter their six-digit code first'}>
+                title={codeReady ? undefined : 'Enter their six-character code first'}>
                 <Check size={18} />{busy ? 'Checking…' : 'Start Service'}
               </button>
               <button type="button" className="ql-btn" disabled={busy}
