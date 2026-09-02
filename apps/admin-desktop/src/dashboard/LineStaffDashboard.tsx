@@ -197,10 +197,17 @@ export default function LineStaffDashboard() {
     // The code travels to the server; a wrong one throws and the UI says so.
     onStartServing: (id: string, code: string) =>
       deskStatus(id, { new_status: 'in_service', verification_code: code }),
-    onComplete: (id: string, outcome?: 'ready' | 'incomplete', note?: string) => deskStatus(id, {
+    /* closedReason marks a visit that happened but did not achieve what the
+       person came for. Status stays 'served' on purpose — the desk time was
+       real, and every completion-rate query and the ML training set behind them
+       count that status. Separating the counts is a scheduled analytics change;
+       this starts recording the marker so there is history behind it when it
+       lands. */
+    onComplete: (id: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => deskStatus(id, {
       new_status: 'served',
       ...(outcome ? { readiness_outcome: outcome } : {}),
       ...(note ? { readiness_note: note } : {}),
+      ...(closedReason ? { closed_reason: closedReason } : {}),
     }),
     onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
     onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
