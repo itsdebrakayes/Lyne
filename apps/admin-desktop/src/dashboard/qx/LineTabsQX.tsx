@@ -76,7 +76,7 @@ export type LineTabData = {
   onCall?: (ticketId: string) => Promise<void> | void;
   /** Starts the service. The code goes to the SERVER, which is what checks it. */
   onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
-  onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string) => Promise<void> | void;
+  onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => Promise<void> | void;
   onNoShow?: (ticketId: string) => Promise<void> | void;
   onCallAgain?: (ticketId: string) => Promise<void> | void;
   /** How many times the person at the window has been called. */
@@ -131,6 +131,26 @@ export const LINE_EMPTY: LineTabData = {
 const LineCtx = createContext<LineTabData>(LINE_FIXTURES);
 export const LineDataProvider = LineCtx.Provider;
 const useLine = () => useContext(LineCtx);
+
+/**
+ * Why a visit ended at the desk without being finished.
+ *
+ * Distinct from the readiness outcome above it, which answers "did they bring
+ * what they needed" and is recorded whether or not the visit completed. This
+ * answers "why did we stop", and until now there was no way to say it: the desk
+ * could write an incomplete NOTE but every visit still closed as served, so a
+ * clerk who ran out of day and a clerk who finished looked identical afterwards.
+ *
+ * Values match INCOMPLETE_REASONS on the server.
+ */
+const INCOMPLETE_REASONS: { value: string; label: string }[] = [
+  { value: 'day_ended', label: 'The day ended' },
+  { value: 'wrong_documents', label: 'Did not have the right documents' },
+  { value: 'wrong_service', label: 'Needed a different service' },
+  { value: 'referred_elsewhere', label: 'Referred to another office' },
+  { value: 'customer_left', label: 'Customer left part-way through' },
+  { value: 'system_issue', label: 'System or payment problem' },
+];
 
 const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy' | 'soon' | 'closed' }> = {
   served: { label: 'Served', kind: 'open' },
@@ -255,6 +275,9 @@ export function LineOverviewQX() {
   const [readinessChoice, setReadinessChoice] = useState<'ready' | 'incomplete' | null>(null);
   const [readinessNote, setReadinessNote] = useState('');
   const [readinessError, setReadinessError] = useState<string | null>(null);
+  /* Empty string means the panel is closed; a chosen value arms the confirm. */
+  const [endingIncomplete, setEndingIncomplete] = useState(false);
+  const [incompleteReason, setIncompleteReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
@@ -335,6 +358,19 @@ export function LineOverviewQX() {
     }
     setReadinessError(null);
     run(() => d.onComplete?.(activeId, readinessChoice || undefined, readinessNote.trim() || undefined));
+  };
+
+  /* Ending unfinished is the same close with a reason attached, not a different
+     kind of ending — the person was at the desk and the desk time was real.
+     What changes is that the visit is now marked as not having achieved what
+     they came for, which is the thing the counts could never see. */
+  const endIncomplete = () => {
+    if (!activeId || !incompleteReason) return;
+    run(async () => {
+      await d.onComplete?.(activeId, readinessChoice || undefined, readinessNote.trim() || undefined, incompleteReason);
+      setEndingIncomplete(false);
+      setIncompleteReason('');
+    });
   };
 
   const codeReady = code.every((c) => c.length === 1);
@@ -638,6 +674,12 @@ export function LineOverviewQX() {
                 disabled={busy || Boolean(active?.readinessExpected && !readinessChoice)}>
                 <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete And Call Next'}
               </button>
+              {/* Second, quieter, and never the default. Most visits finish. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
+                aria-expanded={endingIncomplete}>
+                <AlertTriangle size={17} />End As Unfinished
+              </button>
               {/* Transfer and Requeue used to sit here, and BOTH were wired to
                   `finish` — the Complete action. Three buttons, three labels,
                   one behaviour: pressing Transfer silently closed the visit as
@@ -655,6 +697,39 @@ export function LineOverviewQX() {
             </>
           ) : null}
         </div>
+
+        {/* The reason, revealed only when asked for. A permanent dropdown beside
+            Complete would invite a clerk to fill it in on visits that finished
+            perfectly well. */}
+        {stage === 'serving' && endingIncomplete ? (
+          <div className="ql-readiness" role="group" aria-label="End this visit as unfinished">
+            <label htmlFor="incomplete-reason">Why is this visit ending unfinished?</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+              <span className="qx-select">
+                <select id="incomplete-reason" value={incompleteReason}
+                  onChange={(e) => setIncompleteReason(e.target.value)}>
+                  <option value="">Choose a reason…</option>
+                  {INCOMPLETE_REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+                <ChevronDown />
+              </span>
+              <button type="button" className="ql-btn danger" onClick={endIncomplete}
+                disabled={!incompleteReason || busy}>
+                {busy ? 'Saving…' : 'End Visit As Unfinished'}
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setEndingIncomplete(false); setIncompleteReason(''); }}>
+                Cancel
+              </button>
+            </div>
+            <small>
+              The visit still counts as time spent at your desk. It is recorded as
+              not having achieved what the person came for.
+            </small>
+          </div>
+        ) : null}
 
         {stage === 'called' && calls > 1 ? (
           <div style={{ marginTop: 12, fontSize: 12, opacity: .72, fontWeight: 600 }}>

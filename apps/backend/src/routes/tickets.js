@@ -99,6 +99,10 @@ const updateStatusSchema = z.object({
   notes: z.string().max(1000).optional(),
   readiness_outcome: z.enum(['ready', 'incomplete']).optional(),
   readiness_note: z.string().trim().max(255).optional(),
+  /* Why a visit ended without being finished. Validated against
+     INCOMPLETE_REASONS below rather than as an enum here, so the reason list
+     lives in one place next to the comment explaining what it means. */
+  closed_reason: z.string().trim().max(40).optional(),
 });
 
 function periodCondition(period, month) {
@@ -763,6 +767,27 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
  * requireTicketAccess still gates it, so this is the ticket holder's own answer
  * about their own visit.
  */
+/**
+ * Why a visit ended at the desk without being finished.
+ *
+ * Stored in closed_reason on a ticket whose status is 'served' — the visit
+ * genuinely happened and took desk time, it just did not achieve what the
+ * person came for. Status is deliberately NOT changed: every completion-rate
+ * query in the product, and the ML training set behind them, counts 'served',
+ * and moving these rows out of it is an analytics change with its own migration
+ * that Debra has scheduled AFTER the demos.
+ *
+ * So the marker starts accumulating now and the counting changes later. When it
+ * does, the rule is already expressible without a new column: a served ticket
+ * carrying a closed_reason is one that did not complete. Service TIME still
+ * counts either way — the desk was occupied, and excluding it would skew every
+ * ETA in the product.
+ */
+const INCOMPLETE_REASONS = new Set([
+  'day_ended', 'wrong_documents', 'wrong_service', 'referred_elsewhere',
+  'customer_left', 'system_issue',
+]);
+
 const LEAVE_REASONS = new Set([
   'wait_too_long', 'no_longer_needed', 'wrong_line', 'came_back_later', 'served_elsewhere', 'other',
 ]);
@@ -860,7 +885,7 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
   try {
     await conn.beginTransaction();
 
-    const { new_status, verification_code, notes, readiness_outcome, readiness_note } = parsed.data;
+    const { new_status, verification_code, notes, readiness_outcome, readiness_note, closed_reason } = parsed.data;
 
     const [tickets] = await conn.query(
       `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name,
@@ -898,6 +923,14 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       return res.status(400).json({
         error: 'Record whether the member was ready before completing this visit.',
       });
+    }
+    if (closed_reason && new_status !== 'served') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'A reason for an unfinished visit belongs on the completing step.' });
+    }
+    if (closed_reason && !INCOMPLETE_REASONS.has(closed_reason)) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Unknown reason for an unfinished visit.' });
     }
     if (readiness_outcome === 'incomplete' && (!readiness_note || readiness_note.trim().length < 3)) {
       await conn.rollback();
@@ -945,6 +978,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
         extraFields += ', readiness_outcome = ?, readiness_note = ?';
         extraParams.push(readiness_outcome, readiness_outcome === 'incomplete' ? readiness_note.trim() : null);
       }
+      /* Null on a normal completion, so "finished" stays the absence of a
+         reason rather than a second value to remember to clear. */
+      extraFields += ', closed_reason = ?';
+      extraParams.push(closed_reason || null);
     } else if (new_status === 'no_show') {
       extraFields = ', completed_at = ?';
       extraParams = [now];
