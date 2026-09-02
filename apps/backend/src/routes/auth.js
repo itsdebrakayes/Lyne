@@ -102,6 +102,42 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
     const { full_name, phone, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
 
+    /* A staff member is not a customer, and this route used to make them one.
+     *
+     * The mobile app calls sync-user for EVERY sign-in before it calls /auth/me
+     * to find out who it is talking to. So a kiosk clerk — the one staff role
+     * the phone serves — arrived here first, and if their staff row had no
+     * supabase_uid yet, nothing identified them as staff: a users row was
+     * minted, the uid bound to it, and from that moment the address resolved as
+     * a customer. That is why signing in as the kiosk account landed on the
+     * customer tabs instead of the kiosk console.
+     *
+     * It is also permanent without intervention, and it is not limited to
+     * kiosks: any manager or line-staff member who tries the phone gets a
+     * silent customer account for their work address.
+     *
+     * Two guards, and neither may throw — the client calls this unconditionally
+     * and then asks /auth/me, so an error here breaks kiosk sign-in entirely.
+     */
+    if (req.dbStaff) {
+      // Already known to be staff. Nothing to sync; /auth/me will route them.
+      return res.json({ user: null, created: false, staff: true });
+    }
+    const [staffByEmail] = await pool.query(
+      'SELECT id FROM staff WHERE email = ? AND is_active = TRUE LIMIT 1',
+      [supabaseUser.email]
+    );
+    if (staffByEmail.length) {
+      /* A staff row exists for this address but is not linked to this identity.
+         Refusing beats creating a customer: the account keeps its staff meaning
+         and somebody can link it, where a customer row would have to be found
+         and unpicked first. */
+      return res.status(409).json({
+        error: 'This address belongs to a staff account that has not been linked yet. Ask an administrator to link it before signing in.',
+        staff_unlinked: true,
+      });
+    }
+
     // Already synced?
     if (req.dbUser) {
       // Update profile fields if provided
