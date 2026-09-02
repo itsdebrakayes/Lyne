@@ -438,6 +438,13 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
               t.completed_at, t.call_timeout_seconds, t.call_expires_at,
               t.served_by_staff_id, t.served_at_counter_id,
               t.readiness_shown_at, t.readiness_outcome, t.readiness_note,
+              /* How they got into this line, and whether they have been called
+                 before. The desk had neither: every row looked the same whether
+                 the person walked up to a kiosk or joined from a bus, and a
+                 clerk could not tell a first call from a third. */
+              t.channel, t.guest_name,
+              (SELECT COUNT(*) FROM queue_events e
+                WHERE e.ticket_id = t.id AND e.new_status = 'called') AS call_count,
               (SELECT COUNT(*) FROM service_readiness sr
                 WHERE sr.service_id = q.service_id AND sr.is_active = TRUE) AS readiness_item_count,
               u.full_name AS user_name, u.phone AS user_phone,

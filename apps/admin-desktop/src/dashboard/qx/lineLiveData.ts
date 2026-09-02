@@ -56,6 +56,9 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       readinessShown: Boolean(t.readiness_shown_at),
       readinessOutcome: t.readiness_outcome || 'not_checked',
       readinessNote: t.readiness_note || null,
+      joinedAt: t.joined_at || null,
+      channel: t.channel || null,
+      callCount: num(t.call_count),
     }));
 
   const history: LineDone[] = i.history.map((t) => ({

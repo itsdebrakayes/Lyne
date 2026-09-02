@@ -51,6 +51,12 @@ export type LineTicket = {
   readinessShown?: boolean;
   readinessOutcome?: 'ready' | 'incomplete' | 'not_checked';
   readinessNote?: string | null;
+  /** When they actually joined — the clock time, not the elapsed minutes. */
+  joinedAt?: string | null;
+  /** How they got into the line: from the app, a kiosk, or walking up. */
+  channel?: string | null;
+  /** How many times they have been called. Two is a different situation. */
+  callCount?: number;
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
@@ -143,6 +149,24 @@ const useLine = () => useContext(LineCtx);
  *
  * Values match INCOMPLETE_REASONS on the server.
  */
+/* Plain words, because the column is narrow and a clerk is reading it while
+   somebody stands in front of them. The join TIME sits in its own column, so
+   these do not need to carry "arrived 09:52" the way a mock-up caption can. */
+const CHANNEL_LABEL: Record<string, string> = {
+  app: 'App',
+  walk_in: 'Walk-in',
+  kiosk: 'Kiosk',
+};
+function channelOf(t: { channel?: string | null }) {
+  return CHANNEL_LABEL[String(t.channel || '')] || 'Walk-in';
+}
+/** 09:52, in the branch's own clock. */
+function joinedClock(iso?: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 const INCOMPLETE_REASONS: { value: string; label: string }[] = [
   { value: 'day_ended', label: 'The day ended' },
   { value: 'wrong_documents', label: 'Did not have the right documents' },
@@ -242,7 +266,11 @@ const clock = (secs: number) => {
 /** After this long with no response, marking a no-show is allowed. */
 const NO_SHOW_AFTER = 5 * 60;
 
-const LQ_GRID = 'minmax(0,1.5fr) 92px 96px';
+/* Ticket · Joined · Channel · Waited · action. Elapsed minutes alone could not
+   answer "has this person been here since we opened, or did they arrive during
+   the rush", and neither could it say whether they walked up or joined from
+   home — both of which change how a clerk reads the row. */
+const LQ_GRID = 'minmax(0,1.4fr) 78px 92px 88px 96px';
 
 export function LineOverviewQX() {
   const terms = useSectorTerms();
@@ -654,7 +682,7 @@ export function LineOverviewQX() {
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { if (activeId) run(() => d.onCallAgain?.(activeId)); }}>
-                <Bell size={17} />Call Again
+                <Bell size={17} />Recall
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}>
@@ -663,7 +691,7 @@ export function LineOverviewQX() {
               <button type="button" className="ql-btn danger" disabled={!canNoShow || busy}
                 onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}
                 title={canNoShow ? undefined : 'Available five minutes after you first called them'}>
-                <PhoneOff size={17} />Mark As No Show
+                <PhoneOff size={17} />No Show
               </button>
             </>
           ) : null}
@@ -672,13 +700,13 @@ export function LineOverviewQX() {
             <>
               <button type="button" className="ql-btn primary" onClick={finish}
                 disabled={busy || Boolean(active?.readinessExpected && !readinessChoice)}>
-                <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete And Call Next'}
+                <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete & Call Next'}
               </button>
               {/* Second, quieter, and never the default. Most visits finish. */}
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
                 aria-expanded={endingIncomplete}>
-                <AlertTriangle size={17} />End As Unfinished
+                <AlertTriangle size={17} />Mark As Incomplete
               </button>
               {/* Transfer and Requeue used to sit here, and BOTH were wired to
                   `finish` — the Complete action. Three buttons, three labels,
@@ -702,8 +730,8 @@ export function LineOverviewQX() {
             Complete would invite a clerk to fill it in on visits that finished
             perfectly well. */}
         {stage === 'serving' && endingIncomplete ? (
-          <div className="ql-readiness" role="group" aria-label="End this visit as unfinished">
-            <label htmlFor="incomplete-reason">Why is this visit ending unfinished?</label>
+          <div className="ql-readiness" role="group" aria-label="Mark this visit as incomplete">
+            <label htmlFor="incomplete-reason">Why is this visit incomplete?</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
               <span className="qx-select">
                 <select id="incomplete-reason" value={incompleteReason}
@@ -717,7 +745,7 @@ export function LineOverviewQX() {
               </span>
               <button type="button" className="ql-btn danger" onClick={endIncomplete}
                 disabled={!incompleteReason || busy}>
-                {busy ? 'Saving…' : 'End Visit As Unfinished'}
+                {busy ? 'Saving…' : 'Mark Visit As Incomplete'}
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { setEndingIncomplete(false); setIncompleteReason(''); }}>
@@ -750,15 +778,25 @@ export function LineOverviewQX() {
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
         <div>
-          <Table grid={LQ_GRID} columns={['Ticket', 'Waiting', '']}
+          <Table grid={LQ_GRID} columns={['Ticket', 'Joined', 'Channel', 'Waited', '']}
             items={[...list].sort((a, b) => b.waited - a.waited)}
             empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
             renderRow={(t) => (
               <Row key={t.id} grid={LQ_GRID}>
                 <div className="qx-cellmain">
                   <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
-                  <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{t.no}</b>
+                    <small>
+                      {t.name}
+                      {/* A second call is a different situation from a first,
+                          and the row is where a clerk decides who to try. */}
+                      {(t.callCount || 0) > 1 ? ` · called ${t.callCount}×` : ''}
+                    </small>
+                  </div>
                 </div>
+                <div className="qx-num">{joinedClock(t.joinedAt)}</div>
+                <div className="qx-num"><u>{channelOf(t)}</u></div>
                 <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
                   {t.waited}<u> min</u>
                 </div>
