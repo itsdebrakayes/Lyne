@@ -965,6 +965,12 @@
 /* The overview's desk board scrolls instead of growing — 25 desks would push
    everything below it off the screen, and this is the glance card, not the
    planner. */
+/* A card that is as tall as its contents, in a grid whose default is to stretch
+   every cell to the tallest in the row. Use it wherever a short panel sits
+   beside a tall one — blank space inside a bordered card does not read as
+   spare room, it reads as content that failed to arrive. */
+.qs-fitcontent { align-self: start; }
+
 .qs-boardscroll { display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
 .qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .qs-boardscroll .qs-desk { min-height: 74px; padding: 9px 10px; }

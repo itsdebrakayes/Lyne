@@ -734,7 +734,12 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
         foot={covered < d.desks.length ? `${d.desks.length - covered} sitting empty` : 'Every desk is covered'}
         spark={{ values: d.sparks.covered, tone: 'warn' }} />
 
-      <Card span={8} title="Desk Assignment"
+      {/* fitcontent: the grid stretches every cell to the tallest in the row, and
+          the column beside this one (Unassigned + Do This Next) is much taller.
+          A branch with eleven desks left roughly 300px of blank card underneath
+          the last lane — which reads as a panel that failed to load, not as
+          spare room. This card is now as tall as what is in it. */}
+      <Card span={8} className="qs-fitcontent" title="Desk Assignment"
         cap={picked ? 'Now tap a desk to put them on it' : 'Tap someone, then tap a desk. Busiest services first.'}
         tools={<button type="button" className="qx-btn ghost" onClick={() => onNav('desks')}>Open Full Board</button>}>
         {/* Scrolls rather than growing without limit — a branch can have 25
