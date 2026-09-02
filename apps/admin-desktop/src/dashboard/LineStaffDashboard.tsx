@@ -192,6 +192,23 @@ export default function LineStaffDashboard() {
     await refetchDesk();
   }, [qc, refetchDesk, activeQueue?.id]);
 
+  /* Attendance is the caller's own — every one of these acts on the signed-in
+     staff member and nobody else. A supervisor clocking their team in is a
+     supervisor guessing, and the number is only worth having if the person it
+     describes pressed the button. */
+  const shift = useQuery({
+    queryKey: ['my-shift'],
+    queryFn: () => api.get<{ on_shift: boolean; on_break: boolean }>('/staff/me/shift'),
+    refetchInterval: 60_000,
+  });
+  const attendance = useCallback(async (path: string) => {
+    await api.post(`/staff/me/${path}`, {});
+    await qc.invalidateQueries({ queryKey: ['my-shift'] });
+    /* The board's coverage count is derived from who is present, so it is stale
+       the moment somebody clocks in or walks away. */
+    qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+  }, [qc]);
+
   const deskActions = useMemo(() => ({
     onCall: (id: string) => deskStatus(id, { new_status: 'called' }),
     // The code travels to the server; a wrong one throws and the UI says so.
@@ -224,6 +241,20 @@ export default function LineStaffDashboard() {
     tickets, history: history.data || [], analytics: a,
     onSince: '—', faq: LINE_FAQ,
   }), [admin, service, branch, tickets, history.data, a]);
+
+  const withShift = useMemo(() => ({
+    ...liveData,
+    ...deskActions,
+    /* undefined while the first read is in flight — the desk treats only an
+       explicit false as "closed", so it never flashes the clock-in gate at
+       somebody who is already on shift. */
+    onShift: shift.data?.on_shift,
+    onBreak: Boolean(shift.data?.on_break),
+    onClockIn: () => attendance('clock-in'),
+    onBreakStart: () => attendance('break'),
+    onResume: () => attendance('resume'),
+    onClockOut: () => attendance('clock-out'),
+  }), [liveData, deskActions, shift.data, attendance]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';
@@ -281,7 +312,7 @@ export default function LineStaffDashboard() {
     >
       {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
       {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
-      <LineDataProvider value={{ ...liveData, ...deskActions }}>
+      <LineDataProvider value={withShift}>
         {tab === 'live' ? <LineOverviewQX />
           : tab === 'readiness' ? <StaffReadinessWorkspace service={readinessServiceId ? { id: readinessServiceId, name: service || 'Assigned service' } : null} />
             : lineTab(tab, (k) => setTab(k))}

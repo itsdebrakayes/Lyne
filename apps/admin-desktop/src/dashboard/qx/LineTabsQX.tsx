@@ -17,7 +17,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
+  AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
   PhoneOff, SkipForward, Timer, Users,
 } from 'lucide-react';
 import {
@@ -64,6 +64,15 @@ export type LineDone = {
 };
 export type LineTabData = {
   staffName: string; counter: string; serviceName: string; branchName: string;
+  /* Attendance. The desk is gated on it: a clerk who has not clocked in is not
+     at the window, and calling somebody forward to an empty chair is the one
+     failure a queue system must never cause. */
+  onShift?: boolean;
+  onBreak?: boolean;
+  onClockIn?: () => Promise<void> | void;
+  onBreakStart?: () => Promise<void> | void;
+  onResume?: () => Promise<void> | void;
+  onClockOut?: () => Promise<void> | void;
   queue: LineTicket[];
   history: LineDone[];
   hours: string[];
@@ -464,8 +473,56 @@ export function LineOverviewQX() {
   const list = (view === 'noanswer' ? noAnswer : waiting)
     .filter((t) => !q.trim() || `${t.no} ${t.name}`.toLowerCase().includes(q.trim().toLowerCase()));
 
+  /* Not clocked in: the desk does not open.
+     Showing the station to somebody who has not started their shift invites
+     them to call a customer forward, and the board would then say a window is
+     covered when the chair is empty. */
+  if (d.onShift === false) {
+    return (
+      <div className="ql-station">
+        <section className="ql-stage">
+          <div className="ql-eyebrow">Your Window Is Closed</div>
+          <div className="ql-big" style={{ fontSize: 34, lineHeight: 1.15 }}>
+            {deskLabel(d.counter, d.serviceName)}
+          </div>
+          <div className="ql-meta" style={{ marginTop: 10 }}>
+            You are assigned here today. Clock in to open the window and start calling.
+          </div>
+          <div className="ql-acts" style={{ marginTop: 22 }}>
+            <button type="button" className="ql-btn primary" disabled={busy}
+              onClick={() => run(() => d.onClockIn?.())}>
+              <CheckCircle2 size={18} />{busy ? 'Clocking In…' : 'Clock In'}
+            </button>
+          </div>
+          {actionError ? <div className="ql-verifymsg bad" style={{ marginTop: 14 }}>{actionError}</div> : null}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="ql-station">
+      {/* On a break the window stays yours — you are simply not available, which
+          is a different thing from having gone home. */}
+      {d.onBreak ? (
+        <section className="ql-stage" style={{ marginBottom: 14 }}>
+          <div className="ql-eyebrow">On A Break</div>
+          <div className="ql-meta" style={{ marginTop: 6 }}>
+            Nobody is being called to {deskLabel(d.counter, d.serviceName)} while you are away.
+          </div>
+          <div className="ql-acts" style={{ marginTop: 16 }}>
+            <button type="button" className="ql-btn primary" disabled={busy}
+              onClick={() => run(() => d.onResume?.())}>
+              <CheckCircle2 size={18} />{busy ? 'Coming Back…' : 'Back At My Window'}
+            </button>
+            <button type="button" className="ql-btn" disabled={busy}
+              onClick={() => run(() => d.onClockOut?.())}>
+              Clock Out
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {/* ── the stage: whoever is at this window right now ── */}
       <section className="ql-stage">
         <div className="ql-eyebrow">
@@ -665,10 +722,22 @@ export function LineOverviewQX() {
 
         <div className="ql-acts">
           {stage === 'idle' ? (
-            <button type="button" className="ql-btn primary" onClick={callNext}
-              disabled={!next || busy} aria-busy={busy}>
-              <Users size={18} />{busy ? 'Calling…' : (next ? `Call ${next.no}` : 'Nobody To Call')}
-            </button>
+            <>
+              <button type="button" className="ql-btn primary" onClick={callNext}
+                disabled={!next || busy} aria-busy={busy}>
+                <Users size={18} />{busy ? 'Calling…' : (next ? `Call ${next.no}` : 'Nobody To Call')}
+              </button>
+              {/* Hold pauses the line; Clock Out ends the shift. Both only mean
+                  something now that a shift is a real record. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => run(() => d.onBreakStart?.())}>
+                <Pause size={17} />Hold
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => run(() => d.onClockOut?.())}>
+                Clock Out
+              </button>
+            </>
           ) : null}
 
           {stage === 'called' ? (
@@ -707,6 +776,14 @@ export function LineOverviewQX() {
                 onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
                 aria-expanded={endingIncomplete}>
                 <AlertTriangle size={17} />Mark As Incomplete
+              </button>
+              {/* Hold means "pause my line", and it only exists now that a break
+                  is a real state. It finishes with the person in front of you
+                  first — you are not walking away mid-conversation. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                title="Finish with this person first — Hold pauses your line afterwards"
+                onClick={() => run(() => d.onBreakStart?.())}>
+                <Pause size={17} />Hold
               </button>
               {/* Transfer and Requeue used to sit here, and BOTH were wired to
                   `finish` — the Complete action. Three buttons, three labels,

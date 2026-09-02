@@ -5,6 +5,12 @@
  * GET  /api/staff/:id                      — get one staff member
  * POST /api/staff                          — create staff (manager/executive)
  * PUT  /api/staff/:id                      — update staff (manager/executive)
+ *
+ * GET  /api/staff/me/shift                 — am I clocked in, and on a break?
+ * POST /api/staff/me/clock-in              — self-service; nobody clocks in another person
+ * POST /api/staff/me/break                 — here, but not available
+ * POST /api/staff/me/resume                — back on the desk
+ * POST /api/staff/me/clock-out             — gone for the day
  */
 
 const router = require('express').Router();
@@ -297,6 +303,151 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update staff member.' });
+  }
+});
+
+
+/* ── ATTENDANCE ─────────────────────────────────────────────────────────────
+ *
+ * Being at work, as distinct from being rostered. staff_assignments already
+ * says who is SUPPOSED to be on a desk today; nothing said who turned up, so
+ * "Desks Covered 4 of 25" counted the roster rather than the room.
+ *
+ * Every one of these acts on the CALLER and nobody else. A supervisor clocking
+ * their staff in is a supervisor guessing, and the number is only worth having
+ * if the person it describes is the one who pressed the button. Managers still
+ * see the result; they just do not author it.
+ */
+
+/** The caller's open shift, or null. Also used by the desk to decide its gate. */
+async function openShiftFor(staffId) {
+  const [rows] = await pool.query(
+    `SELECT id, staff_id, branch_id, counter_id, clocked_in_at, on_break_since, break_seconds
+       FROM staff_shifts
+      WHERE staff_id = ? AND clocked_out_at IS NULL
+      LIMIT 1`,
+    [staffId]
+  );
+  return rows[0] || null;
+}
+
+function shiftView(shift) {
+  if (!shift) return { on_shift: false, on_break: false, shift: null };
+  return {
+    on_shift: true,
+    on_break: Boolean(shift.on_break_since),
+    shift: {
+      id: shift.id,
+      clocked_in_at: shift.clocked_in_at,
+      on_break_since: shift.on_break_since,
+      break_seconds: Number(shift.break_seconds || 0),
+      counter_id: shift.counter_id,
+    },
+  };
+}
+
+router.get('/me/shift', requireAuth, async (req, res) => {
+  if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
+  try {
+    res.json(shiftView(await openShiftFor(req.dbStaff.id)));
+  } catch (err) {
+    console.error('shift read error:', err);
+    res.status(500).json({ error: 'Could not read your shift.' });
+  }
+});
+
+router.post('/me/clock-in', requireAuth, async (req, res) => {
+  if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
+  try {
+    const existing = await openShiftFor(req.dbStaff.id);
+    // Idempotent: pressing it twice is the same shift, not an error to explain.
+    if (existing) return res.json(shiftView(existing));
+
+    /* Record the desk they are actually on, from today's roster. Kept on the
+       shift even if the roster moves them later, so the record says where they
+       were rather than where they ended up. */
+    const [seat] = await pool.query(
+      'SELECT counter_id FROM staff_assignments WHERE staff_id = ? AND assignment_date = CURDATE() LIMIT 1',
+      [req.dbStaff.id]
+    );
+
+    await pool.query(
+      `INSERT INTO staff_shifts (id, staff_id, branch_id, counter_id, clocked_in_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [uuidv4(), req.dbStaff.id, req.dbStaff.branch_id || null, seat[0]?.counter_id || null]
+    );
+    res.status(201).json(shiftView(await openShiftFor(req.dbStaff.id)));
+  } catch (err) {
+    /* uk_one_open_shift. Two presses that raced each other are still one shift,
+       so this reads the winner rather than reporting a collision at somebody
+       standing at a counter. */
+    if (err && err.code === 'ER_DUP_ENTRY') {
+      return res.json(shiftView(await openShiftFor(req.dbStaff.id)));
+    }
+    console.error('clock-in error:', err);
+    res.status(500).json({ error: 'Could not clock you in.' });
+  }
+});
+
+router.post('/me/break', requireAuth, async (req, res) => {
+  if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
+  try {
+    const shift = await openShiftFor(req.dbStaff.id);
+    if (!shift) return res.status(400).json({ error: 'Clock in before taking a break.' });
+    if (shift.on_break_since) return res.json(shiftView(shift));
+
+    await pool.query('UPDATE staff_shifts SET on_break_since = NOW() WHERE id = ?', [shift.id]);
+    res.json(shiftView(await openShiftFor(req.dbStaff.id)));
+  } catch (err) {
+    console.error('break error:', err);
+    res.status(500).json({ error: 'Could not start your break.' });
+  }
+});
+
+router.post('/me/resume', requireAuth, async (req, res) => {
+  if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
+  try {
+    const shift = await openShiftFor(req.dbStaff.id);
+    if (!shift) return res.status(400).json({ error: 'You are not clocked in.' });
+    if (!shift.on_break_since) return res.json(shiftView(shift));
+
+    /* Accumulate in the database, from the stored timestamp — not from a
+       duration the client worked out. A phone that slept through the break, or
+       a tab reopened an hour later, must not decide how long it was. */
+    await pool.query(
+      `UPDATE staff_shifts
+          SET break_seconds  = break_seconds + TIMESTAMPDIFF(SECOND, on_break_since, NOW()),
+              on_break_since = NULL
+        WHERE id = ? AND on_break_since IS NOT NULL`,
+      [shift.id]
+    );
+    res.json(shiftView(await openShiftFor(req.dbStaff.id)));
+  } catch (err) {
+    console.error('resume error:', err);
+    res.status(500).json({ error: 'Could not end your break.' });
+  }
+});
+
+router.post('/me/clock-out', requireAuth, async (req, res) => {
+  if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
+  try {
+    const shift = await openShiftFor(req.dbStaff.id);
+    if (!shift) return res.json({ on_shift: false, on_break: false, shift: null });
+
+    // Close an open break in the same statement, or its minutes are lost.
+    await pool.query(
+      `UPDATE staff_shifts
+          SET break_seconds = break_seconds
+                + IF(on_break_since IS NULL, 0, TIMESTAMPDIFF(SECOND, on_break_since, NOW())),
+              on_break_since = NULL,
+              clocked_out_at = NOW()
+        WHERE id = ? AND clocked_out_at IS NULL`,
+      [shift.id]
+    );
+    res.json({ on_shift: false, on_break: false, shift: null });
+  } catch (err) {
+    console.error('clock-out error:', err);
+    res.status(500).json({ error: 'Could not clock you out.' });
   }
 });
 
