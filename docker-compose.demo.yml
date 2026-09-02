@@ -76,7 +76,11 @@ services:
       # Queues are per-day by design, so a demo box seeded yesterday shows
       # "closed" everywhere today. Re-seed the demo day just after midnight.
       # Demo overlay only — the production stack never sets this.
-      ALLOW_DEMO_DATA_REFRESH: "true"
+      # Overridable so ./scripts/demo-freeze.sh can turn the re-seed off for a
+      # demo without editing this file. Hardcoded "true" meant a shell override
+      # was silently ignored, and a freeze script that does not freeze is worse
+      # than no freeze script.
+      ALLOW_DEMO_DATA_REFRESH: "${ALLOW_DEMO_DATA_REFRESH:-true}"
       # The counter's six-digit override, for demos and for a reviewer who has
       # no second phone to read a real code from.
       #
