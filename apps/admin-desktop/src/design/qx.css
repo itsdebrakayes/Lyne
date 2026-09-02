@@ -797,6 +797,26 @@
 /* the ticket number is the single biggest thing on the screen */
 .ql-big { font-size: clamp(44px, 5.4vw, 74px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 10px 0 0; }
 .ql-who { font-size: clamp(17px, 1.6vw, 22px); font-weight: 600; opacity: .86; margin-top: 8px; }
+/* Stage pills — what this person came for, how they reached the counter, and
+   whether their code has been checked.
+   Not .qx-chip: that one is built for the light dashboard surfaces and its
+   soft-tinted backgrounds vanish against the navy stage. These sit on the dark
+   ground, so they are translucent white with a hairline rather than a fill. */
+.ql-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ql-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; padding: 6px 12px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: -.01em;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  white-space: nowrap;
+}
+.ql-tag svg { width: 13px; height: 13px; flex: none; }
+/* Verified is the one a clerk looks for, so it is the one that is not grey. */
+.ql-tag.ok   { background: rgba(47,191,113,.16); border-color: rgba(47,191,113,.34); color: #86e3ad; }
+.ql-tag.warn { background: rgba(229,72,77,.16);  border-color: rgba(229,72,77,.34);  color: #ffa9ab; }
+
 .ql-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .ql-meta span {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;

@@ -169,6 +169,17 @@ const useLine = () => useContext(LineCtx);
 /* Plain words, because the column is narrow and a clerk is reading it while
    somebody stands in front of them. The join TIME sits in its own column, so
    these do not need to carry "arrived 09:52" the way a mock-up caption can. */
+/* On the stage there is room for the whole sentence, unlike the line-list
+   column. A clerk glancing up should know how this person reached them without
+   reading a table: somebody who joined from home has been travelling, somebody
+   a clerk typed in is standing there already. */
+function joinedPill(t: { channel?: string | null }) {
+  const c = String(t.channel || '');
+  if (c === 'app') return 'Joined from the Lyne app';
+  if (c === 'kiosk') return 'Added at the kiosk';
+  return 'Walk-in · clerk entry';
+}
+
 const CHANNEL_LABEL: Record<string, string> = {
   app: 'App',
   walk_in: 'Walk-in',
@@ -547,10 +558,25 @@ export function LineOverviewQX() {
           <>
             <div className="ql-big">{active.no}</div>
             <div className="ql-who">{active.name}</div>
+
+            {/* The three things a clerk wants to know about the person in front
+                of them before they say a word: what they came for, how they got
+                here, and whether the code has been checked. Facts the system
+                already held and never showed. */}
+            <div className="ql-tags">
+              <span className="ql-tag">{d.serviceName}</span>
+              <span className="ql-tag">{joinedPill(active)}</span>
+              {stage === 'serving' ? (
+                <span className="ql-tag ok"><Check size={13} />Code verified</span>
+              ) : null}
+              {stage === 'called' && calls > 1 ? (
+                <span className="ql-tag warn"><PhoneOff size={13} />Called {calls} times</span>
+              ) : null}
+            </div>
+
             <div className="ql-meta">
               <span><Users size={14} />Waited {active.waited} min in line</span>
               <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
-              {stage === 'called' && calls > 1 ? <span><PhoneOff size={14} />Called {calls} times</span> : null}
             </div>
           </>
         ) : (
@@ -562,6 +588,12 @@ export function LineOverviewQX() {
             <div className="ql-who">
               {next ? `${next.name} is next` : 'This is where the first person in the line will appear'}
             </div>
+            {next ? (
+              <div className="ql-tags">
+                <span className="ql-tag">{joinedPill(next)}</span>
+                <span className="ql-tag">Waiting {next.waited} min</span>
+              </div>
+            ) : null}
             <div className="ql-meta">
               <span><Users size={14} />{waiting.length} in your line</span>
               <span><CheckCircle2 size={14} />{d.servedToday} seen today</span>
