@@ -742,6 +742,76 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
   }
 });
 
+/**
+ * PUT /api/tickets/:id/leave-reason — why somebody walked.
+ *
+ * Separate from /leave on purpose. Leaving a queue is the moment a person is
+ * least patient with this app, and putting a form in front of the exit both
+ * delays them and biases the answer toward whatever is quickest to tap. So they
+ * leave first and are asked afterwards, with a skip.
+ *
+ * Which means this has to accept a ticket that is ALREADY closed — the ordinary
+ * status guards do not apply, and the ones that matter here are different:
+ *
+ *   • Only a ticket that actually left. A reason on a served ticket is a
+ *     different question with the same column name.
+ *   • Only once. The first answer stands; a second call cannot overwrite it,
+ *     so a retry or a double-tap cannot rewrite history.
+ *   • Only for a day. After that the person is guessing, and a stale answer
+ *     attributed to a specific visit is worse than no answer.
+ *
+ * requireTicketAccess still gates it, so this is the ticket holder's own answer
+ * about their own visit.
+ */
+const LEAVE_REASONS = new Set([
+  'wait_too_long', 'no_longer_needed', 'wrong_line', 'came_back_later', 'served_elsewhere', 'other',
+]);
+
+router.put('/:id/leave-reason', requireAuth, requireTicketAccess, async (req, res) => {
+  const reason = String(req.body?.reason || '').trim();
+  if (!LEAVE_REASONS.has(reason)) {
+    return res.status(400).json({ error: 'Unknown reason.' });
+  }
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, status, closed_reason, completed_at, joined_at FROM queue_tickets WHERE id = ? LIMIT 1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const ticket = rows[0];
+
+    if (ticket.status !== 'left') {
+      return res.status(400).json({ error: 'Only a ticket that left the queue can carry a leaving reason.' });
+    }
+    if (ticket.closed_reason) {
+      // Not an error: the answer is already recorded and the client can stop.
+      return res.json({ recorded: false, reason: ticket.closed_reason });
+    }
+
+    const [ok] = await pool.query(
+      `UPDATE queue_tickets
+          SET closed_reason = ?
+        WHERE id = ? AND status = 'left' AND closed_reason IS NULL
+          AND joined_at > NOW() - INTERVAL 1 DAY`,
+      [reason, ticket.id]
+    );
+    if (!ok.affectedRows) {
+      return res.status(409).json({ error: 'This visit is too old to add a reason to.' });
+    }
+
+    await pool.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, notes)
+       VALUES (?, ?, 'left', 'left', ?)`,
+      [uuidv4(), ticket.id, `Left because: ${reason}`]
+    );
+
+    res.json({ recorded: true, reason });
+  } catch (err) {
+    console.error('leave-reason error:', err);
+    res.status(500).json({ error: 'Could not record that reason.' });
+  }
+});
+
 // PUT /api/tickets/:id/status — Update ticket status
 // Transitions: waiting->in_service, in_service->served, *->left, *->cancelled
 router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {

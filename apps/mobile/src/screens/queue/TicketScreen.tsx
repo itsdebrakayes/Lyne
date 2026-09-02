@@ -15,6 +15,7 @@ import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { HoldButton } from '../../components/HoldButton';
+import { LeaveReasonSheet } from '../../components/LeaveReasonSheet';
 import { TicketPrinter } from '../../components/TicketPrinter';
 import Icon from '../../components/Icon';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -46,6 +47,9 @@ export default function TicketScreen() {
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  /* Holds the id of the ticket they just left, so the reason can still be sent
+     after the ticket query has moved on. */
+  const [askWhy, setAskWhy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
   const previous = useRef<{ status?: string; wait?: number }>({});
@@ -135,7 +139,10 @@ export default function TicketScreen() {
       ]);
 
       setConfirmLeave(false);
-      navigation.navigate('Main');
+      /* Ask, then leave the screen — not before. They are already out of the
+         line at this point, so the question costs them nothing and cannot make
+         leaving feel gated. */
+      setAskWhy(ticketId);
     } catch (caught: unknown) {
       setConfirmLeave(false);
       haptics.error();
@@ -379,6 +386,20 @@ export default function TicketScreen() {
         holdDoneLabel="Left the line"
         onConfirm={leaveQueue}
         onCancel={() => setConfirmLeave(false)}
+      />
+
+      <LeaveReasonSheet
+        visible={!!askWhy}
+        onSkip={() => { setAskWhy(null); navigation.navigate('Main'); }}
+        onPick={async (reason) => {
+          /* A failure here is swallowed on purpose. They have already left the
+             queue — that part succeeded and is what matters. Blocking the way
+             out with "could not record your reason" would punish the person for
+             answering a question we asked. */
+          try { await api.put(`/tickets/${askWhy}/leave-reason`, { reason }); } catch { /* noop */ }
+          setAskWhy(null);
+          navigation.navigate('Main');
+        }}
       />
     </View>
   );
