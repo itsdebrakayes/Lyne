@@ -319,6 +319,65 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
  * see the result; they just do not author it.
  */
 
+/**
+ * Tell the people in a line that a window just closed.
+ *
+ * A queue is a promise about time, and the promise changes the moment a counter
+ * empties — everybody behind that window is now waiting longer than the number
+ * they were shown when they joined. Until now nothing said so: the estimate
+ * quietly drifted and the customer found out by standing there.
+ *
+ * Only the line that actually lost the window, and only people still waiting on
+ * it. A branch-wide announcement would reach customers whose service was never
+ * affected, and the fastest way to teach somebody to ignore notifications is to
+ * send them ones that are not about them.
+ *
+ * Best-effort by design: a clerk's break must never fail because a notification
+ * could not be written. The caller does not await this.
+ */
+async function notifyLineOfClosedWindow(shift, staff, reason) {
+  if (!shift?.counter_id) return 0;
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.service_id, s.name AS service_name, c.label AS counter_label,
+              (SELECT COUNT(*) FROM counters c2
+                JOIN staff_assignments sa2 ON sa2.counter_id = c2.id AND sa2.assignment_date = CURDATE()
+                JOIN staff_shifts sh2 ON sh2.staff_id = sa2.staff_id
+                 AND sh2.clocked_out_at IS NULL AND sh2.on_break_since IS NULL
+               WHERE c2.service_id = c.service_id AND c2.is_active = TRUE) AS windows_left
+         FROM counters c
+         JOIN services s ON s.id = c.service_id
+        WHERE c.id = ? LIMIT 1`,
+      [shift.counter_id]
+    );
+    if (!rows.length) return 0;
+    const { service_id: serviceId, service_name: serviceName, windows_left: windowsLeft } = rows[0];
+
+    /* Said plainly, and without a number we cannot stand behind: the new wait
+       is not recomputed here, so the message says the direction of the change
+       rather than inventing a figure that the next poll would contradict. */
+    const message = Number(windowsLeft) > 0
+      ? `A window serving ${serviceName} has just closed${reason === 'break' ? ' for a break' : ''}. ${windowsLeft} still open — your wait may be a little longer than the estimate.`
+      : `The last window serving ${serviceName} has just closed${reason === 'break' ? ' for a break' : ''}. Your place is safe; we will update your wait as soon as a window reopens.`;
+
+    const [result] = await pool.query(
+      `INSERT INTO notifications (id, user_id, ticket_id, notification_type, channel, message)
+       SELECT UUID(), t.user_id, t.id, 'queue_update', 'push', ?
+         FROM queue_tickets t
+         JOIN queues q ON q.id = t.queue_id
+        WHERE q.service_id = ?
+          AND q.queue_date = CURDATE()
+          AND t.status IN ('waiting', 'called')
+          AND t.user_id IS NOT NULL`,
+      [message, serviceId]
+    );
+    return result.affectedRows || 0;
+  } catch (err) {
+    console.error('window-closed notification failed:', err.message);
+    return 0;
+  }
+}
+
 /** The caller's open shift, or null. Also used by the desk to decide its gate. */
 async function openShiftFor(staffId) {
   const [rows] = await pool.query(
@@ -397,6 +456,8 @@ router.post('/me/break', requireAuth, async (req, res) => {
     if (shift.on_break_since) return res.json(shiftView(shift));
 
     await pool.query('UPDATE staff_shifts SET on_break_since = NOW() WHERE id = ?', [shift.id]);
+    // Not awaited: a break must not fail because a notification could not send.
+    notifyLineOfClosedWindow(shift, req.dbStaff, 'break');
     res.json(shiftView(await openShiftFor(req.dbStaff.id)));
   } catch (err) {
     console.error('break error:', err);
@@ -444,6 +505,10 @@ router.post('/me/clock-out', requireAuth, async (req, res) => {
         WHERE id = ? AND clocked_out_at IS NULL`,
       [shift.id]
     );
+    /* Only if they were actually available. Clocking out from a break closed
+       nothing new — the window was already dark, and saying so twice is how a
+       useful alert becomes noise. */
+    if (!shift.on_break_since) notifyLineOfClosedWindow(shift, req.dbStaff, 'clock_out');
     res.json({ on_shift: false, on_break: false, shift: null });
   } catch (err) {
     console.error('clock-out error:', err);
