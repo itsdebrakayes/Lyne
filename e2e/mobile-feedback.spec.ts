@@ -98,29 +98,57 @@ async function signInMobile(page: Page) {
      press. A short settle here is the difference between this passing and
      sitting on the sign-in form until the test times out. */
   await page.waitForTimeout(2500);
-  const inputs = page.locator('input');
-  await inputs.nth(0).fill('user@test.com');
-  await inputs.nth(1).fill('test1234');
-  /* Tapped, then tapped again if the first press was swallowed.
-     Against the Expo DEV server the sign-in press is occasionally lost — the
-     screen is interactive but a route is still compiling underneath, and the
-     handler never runs. One retry is the difference between a suite people
-     trust and one that is red often enough to be ignored, which is worse than
-     no suite at all. Two failures in a row is a real failure and is reported. */
+
+  /* Type, then read it back.
+     fill() sets the DOM value and fires one input event. If React has not yet
+     attached its handler — routine while the dev server is still compiling —
+     the box LOOKS filled and the component's state is empty, so every press
+     after that submits nothing and the screen correctly stays put. Reading the
+     value back is not the whole check, but re-filling before each press is
+     what turns a swallowed first attempt into a recoverable one. */
+  const enterCredentials = async () => {
+    const inputs = page.locator('input');
+    await inputs.nth(0).fill('');
+    await inputs.nth(0).pressSequentially('user@test.com', { delay: 15 });
+    await inputs.nth(1).fill('');
+    await inputs.nth(1).pressSequentially('test1234', { delay: 15 });
+    return (await inputs.nth(0).inputValue()) === 'user@test.com'
+        && (await inputs.nth(1).inputValue()) === 'test1234';
+  };
+
+  /* Three presses, each with the credentials typed fresh.
+     Against the Expo DEV server the press is occasionally lost — the screen is
+     interactive but a route is still compiling underneath. A suite that is red
+     often enough to be ignored is worse than no suite at all; three genuine
+     failures in a row is a real failure and is reported with whatever the app
+     put on screen, so the next person does not have to guess.
+
+     Every wait here is sized against the 180s this test is allowed (see
+     playwright.config.ts). A press that is going to work reaches Home in about
+     fifteen seconds; waiting 45 for it bought nothing and, three times over,
+     spent the whole budget before the retries could finish — which turned a
+     recoverable lost press into a timeout and made the run slower to boot. */
   const landed = page.getByText(/good (morning|afternoon|evening)/i);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) {
+      console.log('  [retry] the sign-in press did not take; typing and pressing again');
+      await page.waitForTimeout(1500);
+    }
+    if (!(await enterCredentials())) continue;
     await tap(page, /^Sign in$/);
     try {
-      await landed.waitFor({ state: 'visible', timeout: 45_000 });
+      await landed.waitFor({ state: 'visible', timeout: 20_000 });
       return;
-    } catch {
-      if (attempt === 0) {
-        console.log('  [retry] the sign-in press did not take; pressing once more');
-        await page.waitForTimeout(2000);
-      }
-    }
+    } catch { /* fall through to the next attempt */ }
   }
-  await expect(landed, 'signing in never reached the home screen').toBeVisible({ timeout: 30_000 });
+
+  /* Say what the app was showing. "Never reached the home screen" is true of a
+     wrong password, a dead API and a swallowed tap alike, and those are three
+     different mornings for whoever reads this. */
+  const shown = (await page.locator('body').innerText().catch(() => '')).trim().replace(/\n+/g, ' | ');
+  await expect(landed,
+    `signing in never reached the home screen; the app was showing: ${shown.slice(0, 300)}`,
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 test('the app opens on onboarding, and onboarding leads somewhere', async ({ page }) => {
