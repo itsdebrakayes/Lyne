@@ -204,6 +204,39 @@ async function absorbRuntimeQueues(connection) {
   return absorbed;
 }
 
+/**
+ * Put the rostered staff on shift.
+ *
+ * Attendance became real today: a window counts as open when the person on it
+ * has clocked in and is not on a break. That is the right rule, and it meant a
+ * demo box read "0 of 12 windows open" at every branch, because the seed
+ * rosters people onto counters and nobody had ever pressed Clock In.
+ *
+ * So the demo day starts with its staff present, the way a branch does at
+ * opening. Anyone who has clocked themselves in or out since is left alone —
+ * the point of the feature is that the person decides, and a re-seed that
+ * clocked somebody back in after they went home would be the seeder overruling
+ * a human again.
+ */
+async function openShiftsForRosteredStaff(connection) {
+  const [result] = await connection.query(
+    `INSERT INTO staff_shifts (id, staff_id, branch_id, counter_id, clocked_in_at)
+     SELECT UUID(), sa.staff_id, s.branch_id, sa.counter_id,
+            /* Opening time rather than now, so the shift length on screen is a
+               morning's work and not four seconds. */
+            TIMESTAMP(CURDATE(), '08:30:00')
+       FROM staff_assignments sa
+       JOIN staff s ON s.id = sa.staff_id AND s.is_active = TRUE
+      WHERE sa.assignment_date = CURDATE()
+        AND NOT EXISTS (
+          SELECT 1 FROM staff_shifts sh
+           WHERE sh.staff_id = sa.staff_id
+             AND sh.clocked_in_at >= TIMESTAMP(CURDATE(), '00:00:00')
+        )`
+  );
+  return result.affectedRows || 0;
+}
+
 async function refreshDemoData(connection = pool) {
   const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, SECTOR_SEED_PATH]
     .filter(seedPath => fs.existsSync(seedPath));
@@ -213,6 +246,8 @@ async function refreshDemoData(connection = pool) {
   if (cleared) console.log(`Cleared ${cleared} seed-authored ticket(s) before reseeding.`);
   const absorbed = await absorbRuntimeQueues(connection);
   if (absorbed) console.log(`Absorbed ${absorbed} live-opened queue(s) into the seed's own line.`);
+  const onShift = await openShiftsForRosteredStaff(connection);
+  if (onShift) console.log(`Clocked in ${onShift} rostered staff for today.`);
   const statements = seedPaths.flatMap(seedPath => splitStatements(fs.readFileSync(seedPath, 'utf8')));
 
   for (const statement of statements) {
