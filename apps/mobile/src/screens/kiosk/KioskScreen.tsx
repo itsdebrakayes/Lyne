@@ -86,8 +86,14 @@ function TicketIssued({ ticket, serviceName, onAddAnother }: {
 export default function KioskScreen() {
   const topPad = useTopPad(18);
   const { kiosk, signOut } = useAuth();
-  const actor = kiosk as KioskActor; // this screen only mounts when kiosk is set
   const queryClient = useQueryClient();
+  /* `kiosk` CAN be null here, despite the cast that used to say otherwise.
+     The navigator only mounts this screen while kiosk is set, but signing out
+     clears kiosk first and unmounts on the next render — so for one frame this
+     component runs with nothing, and `actor.branchId` threw a red screen at
+     somebody standing at a branch. Every hook below still runs; only the body
+     is skipped, so the rules of hooks are intact. */
+  const actor = kiosk as KioskActor | null;
 
   const [name, setName]   = useState('');
   const [phone, setPhone] = useState('');
@@ -96,8 +102,9 @@ export default function KioskScreen() {
   const [focused, setFocused] = useState<string | null>(null);
 
   const servicesQuery = useQuery({
-    queryKey: ['kiosk-services', actor.branchId],
-    queryFn: () => api.get<ServiceSummary[]>(`/services?branch_id=${actor.branchId}`, false),
+    queryKey: ['kiosk-services', actor?.branchId],
+    queryFn: () => api.get<ServiceSummary[]>(`/services?branch_id=${actor!.branchId}`, false),
+    enabled: Boolean(actor?.branchId),
     refetchInterval: 20_000,
   });
   const services = servicesQuery.data || [];
@@ -113,7 +120,7 @@ export default function KioskScreen() {
       haptics.success();
       setIssued({ ticket, serviceName: selected?.name || 'Service' });
       setName(''); setPhone(''); setServiceId(null);
-      queryClient.invalidateQueries({ queryKey: ['kiosk-services', actor.branchId] });
+      queryClient.invalidateQueries({ queryKey: ['kiosk-services', actor?.branchId] });
     },
     onError: () => haptics.error(),
   });
@@ -121,6 +128,12 @@ export default function KioskScreen() {
   const canSubmit = name.trim().length > 0 && !!serviceId && !addWalkIn.isPending;
 
   const resetForNext = () => { setIssued(null); addWalkIn.reset(); };
+
+  /* After every hook, so the hook order never changes. Signing out clears the
+     kiosk actor a render before this screen unmounts; without this the frame in
+     between read branchId off null and put a red error screen in front of
+     whoever was at the counter. */
+  if (!actor) return <View style={t.root} />;
 
   return (
     <View style={t.root}>

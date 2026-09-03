@@ -69,9 +69,19 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       ? new Date(t.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
       : '—',
     minutes: Math.round(num(t.service_minutes)),
+    /* A served ticket carrying a closed_reason is a visit that happened and did
+       not achieve what the person came for — that is the rule the desk writes
+       and the one the analytics will read later. Everything that was not
+       no_show or transferred used to fall through to 'served', so a clerk who
+       had just marked a visit incomplete watched their own history call it a
+       success. */
     outcome: (t.status === 'no_show' ? 'no_show'
+      : t.status === 'left' ? 'left'
+      : t.status === 'cancelled' ? 'cancelled'
       : t.status === 'transferred' ? 'transferred'
+      : t.closed_reason ? 'incomplete'
       : 'served') as LineDone['outcome'],
+    reason: t.closed_reason || null,
   }));
 
   /* Their own day by hour, counted from what they finished. */

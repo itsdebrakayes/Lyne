@@ -497,6 +497,11 @@ router.get('/history', requireAuth, requireStaffRole('line_staff', 'manager', 'e
 
     const [rows] = await pool.query(
       `SELECT t.id, t.ticket_number, t.status, t.position, t.joined_at, t.called_at,
+              /* Without closed_reason the desk's own history could not tell a
+                 finished visit from one the clerk ended unfinished — it showed
+                 "Served" for both, including for visits that same clerk had
+                 just marked incomplete a minute earlier. */
+              t.closed_reason, t.readiness_outcome,
               t.started_serving_at, t.completed_at, t.call_timeout_seconds, t.call_expires_at,
               u.full_name AS user_name,
               q.id AS queue_id, q.queue_date,
