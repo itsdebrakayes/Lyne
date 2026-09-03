@@ -98,29 +98,57 @@ async function signInMobile(page: Page) {
      press. A short settle here is the difference between this passing and
      sitting on the sign-in form until the test times out. */
   await page.waitForTimeout(2500);
-  const inputs = page.locator('input');
-  await inputs.nth(0).fill('user@test.com');
-  await inputs.nth(1).fill('test1234');
-  /* Tapped, then tapped again if the first press was swallowed.
-     Against the Expo DEV server the sign-in press is occasionally lost — the
-     screen is interactive but a route is still compiling underneath, and the
-     handler never runs. One retry is the difference between a suite people
-     trust and one that is red often enough to be ignored, which is worse than
-     no suite at all. Two failures in a row is a real failure and is reported. */
+
+  /* Type, then read it back.
+     fill() sets the DOM value and fires one input event. If React has not yet
+     attached its handler — routine while the dev server is still compiling —
+     the box LOOKS filled and the component's state is empty, so every press
+     after that submits nothing and the screen correctly stays put. Reading the
+     value back is not the whole check, but re-filling before each press is
+     what turns a swallowed first attempt into a recoverable one. */
+  const enterCredentials = async () => {
+    const inputs = page.locator('input');
+    await inputs.nth(0).fill('');
+    await inputs.nth(0).pressSequentially('user@test.com', { delay: 15 });
+    await inputs.nth(1).fill('');
+    await inputs.nth(1).pressSequentially('test1234', { delay: 15 });
+    return (await inputs.nth(0).inputValue()) === 'user@test.com'
+        && (await inputs.nth(1).inputValue()) === 'test1234';
+  };
+
+  /* Three presses, each with the credentials typed fresh.
+     Against the Expo DEV server the press is occasionally lost — the screen is
+     interactive but a route is still compiling underneath. A suite that is red
+     often enough to be ignored is worse than no suite at all; three genuine
+     failures in a row is a real failure and is reported with whatever the app
+     put on screen, so the next person does not have to guess.
+
+     Every wait here is sized against the 180s this test is allowed (see
+     playwright.config.ts). A press that is going to work reaches Home in about
+     fifteen seconds; waiting 45 for it bought nothing and, three times over,
+     spent the whole budget before the retries could finish — which turned a
+     recoverable lost press into a timeout and made the run slower to boot. */
   const landed = page.getByText(/good (morning|afternoon|evening)/i);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) {
+      console.log('  [retry] the sign-in press did not take; typing and pressing again');
+      await page.waitForTimeout(1500);
+    }
+    if (!(await enterCredentials())) continue;
     await tap(page, /^Sign in$/);
     try {
-      await landed.waitFor({ state: 'visible', timeout: 45_000 });
+      await landed.waitFor({ state: 'visible', timeout: 20_000 });
       return;
-    } catch {
-      if (attempt === 0) {
-        console.log('  [retry] the sign-in press did not take; pressing once more');
-        await page.waitForTimeout(2000);
-      }
-    }
+    } catch { /* fall through to the next attempt */ }
   }
-  await expect(landed, 'signing in never reached the home screen').toBeVisible({ timeout: 30_000 });
+
+  /* Say what the app was showing. "Never reached the home screen" is true of a
+     wrong password, a dead API and a swallowed tap alike, and those are three
+     different mornings for whoever reads this. */
+  const shown = (await page.locator('body').innerText().catch(() => '')).trim().replace(/\n+/g, ' | ');
+  await expect(landed,
+    `signing in never reached the home screen; the app was showing: ${shown.slice(0, 300)}`,
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 test('the app opens on onboarding, and onboarding leads somewhere', async ({ page }) => {
@@ -174,6 +202,25 @@ test('signing in acknowledges the tap', async ({ page }) => {
 
 test('the home screen shows real branches, not an empty shell', async ({ page }) => {
   await signInMobile(page);
+
+  /* Home opens on "Open now", so outside business hours the honest answer is a
+     closed-branches state, not a list — and this test used to fail every night
+     for that reason, which taught whoever ran it to ignore a red suite. The
+     screen is right; the assumption of daylight was wrong. Switch to All when
+     nothing is open, then hold the real claim: agencies, with waits beside
+     them, whatever the hour. */
+  /* signInMobile returns the moment the greeting paints, which is before the
+     branch list has loaded — checking for the closed state right here found
+     nothing and fell straight through to the assertion. */
+  await page.waitForTimeout(3000);
+
+  if (/nothing open here yet|every branch in this filter is closed/i.test(
+        await page.locator('body').innerText())) {
+    console.log('  [hours] everything is closed right now; switching to All');
+    await tap(page, /^Show all branches$/);
+    await page.waitForTimeout(3000);
+  }
+
   const body = await page.locator('body').innerText();
   // Somebody has to be listed, with a wait beside them, or the screen is furniture.
   expect(body, 'no agency is listed on the home screen').toMatch(/credit union|passport|tax|court|university|housing/i);
@@ -200,10 +247,41 @@ test('losing the connection is explained rather than shown as emptiness', async 
 
   /* The floor: an offline phone must not be a blank rectangle. A blank list is
      indistinguishable from "there are no branches near you" — a different and
-     much worse message than "we cannot reach the network".
-     The stronger assertion — that it NAMES the problem — is logged above rather
-     than asserted, because it has not been built yet. When the offline state
-     exists, tighten this to require the explanation. */
+     much worse message than "we cannot reach the network". */
   expect(body.trim().length,
     'the app went blank when the network failed, which reads as "nothing here"').toBeGreaterThan(40);
+
+  /* It must NAME the problem. */
+  await expect(page.locator('body'),
+    'an unreachable API is not explained on screen').toContainText(
+    /no connection|can.?t reach|unable to connect|offline/i);
+
+  /* And it must not ask for a password.
+     This is the regression that matters. The session gate treated "the API did
+     not answer" as "you are not signed in", so a dropped connection put a login
+     form in front of somebody whose session was sitting valid on the device —
+     they retype a password to fix a problem the password was never part of. A
+     refusal still signs them out; an unreachable server does not. */
+  await expect(page.locator('input'),
+    'a dropped connection dumped a signed-in person back to the password form').toHaveCount(0);
+});
+
+/* The other half of the rule above, and the one that would be dangerous to get
+   wrong: keeping a session through a network failure must not turn into keeping
+   a session the server has actually rejected. A revoked or expired token has to
+   put the login form back. */
+test('a refused token still signs the person out', async ({ page }) => {
+  await signInMobile(page);
+  await page.route('**/api/auth/**', (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Unauthorized"}' }));
+  await page.reload().catch(() => {});
+  await page.waitForTimeout(6000);
+
+  const body = (await page.locator('body').innerText()).trim().replace(/\n+/g, ' | ');
+  console.log(`  [refused] ${body.slice(0, 200)}`);
+
+  await expect(page.locator('input').first(),
+    'a rejected token left the app signed in instead of returning to sign-in').toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('body'),
+    'a refusal was reported as a connection problem').not.toContainText(/no connection/i);
 });

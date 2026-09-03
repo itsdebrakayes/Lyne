@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import api, { supabase } from '../lib/apiClient';
+import api, { supabase, isOffline } from '../lib/apiClient';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 export interface UserProfile {
@@ -54,6 +54,10 @@ export const useAuth = () => {
   const [user, setUser]     = useState<UserProfile | null>(null);
   const [kiosk, setKiosk]   = useState<KioskActor | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Signed in, but we could not reach the API to load the profile. Distinct
+     from `!user`, which means genuinely signed out — the screens that read
+     this must not offer a password box to somebody who already has a session. */
+  const [unreachable, setUnreachable] = useState(false);
 
   // Guards against the re-entrant sync loop: track the Supabase uid we have
   // already synced, and whether a sync is currently in flight. onAuthStateChange
@@ -78,7 +82,13 @@ export const useAuth = () => {
       if (!me.record.branch_id) {
         await supabase.auth.signOut();
         setUser(null); setKiosk(null);
-        throw new Error('This kiosk account is not assigned to a branch. Ask an administrator to set one.');
+        /* Carries a status so the catch in applySession reads it as a refusal
+           rather than a connectivity failure. This account is genuinely not
+           usable here, and no amount of signal will change that. */
+        throw Object.assign(
+          new Error('This kiosk account is not assigned to a branch. Ask an administrator to set one.'),
+          { status: 403 },
+        );
       }
       setUser(null);
       setKiosk({
@@ -94,7 +104,10 @@ export const useAuth = () => {
     }
     await supabase.auth.signOut();
     setUser(null); setKiosk(null);
-    throw new Error('This account is provisioned for admin access, not the mobile app.');
+    throw Object.assign(
+      new Error('This account is provisioned for admin access, not the mobile app.'),
+      { status: 403 },
+    );
   }, []);
 
   const applySession = useCallback(async (session: Session | null, force = false) => {
@@ -104,6 +117,7 @@ export const useAuth = () => {
       syncedUid.current = null;
       setUser(null);
       setKiosk(null);
+      setUnreachable(false);
       setLoading(false);
       return;
     }
@@ -121,10 +135,25 @@ export const useAuth = () => {
     try {
       await syncMobileUser(sbUser.user_metadata as Record<string, string> | undefined);
       syncedUid.current = sbUser.id;
-    } catch {
-      syncedUid.current = null;
-      setUser(null);
-      setKiosk(null);
+      setUnreachable(false);
+    } catch (error) {
+      /* Not being able to reach us is not the same as not being signed in.
+         This catch used to clear the profile on ANY failure, so a dropped
+         connection — a queue hall with bad signal, a phone coming back from
+         the lock screen on the venue wifi — logged the person out and put a
+         login form in front of somebody whose session was still perfectly
+         valid. They then retype a password to fix a problem the password was
+         never part of.
+
+         A refusal still signs them out, because that one is real: the server
+         looked at the token and said no. */
+      if (isOffline(error)) {
+        setUnreachable(true);
+      } else {
+        syncedUid.current = null;
+        setUser(null);
+        setKiosk(null);
+      }
     } finally {
       inFlight.current = false;
       setLoading(false);
@@ -185,7 +214,17 @@ export const useAuth = () => {
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);
+    setUnreachable(false);
   };
+
+  /* Try the profile load again with the session already in hand.
+     `force` matters: the guard in applySession short-circuits a uid it thinks
+     is already synced, and after a failed load that is exactly the uid we need
+     to retry. */
+  const retrySession = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    await applySession(session, true);
+  }, [applySession]);
 
   // Re-reads the profile after an edit (e.g. adding a document) so the
   // screen reflects the saved values immediately.
@@ -195,5 +234,5 @@ export const useAuth = () => {
     return me.record;
   }, []);
 
-  return { user, kiosk, loading, signIn, signUp, signOut, refreshProfile };
+  return { user, kiosk, loading, unreachable, signIn, signUp, signOut, refreshProfile, retrySession };
 };
