@@ -388,6 +388,7 @@ export function MgrServicesTab() {
               : worst.open < worst.counters
                 ? `${worst.waiting} people are waiting on ${worst.open} of ${worst.counters} windows. Opening one more is the single fastest thing you can do this hour.`
                 : `${worst.waiting} people are waiting and every window is already open. This is a pace problem, not a staffing one.`} />
+
         </div>
       </Card>
 
@@ -1022,6 +1023,40 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
                     { label: 'Waiting', value: String(worst.waiting), dir: 'bad' }]}
             action={{ label: 'Open Staff & Counters', onClick: () => onNav('staff') }} />
         ) : null}
+
+        {/* Send it, from the panel it is read on.
+            The recommendation named the fastest fix available this hour and its
+            only button navigated to another tab — the manager still had to find
+            the request over there and retype what this panel already knew. The
+            navigation stays, because moving somebody yourself is often the right
+            answer; this is for when the person who should move is not yours to
+            move.
+
+            Only when there is a window to open: where every window is already
+            staffed the recommendation is about pace, and asking a supervisor to
+            staff it would be asking for something impossible. */}
+        {worst && worst.counters > 0 && worst.open < worst.counters ? (
+          <Card title="Or Ask Someone Else To" cap="Lands in the notifications of every supervisor on this branch">
+            <button type="button" className="qx-btn primary" style={{ width: '100%' }}
+              disabled={d.askState === 'sending' || d.askState === 'sent' || !d.onAskSupervisor}
+              onClick={() => d.onAskSupervisor?.(
+                `${worst.name} has ${worst.waiting} waiting on ${worst.open} of ${worst.counters} windows — longest wait ${worst.longest} min. Opening one more is the fastest fix this hour; please put someone on it.`)}>
+              {d.askState === 'sent' ? 'Supervisor Notified'
+                : d.askState === 'sending' ? 'Sending…'
+                : 'Ask Supervisor To Staff It'}
+            </button>
+            {d.askState === 'error' ? (
+              <div className="qx-cap" style={{ color: 'var(--c-bad)', marginTop: 10 }}>
+                {d.askError || 'The request could not be sent. Nothing was changed — try again, or speak to them directly.'}
+              </div>
+            ) : d.askState === 'sent' ? (
+              <div className="qx-cap" style={{ marginTop: 10 }}>
+                You will see the desk filled on the section board once one of them acts.
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+
         <Card title="Today Against Your Target" cap="The targets this branch is held to">
           {!d.targets.length ? <div className="qx-empty">No targets set yet.</div> : (
             <div className="qx-sbreak">

@@ -3,6 +3,11 @@ import { Page, Locator, expect } from '@playwright/test';
 export const ACCOUNTS = {
   lineStaff: { email: 'staff@test.com', password: 'test1234' },
   supervisor: { email: 'supervisor@test.com', password: 'test1234' },
+  /* A real manager. The manager tabs (MgrTabsQX) are a different dashboard from
+     the supervisor's, so a test that signs in as a supervisor to look at a
+     manager screen finds nothing and skips itself — which reads as "the feature
+     is absent" when it is only the wrong door. */
+  manager: { email: 'manager@test.com', password: 'test1234' },
   executive: { email: 'executive-creditunion@test.com', password: 'test1234' },
 } as const;
 
