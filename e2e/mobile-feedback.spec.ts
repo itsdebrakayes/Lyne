@@ -202,6 +202,25 @@ test('signing in acknowledges the tap', async ({ page }) => {
 
 test('the home screen shows real branches, not an empty shell', async ({ page }) => {
   await signInMobile(page);
+
+  /* Home opens on "Open now", so outside business hours the honest answer is a
+     closed-branches state, not a list — and this test used to fail every night
+     for that reason, which taught whoever ran it to ignore a red suite. The
+     screen is right; the assumption of daylight was wrong. Switch to All when
+     nothing is open, then hold the real claim: agencies, with waits beside
+     them, whatever the hour. */
+  /* signInMobile returns the moment the greeting paints, which is before the
+     branch list has loaded — checking for the closed state right here found
+     nothing and fell straight through to the assertion. */
+  await page.waitForTimeout(3000);
+
+  if (/nothing open here yet|every branch in this filter is closed/i.test(
+        await page.locator('body').innerText())) {
+    console.log('  [hours] everything is closed right now; switching to All');
+    await tap(page, /^Show all branches$/);
+    await page.waitForTimeout(3000);
+  }
+
   const body = await page.locator('body').innerText();
   // Somebody has to be listed, with a wait beside them, or the screen is furniture.
   expect(body, 'no agency is listed on the home screen').toMatch(/credit union|passport|tax|court|university|housing/i);
