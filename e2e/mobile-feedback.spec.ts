@@ -228,10 +228,41 @@ test('losing the connection is explained rather than shown as emptiness', async 
 
   /* The floor: an offline phone must not be a blank rectangle. A blank list is
      indistinguishable from "there are no branches near you" — a different and
-     much worse message than "we cannot reach the network".
-     The stronger assertion — that it NAMES the problem — is logged above rather
-     than asserted, because it has not been built yet. When the offline state
-     exists, tighten this to require the explanation. */
+     much worse message than "we cannot reach the network". */
   expect(body.trim().length,
     'the app went blank when the network failed, which reads as "nothing here"').toBeGreaterThan(40);
+
+  /* It must NAME the problem. */
+  await expect(page.locator('body'),
+    'an unreachable API is not explained on screen').toContainText(
+    /no connection|can.?t reach|unable to connect|offline/i);
+
+  /* And it must not ask for a password.
+     This is the regression that matters. The session gate treated "the API did
+     not answer" as "you are not signed in", so a dropped connection put a login
+     form in front of somebody whose session was sitting valid on the device —
+     they retype a password to fix a problem the password was never part of. A
+     refusal still signs them out; an unreachable server does not. */
+  await expect(page.locator('input'),
+    'a dropped connection dumped a signed-in person back to the password form').toHaveCount(0);
+});
+
+/* The other half of the rule above, and the one that would be dangerous to get
+   wrong: keeping a session through a network failure must not turn into keeping
+   a session the server has actually rejected. A revoked or expired token has to
+   put the login form back. */
+test('a refused token still signs the person out', async ({ page }) => {
+  await signInMobile(page);
+  await page.route('**/api/auth/**', (route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Unauthorized"}' }));
+  await page.reload().catch(() => {});
+  await page.waitForTimeout(6000);
+
+  const body = (await page.locator('body').innerText()).trim().replace(/\n+/g, ' | ');
+  console.log(`  [refused] ${body.slice(0, 200)}`);
+
+  await expect(page.locator('input').first(),
+    'a rejected token left the app signed in instead of returning to sign-in').toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('body'),
+    'a refusal was reported as a connection problem').not.toContainText(/no connection/i);
 });
