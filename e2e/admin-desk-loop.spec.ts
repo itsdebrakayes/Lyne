@@ -66,7 +66,7 @@ async function pressAndWatch(page: Page, label: string) {
   await expect(btn, `"${label}" is disabled`).toBeEnabled({ timeout: 10_000 });
 
   /* Hold the ELEMENT, not a text query.
-     "Start Service" becomes "Checking…" and "Complete And Call Next" becomes
+     "Start Service" becomes "Checking…" and "Complete & Call Next" becomes
      "Saving…" the moment they are pressed — which is exactly the feedback under
      test — so a locator matching on the old label stops resolving and the
      button looks like it vanished. It reported three of four presses as giving
@@ -123,6 +123,14 @@ test('idle → called → serving → complete, acknowledging every press', asyn
   const waiting = (Array.isArray(tickets) ? tickets : []).filter((t: any) => t.status === 'waiting');
   test.skip(waiting.length < 1, 'nobody is waiting to be called');
 
+  /* Clock in first, because the desk is now gated on it.
+     A clerk who has not started their shift gets their window name and a Clock
+     In button instead of the station — deliberately, so nobody calls a customer
+     forward to an empty chair. This test used to walk straight onto the station
+     and now has to do what a person does: open the window before working it.
+     Idempotent on the server, so a clerk already on shift is unaffected. */
+  await page.request.post(`${API}/api/staff/me/clock-in`, { headers: { Authorization: `Bearer ${token}` } });
+
   await page.reload();
   await openDesk(page);
   await slowWrites(page);
@@ -140,7 +148,7 @@ test('idle → called → serving → complete, acknowledging every press', asyn
   await expect(page.locator('body')).toContainText(/start service/i, { timeout: 15_000 });
 
   // ── call again, the one that felt dead ────────────────────────────────
-  acks['Call Again'] = (await pressAndWatch(page, 'Call Again')).how;
+  acks['Recall'] = (await pressAndWatch(page, 'Recall')).how;
   await dismissTour(page);
 
   // ── a wrong code must be refused, and SAY so ──────────────────────────
@@ -168,12 +176,12 @@ test('idle → called → serving → complete, acknowledging every press', asyn
     for (let i = 0; i < 6; i += 1) await boxes.nth(i).fill(code[i]);
     acks['Start Service'] = (await pressAndWatch(page, 'Start Service')).how;
     await dismissTour(page);
-    await expect(page.locator('body')).toContainText(/complete and call next/i, { timeout: 15_000 });
+    await expect(page.locator('body')).toContainText(/complete & call next/i, { timeout: 15_000 });
 
     // ── serving → complete: THE button from the report ──────────────────
     const readiness = page.locator('button').filter({ hasText: /^ready$/i }).first();
     if (await readiness.isVisible().catch(() => false)) await readiness.click();
-    acks['Complete And Call Next'] = (await pressAndWatch(page, 'Complete And Call Next')).how;
+    acks['Complete & Call Next'] = (await pressAndWatch(page, 'Complete & Call Next')).how;
   }
 
   console.log('  acknowledgement at each step:');
@@ -194,7 +202,7 @@ test('the buttons on screen do what their label says', async ({ page }) => {
      real backs them. If they come back, they must not share a handler with
      Complete — this asserts they are not silently present again. */
   const body = await page.locator('body').innerText();
-  if (/complete and call next/i.test(body)) {
+  if (/complete & call next/i.test(body)) {
     const transfer = page.locator('button').filter({ hasText: /^\s*Transfer\s*$/ });
     const requeue = page.locator('button').filter({ hasText: /^\s*Requeue\s*$/ });
     expect(await transfer.count(), 'Transfer is back on screen — check it is not wired to Complete').toBe(0);
