@@ -87,6 +87,22 @@ PHRASING = {
 }
 
 
+def headline(branch_name, label, z_score):
+    """The line a manager reads first, and the only one they may read.
+
+    The insight carried a `message` and no `title`, so the dashboard fell back
+    to printing the bare branch name as the heading — "Kingston - Constant
+    Spring" tells somebody scanning a list nothing about whether to act.
+
+    This names the SHAPE of the problem, not the statistic: what is unusual, and
+    at which branch. The number and the comparison stay in the message
+    underneath, where somebody who has decided to care can find them.
+    """
+    short = branch_name.split(" - ")[-1].strip() or branch_name
+    direction = "Higher Than Usual" if z_score > 0 else "Lower Than Usual"
+    return f"{short}: {label.title()} Is {direction}"
+
+
 def plain_message(branch_name, label, col, value, expected, date_iso):
     """A sentence a branch manager would actually say.
 
@@ -187,6 +203,11 @@ def build_insights(df):
                         "severity": a["severity"],
                         "message": plain_message(branch_name, label, col,
                                                  a["value"], a["expected"], a["date"]),
+                        "title": headline(branch_name, label, a["z_score"]),
+                        # How far from normal, in the branch's own history — the
+                        # deck says "2.3 sigma above your normal Tuesday" and it
+                        # is the phrase that makes the claim checkable.
+                        "sigma_label": f"{abs(a['z_score']):.1f} sigma from this branch's normal",
                     })
         anomalies.sort(key=lambda x: (x["severity"] != "critical", -abs(x["z_score"])))
         summary = (f"{business_name}: {len(anomalies)} operational anomaly(ies) in the last "

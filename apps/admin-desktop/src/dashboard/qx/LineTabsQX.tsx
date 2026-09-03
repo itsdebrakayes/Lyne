@@ -60,7 +60,13 @@ export type LineTicket = {
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
-  outcome: 'served' | 'no_show' | 'transferred';
+  /* 'incomplete' is a visit that happened and did not achieve what the person
+     came for; 'left' is somebody who gave up before being called. Both used to
+     land on 'served', so the day's history claimed every outcome was a success
+     — including the ones the clerk had just marked otherwise. */
+  outcome: 'served' | 'incomplete' | 'no_show' | 'left' | 'cancelled' | 'transferred';
+  /** Why it ended unfinished, when it did. */
+  reason?: string | null;
 };
 export type LineTabData = {
   staffName: string; counter: string; serviceName: string; branchName: string;
@@ -206,8 +212,21 @@ const INCOMPLETE_REASONS: { value: string; label: string }[] = [
 
 const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy' | 'soon' | 'closed' }> = {
   served: { label: 'Served', kind: 'open' },
+  incomplete: { label: 'Incomplete', kind: 'soon' },
   no_show: { label: 'No Answer', kind: 'busy' },
+  left: { label: 'Left The Line', kind: 'closed' },
+  cancelled: { label: 'Cancelled', kind: 'closed' },
   transferred: { label: 'Transferred', kind: 'soon' },
+};
+
+/** Reason codes as a clerk would say them, for the history row. */
+const REASON_LABEL: Record<string, string> = {
+  day_ended: 'day ended',
+  wrong_documents: 'wrong documents',
+  wrong_service: 'wrong service',
+  referred_elsewhere: 'referred elsewhere',
+  customer_left: 'left part-way',
+  system_issue: 'system problem',
 };
 
 /* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
@@ -563,8 +582,13 @@ export function LineOverviewQX() {
                 of them before they say a word: what they came for, how they got
                 here, and whether the code has been checked. Facts the system
                 already held and never showed. */}
+            {/* No service pill here. Every ticket at this window is the same
+                service, and the meta row below already says
+                "Window 3 - TRN Registration" — so naming it again made the
+                stage read the service twice. The deck can afford that pill
+                because its example desk handles several request types; ours
+                does not. */}
             <div className="ql-tags">
-              <span className="ql-tag">{d.serviceName}</span>
               <span className="ql-tag">{joinedPill(active)}</span>
               {stage === 'serving' ? (
                 <span className="ql-tag ok"><Check size={13} />Code verified</span>
@@ -773,12 +797,14 @@ export function LineOverviewQX() {
             figure — an empty box claiming a prediction is worse than no box. */}
         {d.deskForecast?.predicted?.minutes ? (
           <div className="ql-meta" style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 12 }}>
+            {/* Model version and sample size were here and are gone: a clerk
+                does not need to know it was gbr-wait-v3 on 21,139 visits, and
+                the provenance made a two-number line read like a footnote.
+                It belongs on the executive's predictions panel, where somebody
+                is actually asking whether to trust the figure. */}
             <span>
               <b>{d.deskForecast.predicted.minutes} min</b> expected per person{' '}
               {d.deskForecast.predicted.basis === 'this hour' ? 'this hour' : 'today'}
-              <small style={{ opacity: 0.65 }}>
-                {' '}· {d.deskForecast.predicted.model_version} on {d.deskForecast.predicted.sample_size.toLocaleString()} visits
-              </small>
             </span>
             {d.deskForecast.actual.avg_minutes != null ? (
               <span>
@@ -1089,7 +1115,18 @@ export function LineHistoryTab() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>{h.at}</div>
               <div className="qx-num">{h.minutes}<u> min</u></div>
-              <div><Status kind={OUTCOME[h.outcome].kind}>{OUTCOME[h.outcome].label}</Status></div>
+              <div>
+                <Status kind={OUTCOME[h.outcome].kind}>{OUTCOME[h.outcome].label}</Status>
+                {/* The reason, where there is one. "Incomplete" says the visit
+                    did not finish; only the reason says whether that is a
+                    document problem the branch can fix or the day simply
+                    ending. */}
+                {h.reason ? (
+                  <small style={{ display: 'block', marginTop: 3, opacity: .7 }}>
+                    {REASON_LABEL[h.reason] || h.reason}
+                  </small>
+                ) : null}
+              </div>
             </Row>
           )} />
       </Card>

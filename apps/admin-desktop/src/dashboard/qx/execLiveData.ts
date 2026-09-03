@@ -157,8 +157,15 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
   const movers = (Array.isArray(anomalies?.anomalies) ? anomalies.anomalies : [])
     .slice(0, 4)
     .map((x: any) => ({
-      name: titleCase(String(x.title || x.branch_name || 'Change')),
-      detail: String(x.message || ''),
+      /* The model writes a title now. titleCase is left off it deliberately —
+         it arrives already cased as a sentence ("Cross Roads: Wait Time Is
+         Higher Than Usual"), and running it through titleCase again mangles
+         the hyphenates. Only the fallback needs casing. */
+      name: String(x.title || titleCase(String(x.branch_name || 'Change'))),
+      /* The sigma is what makes the claim checkable — "unusual" on its own is
+         an assertion, "2.3 sigma from this branch's normal" is a measurement
+         somebody can argue with. */
+      detail: [String(x.message || ''), String(x.sigma_label || '')].filter(Boolean).join(' '),
       dir: (x.direction === 'better' ? 'good' : 'bad') as 'good' | 'bad',
       arrow: (x.direction === 'better' ? 'down' : 'up') as 'up' | 'down',
       delta: String(x.delta_label || ''),
