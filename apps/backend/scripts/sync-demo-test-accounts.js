@@ -407,11 +407,21 @@ async function syncMobileUser(connection, account, supabaseUser) {
   );
   const userId = userRows[0]?.id || account.id;
 
+  /* Only the Tax Office.
+     Home leads with the agencies somebody has saved, so a demo account
+     following all four opened on whichever happened to be quietest — which was
+     a credit union, on the day the point being made was about TAJ. Saving one
+     agency is also what a real person's account looks like; four is what a
+     seed script looks like. */
   await connection.query(
     `INSERT INTO saved_businesses (user_id, business_id)
-     VALUES (?, 'biz-cfcu-001'), (?, 'biz-taj-001'), (?, 'biz-pica-001'), (?, 'biz-nht-001')
+     VALUES (?, 'biz-taj-001')
      ON DUPLICATE KEY UPDATE saved_at = saved_at`,
-    [userId, userId, userId, userId]
+    [userId]
+  );
+  await connection.query(
+    'DELETE FROM saved_businesses WHERE user_id = ? AND business_id <> ?',
+    [userId, 'biz-taj-001']
   );
 }
 
