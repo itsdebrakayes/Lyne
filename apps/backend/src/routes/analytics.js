@@ -725,7 +725,19 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
               (SELECT MIN(us.created_at) FROM user_sessions us
                 WHERE us.staff_id = st.id AND us.session_type = 'staff'
                   AND DATE(us.created_at) = CURDATE())                      AS signed_in_at,
-              MIN(COALESCE(t.called_at, t.started_serving_at))              AS first_activity_at
+              MIN(COALESCE(t.called_at, t.started_serving_at))              AS first_activity_at,
+              /* Presence, from the shift record rather than inferred.
+                 The manager board decided somebody was "on break" because they
+                 had handled a ticket today but were not at a desk this second —
+                 which is also what going home looks like, and what being moved
+                 to another window looks like. Now it is what they told us:
+                 clocked in, on a break, or not on shift. */
+              (SELECT sh.clocked_in_at FROM staff_shifts sh
+                WHERE sh.staff_id = st.id AND sh.clocked_out_at IS NULL
+                LIMIT 1)                                                    AS clocked_in_at,
+              (SELECT sh.on_break_since FROM staff_shifts sh
+                WHERE sh.staff_id = st.id AND sh.clocked_out_at IS NULL
+                LIMIT 1)                                                    AS on_break_since
        FROM queue_tickets t
        JOIN staff st ON t.served_by_staff_id = st.id
        JOIN queues q ON q.id = t.queue_id

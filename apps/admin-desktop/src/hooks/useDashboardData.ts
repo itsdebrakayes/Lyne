@@ -28,6 +28,10 @@ export type ServiceInsight = {
 };
 export type StaffInsight = {
   staff_id?: string; full_name: string; staff_code?: string; tickets_handled?: number; avg_handle_minutes?: number;
+  signed_in_at?: string | null; first_activity_at?: string | null;
+  /* Presence, from staff_shifts. Null clocked_in_at means not on shift, which
+     is different from being on a break and different again from being idle. */
+  clocked_in_at?: string | null; on_break_since?: string | null;
 };
 export type BranchTrend = {
   branch_id?: string; branch_name?: string; business_name?: string; visit_date?: string; total_visits?: number;

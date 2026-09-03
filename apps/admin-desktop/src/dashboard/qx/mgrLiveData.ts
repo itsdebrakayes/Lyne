@@ -146,11 +146,20 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
        today", which is what tickets_handled says. The old reading marked the
        whole branch as Serving on one tab while the productivity feed called the
        same people Idle on another. */
-    const state: MgrStaff['state'] = idle.has(s.full_name) ? 'idle'
+    /* Presence first, because it is now a fact rather than a guess.
+       "on break" used to mean "handled a ticket today but is not at a desk this
+       second" — which is also what going home looks like, and what being moved
+       between windows looks like. A shift record says which. Only once somebody
+       is known to be present do the performance flags (idle, slow) apply; a
+       clerk who has gone home is not "idle with people waiting", they are off. */
+    const onBreak = Boolean(s.on_break_since);
+    const onShift = Boolean(s.clocked_in_at);
+    const state: MgrStaff['state'] = !onShift ? 'off'
+      : onBreak ? 'break'
+      : idle.has(s.full_name) ? 'idle'
       : slow.has(s.full_name) ? 'slow'
       : desk ? 'serving'
-      : seen > 0 ? 'break'
-      : 'off';
+      : 'idle';
     return {
       id: String(s.staff_id || s.full_name),
       name,
