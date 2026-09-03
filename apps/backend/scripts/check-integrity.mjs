@@ -117,7 +117,11 @@ await check(
   `SELECT t.id, t.ticket_number, t.verification_code
      FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
     WHERE q.queue_date = CURDATE() AND t.status IN ${LIVE}
-      AND t.verification_code NOT REGEXP '^[0-9]{6}$'`
+      /* Six characters from the generator's own alphabet — no 0/O, 1/I/L,
+         2/Z, 5/S or 8/B, because a code is read aloud across a counter. This
+         was '^[0-9]{6}$' and went stale the moment codes became alphanumeric;
+         it is the invariant, so it has to track the generator. */
+      AND t.verification_code NOT REGEXP '^[ACDEFGHJKMNPQRTUVWXY34679]{6}$'`
 );
 
 await check(
@@ -210,6 +214,25 @@ await check(
   'Without it the no-show timer never fires and the desk blocks forever.',
   `SELECT id, ticket_number FROM queue_tickets
     WHERE status = 'called' AND call_expires_at IS NULL`
+);
+
+await check(
+  'A daily summary adds up',
+  'Parts that exceed the whole make a completion rate that can print over 100%.',
+  `SELECT id, business_id, branch_id, summary_date, total_visitors,
+          completed_count, no_show_count, left_count, cancelled_count
+     FROM analytics_summaries
+    WHERE completed_count > total_visitors
+       OR (completed_count + no_show_count + left_count + cancelled_count) > total_visitors`
+);
+
+await check(
+  'A summary\'s completion rate matches its own counts',
+  'A card showing 96% beside numbers that say 74% is worse than showing neither.',
+  `SELECT id, branch_id, summary_date, total_visitors, completed_count, completion_rate
+     FROM analytics_summaries
+    WHERE total_visitors > 0
+      AND ABS(completion_rate - ROUND(completed_count / total_visitors * 100, 2)) > 1`
 );
 
 /* ── summary ──────────────────────────────────────────────────────────────── */
