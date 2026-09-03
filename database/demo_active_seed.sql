@@ -571,30 +571,66 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO analytics_summaries
   (id, business_id, branch_id, service_id, summary_date, total_visitors, completed_count, cancelled_count, no_show_count, left_count,
    avg_wait_time_minutes, avg_service_time_minutes, peak_hour, completion_rate)
+/* Every count here used to be drawn independently:
+     total_visitors  = 24 + MOD(CRC32(...), 55)
+     completed_count = 18 + MOD(CRC32(...), 38)
+   with cancelled, no_show and left drawn the same way. Nothing tied the parts
+   to the whole, so 136 rows ended up claiming more completed visits than
+   visitors, and 179 had parts summing past the total. A dashboard dividing one
+   by the other can print a completion rate over 100%, and the demo box was one
+   card away from showing it.
+
+   The outer SELECT now derives every part from a single total, so they add up
+   by construction: completed is a share of the total, and what is left over is
+   split between no-shows, walkaways and cancellations with the remainder going
+   to the last one — never a rounding gap, never a negative. completion_rate is
+   computed from the two numbers above it rather than drawn separately, so the
+   percentage on a card always matches the counts beside it. */
 SELECT
-  CONCAT('sum-', SUBSTRING(MD5(CONCAT(br.id, ':', s.id, ':', d.n)), 1, 28)),
-  br.business_id,
-  br.id,
-  s.id,
-  DATE_SUB(CURDATE(), INTERVAL d.n DAY),
-  24 + MOD(CRC32(CONCAT(br.id, s.id, d.n)), 55),
-  18 + MOD(CRC32(CONCAT(s.id, br.id, d.n)), 38),
-  1 + MOD(CRC32(CONCAT('cancel', br.id, s.id, d.n)), 5),
-  MOD(CRC32(CONCAT('noshow', br.id, s.id, d.n)), 6),
-  MOD(CRC32(CONCAT('left', br.id, s.id, d.n)), 4),
-  8 + MOD(CRC32(CONCAT('wait', br.id, s.id, d.n)), 42),
-  6 + MOD(CRC32(CONCAT('service', br.id, s.id, d.n)), 28),
-  ELT(1 + MOD(CRC32(CONCAT('hour', br.id, s.id, d.n)), 8), 8, 9, 10, 11, 12, 13, 14, 15),
-  72 + MOD(CRC32(CONCAT('rate', br.id, s.id, d.n)), 25)
-FROM branches br
-JOIN services s ON s.business_id = br.business_id AND s.is_active = TRUE
-JOIN (
-  SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
-  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
-  UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13
-) d
-WHERE br.is_active = TRUE
-  AND br.business_id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
+  CONCAT('sum-', SUBSTRING(MD5(CONCAT(x.branch_id, ':', x.service_id, ':', x.n)), 1, 28)),
+  x.business_id,
+  x.branch_id,
+  x.service_id,
+  x.summary_date,
+  x.total,
+  x.completed,
+  x.total - x.completed - x.no_show - x.walked AS cancelled_count,
+  x.no_show,
+  x.walked,
+  x.wait_minutes,
+  x.service_minutes,
+  x.peak_hour,
+  ROUND(x.completed / x.total * 100, 2)
+FROM (
+  SELECT
+    br.business_id,
+    br.id AS branch_id,
+    s.id  AS service_id,
+    d.n,
+    DATE_SUB(CURDATE(), INTERVAL d.n DAY) AS summary_date,
+    tot.total,
+    FLOOR(tot.total * (72 + MOD(CRC32(CONCAT('rate', br.id, s.id, d.n)), 25)) / 100) AS completed,
+    FLOOR((tot.total - FLOOR(tot.total * (72 + MOD(CRC32(CONCAT('rate', br.id, s.id, d.n)), 25)) / 100))
+          * (30 + MOD(CRC32(CONCAT('noshow', br.id, s.id, d.n)), 40)) / 100) AS no_show,
+    FLOOR((tot.total - FLOOR(tot.total * (72 + MOD(CRC32(CONCAT('rate', br.id, s.id, d.n)), 25)) / 100)
+           - FLOOR((tot.total - FLOOR(tot.total * (72 + MOD(CRC32(CONCAT('rate', br.id, s.id, d.n)), 25)) / 100))
+                   * (30 + MOD(CRC32(CONCAT('noshow', br.id, s.id, d.n)), 40)) / 100))
+          * (40 + MOD(CRC32(CONCAT('left', br.id, s.id, d.n)), 30)) / 100) AS walked,
+    8 + MOD(CRC32(CONCAT('wait', br.id, s.id, d.n)), 42) AS wait_minutes,
+    6 + MOD(CRC32(CONCAT('service', br.id, s.id, d.n)), 28) AS service_minutes,
+    ELT(1 + MOD(CRC32(CONCAT('hour', br.id, s.id, d.n)), 8), 8, 9, 10, 11, 12, 13, 14, 15) AS peak_hour
+  FROM branches br
+  JOIN services s ON s.business_id = br.business_id AND s.is_active = TRUE
+  JOIN (
+    SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+    UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+    UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13
+  ) d
+  JOIN (SELECT 1) one
+  JOIN LATERAL (SELECT 24 + MOD(CRC32(CONCAT(br.id, s.id, d.n)), 55) AS total) tot
+  WHERE br.is_active = TRUE
+    AND br.business_id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
+) x
 ON DUPLICATE KEY UPDATE
   total_visitors = VALUES(total_visitors),
   completed_count = VALUES(completed_count),
