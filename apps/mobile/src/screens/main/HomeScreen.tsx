@@ -106,6 +106,23 @@ export default function HomeScreen() {
      request had failed. Silence is the worst of the four states — the screen
      looks correct and is wrong. */
 
+  /* The agencies this person actually uses.
+     A marketplace that opens on whichever agency happens to be quietest is
+     ignoring the strongest signal it has: somebody who saved the Tax Office is
+     far more likely to be opening this app for the Tax Office than for a credit
+     union they have never visited. Failure is silent — an unsaved list is the
+     normal state for a new account, and it must not put an error on Home. */
+  const { data: savedAgencies = [] } = useQuery({
+    queryKey: ['saved-businesses'],
+    queryFn: () => api.get<Array<{ id: string }>>('/saved'),
+    staleTime: 5 * 60_000,
+    retry: 0,
+  });
+  const savedIds = useMemo(
+    () => new Set(savedAgencies.map((b) => String(b.id))),
+    [savedAgencies],
+  );
+
   const { data: businesses = [], isError: businessesFailed } = useQuery({
     queryKey: ['mobile-businesses'],
     queryFn: () => api.get<BusinessRow[]>('/businesses', false),
@@ -172,8 +189,15 @@ export default function HomeScreen() {
       if (!hit) byBusiness.set(b.business_id, { best: b, count: 1 });
       else hit.count += 1;
     });
-    return Array.from(byBusiness.values());
-  }, [sorted]);
+    /* Saved first, and within each group the order the sort above already
+       established — open before closed, then shortest wait. Wait time still
+       decides the rest of the list; this only says the places you have chosen
+       come before the places you have not. */
+    return Array.from(byBusiness.values()).sort(
+      (a, b) => Number(savedIds.has(String(b.best.business_id)))
+              - Number(savedIds.has(String(a.best.business_id))),
+    );
+  }, [sorted, savedIds]);
 
   const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
 
@@ -439,7 +463,10 @@ export default function HomeScreen() {
             frame with a retry in it rather than a hole in the page. */}
         {(isLoading || !!error || agencyRows.length > SPARSE_MAX) && (
           <Section
-            title="Shortest waits"
+            /* The label has to match the order. Once the list leads with the
+               agencies somebody saved, calling it "Shortest waits" is a claim
+               the first card no longer keeps. */
+            title={savedIds.size ? 'Your agencies' : 'Shortest waits'}
             action={{ label: 'See all', onPress: () => navigation.navigate('Search') }}
             loading={isLoading}
             error={error}
