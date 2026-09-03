@@ -125,11 +125,32 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
                 SUM(w.status = 'cancelled')           AS left_count,
                 ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
                 ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
-                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate
+                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
+                /* Served WITHIN target — the pilot's own success measure, and a
+                   different question from completion_rate.
+                   completion_rate asks whether somebody was seen. This asks
+                   whether they were seen in time, which is what a taxpayer
+                   actually experiences and what TAJ has proposed to judge the
+                   pilot on. The average hides the tail: a branch averaging 19
+                   minutes against a 20-minute target can still have a fifth of
+                   its visitors waiting over 40, and the average will not say so.
+                   Branch target where one is set, otherwise the business
+                   target, otherwise 20 — the same order the dashboards resolve
+                   targets in, so the number on this card and the notch on the
+                   chart mean the same thing. */
+                ROUND(
+                  SUM(w.status = 'served'
+                      AND w.wait_time_minutes IS NOT NULL
+                      AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+                  / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
+                ) AS served_within_target_pct,
+                COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
          FROM wait_time_records w
          LEFT JOIN branches b ON w.branch_id = b.id
+         LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
+         LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
          WHERE ${conditions.join(' AND ')}
-         GROUP BY w.visit_date, w.branch_id, b.name
+         GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
          ORDER BY w.visit_date DESC`,
         params
       );
@@ -146,9 +167,28 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
-      `SELECT a.*, b.name AS branch_name
+      /* served_within_target_pct is computed here rather than stored on
+         analytics_summaries. The rollup has no such column, and adding one means
+         a migration plus a backfill of every historical row — where this reads
+         the same wait_time_records the rollup was built from and needs neither.
+         The cost is a correlated subquery per summary row; the periods these
+         screens ask for are days and weeks, not years, so it stays cheap.
+         Target resolution matches the service-scoped branch above: branch, then
+         business, then 20. */
+      `SELECT a.*, b.name AS branch_name,
+              COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes,
+              (SELECT ROUND(
+                        SUM(w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+                        / NULLIF(COUNT(*), 0) * 100, 1)
+                 FROM wait_time_records w
+                WHERE w.branch_id  = a.branch_id
+                  AND w.visit_date = a.summary_date
+                  AND w.status     = 'served'
+                  AND w.wait_time_minutes IS NOT NULL) AS served_within_target_pct
        FROM analytics_summaries a
        LEFT JOIN branches b ON a.branch_id = b.id
+       LEFT JOIN branch_targets   bt  ON bt.branch_id    = a.branch_id
+       LEFT JOIN business_targets bzt ON bzt.business_id = a.business_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY a.summary_date DESC`,
       params
