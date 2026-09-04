@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t } from '../../lib/theme';
@@ -51,6 +51,15 @@ export default function NotificationsScreen() {
     await refetch();
     setRefreshing(false);
   }, [refetch]);
+
+  /* Ask every time this screen is opened.
+     It lives in a navigator, so it is mounted long before it is looked at and
+     never mounts again — which meant opening it showed whatever the 20s poll
+     last happened to fetch. Somebody who was just called swiped the banner
+     away, tapped the bell, and found an empty list: the row was on the server,
+     the phone had not asked. A screen about what just happened cannot open on
+     a cached answer. */
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
   // Opening the screen clears the unread state.
   useEffect(() => {
