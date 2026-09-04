@@ -13,6 +13,7 @@ import About from './pages/About';
 import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import DeleteAccount from './pages/DeleteAccount';
 import NotFound from './pages/NotFound';
 import { ScrollToTop } from './components/ScrollToTop';
 import useSeo from './lib/useSeo';
@@ -21,6 +22,7 @@ import MobileAbout from './pages/mobile/MobileAbout';
 import MobileJoinUs from './pages/mobile/MobileJoinUs';
 import MobilePrivacy from './pages/mobile/MobilePrivacy';
 import MobileTerms from './pages/mobile/MobileTerms';
+import MobileDeleteAccount from './pages/mobile/MobileDeleteAccount';
 import MobileNotFound from './pages/mobile/MobileNotFound';
 
 // The account portal needs Supabase values that are intentionally not part of
@@ -104,6 +106,13 @@ function App() {
                 title="Terms of Service"
                 description="The terms that apply when you use Lyne to join a queue or manage one.">
                 <ResponsivePage desktop={<Terms />} mobile={<MobileTerms />} />
+              </Seo>} />
+            <Route path="/delete-account" element={
+              <Seo
+                path="/delete-account"
+                title="Delete Your Account"
+                description="How to delete your Lyne account and everything on it, from inside the app or without it. What is removed, what is kept, and how to ask us.">
+                <ResponsivePage desktop={<DeleteAccount />} mobile={<MobileDeleteAccount />} />
               </Seo>} />
             {/* Deliberately absent from the nav, the footer and the sitemap.
                 Typing the URL renders <NotFound /> unless the visitor arrived

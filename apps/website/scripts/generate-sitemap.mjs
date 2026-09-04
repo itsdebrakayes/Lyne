@@ -24,6 +24,10 @@ const ROUTES = [
   { path: '/about',    priority: '0.8', changefreq: 'monthly' },
   { path: '/join-us',  priority: '0.8', changefreq: 'monthly' },
   { path: '/privacy',  priority: '0.3', changefreq: 'yearly'  },
+  /* Indexed on purpose: Google Play requires this page to be reachable by
+     somebody who has already uninstalled the app, and the first place they
+     will look is a search engine. */
+  { path: '/delete-account', priority: '0.3', changefreq: 'yearly' },
   { path: '/terms',    priority: '0.3', changefreq: 'yearly'  },
 ];
 
