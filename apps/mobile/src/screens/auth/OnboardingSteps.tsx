@@ -31,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { activeScheme, colors, font, hexToRgba, radius, shadow, sp } from '../../lib/theme';
 import { CITIES, SECTORS, writePreferences } from '../../lib/preferences';
+import { useStage } from '../../lib/stage';
 
 /* ── the pictures ─────────────────────────────────────────────────────────
    Built from primitives rather than shipped as images: they inherit the theme,
@@ -147,6 +148,7 @@ const STEPS: Step[] = [
 
 export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
   const { height } = useWindowDimensions();
+  const stage = useStage();
   const [step, setStep] = useState(0);
   const [city, setCity] = useState<string | undefined>();
   const [sectors, setSectors] = useState<string[]>([]);
@@ -225,7 +227,12 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
       />
 
       {/* top bar — back on the left, skip on the right, both always reachable */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sp.screen, paddingTop: 58, paddingBottom: 6 }}>
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: stage.wide ? stage.pad : sp.screen, paddingTop: 58, paddingBottom: 6,
+        width: '100%', maxWidth: stage.maxWidth ? stage.maxWidth + stage.pad * 2 : undefined,
+        alignSelf: 'center',
+      }}>
         <TouchableOpacity
           onPress={back}
           accessibilityRole="button"
@@ -269,14 +276,18 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
         )}
       </Animated.View>
 
-      <View style={{ paddingHorizontal: sp.screen, paddingBottom: 40 }}>
+      <View style={{
+        paddingHorizontal: stage.wide ? stage.pad : sp.screen, paddingBottom: 40,
+        width: '100%', maxWidth: stage.maxWidth ? stage.maxWidth + stage.pad * 2 : undefined,
+        alignSelf: 'center',
+      }}>
         <TouchableOpacity
           accessibilityRole="button"
           onPress={next}
           activeOpacity={0.9}
-          style={{ backgroundColor: colors.dark, borderRadius: radius.xl, height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, ...shadow.hero }}
+          style={{ backgroundColor: colors.dark, borderRadius: radius.xl, height: stage.wide ? 68 : 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, ...shadow.hero }}
         >
-          <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 15.5 }}>{cta}</Text>
+          <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: stage.wide ? 18 : 15.5 }}>{cta}</Text>
           <Ionicons name="arrow-forward" size={16} color={colors.accent} />
         </TouchableOpacity>
       </View>
@@ -285,41 +296,87 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
 }
 
 function ExplainStep({ art: Art, title, body }: { art: () => React.JSX.Element; title: string; body: string }) {
+  const s = useStage();
   return (
     /* The illustration and the words it is illustrating are ONE block, centred
        together. They used to be two: the art took flex:1 and centred itself in
        whatever space was left, while the text was pinned to the bottom — so on
        a tall phone a third of the screen opened up between a picture and the
-       sentence explaining it, and the two stopped reading as related. */
-    <View style={{ flex: 1, paddingHorizontal: sp.xxl, justifyContent: 'center', paddingBottom: sp.xxl }}>
-      <View style={{ alignItems: 'center', marginBottom: 38 }}>
-        <Art />
-      </View>
-      <View>
-        <Text style={{ fontFamily: font.extra, fontSize: 30, lineHeight: 36, color: colors.ink, letterSpacing: -1 }}>{title}</Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 22, color: colors.muted, marginTop: 12, maxWidth: 330 }}>{body}</Text>
+       sentence explaining it, and the two stopped reading as related.
+
+       On a tablet the same block is centred horizontally as well, inside a
+       capped column. Left-aligned to a 1032pt edge, a headline and its
+       paragraph stop looking like a pair and start looking like debris. */
+    <View style={{ flex: 1, paddingHorizontal: s.pad, justifyContent: 'center', paddingBottom: sp.xxl }}>
+      <View style={{ width: '100%', maxWidth: s.maxWidth, alignSelf: 'center' }}>
+        {/* The illustrations are drawn at a fixed 250pt because they are built
+            from primitives rather than sized by their container. Scaled rather
+            than rewritten: at tablet size a 250pt picture under a 42pt headline
+            reads as an icon that lost its caption, and the block stops being a
+            picture with words and becomes words with a decoration. */}
+        <View style={{
+          alignItems: 'center', marginBottom: s.wide ? 52 : 38,
+          transform: s.wide ? [{ scale: 1.34 }] : undefined,
+        }}>
+          <Art />
+        </View>
+        <View style={{ alignItems: s.wide ? 'center' : 'flex-start' }}>
+          <Text style={{
+            fontFamily: font.extra, fontSize: s.title, lineHeight: s.titleLine,
+            color: colors.ink, letterSpacing: -1, textAlign: s.wide ? 'center' : 'left',
+          }}>
+            {title}
+          </Text>
+          <Text style={{
+            fontFamily: font.medium, fontSize: s.body, lineHeight: s.bodyLine,
+            color: colors.muted, marginTop: 12, maxWidth: s.wide ? 520 : 330,
+            textAlign: s.wide ? 'center' : 'left',
+          }}>
+            {body}
+          </Text>
+        </View>
       </View>
     </View>
   );
 }
 
 function StepHead({ title, body }: { title: string; body: string }) {
+  const s = useStage();
   return (
-    <View style={{ paddingHorizontal: sp.xxl, paddingTop: 14, paddingBottom: 18 }}>
-      <Text style={{ fontFamily: font.extra, fontSize: 27, lineHeight: 33, color: colors.ink, letterSpacing: -0.9 }}>{title}</Text>
-      <Text style={{ fontFamily: font.medium, fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 9 }}>{body}</Text>
+    <View style={{ paddingHorizontal: s.pad, paddingTop: 14, paddingBottom: 18 }}>
+      <View style={{ width: '100%', maxWidth: s.maxWidth, alignSelf: 'center' }}>
+        <Text style={{
+          fontFamily: font.extra, fontSize: s.wide ? 38 : 27, lineHeight: s.wide ? 45 : 33,
+          color: colors.ink, letterSpacing: -0.9,
+        }}>
+          {title}
+        </Text>
+        <Text style={{
+          fontFamily: font.medium, fontSize: s.wide ? 16.5 : 14, lineHeight: s.wide ? 25 : 21,
+          color: colors.muted, marginTop: 9,
+        }}>
+          {body}
+        </Text>
+      </View>
     </View>
   );
 }
 
 function CityStep({ value, onChange }: { value?: string; onChange: (c: string) => void }) {
+  const s = useStage();
   return (
     <View style={{ flex: 1 }}>
       <StepHead
         title={'Where do you\nqueue most?'}
         body="We will open on your town and put its branches first. You can change this any time."
       />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: sp.xxl, paddingBottom: 20, gap: 10 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: s.pad, paddingBottom: 20, gap: 10,
+          width: '100%', maxWidth: s.maxWidth, alignSelf: 'center',
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {CITIES.map((c) => {
           const on = value === c;
           return (
@@ -350,13 +407,20 @@ function CityStep({ value, onChange }: { value?: string; onChange: (c: string) =
 }
 
 function SectorStep({ values, onToggle }: { values: string[]; onToggle: (k: string) => void }) {
+  const s = useStage();
   return (
     <View style={{ flex: 1 }}>
       <StepHead
         title={'What brings\nyou to Lyne?'}
         body="Pick as many as you like — we will lead with these on your home screen."
       />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: sp.xxl, paddingBottom: 20, gap: 11 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: s.pad, paddingBottom: 20, gap: 11,
+          width: '100%', maxWidth: s.maxWidth, alignSelf: 'center',
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {SECTORS.map((s) => {
           const on = values.includes(s.key);
           return (
