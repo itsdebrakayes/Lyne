@@ -25,6 +25,7 @@ import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
+import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
 // Queue flow screens
@@ -50,6 +51,7 @@ export type RootStackParamList = {
   DocumentCapture: { field: 'national_id' | 'trn' };
   PaymentMethods: undefined;
   PrivacySecurity: undefined;
+  Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is
      actually open, so the app never shows a door that leads nowhere. */
@@ -158,6 +160,7 @@ export default function AppNavigator() {
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+            <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
