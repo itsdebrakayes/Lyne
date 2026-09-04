@@ -11,6 +11,7 @@ import { Text, TouchableOpacity, View, useWindowDimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { activeScheme, colors, font, hexToRgba, shadow } from '../../lib/theme';
+import { useStage } from '../../lib/stage';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string; h: number };
 
@@ -60,6 +61,7 @@ function MosaicColumn({ tiles, offset = 0 }: { tiles: Tile[]; offset?: number })
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const { height } = useWindowDimensions();
+  const { wide, maxWidth, pad } = useStage();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <LinearGradient
@@ -76,8 +78,11 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: height * 0.72 }}
       />
 
-      {/* brand mosaic — oversized and softly rotated, bleeding off the edges */}
-      <View style={{ height: height * 0.56, overflow: 'hidden' }}>
+      {/* brand mosaic — oversized and softly rotated, bleeding off the edges.
+          Capped on a tablet: 56% of a 1376pt screen is 770pt of tiles, which
+          stopped being a header and became the screen, and the fixed tile
+          heights meant a column simply ran out partway down and left a hole. */}
+      <View style={{ height: Math.min(height * 0.56, wide ? 420 : Infinity), overflow: 'hidden' }}>
         <View
           style={{
             position: 'absolute', top: -70, left: -46, right: -46,
@@ -97,27 +102,37 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
         />
       </View>
 
-      {/* welcome */}
-      <View style={{ flex: 1, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 46 }}>
-        <View style={{ width: 58, height: 58, borderRadius: 20, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', marginBottom: 22, ...shadow.card }}>
-          <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: 26 }}>L</Text>
-        </View>
-        <Text style={{ fontFamily: font.extra, fontSize: 34, lineHeight: 40, color: colors.ink, letterSpacing: -1, textAlign: 'center' }}>
-          Welcome to{'\n'}Lyne
-        </Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 14, maxWidth: 300 }}>
-          Skip the line, not your day — live waits, remote queueing, and perfectly timed arrivals.
-        </Text>
+      {/* welcome — centred in what the mosaic leaves, inside a capped column.
+          It used to be pinned to the bottom with justifyContent: 'flex-end',
+          which is invisible on a phone (the mosaic fills the rest) and is the
+          whole problem on a tablet: the words end up in the bottom quarter
+          with several hundred points of nothing above them. */}
+      <View style={{
+        flex: 1, paddingHorizontal: pad,
+        alignItems: 'center', justifyContent: wide ? 'center' : 'flex-end',
+        paddingBottom: wide ? 0 : 46,
+      }}>
+        <View style={{ width: '100%', maxWidth: maxWidth, alignItems: 'center' }}>
+          <View style={{ width: wide ? 76 : 58, height: wide ? 76 : 58, borderRadius: wide ? 26 : 20, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', marginBottom: wide ? 30 : 22, ...shadow.card }}>
+            <Text style={{ color: colors.accent, fontFamily: font.extra, fontSize: wide ? 34 : 26 }}>L</Text>
+          </View>
+          <Text style={{ fontFamily: font.extra, fontSize: wide ? 52 : 34, lineHeight: wide ? 60 : 40, color: colors.ink, letterSpacing: -1.4, textAlign: 'center' }}>
+            Welcome to{'\n'}Lyne
+          </Text>
+          <Text style={{ fontFamily: font.medium, fontSize: wide ? 18 : 14.5, lineHeight: wide ? 28 : 21, color: colors.muted, textAlign: 'center', marginTop: wide ? 18 : 14, maxWidth: wide ? 520 : 300 }}>
+            Skip the line, not your day — live waits, remote queueing, and perfectly timed arrivals.
+          </Text>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={onComplete}
-          activeOpacity={0.9}
-          style={{ alignSelf: 'stretch', marginTop: 30, backgroundColor: colors.dark, borderRadius: 22, height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, ...shadow.hero }}
-        >
-          <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 16 }}>Start queuing</Text>
-          <Ionicons name="arrow-forward" size={17} color={colors.accent} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onComplete}
+            activeOpacity={0.9}
+            style={{ alignSelf: 'stretch', marginTop: wide ? 40 : 30, backgroundColor: colors.dark, borderRadius: 22, height: wide ? 70 : 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, ...shadow.hero }}
+          >
+            <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: wide ? 19 : 16 }}>Start queuing</Text>
+            <Ionicons name="arrow-forward" size={wide ? 20 : 17} color={colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
