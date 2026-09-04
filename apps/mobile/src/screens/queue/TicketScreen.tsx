@@ -80,6 +80,7 @@ export default function TicketScreen() {
   });
   const ticket = ticketQuery.data;
   const { refreshing, onRefresh } = useRefresh(activeTicketQuery.refetch, ticketQuery.refetch);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!ticket) return;
@@ -91,6 +92,13 @@ export default function TicketScreen() {
       else if (ticket.status === 'no_show') haptics.error();
       const title = ticket.status === 'called' ? "You're being called" : ticket.status === 'no_show' ? 'You lost your place in line' : 'Queue status updated';
       scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
+      /* Pull the bell forward to meet the banner.
+         The banner is local and fires the instant this 5s poll sees the change;
+         the notification list is a separate query that polls every 20-30s. So
+         somebody who read "You're being called", swiped it away and opened the
+         bell found nothing there — the row existed on the server the whole time,
+         the phone simply had not asked yet. Ask now. */
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
       scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
     }
@@ -112,12 +120,10 @@ export default function TicketScreen() {
       cancelDepartureReminder();
     }
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
-  }, [ticket]);
+  }, [ticket, queryClient]);
 
   // Leaving is irreversible — the place in line is released to the next person
   // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
-  const queryClient = useQueryClient();
-
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
