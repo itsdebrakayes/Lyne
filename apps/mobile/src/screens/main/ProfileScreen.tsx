@@ -219,17 +219,7 @@ export default function ProfileScreen() {
           { icon: 'clock', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
           { icon: 'bell', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'appearance', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
-          /* Payment methods is web-only for the same reason the upgrade is.
-             The only thing a saved card can be charged for is the premium
-             subscription — there is no agency-fee purpose in the backend — so
-             every path through this screen is subscription management for
-             digital content, which both stores want handled by their own
-             billing. With no in-app purchase path, a card screen on native is
-             also just a dead end: it cannot add a card, only point at a
-             website. Restoring it means StoreKit and Play Billing. */
-          ...(Platform.OS === 'web'
-            ? [{ icon: 'financial' as const, label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') }]
-            : []),
+          { icon: 'financial', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
           { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
           /* Both stores require the privacy policy to be readable inside the
              app, not just as a URL on the listing. LegalScreen held both

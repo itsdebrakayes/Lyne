@@ -7,7 +7,7 @@
  * button flips the flag server-side so both states are real, not mocked.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -249,30 +249,23 @@ export default function PlanVisitScreen() {
                       </>
                     )}
                   </TouchableOpacity>
-                  {/* The paid upgrade is web-only, and that is a store rule
-                      rather than a design choice.
+                  {/* Purchase happens on our web gateway, by design — no card
+                      sheet here, and no store billing.
 
-                      Premium unlocks Smart Timing, which is digital
-                      functionality inside the app, so both stores require
-                      their own billing for it: Apple guideline 3.1.1, and
-                      Google Play's Payments policy. Linking out to a Stripe
-                      checkout instead is the anti-steering case in 3.1.3 —
-                      permitted in the US storefront since the 2025 injunction,
-                      but not in Jamaica, which is the storefront that matters
-                      here. The earlier note claiming this matched ChatGPT and
-                      Claude was reasoning from apps that ship no in-app
-                      purchase path at all, which is exactly what this now is.
-
-                      The free trial stays: no money changes hands, so neither
-                      policy is engaged. When the trial ends the feature simply
-                      locks again. Restoring a purchase path on native means
-                      StoreKit and Play Billing, not a different link. */}
-                  {Platform.OS === 'web' && (
-                    <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Ionicons name="open-outline" size={16} color="#fff" />
-                      <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
-                    </TouchableOpacity>
-                  )}
+                      Known review risk, accepted deliberately: Apple 3.1.3 is
+                      an ANTI-STEERING rule, so the website gateway itself is
+                      fine and it is this button that carries the exposure —
+                      the US storefront has allowed such links since the 2025
+                      injunction, other storefronts still require the External
+                      Purchase Link Entitlement. If Review objects, the fix is
+                      to drop this one control while leaving the gateway and
+                      the trial exactly as they are; nothing else has to move.
+                      openSubscriptionPortal explains where it is going before
+                      it opens anything. */}
+                  <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Ionicons name="open-outline" size={16} color="#fff" />
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
+                  </TouchableOpacity>
                   <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
                 </View>
               </>
