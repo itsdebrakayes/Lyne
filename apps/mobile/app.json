@@ -5,9 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "scheme": "lyne",
+    "primaryColor": "#1b4b8f",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lyne.mobile",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "LYNE uses your location to estimate when you should leave for your queue.",
         "NSUserNotificationUsageDescription": "LYNE sends queue updates and departure reminders.",
@@ -18,6 +25,11 @@
     },
     "android": {
       "package": "com.lyne.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0c1826"
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -27,19 +39,25 @@
         "USE_BIOMETRIC"
       ]
     },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#101d18",
-          "dark": { "backgroundColor": "#0b1210" },
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#0c1826",
+          "dark": { "backgroundColor": "#080e16" },
           "resizeMode": "contain"
         }
       ],
       [
         "expo-notifications",
         {
-          "color": "#0a0a0a",
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#1b4b8f",
           "sounds": []
         }
       ],
