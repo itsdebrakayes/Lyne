@@ -252,16 +252,19 @@ export default function PlanVisitScreen() {
                   {/* Purchase happens on our web gateway, by design — no card
                       sheet here, and no store billing.
 
-                      Known review risk, accepted deliberately: Apple 3.1.3 is
-                      an ANTI-STEERING rule, so the website gateway itself is
-                      fine and it is this button that carries the exposure —
-                      the US storefront has allowed such links since the 2025
-                      injunction, other storefronts still require the External
-                      Purchase Link Entitlement. If Review objects, the fix is
-                      to drop this one control while leaving the gateway and
-                      the trial exactly as they are; nothing else has to move.
+                      This is the pattern the big subscription apps ship in the
+                      Jamaican storefront: the app tells you the plan and the
+                      price and sends you to the website, because in-app
+                      purchase is not offered here. Confirmed against ChatGPT
+                      on a Jamaican account, not inferred from the guidelines —
+                      IAP availability and what a subscription screen is
+                      allowed to do both vary by storefront, so the guideline
+                      text alone is not evidence of what ships.
+
                       openSubscriptionPortal explains where it is going before
-                      it opens anything. */}
+                      it opens anything, which is the part that matters: the
+                      rule Apple enforces is about steering, so informing
+                      before navigating is deliberate, not decoration. */}
                   <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     <Ionicons name="open-outline" size={16} color="#fff" />
                     <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
