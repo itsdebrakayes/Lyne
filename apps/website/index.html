@@ -11,15 +11,145 @@
     <meta name="description" content="Lyne lets you see how long the wait is and hold your spot from your phone, so you never have to stand around waiting again." />
     <meta name="author" content="Lyne" />
 
+    <!--
+      Absolute urls, written at build time.
+      Every https://example.invalid below is replaced by VITE_SITE_URL in
+      scripts/generate-sitemap.mjs. Canonical and og:url must be absolute — a
+      relative canonical is ignored, and a card scraper cannot resolve one — and
+      the source file cannot know the domain, so it is stamped in during build.
+    -->
+    <link rel="canonical" href="https://example.invalid/" />
+
+    <!-- Say yes explicitly. Some crawlers treat a missing directive as a reason
+         to be conservative about snippets and image previews. -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+    <meta name="theme-color" content="#060d1c" />
+
+    <meta property="og:site_name" content="Lyne" />
     <meta property="og:title" content="Lyne — Skip the Wait" />
     <meta property="og:description" content="See the wait before you leave home, hold your spot from your phone, and keep your day moving." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://example.invalid/" />
+    <meta property="og:locale" content="en_JM" />
+    <meta property="og:image" content="https://example.invalid/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Lyne — see the wait and hold your spot from your phone." />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@getlyne" />
+    <meta name="twitter:title" content="Lyne — Skip the Wait" />
+    <meta name="twitter:description" content="See the wait before you leave home, hold your spot from your phone, and keep your day moving." />
+    <meta name="twitter:image" content="https://example.invalid/og-cover.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!--
+      Structured data — the part answer engines actually read.
+
+      This site is a client-rendered SPA, so an assistant that does not execute
+      JavaScript sees this <head> and an empty <div id="root">. Everything below
+      is therefore written as literal markup rather than injected at runtime: it
+      is the only description of the product that a non-rendering crawler gets,
+      and it is what turns "what is Lyne" into a quotable answer instead of a
+      guess made from the page title.
+
+      Three graphs, doing three jobs: what the company is, what the product is,
+      and the questions people actually type. Keep the FAQ answers self-contained
+      — an answer engine quotes one, not the page around it.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://example.invalid/#organization",
+          "name": "Lyne",
+          "url": "https://example.invalid/",
+          "logo": "https://example.invalid/favicon.svg",
+          "description": "Lyne is a queue management and virtual line platform that lets people see live wait times and hold their place in line from their phone.",
+          "areaServed": { "@type": "Country", "name": "Jamaica" },
+          "sameAs": ["https://twitter.com/getlyne"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://example.invalid/#website",
+          "url": "https://example.invalid/",
+          "name": "Lyne",
+          "publisher": { "@id": "https://example.invalid/#organization" },
+          "inLanguage": "en"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Lyne",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "iOS, Android, Web",
+          "url": "https://example.invalid/",
+          "publisher": { "@id": "https://example.invalid/#organization" },
+          "description": "Lyne removes physical queues. Customers join a line from their phone, watch their position update live, and arrive when they are nearly up. Branches get live queue dashboards, wait-time forecasting, staff and counter management, and analytics.",
+          "featureList": [
+            "Live wait times before you leave home",
+            "Join a queue remotely and hold your place",
+            "Notifications when you are called",
+            "Kiosk check-in for walk-in customers",
+            "Live queue dashboard for branch staff",
+            "Wait-time forecasting and demand prediction",
+            "Staff, counter and service analytics"
+          ],
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JMD" }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://example.invalid/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Lyne?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Lyne is a queue management platform that replaces physical lines with a virtual one. You can see how long the wait is at a branch before you leave home, join the line from your phone, and get notified when it is nearly your turn."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do I skip the line at a government office or bank?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "If the branch uses Lyne, you open the app, pick the branch and the service you need, and join the queue remotely. Your position updates live while you carry on with your day, and Lyne tells you when to head in."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is a virtual queue system?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A virtual queue system lets customers hold a place in line without standing in it. Instead of a paper ticket and a waiting room, the queue lives on the customer's phone and on a live dashboard the branch staff work from."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What does Lyne give a branch or business?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Branches get a live view of every line and counter, wait-time forecasting, kiosk check-in for walk-ins, staff and service analytics, and alerts when a queue is heading for trouble so a supervisor can act before customers feel it."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Lyne available in Jamaica?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Lyne is built in Jamaica for Jamaican agencies, banks, credit unions and government offices, and is rolling out to branches now."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
 
   <body>
