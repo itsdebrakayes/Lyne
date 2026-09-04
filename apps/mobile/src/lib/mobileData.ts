@@ -26,6 +26,10 @@ export interface ServiceSummary {
   business_name: string;
   name: string;
   description?: string | null;
+  /** Letter code on this service's tickets, e.g. TRN in TRN-014. The services
+   *  list selects s.*, so it has always been on the wire — it just had no name
+   *  here until the kiosk needed to show it. */
+  ticket_prefix?: string | null;
   waiting_count: number;
   avg_wait_minutes: number;
   base_avg_time_minutes: number;
