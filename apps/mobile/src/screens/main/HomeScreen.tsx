@@ -366,7 +366,7 @@ export default function HomeScreen() {
         {/* Popular places — the reference's category grid, carrying agencies
             because that is what people navigate a queue app by. */}
         {tiles.length > 0 && (
-          <View style={{ marginTop: 30 }}>
+          <View style={{ marginTop: 26 }}>
             <RailHead title="Popular places" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
             <TileGrid items={tiles} />
           </View>
@@ -374,7 +374,7 @@ export default function HomeScreen() {
 
         {/* Recommended — the badged card rail. Each badge is computed from the
             live figures below, never assigned for decoration. */}
-        <View style={{ marginTop: 30 }}>
+        <View style={{ marginTop: 26 }}>
           <RailHead
             title={savedIds.size ? 'Your agencies' : 'Recommended for you'}
             actionLabel="View all"

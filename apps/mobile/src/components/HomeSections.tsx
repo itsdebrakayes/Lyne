@@ -71,7 +71,18 @@ export interface TileItem {
  */
 export function TileGrid({ items }: { items: TileItem[] }) {
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 }}>
+    /* One row that scrolls, not a wrapping grid.
+       Eight tiles over two rows pushed the agency cards below the fold, so the
+       first thing on Home after the promo was a wall of acronyms rather than
+       the lines somebody actually came to check. Four fit across; the rest are
+       a thumb-flick away, which is the right cost for the ninth agency. */
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+      snapToInterval={84}
+      decelerationRate="fast"
+    >
       {items.map((it) => (
         <TouchableOpacity
           key={it.id}
@@ -81,23 +92,23 @@ export function TileGrid({ items }: { items: TileItem[] }) {
           /* The tile shows letters; a screen reader still gets the whole name,
              because "CFC" read aloud is not a name. */
           accessibilityLabel={it.label}
-          style={{ width: '25%', alignItems: 'center', paddingHorizontal: 5 }}
+          style={{ width: 72 }}
         >
           <View
             style={{
-              width: '100%', aspectRatio: 1, borderRadius: 20, backgroundColor: colors.surface,
+              width: 72, height: 72, borderRadius: 22, backgroundColor: colors.surface,
               borderWidth: 1, borderColor: colors.borderSoft,
               alignItems: 'center', justifyContent: 'center', ...shadow.card,
             }}
           >
             {/* One line, always. UTECH is the longest real acronym at five
-                characters, and it has to sit at the same optical weight as
-                NHT — so the type shrinks a step rather than the tile growing. */}
+                characters and has to sit at the same optical weight as NHT, so
+                the type steps down rather than the tile growing. */}
             <Text
               numberOfLines={1}
               style={{
                 fontFamily: font.extra,
-                fontSize: it.acronym.length >= 5 ? 13.5 : 16,
+                fontSize: it.acronym.length >= 5 ? 14 : 16.5,
                 color: colors.accent, letterSpacing: 0.2,
               }}
             >
@@ -106,7 +117,7 @@ export function TileGrid({ items }: { items: TileItem[] }) {
           </View>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
