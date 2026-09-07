@@ -12,6 +12,7 @@ import { Sheen } from '../../components/Glass';
 import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
+import { useDevicePlace } from '../../lib/deviceLocation';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
 import HomeHero from '../../components/HomeHero';
@@ -93,6 +94,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sector, setSector] = useState<string | null>(null);
   const [openOnly, setOpenOnly] = useState(true);
+  const devicePlace = useDevicePlace();
   const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
   const ticket = useActiveTicket();
   const { prefs } = usePreferences();
@@ -307,10 +309,11 @@ export default function HomeScreen() {
                 thing twice and made neither land. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="pin" size={13} color={colors.muted} />
-              {/* The town they told us in setup, not a hardcoded capital. This is the
-                  first place an onboarding answer has to show up — if it does not,
-                  the questions were theatre. */}
-              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>{homeLocationLabel(prefs)}</Text>
+              {/* The phone if it will say without being asked, otherwise the town
+                  they told us in setup. Never a hardcoded capital: this is the
+                  first place an onboarding answer has to show up, and the first
+                  place a wrong guess is visible. */}
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>{homeLocationLabel(prefs, devicePlace)}</Text>
               <Icon name="chevronDown" size={11} color={colors.muted} />
             </View>
           </View>
