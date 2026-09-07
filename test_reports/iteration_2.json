@@ -1,0 +1,29 @@
+{
+  "summary": "Facelift v2 fully tested end-to-end on mobile web preview (390x844). 41 checks executed across splash/welcome, auth (sign in + guest link + sign up link visible), Home (headline, active-ticket strip -> /ticket/MEM-003, notifications bell, agency-join-a1, chip toggle, near-you rows), floating pill tab bar (tab-home/find/visits/account + tab-center-action -> Find), Find (search filter with 'Montego', clear + quick-passport-renewal sets search, filter-community-first present, save-b1 toggle works, branch-b1/join-b1 route correctly), Join flow (join-branch-selector opens sheet -> option-b2 updates card, join-service-selector -> option-s2, join-arrive-later toggles, join-see-line-btn -> /join/line, line-join-btn -> /join/ready), Ready (hold button disabled label 'Check the required items first', flips to 'Hold to join the line' once all check-doc-* required items ticked; press-and-hold 1500ms creates ticket TRN-003 and replaces to /ticket/TRN-003), Ticket (notify toggles to 'Alerts on', advance -> 'Start heading in' banner, check-in -> 'Checked in' status, next advance -> /called/<number>, called-back-btn returns), Leave-line sheet (ticket-leave-btn opens sheet, leave-reason-0 clears ticket and returns to /home; strip is gone), and Other screens (/visits, /account, /help, /branch/b1, /session/sess1, /feedback/pt1) all render without red screen. No console errors detected (only benign RN Animated useNativeDriver warnings on web and one deprecated pointerEvents-prop warning). Deprecated packages detected: none (expo-av / expo-barcode-scanner / expo-background-fetch are not in dependencies).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "FloatingTabBar", "issue": "Uses deprecated prop `pointerEvents=\"box-none\"` on <View>. RN warns 'props.pointerEvents is deprecated. Use style.pointerEvents'. Reference: /app/frontend/app/(tabs)/_layout.tsx:51"}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_2.json"],
+  "action_items": [
+    "Optional cleanup: migrate `pointerEvents` prop to `style.pointerEvents` in app/(tabs)/_layout.tsx (line 51) — otherwise a warning appears on every render on web."
+  ],
+  "critical_code_review_comments": [
+    "hold-button.tsx uses `useNativeDriver: false` for the width interpolation (correct for animating non-transform props on web) but still triggers `Animated.useNativeDriver` warnings from other Animated.timing calls (e.g. ticket screen pulse). Consider suppressing on web or gating with Platform.OS !== 'web'.",
+    "app/ticket/[id].tsx uses useEffect with empty deps to start the pulse loop — good; loop.stop() cleanup is present.",
+    "Home headline text 'What do you need\\nto get done?' contains an escaped newline literal — verified rendering correctly.",
+    "Ready screen scroll bottom pad is 140 to clear the sticky footer holding the hold button — verified button reachable at 390x844 viewport."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only prototype, no backend)", "frontend": "100% (41/41 checks after test-script re-run)"},
+  "seed_data_creation": "None — mock data in /app/frontend/src/data/mock.ts; store defaults seed the MEM-003 ticket so the 'You're in line' strip is visible on first Home render.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All facelift v2 testIDs exist and behave as documented. HoldButton confirmed to work with page.mouse.down()+wait(>=1300ms)+mouse.up(). Note that /ticket route ID is the ticket NUMBER (e.g. MEM-003, TRN-003) not the store activeTicketId. When testing Find bookmarks/joins for a specific branch, ensure the search field is empty and no chip is selected. When testing Ready, always scroll_into_view each check-* row (some rows are far below the fold at 390x844) before clicking to guarantee state updates.",
+  "rca_of_issue": "N/A — no functional issues found. The single warning (pointerEvents prop) is cosmetic."
+}

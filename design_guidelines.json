@@ -1,0 +1,236 @@
+{
+  "app_name": "Lyne",
+  "personality": "1 iOS-Native Clean (Civic Variant)",
+  "personality_one_liner": "A trustworthy, calm, and distinctly civic digital queue manager that respects the user's time without feeling like a bank or a pager.",
+  "color": {
+    "surface": "#F0F4F8",
+    "onSurface": "#0B192C",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#0B192C",
+    "surfaceTertiary": "#E1EFFE",
+    "onSurfaceTertiary": "#1D4ED8",
+    "surfaceInverse": "#0B192C",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#0B192C",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#1D4ED8",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#E1EFFE",
+    "onBrandSecondary": "#1D4ED8",
+    "brandTertiary": "#DBEAFE",
+    "onBrandTertiary": "#1D4ED8",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#EF4444",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "border": "#E2E8F0",
+    "borderStrong": "#CBD5E1",
+    "divider": "#F1F5F9",
+    "muted": "#64748B",
+    "dark": {
+      "surface": "#020617",
+      "onSurface": "#F8FAFC",
+      "surfaceSecondary": "#0F172A",
+      "onSurfaceSecondary": "#F8FAFC",
+      "surfaceTertiary": "#1E293B",
+      "onSurfaceTertiary": "#60A5FA",
+      "surfaceInverse": "#F8FAFC",
+      "onSurfaceInverse": "#020617",
+      "brand": "#0F172A",
+      "onBrand": "#F8FAFC",
+      "brandPrimary": "#3B82F6",
+      "onBrandPrimary": "#FFFFFF",
+      "brandSecondary": "#1E293B",
+      "onBrandSecondary": "#60A5FA",
+      "brandTertiary": "#1E293B",
+      "onBrandTertiary": "#60A5FA",
+      "warning": "#F87171",
+      "onWarning": "#000000",
+      "error": "#F87171",
+      "onError": "#000000",
+      "success": "#34D399",
+      "onSuccess": "#000000",
+      "info": "#60A5FA",
+      "onInfo": "#000000",
+      "border": "#334155",
+      "borderStrong": "#475569",
+      "divider": "#1E293B",
+      "muted": "#94A3B8"
+    }
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24,
+      "3xl": 48,
+      "4xl": 64
+    }
+  },
+  "spacing": {
+    "rule": "Strict 8pt grid. Generous padding around content to reduce cognitive load. Avoid desktop layouts squeezed onto phones.",
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "2xl": 40,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 8,
+    "md": 14,
+    "lg": 16,
+    "xl": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": ["Use simple surface elevations and drop shadows to establish hierarchy."],
+    "dont's": ["Do not use glassmorphism, blurs, or excessive gradients as requested in constraints."]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "solid surfaceSecondary",
+      "android": "solid surfaceSecondary",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Onboarding",
+      "purpose": "Educate users about the benefits of virtual queuing and capture necessary permissions.",
+      "layout": "Full-screen slides with top-aligned illustration/image, H1 at bottom 1/3, short paragraph, and sticky primary button at the bottom.",
+      "states": {
+        "loading": "Centered spinner with text 'Preparing your experience...'",
+        "empty": "N/A",
+        "error": "N/A"
+      }
+    },
+    {
+      "name": "Home",
+      "purpose": "Provide immediate access to the user's active queue status and entry points for services.",
+      "layout": "Dynamic dashboard. If active ticket exists, show oversized 'Active Ticket' card at top with Ticket # (4xl), status timeline, ETA, people ahead, and verification code. Below: Quick actions (Join Line, Find Branch) in a 2-column grid.",
+      "states": {
+        "loading": "Skeleton of the active ticket card and grid.",
+        "empty": "Illustration of a calm waiting area. Text: 'You have no active queues.' Button: 'Find a Service'.",
+        "error": "Card showing 'Unable to load queue status.' with Retry button."
+      }
+    },
+    {
+      "name": "Find a Branch",
+      "purpose": "List nearby or relevant public service branches without a map view.",
+      "layout": "Sticky search/filter header. Scrollable list of cards displaying Branch Name (e.g., 'Half Way Tree'), distance, open/closed status chip, and live wait time. No map.",
+      "states": {
+        "loading": "List of skeleton cards.",
+        "empty": "Icon + 'No branches match your filters.' + 'Clear Filters' button.",
+        "error": "Error loading branches + Retry button."
+      }
+    },
+    {
+      "name": "Branch Details",
+      "purpose": "Show comprehensive details about a specific branch and its services.",
+      "layout": "Hero image of the branch. Below: title, hours, accessibility icons. Then a list of available services (e.g., 'TRN Registration') with live wait times next to each.",
+      "states": {
+        "loading": "Skeleton of hero image and content lines.",
+        "empty": "N/A",
+        "error": "Error loading branch details + Retry button."
+      }
+    },
+    {
+      "name": "Join-a-Line Flow",
+      "purpose": "Multi-step process to secure a spot in a virtual line.",
+      "layout": "Step-by-step wizard. Service -> Branch -> Review -> Confirm. Sticky 'Continue' bottom button. Progress bar at the top.",
+      "states": {
+        "loading": "Spinner over 'Confirming your spot...'",
+        "empty": "N/A",
+        "error": "Queue full or closed error state."
+      }
+    },
+    {
+      "name": "Live Ticket",
+      "purpose": "Real-time monitoring of queue status, position, and check-in readiness.",
+      "layout": "Hero layout with oversized ticket number (e.g., 'A045'). Status timeline (stepper). Dynamic states for 'ready-to-check-in' (reveals check-in QR/Code) and 'delayed' (coral warning chip).",
+      "states": {
+        "loading": "Skeleton layout of ticket.",
+        "empty": "N/A",
+        "error": "Connection lost warning bar + offline mode."
+      }
+    },
+    {
+      "name": "Called-to-window",
+      "purpose": "High-urgency state when it's the user's turn.",
+      "layout": "Full-screen modal/sheet. Massive window number (e.g., 'Window TRN-3'). 5-min countdown timer pulsing. 6-digit verification code prominent.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      }
+    },
+    {
+      "name": "Sessions list",
+      "purpose": "View scheduled appointments.",
+      "layout": "Segmented tabs (Upcoming/Past). List of session cards with QR/Alphanumeric codes.",
+      "states": {
+        "loading": "Skeleton list.",
+        "empty": "Empty state illustration + 'No scheduled sessions.'",
+        "error": "Failed to load sessions + Retry button."
+      }
+    }
+  ],
+  "components": {
+    "Buttons": {
+      "Primary": "Solid brandPrimary (Royal Blue), rounded-lg (16px), onBrandPrimary text.",
+      "Secondary": "Solid brandSecondary (Soft Blue), rounded-lg (16px), onBrandSecondary (Royal Blue) text.",
+      "Tertiary": "Transparent background, brandPrimary text, no border.",
+      "Destructive": "Solid error (Coral/Red), onError text."
+    },
+    "Cards": "Solid surfaceSecondary (White), border radius 16px to 20px, subtle shadow tier 1. Set on surface (Pale blue-grey) background.",
+    "StatusChips": "Always Icon + Text. Example: [Clock Icon] 15m wait. [Check Icon] Active. Never color alone.",
+    "TicketNumber": "Centered, oversized text (3xl to 4xl), Plus Jakarta Sans bold.",
+    "ProgressBar": "brandPrimary fill over surfaceTertiary track, rounded edges."
+  },
+  "content_examples": {
+    "names": ["Kemar", "Shanice", "Tafari", "Amoy", "Rohan"],
+    "branches": ["Half Way Tree", "Constant Spring", "Spanish Town", "Montego Bay", "Cross Roads"],
+    "services": ["TRN Registration", "Tax Payments", "Income Tax Filing", "GCT Registration", "General Enquiries"]
+  },
+  "images": {
+    "hero_office": {
+      "url": "https://images.unsplash.com/photo-1560264280-88b68371db39?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxjdXN0b21lciUyMHNlcnZpY2UlMjBvZmZpY2V8ZW58MHx8fHwxNzgyNjEzODQxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern customer service office"
+    },
+    "hero_office_dark": {
+      "url": "https://images.unsplash.com/photo-1560264418-c4445382edbc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwzfHxjdXN0b21lciUyMHNlcnZpY2UlMjBvZmZpY2V8ZW58MHx8fHwxNzgyNjEzODQxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Customer service office at night"
+    },
+    "branch_placeholder": {
+      "url": "https://images.unsplash.com/photo-1597494165718-7ba605acd467?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHw0fHxKYW1haWNhJTIwc3RyZWV0fGVufDB8fHx8MTc4MjYxMzg0MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Street in Kingston Jamaica"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the specific colors in the 'color' block. Deep navy (#0B192C) is the primary base, Royal blue (#1D4ED8) is for active states, Pale blue-grey (#F0F4F8) is the main background with white cards.",
+    "Do NOT use glassmorphism or blurs. Maintain a flat, civic, accessible UI with subtle shadows.",
+    "Use 'Plus Jakarta Sans' for all text, conveying a friendly yet confident tone.",
+    "Never communicate status purely through color. Always pair a status color (coral for warning, green for success) with a recognizable Feather icon and text label.",
+    "Make sure touch targets are large (minimum 44x44pt) to accommodate accessibility standards.",
+    "On the Home and Live Ticket screens, ensure the Ticket Number is massive (48pt to 64pt).",
+    "Use Jamaican realistic content for mock data (Names: Kemar, Shanice; Branches: Half Way Tree, Constant Spring; Services: TRN Registration)."
+  ]
+}
