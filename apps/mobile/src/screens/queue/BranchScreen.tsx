@@ -9,7 +9,6 @@ import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import BestTimeCard from '../../components/BestTimeCard';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
@@ -267,7 +266,7 @@ export default function BranchScreen() {
             already-selected row to advance, which is a rule you can only learn
             by accident — the action lives in the bar at the bottom now, where
             it is always visible and always says what it will do. */}
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 12 }}>
           {lines.map((s, i) => {
             const on = s.id === selected?.id;
             const wait = svcWait(s);
@@ -281,26 +280,27 @@ export default function BranchScreen() {
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={`${s.name}, ${Number(s.waiting_count || 0)} in line, about ${wait} minutes`}
                 style={{
-                  backgroundColor: colors.surface, borderRadius: 20, padding: 16,
+                  backgroundColor: colors.surface, borderRadius: 22,
+                  paddingVertical: 22, paddingHorizontal: 18,
                   borderWidth: on ? 2 : 1, borderColor: on ? colors.accent : colors.borderSoft,
                   ...shadow.card,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                   {/* The chosen row says so with a mark, not only a border —
                       a 2pt edge is easy to miss on a bright screen outdoors. */}
                   <View style={{
-                    width: 22, height: 22, borderRadius: 11,
+                    width: 26, height: 26, borderRadius: 13,
                     borderWidth: on ? 0 : 1.5, borderColor: colors.border,
                     backgroundColor: on ? colors.accent : 'transparent',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    {on && <Icon name="check" size={13} color={colors.accentInk} />}
+                    {on && <Icon name="check" size={15} color={colors.accentInk} />}
                   </View>
 
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 }}>
+                      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.4 }}>
                         {s.name}
                       </Text>
                       {fastest && (
@@ -309,17 +309,17 @@ export default function BranchScreen() {
                         </View>
                       )}
                     </View>
-                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 5 }}>
                       {Number(s.waiting_count || 0)} in line
                       {s.active_counters != null ? ` · ${Number(s.active_counters)} ${Number(s.active_counters) === 1 ? 'counter' : 'counters'} open` : ''}
                     </Text>
                   </View>
 
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.6 }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 26, color: colors.ink, letterSpacing: -0.9 }}>
                       {joinState.allowed ? `${wait}` : '—'}
                     </Text>
-                    <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: colors.muted, letterSpacing: 0.3 }}>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, letterSpacing: 0.4, marginTop: 1 }}>
                       {joinState.allowed ? 'MIN' : ''}
                     </Text>
                   </View>
@@ -344,8 +344,6 @@ export default function BranchScreen() {
           </View>
         )}
 
-        {/* premium best-time recommendation (live model output) */}
-        <BestTimeCard businessId={businessId} branchId={branchId} onPlan={() => navigation.navigate('Plan', { businessId, branchId })} />
       </ScrollView>
 
       <View style={{

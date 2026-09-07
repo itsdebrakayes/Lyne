@@ -1,20 +1,25 @@
 /**
  * QueueMapScreen — "The line right now".
  *
- * The seat-map from the reference set, read as what it actually looks like: a
- * queue. Counters sit at the top, the line snakes left→right→down→right→left,
- * the blue dot is the person at the counter, the dark dots are everyone
- * waiting, and the dashed grey spot is where you would land if you joined.
+ * The line drawn as a line: a vertical rail running from the counters at the
+ * top, down through the people waiting, to the spot you would land in.
  *
- * The geometry is deliberately the seat map's, not something looser: big
- * circles on a tight pitch. Drawn small with generous gaps it read as dots on a
- * page rather than a queue.
+ * It was a grid of dots before, and the grid was wrong twice over. It ran
+ * sideways on a screen whose spare room is vertical, so a short queue left a
+ * band of nothing above the Join button; and it drew the people at the
+ * counters in the same snake as the people queuing, so a caption reading
+ * "AHEAD OF YOU 4" sat above a picture anyone would count as eight.
+ *
+ * On a rail the two sets are separated by construction — the counters are the
+ * destination, the beads below them are the wait — and the connectors carry
+ * `flex: 1`, so the drawing stretches to whatever height is left rather than
+ * floating in the middle of an empty card.
  */
 import React, { useMemo } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import Svg, { Circle, Polyline } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font, shadow, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
@@ -27,43 +32,59 @@ import EmptyState from '../../components/EmptyState';
 
 type Params = RouteProp<RootStackParamList, 'QueueMap'>;
 
-// Seat-map geometry: 5 across, 5 down, circles 52 on a 65.5 pitch.
-const COLS = 5;
-const ROWS = 5;
-const R = 26;
-const PITCH_X = 65.5;
-const PITCH_Y = 68;
-const VB_W = R + (COLS - 1) * PITCH_X + R;   // 314
-const MAX_CAPACITY = COLS * ROWS;
+const RAIL_W = 36;
+const RAIL_INK = '#E2E8F0';
+const WAITING_INK = '#101D2E';
 
-/** Serpentine order: row 0 left→right, row 1 right→left, and so on. */
-function seat(index: number) {
-  const row = Math.floor(index / COLS);
-  const col = index % COLS;
-  const x = R + (row % 2 === 0 ? col : COLS - 1 - col) * PITCH_X;
-  const y = R + row * PITCH_Y;
-  return { x, y };
+/** Nine beads is where a queue stops reading as people and starts reading as
+ *  texture. Past that the tail is stated in words instead. */
+const MAX_BEADS = 9;
+
+/** "5th" — the way somebody says their place out loud. */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  const ones = n % 10;
+  return `${n}${ones === 1 ? 'st' : ones === 2 ? 'nd' : ones === 3 ? 'rd' : 'th'}`;
 }
 
-/** Only draw as many rows as the line actually needs — a six-person queue on a
- *  25-slot grid is three empty rows of nothing, and it buries the summary and
- *  the Join button below the fold. */
-function gridFor(occupied: number) {
-  const rows = Math.min(ROWS, Math.max(2, Math.ceil((occupied + 1) / COLS)));
-  const capacity = rows * COLS;
-  const height = R + (rows - 1) * PITCH_Y + R;
-  const points = Array.from({ length: capacity }, (_, i) => {
-    const { x, y } = seat(i);
-    return `${x},${y}`;
-  }).join(' ');
-  return { rows, capacity, height, points };
-}
-
-function Legend({ swatch, border, label }: { swatch: string; border?: string; label: string }) {
+function Bead({ size, fill, dashed }: { size: number; fill: string; dashed?: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: swatch, borderWidth: border ? 2.5 : 0, borderColor: border, borderStyle: border ? 'dashed' : 'solid' }} />
-      <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{label}</Text>
+    <View style={{
+      width: size, height: size, borderRadius: size / 2, backgroundColor: fill,
+      ...(dashed ? { borderWidth: 2.5, borderColor: '#5F6C7E', borderStyle: 'dashed' as const } : null),
+    }} />
+  );
+}
+
+/** The stretch of rail between two beads. It is the flexible part of the
+ *  drawing — the beads keep their size, the gaps take up the slack. */
+function Link() {
+  return (
+    <View style={{ flexDirection: 'row', flex: 1, minHeight: 14, maxHeight: 72 }}>
+      <View style={{ width: RAIL_W, alignItems: 'center' }}>
+        <View style={{ width: 2, flex: 1, backgroundColor: RAIL_INK }} />
+      </View>
+    </View>
+  );
+}
+
+function Stop({ bead, title, detail }: { bead: React.ReactNode; title?: string; detail?: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ width: RAIL_W, alignItems: 'center' }}>{bead}</View>
+      {!!title && (
+        <View style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
+          <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.2 }}>
+            {title}
+          </Text>
+          {!!detail && (
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 2 }}>
+              {detail}
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -93,23 +114,12 @@ export default function QueueMapScreen() {
 
   const joinState = useMemo(() => remoteJoinInfo(new Date(), hoursFromBranch(branch)), [branch]);
 
-  // The map tops out at 25. A longer line still has to be honest, so the tail is
-  // summarised under the grid rather than silently cropped.
-  /* People AT the counters and people IN the line are two different sets, and
-     the picture used to conflate them: exactly one dot was drawn "at the
-     counter" no matter how many counters were open, and that dot also consumed
-     the first waiting slot. So a header reading "3 OPEN · 6 waiting" sat above a
-     diagram showing one person served and five queuing — the caption and the
-     drawing disagreed, on the one screen whose whole job is to make the line
-     legible at a glance.
-
-     Seats are now laid out in the order a person actually experiences them:
-     the open counters first, then the line, then where you would land. */
-  const atCounters = Math.max(0, Math.min(counters, MAX_CAPACITY - 1));
-  const drawnWaiting = Math.min(waiting, Math.max(0, MAX_CAPACITY - atCounters - 1));
-  const overflow = waiting - drawnWaiting;
-  const yourIndex = atCounters + drawnWaiting;
-  const grid = useMemo(() => gridFor(atCounters + drawnWaiting), [atCounters, drawnWaiting]);
+  const beads = Math.min(waiting, MAX_BEADS);
+  const overflow = waiting - beads;
+  /* One label for the whole stretch of waiting people, hung off the middle
+     bead. A caption beside every dot would be nine ways of saying the same
+     sentence. */
+  const labelAt = Math.floor((beads - 1) / 2);
 
   const join = () => {
     if (!joinState.allowed || !service) return;
@@ -117,121 +127,177 @@ export default function QueueMapScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.dark }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 40 }} showsVerticalScrollIndicator={false}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
-        <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 18 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="back" size={21} color="#fff" />
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name="back" size={20} color={colors.ink} />
           </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 18, color: '#fff', letterSpacing: -0.4 }}>The line right now</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>
+              {service?.name || serviceName || 'This line'}
+            </Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>
+              {branch?.name || '—'}
+            </Text>
+          </View>
         </View>
 
-        {servicesQuery.isLoading && <SkeletonCard height={420} />}
+        {servicesQuery.isLoading && <SkeletonCard height={300} />}
 
         {!servicesQuery.isLoading && (
-          <View style={{ backgroundColor: colors.surface, borderRadius: 28, paddingVertical: 20, paddingHorizontal: 18 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.6 }}>
-                {service?.name || serviceName || 'This line'}
+          <>
+            {/* The answer first.
+                This used to sit BELOW the drawing, so the screen opened on a
+                grid of dots and made somebody decode a picture to reach three
+                numbers they could have read in a second. The picture is the
+                evidence; these are the answer, so they go on top. */}
+            <View style={{ backgroundColor: colors.dark, borderRadius: 24, padding: 22, ...shadow.hero }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 1 }}>
+                IF YOU JOIN NOW
               </Text>
-              <View style={{ marginLeft: 'auto', backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 13 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted, letterSpacing: 0.4 }}>BRANCH</Text>
-                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13, color: colors.ink, marginTop: 1 }}>{branch?.name || '—'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 8 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 46, color: '#fff', letterSpacing: -1.8, lineHeight: 50 }}>
+                  {joinState.allowed ? `${wait}` : '—'}
+                </Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 18, color: 'rgba(255,255,255,.6)', marginBottom: 8 }}>
+                  {joinState.allowed ? 'min wait' : joinState.label}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.12)' }}>
+                {([
+                  ['YOUR SPOT', joinState.allowed ? ordinal(waiting + 1) : '—'],
+                  ['AHEAD OF YOU', joinState.allowed ? String(waiting) : '—'],
+                  ['COUNTERS OPEN', counters > 0 ? String(counters) : 'None'],
+                ] as const).map(([label, value]) => (
+                  <View key={label} style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 9.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.8 }}>{label}</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.5, marginTop: 4 }}>{value}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 
-            {/* counters at the top, feeding the line */}
-            <View style={{ backgroundColor: colors.dark, borderRadius: 15, paddingVertical: 12, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-              <Icon name="counter" size={17} color="#fff" />
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: '#fff', letterSpacing: 0.4 }}>
-                {counters > 0 ? `COUNTERS · ${counters} OPEN` : 'COUNTERS CLOSED'}
+            {/* The picture, second. */}
+            <View style={{
+              flex: 1, minHeight: 260,
+              backgroundColor: colors.surface, borderRadius: 24,
+              paddingVertical: 22, paddingHorizontal: 18, marginTop: 12, ...shadow.card,
+            }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                The line right now
               </Text>
-              <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.66)' }}>
-                {waiting} waiting
-              </Text>
+
+              {waiting === 0 && (
+                /* The card still stretches when there is nobody to draw, so the
+                   empty state centres in it rather than clinging to the title. */
+                <View style={{ flex: 1, justifyContent: 'center' }}>
+                  <EmptyState
+                    compact
+                    icon="walk"
+                    title="No one's waiting"
+                    body={joinState.allowed
+                      ? 'The counter is free. Join now and you should be seen as soon as you arrive.'
+                      : 'Nobody is in this line at the moment.'}
+                  />
+                </View>
+              )}
+
+              {waiting > 0 && (
+                /* Capped stretch, then centred: the rail fills the card for a
+                   real queue, and a two-person line sits composed in the middle
+                   instead of being pulled apart to the corners. */
+                <View style={{ flex: 1, justifyContent: 'center', marginTop: 18, marginLeft: -6 }}>
+                  {/* The head of the line — where everybody in it is going. */}
+                  <Stop
+                    bead={<Bead size={22} fill={colors.accent} />}
+                    title={counters > 0 ? `${counters} ${counters === 1 ? 'counter' : 'counters'} open` : 'No counters open'}
+                    detail={counters > 0 ? 'Serving now' : 'Nobody is being called'}
+                  />
+
+                  {Array.from({ length: beads }, (_, i) => (
+                    <React.Fragment key={i}>
+                      <Link />
+                      <Stop
+                        bead={<Bead size={13} fill={WAITING_INK} />}
+                        title={i === labelAt ? `${waiting} ${waiting === 1 ? 'person' : 'people'} ahead of you` : undefined}
+                        detail={i === labelAt && overflow > 0 ? `${beads} shown · ${overflow} more further back` : undefined}
+                      />
+                    </React.Fragment>
+                  ))}
+
+                  {joinState.allowed && (
+                    <>
+                      <Link />
+                      <Stop
+                        bead={<Bead size={22} fill="#B7C0CE" dashed />}
+                        title="You'd be here"
+                        detail={`${ordinal(waiting + 1)} in line · about ${wait} min`}
+                      />
+                    </>
+                  )}
+                </View>
+              )}
             </View>
-            <View style={{ alignItems: 'center', paddingVertical: 6 }}>
-              <Icon name="arrowDown" size={18} color="#C3D4EA" />
-            </View>
-
-            {/* An empty line is not a failure state — it is the best outcome
-                this app can report, and drawing 25 grey circles to say so
-                buries it. Say it plainly instead. */}
-            {waiting === 0 && (
-              <EmptyState
-                compact
-                icon="walk"
-                title="No one's waiting"
-                body={joinState.allowed
-                  ? 'The counter is free. Join now and you should be seen as soon as you arrive.'
-                  : 'Nobody is in this line at the moment.'}
-              />
-            )}
-
-            {waiting > 0 && (
-            <Svg viewBox={`0 0 ${VB_W} ${grid.height}`} width="100%" style={{ aspectRatio: VB_W / grid.height }}>
-              <Polyline points={grid.points} fill="none" stroke="#EDF1F7" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
-              {Array.from({ length: grid.capacity }, (_, i) => {
-                const { x, y } = seat(i);
-                const atCounter = i < atCounters;
-                const isWaiting = i >= atCounters && i < atCounters + drawnWaiting;
-                const isYou = i === yourIndex && joinState.allowed;
-                if (isYou) {
-                  return <Circle key={i} cx={x} cy={y} r={R} fill="#B7C0CE" stroke="#5F6C7E" strokeWidth={3} strokeDasharray="6 5" />;
-                }
-                return (
-                  <Circle key={i} cx={x} cy={y} r={R}
-                    fill={atCounter ? colors.accent : isWaiting ? '#101D2E' : '#EDF1F7'} />
-                );
-              })}
-            </Svg>
-            )}
-
-            {overflow > 0 && (
-              <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6 }}>
-                + {overflow} more further back
-              </Text>
-            )}
-
-            {waiting > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Legend swatch={colors.accent} label="At the counter" />
-              <Legend swatch="#101D2E" label="Waiting" />
-              <Legend swatch="#B7C0CE" border="#5F6C7E" label="You'd be here" />
-              <Legend swatch="#EDF1F7" label="Open spot" />
-            </View>
-            )}
-          </View>
+          </>
         )}
+      </ScrollView>
 
-        <View style={{ backgroundColor: colors.surface, borderRadius: 22, paddingVertical: 17, paddingHorizontal: 20, flexDirection: 'row', marginTop: 14, ...shadow.card }}>
-          {([
-            ['YOUR SPOT', joinState.allowed ? `${waiting + 1}${waiting + 1 === 1 ? 'st' : waiting + 1 === 2 ? 'nd' : waiting + 1 === 3 ? 'rd' : 'th'}` : '—'],
-            ['AHEAD', joinState.allowed ? String(waiting) : '—'],
-            ['EST. WAIT', joinState.allowed ? `${wait} min` : '—'],
-          ] as const).map(([label, value]) => (
-            <View key={label} style={{ flex: 1 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted, letterSpacing: 0.4 }}>{label}</Text>
-              <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.8, marginTop: 3 }}>{value}</Text>
-            </View>
-          ))}
-        </View>
-
+      {/* The action, pinned — the same bar as the chooser and the agency
+          screen, so three screens in a row do not each invent a way forward. */}
+      <View style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30,
+        backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
+      }}>
         <TouchableOpacity
           onPress={join}
           disabled={!joinState.allowed}
+          activeOpacity={0.92}
           accessibilityRole="button"
           accessibilityLabel={joinState.allowed ? `Join this line, about ${wait} minutes` : joinState.label}
-          style={{ backgroundColor: joinState.allowed ? colors.accent : 'rgba(255,255,255,.12)', borderRadius: 20, height: 60, alignItems: 'center', justifyContent: 'center', marginTop: 14 }}
+          accessibilityState={{ disabled: !joinState.allowed }}
         >
-          <Text style={{ fontFamily: font.extra, fontSize: 17, color: joinState.allowed ? colors.accentInk : 'rgba(255,255,255,.6)', letterSpacing: -0.3 }}>
-            {joinState.allowed ? 'Join this line' : joinState.label}
-          </Text>
+          <LinearGradient
+            colors={joinState.allowed ? [colors.accentDeep, colors.dark] : [colors.surfaceAlt, colors.surfaceAlt]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              minHeight: 78, borderRadius: 24, paddingLeft: 24, paddingRight: 16,
+              ...(joinState.allowed ? shadow.hero : null),
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{
+                fontFamily: font.extra, fontSize: 19, letterSpacing: -0.4,
+                color: joinState.allowed ? '#fff' : colors.muted,
+              }}>
+                {joinState.allowed ? 'Join this line' : joinState.label}
+              </Text>
+              <Text numberOfLines={1} style={{
+                fontFamily: font.semibold, fontSize: 13, marginTop: 3,
+                color: joinState.allowed ? 'rgba(255,255,255,.66)' : colors.muted,
+              }}>
+                {joinState.allowed
+                  ? `You'd be ${ordinal(waiting + 1)} · about ${wait} min`
+                  : joinState.detail}
+              </Text>
+            </View>
+            <View style={{
+              width: 50, height: 50, borderRadius: 25,
+              backgroundColor: joinState.allowed ? '#fff' : colors.border,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon name="arrowRight" size={21} color={joinState.allowed ? colors.dark : colors.muted} />
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
