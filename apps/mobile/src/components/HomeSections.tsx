@@ -74,13 +74,17 @@ export function TileGrid({ items }: { items: TileItem[] }) {
     /* One row that scrolls, not a wrapping grid.
        Eight tiles over two rows pushed the agency cards below the fold, so the
        first thing on Home after the promo was a wall of acronyms rather than
-       the lines somebody actually came to check. Four fit across; the rest are
-       a thumb-flick away, which is the right cost for the ninth agency. */
+       the lines somebody actually came to check.
+
+       Sized at 68 rather than 72 because 72 fitted four across and left a strip
+       of empty rail beside them — a fifth agency fits in that gap, and the
+       leftover is now just enough for the sixth to peek, which is what tells
+       you the row swipes. */
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 12, paddingRight: 4 }}
-      snapToInterval={84}
+      snapToInterval={80}
       decelerationRate="fast"
     >
       {items.map((it) => (
@@ -92,11 +96,11 @@ export function TileGrid({ items }: { items: TileItem[] }) {
           /* The tile shows letters; a screen reader still gets the whole name,
              because "CFC" read aloud is not a name. */
           accessibilityLabel={it.label}
-          style={{ width: 72 }}
+          style={{ width: 68 }}
         >
           <View
             style={{
-              width: 72, height: 72, borderRadius: 22, backgroundColor: colors.surface,
+              width: 68, height: 68, borderRadius: 21, backgroundColor: colors.surface,
               borderWidth: 1, borderColor: colors.borderSoft,
               alignItems: 'center', justifyContent: 'center', ...shadow.card,
             }}
