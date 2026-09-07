@@ -83,6 +83,10 @@ services:
       # Unset means the shipped default (10 per 15 min per IP). Raised only for
       # local end-to-end runs, which sign in far more often than a person does.
       AUTH_RATE_LIMIT_MAX:  ${AUTH_RATE_LIMIT_MAX:-}
+      # Number of proxies in front of this server, or a list of proxy
+      # addresses. Empty means "nothing in front of us", which is right
+      # for local and for a directly exposed server. See src/index.js.
+      TRUST_PROXY:          ${TRUST_PROXY:-}
     ports:
       - "4000:4000"
     networks:
