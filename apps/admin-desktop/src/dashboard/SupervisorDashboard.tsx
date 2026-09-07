@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
-import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock } from 'lucide-react';
+import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock, UserSearch } from 'lucide-react';
+import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
@@ -35,6 +36,7 @@ const NAV: NavItem[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid },
   { key: 'desks', label: 'Desk Assignment', icon: Hand },
   { key: 'staff', label: 'Staff', icon: Users },
+  { key: 'cases', label: 'Customer Cases', icon: UserSearch },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
@@ -214,6 +216,7 @@ export default function SupervisorDashboard() {
       <SupDataProvider value={liveData}>
         {tab === 'overview' ? <SupOverviewQX onNav={setTab} />
           : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} />
+            : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : supTab(tab, setTab)}
       </SupDataProvider>
     </QxShell>
