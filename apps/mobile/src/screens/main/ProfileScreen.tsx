@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -203,15 +203,6 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* add another document — grayed placeholder for extra doc types */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture is on the way, with secure Face ID-protected storage. For now you can add your National ID and TRN above.')}
-          style={{ marginTop: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surfaceAlt, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          <Icon name="plus" size={19} color={colors.muted} />
-          <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Add another document</Text>
-        </TouchableOpacity>
 
         {/* account & activity */}
         <SectionLabel>Account & activity</SectionLabel>

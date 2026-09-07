@@ -382,13 +382,35 @@ export default function HomeScreen() {
         />
 
         {/* Popular places — the reference's category grid, carrying agencies
-            because that is what people navigate a queue app by. */}
-        {tiles.length > 0 && (
-          <View style={{ marginTop: 26 }}>
-            <RailHead title="Popular places" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            because that is what people navigate a queue app by.
+
+            The section stays even with nothing in it. A first release ships
+            before any agency has signed, and a row that silently disappears
+            teaches somebody the app is broken; a row that says what will live
+            there teaches them what the app is for. */}
+        <View style={{ marginTop: 26 }}>
+          <RailHead title="Popular places" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+          {tiles.length > 0 ? (
             <TileGrid items={tiles} />
-          </View>
-        )}
+          ) : (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 13,
+              backgroundColor: colors.surface, borderRadius: 20, padding: 16, ...shadow.card,
+            }}>
+              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="pin" size={20} color={colors.muted} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.2 }}>
+                  The places you use will sit here
+                </Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3, lineHeight: 17 }}>
+                  As agencies come on Lyne, tap one to jump straight to its lines.
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Recommended — the badged card rail. Each badge is computed from the
             live figures below, never assigned for decoration. */}
@@ -409,7 +431,22 @@ export default function HomeScreen() {
             />
           )}
 
-          {!isLoading && !error && recommended.length === 0 && (
+          {/* Two different nothings, and they must not share a sentence.
+              "Every branch is closed" is true when the app knows about
+              branches and none is open; on a fresh install that knows about no
+              agency at all it is a lie, and the button under it does nothing
+              because there is nothing to unfilter. */}
+          {!isLoading && !error && recommended.length === 0 && branches.length === 0 && (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 26, alignItems: 'center', ...shadow.card }}>
+              <Icon name="government" size={26} color={colors.muted} />
+              <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>No agencies yet</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
+                When an agency joins Lyne, its branches and live wait times show up here — busiest first, so you can pick the shortest line.
+              </Text>
+            </View>
+          )}
+
+          {!isLoading && !error && recommended.length === 0 && branches.length > 0 && (
             <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 26, alignItems: 'center', ...shadow.card }}>
               <Icon name="clock" size={26} color={colors.muted} />
               <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>Nothing open here yet</Text>

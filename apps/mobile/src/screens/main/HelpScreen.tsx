@@ -6,11 +6,13 @@
  * leading to its opening hours, required documents and JP requirements.
  * A contact card closes it out.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
+import api from '../../lib/apiClient';
 import { GENERAL_FAQS, AGENCY_GUIDES } from '../../lib/helpContent';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
 import { Sheen } from '../../components/Glass';
@@ -20,6 +22,22 @@ const SUPPORT_PHONE = '+18760000000';
 
 export default function HelpScreen() {
   const navigation = useNavigation<any>();
+
+  /* Which of the curated guides are about an agency that is actually on Lyne.
+     The guides are a hand-written file, and a hand-written file does not know
+     who has signed — so on a build with an empty database this screen listed
+     three real government bodies as agencies "Lyne works with" while Home two
+     taps away said there were none. The database decides; the file only
+     supplies the words. Same query key as Home, so it is one request. */
+  const { data: businesses = [] } = useQuery({
+    queryKey: ['mobile-businesses'],
+    queryFn: () => api.get<Array<{ id: string; slug?: string }>>('/businesses', false),
+  });
+  const guides = useMemo(() => {
+    const live = new Set(businesses.map(b => String(b.slug || '')).filter(Boolean));
+    return AGENCY_GUIDES.filter(g => live.has(g.slug));
+  }, [businesses]);
+
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
@@ -39,13 +57,16 @@ export default function HelpScreen() {
           <FaqBucket key={f.q} q={f.q}><FaqAnswer>{f.a}</FaqAnswer></FaqBucket>
         ))}
 
-        {/* agencies */}
+        {/* agencies — only the ones on Lyne. Nothing at all rather than a
+            promise the product cannot keep. */}
+        {guides.length > 0 && (
+        <>
         <View style={[t.sectionRow, { marginBottom: 6 }]}><Text style={t.section}>Or, a specific agency?</Text></View>
         <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, lineHeight: 19, marginBottom: 14 }}>
           Tap an agency for opening hours, the documents each service needs, and whether anything must be stamped by a JP.
         </Text>
         <View style={{ gap: 12 }}>
-          {AGENCY_GUIDES.map(a => (
+          {guides.map(a => (
             <TouchableOpacity key={a.slug} activeOpacity={0.85} onPress={() => navigation.navigate('AgencyHelp', { slug: a.slug })} style={[t.listRow, { ...shadow.card }]}>
               <View style={{ borderRadius: 15, ...shadow.depth }}>
                 <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -61,6 +82,8 @@ export default function HelpScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        </>
+        )}
 
         {/* contact */}
         <View style={t.sectionRow}><Text style={t.section}>Still need help?</Text></View>
