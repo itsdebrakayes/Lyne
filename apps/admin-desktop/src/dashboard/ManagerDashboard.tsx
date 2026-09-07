@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone, ClipboardCheck, CalendarClock,
+  UserSearch,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '../hooks/useAdminAuth';
@@ -27,6 +28,7 @@ import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow'
 import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
+import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -42,6 +44,7 @@ const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
   { key: 'staff', label: 'Staff & Counters', icon: Users },
   { key: 'services', label: 'Services', icon: Waypoints },
+  { key: 'cases', label: 'Customer Cases', icon: UserSearch },
   { key: 'readiness', label: 'Readiness', icon: ClipboardCheck },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
@@ -330,6 +333,7 @@ export default function ManagerDashboard() {
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} />
           : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
             : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
     </QxShell>

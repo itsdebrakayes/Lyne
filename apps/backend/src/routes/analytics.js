@@ -21,6 +21,7 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
+const { maskEmail, maskPhone } = require('../utils/maskData');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -1197,6 +1198,185 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
   } catch (err) {
     console.error('GET /analytics/readiness failed:', err);
     res.status(500).json({ error: 'Could not load readiness outcomes.' });
+  }
+});
+
+/* ── Customer cases ────────────────────────────────────────────────────────
+ *
+ * "This person has been here five times and still has not got what they came
+ * for." Everything else in this file measures the branch — how fast a line
+ * moved, how many a clerk served. That is the operational view, and it is
+ * blind to the one failure customers actually feel: coming back, repeatedly,
+ * and leaving without the thing.
+ *
+ * A visit is COUNTED once it has ended. Somebody standing in the line right
+ * now is not yet evidence of anything, and counting them makes today's queue
+ * look like a caseload.
+ *
+ * A visit is RESOLVED only if it was served AND carries no closed_reason.
+ * A clerk who marks "wrong documents" has ended the visit, not the errand —
+ * that distinction is the whole point of the incomplete reasons, and it is
+ * what makes this query possible at all.
+ *
+ * Guests are absent by construction: a walk-in with no account cannot be
+ * recognised across visits, so the join to users drops them. Worth knowing
+ * before somebody reads a low number as good news.
+ */
+const ENDED_STATUSES = "('served','left','cancelled','no_show')";
+const RESOLVED = "(t.status = 'served' AND t.closed_reason IS NULL)";
+
+/** Days of history to consider. Clamped — this drives a GROUP BY over tickets. */
+function safeWindowDays(value, fallback = 30) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= 1 && n <= 365 ? n : fallback;
+}
+
+/** How many unresolved visits before somebody is a case. */
+function safeMinVisits(value, fallback = 3) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= 2 && n <= 50 ? n : fallback;
+}
+
+// ── GET /api/analytics/customer-cases ─────────────────────────
+// ?business_id=&branch_id=&days=30&min_visits=3
+router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const days = safeWindowDays(req.query.days);
+    const minVisits = safeMinVisits(req.query.min_visits);
+
+    const conditions = [`b.business_id = ?`, `t.status IN ${ENDED_STATUSES}`,
+                        `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
+    const params = [scopedBusinessId(req, business_id), days];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+
+    const [rows] = await pool.query(
+      `SELECT u.id                                            AS user_id,
+              u.full_name,
+              u.email,
+              u.phone,
+              COUNT(*)                                        AS visits,
+              SUM(${RESOLVED})                                AS resolved,
+              SUM(NOT ${RESOLVED})                            AS unresolved,
+              COUNT(DISTINCT q.service_id)                    AS services_tried,
+              MIN(q.queue_date)                               AS first_visit,
+              MAX(q.queue_date)                               AS last_visit,
+              GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR '|')            AS service_names,
+              GROUP_CONCAT(DISTINCT COALESCE(t.closed_reason, t.status)
+                           ORDER BY 1 SEPARATOR '|')                                AS outcomes
+         FROM queue_tickets t
+         JOIN queues   q ON q.id = t.queue_id
+         JOIN branches b ON b.id = q.branch_id
+         JOIN services s ON s.id = q.service_id
+         JOIN users    u ON u.id = t.user_id
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY u.id, u.full_name, u.email, u.phone
+       HAVING unresolved >= ?
+        ORDER BY unresolved DESC, last_visit DESC
+        LIMIT 100`,
+      [...params, minVisits]
+    );
+
+    res.json({
+      window_days: days,
+      min_visits: minVisits,
+      cases: rows.map((r) => {
+        const services = String(r.service_names || '').split('|').filter(Boolean);
+        return {
+          user_id: r.user_id,
+          full_name: r.full_name,
+          /* Contact is masked in the list and unmasked in the detail view. A
+             caseload is skim-read by whoever has the screen open; the person
+             who actually needs to phone somebody opens their record. */
+          email: maskEmail(r.email),
+          phone: maskPhone(r.phone),
+          visits: Number(r.visits),
+          resolved: Number(r.resolved),
+          unresolved: Number(r.unresolved),
+          services_tried: Number(r.services_tried),
+          services,
+          /* Same errand or several? Coming back four times for one service is a
+             process that is failing that person; four different services is a
+             person with a lot to do. They need different conversations. */
+          pattern: Number(r.services_tried) === 1 ? 'same_service' : 'multiple_services',
+          outcomes: String(r.outcomes || '').split('|').filter(Boolean),
+          first_visit: r.first_visit,
+          last_visit: r.last_visit,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error('customer-cases error:', error);
+    res.status(500).json({ error: 'Failed to load customer cases.' });
+  }
+});
+
+// ── GET /api/analytics/customers/:user_id ─────────────────────
+// ?business_id=&days=180 — every visit this person has made to THIS business.
+router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const days = safeWindowDays(req.query.days, 180);
+
+    const businessId = scopedBusinessId(req, business_id);
+    const [[person]] = await pool.query(
+      'SELECT id, full_name, email, phone, created_at FROM users WHERE id = ?',
+      [req.params.user_id]
+    );
+    if (!person) return res.status(404).json({ error: 'Customer not found.' });
+
+    /* Scoped to the business the caller belongs to, never the whole person.
+       A TAJ manager gets this customer's history AT TAJ. What they did at a
+       credit union is not theirs to read, and the join is what enforces it. */
+    const [visits] = await pool.query(
+      `SELECT t.id, q.queue_date, b.name AS branch_name, s.name AS service_name,
+              t.ticket_number, t.status, t.closed_reason, t.channel,
+              t.estimated_wait_minutes, t.joined_at, t.called_at, t.completed_at,
+              TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.called_at, t.completed_at)) AS waited_minutes,
+              st.full_name AS served_by
+         FROM queue_tickets t
+         JOIN queues   q  ON q.id = t.queue_id
+         JOIN branches b  ON b.id = q.branch_id
+         JOIN services s  ON s.id = q.service_id
+         LEFT JOIN staff st ON st.id = t.served_by_staff_id
+        WHERE t.user_id = ? AND b.business_id = ?
+          AND q.queue_date >= CURDATE() - INTERVAL ? DAY
+        ORDER BY q.queue_date DESC, t.joined_at DESC
+        LIMIT 200`,
+      [req.params.user_id, businessId, days]
+    );
+
+    const ended = visits.filter(v => ['served', 'left', 'cancelled', 'no_show'].includes(v.status));
+    const resolved = ended.filter(v => v.status === 'served' && !v.closed_reason);
+
+    res.json({
+      window_days: days,
+      customer: {
+        id: person.id,
+        full_name: person.full_name,
+        /* Unmasked here, and only here. Somebody opened this record to deal
+           with a specific person's problem; a phone number they cannot read is
+           not privacy, it is an obstacle with a privacy-shaped excuse. */
+        email: person.email,
+        phone: person.phone,
+        member_since: person.created_at,
+      },
+      summary: {
+        visits: ended.length,
+        resolved: resolved.length,
+        unresolved: ended.length - resolved.length,
+        services_tried: new Set(visits.map(v => v.service_name)).size,
+        branches: new Set(visits.map(v => v.branch_name)).size,
+      },
+      visits,
+    });
+  } catch (error) {
+    console.error('customer detail error:', error);
+    res.status(500).json({ error: 'Failed to load this customer.' });
   }
 });
 
