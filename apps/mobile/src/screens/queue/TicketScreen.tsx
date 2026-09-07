@@ -434,17 +434,20 @@ export default function TicketScreen() {
                   is why the shortcut costs nothing to offer. */}
               <View>
                 <HoldButton
-                  variant="ghost"
+                  variant="solid"
                   tone="danger"
                   label="Leave queue"
                   doneLabel="Left the line"
                   hint="Tap to see what you give up, or hold to leave now"
                   busy={leaving}
                   disabled={leaving}
-                  /* Matches the prototype's leave button: the same height as
-                     Notify beside it, and a border quiet enough that the red
-                     word is what carries the warning. */
-                  style={{ minHeight: 58, paddingHorizontal: 16, borderColor: 'rgba(255,255,255,.14)' }}
+                  /* A solid red button with white letters, the same shape and
+                     height as Notify above it. As an outline it read as a
+                     disabled control rather than the one destructive action on
+                     the screen — and the hold filled it with red on red, where
+                     solid gives the translucent white film the fill is meant to
+                     be. */
+                  style={{ minHeight: 58, paddingHorizontal: 16 }}
                   onPress={() => { haptics.warning(); setConfirmLeave(true); }}
                   onComplete={leaveQueue}
                 />

@@ -203,24 +203,42 @@ export default function HomeScreen() {
 
   /* Agency tiles. Built from the businesses actually on screen, so an agency
      onboarded next week appears without a code change, and a demo that is all
-     government offices does not show five dead categories. */
+     government offices does not show five dead categories.
+
+     Built from `branches` rather than `sorted`, because `sorted` carries the
+     open-now filter and this row is a directory, not a join list. Tapping a
+     tile opens the agency page — hours, branches, phone numbers — which is
+     exactly what somebody wants at seven in the evening. Filtering it left the
+     row half empty after closing time and hid four agencies that still had
+     something to say. Open agencies still come first, so the tile you can act
+     on now is the one nearest the thumb. */
   const tiles = useMemo(() => {
-    const seen = new Map<string, { id: string; label: string; acronym: string }>();
-    sorted.forEach(b => {
-      if (!seen.has(b.business_id)) {
-        seen.set(b.business_id, {
-          id: b.business_id,
-          label: b.business_name,
-          acronym: orgAcronym(b.business_id, b.business_name),
-        });
-      }
-    });
-    const list = Array.from(seen.values()).slice(0, 8);
+    const now = new Date();
+    const seen = new Map<string, { id: string; label: string; acronym: string; open: boolean }>();
+    branches
+      .filter(b => !sector || sectorOf.get(b.business_id) === sector)
+      .forEach(b => {
+        const open = branchOpenInfo(now, hoursFromBranch(b)).state === 'open';
+        const hit = seen.get(b.business_id);
+        if (!hit) {
+          seen.set(b.business_id, {
+            id: b.business_id,
+            label: b.business_name,
+            acronym: orgAcronym(b.business_id, b.business_name),
+            open,
+          });
+        } else if (open) {
+          hit.open = true;
+        }
+      });
+    const list = Array.from(seen.values())
+      .sort((a, b) => Number(b.open) - Number(a.open))
+      .slice(0, 8);
     return list.map(x => ({
       ...x,
       onPress: () => navigation.navigate('Business', { businessId: x.id, businessName: x.label }),
     }));
-  }, [sorted, navigation]);
+  }, [branches, sector, sectorOf, navigation]);
 
   /* The badges, and the rule behind each one.
 

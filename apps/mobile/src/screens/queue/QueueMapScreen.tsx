@@ -1,24 +1,27 @@
 /**
  * QueueMapScreen — "The line right now".
  *
- * The line drawn as a line: a vertical rail running from the counters at the
- * top, down through the people waiting, to the spot you would land in.
+ * The seat-map from the reference set, read as what it actually looks like: a
+ * queue. The open counters sit spread across the top in blue, a fork runs down
+ * from each of them into the head of the line, and from there the line snakes
+ * left→right→down→right→left: dark circles for everyone waiting, a dashed grey
+ * spot for where you would land if you joined.
  *
- * It was a grid of dots before, and the grid was wrong twice over. It ran
- * sideways on a screen whose spare room is vertical, so a short queue left a
- * band of nothing above the Join button; and it drew the people at the
- * counters in the same snake as the people queuing, so a caption reading
- * "AHEAD OF YOU 4" sat above a picture anyone would count as eight.
+ * The geometry is deliberately the seat map's, not something looser: big
+ * circles on a tight pitch. Drawn small with generous gaps it read as dots on a
+ * page rather than a queue.
  *
- * On a rail the two sets are separated by construction — the counters are the
- * destination, the beads below them are the wait — and the connectors carry
- * `flex: 1`, so the drawing stretches to whatever height is left rather than
- * floating in the middle of an empty card.
+ * The fork is what separates the two sets. Counters and the people queuing for
+ * them used to share one snake, so a caption reading "AHEAD OF YOU 4" sat above
+ * a picture you would count as eight. Lifting the counters out and pointing
+ * them at the head of the line says the true thing — four desks, one line
+ * feeding all of them — and the dark card's numbers now match the drawing.
  */
 import React, { useMemo } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import Svg, { Circle, Path, Polyline } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font, shadow, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
@@ -32,13 +35,50 @@ import EmptyState from '../../components/EmptyState';
 
 type Params = RouteProp<RootStackParamList, 'QueueMap'>;
 
-const RAIL_W = 36;
-const RAIL_INK = '#E2E8F0';
-const WAITING_INK = '#101D2E';
+// Seat-map geometry: 5 across, 5 down, circles 52 on a 65.5 pitch.
+const COLS = 5;
+const ROWS = 5;
+const R = 26;
+const PITCH_X = 65.5;
+const PITCH_Y = 68;
+const VB_W = R + (COLS - 1) * PITCH_X + R;   // 314
+const MAX_CAPACITY = COLS * ROWS;
 
-/** Nine beads is where a queue stops reading as people and starts reading as
- *  texture. Past that the tail is stated in words instead. */
-const MAX_BEADS = 9;
+/* The counter band above the line: desks on the top row, the fork gathering
+   into a junction, then the drop into the head of the queue. */
+const COUNTER_Y = R;
+const JUNCTION_Y = 112;
+const QUEUE_TOP = 182;
+const RAIL = '#EDF1F7';
+
+/** Where the nth of `total` counters sits along the top. */
+function counterX(index: number, total: number) {
+  if (total <= 1) return VB_W / 2;
+  return R + (index * (VB_W - 2 * R)) / (total - 1);
+}
+
+/** Serpentine order: row 0 left→right, row 1 right→left, and so on. */
+function seat(index: number, top: number) {
+  const row = Math.floor(index / COLS);
+  const col = index % COLS;
+  const x = R + (row % 2 === 0 ? col : COLS - 1 - col) * PITCH_X;
+  const y = top + row * PITCH_Y;
+  return { x, y };
+}
+
+/** Only draw as many rows as the line actually needs — a six-person queue on a
+ *  25-slot grid is three empty rows of nothing, and it buries the summary and
+ *  the Join button below the fold. */
+function gridFor(occupied: number, top: number) {
+  const rows = Math.max(1, Math.min(ROWS, Math.ceil(occupied / COLS)));
+  const capacity = rows * COLS;
+  const height = top + (rows - 1) * PITCH_Y + R;
+  const points = Array.from({ length: capacity }, (_, i) => {
+    const { x, y } = seat(i, top);
+    return `${x},${y}`;
+  }).join(' ');
+  return { rows, capacity, height, points };
+}
 
 /** "5th" — the way somebody says their place out loud. */
 function ordinal(n: number): string {
@@ -48,43 +88,11 @@ function ordinal(n: number): string {
   return `${n}${ones === 1 ? 'st' : ones === 2 ? 'nd' : ones === 3 ? 'rd' : 'th'}`;
 }
 
-function Bead({ size, fill, dashed }: { size: number; fill: string; dashed?: boolean }) {
+function Legend({ swatch, border, label }: { swatch: string; border?: string; label: string }) {
   return (
-    <View style={{
-      width: size, height: size, borderRadius: size / 2, backgroundColor: fill,
-      ...(dashed ? { borderWidth: 2.5, borderColor: '#5F6C7E', borderStyle: 'dashed' as const } : null),
-    }} />
-  );
-}
-
-/** The stretch of rail between two beads. It is the flexible part of the
- *  drawing — the beads keep their size, the gaps take up the slack. */
-function Link() {
-  return (
-    <View style={{ flexDirection: 'row', flex: 1, minHeight: 14, maxHeight: 72 }}>
-      <View style={{ width: RAIL_W, alignItems: 'center' }}>
-        <View style={{ width: 2, flex: 1, backgroundColor: RAIL_INK }} />
-      </View>
-    </View>
-  );
-}
-
-function Stop({ bead, title, detail }: { bead: React.ReactNode; title?: string; detail?: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <View style={{ width: RAIL_W, alignItems: 'center' }}>{bead}</View>
-      {!!title && (
-        <View style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
-          <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.2 }}>
-            {title}
-          </Text>
-          {!!detail && (
-            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 2 }}>
-              {detail}
-            </Text>
-          )}
-        </View>
-      )}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: swatch, borderWidth: border ? 2.5 : 0, borderColor: border, borderStyle: border ? 'dashed' : 'solid' }} />
+      <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{label}</Text>
     </View>
   );
 }
@@ -114,12 +122,19 @@ export default function QueueMapScreen() {
 
   const joinState = useMemo(() => remoteJoinInfo(new Date(), hoursFromBranch(branch)), [branch]);
 
-  const beads = Math.min(waiting, MAX_BEADS);
-  const overflow = waiting - beads;
-  /* One label for the whole stretch of waiting people, hung off the middle
-     bead. A caption beside every dot would be nine ways of saying the same
-     sentence. */
-  const labelAt = Math.floor((beads - 1) / 2);
+  /* Five desks is as many as fit across the band at this circle size. Past
+     that the drawing stops adding them and the dark card's COUNTERS OPEN
+     carries the exact figure. */
+  const desks = Math.max(0, Math.min(counters, COLS));
+  // The map tops out at 25. A longer line still has to be honest, so the tail is
+  // summarised under the grid rather than silently cropped.
+  const drawnWaiting = Math.min(waiting, MAX_CAPACITY - 1);
+  const overflow = waiting - drawnWaiting;
+  const yourIndex = drawnWaiting;
+
+  const queueTop = desks > 0 ? QUEUE_TOP : R;
+  const occupied = drawnWaiting + (joinState.allowed ? 1 : 0);
+  const grid = useMemo(() => gridFor(occupied, queueTop), [occupied, queueTop]);
 
   const join = () => {
     if (!joinState.allowed || !service) return;
@@ -128,7 +143,7 @@ export default function QueueMapScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 18 }}>
@@ -183,64 +198,83 @@ export default function QueueMapScreen() {
             </View>
 
             {/* The picture, second. */}
-            <View style={{
-              flex: 1, minHeight: 260,
-              backgroundColor: colors.surface, borderRadius: 24,
-              paddingVertical: 22, paddingHorizontal: 18, marginTop: 12, ...shadow.card,
-            }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 20, paddingHorizontal: 18, marginTop: 12, ...shadow.card }}>
               <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
                 The line right now
               </Text>
 
               {waiting === 0 && (
-                /* The card still stretches when there is nobody to draw, so the
-                   empty state centres in it rather than clinging to the title. */
-                <View style={{ flex: 1, justifyContent: 'center' }}>
-                  <EmptyState
-                    compact
-                    icon="walk"
-                    title="No one's waiting"
-                    body={joinState.allowed
-                      ? 'The counter is free. Join now and you should be seen as soon as you arrive.'
-                      : 'Nobody is in this line at the moment.'}
-                  />
-                </View>
+                <EmptyState
+                  compact
+                  icon="walk"
+                  title="No one's waiting"
+                  body={joinState.allowed
+                    ? 'The counter is free. Join now and you should be seen as soon as you arrive.'
+                    : 'Nobody is in this line at the moment.'}
+                />
               )}
 
               {waiting > 0 && (
-                /* Capped stretch, then centred: the rail fills the card for a
-                   real queue, and a two-person line sits composed in the middle
-                   instead of being pulled apart to the corners. */
-                <View style={{ flex: 1, justifyContent: 'center', marginTop: 18, marginLeft: -6 }}>
-                  {/* The head of the line — where everybody in it is going. */}
-                  <Stop
-                    bead={<Bead size={22} fill={colors.accent} />}
-                    title={counters > 0 ? `${counters} ${counters === 1 ? 'counter' : 'counters'} open` : 'No counters open'}
-                    detail={counters > 0 ? 'Serving now' : 'Nobody is being called'}
-                  />
+                <>
+                  <View style={{ marginTop: 14 }}>
+                    <Svg viewBox={`0 0 ${VB_W} ${grid.height}`} width="100%" style={{ aspectRatio: VB_W / grid.height }}>
+                      {/* The fork, drawn under everything: one strand from each
+                          open desk, gathered at a junction, then a single drop
+                          into the front of the line. */}
+                      {desks > 0 && (
+                        <>
+                          {Array.from({ length: desks }, (_, i) => {
+                            const cx = counterX(i, desks);
+                            return (
+                              <Path
+                                key={`fork-${i}`}
+                                d={`M${cx},${COUNTER_Y} C${cx},${COUNTER_Y + 48} ${VB_W / 2},${JUNCTION_Y - 48} ${VB_W / 2},${JUNCTION_Y}`}
+                                fill="none" stroke={RAIL} strokeWidth={7} strokeLinecap="round"
+                              />
+                            );
+                          })}
+                          <Path
+                            d={`M${VB_W / 2},${JUNCTION_Y} C${VB_W / 2},${JUNCTION_Y + 32} ${R},${QUEUE_TOP - 36} ${R},${QUEUE_TOP}`}
+                            fill="none" stroke={RAIL} strokeWidth={7} strokeLinecap="round"
+                          />
+                        </>
+                      )}
 
-                  {Array.from({ length: beads }, (_, i) => (
-                    <React.Fragment key={i}>
-                      <Link />
-                      <Stop
-                        bead={<Bead size={13} fill={WAITING_INK} />}
-                        title={i === labelAt ? `${waiting} ${waiting === 1 ? 'person' : 'people'} ahead of you` : undefined}
-                        detail={i === labelAt && overflow > 0 ? `${beads} shown · ${overflow} more further back` : undefined}
-                      />
-                    </React.Fragment>
-                  ))}
+                      <Polyline points={grid.points} fill="none" stroke={RAIL} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
 
-                  {joinState.allowed && (
-                    <>
-                      <Link />
-                      <Stop
-                        bead={<Bead size={22} fill="#B7C0CE" dashed />}
-                        title="You'd be here"
-                        detail={`${ordinal(waiting + 1)} in line · about ${wait} min`}
-                      />
-                    </>
+                      {/* The desks. */}
+                      {Array.from({ length: desks }, (_, i) => (
+                        <Circle key={`desk-${i}`} cx={counterX(i, desks)} cy={COUNTER_Y} r={R} fill={colors.accent} />
+                      ))}
+
+                      {/* The line. */}
+                      {Array.from({ length: grid.capacity }, (_, i) => {
+                        const { x, y } = seat(i, queueTop);
+                        const isWaiting = i < drawnWaiting;
+                        const isYou = i === yourIndex && joinState.allowed;
+                        if (isYou) {
+                          return <Circle key={i} cx={x} cy={y} r={R} fill="#B7C0CE" stroke="#5F6C7E" strokeWidth={3} strokeDasharray="6 5" />;
+                        }
+                        return <Circle key={i} cx={x} cy={y} r={R} fill={isWaiting ? '#101D2E' : '#EDF1F7'} />;
+                      })}
+                    </Svg>
+                  </View>
+
+                  {overflow > 0 && (
+                    <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6 }}>
+                      + {overflow} more further back
+                    </Text>
                   )}
-                </View>
+
+                  {/* Three keys, not four. "Open spot" was labelling the empty
+                      circles — the absence of a person — which is the one thing
+                      a queue drawing does not need explained. */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderSoft }}>
+                    <Legend swatch={colors.accent} label="At the counter" />
+                    <Legend swatch="#101D2E" label="Waiting" />
+                    <Legend swatch="#B7C0CE" border="#5F6C7E" label="You'd be here" />
+                  </View>
+                </>
               )}
             </View>
           </>
