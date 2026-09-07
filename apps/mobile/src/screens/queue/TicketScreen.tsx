@@ -299,6 +299,7 @@ export default function TicketScreen() {
           serviceName={ticket.service_name || 'Your service'}
           ticketNumber={ticket.ticket_number}
           joinedAt={ticket.joined_at}
+          endedAt={ticket.completed_at || ticket.called_at}
           remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
           place={spot ?? null}
           ahead={ahead}
@@ -315,7 +316,9 @@ export default function TicketScreen() {
               {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
             </View>
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 12, textAlign: 'center', lineHeight: 17 }}>
-              Show this code at the counter when your number is called.
+              {active
+                ? 'Show this code at the counter when your number is called.'
+                : 'This is the code that was on the ticket. It is kept for your records.'}
             </Text>
 
             {/* Wallet.
@@ -331,19 +334,26 @@ export default function TicketScreen() {
                 Wallet, and offering them one is the kind of detail that tells
                 somebody the app was built for a different device than the one
                 in their hand. */}
-            <View style={{
-              flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
-              minHeight: 52, borderRadius: 16, paddingHorizontal: 18,
-              backgroundColor: colors.surfaceAlt, alignSelf: 'stretch', justifyContent: 'center',
-            }}>
-              <Ionicons name="wallet-outline" size={19} color={colors.muted} />
-              <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.muted }}>
-                Add to {WALLET_NAME}
-              </Text>
-            </View>
-            <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 8, textAlign: 'center' }}>
-              {WALLET_NOTE}
-            </Text>
+            {/* Only while there is something to carry. Offering to add a
+                finished visit to a wallet is offering to keep a boarding pass
+                for a flight that landed. */}
+            {active && (
+              <>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
+                  minHeight: 52, borderRadius: 16, paddingHorizontal: 18,
+                  backgroundColor: colors.surfaceAlt, alignSelf: 'stretch', justifyContent: 'center',
+                }}>
+                  <Ionicons name="wallet-outline" size={19} color={colors.muted} />
+                  <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.muted }}>
+                    Add to {WALLET_NAME}
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 8, textAlign: 'center' }}>
+                  {WALLET_NOTE}
+                </Text>
+              </>
+            )}
           </View>
         </TicketPass>
 

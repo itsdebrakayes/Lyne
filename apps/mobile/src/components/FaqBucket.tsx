@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { LayoutAnimation, Platform, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t } from '../lib/theme';
+import { colors, font, shadow } from '../lib/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -18,13 +18,16 @@ export function FaqBucket({ q, children, defaultOpen = false }: { q: string; chi
     setOpen(o => !o);
   };
   return (
-    <View style={[t.card, { marginBottom: 10, overflow: 'hidden', ...shadow.card }]}>
-      <TouchableOpacity activeOpacity={0.8} onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}>
-        <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14.5, color: colors.ink, lineHeight: 20 }}>{q}</Text>
+    /* Borderless, radius 20, carried by shadow — the card the rest of the app
+       settled on. The hairline-bordered 22 was the older language and it made
+       Help read like a screen from a different product. */
+    <View style={{ backgroundColor: colors.surface, borderRadius: 20, marginBottom: 10, overflow: 'hidden', ...shadow.card }}>
+      <TouchableOpacity activeOpacity={0.8} onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, paddingHorizontal: 18 }}>
+        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: colors.ink, lineHeight: 20, letterSpacing: -0.2 }}>{q}</Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
       </TouchableOpacity>
       {open && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 16, marginTop: -2 }}>{children}</View>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 18, marginTop: -3 }}>{children}</View>
       )}
     </View>
   );

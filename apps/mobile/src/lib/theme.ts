@@ -574,7 +574,12 @@ const makeT = () => StyleSheet.create({
   cardLg: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 28, ...shadow.card },
 
   // controls
-  iconBtn: { width: 46, height: 46, borderRadius: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  /* The back button, everywhere. It was a 46pt bordered square while the
+     screens rebuilt on the new design used a 42pt circle carried by shadow —
+     so eight screens announced themselves as belonging to an older version of
+     the app the moment you opened them. Changed here rather than in each
+     screen, so the two can never drift apart again. */
+  iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card },
   search: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 26, height: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 },
   searchText: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted },
 
