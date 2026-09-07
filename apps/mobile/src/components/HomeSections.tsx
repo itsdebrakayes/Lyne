@@ -24,8 +24,8 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, isBranchOpen, orgMark, shortOrgName } from '../lib/theme';
-import { BranchSummary } from '../lib/mobileData';
+import { colors, font, shadow, isBranchOpen } from '../lib/theme';
+import { BranchSummary, orgAcronym, shortBranchName } from '../lib/mobileData';
 
 /* ── section header ─────────────────────────────────────────── */
 
@@ -55,8 +55,10 @@ export function RailHead({ title, actionLabel, onAction }: {
 
 export interface TileItem {
   id: string;
+  /** The full legal name — for screen readers, never drawn. */
   label: string;
-  slug?: string | null;
+  /** What people call it. This is what the tile shows. */
+  acronym: string;
   onPress: () => void;
 }
 
@@ -69,36 +71,39 @@ export interface TileItem {
  */
 export function TileGrid({ items }: { items: TileItem[] }) {
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 }}>
       {items.map((it) => (
         <TouchableOpacity
           key={it.id}
           onPress={it.onPress}
           activeOpacity={0.85}
           accessibilityRole="button"
+          /* The tile shows letters; a screen reader still gets the whole name,
+             because "CFC" read aloud is not a name. */
           accessibilityLabel={it.label}
-          style={{ width: '25%', alignItems: 'center', paddingHorizontal: 4 }}
+          style={{ width: '25%', alignItems: 'center', paddingHorizontal: 5 }}
         >
           <View
             style={{
-              width: 58, height: 58, borderRadius: 19, backgroundColor: colors.surface,
+              width: '100%', aspectRatio: 1, borderRadius: 20, backgroundColor: colors.surface,
               borderWidth: 1, borderColor: colors.borderSoft,
               alignItems: 'center', justifyContent: 'center', ...shadow.card,
             }}
           >
-            <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent, letterSpacing: 0.2 }}>
-              {orgMark(it.slug, it.label)}
+            {/* One line, always. UTECH is the longest real acronym at five
+                characters, and it has to sit at the same optical weight as
+                NHT — so the type shrinks a step rather than the tile growing. */}
+            <Text
+              numberOfLines={1}
+              style={{
+                fontFamily: font.extra,
+                fontSize: it.acronym.length >= 5 ? 13.5 : 16,
+                color: colors.accent, letterSpacing: 0.2,
+              }}
+            >
+              {it.acronym}
             </Text>
           </View>
-          <Text
-            numberOfLines={2}
-            style={{
-              fontFamily: font.semibold, fontSize: 11, color: colors.sub,
-              textAlign: 'center', marginTop: 8, lineHeight: 14,
-            }}
-          >
-            {shortOrgName(it.label, 26)}
-          </Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -139,87 +144,98 @@ export function BranchCard({
   const waiting = Number(branch.total_waiting || 0);
   const open = isBranchOpen(branch);
   /* LIVE means the figures are moving, not merely that the door is unlocked:
-     counters open AND somebody actually in the line. A branch that is open but
-     idle is honestly "No queue", and says so in the badge. */
+     counters open AND somebody actually in the line. */
   const live = open && Number(branch.open_queues || 0) > 0 && waiting > 0;
   const b = badge ? BADGE[badge] : null;
 
   return (
-    <View style={{ width: 232, borderRadius: 22, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.card }}>
-      {/* Head panel — the reference's photo slot. A tinted block carrying the
-          agency mark reads as deliberate; a stock photo of a building would be
-          the thing that makes an app look generated. */}
-      <TouchableOpacity activeOpacity={0.9} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${branch.business_name}, ${branch.name}`}>
-        <View style={{ height: 96, backgroundColor: colors.dark, paddingHorizontal: 16, justifyContent: 'center' }}>
-          {!!b && (
+    /* Wider and taller than the first pass. At 232 the badge sat on top of the
+       agency name and the branch name clipped — on a phone, held at arm's
+       length, that is a card you have to decode rather than read. */
+    <View style={{ width: 268, borderRadius: 24, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.card }}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`${branch.business_name}, ${branch.name}`}
+      >
+        {/* Head: the agency, and whether it is live. Nothing else competes for
+            this strip now that the badge has moved down. */}
+        <View style={{ height: 74, backgroundColor: colors.dark, paddingHorizontal: 16, justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
             <View style={{
-              position: 'absolute', top: 12, left: 12, borderRadius: 8,
-              paddingHorizontal: 9, paddingVertical: 4, backgroundColor: b.bg,
-            }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 10, color: b.fg, letterSpacing: 0.3 }}>{b.label}</Text>
-            </View>
-          )}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
-            <View style={{
-              width: 38, height: 38, borderRadius: 12, backgroundColor: '#fff',
+              width: 40, height: 40, borderRadius: 13, backgroundColor: '#fff',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.accent }}>
-                {orgMark(branch.business_slug, branch.business_name)}
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontFamily: font.extra,
+                  fontSize: orgAcronym(branch.business_id, branch.business_name).length >= 5 ? 11 : 13,
+                  color: colors.accent,
+                }}
+              >
+                {orgAcronym(branch.business_id, branch.business_name)}
               </Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.72)' }}>
-                {shortOrgName(branch.business_name, 24)}
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff', letterSpacing: -0.2 }}>
+                {orgAcronym(branch.business_id, branch.business_name)}
               </Text>
-              {live && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-                  <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.light, letterSpacing: 0.4 }}>LIVE</Text>
-                </View>
-              )}
+              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
+                {live ? 'Line moving now' : open ? 'Open, no queue' : 'Closed'}
+              </Text>
             </View>
+            {live && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
+                <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.light, letterSpacing: 0.5 }}>LIVE</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
 
-      <View style={{ padding: 14 }}>
-        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
-          {branch.name}
+      <View style={{ padding: 16, flex: 1 }}>
+        {/* The badge gets its own line. Overlaid on the head it read as part of
+            the agency name; here it is plainly a label ABOUT the branch below
+            it, which is what it is. */}
+        {!!b && (
+          <View style={{ flexDirection: 'row', marginBottom: 9 }}>
+            <View style={{ borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: b.bg }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: b.fg, letterSpacing: 0.3 }}>{b.label}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Two lines allowed. A branch name is the one thing on this card that
+            must never be truncated — it is the answer to "where do I go". */}
+        <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 17, lineHeight: 21, color: colors.ink, letterSpacing: -0.4 }}>
+          {shortBranchName(branch.name)}
         </Text>
 
-        <View style={{ gap: 6, marginTop: 9 }}>
+        <View style={{ gap: 7, marginTop: 11, marginBottom: 14 }}>
           <Stat icon="time-outline" value={wait ? `${wait} min` : 'No wait'} caption="to be seen" />
           <Stat icon="people-outline" value={String(waiting)} caption={waiting === 1 ? 'person ahead' : 'people ahead'} />
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 13 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: open ? colors.light : colors.muted }} />
-            <Text style={{ fontFamily: font.bold, fontSize: 12, color: open ? colors.ink : colors.muted }}>
-              {open ? 'Open now' : 'Closed'}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={onJoin}
-            disabled={!open}
-            activeOpacity={0.9}
-            accessibilityRole="button"
-            accessibilityLabel={open ? `Join the line at ${branch.name}` : `${branch.name} is closed`}
-            accessibilityState={{ disabled: !open }}
-            style={{
-              minHeight: 36, borderRadius: 12, paddingHorizontal: 15,
-              backgroundColor: open ? colors.accent : colors.surfaceAlt,
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: open ? colors.accentInk : colors.muted }}>
-              Join now
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={onJoin}
+          disabled={!open}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel={open ? `Join the line at ${branch.name}` : `${branch.name} is closed`}
+          accessibilityState={{ disabled: !open }}
+          style={{
+            minHeight: 44, borderRadius: 14, marginTop: 'auto', paddingTop: 0,
+            backgroundColor: open ? colors.accent : colors.surfaceAlt,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontFamily: font.extra, fontSize: 14, color: open ? colors.accentInk : colors.muted }}>
+            {open ? 'Join now' : 'Closed'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -268,7 +284,7 @@ export function Rail({ children }: { children: React.ReactNode }) {
       contentContainerStyle={{ gap: 12, paddingRight: 4 }}
       /* The cards are 232 wide with a 12 gap, so a flick lands one card at a
          time rather than drifting to a half-shown edge. */
-      snapToInterval={244}
+      snapToInterval={280}
       decelerationRate="fast"
     >
       {children}

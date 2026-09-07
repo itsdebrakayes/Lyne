@@ -100,3 +100,58 @@ export function statusMeta(status: QueueStatus) {
 export function initials(value: string) {
   return value.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'Q';
 }
+
+/* ── how agencies and branches are named on screen ────────────────────────
+ *
+ * Legal names do not fit under a tile and do not read at a glance. Jamaicans
+ * do not say "Passport Office of Jamaica", they say PICA — so the tile carries
+ * the acronym people actually use, and nothing underneath it. Spelling the
+ * full name out under every tile was what made the grid feel cluttered.
+ *
+ * Keyed on business id, not on the name: a business that gets renamed keeps
+ * its acronym, which is the whole point of having one. The name fallback is
+ * for anything onboarded after this map was written — it will look sensible,
+ * just not authoritative, and that is the right failure. */
+const ORG_ACRONYM: Record<string, string> = {
+  'biz-cfcu-001': 'CFC',    // Community First Credit Union
+  'biz-fhc-001': 'FHC',     // First Heritage Co-operative Credit Union
+  'biz-pica-001': 'PICA',   // Passport Office of Jamaica
+  'biz-taj-001': 'TAJ',     // Tax Administration Jamaica
+  'biz-utech-001': 'UTECH', // University of Technology, Jamaica
+  'biz-nht-001': 'NHT',     // National Housing Trust
+  'biz-uwi-001': 'UWI',     // The University of the West Indies, Mona
+  'biz-court-001': 'TCJ',   // Traffic Court of Jamaica
+};
+
+/** The letters people use for this agency. */
+export function orgAcronym(businessId: string | null | undefined, name: string): string {
+  const known = businessId ? ORG_ACRONYM[businessId] : undefined;
+  if (known) return known;
+  /* Initials of the significant words — "National Housing Trust" → NHT — which
+     is what an acronym usually is, and is right more often than a slug. */
+  return (name || '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .split(/[\s&–—-]+/)
+    .filter(w => w.length > 2 && !/^(of|the|and|for|in|at)$/i.test(w))
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 5) || 'LYNE';
+}
+
+/* Suffixes that say "this is a place you go to" and therefore say nothing.
+   Only multi-word ones: stripping a bare "Office" turns "Kingston - Head
+   Office" into "Kingston - Head", which is worse than leaving it alone. */
+const BRANCH_NOISE = /\s+(Member Centre|Member Center|Service Centre|Service Center|Customer Centre|Customer Center)$/i;
+
+/**
+ * A branch name that survives a card.
+ *
+ * "Half Way Tree Member Centre" clipped to "Half Way Tree Memb…" is worse than
+ * useless — it is the branch name with the identifying half intact and the
+ * reader still unsure. Dropping the part that every branch shares leaves the
+ * part that tells them where to go.
+ */
+export function shortBranchName(name: string): string {
+  return (name || '').replace(BRANCH_NOISE, '').trim() || name;
+}

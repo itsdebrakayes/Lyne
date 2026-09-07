@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { colors, font, shadow, t, sp, type, initials, personInitials, statusFromWait, statusMeta, waitShort, waitPhrase, branchOpenInfo, isBranchOpen, openTimeLabel, hoursFromBranch, depthText, TAB_BAR_CLEARANCE, radius} from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
-import { BranchSummary } from '../../lib/mobileData';
+import { BranchSummary, orgAcronym, shortBranchName } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar, useActiveTicket } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
@@ -205,10 +205,14 @@ export default function HomeScreen() {
      onboarded next week appears without a code change, and a demo that is all
      government offices does not show five dead categories. */
   const tiles = useMemo(() => {
-    const seen = new Map<string, { id: string; label: string; slug?: string | null }>();
+    const seen = new Map<string, { id: string; label: string; acronym: string }>();
     sorted.forEach(b => {
       if (!seen.has(b.business_id)) {
-        seen.set(b.business_id, { id: b.business_id, label: b.business_name, slug: b.business_slug });
+        seen.set(b.business_id, {
+          id: b.business_id,
+          label: b.business_name,
+          acronym: orgAcronym(b.business_id, b.business_name),
+        });
       }
     });
     const list = Array.from(seen.values()).slice(0, 8);
@@ -420,27 +424,56 @@ export default function HomeScreen() {
           <ProofRow />
         </View>
 
-        {/* Premium, demoted on purpose.
-
-            It was a 20pt-padded accent-deep card with a 74pt icon, sitting
-            above the actual content — so the first strong thing on Home was an
-            advertisement, and the screen read as promotional before it read as
-            useful. One row now, below the content it was outranking. The value
-            is real; the placement was the problem. */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Plan')}
-          accessibilityRole="button"
-          accessibilityLabel="Lyne Premium — find the quietest time to go"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 18, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}
-        >
-          <Icon name="clock" size={20} color={colors.accent} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>Find the fastest time to go</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>Lyne Premium · free for 14 days</Text>
+        {/* The full list, under the proofs — the rail shows a handful, this is
+            everywhere else, in the same shape the Search results use so the two
+            screens do not teach two different reading habits. */}
+        {agencyRows.length > 0 && (
+          <View style={{ marginTop: 30 }}>
+            <RailHead title="Agencies near you" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            <View style={{ gap: 10 }}>
+              {agencyRows.map(({ best, count }, i) => {
+                const wait = Math.round(Number(best.avg_wait_minutes || 0));
+                const isOpen = isBranchOpen(best);
+                return (
+                  <Appear key={best.business_id} index={i}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => openBranch(best)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${best.business_name}, ${count} ${count === 1 ? 'branch' : 'branches'}, ${isOpen ? 'open' : 'closed'}`}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderRadius: 20, padding: 14, ...shadow.card }}
+                    >
+                      <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_id, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
+                          {orgAcronym(best.business_id, best.business_name)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                          {best.business_name}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                          <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted }}>
+                            {count} {count === 1 ? 'branch' : 'branches'}
+                          </Text>
+                          <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: isOpen ? colors.light : colors.muted }} />
+                          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: isOpen ? colors.light : colors.muted }}>
+                            {isOpen ? 'Open' : 'Closed'}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.5 }}>{waitShort(wait)}</Text>
+                        <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: colors.muted, letterSpacing: 0.4 }}>SHORTEST</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </Appear>
+                );
+              })}
+            </View>
           </View>
-          <Icon name="chevronRight" size={16} color={colors.chevron} />
-        </TouchableOpacity>
+        )}
+
       </ScrollView>
       <TabBar active="Home" showTicketPill={false} />
     </View>
