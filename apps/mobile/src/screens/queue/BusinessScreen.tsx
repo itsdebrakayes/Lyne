@@ -20,7 +20,7 @@
  */
 import React, { useMemo } from 'react';
 import {
-  ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View,
+  ActivityIndicator, Linking, RefreshControl, ScrollView, Text, TouchableOpacity, View,
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,7 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../lib/apiClient';
 import {
-  BranchSummary, SavedBusiness, ServiceSummary, orgAcronym,
+  BranchSummary, SavedBusiness, ServiceSummary, orgAcronym, shortBranchName,
 } from '../../lib/mobileData';
 import { colors, font, shadow, t, isBranchOpen, waitShort } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
@@ -274,6 +274,84 @@ export default function BusinessScreen() {
               <Text style={{ fontFamily: font.medium, fontSize: 14.5, lineHeight: 23, color: colors.sub, marginTop: 9 }}>
                 {business.description}
               </Text>
+            </View>
+          )}
+
+          {/* The branches, listed.
+              This screen used to end at the overview and leave a few hundred
+              points of nothing above the action. Filling it with the branches
+              is not padding: it is the question somebody is actually holding —
+              which one do I go to — answered before they commit to the flow.
+
+              Choosing still happens on the next screen. This is reference, so
+              a row opens the branch rather than joining a line from here; the
+              one thing a row does commit to is the phone call, because that is
+              the answer when the wait is long and the question is simple. */}
+          {branches.length > 0 && (
+            <View style={{ marginTop: 26 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4 }}>
+                {branches.length} {branches.length === 1 ? 'branch' : 'branches'}
+              </Text>
+
+              <View style={{ gap: 10, marginTop: 12 }}>
+                {branches.map((b) => {
+                  const open = isBranchOpen(b);
+                  const wait = Math.round(Number(b.avg_wait_minutes || 0));
+                  return (
+                    <View
+                      key={b.id}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        backgroundColor: colors.surface, borderRadius: 20, padding: 14,
+                        ...shadow.card,
+                      }}
+                    >
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => nav.navigate('Branch', { businessId, branchId: b.id, branchName: b.name })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${b.name}. ${open ? `Open, about ${wait} minutes` : 'Closed'}`}
+                        style={{ flex: 1, minWidth: 0 }}
+                      >
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                          {shortBranchName(b.name)}
+                        </Text>
+                        {!!b.address && (
+                          <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3 }}>
+                            {b.address}
+                          </Text>
+                        )}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: open ? colors.light : colors.muted }} />
+                          <Text style={{ fontFamily: font.bold, fontSize: 12, color: open ? colors.light : colors.muted }}>
+                            {open ? 'Open' : 'Closed'}
+                          </Text>
+                          {open && (
+                            <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>
+                              · {waitShort(wait)} wait · {Number(b.total_waiting || 0)} ahead
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+
+                      {!!b.phone && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(`tel:${String(b.phone).replace(/[^\d+]/g, '')}`).catch(() => {})}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Call ${b.name} on ${b.phone}`}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{
+                            width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceAlt,
+                            alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="call-outline" size={19} color={colors.accent} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           )}
 
