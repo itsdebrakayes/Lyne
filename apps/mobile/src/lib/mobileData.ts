@@ -74,6 +74,13 @@ export interface TicketRecord {
   readiness_shown_at?: string | null;
   readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
   readiness_note?: string | null;
+  /* Timestamps. GET /tickets/:id selects t.*, so these have always been on the
+     wire — they had no name here until the ticket needed to draw a timeline
+     rather than a single number. */
+  joined_at?: string | null;
+  called_at?: string | null;
+  started_serving_at?: string | null;
+  completed_at?: string | null;
 }
 
 export interface SavedBusiness {
