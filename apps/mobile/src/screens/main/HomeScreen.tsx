@@ -2,10 +2,10 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { colors, font, shadow, t, sp, type, initials, personInitials, statusFromWait, statusMeta, waitShort, waitPhrase, branchOpenInfo, openTimeLabel, hoursFromBranch, depthText, TAB_BAR_CLEARANCE, radius} from '../../lib/theme';
+import { colors, font, shadow, t, sp, type, initials, personInitials, statusFromWait, statusMeta, waitShort, waitPhrase, branchOpenInfo, isBranchOpen, openTimeLabel, hoursFromBranch, depthText, TAB_BAR_CLEARANCE, radius} from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
-import { BranchSummary } from '../../lib/mobileData';
+import { BranchSummary, orgAcronym, shortBranchName } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar, useActiveTicket } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
@@ -14,6 +14,8 @@ import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
+import HomeHero from '../../components/HomeHero';
+import { BranchCard, ProofRow, Rail, RailHead, TileGrid, type BadgeKind } from '../../components/HomeSections';
 
 /**
  * Marketplace — v5.
@@ -199,6 +201,59 @@ export default function HomeScreen() {
     );
   }, [sorted, savedIds]);
 
+  /* Agency tiles. Built from the businesses actually on screen, so an agency
+     onboarded next week appears without a code change, and a demo that is all
+     government offices does not show five dead categories. */
+  const tiles = useMemo(() => {
+    const seen = new Map<string, { id: string; label: string; acronym: string }>();
+    sorted.forEach(b => {
+      if (!seen.has(b.business_id)) {
+        seen.set(b.business_id, {
+          id: b.business_id,
+          label: b.business_name,
+          acronym: orgAcronym(b.business_id, b.business_name),
+        });
+      }
+    });
+    const list = Array.from(seen.values()).slice(0, 8);
+    return list.map(x => ({
+      ...x,
+      onPress: () => navigation.navigate('Business', { businessId: x.id, businessName: x.label }),
+    }));
+  }, [sorted, navigation]);
+
+  /* The badges, and the rule behind each one.
+
+     Every badge is a fact about the numbers on the card, decided here once so
+     no two cards can claim the same superlative. A card with nothing true to
+     say carries no badge at all — that is the honest outcome, and it is better
+     than reaching for a fourth label to fill the slot. "Closest to you" is
+     absent until the app actually knows where the phone is; it is the one the
+     reference implies and the one we cannot yet earn. */
+  const recommended = useMemo(() => {
+    const rows = agencyRows.map(r => r.best);
+    if (!rows.length) return [];
+
+    const open = rows.filter(b => isBranchOpen(b));
+    const pool = open.length ? open : rows;
+
+    const waitOf = (b: BranchSummary) => Math.round(Number(b.avg_wait_minutes || 0));
+    const aheadOf = (b: BranchSummary) => Number(b.total_waiting || 0);
+
+    const shortest = pool.reduce((a, b) => (waitOf(b) < waitOf(a) ? b : a), pool[0]);
+    const busiest = pool.reduce((a, b) => (aheadOf(b) > aheadOf(a) ? b : a), pool[0]);
+    const empty = pool.find(b => aheadOf(b) === 0 && isBranchOpen(b));
+
+    const badgeFor = (b: BranchSummary): BadgeKind => {
+      if (empty && b.id === empty.id) return 'no_queue';
+      if (b.id === shortest.id && waitOf(shortest) > 0) return 'shortest';
+      if (b.id === busiest.id && aheadOf(busiest) > 0 && busiest.id !== shortest.id) return 'busiest';
+      return null;
+    };
+
+    return rows.map(branch => ({ branch, badge: badgeFor(branch) }));
+  }, [agencyRows]);
+
   const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
 
   const ahead = ticket ? Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1) : 0;
@@ -281,335 +336,144 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* The opening. Plain type on the canvas — no card, no border, nothing
-            around it. This is the one place on Home that should be loud, and it
-            is loud by being large rather than by being a coloured box. */}
-        {/* Two lines at the same size, differing only in colour, gave the eye
-            nothing to rank — so neither read as the point. The greeting is
-            context and steps down to it; the question is the screen's actual
-            prompt and keeps the display size. The gap between them is what
-            makes them two thoughts instead of one paragraph. */}
-        <View style={{ marginTop: ticket ? 24 : 20 }}>
-          <Text style={{ ...type.callout, fontSize: 15, color: colors.muted }}>
+        {/* The opening, then the promo panel — the order the reference uses.
+            The greeting stays because it is the one line on Home addressed to a
+            person rather than to a queue. */}
+        <View style={{ marginTop: ticket ? 22 : 18 }}>
+          <Text style={{ ...type.callout, fontSize: 14.5, color: colors.muted }}>
             {greeting}, {firstName}.
           </Text>
-          <Text style={{ ...type.displayLg, color: colors.ink, marginTop: 10 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: 27, lineHeight: 32, color: colors.ink, letterSpacing: -0.9, marginTop: 6 }}>
             What do you need{'\n'}to get done?
           </Text>
         </View>
 
         {/* search */}
         <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Search')}
-          style={{ height: 56, borderRadius: 18, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 16, paddingRight: 8, marginTop: 22, ...shadow.card }}>
-          <Icon name="search" size={20} color={colors.muted} />
-          <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 14.5, color: colors.muted }}>Search agencies &amp; branches</Text>
+          style={{ height: 54, borderRadius: 17, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 16, paddingRight: 7, marginTop: 18, ...shadow.card }}>
+          <Icon name="search" size={19} color={colors.muted} />
+          <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 14, color: colors.muted }}>Search agencies &amp; branches</Text>
           <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sliders" size={20} color={colors.accentInk} />
+            <Icon name="sliders" size={19} color={colors.accentInk} />
           </View>
         </TouchableOpacity>
 
-        {/* Sector filter. space-between only once the row is full: with two
-            sectors it threw one tile against each edge and read as a layout
-            bug rather than a short list. */}
-        {SHOW_SECTOR_FILTER && sectors.length > 0 && (
-          <View style={{ backgroundColor: colors.surface, borderRadius: 24, paddingVertical: 18, paddingHorizontal: 12, flexDirection: 'row', justifyContent: sectors.length >= 4 ? 'space-between' : 'flex-start', gap: sectors.length >= 4 ? 0 : 8, marginTop: 16, ...shadow.card }}>
-            {[null, ...sectors].slice(0, 5).map(s => {
-              const on = sector === s;
-              const label = s === null ? 'All' : (SECTOR_LABEL[s] || s.replace(/_/g, ' '));
-              const icon: IconName = s === null ? 'grid' : (SECTOR_ICON[s] || 'grid');
-              return (
-                <TouchableOpacity key={s ?? 'all'} onPress={() => setSector(s)} accessibilityRole="button" accessibilityLabel={`Filter by ${label}`}
-                  style={{ alignItems: 'center', gap: 9, width: 64 }}>
-                  <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: on ? colors.accent : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={icon} size={26} color={on ? colors.accentInk : colors.muted} />
-                  </View>
-                  <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 11, color: on ? colors.accent : colors.muted }}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+        <HomeHero
+          onJoinNow={() => navigation.navigate('Search')}
+          onPlanLater={() => navigation.navigate('Plan')}
+        />
+
+        {/* Popular places — the reference's category grid, carrying agencies
+            because that is what people navigate a queue app by. */}
+        {tiles.length > 0 && (
+          <View style={{ marginTop: 26 }}>
+            <RailHead title="Popular places" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            <TileGrid items={tiles} />
           </View>
         )}
 
-        {/* open now / all + sort */}
-        {/* Chips, not two elevated cards. A filter is a control, not a
-            surface — giving it its own shadow put it at the same visual weight
-            as the branches it filters. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22 }}>
-          {([['Open now', true], ['All', false]] as const).map(([label, val]) => {
-            const on = openOnly === val;
-            return (
-              <TouchableOpacity key={label} onPress={() => setOpenOnly(val)}
-                accessibilityRole="button" accessibilityLabel={`${label}${on ? ', selected' : ''}`}
-                /* accent/accentInk, not ink/onDark. In dark mode colors.ink is
-                   #eef2f8 and colors.onDark is #ffffff — white on near-white,
-                   so the selected chip vanished. The accent pair is the one
-                   that flips correctly with the theme: dark blue with white
-                   ink in light, light blue with near-black ink in dark. */
-                style={{ minHeight: 44, justifyContent: 'center', backgroundColor: on ? colors.accent : 'transparent', borderWidth: 1, borderColor: on ? colors.accent : colors.border, borderRadius: 999, paddingHorizontal: 16 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? colors.accentInk : colors.sub }}>{label}</Text>
+        {/* Recommended — the badged card rail. Each badge is computed from the
+            live figures below, never assigned for decoration. */}
+        <View style={{ marginTop: 26 }}>
+          <RailHead
+            title={savedIds.size ? 'Your agencies' : 'Recommended for you'}
+            actionLabel="View all"
+            onAction={() => navigation.navigate('Search')}
+          />
+
+          {isLoading && <SkeletonRows count={2} />}
+
+          {!!error && !isLoading && (
+            <ErrorCard
+              title="Waits unavailable"
+              message="Live queue times could not be loaded."
+              onRetry={() => refetch()}
+            />
+          )}
+
+          {!isLoading && !error && recommended.length === 0 && (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 26, alignItems: 'center', ...shadow.card }}>
+              <Icon name="clock" size={26} color={colors.muted} />
+              <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>Nothing open here yet</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
+                Every branch in this filter is closed right now. Switch to All to see them anyway.
+              </Text>
+              <TouchableOpacity onPress={() => setOpenOnly(false)} style={{ marginTop: 16, backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.accentInk }}>Show all branches</Text>
               </TouchableOpacity>
-            );
-          })}
-          <Text style={{ marginLeft: 'auto', fontFamily: font.bold, fontSize: 12.5, color: colors.muted }}>Shortest first</Text>
+            </View>
+          )}
+
+          {recommended.length > 0 && (
+            <Rail>
+              {recommended.map(({ branch, badge }) => (
+                <BranchCard
+                  key={branch.id}
+                  branch={branch}
+                  badge={badge}
+                  onOpen={() => openBranch(branch)}
+                  onJoin={() => navigation.navigate('Service', { businessId: branch.business_id, branchId: branch.id })}
+                />
+              ))}
+            </Rail>
+          )}
         </View>
 
-        {/* The page-wide skeleton and error card used to sit here, and between
-            them they blanked everything below on a single query's failure. Each
-            region reports for itself now. */}
-        {businessesFailed && !error ? (
-          <View style={{ marginTop: 18 }}>
-            <ErrorCard
-              compact
-              title="Some agency details are missing"
-              message="Waits and opening times below are live; the agency names and logos are not. Pull down to refresh."
-            />
-          </View>
-        ) : null}
+        {/* What Lyne actually does, in four short claims. */}
+        <View style={{ marginTop: 30 }}>
+          <ProofRow />
+        </View>
 
-        {/* Featured — the job finder's "Recommended" rail: a horizontal run of
-            cards with the first one filled in the accent, so the shortest wait
-            nearby is the thing your eye lands on rather than a row in a list. */}
-        {/* ── the launch state ───────────────────────────────────────────
-            One or two organisations, given the room a marketplace rail would
-            have wasted on white space. */}
-        {!isLoading && !error && agencyRows.length > 0 && agencyRows.length <= SPARSE_MAX && (
+        {/* The full list, under the proofs — the rail shows a handful, this is
+            everywhere else, in the same shape the Search results use so the two
+            screens do not teach two different reading habits. */}
+        {agencyRows.length > 0 && (
           <View style={{ marginTop: 30 }}>
-            <Text style={{ ...type.overline, color: colors.muted }}>Available on Lyne</Text>
-
-            {agencyRows.map(({ best, count }) => {
-              const wait = Math.round(Number(best.avg_wait_minutes || 0));
-              const hours = hoursFromBranch(best);
-              const info = branchOpenInfo(new Date(), hours);
-              const isOpen = info.state === 'open';
-              return (
-                <TouchableOpacity
-                  key={best.business_id}
-                  activeOpacity={0.9}
-                  onPress={() => openBranch(best)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${best.business_name}, ${count} branch${count === 1 ? '' : 'es'}, ${isOpen ? `shortest wait ${wait} minutes` : 'closed'}`}
-                  style={{ marginTop: 16 }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
-                    <Monogram label={best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)} size={54} radius={18} bg={colors.dark} fg="#fff" border={false} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={{ ...type.title, color: colors.ink }}>
-                        {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
-                      </Text>
-                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 4 }}>
-                        {count} branch{count === 1 ? '' : 'es'}{best.city ? ` · ${best.city}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Only claims a live wait when the branch is actually open —
-                      a closed branch's stale number is the screen lying. */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }}>
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: isOpen ? colors.light : colors.faint }} />
-                    {isOpen ? (
-                      <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.sub }}>
-                        Open now · shortest wait right now{' '}
-                        <Text style={{ fontFamily: font.extra, color: colors.ink }}>{waitShort(wait)}</Text>
-                      </Text>
-                    ) : (
-                      <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.sub }}>{info.detail}</Text>
-                    )}
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16 }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accent }}>Explore</Text>
-                    <Icon name="arrowUpRight" size={15} color={colors.accent} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Branded content rather than blank space. True on day one and
-                true at fifty clients, so it never has to be taken down. */}
-            <View style={{ marginTop: 34, paddingTop: 26, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Text style={{ ...type.title, color: colors.ink }}>Skip the wait.</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 15, color: colors.muted, marginTop: 6, lineHeight: 21 }}>
-                Find the fastest time to get in and out.
-              </Text>
-
-              <View style={{ marginTop: 22, gap: 16 }}>
-                {[
-                  ['search', 'Find it', 'Search a service, place or agency.'],
-                  ['users', 'Take your place', 'Join the line before you leave home.'],
-                  ['clock', 'Arrive when it\'s time', 'Watch it move, and walk in on your turn.'],
-                ].map(([icon, title, body]) => (
-                  <View key={title} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 13 }}>
-                    <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name={icon as IconName} size={17} color={colors.accent} />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.3 }}>{title}</Text>
-                      <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 }}>{body}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.faint, marginTop: 30 }}>
-              More places are coming to Lyne.
-            </Text>
-          </View>
-        )}
-
-
-        {/* The heading and its "See all" render straight away and stay put; only
-            what sits under them changes. A slow or failed rail leaves a labelled
-            frame with a retry in it rather than a hole in the page. */}
-        {(isLoading || !!error || agencyRows.length > SPARSE_MAX) && (
-          <Section
-            /* The label has to match the order. Once the list leads with the
-               agencies somebody saved, calling it "Shortest waits" is a claim
-               the first card no longer keeps. */
-            title={savedIds.size ? 'Your agencies' : 'Shortest waits'}
-            action={{ label: 'See all', onPress: () => navigation.navigate('Search') }}
-            loading={isLoading}
-            error={error}
-            onRetry={() => refetch()}
-            skeleton={<SkeletonRows count={2} />}
-          >
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 13, paddingRight: 4, paddingVertical: 2 }}>
-              {agencyRows.slice(0, 5).map(({ best, count }, i) => {
+            <RailHead title="Agencies near you" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            <View style={{ gap: 10 }}>
+              {agencyRows.map(({ best, count }, i) => {
                 const wait = Math.round(Number(best.avg_wait_minutes || 0));
-                const featured = i === 0;
+                const isOpen = isBranchOpen(best);
                 return (
-                  <TouchableOpacity key={best.business_id} activeOpacity={0.9} onPress={() => openBranch(best)}
-                    style={{ width: 252, borderRadius: 24, padding: 17, backgroundColor: featured ? colors.accent : colors.surface, ...shadow.card }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
-                      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: featured ? '#fff' : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 12, color: featured ? colors.accent : '#fff' }}>
-                          {best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)}
+                  <Appear key={best.business_id} index={i}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => openBranch(best)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${best.business_name}, ${count} ${count === 1 ? 'branch' : 'branches'}, ${isOpen ? 'open' : 'closed'}`}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderRadius: 20, padding: 14, ...shadow.card }}
+                    >
+                      <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_id, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
+                          {orgAcronym(best.business_id, best.business_name)}
                         </Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: featured ? '#fff' : colors.ink, letterSpacing: -0.3 }}>
-                          {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                          {best.business_name}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                          <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.medium, fontSize: 11.5, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>
-                            {best.city || 'Jamaica'}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                          <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted }}>
+                            {count} {count === 1 ? 'branch' : 'branches'}
                           </Text>
-                          <Icon name="check" size={13} color={featured ? '#fff' : colors.accent} knockout={featured ? colors.accent : '#fff'} />
-                          <Text style={{ fontFamily: font.bold, fontSize: 11, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>Verified</Text>
+                          <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: isOpen ? colors.light : colors.muted }} />
+                          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: isOpen ? colors.light : colors.muted }}>
+                            {isOpen ? 'Open' : 'Closed'}
+                          </Text>
                         </View>
                       </View>
-                    </View>
-
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 18, color: featured ? '#fff' : colors.ink, letterSpacing: -0.5, marginTop: 15 }}>{best.name}</Text>
-                    <Text style={{ fontFamily: font.bold, fontSize: 13, color: featured ? 'rgba(255,255,255,.82)' : colors.muted, marginTop: 5 }}>
-                      {waitPhrase(wait)} · {count} branch{count === 1 ? '' : 'es'}
-                    </Text>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
-                      <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: featured ? 'rgba(255,255,255,.78)' : colors.muted }}>
-                        {Number(best.total_waiting || 0)} in line now
-                      </Text>
-                      <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: featured ? '#fff' : colors.infoSoft }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent }}>Join</Text>
-                        <Icon name="arrowUpRight" size={14} color={colors.accent} />
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.5 }}>{waitShort(wait)}</Text>
+                        <Text style={{ fontFamily: font.semibold, fontSize: 10.5, color: colors.muted, letterSpacing: 0.4 }}>SHORTEST</Text>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </Appear>
                 );
               })}
-            </ScrollView>
-          </Section>
-        )}
-
-        {/* the full list — only once there is a list worth heading */}
-        {agencyRows.length > SPARSE_MAX && (
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 28, marginBottom: 14 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>Agencies near you</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-              <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accent }}>See all ›</Text>
-            </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {!isLoading && !error && agencyRows.length === 0 && (
-          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 26, alignItems: 'center', ...shadow.card }}>
-            <Icon name="search" size={30} color={colors.faint} />
-            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>Nothing open here yet</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-              {openOnly ? 'Every branch in this filter is closed right now. Switch to All to see them anyway.' : 'No agencies match this filter.'}
-            </Text>
-            {openOnly && (
-              <TouchableOpacity onPress={() => setOpenOnly(false)} style={{ backgroundColor: colors.accent, borderRadius: 15, paddingVertical: 13, paddingHorizontal: 22, marginTop: 16 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.accentInk }}>Show all branches</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {agencyRows.length > SPARSE_MAX && agencyRows.map(({ best, count }, rowIndex) => {
-          const wait = Math.round(Number(best.avg_wait_minutes || 0));
-          const meta = statusMeta(statusFromWait(wait));
-          const hours = hoursFromBranch(best);
-          const info = branchOpenInfo(new Date(), hours);
-          const isOpen = info.state === 'open';
-          return (
-            <Appear key={best.business_id} index={rowIndex}>
-            <TouchableOpacity activeOpacity={0.88} onPress={() => openBranch(best)}
-              style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 11, ...shadow.card }}>
-              <Monogram label={best.business_slug?.toUpperCase().slice(0, 4) || initials(best.business_name)} size={52} radius={17} bg={colors.dark} fg="#fff" border={false} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.4 }}>
-                    {(best.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
-                  </Text>
-                  <Icon name="check" size={15} color={colors.accent} />
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted }}>
-                    {count} branch{count === 1 ? '' : 'es'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isOpen ? colors.light : colors.faint }} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 11, color: isOpen ? colors.light : colors.muted }}>{isOpen ? 'Open' : 'Closed'}</Text>
-                  </View>
-                </View>
-              </View>
-              {isOpen ? (
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 19, color: meta.dot === colors.busy ? colors.ink : colors.ink, letterSpacing: -0.5 }}>{waitShort(wait)}</Text>
-                  <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.muted, letterSpacing: 0.4 }}>SHORTEST</Text>
-                </View>
-              ) : (
-                <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 10 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>Opens {openTimeLabel(hours)}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            </Appear>
-          );
-        })}
-
-        {/* Premium, demoted on purpose.
-
-            It was a 20pt-padded accent-deep card with a 74pt icon, sitting
-            above the actual content — so the first strong thing on Home was an
-            advertisement, and the screen read as promotional before it read as
-            useful. One row now, below the content it was outranking. The value
-            is real; the placement was the problem. */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Plan')}
-          accessibilityRole="button"
-          accessibilityLabel="Lyne Premium — find the quietest time to go"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 18, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}
-        >
-          <Icon name="clock" size={20} color={colors.accent} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>Find the fastest time to go</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>Lyne Premium · free for 14 days</Text>
-          </View>
-          <Icon name="chevronRight" size={16} color={colors.chevron} />
-        </TouchableOpacity>
       </ScrollView>
       <TabBar active="Home" showTicketPill={false} />
     </View>

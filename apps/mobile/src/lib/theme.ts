@@ -51,6 +51,16 @@ const lightColors = {
   accent: '#1b4b8f', // deep blue — CTAs, links, active states
   accentInk: '#ffffff', // ink on accent — white; this blue is dark
   accentDeep: '#143a6e', // deeper still: promo/premium ground, icons on white
+  /* The accent, lifted enough to read ON the navy ground. `accent` itself is
+     a dark blue chosen to carry white ink on a light page; sitting it on
+     colors.dark leaves an icon that is technically the brand colour and
+     practically invisible. Use this anywhere the surface is dark. */
+  accentOnDark: '#5a93e8',
+  /* A CONFIRMED state, not a status. colors.light (#2fbf71) is the green that
+     says "this line is moving"; sitting white text on it is weak contrast and
+     makes a settled toggle shout as loudly as a live figure. This is the deep
+     green a button rests at once it has been switched on. */
+  successDeep: '#14532d',
 
   // status (green → amber → red)
   light: '#2fbf71',
@@ -107,6 +117,10 @@ const darkColors: Palette = {
   accent: '#5a93e8',
   accentInk: '#0b1220', // dark ink now, because this accent is light
   accentDeep: '#1b4b8f',
+  /* Already a lifted blue in this scheme, so the on-dark variant is the
+     same value — the token exists so callers never have to know which. */
+  accentOnDark: '#5a93e8',
+  successDeep: '#14532d',
 
   light: '#3fd07f',
   moderate: '#f5b83e',
@@ -299,6 +313,66 @@ function nextOpenLabel(day: number, hours: BranchHours) {
     }
   }
   return `Opens ${clockLabel(hours.openMin)}`;
+}
+
+/**
+ * Is this branch open right now?
+ *
+ * branchOpenInfo takes a clock and a schedule; almost every caller has neither
+ * to hand and just wants a yes or no about a branch it is already holding.
+ * Doing that inline meant two calls and an easy mistake — passing the branch
+ * where the Date belongs typechecks nowhere but reads plausibly.
+ */
+/**
+ * A name that fits under a 58pt tile.
+ *
+ * Legal names are long and the tail is the part that carries no information:
+ * "Passport Office of Jamaica (PICA)" clipped to "Passport Office of Jamaica
+ * (PIC…" spends its second line on a bracket. Truncating at a word boundary
+ * after dropping the parenthetical leaves "Passport Office", which is what
+ * anybody calls it anyway.
+ *
+ * Deliberately not a lookup table: an agency onboarded next week has to look
+ * right without a code change.
+ */
+export function shortOrgName(name: string, maxChars = 26): string {
+  const cleaned = (name || '')
+    .replace(/\s*\([^)]*\)/g, '')      // drop "(PICA)", "(UWI)"
+    .replace(/^The\s+/i, '')            // "The University of…" → "University of…"
+    .replace(/,.*$/, '')                // drop everything after a comma
+    .trim();
+  if (cleaned.length <= maxChars) return cleaned;
+
+  /* Cut on a word, never mid-word. A label that ends on a whole word reads as
+     a short name; one that ends in "Administra…" reads as a bug. */
+  const words = cleaned.split(/\s+/);
+  let out = '';
+  for (const w of words) {
+    if (out && (out + ' ' + w).length > maxChars) break;
+    out = out ? `${out} ${w}` : w;
+  }
+  /* Never end on a joining word, and strip them REPEATEDLY: "University of the"
+     loses "the" and is still left hanging on "of". One pass looks like it works
+     until the day a name ends in two of them. */
+  let trimmed = out || cleaned.slice(0, maxChars);
+  let before: string;
+  do {
+    before = trimmed;
+    trimmed = trimmed.replace(/\s+(of|the|and|for|in|at|&)$/i, '');
+  } while (trimmed !== before);
+  return trimmed;
+}
+
+/** The letters on a tile: a slug is cleaner than initials, but only once the
+ *  punctuation it was built with is gone ("uwi-mona" → UWI, not "UWI-"). */
+export function orgMark(slug: string | null | undefined, name: string): string {
+  const fromSlug = (slug || '').split(/[-_\s]/)[0];
+  const raw = fromSlug || initials(name);
+  return raw.toUpperCase().slice(0, 4);
+}
+
+export function isBranchOpen(branch: { opening_time?: string | null; closing_time?: string | null; open_days?: string | null }): boolean {
+  return branchOpenInfo(new Date(), hoursFromBranch(branch)).state === 'open';
 }
 
 export function branchOpenInfo(now: Date = new Date(), hours: BranchHours = DEFAULT_HOURS): OpenInfo {

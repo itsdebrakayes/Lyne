@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, t, type, initials } from '../../lib/theme';
@@ -18,6 +18,8 @@ import { HoldButton } from '../../components/HoldButton';
 import { LeaveReasonSheet } from '../../components/LeaveReasonSheet';
 import { TicketPrinter } from '../../components/TicketPrinter';
 import Icon from '../../components/Icon';
+import { Ionicons } from '@expo/vector-icons';
+import TicketPass from '../../components/TicketPass';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -121,6 +123,45 @@ export default function TicketScreen() {
     }
     previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket, queryClient]);
+
+  /* Directions hand off to whatever map app the person actually uses, rather
+     than embedding a map nobody asked for. Only apps that are installed are
+     offered — listing Waze to somebody who does not have it is a dead option
+     dressed as a choice — and the query is the branch by name, which every one
+     of them resolves without us shipping coordinates. */
+  const openDirections = async () => {
+    const target = [ticket?.branch_name, ticket?.business_name, 'Jamaica']
+      .filter(Boolean).join(', ');
+    const q = encodeURIComponent(target);
+
+    const options: Array<{ label: string; url: string }> = [];
+    const candidates = [
+      { label: 'Apple Maps', url: `http://maps.apple.com/?q=${q}` },
+      { label: 'Google Maps', url: `comgooglemaps://?q=${q}` },
+      { label: 'Waze', url: `waze://?q=${q}` },
+    ];
+    for (const c of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await Linking.canOpenURL(c.url).catch(() => false)) options.push(c);
+    }
+    /* Apple Maps is always present on iOS, but canOpenURL can still say no
+       under an unusual configuration — falling back to the web URL means the
+       button never does nothing. */
+    if (!options.length) options.push({ label: 'Maps', url: `https://maps.google.com/?q=${q}` });
+
+    if (options.length === 1) {
+      Linking.openURL(options[0].url).catch(() => {});
+      return;
+    }
+    Alert.alert(
+      'Get directions',
+      `Open ${ticket?.branch_name || 'this branch'} in:`,
+      [
+        ...options.map(o => ({ text: o.label, onPress: () => { Linking.openURL(o.url).catch(() => {}); } })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    );
+  };
 
   // Leaving is irreversible — the place in line is released to the next person
   // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
@@ -244,68 +285,90 @@ export default function TicketScreen() {
           </View>
         )}
 
-        {/* the pass */}
-        <View style={{ backgroundColor: colors.surface, borderRadius: 28 }}>
-          <View style={{ padding: 24, paddingBottom: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: 0.5 }}>
-                {ticket.ticket_number}{spot ? ` · SPOT ${spot}` : ''}
-              </Text>
-              <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{initials(ticket.business_name || ticket.branch_name)}</Text>
-            </View>
-
-            {/* your number → the front of the line */}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 26, marginBottom: 6 }}>
-              <View style={{ flexShrink: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 46, color: colors.ink, letterSpacing: -2.2, lineHeight: 48 }}>{ticket.ticket_number}</Text>
-                <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 8 }}>Your number</Text>
-              </View>
-              <View style={{ marginLeft: 'auto', alignItems: 'flex-end', paddingLeft: 12 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 46, color: called ? colors.accent : colors.ink, letterSpacing: -2.2, lineHeight: 48 }}>
-                  {called ? 'NOW' : ahead}
-                </Text>
-                <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 8 }}>
-                  {called ? "It's your turn" : 'Ahead of you'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', marginTop: 26 }}>
-              <Cell label="EST. WAIT" value={active ? `${ticket.estimated_wait_minutes}m` : '—'} />
-              <Cell label="IN THIS LINE" value={ticket.total_waiting ?? ahead + 1} />
-              <Cell label="STATUS" value={active ? (called ? 'Called' : inService ? 'Serving' : 'Waiting') : (terminal?.label || '—')} wide />
-            </View>
-            <View style={{ flexDirection: 'row', marginTop: 22 }}>
-              <Cell label="BRANCH" value={ticket.branch_name || '—'} wide />
-              <Cell label="SERVICE" value={ticket.service_name || '—'} wide />
-            </View>
-
-            {/* The person, not the agency. This read "Passport Office of
-                Jamaica" under a TICKET HOLDER label, which is the one line on
-                a pass that has to name whoever is standing there. */}
-            <View style={{ marginTop: 24 }}>
-              <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted, letterSpacing: 0.5 }}>TICKET HOLDER</Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 29, color: colors.ink, letterSpacing: -1.1, marginTop: 5 }}>
-                {user?.full_name || 'You'}
-              </Text>
-            </View>
-          </View>
-
-          {/* perforation — notches punched out of the pass in the page colour */}
-          <View style={{ height: 30, marginTop: 24, justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', left: -15, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.dark }} />
-            <View style={{ position: 'absolute', right: -15, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.dark }} />
-            <View style={{ marginHorizontal: 18, borderTopWidth: 1.8, borderStyle: 'dashed', borderColor: '#D3D9E3' }} />
-          </View>
-
-          {/* the code you hand over */}
-          <View style={{ padding: 24, paddingTop: 4, alignItems: 'center' }}>
-            {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
-            <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: 8, marginTop: 13, marginLeft: 8 }}>
+        {/* The pass, on the boarding-pass model: the journey on a dark panel,
+            a perforation, and the scannable half below it. */}
+        <TicketPass
+          branchName={ticket.branch_name || 'Your branch'}
+          serviceName={ticket.service_name || 'Your service'}
+          ticketNumber={ticket.ticket_number}
+          joinedAt={ticket.joined_at}
+          remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
+          place={spot ?? null}
+          ahead={ahead}
+          inLine={ticket.total_waiting ?? ahead + 1}
+          status={ticket.status}
+        >
+          {/* The stub — the half you hand over, below the tear line. */}
+          <View style={{ paddingHorizontal: 12, paddingBottom: 10, alignItems: 'center' }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 10, color: colors.muted, letterSpacing: 1 }}>TICKET CODE</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.ink, letterSpacing: 7, marginTop: 6, marginLeft: 7 }}>
               {ticket.verification_code || '—'}
             </Text>
-            <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.muted, marginTop: 6, letterSpacing: 0.5 }}>SHOW THIS CODE AT THE COUNTER</Text>
+            <View style={{ marginTop: 14 }}>
+              {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
+            </View>
+            <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 12, textAlign: 'center', lineHeight: 17 }}>
+              Show this code at the counter when your number is called.
+            </Text>
+
+            {/* Wallet.
+                The point is offline: at the counter the phone may have no
+                signal, and a pass in Wallet scans from the lock screen without
+                the app. Signing one needs an Apple Pass Type ID certificate and
+                a Google Wallet issuer account — neither exists yet, and both
+                arrive with the store enrolment. So the control is present and
+                honest rather than absent or, worse, a button that fails
+                silently at the counter. */}
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
+              minHeight: 52, borderRadius: 16, paddingHorizontal: 18,
+              backgroundColor: colors.surfaceAlt, alignSelf: 'stretch', justifyContent: 'center',
+            }}>
+              <Ionicons name="wallet-outline" size={19} color={colors.muted} />
+              <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.muted }}>
+                Add to Apple Wallet
+              </Text>
+            </View>
+            <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 8, textAlign: 'center' }}>
+              Wallet passes arrive with the App Store release.
+            </Text>
           </View>
+        </TicketPass>
+
+        {/* The rows the reference puts under the pass. Each one goes somewhere
+            that exists; none is a placeholder. */}
+        <View style={{ backgroundColor: 'rgba(255,255,255,.07)', borderRadius: 20, marginTop: 16, overflow: 'hidden' }}>
+          {([
+            /* No alerts row here. The Notify button below does this job and
+               shows its own state in green — two controls for one setting is
+               how a screen ends up disagreeing with itself. */
+            { icon: 'navigate-outline' as const, label: 'Directions',
+              sub: ticket.branch_name || 'Open in Maps',
+              onPress: () => openDirections() },
+            { icon: 'time-outline' as const, label: 'Visit history',
+              sub: 'Every line you have joined',
+              onPress: () => navigation.navigate('History') },
+          ]).map((row, i) => (
+            <TouchableOpacity
+              key={row.label}
+              onPress={row.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`${row.label}. ${row.sub}`}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16,
+                borderTopWidth: i === 0 ? 0 : 1, borderTopColor: 'rgba(255,255,255,.08)',
+              }}
+            >
+              <Ionicons name={row.icon} size={19} color={colors.accentOnDark} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{row.label}</Text>
+                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
+                  {row.sub}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,.35)" />
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* terminal note */}
@@ -322,17 +385,37 @@ export default function TicketScreen() {
         <View style={{ marginTop: 22, flexDirection: 'row', gap: 12 }}>
           {active ? (
             <>
+              {/* Switched on, the button SETTLES into deep green and the bell
+                  fills — the confirmation pattern from the mobile-stuff
+                  prototype. It used to go bright green, the same green the app
+                  uses for "this line is moving", so a toggle that had merely
+                  been set shouted as loudly as a live figure, and white text on
+                  it was thin. Deep green with a filled bell reads as done. */}
               <TouchableOpacity
                 disabled={alerts === 'enabling' || alerts === 'on'}
                 onPress={enableAlerts}
-                style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: alerts === 'on' ? colors.light : colors.accent, alignItems: 'center', justifyContent: 'center' }}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel={alerts === 'on' ? 'Alerts are on' : 'Notify me when I am called'}
+                accessibilityState={{ disabled: alerts === 'enabling' || alerts === 'on', selected: alerts === 'on' }}
+                style={{
+                  flex: 1, minHeight: 56, borderRadius: 18,
+                  backgroundColor: alerts === 'on' ? colors.successDeep : colors.accent,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
               >
                 {alerts === 'enabling' ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name="bell" size={18} color="#fff" />
-                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>{alerts === 'on' ? 'Alerts on' : 'Notify me'}</Text>
+                    <Ionicons
+                      name={alerts === 'on' ? 'notifications' : 'notifications-outline'}
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>
+                      {alerts === 'on' ? 'Alerts on' : 'Notify me'}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -351,7 +434,10 @@ export default function TicketScreen() {
                   hint="Tap to see what you give up, or hold to leave now"
                   busy={leaving}
                   disabled={leaving}
-                  style={{ minHeight: 56, paddingHorizontal: 16 }}
+                  /* Matches the prototype's leave button: the same height as
+                     Notify beside it, and a border quiet enough that the red
+                     word is what carries the warning. */
+                  style={{ minHeight: 56, paddingHorizontal: 16, borderColor: 'rgba(255,255,255,.14)' }}
                   onPress={() => { haptics.warning(); setConfirmLeave(true); }}
                   onComplete={leaveQueue}
                 />
