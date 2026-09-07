@@ -339,11 +339,9 @@ export default function TicketScreen() {
             that exists; none is a placeholder. */}
         <View style={{ backgroundColor: 'rgba(255,255,255,.07)', borderRadius: 20, marginTop: 16, overflow: 'hidden' }}>
           {([
-            { icon: 'notifications-outline' as const, label: 'Ticket alerts',
-              sub: alerts === 'on' ? 'On — we will tell you when to move'
-                 : alerts === 'denied' ? 'Off — turn on in iOS Settings'
-                 : 'Get told before you are called',
-              onPress: enableAlerts },
+            /* No alerts row here. The Notify button below does this job and
+               shows its own state in green — two controls for one setting is
+               how a screen ends up disagreeing with itself. */
             { icon: 'navigate-outline' as const, label: 'Directions',
               sub: ticket.branch_name || 'Open in Maps',
               onPress: () => openDirections() },
