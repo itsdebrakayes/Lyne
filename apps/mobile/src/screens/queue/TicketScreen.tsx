@@ -382,8 +382,15 @@ export default function TicketScreen() {
         {!!error && <Text style={{ fontFamily: font.bold, color: colors.busy, marginTop: 12, textAlign: 'center' }}>{error}</Text>}
 
         {/* actions */}
-        <View style={{ marginTop: 22, flexDirection: 'row', gap: 12 }}>
+        <View style={{ marginTop: 22, gap: 10 }}>
           {active ? (
+            /* Stacked and full width, not two halves.
+               Side by side, "Notify me" and "Leave queue" each had about half a
+               phone's width for a two-word label and an icon, so both sat
+               cramped and neither looked like the primary. Stacked, the one you
+               almost always want is the wide one on top, and leaving — which is
+               irreversible — is a deliberate second reach rather than a thumb's
+               width away from the thing beside it. */
             <>
               {/* Switched on, the button SETTLES into deep green and the bell
                   fills — the confirmation pattern from the mobile-stuff
@@ -399,7 +406,7 @@ export default function TicketScreen() {
                 accessibilityLabel={alerts === 'on' ? 'Alerts are on' : 'Notify me when I am called'}
                 accessibilityState={{ disabled: alerts === 'enabling' || alerts === 'on', selected: alerts === 'on' }}
                 style={{
-                  flex: 1, minHeight: 56, borderRadius: 18,
+                  minHeight: 58, borderRadius: 18,
                   backgroundColor: alerts === 'on' ? colors.successDeep : colors.accent,
                   alignItems: 'center', justifyContent: 'center',
                 }}
@@ -425,7 +432,7 @@ export default function TicketScreen() {
                   you can do it from here without the round trip. Anyone who has
                   not learned it yet still gets the sheet and its warning, which
                   is why the shortcut costs nothing to offer. */}
-              <View style={{ flex: 1 }}>
+              <View>
                 <HoldButton
                   variant="ghost"
                   tone="danger"
@@ -437,21 +444,21 @@ export default function TicketScreen() {
                   /* Matches the prototype's leave button: the same height as
                      Notify beside it, and a border quiet enough that the red
                      word is what carries the warning. */
-                  style={{ minHeight: 56, paddingHorizontal: 16, borderColor: 'rgba(255,255,255,.14)' }}
+                  style={{ minHeight: 58, paddingHorizontal: 16, borderColor: 'rgba(255,255,255,.14)' }}
                   onPress={() => { haptics.warning(); setConfirmLeave(true); }}
                   onComplete={leaveQueue}
                 />
               </View>
             </>
           ) : terminal && ticket.status !== 'served' ? (
-            <>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity onPress={rejoin} style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Rejoin queue</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ flex: 1, minHeight: 56, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>Home</Text>
               </TouchableOpacity>
-            </>
+            </View>
           ) : (
             <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Return home</Text>
