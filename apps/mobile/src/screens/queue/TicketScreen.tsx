@@ -387,17 +387,37 @@ export default function TicketScreen() {
         <View style={{ marginTop: 22, flexDirection: 'row', gap: 12 }}>
           {active ? (
             <>
+              {/* Switched on, the button SETTLES into deep green and the bell
+                  fills — the confirmation pattern from the mobile-stuff
+                  prototype. It used to go bright green, the same green the app
+                  uses for "this line is moving", so a toggle that had merely
+                  been set shouted as loudly as a live figure, and white text on
+                  it was thin. Deep green with a filled bell reads as done. */}
               <TouchableOpacity
                 disabled={alerts === 'enabling' || alerts === 'on'}
                 onPress={enableAlerts}
-                style={{ flex: 1, minHeight: 56, borderRadius: 18, backgroundColor: alerts === 'on' ? colors.light : colors.accent, alignItems: 'center', justifyContent: 'center' }}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel={alerts === 'on' ? 'Alerts are on' : 'Notify me when I am called'}
+                accessibilityState={{ disabled: alerts === 'enabling' || alerts === 'on', selected: alerts === 'on' }}
+                style={{
+                  flex: 1, minHeight: 56, borderRadius: 18,
+                  backgroundColor: alerts === 'on' ? colors.successDeep : colors.accent,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
               >
                 {alerts === 'enabling' ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name="bell" size={18} color="#fff" />
-                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>{alerts === 'on' ? 'Alerts on' : 'Notify me'}</Text>
+                    <Ionicons
+                      name={alerts === 'on' ? 'notifications' : 'notifications-outline'}
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>
+                      {alerts === 'on' ? 'Alerts on' : 'Notify me'}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -416,7 +436,10 @@ export default function TicketScreen() {
                   hint="Tap to see what you give up, or hold to leave now"
                   busy={leaving}
                   disabled={leaving}
-                  style={{ minHeight: 56, paddingHorizontal: 16 }}
+                  /* Matches the prototype's leave button: the same height as
+                     Notify beside it, and a border quiet enough that the red
+                     word is what carries the warning. */
+                  style={{ minHeight: 56, paddingHorizontal: 16, borderColor: 'rgba(255,255,255,.14)' }}
                   onPress={() => { haptics.warning(); setConfirmLeave(true); }}
                   onComplete={leaveQueue}
                 />

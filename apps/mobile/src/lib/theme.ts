@@ -56,6 +56,11 @@ const lightColors = {
      colors.dark leaves an icon that is technically the brand colour and
      practically invisible. Use this anywhere the surface is dark. */
   accentOnDark: '#5a93e8',
+  /* A CONFIRMED state, not a status. colors.light (#2fbf71) is the green that
+     says "this line is moving"; sitting white text on it is weak contrast and
+     makes a settled toggle shout as loudly as a live figure. This is the deep
+     green a button rests at once it has been switched on. */
+  successDeep: '#14532d',
 
   // status (green → amber → red)
   light: '#2fbf71',
@@ -115,6 +120,7 @@ const darkColors: Palette = {
   /* Already a lifted blue in this scheme, so the on-dark variant is the
      same value — the token exists so callers never have to know which. */
   accentOnDark: '#5a93e8',
+  successDeep: '#14532d',
 
   light: '#3fd07f',
   moderate: '#f5b83e',
