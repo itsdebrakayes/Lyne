@@ -59,15 +59,14 @@ WAIT_FEATURES = [
 ]
 
 
-def connect():
-    return pymysql.connect(
-        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-        port=int(os.getenv("MYSQL_PORT", "3308")),
-        user=os.getenv("MYSQL_USER", "lyne"),
-        password=os.getenv("MYSQL_PASSWORD", "lyne_secret"),
-        database=os.getenv("MYSQL_DATABASE", "lyne"),
-        cursorclass=pymysql.cursors.DictCursor,
-    )
+# One connection policy for the whole worker.
+#
+# This script built its own pymysql connection, so it never picked up the TLS
+# handling added to utils.dbio. A managed MySQL sets require_secure_transport=ON
+# and refuses plaintext outright — and live_worker.py runs this script FIRST, so
+# the failure lands on the model that powers the live customer ETA while the
+# worker container itself keeps reporting healthy.
+from utils.dbio import connect  # noqa: E402
 
 
 def load_records(conn):

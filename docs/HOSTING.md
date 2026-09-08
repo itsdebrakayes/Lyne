@@ -155,16 +155,36 @@ Two rules that matter more than the script:
 
 ## Deploying
 
+**The executable version of this document is [`deploy/`](../deploy/)** — the
+provisioning script, the production compose file, the Caddy config, the managed
+database initialiser, and a `verify.sh` that re-checks the hardening list above
+on the box. Start at [deploy/README.md](../deploy/README.md); what follows is
+the shape it implements.
+
+Production runs `deploy/docker-compose.prod.yml`, which is **standalone rather
+than an overlay** on `docker-compose.yml`: compose merges files but cannot delete
+a service, and the one thing production must not inherit is the local `db`
+container. The database is managed; two MySQLs, one of them empty and unnoticed,
+is a failure worth designing out.
+
 The API is a **built image** — backend source changes do not take effect until it
 is rebuilt.
 
 ```bash
-docker compose build api
-docker compose up -d
+docker compose -f deploy/docker-compose.prod.yml build api
+docker compose -f deploy/docker-compose.prod.yml up -d
 ```
 
+> **A managed database refuses plaintext connections.** Both the API and the
+> Python model worker take `MYSQL_SSL=true` and `MYSQL_SSL_CA`, pointing at the
+> provider's CA certificate. Without them the first deploy fails at boot with
+> *"Connections using insecure transport are prohibited"*, which reads like an
+> outage and is a missing environment variable.
+
 Migrations in `database/migrations/` run in order via `database/docker-init.sh` on
-first volume creation. For an existing database, apply new migrations explicitly;
+first volume creation — which is a mechanism that exists only inside the MySQL
+image. On a managed database, `deploy/init-managed-db.sh` performs the same
+steps in the same order over the network, once. For an existing database, apply new migrations explicitly;
 they are numbered and each is idempotent.
 
 Production runs `docker-compose.yml` alone. The demo overlay

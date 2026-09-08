@@ -40,15 +40,19 @@ MODEL_VERSION = "gbr-wait-v2"
 BUSINESS_HOURS = list(range(8, 18))
 
 
-def connect():
-    return pymysql.connect(
-        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-        port=int(os.getenv("MYSQL_PORT", "3308")),
-        user=os.getenv("MYSQL_USER", "qmenow"),
-        password=os.getenv("MYSQL_PASSWORD", "qmenow_secret"),
-        database=os.getenv("MYSQL_DATABASE", "qme_now"),
-        cursorclass=pymysql.cursors.DictCursor,
-    )
+# Same connection policy as every other script in here — see utils.dbio. This
+# one also carried the pre-rename defaults (qmenow / qme_now), which point at a
+# database that has not existed under that name for some time.
+#
+# The sys.path line is what every sibling script does: this file is run as
+# `python scripts/generate_insights.py` from apps/model, so the package root is
+# one directory up and is not on the path by default.
+import sys as _sys
+_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _BASE_DIR not in _sys.path:
+    _sys.path.insert(0, _BASE_DIR)
+
+from utils.dbio import connect  # noqa: E402
 
 
 def load_records(conn):

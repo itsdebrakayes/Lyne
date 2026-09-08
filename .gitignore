@@ -18,6 +18,14 @@ dist-ssr
 .worktrees/
 worktrees/
 
+# Release credentials — never committed. The Play service account JSON, the
+# Apple .p8 sign-in key, and anything else a build needs to prove it is us.
+secrets/
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+
 # Build and generated output
 build/
 release/
