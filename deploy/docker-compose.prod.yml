@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  LYNE — production compose (DigitalOcean droplet)
+#
+#  Standalone, NOT an overlay on ../docker-compose.yml. Compose merges files, it
+#  cannot delete a service, and the one thing production must not inherit is the
+#  local `db` container: the database is DigitalOcean Managed MySQL, reached over
+#  the VPC. Two MySQLs, one of them empty and unnoticed, is the failure this
+#  file exists to make impossible.
+#
+#  Run from the repository root on the droplet:
+#      docker compose -f deploy/docker-compose.prod.yml up -d
+#  or just use deploy/deploy.sh, which does that plus the checks around it.
+#
+#  Nothing here publishes a port except Caddy. The API is reachable only through
+#  it, on 443, with a real certificate.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: lyne-prod
+
+services:
+
+  # ── TLS termination + static admin app ──────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: lyne_caddy
+    restart: unless-stopped
+    environment:
+      TZ: ${APP_TZ:-America/Jamaica}
+      API_DOMAIN:   "${API_DOMAIN:?set API_DOMAIN, for example api.uselyne.com}"
+      ADMIN_DOMAIN: "${ADMIN_DOMAIN:?set ADMIN_DOMAIN, for example admin.uselyne.com}"
+      TLS_EMAIL:    "${TLS_EMAIL:?set TLS_EMAIL, where certificate expiry notices go}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The built admin PWA. Produced by:
+      #   cd apps/admin-desktop && npx vite build
+      # (`npm run build` there also runs electron-builder, which is not what a
+      # web deploy wants and needs a desktop toolchain this droplet lacks.)
+      - ./apps/admin-desktop/dist:/srv/admin:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - lyne_net
+
+  # ── Node.js / Express API ───────────────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: lyne/api:latest
+    container_name: lyne_api
+    restart: unless-stopped
+    environment:
+      TZ:                       ${APP_TZ:-America/Jamaica}
+      NODE_ENV:                 production
+      PORT:                     4000
+
+      MYSQL_HOST:               "${MYSQL_HOST:?set MYSQL_HOST to the managed database PRIVATE host}"
+      MYSQL_PORT:               ${MYSQL_PORT:-25060}
+      MYSQL_USER:               ${MYSQL_USER:?}
+      MYSQL_PASSWORD:           ${MYSQL_PASSWORD:?}
+      MYSQL_DATABASE:           ${MYSQL_DATABASE:-lyne}
+      MYSQL_SSL:                ${MYSQL_SSL:-true}
+      MYSQL_SSL_CA:             /run/secrets/mysql-ca.crt
+
+      SUPABASE_URL:             ${SUPABASE_URL:?}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?}
+      SUPABASE_SERVICE_KEY:     ${SUPABASE_SERVICE_KEY:?}
+
+      FRONTEND_URL:             ${FRONTEND_URL:?}
+      ALLOWED_ORIGINS:          ${ALLOWED_ORIGINS:?}
+      PORTAL_HANDOFF_SECRET:    "${PORTAL_HANDOFF_SECRET:?generate a fresh one with openssl rand -base64 48}"
+
+      # Caddy is the one proxy in front of us, so rate limits and logs see the
+      # real client address instead of the container's gateway.
+      TRUST_PROXY:              ${TRUST_PROXY:-1}
+
+      TICKET_EXPIRY_ENABLED:         ${TICKET_EXPIRY_ENABLED:-true}
+      TICKET_EXPIRY_GRACE_MINUTES:   ${TICKET_EXPIRY_GRACE_MINUTES:-30}
+      RETENTION_ENABLED:             ${RETENTION_ENABLED:-true}
+      # Deliberately absent: ALLOW_DEMO_DATA_REFRESH. It is double-gated and it
+      # must never be set on this box.
+    volumes:
+      - ./secrets/mysql-ca.crt:/run/secrets/mysql-ca.crt:ro
+    expose:
+      - "4000"
+    networks:
+      - lyne_net
+
+  # ── Python model worker ─────────────────────────────────────────────────────
+  # Runs the six models on boot and every 2h. It writes predictive_results and
+  # nothing else; if it stops, the product keeps serving queues and the insight
+  # cards go stale — which is why its health is worth an alert (see verify.sh).
+  model-worker:
+    build:
+      context: ./apps/model
+      dockerfile: Dockerfile
+    image: lyne/model-worker:latest
+    container_name: lyne_model_worker
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      TZ:                   ${APP_TZ:-America/Jamaica}
+      MYSQL_HOST:           ${MYSQL_HOST:?}
+      MYSQL_PORT:           ${MYSQL_PORT:-25060}
+      MYSQL_USER:           ${MYSQL_USER:?}
+      MYSQL_PASSWORD:       ${MYSQL_PASSWORD:?}
+      MYSQL_DATABASE:       ${MYSQL_DATABASE:-lyne}
+      MYSQL_SSL:            ${MYSQL_SSL:-true}
+      MYSQL_SSL_CA:         /run/secrets/mysql-ca.crt
+      API_URL:              http://api:4000/api
+      SUPABASE_URL:         ${SUPABASE_URL:?}
+      SUPABASE_ANON_KEY:    ${SUPABASE_PUBLISHABLE_KEY:?}
+      PIPELINE_EMAIL:       ${PIPELINE_EMAIL:-}
+      PIPELINE_PASSWORD:    ${PIPELINE_PASSWORD:-}
+      PIPELINE_BUSINESS_ID: ${PIPELINE_BUSINESS_ID:-}
+      PIPELINE_TIMEZONE:    ${PIPELINE_TIMEZONE:-America/Jamaica}
+    volumes:
+      - ./secrets/mysql-ca.crt:/run/secrets/mysql-ca.crt:ro
+      - model_outputs:/app/outputs
+      - model_exports:/app/data_exports
+      - model_state:/app/state
+    networks:
+      - lyne_net
+
+volumes:
+  caddy_data:
+  caddy_config:
+  model_outputs:
+  model_exports:
+  model_state:
+
+networks:
+  lyne_net:
+    driver: bridge

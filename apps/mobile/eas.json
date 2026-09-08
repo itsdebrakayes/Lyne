@@ -1,0 +1,62 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000/api",
+        "EXPO_PUBLIC_SITE_URL": "http://localhost:8080",
+        "EXPO_PUBLIC_DEMO_BUILD": "false"
+      }
+    },
+
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.uselyne.com/api",
+        "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
+        "EXPO_PUBLIC_DEMO_BUILD": "false"
+      }
+    },
+
+    "demo": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://demo-api.uselyne.com/api",
+        "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
+        "EXPO_PUBLIC_DEMO_BUILD": "true"
+      }
+    },
+
+    "production": {
+      "autoIncrement": true,
+      "android": { "buildType": "app-bundle" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.uselyne.com/api",
+        "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
+        "EXPO_PUBLIC_DEMO_BUILD": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "REPLACE_WITH_APPLE_ID_EMAIL",
+        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "REPLACE_WITH_10_CHAR_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "../../secrets/play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
+}

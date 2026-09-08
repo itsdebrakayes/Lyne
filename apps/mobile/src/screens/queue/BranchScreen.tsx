@@ -8,6 +8,7 @@ import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
+import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
@@ -91,6 +92,8 @@ function PickerSheet<T extends { id: string }>({
 }
 
 export default function BranchScreen() {
+  const column = useContentColumn();
+  const barColumn = useContentColumnInner();
   const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
@@ -197,7 +200,7 @@ export default function BranchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* heading row */}
@@ -352,6 +355,7 @@ export default function BranchScreen() {
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity
+          style={barColumn}
           onPress={() => seeLine(selected)}
           disabled={!selected || !joinState.allowed}
           activeOpacity={0.92}

@@ -13,6 +13,7 @@ import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import { useDevicePlace } from '../../lib/deviceLocation';
+import { useContentColumn, useWide } from '../../lib/stage';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
 import HomeHero from '../../components/HomeHero';
@@ -95,6 +96,11 @@ export default function HomeScreen() {
   const [sector, setSector] = useState<string | null>(null);
   const [openOnly, setOpenOnly] = useState(true);
   const devicePlace = useDevicePlace();
+  const column = useContentColumn();
+  /* Everything below steps up on a tablet: the device is held further away,
+     and phone-sized controls on a 13-inch screen read as an app that has not
+     been looked at on one. */
+  const wide = useWide();
   const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
   const ticket = useActiveTicket();
   const { prefs } = usePreferences();
@@ -281,12 +287,12 @@ export default function HomeScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE, ...column }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
         {/* greeting + location */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 52 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: wide ? 14 : 10, height: wide ? 68 : 52 }}>
           {/* Visually 38, but hitSlop keeps the real target at 44 — the header
               is furniture, not the point of the screen, and it was competing
               with the headline underneath it. */}
@@ -296,11 +302,11 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Your account"
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            style={{ borderRadius: 19, ...shadow.depth }}
+            style={{ borderRadius: wide ? 27 : 19, ...shadow.depth }}
           >
-            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <Sheen radius={19} />
-              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: 13.5, ...depthText }}>{personInitials(user?.full_name || 'L')}</Text>
+            <View style={{ width: wide ? 54 : 38, height: wide ? 54 : 38, borderRadius: wide ? 27 : 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <Sheen radius={wide ? 27 : 19} />
+              <Text style={{ color: '#fff', fontFamily: font.extra, fontSize: wide ? 19 : 13.5, ...depthText }}>{personInitials(user?.full_name || 'L')}</Text>
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -308,18 +314,18 @@ export default function HomeScreen() {
                 here and "Good morning, X" twenty pixels lower said the same
                 thing twice and made neither land. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="pin" size={13} color={colors.muted} />
+              <Icon name="pin" size={wide ? 17 : 13} color={colors.muted} />
               {/* The phone if it will say without being asked, otherwise the town
                   they told us in setup. Never a hardcoded capital: this is the
                   first place an onboarding answer has to show up, and the first
                   place a wrong guess is visible. */}
-              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 13, color: colors.muted, letterSpacing: -0.2 }}>{homeLocationLabel(prefs, devicePlace)}</Text>
-              <Icon name="chevronDown" size={11} color={colors.muted} />
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: wide ? 17 : 13, color: colors.muted, letterSpacing: -0.2 }}>{homeLocationLabel(prefs, devicePlace)}</Text>
+              <Icon name="chevronDown" size={wide ? 14 : 11} color={colors.muted} />
             </View>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ''}`}
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
-            <Icon name="bell" size={21} color={colors.ink} />
+            style={{ width: wide ? 58 : 44, height: wide ? 58 : 44, borderRadius: wide ? 29 : 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name="bell" size={wide ? 27 : 21} color={colors.ink} />
             {/* null means we could not ask — draw no badge rather than an
                 all-clear we have no basis for. */}
             {unread !== null && unread > 0 && (
@@ -361,21 +367,21 @@ export default function HomeScreen() {
             The greeting stays because it is the one line on Home addressed to a
             person rather than to a queue. */}
         <View style={{ marginTop: ticket ? 22 : 18 }}>
-          <Text style={{ ...type.callout, fontSize: 14.5, color: colors.muted }}>
+          <Text style={{ ...type.callout, fontSize: wide ? 19 : 14.5, color: colors.muted }}>
             {greeting}, {firstName}.
           </Text>
-          <Text style={{ fontFamily: font.extra, fontSize: 27, lineHeight: 32, color: colors.ink, letterSpacing: -0.9, marginTop: 6 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: wide ? 40 : 27, lineHeight: wide ? 46 : 32, color: colors.ink, letterSpacing: wide ? -1.4 : -0.9, marginTop: wide ? 8 : 6 }}>
             What do you need{'\n'}to get done?
           </Text>
         </View>
 
         {/* search */}
         <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Search')}
-          style={{ height: 54, borderRadius: 17, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11, paddingLeft: 16, paddingRight: 7, marginTop: 18, ...shadow.card }}>
-          <Icon name="search" size={19} color={colors.muted} />
-          <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 14, color: colors.muted }}>Search agencies &amp; branches</Text>
-          <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="sliders" size={19} color={colors.accentInk} />
+          style={{ height: wide ? 70 : 54, borderRadius: wide ? 21 : 17, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: wide ? 14 : 11, paddingLeft: wide ? 21 : 16, paddingRight: wide ? 9 : 7, marginTop: wide ? 24 : 18, ...shadow.card }}>
+          <Icon name="search" size={wide ? 24 : 19} color={colors.muted} />
+          <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: wide ? 18 : 14, color: colors.muted }}>Search agencies &amp; branches</Text>
+          <View style={{ width: wide ? 52 : 40, height: wide ? 52 : 40, borderRadius: wide ? 16 : 13, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="sliders" size={wide ? 24 : 19} color={colors.accentInk} />
           </View>
         </TouchableOpacity>
 

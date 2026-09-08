@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  LYNE — Caddy
+#
+#  Two hostnames, one process. Caddy gets and renews the Let's Encrypt
+#  certificates itself and keeps them in the caddy_data volume, so renewal is
+#  not a cron job anybody has to remember — which is the usual way "TLS
+#  installed" turns into "TLS expired" ninety days later.
+#
+#  Domains and the ACME contact address come from the environment; see
+#  deploy/env.production.example.
+# ─────────────────────────────────────────────────────────────────────────────
+
+{
+	email {$TLS_EMAIL}
+	# Uncomment for a dry run against Let's Encrypt's staging CA. Staging
+	# certificates are untrusted by browsers but are not rate-limited, so this
+	# is how you rehearse a domain change without burning the weekly quota.
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ── API ──────────────────────────────────────────────────────────────────────
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "DENY"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# The live queue screens are Server-Sent Events. Caddy buffers proxied
+	# responses by default, which for SSE means the browser receives nothing
+	# until the buffer fills — a live screen that looks simply broken. -1
+	# flushes every write immediately.
+	reverse_proxy api:4000 {
+		flush_interval -1
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+
+	log {
+		output file /data/access-api.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
+
+# ── Admin PWA ────────────────────────────────────────────────────────────────
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	root * /srv/admin
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "SAMEORIGIN"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Hashed assets are immutable; index.html must never be cached or a deploy
+	# leaves people on the old bundle until they hard-refresh.
+	@immutable path /assets/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	@html path /index.html /
+	header @html Cache-Control "no-store"
+
+	# Single-page app: unknown paths are routes, not 404s.
+	try_files {path} /index.html
+	file_server
+
+	log {
+		output file /data/access-admin.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

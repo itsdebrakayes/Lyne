@@ -28,8 +28,8 @@ Copy these somewhere to hand. All of them are public identifiers.
 
 | What | Value |
 |---|---|
-| iOS bundle identifier | `com.lyne.app` |
-| Android package name | `com.lyne.app` |
+| iOS bundle identifier | `com.lyne.mobile` |
+| Android package name | `com.lyne.mobile` |
 | Expo slug | `lyne` |
 | App display name | `LYNE` |
 | Supabase project ref | `edavcmrruwxnmzktvwoz` |
@@ -43,28 +43,15 @@ database expecting the product to read them — it will not.
 
 ---
 
-## Two blockers in the app config
+## One blocker left in the app config
 
-Neither sign-in provider can work until both of these exist. They are small, and
-they are deliberately **not yet done** because they change the app's identity and
-need Debra's sign-off.
+### 1. URL scheme — ✅ done
 
-### 1. No URL scheme
+`apps/mobile/app.json` now carries `"scheme": "lyne"`. OAuth returns the user to
+the app through that custom URL. Changing it after release breaks any link
+already in the wild, so it is settled and should stay settled.
 
-`apps/mobile/app.json` has no `scheme` key. OAuth returns the user to the app
-through a custom URL, so without one there is nothing for Apple or Google to
-redirect back to. It should be:
-
-```json
-"expo": {
-  "scheme": "lyne"
-}
-```
-
-Changing this after release breaks any link already in the wild, so it is worth
-being sure once rather than changing it twice.
-
-### 2. No EAS project ID
+### 2. No EAS project ID — still open
 
 `apps/mobile/app.json` has `expo.extra.eas.projectId` set to an empty string.
 Signed builds for TestFlight and Play need it. Run `eas init` inside
@@ -75,23 +62,23 @@ writes the value back into `app.json` itself.
 
 ## Apple: Developer Program and Sign in with Apple
 
-The D-U-N-S number was approved on 2026-08-31, which unblocks all of this.
+### Step 1 — Enrol as an organization — ✅ done
 
-### Step 1 — Enrol as an organization
+Enrolment is complete (D-U-N-S approved 2026-08-31). Two things to keep to hand
+from the portal, because the rest of the release process asks for them
+repeatedly:
 
-<https://developer.apple.com/programs/enroll/> · US$99/year.
+- **Team ID** — 10 characters, top right of the developer portal
+- **The Apple ID email** the enrolment is under
 
-- Use the approved D-U-N-S.
-- **The legal entity name must match the Dun & Bradstreet record exactly**,
-  including punctuation and any suffix. Mismatches are the usual cause of a
-  second round-trip.
-- Apple re-verifies the entity independently of D&B, so allow a few days after
-  submitting. The D-U-N-S approval is not the finish line.
+Both go into `apps/mobile/eas.json` under `submit.production.ios`. Creating the
+App Store Connect record is covered in
+[launch/app-store-listing.md](launch/app-store-listing.md).
 
 ### Step 2 — Enable the capability on the App ID
 
 Certificates, Identifiers & Profiles → **Identifiers** → the App ID for
-`com.lyne.app` → tick **Sign In with Apple** → Save.
+`com.lyne.mobile` → tick **Sign In with Apple** → Save.
 
 If the App ID does not exist yet, `eas build` creates it on the first iOS build;
 you can also create it by hand as an explicit App ID.
@@ -105,13 +92,13 @@ is what Supabase uses.
 Identifiers → **+** → **Services IDs** → continue.
 
 - Description: `Lyne Sign In`
-- Identifier: `com.lyne.app.signin`
+- Identifier: `com.lyne.mobile.signin`
 
 Then select it, tick **Sign In with Apple**, press **Configure**, and register:
 
 | Field | Value |
 |---|---|
-| Primary App ID | `com.lyne.app` |
+| Primary App ID | `com.lyne.mobile` |
 | Domains and Subdomains | `edavcmrruwxnmzktvwoz.supabase.co` |
 | Return URLs | `https://edavcmrruwxnmzktvwoz.supabase.co/auth/v1/callback` |
 
@@ -120,7 +107,7 @@ Then select it, tick **Sign In with Apple**, press **Configure**, and register:
 Certificates, Identifiers & Profiles → **Keys** → **+**
 
 - Name: `Lyne Sign In Key`
-- Tick **Sign In with Apple**, press Configure, choose `com.lyne.app` as the
+- Tick **Sign In with Apple**, press Configure, choose `com.lyne.mobile` as the
   primary App ID.
 - Register, then **Download**.
 
@@ -138,7 +125,7 @@ Record three things from this screen and the portal header:
 
 Supabase dashboard → **Authentication** → **Providers** → **Apple** → enable.
 
-- **Client ID**: `com.lyne.app.signin` (the Services ID, not the App ID)
+- **Client ID**: `com.lyne.mobile.signin` (the Services ID, not the App ID)
 - **Secret Key**: generated from the Team ID, Key ID and `.p8`
 
 > **Apple's client secret is a JWT that expires every six months.** Put a
@@ -181,8 +168,8 @@ app*.
 | Type | Configure with | Used by |
 |---|---|---|
 | **Web application** | Authorized redirect URI: `https://edavcmrruwxnmzktvwoz.supabase.co/auth/v1/callback` | Supabase |
-| **iOS** | Bundle ID `com.lyne.app` | Native iOS sign-in |
-| **Android** | Package `com.lyne.app` + SHA-1 fingerprint | Native Android sign-in |
+| **iOS** | Bundle ID `com.lyne.mobile` | Native iOS sign-in |
+| **Android** | Package `com.lyne.mobile` + SHA-1 fingerprint | Native Android sign-in |
 
 Get the Android SHA-1 with `eas credentials` inside `apps/mobile`.
 
@@ -286,6 +273,8 @@ without it rather than silently pointing at localhost.
 
 ## Related
 
+- [launch/](launch/) — store listings, submission, and what is still outstanding
 - [HOSTING.md](HOSTING.md) — provisioning, hardening and backups
+- [../deploy/README.md](../deploy/README.md) — the executable deployment kit
 - [pre-launch-security-checklist.md](pre-launch-security-checklist.md)
 - [../README.md](../README.md) — architecture and the branch model

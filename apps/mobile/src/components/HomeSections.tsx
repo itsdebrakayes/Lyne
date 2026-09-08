@@ -26,15 +26,17 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, isBranchOpen } from '../lib/theme';
 import { BranchSummary, orgAcronym, shortBranchName } from '../lib/mobileData';
+import { useWide } from '../lib/stage';
 
 /* ── section header ─────────────────────────────────────────── */
 
 export function RailHead({ title, actionLabel, onAction }: {
   title: string; actionLabel?: string; onAction?: () => void;
 }) {
+  const wide = useWide();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-      <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.5 }}>{title}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: wide ? 18 : 14 }}>
+      <Text style={{ fontFamily: font.extra, fontSize: wide ? 24 : 18, color: colors.ink, letterSpacing: -0.5 }}>{title}</Text>
       {!!actionLabel && (
         <TouchableOpacity
           onPress={onAction}
@@ -43,8 +45,8 @@ export function RailHead({ title, actionLabel, onAction }: {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
         >
-          <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.accent }}>{actionLabel}</Text>
-          <Ionicons name="chevron-forward" size={13} color={colors.accent} />
+          <Text style={{ fontFamily: font.bold, fontSize: wide ? 16 : 13, color: colors.accent }}>{actionLabel}</Text>
+          <Ionicons name="chevron-forward" size={wide ? 16 : 13} color={colors.accent} />
         </TouchableOpacity>
       )}
     </View>
@@ -70,6 +72,8 @@ export interface TileItem {
  * and the label carries the short name.
  */
 export function TileGrid({ items }: { items: TileItem[] }) {
+  const wide = useWide();
+  const size = wide ? 96 : 68;
   return (
     /* One row that scrolls, not a wrapping grid.
        Eight tiles over two rows pushed the agency cards below the fold, so the
@@ -83,8 +87,8 @@ export function TileGrid({ items }: { items: TileItem[] }) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: 12, paddingRight: 4 }}
-      snapToInterval={80}
+      contentContainerStyle={{ gap: wide ? 16 : 12, paddingRight: 4 }}
+      snapToInterval={size + (wide ? 16 : 12)}
       decelerationRate="fast"
     >
       {items.map((it) => (
@@ -96,11 +100,11 @@ export function TileGrid({ items }: { items: TileItem[] }) {
           /* The tile shows letters; a screen reader still gets the whole name,
              because "CFC" read aloud is not a name. */
           accessibilityLabel={it.label}
-          style={{ width: 68 }}
+          style={{ width: size }}
         >
           <View
             style={{
-              width: 68, height: 68, borderRadius: 21, backgroundColor: colors.surface,
+              width: size, height: size, borderRadius: wide ? 28 : 21, backgroundColor: colors.surface,
               borderWidth: 1, borderColor: colors.borderSoft,
               alignItems: 'center', justifyContent: 'center', ...shadow.card,
             }}
@@ -112,7 +116,7 @@ export function TileGrid({ items }: { items: TileItem[] }) {
               numberOfLines={1}
               style={{
                 fontFamily: font.extra,
-                fontSize: it.acronym.length >= 5 ? 14 : 16.5,
+                fontSize: wide ? (it.acronym.length >= 5 ? 18.5 : 22) : (it.acronym.length >= 5 ? 14 : 16.5),
                 color: colors.accent, letterSpacing: 0.2,
               }}
             >
@@ -155,6 +159,7 @@ export function BranchCard({
   onOpen: () => void;
   onJoin: () => void;
 }) {
+  const wide = useWide();
   const wait = Math.round(Number(branch.avg_wait_minutes || 0));
   const waiting = Number(branch.total_waiting || 0);
   const open = isBranchOpen(branch);
@@ -167,7 +172,7 @@ export function BranchCard({
     /* Wider and taller than the first pass. At 232 the badge sat on top of the
        agency name and the branch name clipped — on a phone, held at arm's
        length, that is a card you have to decode rather than read. */
-    <View style={{ width: 268, borderRadius: 24, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.card }}>
+    <View style={{ width: wide ? 344 : 268, borderRadius: wide ? 28 : 24, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.card }}>
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onOpen}
@@ -225,7 +230,7 @@ export function BranchCard({
 
         {/* Two lines allowed. A branch name is the one thing on this card that
             must never be truncated — it is the answer to "where do I go". */}
-        <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 17, lineHeight: 21, color: colors.ink, letterSpacing: -0.4 }}>
+        <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: wide ? 20 : 17, lineHeight: wide ? 25 : 21, color: colors.ink, letterSpacing: -0.4 }}>
           {shortBranchName(branch.name)}
         </Text>
 
@@ -247,7 +252,7 @@ export function BranchCard({
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Text style={{ fontFamily: font.extra, fontSize: 14, color: open ? colors.accentInk : colors.muted }}>
+          <Text style={{ fontFamily: font.extra, fontSize: wide ? 16.5 : 14, color: open ? colors.accentInk : colors.muted }}>
             {open ? 'Join now' : 'Closed'}
           </Text>
         </TouchableOpacity>
@@ -267,6 +272,7 @@ const PROOFS: Array<{ icon: keyof typeof Ionicons.glyphMap; a: string; b: string
 
 /** The reference's trust strip: four short claims, each one Lyne actually does. */
 export function ProofRow() {
+  const wide = useWide();
   return (
     <View style={{
       flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 22,
@@ -278,9 +284,9 @@ export function ProofRow() {
             width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceAlt,
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Ionicons name={p.icon} size={17} color={colors.accent} />
+            <Ionicons name={p.icon} size={wide ? 21 : 17} color={colors.accent} />
           </View>
-          <Text style={{ fontFamily: font.semibold, fontSize: 10, color: colors.sub, textAlign: 'center', marginTop: 7, lineHeight: 13 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: wide ? 13 : 10, color: colors.sub, textAlign: 'center', marginTop: wide ? 9 : 7, lineHeight: wide ? 17 : 13 }}>
             {p.a}{'\n'}{p.b}
           </Text>
         </View>
@@ -292,6 +298,7 @@ export function ProofRow() {
 /* ── horizontal rail ────────────────────────────────────────── */
 
 export function Rail({ children }: { children: React.ReactNode }) {
+  const wide = useWide();
   return (
     <ScrollView
       horizontal
@@ -299,7 +306,7 @@ export function Rail({ children }: { children: React.ReactNode }) {
       contentContainerStyle={{ gap: 12, paddingRight: 4 }}
       /* The cards are 232 wide with a 12 gap, so a flick lands one card at a
          time rather than drifting to a half-shown edge. */
-      snapToInterval={280}
+      snapToInterval={wide ? 356 : 280}
       decelerationRate="fast"
     >
       {children}
