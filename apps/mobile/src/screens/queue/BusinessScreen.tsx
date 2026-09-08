@@ -33,6 +33,7 @@ import {
 import { colors, font, shadow, t, isBranchOpen, waitShort } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
+import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { ErrorCard } from '../../components/Feedback';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -118,6 +119,8 @@ function Fact({ icon, value, label }: {
 }
 
 export default function BusinessScreen() {
+  const column = useContentColumn();
+  const barColumn = useContentColumnInner();
   const topPad = useTopPad(12);
   const route = useRoute<Params>();
   const nav = useNavigation<any>();
@@ -188,7 +191,7 @@ export default function BusinessScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 152 }}
+        contentContainerStyle={{ paddingBottom: 152, ...column }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
@@ -398,6 +401,7 @@ export default function BusinessScreen() {
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity
+          style={barColumn}
           onPress={() => nav.navigate('Service', { businessId, branchId: openBranches[0]?.id })}
           disabled={!openBranches.length}
           activeOpacity={0.92}

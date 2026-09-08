@@ -16,10 +16,12 @@ name against it needs a person; everything else is in
       [app-store-listing.md](app-store-listing.md#-the-demo-account-problem--read-this-before-you-submit).
 - [ ] **A reviewer account that can complete join → position → leave**, tested
       on a real device against the exact build being submitted.
-- [ ] **`supportsTablet` decided.** Currently `true`, which obliges you to
-      supply iPad screenshots and invites a review on a layout that does not
-      exist. Recommendation and the one-line change:
-      [screenshots.md](screenshots.md#-decide-this-first-does-lyne-support-ipad).
+- [x] **`supportsTablet` decided — staying `true`.** The kiosk terminal is this
+      same binary running on an iPad, so turning tablet support off would render
+      the lobby terminal as a scaled-up phone app. The customer screens now hold
+      a centred 780pt reading column on any window 700pt or wider
+      (`apps/mobile/src/lib/stage.ts`), so the iPad sees a laid-out app rather
+      than a stretched one. A 13-inch iPad screenshot set is therefore required.
 - [ ] **The API is live on HTTPS** at `api.uselyne.com` and `EXPO_PUBLIC_API_URL`
       in `eas.json` points at it. A release build refuses to start without it —
       deliberately.
@@ -63,10 +65,11 @@ name against it needs a person; everything else is in
       Android notification silently goes nowhere.
       [build-and-submit.md](build-and-submit.md#push-notifications--the-step-that-is-easy-to-miss)
 - [ ] A push notification received on a real device of each platform
-- [ ] **Decide whether production shares the demo Supabase project.** `app.json`
-      points at one project ref for both. Sharing it means demo test accounts
-      exist in the same auth directory as real users — workable for a pilot,
-      worth being a decision rather than an accident.
+- [x] **Supabase decided — production shares the demo project for the pilot.**
+      Demo test accounts therefore live in the same auth directory as real
+      users. Accepted knowingly while there is one pilot agency; revisit before
+      the second tenant, because migrating real users to a new project later is
+      the painful version of this decision.
 
 ## Store listings
 

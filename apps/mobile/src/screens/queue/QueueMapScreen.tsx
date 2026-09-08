@@ -28,6 +28,7 @@ import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary } from '../../lib/mobileData';
+import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
@@ -98,6 +99,8 @@ function Legend({ swatch, border, label }: { swatch: string; border?: string; la
 }
 
 export default function QueueMapScreen() {
+  const column = useContentColumn();
+  const barColumn = useContentColumnInner();
   const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
@@ -143,7 +146,7 @@ export default function QueueMapScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 18 }}>
@@ -289,6 +292,7 @@ export default function QueueMapScreen() {
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity
+          style={barColumn}
           onPress={join}
           disabled={!joinState.allowed}
           activeOpacity={0.92}

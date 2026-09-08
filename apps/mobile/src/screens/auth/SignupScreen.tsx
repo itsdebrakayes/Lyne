@@ -17,6 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
+import { useContentColumn } from '../../lib/stage';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
@@ -25,6 +26,7 @@ import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
 
 export default function SignupScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(72);
   const navigation = useNavigation<any>();
   const { signUp } = useAuth();
@@ -76,7 +78,7 @@ export default function SignupScreen() {
       <AuthMotifFrame />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }, column]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
             <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>

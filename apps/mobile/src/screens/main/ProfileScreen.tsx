@@ -13,6 +13,7 @@ import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { paymentsConfigured } from '../../lib/stripe';
 import { isDemoBuild } from '../../lib/sectorTerms';
+import { useContentColumn } from '../../lib/stage';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -57,6 +58,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfileScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }, column]} showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
         </View>

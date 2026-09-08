@@ -10,6 +10,7 @@ import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { cancelDepartureReminder, dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
+import { useContentColumn } from '../../lib/stage';
 import Code39Barcode from '../../components/Code39Barcode';
 import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
@@ -49,6 +50,7 @@ function Cell({ label, value, wide }: { label: string; value: React.ReactNode; w
 }
 
 export default function TicketScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
@@ -281,7 +283,7 @@ export default function TicketScreen() {
           same ticket. This screen is checked over and over while somebody
           waits. */}
       <TicketPrinter printKey={active ? ticketId : undefined}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* status banner — the one thing that must never be missed */}

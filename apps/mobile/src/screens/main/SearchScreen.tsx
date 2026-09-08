@@ -18,6 +18,7 @@ import { colors, font, shadow, t, initials, inputReset, personInitials, waitShor
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
+import { useContentColumn } from '../../lib/stage';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
@@ -109,6 +110,7 @@ function orgLabel(name?: string, slug?: string): string {
 }
 
 export default function SearchScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(10);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -191,7 +193,7 @@ export default function SearchScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE, ...column }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}

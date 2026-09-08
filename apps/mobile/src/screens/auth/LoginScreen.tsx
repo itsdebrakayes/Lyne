@@ -17,10 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
+import { useContentColumn } from '../../lib/stage';
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 
 export default function LoginScreen() {
+  const column = useContentColumn();
   const { signIn } = useAuth();
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
@@ -45,7 +47,9 @@ export default function LoginScreen() {
       <AuthMotifFrame />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.inner}>
+        {/* On a tablet the form holds a column instead of stretching a text
+            field across a thousand points. */}
+        <View style={[styles.inner, column]}>
           {/* brand lockup */}
           <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
           <Text style={styles.brand}>Lyne</Text>

@@ -13,6 +13,7 @@ import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import { useDevicePlace } from '../../lib/deviceLocation';
+import { useContentColumn } from '../../lib/stage';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
 import HomeHero from '../../components/HomeHero';
@@ -95,6 +96,7 @@ export default function HomeScreen() {
   const [sector, setSector] = useState<string | null>(null);
   const [openOnly, setOpenOnly] = useState(true);
   const devicePlace = useDevicePlace();
+  const column = useContentColumn();
   const firstName = (user?.full_name || '').split(/\s+/)[0] || 'there';
   const ticket = useActiveTicket();
   const { prefs } = usePreferences();
@@ -281,7 +283,7 @@ export default function HomeScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE, ...column }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
