@@ -18,10 +18,11 @@
  * Title Case for every title, label and control. Sentence case only for prose.
  */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { replayTour } from '../../hooks/useTour';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp,
-  Users, Waypoints, Zap,
+  Users, Waypoints, Zap, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, LegendToggle, Ring, Table, Row, InlineSearch, IconBtn, Status,
@@ -1830,6 +1831,9 @@ export function ExecSupport() {
             <button type="button" className="qx-btn"><MessageSquare size={14} />Start A Conversation</button>
             <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
           <div style={{ marginTop: 13 }}>
             <Note icon={Clock} title="Support Hours"

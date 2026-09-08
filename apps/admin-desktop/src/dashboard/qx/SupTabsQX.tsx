@@ -18,13 +18,14 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, ChevronDown, Clock, Coffee, Headphones, Mail,
-  MessageSquare, Users, Zap,
+  MessageSquare, Users, Zap, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Focus, Note, Heatmap,
   Chip, Ring, Selection, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
+import { replayTour } from '../../hooks/useTour';
 
 /* ══════════════════════ types ══════════════════════ */
 export type SupDesk = {
@@ -592,6 +593,9 @@ export function SupSupportTab() {
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Manager</button>
             <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
         </Card>
         <Card title="This Section" cap="Useful when reporting a problem">
