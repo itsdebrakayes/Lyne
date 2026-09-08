@@ -100,3 +100,34 @@ export function useContentColumnInner() {
     alignSelf: 'center',
   } as const;
 }
+
+/**
+ * How big the kiosk should draw itself.
+ *
+ * The kiosk had one breakpoint — 700pt, tablet or not — so an iPad mini and a
+ * 13-inch iPad rendered at identical sizes. On the big one everything read
+ * small, because the numbers were chosen for a screen two hundred points
+ * narrower; on a small one there was no room to give back.
+ *
+ * A kiosk is read standing up, from a metre away, by somebody who did not
+ * choose to use it. So it scales continuously with the screen instead of
+ * stepping once. The short edge is the reference, not the width, so turning
+ * the stand from portrait to landscape does not resize the type.
+ *
+ * Baseline 800 is roughly an 11-inch iPad; a 13-inch lands near 1.28 and an
+ * iPad mini near 0.93. Clamped at both ends — a phone in a stand should still
+ * be legible, and the largest display should not become a billboard.
+ */
+export function useKioskScale() {
+  const { width, height } = useWindowDimensions();
+  const short = Math.min(width, height);
+  const scale = Math.max(0.85, Math.min(1.5, short / 800));
+  return {
+    wide: width >= 700,
+    scale,
+    /** Scale a size that was tuned for the baseline tablet. */
+    s: (n: number) => Math.round(n * scale),
+  };
+}
+
+export type KioskScale = ReturnType<typeof useKioskScale>;
