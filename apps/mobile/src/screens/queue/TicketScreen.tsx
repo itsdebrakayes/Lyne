@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, t, type, initials } from '../../lib/theme';
@@ -23,6 +23,13 @@ import TicketPass from '../../components/TicketPass';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
+
+/* Whose wallet, and whose store. Read once — the platform does not change
+   while the app is running. */
+const WALLET_NAME = Platform.OS === 'android' ? 'Google Wallet' : 'Apple Wallet';
+const WALLET_NOTE = Platform.OS === 'android'
+  ? 'Wallet passes arrive with the Play Store release.'
+  : 'Wallet passes arrive with the App Store release.';
 
 const TERMINAL_META: Record<string, { label: string; tone: string; note: string }> = {
   no_show: { label: 'Place released', tone: colors.busy, note: 'The call window passed, so your spot was released. You can rejoin the queue below.' },
@@ -292,6 +299,7 @@ export default function TicketScreen() {
           serviceName={ticket.service_name || 'Your service'}
           ticketNumber={ticket.ticket_number}
           joinedAt={ticket.joined_at}
+          endedAt={ticket.completed_at || ticket.called_at}
           remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
           place={spot ?? null}
           ahead={ahead}
@@ -308,7 +316,9 @@ export default function TicketScreen() {
               {active && ticket.verification_code ? <Code39Barcode value={ticket.verification_code} color={colors.ink} /> : null}
             </View>
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 12, textAlign: 'center', lineHeight: 17 }}>
-              Show this code at the counter when your number is called.
+              {active
+                ? 'Show this code at the counter when your number is called.'
+                : 'This is the code that was on the ticket. It is kept for your records.'}
             </Text>
 
             {/* Wallet.
@@ -318,20 +328,32 @@ export default function TicketScreen() {
                 a Google Wallet issuer account — neither exists yet, and both
                 arrive with the store enrolment. So the control is present and
                 honest rather than absent or, worse, a button that fails
-                silently at the counter. */}
-            <View style={{
-              flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
-              minHeight: 52, borderRadius: 16, paddingHorizontal: 18,
-              backgroundColor: colors.surfaceAlt, alignSelf: 'stretch', justifyContent: 'center',
-            }}>
-              <Ionicons name="wallet-outline" size={19} color={colors.muted} />
-              <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.muted }}>
-                Add to Apple Wallet
-              </Text>
-            </View>
-            <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 8, textAlign: 'center' }}>
-              Wallet passes arrive with the App Store release.
-            </Text>
+                silently at the counter.
+
+                The name follows the phone. An Android user has no Apple
+                Wallet, and offering them one is the kind of detail that tells
+                somebody the app was built for a different device than the one
+                in their hand. */}
+            {/* Only while there is something to carry. Offering to add a
+                finished visit to a wallet is offering to keep a boarding pass
+                for a flight that landed. */}
+            {active && (
+              <>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
+                  minHeight: 52, borderRadius: 16, paddingHorizontal: 18,
+                  backgroundColor: colors.surfaceAlt, alignSelf: 'stretch', justifyContent: 'center',
+                }}>
+                  <Ionicons name="wallet-outline" size={19} color={colors.muted} />
+                  <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.muted }}>
+                    Add to {WALLET_NAME}
+                  </Text>
+                </View>
+                <Text style={{ fontFamily: font.medium, fontSize: 11.5, color: colors.muted, marginTop: 8, textAlign: 'center' }}>
+                  {WALLET_NOTE}
+                </Text>
+              </>
+            )}
           </View>
         </TicketPass>
 

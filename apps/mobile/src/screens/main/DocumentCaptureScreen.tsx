@@ -266,9 +266,19 @@ export default function DocumentCaptureScreen() {
                 <Ionicons name="document-attach-outline" size={18} color={colors.ink} />
                 <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginLeft: 8 }}>Upload a file (PDF)</Text>
               </TouchableOpacity>
+              {/* Typing is the likely path for a TRN, not the consolation
+                  prize — most people know theirs and no scan beats nine digits
+                  from memory. It was a 14pt line of text under two 54pt
+                  buttons, which made the easiest route the hardest to see. It
+                  is a real target now, and quieter than the two above only in
+                  weight, not in size. */}
               {cfg.allowType && (
-                <TouchableOpacity onPress={() => setMode('review')} style={{ alignItems: 'center', marginTop: 18 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accentDeep }}>Type it in instead</Text>
+                <TouchableOpacity
+                  onPress={() => setMode('review')}
+                  accessibilityRole="button"
+                  style={{ minHeight: 54, borderRadius: 16, marginTop: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt }}
+                >
+                  <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.accentDeep }}>Type it in instead</Text>
                 </TouchableOpacity>
               )}
             </>

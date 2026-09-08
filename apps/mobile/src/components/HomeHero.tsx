@@ -61,13 +61,17 @@ function QueueMotif() {
       accessible={false}
       style={{ position: 'absolute', right: -6, top: 0, bottom: 0, width: 128, justifyContent: 'center' }}
     >
-      {/* The line, thinning as it approaches the ticket. */}
-      <View style={{ position: 'absolute', right: 74, top: 34, gap: 7 }}>
+      {/* The line, thinning as it approaches the ticket.
+
+          Parked clear of the ticket's left edge. At right:74 the stack ran
+          from 74 to 94 and the ticket from 14 to 96, so the last three people
+          in the queue sat on top of the thing they were queuing for. */}
+      <View style={{ position: 'absolute', right: 92, top: 36, gap: 7 }}>
         {[0.30, 0.22, 0.15, 0.09].map((o, i) => (
           <View
             key={i}
             style={{
-              width: 20 - i * 2, height: 20 - i * 2, borderRadius: 10,
+              width: 18 - i * 2, height: 18 - i * 2, borderRadius: 9,
               backgroundColor: `rgba(255,255,255,${o})`, alignSelf: 'flex-end',
             }}
           />
@@ -78,7 +82,7 @@ function QueueMotif() {
           than another rectangle in a stack of rectangles. */}
       <View
         style={{
-          position: 'absolute', right: 14, top: 46, width: 82, borderRadius: 16,
+          position: 'absolute', right: 8, top: 46, width: 78, borderRadius: 16,
           backgroundColor: 'rgba(255,255,255,.10)', borderWidth: 1,
           borderColor: 'rgba(255,255,255,.16)', paddingVertical: 14, paddingHorizontal: 12,
           transform: [{ rotate: '7deg' }],

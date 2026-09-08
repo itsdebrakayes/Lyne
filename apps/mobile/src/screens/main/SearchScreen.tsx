@@ -251,8 +251,15 @@ export default function SearchScreen() {
           </ScrollView>
         )}
 
-        {/* idle: suggestions or recents */}
-        {!filtersActive && (
+        {/* idle: suggestions or recents.
+
+            Only when there is something to find. The suggestions are a fixed
+            list of search terms, so on a build with no agencies they were four
+            buttons that each led to "no branches match" — the screen offering
+            work it already knows is pointless. Recents are hidden for the same
+            reason: a saved search for an agency that is no longer here is a
+            dead end too. */}
+        {!filtersActive && branches.length > 0 && (
           <View style={{ marginTop: 20 }}>
             <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3, marginBottom: 12 }}>
               {recents.length ? 'Recent searches' : 'Try one of these'}
@@ -314,6 +321,21 @@ export default function SearchScreen() {
               style={{ backgroundColor: colors.accent, borderRadius: 17, paddingVertical: 16, paddingHorizontal: 26, marginTop: 24 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accentInk }}>Browse all agencies</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Nothing on Lyne at all — not "no matches", which implies a search
+            that could have gone better. The same words Home uses, because it
+            is the same fact. */}
+        {!isLoading && !error && branches.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <View style={{ width: 132, height: 132, borderRadius: 44, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 26, ...shadow.card }}>
+              <Icon name="government" size={58} color={colors.faint} />
+            </View>
+            <Text style={{ fontFamily: font.extra, fontSize: 24, color: colors.ink, letterSpacing: -0.8 }}>No agencies yet</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 300 }}>
+              When an agency joins Lyne, its branches and live wait times appear here, and you can search them by name, town or service.
+            </Text>
           </View>
         )}
 

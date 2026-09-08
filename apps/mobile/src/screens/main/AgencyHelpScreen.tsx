@@ -8,25 +8,36 @@ import { LayoutAnimation, ScrollView, Text, TouchableOpacity, View } from 'react
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
+import { useTopPad } from '../../lib/insets';
+import Icon from '../../components/Icon';
 import { agencyGuide, AgencyService } from '../../lib/helpContent';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
-import { Sheen } from '../../components/Glass';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+
+/** The section heading Home's rails use, so Help reads as the same app. */
+const SECTION = {
+  fontFamily: font.extra,
+  fontSize: 18,
+  color: colors.ink,
+  letterSpacing: -0.5,
+  marginTop: 30,
+  marginBottom: 14,
+} as const;
 
 function ServiceBucket({ service }: { service: AgencyService }) {
   const [open, setOpen] = useState(false);
   const toggle = () => { LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity')); setOpen(o => !o); };
   return (
-    <View style={[t.card, { marginBottom: 10, overflow: 'hidden', ...shadow.card }]}>
-      <TouchableOpacity activeOpacity={0.8} onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}>
+    <View style={{ backgroundColor: colors.surface, borderRadius: 20, marginBottom: 10, overflow: 'hidden', ...shadow.card }}>
+      <TouchableOpacity activeOpacity={0.8} onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, paddingHorizontal: 18 }}>
         <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="briefcase-outline" size={16} color={colors.accentDeep} />
         </View>
-        <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 14.5, color: colors.ink }}>{service.name}</Text>
+        <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: colors.ink, letterSpacing: -0.2 }}>{service.name}</Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
       </TouchableOpacity>
       {open && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 18 }}>
           <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 9 }}>What to bring</Text>
           <View style={{ gap: 8, marginBottom: 14 }}>
             {service.documents.map((d, i) => (
@@ -51,6 +62,7 @@ function ServiceBucket({ service }: { service: AgencyService }) {
 
 export default function AgencyHelpScreen() {
   const navigation = useNavigation<any>();
+  const topPad = useTopPad(14);
   const route = useRoute<RouteProp<RootStackParamList, 'AgencyHelp'>>();
   const guide = agencyGuide(route.params?.slug);
 
@@ -64,22 +76,26 @@ export default function AgencyHelpScreen() {
   }
 
   return (
-    <View style={t.root}>
-      <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
-        {/* header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <View style={{ borderRadius: 13, ...shadow.depth }}>
-            <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <Sheen radius={13} />
-              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.accent }}>{guide.short}</Text>
-            </View>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Circular back, name, one muted line — the header the agency and
+            line screens use. The dark glass monogram lived only here. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 22 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name="back" size={20} color={colors.ink} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>{guide.short}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>{guide.name}</Text>
           </View>
-          <Text numberOfLines={2} style={{ flex: 1, fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3, lineHeight: 22 }}>{guide.name}</Text>
         </View>
 
         {/* hours */}
-        <View style={[t.cardLg, { padding: 18, flexDirection: 'row', gap: 13, alignItems: 'flex-start' }]}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 18, flexDirection: 'row', gap: 13, alignItems: 'flex-start', ...shadow.card }}>
           <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="time-outline" size={21} color={colors.accentDeep} />
           </View>
@@ -91,11 +107,11 @@ export default function AgencyHelpScreen() {
         </View>
 
         {/* services */}
-        <View style={t.sectionRow}><Text style={t.section}>Services & what to bring</Text></View>
+        <Text style={SECTION}>Services &amp; what to bring</Text>
         {guide.services.map(s => <ServiceBucket key={s.name} service={s} />)}
 
         {/* good to know */}
-        <View style={t.sectionRow}><Text style={t.section}>Good to know</Text></View>
+        <Text style={SECTION}>Good to know</Text>
         <FaqBucket q="Tips for this agency" defaultOpen><FaqAnswer>{guide.general}</FaqAnswer></FaqBucket>
 
         <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.faint, lineHeight: 18, marginTop: 16, textAlign: 'center' }}>

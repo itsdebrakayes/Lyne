@@ -167,14 +167,25 @@ function Cell({ label, value, tone = 'dark' }: {
 
 /* ── the pass ───────────────────────────────────────────────────────────── */
 
+/** What the right-hand clock means once the ticket is over. */
+function endedWord(status: string): string {
+  if (status === 'served') return 'completed at';
+  if (status === 'left') return 'you left at';
+  if (status === 'no_show') return 'place released';
+  if (status === 'cancelled') return 'cancelled at';
+  return 'closed at';
+}
+
 export function TicketPass({
-  branchName, serviceName, ticketNumber, joinedAt, remainingMinutes,
+  branchName, serviceName, ticketNumber, joinedAt, endedAt, remainingMinutes,
   place, ahead, inLine, status, children,
 }: {
   branchName: string;
   serviceName: string;
   ticketNumber: string;
   joinedAt?: string | null;
+  /** When the ticket stopped being live — served, left, released, cancelled. */
+  endedAt?: string | null;
   remainingMinutes: number;
   place: number | null;
   ahead: number;
@@ -232,37 +243,50 @@ export function TicketPass({
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ fontFamily: font.extra, fontSize: 27, color: '#fff', letterSpacing: -1 }}>
-              {called ? 'Now' : progress.dueLabel}
+              {called ? 'Now' : active ? progress.dueLabel : clockOf(endedAt)}
             </Text>
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
-              {called ? 'at the counter' : 'seen at about'}
+              {called ? 'at the counter' : active ? 'seen at about' : endedWord(status)}
             </Text>
           </View>
         </View>
 
-        <ProgressLine fraction={progress.fraction} called={called} />
+        {/* Live only while the ticket is live.
+            A ticket left days ago was still drawing a full progress line, a
+            due time computed as "now", and "you are next · waited 6987 min" —
+            a pass insisting somebody was about to be called, directly above a
+            note telling them they had left the line. Nothing here has anything
+            true to say once the ticket is closed, so none of it is drawn. */}
+        {active && (
+          <>
+            <ProgressLine fraction={progress.fraction} called={called} />
 
-        {/* The middle label — the reference's "16h 30m". */}
-        <View style={{ alignItems: 'center', marginTop: 8 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: called ? colors.light : 'rgba(255,255,255,.62)' }}>
-            {called
-              ? "It's your turn"
-              : progress.remainingMinutes > 0
-                ? `about ${progress.remainingMinutes} min left`
-                : 'you are next'}
-            {progress.waitedMinutes != null && !called ? `  ·  waited ${progress.waitedMinutes} min` : ''}
-          </Text>
-        </View>
+            {/* The middle label — the reference's "16h 30m". */}
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: called ? colors.light : 'rgba(255,255,255,.62)' }}>
+                {called
+                  ? "It's your turn"
+                  : progress.remainingMinutes > 0
+                    ? `about ${progress.remainingMinutes} min left`
+                    : 'you are next'}
+                {progress.waitedMinutes != null && !called ? `  ·  waited ${progress.waitedMinutes} min` : ''}
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* The facts row — Class / Terminal / Gate / Seat, in this world. */}
         <View style={{
           flexDirection: 'row', gap: 12, marginTop: 20, paddingTop: 16,
           borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.12)',
         }}>
-          <Cell label="PLACE" value={place != null ? `#${place}` : '—'} />
-          <Cell label="AHEAD" value={ahead} />
+          {/* All four are statements about a queue you are still in. On a
+              closed ticket they are last week's numbers wearing the present
+              tense, so they read as unknown rather than as facts. */}
+          <Cell label="PLACE" value={active && place != null ? `#${place}` : '—'} />
+          <Cell label="AHEAD" value={active ? ahead : '—'} />
           <Cell label="WAIT" value={active ? `${progress.remainingMinutes}m` : '—'} />
-          <Cell label="IN LINE" value={inLine != null ? inLine : '—'} />
+          <Cell label="IN LINE" value={active && inLine != null ? inLine : '—'} />
         </View>
       </View>
 

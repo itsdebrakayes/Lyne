@@ -96,9 +96,15 @@ export function usePreferences() {
 }
 
 /**
- * Where to say the person is. Falls back to Kingston only because the header
- * needs a word — it is a label, not a claim about their location.
+ * Where to say the person is, in order of how much we actually know.
+ *
+ * The device first, when it will tell us without being asked. Then the town
+ * they chose in onboarding. Then the country, and nothing more specific —
+ * because the old fallback named Kingston at somebody who had never said so,
+ * which is the one thing a label under a map pin must not do.
  */
-export function homeLocationLabel(prefs: Preferences): string {
-  return `${prefs.city || 'Kingston'}, Jamaica`;
+export function homeLocationLabel(prefs: Preferences, device?: { city: string; country: string } | null): string {
+  if (device?.city) return device.country ? `${device.city}, ${device.country}` : device.city;
+  if (prefs.city) return `${prefs.city}, Jamaica`;
+  return 'Jamaica';
 }
