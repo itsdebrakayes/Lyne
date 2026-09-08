@@ -51,7 +51,7 @@ export default function DashboardShell({
     <div className={`ops-page ${tone}`}>
       <aside className="ops-sidebar">
         <div className="ops-brand">
-          <div>Q</div>
+          <div>L</div>
           <span>Lyne</span>
         </div>
         <div className="ops-user-card">

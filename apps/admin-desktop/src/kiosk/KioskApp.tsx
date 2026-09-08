@@ -109,7 +109,7 @@ function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
   return (
     <header className="qk-top">
       <div className="qk-topL">
-        <span className="qk-mark">Q</span>
+        <span className="qk-mark">L</span>
         <div>
           <b>{BRANCH.org}</b>
           <small>{BRANCH.name}</small>

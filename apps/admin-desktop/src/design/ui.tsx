@@ -105,7 +105,7 @@ export function Shell({
     <div className="qx qx-shell" data-theme={theme || 'light'}>
       <aside className="qx-rail">
         <div className="qx-brand">
-          <i>Q</i>
+          <i>L</i>
           <div><b>{brand}</b>{brandSub ? <small>{brandSub}</small> : null}</div>
         </div>
         {groups.map((g, gi) => (

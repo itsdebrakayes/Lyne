@@ -18,7 +18,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
-  PhoneOff, SkipForward, Timer, Users,
+  PhoneOff, SkipForward, Timer, Users, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Note, Chip, Ring,
@@ -26,6 +26,7 @@ import {
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
+import { replayTour } from '../../hooks/useTour';
 
 /* Counter labels are written as "Window 17 - TRN Registration", so pairing one
    with its own service produced "TRN Registration · TRN Registration". Say the
@@ -1238,6 +1239,9 @@ export function LineSupportTab() {
             <button type="button" className="qx-btn"><MessageSquare size={14} />Call Your Supervisor</button>
             <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
         </Card>
         <Card title="Your Window" cap="Useful when reporting a problem">

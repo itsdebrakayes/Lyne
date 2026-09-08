@@ -78,14 +78,14 @@ export default function DesktopSetup({ onFinish }: { onFinish?: () => void }) {
     <div className="qx ds">
       <div className="ds-window">
         <header className="ds-titlebar">
-          <span className="ds-mark">Q</span>
+          <span className="ds-mark">L</span>
           <b>Lyne Setup</b>
           {meta.version ? <small>Version {meta.version}</small> : null}
         </header>
 
         <div className="ds-body">
           <aside className="ds-side">
-            <div className="ds-sidemark">Q</div>
+            <div className="ds-sidemark">L</div>
             <p>Queue management for branches that serve the public.</p>
           </aside>
 

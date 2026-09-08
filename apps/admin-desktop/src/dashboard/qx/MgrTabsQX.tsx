@@ -22,7 +22,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, Clock, Coffee, Download,
-  FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, UserX, Users, Waypoints, Zap,
+  FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, UserX, Users, Waypoints, Zap, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap,
@@ -31,6 +31,7 @@ import {
 } from '@/design/ui';
 import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
 import { fmtN } from '../insights';
+import { replayTour } from '../../hooks/useTour';
 
 /* ══════════════════════ window cover ══════════════════════
    A branch with no windows configured is NOT a branch where every window is
@@ -882,6 +883,9 @@ export function MgrSupportTab() {
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Executive</button>
             <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
           <div style={{ marginTop: 13 }}>
             <Note icon={Clock} title="Support Hours"
