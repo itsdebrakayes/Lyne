@@ -99,7 +99,7 @@ const footerCols: Array<{ title: string; items: Array<{ label: string; href: str
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/#pricing" },
       { label: "Mobile App", href: "/#pricing" },
-      { label: "Desktop App", href: "/#partners" },
+      { label: "Desktop App", href: "/download" },
     ],
   },
   {
