@@ -97,10 +97,14 @@ name against it needs a person; everything else is in
 
 ## Not blocking version 1, but start the clock
 
-- [ ] **EV code-signing certificate** for the Windows admin app. The hardware
-      token ships physically and that is the slow part; without it an agency's
-      IT officer sees Windows call your software unrecognised. See
-      [../PROVIDER_SETUP.md](../PROVIDER_SETUP.md#code-signing).
+- [ ] **Code-signing certificate** for the Windows admin app. There is no USB
+      token to post — the CAs meet the hardware-key rule with a cloud HSM, so
+      nothing ships to Jamaica. SSL.com eSigner or DigiCert KeyLocker; Azure
+      Trusted Signing is unavailable to a Jamaican company. The slow part is
+      organisation validation, not delivery, so start it early. The build works
+      unsigned in the meantime — `npm run build:win:unsigned` — which is fine
+      for a pilot unless the site enforces SmartScreen or WDAC.
+      See [desktop-signing.md](desktop-signing.md).
 - [ ] **SMS provider** sender registration — approval lead time, not price, is
       what delays it. [../LAUNCH_PROCUREMENT.md](../LAUNCH_PROCUREMENT.md#11-sms-provider---unblocks-text-customers-when-called)
 - [ ] **Sentry account** and DSN — free tier, and the code already no-ops

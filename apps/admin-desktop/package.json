@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "build:mac": "vite build && electron-builder --mac",
     "build:linux": "vite build && electron-builder --linux",
-    "build:all": "vite build && electron-builder --mac --win --linux"
+    "build:all": "vite build && electron-builder --mac --win --linux",
+    "build:win:unsigned": "WINDOWS_SIGNING=off vite build && WINDOWS_SIGNING=off electron-builder --win"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -52,7 +53,10 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "src/assets/icon.ico"
+      "icon": "src/assets/icon.ico",
+      "signtoolOptions": {
+        "sign": "electron/sign-windows.js"
+      }
     },
     "nsis": {
       "oneClick": false,

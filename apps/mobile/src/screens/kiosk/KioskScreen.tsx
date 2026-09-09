@@ -41,6 +41,7 @@ import { colors, font, shadow } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { haptics } from '../../lib/haptics';
 import { ServiceSummary } from '../../lib/mobileData';
+import { useKioskScale, type KioskScale } from '../../lib/stage';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { useAuth, KioskActor } from '../../hooks/useAuth';
 
@@ -155,30 +156,30 @@ function Chrome({ step, org, branch, onHome }: {
 }
 
 /** Title block + scrolling body + a footer that always holds Back and Next. */
-function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, wide }: {
+function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }: {
   eyebrow: string; title: string; sub?: string; children: React.ReactNode;
   onBack?: () => void;
   primary?: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean };
-  footNote?: string; wide: boolean;
+  footNote?: string; kx: KioskScale;
 }) {
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ paddingHorizontal: wide ? 44 : 22, paddingTop: wide ? 34 : 22, paddingBottom: 14 }}>
+      <View style={{ paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingTop: kx.wide ? kx.s(34) : 22, paddingBottom: 14 }}>
         <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.accent, letterSpacing: 1.5 }}>
           {eyebrow.toUpperCase()}
         </Text>
-        <Text style={{ fontFamily: font.extra, fontSize: wide ? 40 : 28, color: colors.ink, letterSpacing: -0.8, marginTop: 8 }}>
+        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(40) : 28, color: colors.ink, letterSpacing: -0.8, marginTop: 8 }}>
           {title}
         </Text>
         {!!sub && (
-          <Text style={{ fontFamily: font.semibold, fontSize: wide ? 17 : 14.5, color: colors.muted, marginTop: 8, lineHeight: wide ? 25 : 21 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(17) : 14.5, color: colors.muted, marginTop: 8, lineHeight: kx.wide ? kx.s(25) : 21 }}>
             {sub}
           </Text>
         )}
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: wide ? 44 : 22, paddingBottom: 24 }}
+        contentContainerStyle={{ paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -187,7 +188,7 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, wide 
 
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 14,
-        paddingHorizontal: wide ? 44 : 22, paddingTop: 14, paddingBottom: 22,
+        paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingTop: 14, paddingBottom: 22,
         borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface,
       }}>
         {onBack ? (
@@ -246,8 +247,8 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, wide 
 
 /* ─────────────────────────── screens ─────────────────────────── */
 
-function Welcome({ org, branch, onStart, wide }: {
-  org: string; branch: string; onStart: () => void; wide: boolean;
+function Welcome({ org, branch, onStart, kx }: {
+  org: string; branch: string; onStart: () => void; kx: KioskScale;
 }) {
   return (
     <TouchableOpacity
@@ -257,36 +258,36 @@ function Welcome({ org, branch, onStart, wide }: {
       accessibilityLabel={`Welcome to ${org}, ${branch}. Touch anywhere to begin.`}
       style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}
     >
-      <Text style={{ fontFamily: font.extra, fontSize: wide ? 15 : 12.5, color: colors.accent, letterSpacing: 2.4 }}>
+      <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(15) : 12.5, color: colors.accent, letterSpacing: 2.4 }}>
         WELCOME TO
       </Text>
       <Text style={{
-        fontFamily: font.extra, fontSize: wide ? 74 : 40, color: colors.ink,
-        letterSpacing: -1.6, textAlign: 'center', marginTop: 18, lineHeight: wide ? 78 : 44,
+        fontFamily: font.extra, fontSize: kx.wide ? kx.s(74) : 40, color: colors.ink,
+        letterSpacing: -1.6, textAlign: 'center', marginTop: 18, lineHeight: kx.wide ? kx.s(78) : 44,
       }}>
         {org}
       </Text>
-      <Text style={{ fontFamily: font.semibold, fontSize: wide ? 21 : 16, color: colors.muted, marginTop: 16 }}>
+      <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(21) : 16, color: colors.muted, marginTop: 16 }}>
         {branch}
       </Text>
 
       <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: wide ? 52 : 36,
+        flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: kx.wide ? kx.s(52) : 36,
         backgroundColor: colors.accent, borderRadius: 999,
-        paddingVertical: wide ? 24 : 18, paddingHorizontal: wide ? 46 : 32,
+        paddingVertical: kx.wide ? kx.s(24) : 18, paddingHorizontal: kx.wide ? kx.s(46) : 32,
         ...shadow.hero,
       }}>
-        <Text style={{ fontFamily: font.extra, fontSize: wide ? 24 : 17, color: colors.accentInk }}>
+        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(24) : 17, color: colors.accentInk }}>
           Touch Anywhere To Begin
         </Text>
-        <Ionicons name="arrow-forward" size={wide ? 26 : 20} color={colors.accentInk} />
+        <Ionicons name="arrow-forward" size={kx.wide ? kx.s(26) : 20} color={colors.accentInk} />
       </View>
 
-      <View style={{ flexDirection: 'row', gap: wide ? 60 : 28, marginTop: wide ? 62 : 40 }}>
+      <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
         {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
           <View key={small} style={{ alignItems: 'center' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: wide ? 34 : 24, color: colors.ink }}>{big}</Text>
-            <Text style={{ fontFamily: font.semibold, fontSize: wide ? 15 : 12.5, color: colors.muted, marginTop: 4 }}>{small}</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 24, color: colors.ink }}>{big}</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 12.5, color: colors.muted, marginTop: 4 }}>{small}</Text>
           </View>
         ))}
       </View>
@@ -294,12 +295,12 @@ function Welcome({ org, branch, onStart, wide }: {
   );
 }
 
-function ChooseService({ services, onPick, onBack, wide }: {
-  services: ServiceSummary[]; onPick: (id: string) => void; onBack: () => void; wide: boolean;
+function ChooseService({ services, onPick, onBack, kx }: {
+  services: ServiceSummary[]; onPick: (id: string) => void; onBack: () => void; kx: KioskScale;
 }) {
   return (
     <Frame
-      wide={wide}
+      kx={kx}
       eyebrow="Step 1 of 3"
       title="What Are You Here For?"
       sub="Choose the service you need. The wait shown is live."
@@ -335,11 +336,11 @@ function ChooseService({ services, onPick, onBack, wide }: {
               </View>
 
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: wide ? 21 : 17, color: colors.ink, letterSpacing: -0.3 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(21) : 17, color: colors.ink, letterSpacing: -0.3 }}>
                   {s.name}
                 </Text>
                 {!!s.description && (
-                  <Text numberOfLines={2} style={{ fontFamily: font.semibold, fontSize: wide ? 15 : 13, color: colors.muted, marginTop: 3, lineHeight: 19 }}>
+                  <Text numberOfLines={2} style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 13, color: colors.muted, marginTop: 3, lineHeight: 19 }}>
                     {s.description}
                   </Text>
                 )}
@@ -347,10 +348,10 @@ function ChooseService({ services, onPick, onBack, wide }: {
 
               <View style={{ alignItems: 'flex-end', minWidth: 84 }}>
                 <Text style={{
-                  fontFamily: font.extra, fontSize: wide ? 30 : 24,
+                  fontFamily: font.extra, fontSize: kx.wide ? kx.s(30) : 24,
                   color: busy ? colors.busy : colors.ink, letterSpacing: -0.6,
                 }}>
-                  {wait}<Text style={{ fontSize: wide ? 16 : 13, color: colors.muted }}> min</Text>
+                  {wait}<Text style={{ fontSize: kx.wide ? kx.s(16) : 13, color: colors.muted }}> min</Text>
                 </Text>
                 <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>
                   {waiting} waiting
@@ -364,8 +365,8 @@ function ChooseService({ services, onPick, onBack, wide }: {
   );
 }
 
-function Confirm({ svc, onBack, onNext, wide }: {
-  svc: ServiceSummary; onBack: () => void; onNext: () => void; wide: boolean;
+function Confirm({ svc, onBack, onNext, kx }: {
+  svc: ServiceSummary; onBack: () => void; onNext: () => void; kx: KioskScale;
 }) {
   const wait = waitFor(svc);
   const waiting = num(svc.waiting_count);
@@ -375,7 +376,7 @@ function Confirm({ svc, onBack, onNext, wide }: {
   const Row = ({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; children: React.ReactNode }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
       <Ionicons name={icon} size={22} color={colors.accent} />
-      <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: wide ? 17 : 14.5, color: colors.ink, lineHeight: 24 }}>
+      <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: kx.wide ? kx.s(17) : 14.5, color: colors.ink, lineHeight: 24 }}>
         {children}
       </Text>
     </View>
@@ -383,21 +384,21 @@ function Confirm({ svc, onBack, onNext, wide }: {
 
   return (
     <Frame
-      wide={wide}
+      kx={kx}
       eyebrow="Step 2 of 3"
       title={svc.name}
       sub="Here's what the line looks like right now."
       onBack={onBack}
       primary={{ label: 'Join This Line', onPress: onNext }}
     >
-      <View style={{ flexDirection: wide ? 'row' : 'column', gap: 18, alignItems: 'stretch' }}>
+      <View style={{ flexDirection: kx.wide ? 'row' : 'column', gap: 18, alignItems: 'stretch' }}>
         <View style={{
-          backgroundColor: colors.dark, borderRadius: 24, padding: wide ? 34 : 24,
-          alignItems: 'center', justifyContent: 'center', minWidth: wide ? 260 : undefined,
+          backgroundColor: colors.dark, borderRadius: 24, padding: kx.wide ? kx.s(34) : 24,
+          alignItems: 'center', justifyContent: 'center', minWidth: kx.wide ? kx.s(260) : undefined,
           ...shadow.hero,
         }}>
-          <Text style={{ fontFamily: font.extra, fontSize: wide ? 84 : 58, color: '#fff', letterSpacing: -2.4 }}>
-            {wait}<Text style={{ fontSize: wide ? 28 : 20, color: 'rgba(255,255,255,.6)' }}> min</Text>
+          <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(84) : 58, color: '#fff', letterSpacing: -2.4 }}>
+            {wait}<Text style={{ fontSize: kx.wide ? kx.s(28) : 20, color: 'rgba(255,255,255,.6)' }}> min</Text>
           </Text>
           <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: 'rgba(255,255,255,.6)', letterSpacing: 1.4, marginTop: 8 }}>
             ESTIMATED WAIT
@@ -406,7 +407,7 @@ function Confirm({ svc, onBack, onNext, wide }: {
 
         <View style={{
           flex: 1, gap: 16, backgroundColor: colors.surface, borderRadius: 24,
-          borderWidth: 1, borderColor: colors.border, padding: wide ? 28 : 20, justifyContent: 'center',
+          borderWidth: 1, borderColor: colors.border, padding: kx.wide ? kx.s(28) : 20, justifyContent: 'center',
         }}>
           <Row icon="people-outline">
             <Text style={{ fontFamily: font.extra }}>{waiting} {waiting === 1 ? 'person' : 'people'}</Text> ahead of you
@@ -421,7 +422,7 @@ function Confirm({ svc, onBack, onNext, wide }: {
           )}
           {wait >= BUSY_MINUTES && (
             <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 16 }}>
-              <Text style={{ fontFamily: font.semibold, fontSize: wide ? 15.5 : 13.5, color: colors.ink, lineHeight: 21 }}>
+              <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15.5) : 13.5, color: colors.ink, lineHeight: 21 }}>
                 This line is longer than usual today. You're welcome to join — we'll text you so you
                 don't have to stand and wait.
               </Text>
@@ -434,12 +435,12 @@ function Confirm({ svc, onBack, onNext, wide }: {
 }
 
 function Details({
-  name, setName, phone, setPhone, notify, setNotify, onBack, onDone, busy, error, wide,
+  name, setName, phone, setPhone, notify, setNotify, onBack, onDone, busy, error, kx,
 }: {
   name: string; setName: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
   notify: Notify | null; setNotify: (v: Notify) => void;
-  onBack: () => void; onDone: () => void; busy: boolean; error: string; wide: boolean;
+  onBack: () => void; onDone: () => void; busy: boolean; error: string; kx: KioskScale;
 }) {
   const ready = name.trim().length > 1
     && (notify === 'screen' || (notify === 'sms' && phone.replace(/\D/g, '').length >= 7));
@@ -451,7 +452,7 @@ function Details({
 
   return (
     <Frame
-      wide={wide}
+      kx={kx}
       eyebrow="Step 3 of 3"
       title="Who Should We Call?"
       sub="Your name is called out and shown on the screen when it's your turn."
@@ -477,7 +478,7 @@ function Details({
             autoCorrect={false}
             returnKeyType="done"
             accessibilityLabel="Your name"
-            style={[field, { fontFamily: font.extra, fontSize: wide ? 24 : 19, color: colors.ink }]}
+            style={[field, { fontFamily: font.extra, fontSize: kx.wide ? kx.s(24) : 19, color: colors.ink }]}
           />
         </View>
 
@@ -507,7 +508,7 @@ function Details({
                   }}
                 >
                   <Ionicons name={opt.icon} size={26} color={on ? colors.accent : colors.muted} />
-                  <Text style={{ fontFamily: font.extra, fontSize: wide ? 19 : 16, color: colors.ink }}>{opt.title}</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 16, color: colors.ink }}>{opt.title}</Text>
                   <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted }}>{opt.sub}</Text>
                 </TouchableOpacity>
               );
@@ -527,7 +528,7 @@ function Details({
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
               accessibilityLabel="Mobile number"
-              style={[field, { fontFamily: font.extra, fontSize: wide ? 24 : 19, color: colors.ink }]}
+              style={[field, { fontFamily: font.extra, fontSize: kx.wide ? kx.s(24) : 19, color: colors.ink }]}
             />
           </View>
         )}
@@ -540,9 +541,9 @@ function Details({
   );
 }
 
-function Ticket({ ticket, serviceName, notify, onDone, wide }: {
+function Ticket({ ticket, serviceName, notify, onDone, kx }: {
   ticket: WalkInTicket; serviceName: string; notify: Notify | null;
-  onDone: () => void; wide: boolean;
+  onDone: () => void; kx: KioskScale;
 }) {
   const [left, setLeft] = useState(RESET_SECONDS);
   useEffect(() => {
@@ -557,36 +558,36 @@ function Ticket({ ticket, serviceName, notify, onDone, wide }: {
   const wait = Math.round(num(ticket.estimated_wait_minutes));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: wide ? 44 : 22, flexGrow: 1, justifyContent: 'center' }}>
-      <View style={{ flexDirection: wide ? 'row' : 'column', gap: 22, alignItems: 'stretch' }}>
+    <ScrollView contentContainerStyle={{ padding: kx.wide ? kx.s(44) : 22, flexGrow: 1, justifyContent: 'center' }}>
+      <View style={{ flexDirection: kx.wide ? 'row' : 'column', gap: 22, alignItems: 'stretch' }}>
         <View style={{
-          flex: wide ? 1 : undefined, backgroundColor: colors.dark, borderRadius: 28,
-          padding: wide ? 40 : 28, alignItems: 'center', ...shadow.hero,
+          flex: kx.wide ? kx.s(1) : undefined, backgroundColor: colors.dark, borderRadius: 28,
+          padding: kx.wide ? kx.s(40) : 28, alignItems: 'center', ...shadow.hero,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="checkmark-circle" size={26} color={colors.accent} />
-            <Text style={{ fontFamily: font.extra, fontSize: wide ? 19 : 16, color: '#fff' }}>You're In The Line</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 16, color: '#fff' }}>You're In The Line</Text>
           </View>
 
           <Text style={{
-            fontFamily: font.extra, fontSize: wide ? 90 : 60, color: '#fff',
+            fontFamily: font.extra, fontSize: kx.wide ? kx.s(90) : 60, color: '#fff',
             letterSpacing: -2.6, marginTop: 18,
           }}>
             {ticket.ticket_number}
           </Text>
           {!!ticket.guest_name && (
-            <Text style={{ fontFamily: font.bold, fontSize: wide ? 22 : 17, color: 'rgba(255,255,255,.72)', marginTop: 6 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: kx.wide ? kx.s(22) : 17, color: 'rgba(255,255,255,.72)', marginTop: 6 }}>
               {ticket.guest_name}
             </Text>
           )}
 
-          <View style={{ flexDirection: 'row', gap: wide ? 54 : 34, marginTop: 26 }}>
+          <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(54) : 34, marginTop: 26 }}>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontFamily: font.extra, fontSize: wide ? 34 : 26, color: '#fff' }}>{ticket.position}</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 26, color: '#fff' }}>{ticket.position}</Text>
               <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>Place In Line</Text>
             </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontFamily: font.extra, fontSize: wide ? 34 : 26, color: '#fff' }}>~{wait} min</Text>
+              <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 26, color: '#fff' }}>~{wait} min</Text>
               <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.55)', marginTop: 3 }}>Estimated Wait</Text>
             </View>
           </View>
@@ -596,11 +597,11 @@ function Ticket({ ticket, serviceName, notify, onDone, wide }: {
           </Text>
         </View>
 
-        <View style={{ flex: wide ? 1 : undefined, justifyContent: 'center', gap: 16 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: wide ? 32 : 24, color: colors.ink, letterSpacing: -0.6 }}>
+        <View style={{ flex: kx.wide ? kx.s(1) : undefined, justifyContent: 'center', gap: 16 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(32) : 24, color: colors.ink, letterSpacing: -0.6 }}>
             Keep This Number
           </Text>
-          <Text style={{ fontFamily: font.semibold, fontSize: wide ? 17 : 14.5, color: colors.muted, lineHeight: 24 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(17) : 14.5, color: colors.muted, lineHeight: 24 }}>
             {notify === 'sms'
               ? "We'll text you a few minutes before you're called, so you can wait nearby."
               : 'Watch the screens in the lobby — your number and name appear when it\'s your turn.'}
@@ -643,11 +644,10 @@ function Ticket({ ticket, serviceName, notify, onDone, wide }: {
 
 export default function KioskScreen() {
   const topPad = useTopPad(0);
-  const { width } = useWindowDimensions();
-  /* One breakpoint, and it is about reading distance rather than device class:
-     a tablet on a stand is read from further away than a phone in a hand, so
-     the type and the targets both grow. */
-  const wide = width >= 700;
+  /* Reading distance, not device class — and continuously, not once. See
+     useKioskScale: a 13-inch iPad and an iPad mini used to draw at identical
+     sizes because a single 700pt breakpoint cannot tell them apart. */
+  const kx = useKioskScale();
 
   const { kiosk } = useAuth();
   /* kiosk CAN be null for one frame — signing out clears it before this screen
@@ -718,14 +718,14 @@ export default function KioskScreen() {
       <Chrome step={step} org={org} branch={branch} onHome={reset} />
 
       {step === 'welcome' && (
-        <Welcome org={org} branch={branch} wide={wide} onStart={() => setStep('service')} />
+        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('service')} />
       )}
 
       {step === 'service' && (
         servicesQuery.isLoading ? (
-          <View style={{ padding: wide ? 44 : 22 }}><SkeletonRows count={5} /></View>
+          <View style={{ padding: kx.wide ? kx.s(44) : 22 }}><SkeletonRows count={5} /></View>
         ) : servicesQuery.error ? (
-          <View style={{ padding: wide ? 44 : 22 }}>
+          <View style={{ padding: kx.wide ? kx.s(44) : 22 }}>
             <ErrorCard
               title="Services unavailable"
               message="This terminal could not reach the branch. A staff member can still add you at the desk."
@@ -735,7 +735,7 @@ export default function KioskScreen() {
         ) : (
           <ChooseService
             services={services}
-            wide={wide}
+            kx={kx}
             onBack={reset}
             onPick={(id) => { setServiceId(id); setStep('confirm'); }}
           />
@@ -743,7 +743,7 @@ export default function KioskScreen() {
       )}
 
       {step === 'confirm' && selected && (
-        <Confirm svc={selected} wide={wide} onBack={() => setStep('service')} onNext={() => setStep('details')} />
+        <Confirm svc={selected} kx={kx} onBack={() => setStep('service')} onNext={() => setStep('details')} />
       )}
 
       {step === 'details' && (
@@ -751,7 +751,7 @@ export default function KioskScreen() {
           name={name} setName={setName}
           phone={phone} setPhone={setPhone}
           notify={notify} setNotify={setNotify}
-          busy={issue.isPending} error={error} wide={wide}
+          busy={issue.isPending} error={error} kx={kx}
           onBack={() => { setError(''); setStep('confirm'); }}
           onDone={() => { setError(''); issue.mutate(); }}
         />
@@ -762,7 +762,7 @@ export default function KioskScreen() {
           ticket={issued.ticket}
           serviceName={issued.serviceName}
           notify={notify}
-          wide={wide}
+          kx={kx}
           onDone={reset}
         />
       )}
