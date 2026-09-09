@@ -30,6 +30,7 @@ const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
+const { isTestVerificationCode } = require('../utils/testVerificationCode');
 
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
@@ -87,13 +88,21 @@ const walkInSchema = z.object({
 
 const updateStatusSchema = z.object({
   new_status: z.enum(['called', 'in_service', 'served', 'left', 'cancelled', 'no_show'], {
-    errorMap: () => ({ message: 'new_status must be one of: called, in_service, served, left, cancelled, no_show' }),
+    /* `error`, not `errorMap` — zod 4 renamed it, so the custom message was
+       being dropped and callers got the library's own "Invalid option:
+       expected one of ..." instead, which never names the field. On a 400 the
+       field name is the only part that tells you what to fix. */
+    error: 'new_status must be one of: called, in_service, served, left, cancelled, no_show',
   }),
   verification_code: z.string().max(12).optional(),
   call_timeout_seconds: z.number().int().min(MIN_CALL_TIMEOUT_SECONDS).max(MAX_CALL_TIMEOUT_SECONDS).optional(),
   notes: z.string().max(1000).optional(),
   readiness_outcome: z.enum(['ready', 'incomplete']).optional(),
   readiness_note: z.string().trim().max(255).optional(),
+  /* Why a visit ended without being finished. Validated against
+     INCOMPLETE_REASONS below rather than as an enum here, so the reason list
+     lives in one place next to the comment explaining what it means. */
+  closed_reason: z.string().trim().max(40).optional(),
 });
 
 function periodCondition(period, month) {
@@ -429,6 +438,13 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
               t.completed_at, t.call_timeout_seconds, t.call_expires_at,
               t.served_by_staff_id, t.served_at_counter_id,
               t.readiness_shown_at, t.readiness_outcome, t.readiness_note,
+              /* How they got into this line, and whether they have been called
+                 before. The desk had neither: every row looked the same whether
+                 the person walked up to a kiosk or joined from a bus, and a
+                 clerk could not tell a first call from a third. */
+              t.channel, t.guest_name,
+              (SELECT COUNT(*) FROM queue_events e
+                WHERE e.ticket_id = t.id AND e.new_status = 'called') AS call_count,
               (SELECT COUNT(*) FROM service_readiness sr
                 WHERE sr.service_id = q.service_id AND sr.is_active = TRUE) AS readiness_item_count,
               u.full_name AS user_name, u.phone AS user_phone,
@@ -481,6 +497,11 @@ router.get('/history', requireAuth, requireStaffRole('line_staff', 'manager', 'e
 
     const [rows] = await pool.query(
       `SELECT t.id, t.ticket_number, t.status, t.position, t.joined_at, t.called_at,
+              /* Without closed_reason the desk's own history could not tell a
+                 finished visit from one the clerk ended unfinished — it showed
+                 "Served" for both, including for visits that same clerk had
+                 just marked incomplete a minute earlier. */
+              t.closed_reason, t.readiness_outcome,
               t.started_serving_at, t.completed_at, t.call_timeout_seconds, t.call_expires_at,
               u.full_name AS user_name,
               q.id AS queue_id, q.queue_date,
@@ -549,6 +570,10 @@ router.get('/active', requireAuth, async (req, res) => {
 
     const ticket = rows[0];
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
+    /* verification_code stays: this is the caller's own ticket and the code is
+       the thing they hold up at the counter. The guest token does not — see
+       GET /:id. */
+    delete ticket.guest_access_token;
     res.json({
       ...ticket,
       estimated_wait_minutes: liveTicketWait(ticket),
@@ -709,8 +734,17 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
     const isNext = ticket.status === 'waiting' && ticket.waiting_position === 1;
 
     if (req.dbStaff) {
+      /* The clerk must be TOLD the code by the person in front of them — that
+         is the whole check. Showing it on their screen would let them serve
+         anybody. The customer keeps theirs; it is what they read out. */
       delete ticket.verification_code;
     }
+
+    /* Nobody reads this from a fetch. It is a bearer credential for
+       GET /tickets/guest/:token, handed to a guest once when they check in, and
+       anyone holding it can open that ticket without signing in — including a
+       clerk who was only supposed to see the line. */
+    delete ticket.guest_access_token;
 
     res.json({
       ...ticket,
@@ -721,6 +755,97 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch ticket.' });
+  }
+});
+
+/**
+ * PUT /api/tickets/:id/leave-reason — why somebody walked.
+ *
+ * Separate from /leave on purpose. Leaving a queue is the moment a person is
+ * least patient with this app, and putting a form in front of the exit both
+ * delays them and biases the answer toward whatever is quickest to tap. So they
+ * leave first and are asked afterwards, with a skip.
+ *
+ * Which means this has to accept a ticket that is ALREADY closed — the ordinary
+ * status guards do not apply, and the ones that matter here are different:
+ *
+ *   • Only a ticket that actually left. A reason on a served ticket is a
+ *     different question with the same column name.
+ *   • Only once. The first answer stands; a second call cannot overwrite it,
+ *     so a retry or a double-tap cannot rewrite history.
+ *   • Only for a day. After that the person is guessing, and a stale answer
+ *     attributed to a specific visit is worse than no answer.
+ *
+ * requireTicketAccess still gates it, so this is the ticket holder's own answer
+ * about their own visit.
+ */
+/**
+ * Why a visit ended at the desk without being finished.
+ *
+ * Stored in closed_reason on a ticket whose status is 'served' — the visit
+ * genuinely happened and took desk time, it just did not achieve what the
+ * person came for. Status is deliberately NOT changed: every completion-rate
+ * query in the product, and the ML training set behind them, counts 'served',
+ * and moving these rows out of it is an analytics change with its own migration
+ * that Debra has scheduled AFTER the demos.
+ *
+ * So the marker starts accumulating now and the counting changes later. When it
+ * does, the rule is already expressible without a new column: a served ticket
+ * carrying a closed_reason is one that did not complete. Service TIME still
+ * counts either way — the desk was occupied, and excluding it would skew every
+ * ETA in the product.
+ */
+const INCOMPLETE_REASONS = new Set([
+  'day_ended', 'wrong_documents', 'wrong_service', 'referred_elsewhere',
+  'customer_left', 'system_issue',
+]);
+
+const LEAVE_REASONS = new Set([
+  'wait_too_long', 'no_longer_needed', 'wrong_line', 'came_back_later', 'served_elsewhere', 'other',
+]);
+
+router.put('/:id/leave-reason', requireAuth, requireTicketAccess, async (req, res) => {
+  const reason = String(req.body?.reason || '').trim();
+  if (!LEAVE_REASONS.has(reason)) {
+    return res.status(400).json({ error: 'Unknown reason.' });
+  }
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, status, closed_reason, completed_at, joined_at FROM queue_tickets WHERE id = ? LIMIT 1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const ticket = rows[0];
+
+    if (ticket.status !== 'left') {
+      return res.status(400).json({ error: 'Only a ticket that left the queue can carry a leaving reason.' });
+    }
+    if (ticket.closed_reason) {
+      // Not an error: the answer is already recorded and the client can stop.
+      return res.json({ recorded: false, reason: ticket.closed_reason });
+    }
+
+    const [ok] = await pool.query(
+      `UPDATE queue_tickets
+          SET closed_reason = ?
+        WHERE id = ? AND status = 'left' AND closed_reason IS NULL
+          AND joined_at > NOW() - INTERVAL 1 DAY`,
+      [reason, ticket.id]
+    );
+    if (!ok.affectedRows) {
+      return res.status(409).json({ error: 'This visit is too old to add a reason to.' });
+    }
+
+    await pool.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, notes)
+       VALUES (?, ?, 'left', 'left', ?)`,
+      [uuidv4(), ticket.id, `Left because: ${reason}`]
+    );
+
+    res.json({ recorded: true, reason });
+  } catch (err) {
+    console.error('leave-reason error:', err);
+    res.status(500).json({ error: 'Could not record that reason.' });
   }
 });
 
@@ -772,7 +897,7 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
   try {
     await conn.beginTransaction();
 
-    const { new_status, verification_code, notes, readiness_outcome, readiness_note } = parsed.data;
+    const { new_status, verification_code, notes, readiness_outcome, readiness_note, closed_reason } = parsed.data;
 
     const [tickets] = await conn.query(
       `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name,
@@ -811,6 +936,14 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
         error: 'Record whether the member was ready before completing this visit.',
       });
     }
+    if (closed_reason && new_status !== 'served') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'A reason for an unfinished visit belongs on the completing step.' });
+    }
+    if (closed_reason && !INCOMPLETE_REASONS.has(closed_reason)) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Unknown reason for an unfinished visit.' });
+    }
     if (readiness_outcome === 'incomplete' && (!readiness_note || readiness_note.trim().length < 3)) {
       await conn.rollback();
       return res.status(400).json({
@@ -825,9 +958,17 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       await conn.rollback();
       return res.status(400).json({ error: 'Ticket verification code is required to start service.' });
     }
-    if (new_status === 'in_service' && verification_code.trim().toUpperCase() !== ticket.verification_code) {
+    if (new_status === 'in_service' && verification_code.trim().toUpperCase() !== ticket.verification_code
+        && !isTestVerificationCode(verification_code)) {
       await conn.rollback();
       return res.status(403).json({ error: 'Invalid ticket verification code.' });
+    }
+    if (new_status === 'in_service' && isTestVerificationCode(verification_code)
+        && verification_code.trim().toUpperCase() !== ticket.verification_code) {
+      /* Loud on purpose. A code that skips customer verification is the kind of
+         thing that gets switched on for a demo and quietly forgotten, so every
+         use leaves a line in the log naming the ticket and the staff member. */
+      console.warn(`[verification-bypass] ticket=${ticket.id} staff=${req.dbStaff?.id || 'unknown'} — served without the customer's code`);
     }
 
     const now = new Date();
@@ -843,12 +984,23 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       extraFields = ', started_serving_at = ?, served_by_staff_id = ?, served_at_counter_id = COALESCE(?, served_at_counter_id)';
       extraParams = [now, req.dbStaff?.id || null, activeCounterId];
     } else if (new_status === 'served') {
-      extraFields = ', completed_at = ?';
-      extraParams = [now];
+      /* Stamp who closed it, not just when.
+       *
+       * served_by_staff_id was written on the call and the in_service
+       * transitions only. A ticket that arrives already in_service — every
+       * seeded one does — and is simply completed therefore had no staff
+       * against it at all, so the record could not say who dealt with the
+       * person. COALESCE keeps whoever called them if that is already set. */
+      extraFields = ', completed_at = ?, served_by_staff_id = COALESCE(served_by_staff_id, ?)';
+      extraParams = [now, req.dbStaff?.id || null];
       if (readiness_outcome) {
         extraFields += ', readiness_outcome = ?, readiness_note = ?';
         extraParams.push(readiness_outcome, readiness_outcome === 'incomplete' ? readiness_note.trim() : null);
       }
+      /* Null on a normal completion, so "finished" stays the absence of a
+         reason rather than a second value to remember to clear. */
+      extraFields += ', closed_reason = ?';
+      extraParams.push(closed_reason || null);
     } else if (new_status === 'no_show') {
       extraFields = ', completed_at = ?';
       extraParams = [now];
@@ -1001,8 +1153,23 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     const [updated] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
-    broadcast(ticket.queue_id, updated[0]);
-    res.json(updated[0]);
+    /* SELECT * includes verification_code, and this route is staff-only.
+     *
+     * That code exists so the CUSTOMER can prove the ticket is theirs — they
+     * read it out, the clerk types it, and the server checks it. Returning it
+     * in the response to Call handed the clerk the answer to the question they
+     * are supposed to be asking, so a service could be started, and a visit
+     * recorded as served, with nobody standing at the counter. The list and
+     * single-ticket endpoints already withhold it; this one did not, and it
+     * also went out over SSE to every subscriber on the queue.
+     *
+     * The customer still sees their own code: it comes from /tickets/active
+     * and their own ticket, both scoped to them. */
+    // Renamed on the way out: `verification_code` is already bound in this
+    // scope from the request body, which is the code the CLERK typed.
+    const { verification_code: _customerCode, ...staffSafe } = updated[0];
+    broadcast(ticket.queue_id, staffSafe);
+    res.json(staffSafe);
   } catch (err) {
     await conn.rollback();
     console.error(err);

@@ -17,12 +17,16 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
+import { useContentColumn } from '../../lib/stage';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
+import { AuthMotifFrame } from '../../components/AuthMotifFrame';
+import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 
 
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
 
 export default function SignupScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(72);
   const navigation = useNavigation<any>();
   const { signUp } = useAuth();
@@ -71,9 +75,10 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
+      <AuthMotifFrame />
+
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* top motif */}
+        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }, column]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
             <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
@@ -139,13 +144,15 @@ export default function SignupScreen() {
             )}
           </TouchableOpacity>
 
+          <SocialAuthButtons />
+
           <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
           </TouchableOpacity>
           </>
           )}
 
-          {/* bottom motif */}        </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <CalendarSheet visible={calendarOpen} value={dob} onClose={() => setCalendarOpen(false)} onSelect={(d) => { setDob(d); setCalendarOpen(false); }} />
@@ -155,7 +162,9 @@ export default function SignupScreen() {
 
 const makeStyles = () => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 40 },
+  /* paddingBottom clears the docked bottom motif — at 40 the last row of the
+     form ended underneath the fade instead of above it. */
+  inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 150 },
 
   logo: {
     width: 58, height: 58, borderRadius: 20, alignSelf: 'center',

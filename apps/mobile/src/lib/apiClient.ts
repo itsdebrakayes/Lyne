@@ -98,10 +98,27 @@ async function request<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.error || err.message || `HTTP ${res.status}`);
+    /* Carry the status on the error.
+       "The server refused you" and "the server could not be reached" are
+       different problems with opposite correct responses — sign the person out
+       for the first, keep their session for the second — and a bare Error
+       makes them indistinguishable at the catch site. A transport failure
+       never gets this far, so an error WITHOUT a status is a connectivity
+       failure by construction. */
+    throw Object.assign(
+      new Error(err.error || err.message || `HTTP ${res.status}`),
+      { status: res.status },
+    );
   }
 
   return res.json() as Promise<T>;
+}
+
+/** True when a request never reached the server, as opposed to being refused
+ *  by it. See the throw site above for why the absence of a status is the
+ *  signal. */
+export function isOffline(error: unknown): boolean {
+  return error instanceof Error && typeof (error as { status?: number }).status !== 'number';
 }
 
 const api = {

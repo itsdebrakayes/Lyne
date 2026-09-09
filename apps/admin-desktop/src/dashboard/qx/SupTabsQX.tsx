@@ -18,13 +18,14 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, ChevronDown, Clock, Coffee, Headphones, Mail,
-  MessageSquare, Users, Zap,
+  MessageSquare, Users, Zap, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Focus, Note, Heatmap,
   Chip, Ring, Selection, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
+import { replayTour } from '../../hooks/useTour';
 
 /* ══════════════════════ types ══════════════════════ */
 export type SupDesk = {
@@ -44,6 +45,8 @@ export type SupTargetRow = {
 };
 
 export type SupTabData = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   sectionName: string; branchName: string; supervisorName: string;
   desks: SupDesk[];
   staff: SupStaff[];
@@ -588,8 +591,11 @@ export function SupSupportTab() {
         <Card title="Ask Your Manager" cap="For anything set above this section">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Manager</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
         </Card>
         <Card title="This Section" cap="Useful when reporting a problem">
@@ -720,6 +726,10 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <Stat span={3} icon={Clock} tone={avgWait > 30 ? 'bad' : 'primary'} label="Average Wait"
         value={avgWait} unit="min" foot="From joining this section's line to being called"
         spark={{ values: d.sparks.wait, tone: avgWait > 30 ? 'bad' : 'primary' }} />
+      {/* Deliberately NOT period-labelled. `served` is summed from the staff
+          productivity feed — what the people currently on shift have finished
+          today — not from the summary window. Naming a date range over it would
+          describe the number as something it is not. */}
       <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={served}
         foot="Finished at a desk in this section"
         spark={{ values: d.sparks.served }} />
@@ -728,7 +738,12 @@ export function SupOverviewQX({ onNav }: { onNav: (k: string) => void }) {
         foot={covered < d.desks.length ? `${d.desks.length - covered} sitting empty` : 'Every desk is covered'}
         spark={{ values: d.sparks.covered, tone: 'warn' }} />
 
-      <Card span={8} title="Desk Assignment"
+      {/* fitcontent: the grid stretches every cell to the tallest in the row, and
+          the column beside this one (Unassigned + Do This Next) is much taller.
+          A branch with eleven desks left roughly 300px of blank card underneath
+          the last lane — which reads as a panel that failed to load, not as
+          spare room. This card is now as tall as what is in it. */}
+      <Card span={8} className="qs-fitcontent" title="Desk Assignment"
         cap={picked ? 'Now tap a desk to put them on it' : 'Tap someone, then tap a desk. Busiest services first.'}
         tools={<button type="button" className="qx-btn ghost" onClick={() => onNav('desks')}>Open Full Board</button>}>
         {/* Scrolls rather than growing without limit — a branch can have 25

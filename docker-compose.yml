@@ -28,7 +28,16 @@ services:
       MYSQL_USER:          ${MYSQL_USER:-lyne}
       MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-lyne_secret}
     ports:
-      - "3307:3306"
+      # Bound to the loopback interface, not 0.0.0.0.
+      #
+      # "3307:3306" publishes on every interface the host has, so on any machine
+      # with a routable address — a laptop on cafe wifi, a cloud VM, a demo box
+      # at a client site — the database was listening to the network, defended
+      # only by a password that lives in a .env recoverable from git history.
+      # Nothing outside this machine has ever needed to reach it: the API talks
+      # to the container over the compose network, and local tooling connects
+      # through 127.0.0.1.
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       # Auto-run production schema + migrations on first start.
@@ -71,6 +80,13 @@ services:
       FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:8080}
       PORTAL_HANDOFF_SECRET: ${PORTAL_HANDOFF_SECRET}
       ALLOWED_ORIGINS:      ${ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
+      # Unset means the shipped default (10 per 15 min per IP). Raised only for
+      # local end-to-end runs, which sign in far more often than a person does.
+      AUTH_RATE_LIMIT_MAX:  ${AUTH_RATE_LIMIT_MAX:-}
+      # Number of proxies in front of this server, or a list of proxy
+      # addresses. Empty means "nothing in front of us", which is right
+      # for local and for a directly exposed server. See src/index.js.
+      TRUST_PROXY:          ${TRUST_PROXY:-}
     ports:
       - "4000:4000"
     networks:

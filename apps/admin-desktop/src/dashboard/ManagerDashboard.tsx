@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone, ClipboardCheck, CalendarClock,
+  UserSearch,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '../hooks/useAdminAuth';
@@ -20,11 +21,14 @@ import { Sparkline, Area, Card, Rec, Empty, type NavItem } from './kit';
 import { num, fmtN, pct, titleCase, insightData, demandBranches, dailyRollup, clockLabel, timeLabel, deriveOpsAlerts } from './insights';
 import { ReportDoc, ReportSection, ReportKpis, ReportTable } from './report';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
+import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
+import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -40,6 +44,7 @@ const NAV: NavItem[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
   { key: 'staff', label: 'Staff & Counters', icon: Users },
   { key: 'services', label: 'Services', icon: Waypoints },
+  { key: 'cases', label: 'Customer Cases', icon: UserSearch },
   { key: 'readiness', label: 'Readiness', icon: ClipboardCheck },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
@@ -76,13 +81,23 @@ export default function ManagerDashboard() {
   const preds = d.predictions as any[];
 
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
+  /* `last` stays the most recent day. It is still the right source for the
+     things that genuinely mean "right now" — the live counters, who is on
+     shift — which must not move when somebody looks back at last week. */
   const last = summary[summary.length - 1] || {};
-  const servedSeries = summary.slice(-7).map((s) => num(s.completed_count));
 
   // Contextual search — only on tabs with a list to filter.
   const [q, setQ] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  /* The pills were decorative: `period` was written by the control and read by
+     nothing, and the chip beside it printed a hardcoded today that never
+     changed. Every headline number came from `last` — one single day — so there
+     was no period for a period control to select. */
   const [period, setPeriod] = useState('today');
+  const [anchor, setAnchor] = useState(today());
+  const win = useMemo(() => makeWindow(anchor, windowDaysOf(period)), [anchor, period]);
+  const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
+  const servedSeries = windowRows.map((s) => num(s.completed_count));
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   useEffect(() => { setQ(''); }, [tab]);
@@ -108,10 +123,17 @@ export default function ManagerDashboard() {
      issued — which is neither the achieved wait nor the current projection, and
      it was quietly powering both the Overview headline and the Targets tab.
      The forward-looking number now lives on the floor board, where it belongs. */
-  const achievedWait = Math.round(num(last.avg_wait_time_minutes));
-  const completed = num(last.completed_count);
-  const totalToday = num(last.total_visitors) || completed + num(last.no_show_count);
-  const noShows = num(last.no_show_count);
+  /* Aggregated across the selected window rather than read off one day. With
+     the default "Today" window these are identical to what they were, so the
+     dashboard opens exactly as it did — the difference only appears once
+     somebody actually picks a period, which is the point. */
+  const sumIn = (k: string) => windowRows.reduce((t, s: any) => t + num(s[k]), 0);
+  const achievedWait = windowRows.length
+    ? Math.round(windowRows.reduce((t, s: any) => t + num(s.avg_wait_time_minutes), 0) / windowRows.length)
+    : 0;
+  const completed = sumIn('completed_count');
+  const totalToday = sumIn('total_visitors') || completed + sumIn('no_show_count');
+  const noShows = sumIn('no_show_count');
   // The manager measures against their OWN branch target (which overlays the
   // company target); it falls back to the company target until they set one.
   const target = d.effectiveTarget;
@@ -148,6 +170,7 @@ export default function ManagerDashboard() {
 
   /* Everything the ported manager screens read, mapped from the live layer. */
   const liveData = useMemo(() => buildMgrData({
+    periodLabel: win.days > 1 ? labelFor(win) : undefined,
     branchName, org, managerName: d.admin?.name || '',
     queues: d.queues as any[], services: d.services as any[], staff: d.staff as any[],
     productivity: d.productivity, counters: d.counters as any[], demandHourly: d.demandHourly as any[], demandWeekly: d.demandWeekly as any[],
@@ -281,7 +304,7 @@ export default function ManagerDashboard() {
           sub={tab === 'overview'
             ? `Here's what's happening on the floor at ${branchName}.`
             : (MGR_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
             {/* Only show the period pill on tabs it actually drives.
                   · readiness — has its own Today/Week/Month control
@@ -293,7 +316,9 @@ export default function ManagerDashboard() {
                                 the pack said Last 30 Days) */}
             {!['readiness', 'sessions', 'busy', 'reports'].includes(tab) ? <QxPills value={period} onChange={setPeriod}
               options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
-            <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+            {['readiness', 'sessions', 'busy', 'reports'].includes(tab)
+              ? <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
+              : <DateWindowChip window={win} onChange={setAnchor} />}
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
@@ -308,6 +333,7 @@ export default function ManagerDashboard() {
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} />
           : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
             : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
     </QxShell>
@@ -870,8 +896,8 @@ export function SupportTab({ role, topics }: { role: string; topics: HelpTopic[]
         ))}
       </Card>
       <Card span={5} title="Contact Lyne Support" cap="We Reply Within One Business Day">
-        <a className="qa-contact" href="mailto:support@uselyne.com">
-          <i><Mail size={16} /></i><span><b>support@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
+        <a className="qa-contact" href="mailto:customersupport@uselyne.com">
+          <i><Mail size={16} /></i><span><b>customersupport@uselyne.com</b><small>Email us — best for questions with screenshots</small></span>
         </a>
         <a className="qa-contact" href="tel:+18765550199">
           <i><Phone size={16} /></i><span><b>+1 (876) 555-0199</b><small>Call us — best when a line is down</small></span>

@@ -2,15 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { colors, font, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, font, shadow, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
+import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import BestTimeCard from '../../components/BestTimeCard';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
+import { Press } from '../../components/Press';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -90,6 +92,8 @@ function PickerSheet<T extends { id: string }>({
 }
 
 export default function BranchScreen() {
+  const column = useContentColumn();
+  const barColumn = useContentColumnInner();
   const topPad = useTopPad(14);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
@@ -195,75 +199,64 @@ export default function BranchScreen() {
   const arriveLabel = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.dark }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 48 }} showsVerticalScrollIndicator={false}
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* heading row */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingTop: 8, paddingBottom: 26 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 20 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="back" size={21} color="#fff" />
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name="back" size={20} color={colors.ink} />
           </TouchableOpacity>
-          <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 32, color: '#fff', letterSpacing: -1.2, lineHeight: 35 }}>
-            Let&apos;s get you{'\n'}in line
+          <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 22, color: colors.ink, letterSpacing: -0.6 }}>
+            Choose your line
           </Text>
           <TouchableOpacity onPress={() => toggleSave.mutate()} disabled={toggleSave.isPending}
             accessibilityRole="button" accessibilityLabel={isSaved ? 'Remove from saved' : 'Save this agency'}
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={isSaved ? 'bookmarkFilled' : 'bookmark'} size={20} color="#fff" />
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
+            <Icon name={isSaved ? 'bookmarkFilled' : 'bookmark'} size={19} color={colors.ink} />
           </TouchableOpacity>
         </View>
 
-        {/* branch → service, both editable */}
+        {/* Branch only. The service used to be a second dropdown ABOVE a list of
+            the same services, so the one decision on this screen was offered
+            twice in two shapes, and choosing in the sheet left the list looking
+            unchosen. The list is the choice now; the branch is the context. */}
         <PickerField
           label="Branch"
           value={branch?.name || branchName || 'Choose a branch'}
-          // openInfo.detail already reads "Open until 11:59 pm", so prefixing it
-          // with "open" produced "Kingston · open · open until 11:59 pm".
           hint={[branch?.city, openInfo.detail].filter(Boolean).join(' · ')}
           onPress={() => setBranchPicker(true)}
         />
-        <View style={{ height: 12 }}>
-          <View style={{ position: 'absolute', right: 20, top: -24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 5, borderColor: colors.dark, alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-            <Icon name="arrowDown" size={22} color={colors.ink} />
-          </View>
-        </View>
-        <PickerField
-          label="Service"
-          value={selected?.name || 'Choose a service'}
-          hint={services.length ? `${services.length} available today` : undefined}
-          onPress={() => setServicePicker(true)}
-        />
 
         {/* arriving */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 }}>
-          <View style={{ backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 16 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.75)' }}>Arriving</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+          <View style={{ backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 15 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.75)' }}>ARRIVING</Text>
             <Text style={{ fontFamily: font.extra, fontSize: 14, color: '#fff', marginTop: 2 }}>Now · {arriveLabel}</Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => navigation.navigate('Plan', { businessId, branchId })}
             accessibilityRole="button" accessibilityLabel="Plan a later visit"
-            style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.3)', borderRadius: 16, paddingVertical: 11, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 9 }}
+            style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 8 }}
           >
-            <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.4)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: 'rgba(255,255,255,.65)', fontFamily: font.extra, fontSize: 14, lineHeight: 16 }}>+</Text>
-            </View>
-            <Text style={{ fontFamily: font.bold, fontSize: 14, color: 'rgba(255,255,255,.65)' }}>Later</Text>
+            <Icon name="clock" size={16} color={colors.muted} />
+            <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Later</Text>
           </TouchableOpacity>
         </View>
 
-        {/* open lines */}
-        <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', letterSpacing: -0.5, marginTop: 24, marginBottom: 13 }}>Open lines</Text>
+        <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4, marginTop: 26, marginBottom: 12 }}>
+          {services.length ? `${services.length} lines open` : 'Lines'}
+        </Text>
 
-        {servicesQuery.isLoading && <SkeletonCard height={150} />}
+        {servicesQuery.isLoading && <SkeletonCard height={120} />}
         {!!servicesQuery.error && !servicesQuery.isLoading && (
           <ErrorCard title="Services unavailable" message="This branch's live services could not be loaded." onRetry={() => servicesQuery.refetch()} />
         )}
         {!servicesQuery.isLoading && !servicesQuery.error && services.length === 0 && (
-          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 24, alignItems: 'center' }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 24, alignItems: 'center', ...shadow.card }}>
             <Icon name="clock" size={28} color={colors.muted} />
             <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, marginTop: 12 }}>No open lines right now</Text>
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
@@ -272,59 +265,148 @@ export default function BranchScreen() {
           </View>
         )}
 
-        {lines.map(s => {
-          const on = s.id === selected?.id;
-          const wait = svcWait(s);
-          return (
-            <TouchableOpacity
-              key={s.id}
-              activeOpacity={0.9}
-              onPress={() => (on ? seeLine(s) : setSelectedId(s.id))}
-              accessibilityRole="button"
-              accessibilityLabel={`${s.name}, ${Number(s.waiting_count || 0)} in line, about ${wait} minutes`}
-              style={{ backgroundColor: on ? colors.accent : colors.surface, borderRadius: 22, paddingVertical: 17, paddingHorizontal: 19, marginBottom: 12 }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 11, letterSpacing: 0.5, color: on ? 'rgba(255,255,255,.72)' : colors.muted }}>
-                    {joinState.allowed ? (on ? 'TAP AGAIN TO SEE THE LINE' : 'JOIN NOW') : joinState.label.toUpperCase()}
-                  </Text>
-                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.8, marginTop: 3, color: on ? '#fff' : colors.ink }}>{s.name}</Text>
+        {/* One tap selects. The old card needed a second tap on an
+            already-selected row to advance, which is a rule you can only learn
+            by accident — the action lives in the bar at the bottom now, where
+            it is always visible and always says what it will do. */}
+        <View style={{ gap: 12 }}>
+          {lines.map((s, i) => {
+            const on = s.id === selected?.id;
+            const wait = svcWait(s);
+            const fastest = i === 0 && lines.length > 1 && joinState.allowed;
+            return (
+              <TouchableOpacity
+                key={s.id}
+                activeOpacity={0.9}
+                onPress={() => setSelectedId(s.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${s.name}, ${Number(s.waiting_count || 0)} in line, about ${wait} minutes`}
+                style={{
+                  backgroundColor: colors.surface, borderRadius: 22,
+                  paddingVertical: 22, paddingHorizontal: 18,
+                  borderWidth: on ? 2 : 1, borderColor: on ? colors.accent : colors.borderSoft,
+                  ...shadow.card,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  {/* The chosen row says so with a mark, not only a border —
+                      a 2pt edge is easy to miss on a bright screen outdoors. */}
+                  <View style={{
+                    width: 26, height: 26, borderRadius: 13,
+                    borderWidth: on ? 0 : 1.5, borderColor: colors.border,
+                    backgroundColor: on ? colors.accent : 'transparent',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {on && <Icon name="check" size={15} color={colors.accentInk} />}
+                  </View>
+
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.4 }}>
+                        {s.name}
+                      </Text>
+                      {fastest && (
+                        <View style={{ backgroundColor: colors.dark, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3 }}>
+                          <Text style={{ fontFamily: font.extra, fontSize: 9.5, color: '#fff', letterSpacing: 0.4 }}>FASTEST</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 5 }}>
+                      {Number(s.waiting_count || 0)} in line
+                      {s.active_counters != null ? ` · ${Number(s.active_counters)} ${Number(s.active_counters) === 1 ? 'counter' : 'counters'} open` : ''}
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 26, color: colors.ink, letterSpacing: -0.9 }}>
+                      {joinState.allowed ? `${wait}` : '—'}
+                    </Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, letterSpacing: 0.4, marginTop: 1 }}>
+                      {joinState.allowed ? 'MIN' : ''}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: on ? '#fff' : colors.dark, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? colors.accent : '#fff' }}>{initials(branch?.business_name)}</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15, paddingTop: 14, borderTopWidth: 1, borderTopColor: on ? 'rgba(255,255,255,.22)' : colors.border }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 13, color: on ? 'rgba(255,255,255,.82)' : colors.muted }}>
-                  {Number(s.waiting_count || 0)} in line{s.active_counters != null ? ` · ${Number(s.active_counters)} counters` : ''}
-                </Text>
-                <Text style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.8, color: on ? '#fff' : colors.ink }}>
-                  {joinState.allowed ? `${wait} min` : '—'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {/* when to leave — only meaningful while the branch can actually be
             joined. Closed, it becomes advice to set off for a locked door. */}
         {!!selected && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 19, padding: 15, marginTop: 4 }}>
-            <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: 19, padding: 15, marginTop: 16, ...shadow.card }}>
+            <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="clock" size={17} color={colors.accent} />
             </View>
-            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)', lineHeight: 17 }}>
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, lineHeight: 17 }}>
               {joinState.allowed
-                ? <>Leave in <Text style={{ fontFamily: font.extra, color: '#fff' }}>~{leaveIn(selected)} min</Text> to reach the front on time. We&apos;ll remind you once you join.</>
+                ? <>Leave in <Text style={{ fontFamily: font.extra, color: colors.ink }}>~{leaveIn(selected)} min</Text> to reach the front on time. We&apos;ll remind you once you join.</>
                 : joinState.detail}
             </Text>
           </View>
         )}
 
-        {/* premium best-time recommendation (live model output) */}
-        <BestTimeCard businessId={businessId} branchId={branchId} onPlan={() => navigation.navigate('Plan', { businessId, branchId })} />
       </ScrollView>
+
+      <View style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30,
+        backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
+      }}>
+        <TouchableOpacity
+          style={barColumn}
+          onPress={() => seeLine(selected)}
+          disabled={!selected || !joinState.allowed}
+          activeOpacity={0.92}
+          accessibilityRole="button"
+          accessibilityLabel={
+            !selected ? 'Choose a line first'
+              : !joinState.allowed ? `Cannot join — ${joinState.label}`
+              : `See the line for ${selected.name}, about ${svcWait(selected)} minutes`
+          }
+          accessibilityState={{ disabled: !selected || !joinState.allowed }}
+        >
+          <LinearGradient
+            colors={selected && joinState.allowed
+              ? [colors.accentDeep, colors.dark]
+              : [colors.surfaceAlt, colors.surfaceAlt]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              minHeight: 78, borderRadius: 24, paddingLeft: 24, paddingRight: 16,
+              ...(selected && joinState.allowed ? shadow.hero : null),
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{
+                fontFamily: font.extra, fontSize: 19, letterSpacing: -0.4,
+                color: selected && joinState.allowed ? '#fff' : colors.muted,
+              }}>
+                {!selected ? 'Choose a line' : !joinState.allowed ? joinState.label : 'See the line'}
+              </Text>
+              <Text numberOfLines={1} style={{
+                fontFamily: font.semibold, fontSize: 13, marginTop: 3,
+                color: selected && joinState.allowed ? 'rgba(255,255,255,.66)' : colors.muted,
+              }}>
+                {/* Never a dead button with no explanation: the sub-line says
+                    why, in the same place it would otherwise say the wait. */}
+                {!selected ? 'Pick one above to continue'
+                  : !joinState.allowed ? joinState.detail
+                  : `${selected.name} · about ${svcWait(selected)} min`}
+              </Text>
+            </View>
+            <View style={{
+              width: 50, height: 50, borderRadius: 25,
+              backgroundColor: selected && joinState.allowed ? '#fff' : colors.border,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon name="arrowRight" size={21} color={selected && joinState.allowed ? colors.dark : colors.muted} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       {/* ── pickers ─────────────────────────────────────────────────── */}
       <PickerSheet

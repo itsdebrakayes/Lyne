@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { LineDataProvider, LineOverviewQX, lineTab, LINE_TAB_HEAD } from './qx/LineTabsQX';
 import { buildLineData } from './qx/lineLiveData';
 
@@ -87,6 +87,19 @@ export default function LineStaffDashboard() {
   const analytics = useQuery({ queryKey: ['ls-analytics', period], queryFn: () => api.get<Analytics>(`/analytics/line-staff?period=${period}`), enabled: !!admin, refetchInterval: 30_000 });
   const history = useQuery({ queryKey: ['ls-history', period, activeQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${activeQueue?.service_id ? `&service_id=${activeQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
 
+  /* Freshness for the header pill. This screen has its own queries rather than
+     useDashboardData, so the same derivation is repeated here: the OLDEST panel
+     on screen decides the label, because "Updated 14:32" has to be true of
+     everything the clerk can see — not just the 4-second ticket poll vouching
+     for a 30-second analytics panel that last failed. */
+  const lsQueries = [queues, ticketsQuery, analytics, history];
+  const lsLoaded = lsQueries.filter((q) => q.dataUpdatedAt > 0);
+  const lastUpdatedAt = lsLoaded.length ? Math.min(...lsLoaded.map((q) => q.dataUpdatedAt)) : 0;
+  const isFetching = lsQueries.some((q) => q.isFetching);
+  /* failureCount, not isError — see useDashboardData. A query that has ever
+     succeeded keeps status 'success' through every later failure. */
+  const hasError = lsQueries.some((q) => q.failureCount > 0);
+
   const tickets = ticketsQuery.data || [];
   const waiting = tickets.filter((t) => t.status === 'waiting').sort((a, b) => a.position - b.position);
   const called = tickets.find((t) => t.status === 'called');
@@ -104,7 +117,15 @@ export default function LineStaffDashboard() {
       kind === 'status' ? api.put(`/tickets/${id}/status`, body || {})
         : kind === 'skip' ? api.put(`/tickets/${id}/skip`, body || {})
           : api.put(`/tickets/${id}/${kind}`, body || {}),
-    onSuccess: async () => { setCode(''); setMsg('Queue updated.'); await qc.invalidateQueries(); },
+    /* Was a bare invalidateQueries() — no key, so every query in the cache
+       refetched on a single reorder, including panels the clerk is not looking
+       at. Scoped to what a reorder actually changes. */
+    onSuccess: async () => {
+      setCode('');
+      setMsg('Queue updated.');
+      await qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+      qc.invalidateQueries({ queryKey: ['ls-history'] });
+    },
     onError: (e) => setMsg(e instanceof Error ? e.message : 'The queue could not be updated.'),
   });
   const setStatus = (t: TicketRow | undefined, newStatus: string, body: Record<string, unknown> = {}) => { if (!t) return; setMsg(''); action.mutate({ id: t.id, kind: 'status', body: { new_status: newStatus, ...body } }); };
@@ -121,28 +142,103 @@ export default function LineStaffDashboard() {
      server answers with a 403 when it does not match.
 
      Every action refetches, so what the desk shows is what the database says. */
+  /* These keys were 'line-tickets' and 'line-history'. Nothing in the app has
+     ever used those names — the queries above are 'ls-tickets' and 'ls-history'
+     — so every desk action invalidated NOTHING and the board only caught up
+     when the 4-second poll came round. That is the whole "I pressed it, nothing
+     happened, I pressed it again and got an error in red" report: the second
+     press was a real second request, and the server correctly refused to call a
+     ticket that was already called.
+
+     Only the desk's own list is awaited. History is a 30-second panel nobody is
+     looking at mid-action; making the button wait for it doubled the delay for
+     nothing. */
   const refetchDesk = useCallback(async () => {
-    await qc.invalidateQueries({ queryKey: ['line-tickets'] });
-    await qc.invalidateQueries({ queryKey: ['line-history'] });
+    await qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+    qc.invalidateQueries({ queryKey: ['ls-history'] });
   }, [qc]);
 
   /* Deliberately a direct awaited call rather than the `action` mutation above:
      that one funnels failures into onError, and the desk needs a wrong code to
      REJECT so the six-box entry can show "does not match". */
   const deskStatus = useCallback(async (ticketId: string, body: Record<string, unknown>) => {
-    await api.put(`/tickets/${ticketId}/status`, body);
+    const listKey = ['ls-tickets', activeQueue?.id];
+    const nextStatus = typeof body.new_status === 'string' ? body.new_status : null;
+
+    /* Move the board first, then confirm — but ONLY where the outcome is not in
+       question. Calling, re-calling, no-showing and completing are decisions the
+       clerk is making; the server records them and cannot refuse.
+
+       Starting service is different: the server is adjudicating a code it has
+       and we do not. Guessing "serving" there would flash the stage to Serving
+       and snatch it back on every mistyped digit, which is worse than the
+       wait. So anything carrying a verification code stays pessimistic. */
+    const optimistic = nextStatus && !body.verification_code;
+    const previous = optimistic ? qc.getQueryData<TicketRow[]>(listKey) : undefined;
+
+    if (optimistic && previous) {
+      qc.setQueryData<TicketRow[]>(listKey, (rows) =>
+        (rows || []).map((r) => (r.id === ticketId ? { ...r, status: nextStatus } : r)));
+    }
+
+    try {
+      await api.put(`/tickets/${ticketId}/status`, body);
+    } catch (err) {
+      // Put the board back exactly as it was before re-throwing, or the desk is
+      // left showing a transition that never happened.
+      if (previous) qc.setQueryData(listKey, previous);
+      throw err;
+    }
     await refetchDesk();
-  }, [refetchDesk]);
+  }, [qc, refetchDesk, activeQueue?.id]);
+
+  /* Attendance is the caller's own — every one of these acts on the signed-in
+     staff member and nobody else. A supervisor clocking their team in is a
+     supervisor guessing, and the number is only worth having if the person it
+     describes pressed the button. */
+  /* The models run every two hours and wrote this for nobody — the generic
+     predictions route is supervisor-and-up, so the person doing the work could
+     not see the one prediction that is about them. /my-desk is scoped to their
+     own service. */
+  const deskForecast = useQuery({
+    queryKey: ['desk-forecast'],
+    queryFn: () => api.get<{
+      predicted: { minutes: number | null; basis: string; sample_size: number; model_version: string } | null;
+      actual: { served_today: number; avg_minutes: number | null };
+    }>('/predictions/my-desk'),
+    // The model refreshes on the hour scale; polling it faster is noise.
+    refetchInterval: 10 * 60_000,
+  });
+
+  const shift = useQuery({
+    queryKey: ['my-shift'],
+    queryFn: () => api.get<{ on_shift: boolean; on_break: boolean }>('/staff/me/shift'),
+    refetchInterval: 60_000,
+  });
+  const attendance = useCallback(async (path: string) => {
+    await api.post(`/staff/me/${path}`, {});
+    await qc.invalidateQueries({ queryKey: ['my-shift'] });
+    /* The board's coverage count is derived from who is present, so it is stale
+       the moment somebody clocks in or walks away. */
+    qc.invalidateQueries({ queryKey: ['ls-tickets'] });
+  }, [qc]);
 
   const deskActions = useMemo(() => ({
     onCall: (id: string) => deskStatus(id, { new_status: 'called' }),
     // The code travels to the server; a wrong one throws and the UI says so.
     onStartServing: (id: string, code: string) =>
       deskStatus(id, { new_status: 'in_service', verification_code: code }),
-    onComplete: (id: string, outcome?: 'ready' | 'incomplete', note?: string) => deskStatus(id, {
+    /* closedReason marks a visit that happened but did not achieve what the
+       person came for. Status stays 'served' on purpose — the desk time was
+       real, and every completion-rate query and the ML training set behind them
+       count that status. Separating the counts is a scheduled analytics change;
+       this starts recording the marker so there is history behind it when it
+       lands. */
+    onComplete: (id: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => deskStatus(id, {
       new_status: 'served',
       ...(outcome ? { readiness_outcome: outcome } : {}),
       ...(note ? { readiness_note: note } : {}),
+      ...(closedReason ? { closed_reason: closedReason } : {}),
     }),
     onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
     onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
@@ -159,6 +255,21 @@ export default function LineStaffDashboard() {
     tickets, history: history.data || [], analytics: a,
     onSince: '—', faq: LINE_FAQ,
   }), [admin, service, branch, tickets, history.data, a]);
+
+  const withShift = useMemo(() => ({
+    ...liveData,
+    ...deskActions,
+    /* undefined while the first read is in flight — the desk treats only an
+       explicit false as "closed", so it never flashes the clock-in gate at
+       somebody who is already on shift. */
+    deskForecast: deskForecast.data || null,
+    onShift: shift.data?.on_shift,
+    onBreak: Boolean(shift.data?.on_break),
+    onClockIn: () => attendance('clock-in'),
+    onBreakStart: () => attendance('break'),
+    onResume: () => attendance('resume'),
+    onClockOut: () => attendance('clock-out'),
+  }), [liveData, deskActions, shift.data, deskForecast.data, attendance]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';
@@ -203,7 +314,7 @@ export default function LineStaffDashboard() {
           sub={tab === 'live'
             ? `${branch}${service ? ` · ${service}` : ''} — here's your line.`
             : (LINE_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
-          live="Live"
+          live={<Freshness at={lastUpdatedAt} fetching={isFetching} failed={hasError} />}
           right={<>
             <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
             <button type="button" className="qx-btn ghost"
@@ -216,7 +327,7 @@ export default function LineStaffDashboard() {
     >
       {msg ? <div className="qx-note t-warn" style={{ marginBottom: 14 }}><b>{msg}</b></div> : null}
       {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
-      <LineDataProvider value={{ ...liveData, ...deskActions }}>
+      <LineDataProvider value={withShift}>
         {tab === 'live' ? <LineOverviewQX />
           : tab === 'readiness' ? <StaffReadinessWorkspace service={readinessServiceId ? { id: readinessServiceId, name: service || 'Assigned service' } : null} />
             : lineTab(tab, (k) => setTab(k))}

@@ -18,6 +18,7 @@ import { colors, font, shadow, t, initials, inputReset, personInitials, waitShor
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
+import { useContentColumn } from '../../lib/stage';
 import { useAuth } from '../../hooks/useAuth';
 import { TabBar } from '../../components/TabBar';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
@@ -52,7 +53,64 @@ const orgTag = (slug?: string, name?: string) => {
   return initials(name || '') || sl.toUpperCase().slice(0, 4);
 };
 
+/**
+ * A chip label somebody can actually read.
+ *
+ * The filter row was a line of acronyms — KSA, FHC, CFC, PICA, TAJ, NHT, UTECH,
+ * UWI — which is a row of eight things a person has to already know to use. A
+ * few are common currency in Jamaica (TAJ, NHT, PICA); most are not, and "FHC"
+ * or "CFC" tells a first-time user nothing at all about which one to tap.
+ *
+ * So the name leads, trimmed of the words that make every entry look alike.
+ * "Community First Credit Union" is "Community First"; "Passport Office of
+ * Jamaica (PICA)" is "Passport Office". Anything still too long to sit in a
+ * chip falls back to the acronym, because a truncated name with an ellipsis is
+ * no more readable than the initials were.
+ */
+const NOISE = /\s*\([^)]*\)\s*$|[,]?\s+(?:of Jamaica|Jamaica|Limited|Ltd\.?)$/i;
+const GENERIC_TAIL = /\s+(?:Co-operative Credit Union|Credit Union|Administration|Trust|Authority)$/i;
+
+/**
+ * Where an institution's everyday name is not derivable from its legal one.
+ *
+ * No amount of trimming turns "Kingston & St Andrew Parish Court — Traffic
+ * Division" into what a person in Kingston calls it, and stripping words off
+ * "The University of the West Indies, Mona" only produces something worse than
+ * the acronym everyone already uses. UWI and UTech ARE the common names here,
+ * so they stay; the court and the passport office get the words people
+ * actually say.
+ *
+ * Keyed on the business slug, which is stable, rather than the display name,
+ * which is not.
+ */
+const COMMON_NAME: Record<string, string> = {
+  'traffic-court': 'Traffic Court',
+  'uwi-mona': 'UWI Mona',
+  'utech': 'UTech',
+  'pica': 'Passport Office',
+};
+
+function orgLabel(name?: string, slug?: string): string {
+  const key = (slug || '').trim().toLowerCase();
+  if (COMMON_NAME[key]) return COMMON_NAME[key];
+
+  /* Repeatedly, not once: "Passport Office of Jamaica (PICA)" has to lose both
+     the bracket and the "of Jamaica" to become readable, and a single
+     non-global replace only takes the first. */
+  let cleaned = (name || '').trim();
+  for (let i = 0; i < 3; i += 1) {
+    const next = cleaned.replace(NOISE, '').trim();
+    if (next === cleaned) break;
+    cleaned = next;
+  }
+  const short = cleaned.replace(GENERIC_TAIL, '').trim();
+  const best = short.length >= 4 ? short : cleaned;
+  if (!best) return orgTag(slug, name);
+  return best.length <= 20 ? best : orgTag(slug, name);
+}
+
 export default function SearchScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(10);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -99,7 +157,9 @@ export default function SearchScreen() {
 
   const businesses = useMemo(() => {
     const seen = new Map<string, string>();
-    branches.forEach(b => { if (!seen.has(b.business_id)) seen.set(b.business_id, orgTag(b.business_slug, b.business_name)); });
+    branches.forEach(b => {
+      if (!seen.has(b.business_id)) seen.set(b.business_id, orgLabel(b.business_name, b.business_slug));
+    });
     return Array.from(seen.entries()).map(([id, tag]) => ({ id, tag }));
   }, [branches]);
 
@@ -133,7 +193,7 @@ export default function SearchScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE, ...column }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
@@ -193,9 +253,16 @@ export default function SearchScreen() {
           </ScrollView>
         )}
 
-        {/* idle: suggestions or recents */}
-        {!filtersActive && (
-          <View style={{ marginTop: 24 }}>
+        {/* idle: suggestions or recents.
+
+            Only when there is something to find. The suggestions are a fixed
+            list of search terms, so on a build with no agencies they were four
+            buttons that each led to "no branches match" — the screen offering
+            work it already knows is pointless. Recents are hidden for the same
+            reason: a saved search for an agency that is no longer here is a
+            dead end too. */}
+        {!filtersActive && branches.length > 0 && (
+          <View style={{ marginTop: 20 }}>
             <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3, marginBottom: 12 }}>
               {recents.length ? 'Recent searches' : 'Try one of these'}
             </Text>
@@ -214,6 +281,18 @@ export default function SearchScreen() {
         {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (
           <ErrorCard title="Search unavailable" message="We couldn't reach the queue service. Check your connection and try again." onRetry={() => refetch()} />
+        )}
+
+        {/* Idle used to end here, leaving two thirds of the screen empty below a
+            row of suggestion pills — a search screen that asks you to type
+            before it will show you anything, when the whole list is already
+            loaded and worth browsing. The results below now render whether or
+            not a filter is on; this heading names which of the two you are
+            looking at. */}
+        {!isLoading && !error && !filtersActive && results.length > 0 && (
+          <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.ink, letterSpacing: -0.3, marginTop: 26, marginBottom: 12 }}>
+            Every agency on Lyne
+          </Text>
         )}
 
         {/* found count */}
@@ -247,8 +326,23 @@ export default function SearchScreen() {
           </View>
         )}
 
+        {/* Nothing on Lyne at all — not "no matches", which implies a search
+            that could have gone better. The same words Home uses, because it
+            is the same fact. */}
+        {!isLoading && !error && branches.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <View style={{ width: 132, height: 132, borderRadius: 44, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 26, ...shadow.card }}>
+              <Icon name="government" size={58} color={colors.faint} />
+            </View>
+            <Text style={{ fontFamily: font.extra, fontSize: 24, color: colors.ink, letterSpacing: -0.8 }}>No agencies yet</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 300 }}>
+              When an agency joins Lyne, its branches and live wait times appear here, and you can search them by name, town or service.
+            </Text>
+          </View>
+        )}
+
         {/* results */}
-        {filtersActive && results.map(b => {
+        {!isLoading && !error && results.map(b => {
           const wait = Math.round(Number(b.avg_wait_minutes || 0));
           const hours = hoursFromBranch(b);
           const info = branchOpenInfo(new Date(), hours);

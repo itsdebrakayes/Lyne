@@ -178,7 +178,7 @@ never wired up. Clip 1's entire point, sitting unused in the repo.
 
 ```tsx
 setSubmitted(true);
-window.location.href = `mailto:support@uselyne.com?...`;
+window.location.href = `mailto:customersupport@uselyne.com?...`;
 ```
 
 It shows **"Thanks. Your email client should open…"** *and then* tries to open

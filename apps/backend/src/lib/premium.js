@@ -50,6 +50,8 @@ function subscriptionEntitles(status) {
 }
 
 /** True only while access is genuinely current. */
+const { NEVER_EXPOSE } = require('../utils/publicShapes');
+
 function hasPremium(user) {
   if (!user || !Number(user.is_premium)) return false;
   if (!user.premium_until) return true; // no end date: a paid subscription
@@ -59,10 +61,20 @@ function hasPremium(user) {
 /**
  * The user row as the client should see it: is_premium reflects real access,
  * so an app reading that one field cannot be shown a lapsed trial as active.
+ *
+ * "As the client should see it" is taken literally now. Every route that hands
+ * back a user row goes through here — sync-user, /me, profile save, trial start
+ * — and each was passing supabase_uid straight out with it. It is the caller's
+ * own uid rather than somebody else's, so nothing was exposed across accounts;
+ * but it is the identity binding this system authenticates on, and no client
+ * reads it. This function already claims to be the boundary, so it may as well
+ * be one.
  */
 function withPremiumState(user) {
   if (!user) return user;
-  return { ...user, is_premium: hasPremium(user) ? 1 : 0 };
+  const safe = { ...user, is_premium: hasPremium(user) ? 1 : 0 };
+  for (const field of NEVER_EXPOSE) delete safe[field];
+  return safe;
 }
 
 function trialEndsAt(from = new Date()) {

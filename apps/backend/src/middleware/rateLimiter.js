@@ -13,10 +13,19 @@
  */
 const rateLimit = require('express-rate-limit');
 
+/* One knob, and it is deliberately narrow.
+   The end-to-end suite signs in far more often in fifteen minutes than any
+   person would, so it exhausts the auth budget partway through a run and the
+   rest of the file fails on a 429 that looks exactly like a broken login. That
+   is the suite's problem to solve, not a reason to loosen what ships: the
+   default below is the shipped value, and only an explicit env var in a local
+   test run changes it. Nothing sets this in production. */
+const AUTH_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
+
 // ── Login / Signup ────────────────────────────────────────────
 const authLimiter = rateLimit({
   windowMs:         15 * 60 * 1000, // 15 minutes
-  max:              10,
+  max:              AUTH_MAX,
   standardHeaders:  true,
   legacyHeaders:    false,
   message: { error: 'Too many authentication attempts. Please try again in 15 minutes.' },

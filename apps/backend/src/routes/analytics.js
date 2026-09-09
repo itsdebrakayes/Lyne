@@ -21,6 +21,7 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
+const { maskEmail, maskPhone } = require('../utils/maskData');
 const {
   requireStaffRole,
   requireBusinessAccess,
@@ -125,11 +126,32 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
                 SUM(w.status = 'cancelled')           AS left_count,
                 ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
                 ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
-                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate
+                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
+                /* Served WITHIN target — the pilot's own success measure, and a
+                   different question from completion_rate.
+                   completion_rate asks whether somebody was seen. This asks
+                   whether they were seen in time, which is what a taxpayer
+                   actually experiences and what TAJ has proposed to judge the
+                   pilot on. The average hides the tail: a branch averaging 19
+                   minutes against a 20-minute target can still have a fifth of
+                   its visitors waiting over 40, and the average will not say so.
+                   Branch target where one is set, otherwise the business
+                   target, otherwise 20 — the same order the dashboards resolve
+                   targets in, so the number on this card and the notch on the
+                   chart mean the same thing. */
+                ROUND(
+                  SUM(w.status = 'served'
+                      AND w.wait_time_minutes IS NOT NULL
+                      AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+                  / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
+                ) AS served_within_target_pct,
+                COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
          FROM wait_time_records w
          LEFT JOIN branches b ON w.branch_id = b.id
+         LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
+         LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
          WHERE ${conditions.join(' AND ')}
-         GROUP BY w.visit_date, w.branch_id, b.name
+         GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
          ORDER BY w.visit_date DESC`,
         params
       );
@@ -146,9 +168,28 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
-      `SELECT a.*, b.name AS branch_name
+      /* served_within_target_pct is computed here rather than stored on
+         analytics_summaries. The rollup has no such column, and adding one means
+         a migration plus a backfill of every historical row — where this reads
+         the same wait_time_records the rollup was built from and needs neither.
+         The cost is a correlated subquery per summary row; the periods these
+         screens ask for are days and weeks, not years, so it stays cheap.
+         Target resolution matches the service-scoped branch above: branch, then
+         business, then 20. */
+      `SELECT a.*, b.name AS branch_name,
+              COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes,
+              (SELECT ROUND(
+                        SUM(w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+                        / NULLIF(COUNT(*), 0) * 100, 1)
+                 FROM wait_time_records w
+                WHERE w.branch_id  = a.branch_id
+                  AND w.visit_date = a.summary_date
+                  AND w.status     = 'served'
+                  AND w.wait_time_minutes IS NOT NULL) AS served_within_target_pct
        FROM analytics_summaries a
        LEFT JOIN branches b ON a.branch_id = b.id
+       LEFT JOIN branch_targets   bt  ON bt.branch_id    = a.branch_id
+       LEFT JOIN business_targets bzt ON bzt.business_id = a.business_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY a.summary_date DESC`,
       params
@@ -713,7 +754,31 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
     const [rows] = await pool.query(
       `SELECT st.id AS staff_id, st.full_name, st.staff_code,
               COUNT(t.id)                                                   AS tickets_handled,
-              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS avg_handle_minutes
+              ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.started_serving_at, t.completed_at)), 1) AS avg_handle_minutes,
+              /* When this person actually started work today, for the "on since"
+                 column that has been showing a hardcoded em-dash.
+                 Their sign-in is the honest answer — user_sessions.created_at is
+                 written when they authenticate — and it beats the roster, which
+                 says when they were SUPPOSED to be there. Falls back to their
+                 first ticket of the day for anyone whose session predates this
+                 column being read, so the field is never blank for someone who
+                 is demonstrably working. */
+              (SELECT MIN(us.created_at) FROM user_sessions us
+                WHERE us.staff_id = st.id AND us.session_type = 'staff'
+                  AND DATE(us.created_at) = CURDATE())                      AS signed_in_at,
+              MIN(COALESCE(t.called_at, t.started_serving_at))              AS first_activity_at,
+              /* Presence, from the shift record rather than inferred.
+                 The manager board decided somebody was "on break" because they
+                 had handled a ticket today but were not at a desk this second —
+                 which is also what going home looks like, and what being moved
+                 to another window looks like. Now it is what they told us:
+                 clocked in, on a break, or not on shift. */
+              (SELECT sh.clocked_in_at FROM staff_shifts sh
+                WHERE sh.staff_id = st.id AND sh.clocked_out_at IS NULL
+                LIMIT 1)                                                    AS clocked_in_at,
+              (SELECT sh.on_break_since FROM staff_shifts sh
+                WHERE sh.staff_id = st.id AND sh.clocked_out_at IS NULL
+                LIMIT 1)                                                    AS on_break_since
        FROM queue_tickets t
        JOIN staff st ON t.served_by_staff_id = st.id
        JOIN queues q ON q.id = t.queue_id
@@ -1133,6 +1198,185 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
   } catch (err) {
     console.error('GET /analytics/readiness failed:', err);
     res.status(500).json({ error: 'Could not load readiness outcomes.' });
+  }
+});
+
+/* ── Customer cases ────────────────────────────────────────────────────────
+ *
+ * "This person has been here five times and still has not got what they came
+ * for." Everything else in this file measures the branch — how fast a line
+ * moved, how many a clerk served. That is the operational view, and it is
+ * blind to the one failure customers actually feel: coming back, repeatedly,
+ * and leaving without the thing.
+ *
+ * A visit is COUNTED once it has ended. Somebody standing in the line right
+ * now is not yet evidence of anything, and counting them makes today's queue
+ * look like a caseload.
+ *
+ * A visit is RESOLVED only if it was served AND carries no closed_reason.
+ * A clerk who marks "wrong documents" has ended the visit, not the errand —
+ * that distinction is the whole point of the incomplete reasons, and it is
+ * what makes this query possible at all.
+ *
+ * Guests are absent by construction: a walk-in with no account cannot be
+ * recognised across visits, so the join to users drops them. Worth knowing
+ * before somebody reads a low number as good news.
+ */
+const ENDED_STATUSES = "('served','left','cancelled','no_show')";
+const RESOLVED = "(t.status = 'served' AND t.closed_reason IS NULL)";
+
+/** Days of history to consider. Clamped — this drives a GROUP BY over tickets. */
+function safeWindowDays(value, fallback = 30) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= 1 && n <= 365 ? n : fallback;
+}
+
+/** How many unresolved visits before somebody is a case. */
+function safeMinVisits(value, fallback = 3) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= 2 && n <= 50 ? n : fallback;
+}
+
+// ── GET /api/analytics/customer-cases ─────────────────────────
+// ?business_id=&branch_id=&days=30&min_visits=3
+router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const days = safeWindowDays(req.query.days);
+    const minVisits = safeMinVisits(req.query.min_visits);
+
+    const conditions = [`b.business_id = ?`, `t.status IN ${ENDED_STATUSES}`,
+                        `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
+    const params = [scopedBusinessId(req, business_id), days];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+
+    const [rows] = await pool.query(
+      `SELECT u.id                                            AS user_id,
+              u.full_name,
+              u.email,
+              u.phone,
+              COUNT(*)                                        AS visits,
+              SUM(${RESOLVED})                                AS resolved,
+              SUM(NOT ${RESOLVED})                            AS unresolved,
+              COUNT(DISTINCT q.service_id)                    AS services_tried,
+              MIN(q.queue_date)                               AS first_visit,
+              MAX(q.queue_date)                               AS last_visit,
+              GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR '|')            AS service_names,
+              GROUP_CONCAT(DISTINCT COALESCE(t.closed_reason, t.status)
+                           ORDER BY 1 SEPARATOR '|')                                AS outcomes
+         FROM queue_tickets t
+         JOIN queues   q ON q.id = t.queue_id
+         JOIN branches b ON b.id = q.branch_id
+         JOIN services s ON s.id = q.service_id
+         JOIN users    u ON u.id = t.user_id
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY u.id, u.full_name, u.email, u.phone
+       HAVING unresolved >= ?
+        ORDER BY unresolved DESC, last_visit DESC
+        LIMIT 100`,
+      [...params, minVisits]
+    );
+
+    res.json({
+      window_days: days,
+      min_visits: minVisits,
+      cases: rows.map((r) => {
+        const services = String(r.service_names || '').split('|').filter(Boolean);
+        return {
+          user_id: r.user_id,
+          full_name: r.full_name,
+          /* Contact is masked in the list and unmasked in the detail view. A
+             caseload is skim-read by whoever has the screen open; the person
+             who actually needs to phone somebody opens their record. */
+          email: maskEmail(r.email),
+          phone: maskPhone(r.phone),
+          visits: Number(r.visits),
+          resolved: Number(r.resolved),
+          unresolved: Number(r.unresolved),
+          services_tried: Number(r.services_tried),
+          services,
+          /* Same errand or several? Coming back four times for one service is a
+             process that is failing that person; four different services is a
+             person with a lot to do. They need different conversations. */
+          pattern: Number(r.services_tried) === 1 ? 'same_service' : 'multiple_services',
+          outcomes: String(r.outcomes || '').split('|').filter(Boolean),
+          first_visit: r.first_visit,
+          last_visit: r.last_visit,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error('customer-cases error:', error);
+    res.status(500).json({ error: 'Failed to load customer cases.' });
+  }
+});
+
+// ── GET /api/analytics/customers/:user_id ─────────────────────
+// ?business_id=&days=180 — every visit this person has made to THIS business.
+router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+    const days = safeWindowDays(req.query.days, 180);
+
+    const businessId = scopedBusinessId(req, business_id);
+    const [[person]] = await pool.query(
+      'SELECT id, full_name, email, phone, created_at FROM users WHERE id = ?',
+      [req.params.user_id]
+    );
+    if (!person) return res.status(404).json({ error: 'Customer not found.' });
+
+    /* Scoped to the business the caller belongs to, never the whole person.
+       A TAJ manager gets this customer's history AT TAJ. What they did at a
+       credit union is not theirs to read, and the join is what enforces it. */
+    const [visits] = await pool.query(
+      `SELECT t.id, q.queue_date, b.name AS branch_name, s.name AS service_name,
+              t.ticket_number, t.status, t.closed_reason, t.channel,
+              t.estimated_wait_minutes, t.joined_at, t.called_at, t.completed_at,
+              TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.called_at, t.completed_at)) AS waited_minutes,
+              st.full_name AS served_by
+         FROM queue_tickets t
+         JOIN queues   q  ON q.id = t.queue_id
+         JOIN branches b  ON b.id = q.branch_id
+         JOIN services s  ON s.id = q.service_id
+         LEFT JOIN staff st ON st.id = t.served_by_staff_id
+        WHERE t.user_id = ? AND b.business_id = ?
+          AND q.queue_date >= CURDATE() - INTERVAL ? DAY
+        ORDER BY q.queue_date DESC, t.joined_at DESC
+        LIMIT 200`,
+      [req.params.user_id, businessId, days]
+    );
+
+    const ended = visits.filter(v => ['served', 'left', 'cancelled', 'no_show'].includes(v.status));
+    const resolved = ended.filter(v => v.status === 'served' && !v.closed_reason);
+
+    res.json({
+      window_days: days,
+      customer: {
+        id: person.id,
+        full_name: person.full_name,
+        /* Unmasked here, and only here. Somebody opened this record to deal
+           with a specific person's problem; a phone number they cannot read is
+           not privacy, it is an obstacle with a privacy-shaped excuse. */
+        email: person.email,
+        phone: person.phone,
+        member_since: person.created_at,
+      },
+      summary: {
+        visits: ended.length,
+        resolved: resolved.length,
+        unresolved: ended.length - resolved.length,
+        services_tried: new Set(visits.map(v => v.service_name)).size,
+        branches: new Set(visits.map(v => v.branch_name)).size,
+      },
+      visits,
+    });
+  } catch (error) {
+    console.error('customer detail error:', error);
+    res.status(500).json({ error: 'Failed to load this customer.' });
   }
 });
 

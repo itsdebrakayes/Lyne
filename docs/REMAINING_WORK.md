@@ -12,6 +12,38 @@ the Monday demo is a nice-to-have, not a hard gate. Nothing here is rushed to a 
 
 ---
 
+## ⚠️ Read this before filing anything from the list below
+
+**This list was compiled on 2026-07-22 and the tables have not been re-swept since 2026-08-21.** A substantial block of work landed after that date and is *not* reflected below. Before treating any item here as outstanding, check
+[COMPLETED_WORK.md](COMPLETED_WORK.md) — its top section is newer than this file.
+
+Specifically, the following are **done** and any row below that implies otherwise is stale:
+
+- The queue lifecycle at the root — position allocation, the day boundary, required closing times, and unserved people reaching history (migration 032).
+- Database hardening — least-privilege grants for the application login, loopback-only MySQL, and verified backups with a tested restore.
+- Verification codes no longer leak into staff responses or the SSE stream.
+- The admin liveness pill (doubling + latched state) and the counter-action feedback/disabled states.
+- Independent per-section loading, skeletons and intuitive errors on mobile Home — which closes the "skeletons" half of **#31**.
+- The onboarding explainer + preference screens, and the mobile Search screen's readable agency labels.
+- Test infrastructure: 220 backend tests, 18 live data invariants, 13 property/lifecycle assertions, 4 Playwright specs.
+
+Still genuinely open, and the honest short list:
+
+| Item | Why it is still open |
+|---|---|
+| Google / Apple sign-in | Never built. Email + password via Supabase only. Adding Google makes Sign in with Apple mandatory the same day (Guideline 4.8), so they ship together — and both need provider credentials configured in Supabase plus an Apple Services ID. |
+| Route-level integration coverage for the full queue engine | Partial. Unit and wiring tests exist; join → call → serve → notify is not covered end to end. |
+| Manual business-persona walkthrough | Written, not executed end to end. |
+| Departure reminder rescheduling | The "leave now" reminder is scheduled once and never recalculated as the line moves. |
+| API outage signs the user out with no explanation | A 5xx during session refresh drops the user to sign-in silently. |
+| Payments | Deliberately stubbed pending a Jamaica processor decision (WiPay / Amber Pay / PayPal card entry). |
+| Encryption at rest + formal retention/erasure policy | Pre-contract deliverables, not code. |
+| **#29** filterable graph legends, **#30** multi-select on lists, **#32** report cover page | Awaiting your reference images. |
+| Mobile-on-the-go admin (W5/P7) | Needs design refs. |
+| Platform-admin console | Role exists and is backend-gated; no UI. Fine for a single-tenant pilot. |
+
+---
+
 ## A · In-flight new scope (ML "why" + walk-ins — approved 2026-07-21)
 
 | # | Item | Notes |

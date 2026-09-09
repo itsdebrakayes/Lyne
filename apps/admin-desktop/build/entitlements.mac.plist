@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!--
+      Hardened Runtime entitlements for the macOS build.
+
+      Notarization requires the Hardened Runtime, and the Hardened Runtime
+      blocks the JIT and unsigned-memory execution that Electron's V8 needs.
+      Without these three keys the app is signed and notarized and then simply
+      refuses to launch, which is a confusing failure to debug after the fact.
+
+      Nothing beyond this is requested. The admin app reads no files outside its
+      own container, uses no camera, microphone or location, and talks only to
+      the Lyne API over HTTPS — so it needs no further entitlements, and asking
+      for any would be a question Apple's reviewer is entitled to ask about.
+    -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+  </dict>
+</plist>

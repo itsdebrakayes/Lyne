@@ -369,7 +369,7 @@ function Pricing() {
           <span className={`text-sm ${!yearly ? "text-white" : "text-lyne-lavender/55"}`}>Monthly</span>
           <button
             onClick={() => setYearly((v) => !v)}
-            className={`flex h-7 w-12 items-center rounded-full p-1 transition-colors ${yearly ? "bg-lyne-purple" : "bg-white/15"}`}
+            className={`relative flex h-7 w-12 items-center rounded-full p-1 transition-colors after:absolute after:-inset-2 after:content-[''] ${yearly ? "bg-lyne-purple" : "bg-white/15"}`}
             aria-label="Toggle yearly billing"
           >
             <span className={`h-5 w-5 rounded-full bg-white transition-transform ${yearly ? "translate-x-5" : ""}`} />

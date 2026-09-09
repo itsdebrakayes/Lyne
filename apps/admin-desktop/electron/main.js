@@ -36,18 +36,39 @@ function createWindow() {
     minHeight: 600,
     fullscreen: shouldStartFullscreen,
     autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#0a0a0a',
-      symbolColor: '#ffffff',
-      height: 36,
-    },
+
+    /* Title bar, per platform.
+     *
+     * `titleBarOverlay` is a Windows and Linux feature: it draws our own colour
+     * behind the system's minimise/maximise/close buttons. macOS ignores it
+     * entirely — but it did NOT ignore `titleBarStyle: 'hidden'`, which on a Mac
+     * removes the title bar while leaving the traffic lights floating over
+     * whatever the app draws at the top left. Nothing in the UI reserves space
+     * for them, so the close button sat on top of our own chrome.
+     *
+     * `hiddenInset` is the macOS answer: same frameless look, traffic lights
+     * nudged down and in so they sit in their own margin.
+     */
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' }
+      : {
+          titleBarStyle: 'hidden',
+          titleBarOverlay: { color: '#0a0a0a', symbolColor: '#ffffff', height: 36 },
+        }),
+
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    icon: path.join(__dirname, '../src/assets/icon.ico'),
+
+    /* Windows and Linux take the window icon from here. macOS does not — it
+       reads the icon from the built .app bundle — so pointing this at a .ico on
+       a Mac is at best ignored and at worst a console warning. */
+    ...(process.platform === 'darwin'
+      ? {}
+      : { icon: path.join(__dirname, '../src/assets/icon.ico') }),
+
     backgroundColor: '#0a0a0a',
     show: false,
   });

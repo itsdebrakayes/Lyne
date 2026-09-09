@@ -31,11 +31,40 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
   throw new Error(`Invalid PORT value: ${process.env.PORT}`);
 }
 
-if (!existsSync(indexFile)) {
-  throw new Error(
-    "Website build is missing. Run `npm run build` before `npm start`.",
+/* Do NOT throw here.
+ *
+ * A process that exits on boot is, from the outside, indistinguishable from a
+ * blank page: the platform reports the deploy succeeded, the browser gets
+ * nothing, and the reason is in a log nobody is reading. That is exactly how
+ * this failed the first time.
+ *
+ * apps/website/dist is gitignored, so a fresh clone has no build. A Node PaaS
+ * runs `npm install` and then `npm start` — it does not run `npm run build`
+ * unless told to, which is why package.json now builds on postinstall. If that
+ * still has not happened, the server starts anyway and SAYS SO, in the
+ * browser, rather than dying silently. */
+const buildMissing = !existsSync(indexFile);
+
+if (buildMissing) {
+  console.error(
+    "[lyne] apps/website/dist/index.html is missing — the site was never built.",
   );
 }
+
+const BUILD_MISSING_PAGE = `<!doctype html>
+<html lang="en" style="background:#060d1c;color:#e6ecf5">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lyne — not built yet</title></head>
+<body style="font:14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
+<div style="max-width:620px;margin:12vh auto;padding:0 24px">
+  <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.55">Lyne</div>
+  <h1 style="font-size:24px;margin:14px 0 10px">The site has not been built.</h1>
+  <p style="opacity:.8">The server is running, but <code>apps/website/dist/index.html</code> does not exist,
+  so there is nothing to serve.</p>
+  <p style="opacity:.8"><code>dist</code> is not committed to the repository — the host has to build it.
+  Run <code>npm run build</code> as part of the deploy, or make sure the
+  <code>postinstall</code> step is allowed to run.</p>
+</div></body></html>`;
 
 function sendFile(request, response, filePath) {
   const extension = extname(filePath).toLowerCase();
@@ -60,6 +89,15 @@ function sendFile(request, response, filePath) {
 }
 
 const server = createServer((request, response) => {
+  if (buildMissing) {
+    response.writeHead(503, {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/html; charset=utf-8",
+    });
+    response.end(request.method === "HEAD" ? undefined : BUILD_MISSING_PAGE);
+    return;
+  }
+
   if (request.method !== "GET" && request.method !== "HEAD") {
     response.writeHead(405, { Allow: "GET, HEAD" });
     response.end("Method Not Allowed");

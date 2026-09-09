@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="qa-app qa-login" data-theme="light">
       <section className="qa-login-hero">
         <div className="qa-login-brand">
-          <i>Q</i>
+          <i>L</i>
           <span><b>Lyne</b><small>Admin Operations</small></span>
         </div>
         <div className="qa-login-copy">

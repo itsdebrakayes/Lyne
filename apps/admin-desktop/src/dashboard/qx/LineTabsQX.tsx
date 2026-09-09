@@ -17,8 +17,8 @@
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare,
-  PhoneOff, SkipForward, Timer, Users,
+  AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
+  PhoneOff, SkipForward, Timer, Users, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Note, Chip, Ring,
@@ -26,6 +26,7 @@ import {
 } from '@/design/ui';
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
+import { replayTour } from '../../hooks/useTour';
 
 /* Counter labels are written as "Window 17 - TRN Registration", so pairing one
    with its own service produced "TRN Registration · TRN Registration". Say the
@@ -51,13 +52,42 @@ export type LineTicket = {
   readinessShown?: boolean;
   readinessOutcome?: 'ready' | 'incomplete' | 'not_checked';
   readinessNote?: string | null;
+  /** When they actually joined — the clock time, not the elapsed minutes. */
+  joinedAt?: string | null;
+  /** How they got into the line: from the app, a kiosk, or walking up. */
+  channel?: string | null;
+  /** How many times they have been called. Two is a different situation. */
+  callCount?: number;
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
-  outcome: 'served' | 'no_show' | 'transferred';
+  /* 'incomplete' is a visit that happened and did not achieve what the person
+     came for; 'left' is somebody who gave up before being called. Both used to
+     land on 'served', so the day's history claimed every outcome was a success
+     — including the ones the clerk had just marked otherwise. */
+  outcome: 'served' | 'incomplete' | 'no_show' | 'left' | 'cancelled' | 'transferred';
+  /** Why it ended unfinished, when it did. */
+  reason?: string | null;
 };
 export type LineTabData = {
   staffName: string; counter: string; serviceName: string; branchName: string;
+  /* Attendance. The desk is gated on it: a clerk who has not clocked in is not
+     at the window, and calling somebody forward to an empty chair is the one
+     failure a queue system must never cause. */
+  /* What the model expects at this desk, next to what the clerk is actually
+     doing. Shown together deliberately: a prediction alone is a claim; beside
+     their own morning it is confirmation or a question, and either beats the
+     number on its own. */
+  deskForecast?: {
+    predicted: { minutes: number | null; basis: string; sample_size: number; model_version: string } | null;
+    actual: { served_today: number; avg_minutes: number | null };
+  } | null;
+  onShift?: boolean;
+  onBreak?: boolean;
+  onClockIn?: () => Promise<void> | void;
+  onBreakStart?: () => Promise<void> | void;
+  onResume?: () => Promise<void> | void;
+  onClockOut?: () => Promise<void> | void;
   queue: LineTicket[];
   history: LineDone[];
   hours: string[];
@@ -76,7 +106,7 @@ export type LineTabData = {
   onCall?: (ticketId: string) => Promise<void> | void;
   /** Starts the service. The code goes to the SERVER, which is what checks it. */
   onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
-  onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string) => Promise<void> | void;
+  onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => Promise<void> | void;
   onNoShow?: (ticketId: string) => Promise<void> | void;
   onCallAgain?: (ticketId: string) => Promise<void> | void;
   /** How many times the person at the window has been called. */
@@ -132,13 +162,113 @@ const LineCtx = createContext<LineTabData>(LINE_FIXTURES);
 export const LineDataProvider = LineCtx.Provider;
 const useLine = () => useContext(LineCtx);
 
+/**
+ * Why a visit ended at the desk without being finished.
+ *
+ * Distinct from the readiness outcome above it, which answers "did they bring
+ * what they needed" and is recorded whether or not the visit completed. This
+ * answers "why did we stop", and until now there was no way to say it: the desk
+ * could write an incomplete NOTE but every visit still closed as served, so a
+ * clerk who ran out of day and a clerk who finished looked identical afterwards.
+ *
+ * Values match INCOMPLETE_REASONS on the server.
+ */
+/* Plain words, because the column is narrow and a clerk is reading it while
+   somebody stands in front of them. The join TIME sits in its own column, so
+   these do not need to carry "arrived 09:52" the way a mock-up caption can. */
+/* On the stage there is room for the whole sentence, unlike the line-list
+   column. A clerk glancing up should know how this person reached them without
+   reading a table: somebody who joined from home has been travelling, somebody
+   a clerk typed in is standing there already. */
+function joinedPill(t: { channel?: string | null }) {
+  const c = String(t.channel || '');
+  if (c === 'app') return 'Joined from the Lyne app';
+  if (c === 'kiosk') return 'Added at the kiosk';
+  return 'Walk-in · clerk entry';
+}
+
+const CHANNEL_LABEL: Record<string, string> = {
+  app: 'App',
+  walk_in: 'Walk-in',
+  kiosk: 'Kiosk',
+};
+function channelOf(t: { channel?: string | null }) {
+  return CHANNEL_LABEL[String(t.channel || '')] || 'Walk-in';
+}
+/** 09:52, in the branch's own clock. */
+function joinedClock(iso?: string | null) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const INCOMPLETE_REASONS: { value: string; label: string }[] = [
+  { value: 'day_ended', label: 'The day ended' },
+  { value: 'wrong_documents', label: 'Did not have the right documents' },
+  { value: 'wrong_service', label: 'Needed a different service' },
+  { value: 'referred_elsewhere', label: 'Referred to another office' },
+  { value: 'customer_left', label: 'Customer left part-way through' },
+  { value: 'system_issue', label: 'System or payment problem' },
+];
+
 const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy' | 'soon' | 'closed' }> = {
   served: { label: 'Served', kind: 'open' },
+  incomplete: { label: 'Incomplete', kind: 'soon' },
   no_show: { label: 'No Answer', kind: 'busy' },
+  left: { label: 'Left The Line', kind: 'closed' },
+  cancelled: { label: 'Cancelled', kind: 'closed' },
   transferred: { label: 'Transferred', kind: 'soon' },
 };
 
+/** Reason codes as a clerk would say them, for the history row. */
+const REASON_LABEL: Record<string, string> = {
+  day_ended: 'day ended',
+  wrong_documents: 'wrong documents',
+  wrong_service: 'wrong service',
+  referred_elsewhere: 'referred elsewhere',
+  customer_left: 'left part-way',
+  system_issue: 'system problem',
+};
+
 /* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
+/**
+ * Turn a thrown request into something a clerk can act on.
+ *
+ * The rule: say what happened, why, and what to do next. "Request failed" fails
+ * all three — it names no cause and offers no move, so the only thing left is
+ * to press the button again, which is exactly the behaviour that produced this
+ * function.
+ *
+ * The server's own message is preferred and shown verbatim wherever there is
+ * one, because it knows the actual reason ("Only waiting tickets can be
+ * called.") in a way the browser never can. A recovery line is appended only
+ * where the message alone does not imply the next move.
+ */
+function describeFailure(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const text = raw.trim();
+
+  // Nothing left the machine. The clerk's next move is about the connection,
+  // not the queue, and no amount of re-pressing will change it.
+  if (/failed to fetch|networkerror|load failed|ERR_(CONNECTION|NETWORK|INTERNET)/i.test(text)) {
+    return 'Could not reach the server, so nothing was changed. Check the branch connection, then try again — the customer keeps their place either way.';
+  }
+  if (/\b401\b|unauthori[sz]ed|invalid or expired token/i.test(text)) {
+    return 'Your session has expired, so the change was not saved. Sign in again and the queue will be exactly as you left it.';
+  }
+  if (/\b403\b|forbidden|do not have access/i.test(text)) {
+    return `${text || 'You do not have permission for that.'} Ask a supervisor to make the change.`;
+  }
+  if (/\b409\b|already|only waiting tickets/i.test(text)) {
+    return `${text} Someone else may have moved this ticket — the list will refresh with what is true now.`;
+  }
+  if (/\b404\b|not found/i.test(text)) {
+    return 'That ticket is no longer in this queue — it may have been served or cancelled at another counter. The list is refreshing.';
+  }
+  if (text) return text;
+  return 'That did not go through, and nothing was changed. Try again, and tell a supervisor if it keeps happening.';
+}
+
 /**
  * Live Line — the desk station, and the one screen this person lives on.
  *
@@ -184,7 +314,11 @@ const clock = (secs: number) => {
 /** After this long with no response, marking a no-show is allowed. */
 const NO_SHOW_AFTER = 5 * 60;
 
-const LQ_GRID = 'minmax(0,1.5fr) 92px 96px';
+/* Ticket · Joined · Channel · Waited · action. Elapsed minutes alone could not
+   answer "has this person been here since we opened, or did they arrive during
+   the rush", and neither could it say whether they walked up or joined from
+   home — both of which change how a clerk reads the row. */
+const LQ_GRID = 'minmax(0,1.4fr) 78px 92px 88px 96px';
 
 export function LineOverviewQX() {
   const terms = useSectorTerms();
@@ -217,6 +351,10 @@ export function LineOverviewQX() {
   const [readinessChoice, setReadinessChoice] = useState<'ready' | 'incomplete' | null>(null);
   const [readinessNote, setReadinessNote] = useState('');
   const [readinessError, setReadinessError] = useState<string | null>(null);
+  /* Empty string means the panel is closed; a chosen value arms the confirm. */
+  const [endingIncomplete, setEndingIncomplete] = useState(false);
+  const [incompleteReason, setIncompleteReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
   // service is under way that is who is in front of you.
@@ -255,10 +393,32 @@ export function LineOverviewQX() {
   const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
   const calls = d.callCount ?? 1;
 
+  /**
+   * Every desk action goes through here, and it now does three things instead
+   * of one.
+   *
+   * It marks the desk busy, so the press is acknowledged — a clerk pressing
+   * Complete on a slow connection saw nothing change and pressed it again.
+   *
+   * It refuses to start a second action while one is in flight, which is what
+   * that second press was doing.
+   *
+   * And it CATCHES. This used to be a bare try/finally: a rejected request
+   * propagated as an unhandled rejection and the screen said nothing at all, so
+   * "the server refused this" and "the button is broken" looked identical from
+   * the desk, and whatever the server had explained went nowhere.
+   */
   const run = async (fn?: () => Promise<void> | void) => {
     if (!fn || busy) return;
     setBusy(true);
-    try { await fn(); } finally { setBusy(false); }
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(describeFailure(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const callNext = () => { if (next) run(() => d.onCall?.(next.id)); };
@@ -276,10 +436,23 @@ export function LineOverviewQX() {
     run(() => d.onComplete?.(activeId, readinessChoice || undefined, readinessNote.trim() || undefined));
   };
 
+  /* Ending unfinished is the same close with a reason attached, not a different
+     kind of ending — the person was at the desk and the desk time was real.
+     What changes is that the visit is now marked as not having achieved what
+     they came for, which is the thing the counts could never see. */
+  const endIncomplete = () => {
+    if (!activeId || !incompleteReason) return;
+    run(async () => {
+      await d.onComplete?.(activeId, readinessChoice || undefined, readinessNote.trim() || undefined, incompleteReason);
+      setEndingIncomplete(false);
+      setIncompleteReason('');
+    });
+  };
+
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
 
-  /* One continuous six-digit entry, not six separate fields. Type straight
+  /* One continuous six-character entry, not six separate fields. Type straight
      through and focus follows; backspace on an empty box steps back; pasting or
      an SMS autofill drops the whole code in at once. Anything non-numeric is
      ignored rather than rejected with an error. */
@@ -298,10 +471,16 @@ export function LineOverviewQX() {
     setCodeState('idle');
   };
 
+  /* Codes are alphanumeric now, so this can no longer strip anything that is not
+     a digit — that silently ate every letter and left the clerk staring at boxes
+     that would not fill. Uppercased on the way in because the codes are, and
+     because nobody types shift while reading a number off a stranger's phone.
+     The ambiguous characters (0/O, 1/I/L, 2/Z, 5/S, 8/B) are not in the
+     generator's alphabet, so there is nothing to disambiguate here. */
   const onDigitChange = (i: number, raw: string) => {
-    const digits = raw.replace(/\D/g, '');
-    if (!digits) { setCode((p) => { const n = [...p]; n[i] = ''; return n; }); setCodeState('idle'); return; }
-    writeFrom(i, digits);
+    const chars = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!chars) { setCode((p) => { const n = [...p]; n[i] = ''; return n; }); setCodeState('idle'); return; }
+    writeFrom(i, chars);
   };
 
   const onDigitKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -318,7 +497,7 @@ export function LineOverviewQX() {
 
   /* The code is checked by the SERVER, against the code stored on the ticket.
      This used to be `setCodeState(codeReady ? 'ok' : 'bad')` — it passed if six
-     digits were present, whatever they were, so any six digits started a
+     characters were present, whatever they were, so any six started a
      service on someone else's ticket. PUT /tickets/:id/status refuses the
      transition with a 403 unless the code matches, so starting the service IS
      the check: if it succeeds the code was right. */
@@ -339,8 +518,56 @@ export function LineOverviewQX() {
   const list = (view === 'noanswer' ? noAnswer : waiting)
     .filter((t) => !q.trim() || `${t.no} ${t.name}`.toLowerCase().includes(q.trim().toLowerCase()));
 
+  /* Not clocked in: the desk does not open.
+     Showing the station to somebody who has not started their shift invites
+     them to call a customer forward, and the board would then say a window is
+     covered when the chair is empty. */
+  if (d.onShift === false) {
+    return (
+      <div className="ql-station">
+        <section className="ql-stage">
+          <div className="ql-eyebrow">Your Window Is Closed</div>
+          <div className="ql-big" style={{ fontSize: 34, lineHeight: 1.15 }}>
+            {deskLabel(d.counter, d.serviceName)}
+          </div>
+          <div className="ql-meta" style={{ marginTop: 10 }}>
+            You are assigned here today. Clock in to open the window and start calling.
+          </div>
+          <div className="ql-acts" style={{ marginTop: 22 }}>
+            <button type="button" className="ql-btn primary" disabled={busy}
+              onClick={() => run(() => d.onClockIn?.())}>
+              <CheckCircle2 size={18} />{busy ? 'Clocking In…' : 'Clock In'}
+            </button>
+          </div>
+          {actionError ? <div className="ql-verifymsg bad" style={{ marginTop: 14 }}>{actionError}</div> : null}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="ql-station">
+      {/* On a break the window stays yours — you are simply not available, which
+          is a different thing from having gone home. */}
+      {d.onBreak ? (
+        <section className="ql-stage" style={{ marginBottom: 14 }}>
+          <div className="ql-eyebrow">On A Break</div>
+          <div className="ql-meta" style={{ marginTop: 6 }}>
+            Nobody is being called to {deskLabel(d.counter, d.serviceName)} while you are away.
+          </div>
+          <div className="ql-acts" style={{ marginTop: 16 }}>
+            <button type="button" className="ql-btn primary" disabled={busy}
+              onClick={() => run(() => d.onResume?.())}>
+              <CheckCircle2 size={18} />{busy ? 'Coming Back…' : 'Back At My Window'}
+            </button>
+            <button type="button" className="ql-btn" disabled={busy}
+              onClick={() => run(() => d.onClockOut?.())}>
+              Clock Out
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {/* ── the stage: whoever is at this window right now ── */}
       <section className="ql-stage">
         <div className="ql-eyebrow">
@@ -351,10 +578,30 @@ export function LineOverviewQX() {
           <>
             <div className="ql-big">{active.no}</div>
             <div className="ql-who">{active.name}</div>
+
+            {/* The three things a clerk wants to know about the person in front
+                of them before they say a word: what they came for, how they got
+                here, and whether the code has been checked. Facts the system
+                already held and never showed. */}
+            {/* No service pill here. Every ticket at this window is the same
+                service, and the meta row below already says
+                "Window 3 - TRN Registration" — so naming it again made the
+                stage read the service twice. The deck can afford that pill
+                because its example desk handles several request types; ours
+                does not. */}
+            <div className="ql-tags">
+              <span className="ql-tag">{joinedPill(active)}</span>
+              {stage === 'serving' ? (
+                <span className="ql-tag ok"><Check size={13} />Code verified</span>
+              ) : null}
+              {stage === 'called' && calls > 1 ? (
+                <span className="ql-tag warn"><PhoneOff size={13} />Called {calls} times</span>
+              ) : null}
+            </div>
+
             <div className="ql-meta">
               <span><Users size={14} />Waited {active.waited} min in line</span>
               <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
-              {stage === 'called' && calls > 1 ? <span><PhoneOff size={14} />Called {calls} times</span> : null}
             </div>
           </>
         ) : (
@@ -366,6 +613,12 @@ export function LineOverviewQX() {
             <div className="ql-who">
               {next ? `${next.name} is next` : 'This is where the first person in the line will appear'}
             </div>
+            {next ? (
+              <div className="ql-tags">
+                <span className="ql-tag">{joinedPill(next)}</span>
+                <span className="ql-tag">Waiting {next.waited} min</span>
+              </div>
+            ) : null}
             <div className="ql-meta">
               <span><Users size={14} />{waiting.length} in your line</span>
               <span><CheckCircle2 size={14} />{d.servedToday} seen today</span>
@@ -394,10 +647,22 @@ export function LineOverviewQX() {
               <small>{stage === 'called' ? 'Since You Called' : 'This Visit'}</small>
             </div>
             {stage === 'called' ? (
-              <div className="ql-clock">
-                <b>{clock(Math.max(0, NO_SHOW_AFTER - elapsed))}</b>
-                <small>Until No Show Allowed</small>
-              </div>
+              /* Once the wait is served, this stops counting DOWN to something
+                 and starts stating what is now true. It used to render "0:00"
+                 under "Until No Show Allowed" indefinitely — a dead zero
+                 describing a countdown that had already finished, which reads as
+                 a broken timer rather than as permission. */
+              elapsed >= NO_SHOW_AFTER ? (
+                <div className="ql-clock warn">
+                  <b>Now</b>
+                  <small>No Show Allowed</small>
+                </div>
+              ) : (
+                <div className="ql-clock">
+                  <b>{clock(NO_SHOW_AFTER - elapsed)}</b>
+                  <small>Until No Show Allowed</small>
+                </div>
+              )
             ) : (
               <div className="ql-clock">
                 <b>{d.avgHandle}<span style={{ fontSize: 15 }}> min</span></b>
@@ -412,7 +677,7 @@ export function LineOverviewQX() {
           <div className="ql-verify">
             <b>Check Their Code Before You Start</b>
             <small>
-              The customer has a six-digit code on their phone, or printed on their kiosk ticket.
+              The customer has a six-character code on their phone, or printed on their kiosk ticket.
               It confirms you have the right person. Tickets issued without a code can be started without one.
             </small>
             <div className="ql-code" onPaste={(e) => {
@@ -421,7 +686,7 @@ export function LineOverviewQX() {
             }}>
               {code.map((c, i) => (
                 <input key={i} ref={(el) => { boxes.current[i] = el; }}
-                  inputMode="numeric" autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                  inputMode="text" autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   // Not maxLength=1: typing through, or an autofill, delivers
                   // several digits at once and they should spread across boxes.
                   value={c}
@@ -431,8 +696,14 @@ export function LineOverviewQX() {
                   onKeyDown={(e) => onDigitKey(i, e)}
                   onFocus={(e) => e.currentTarget.select()} />
               ))}
-              <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify} disabled={!codeReady}>
-                <Check size={16} />Check
+              {/* `busy` was missing here while every other desk button had it.
+                  run() still refused the second call, so the action was safe —
+                  but the button stayed lit and did nothing when pressed, which
+                  is indistinguishable from a broken button and is exactly what
+                  makes somebody press it a third time. */}
+              <button type="button" className="ql-btn" style={{ minHeight: 56 }} onClick={verify}
+                disabled={!codeReady || busy} aria-busy={busy}>
+                <Check size={16} />{busy ? 'Checking…' : 'Check'}
               </button>
             </div>
             {codeState === 'ok' ? <div className="ql-verifymsg ok">Code matches — this is the right person.</div> : null}
@@ -513,11 +784,56 @@ export function LineOverviewQX() {
         ) : null}
 
         {/* ── actions, always the next likely thing first ── */}
+        {/* The desk's own failures, said out loud. Whatever the server
+            explained is shown verbatim, because the server's reason is almost
+            always the useful one. */}
+        {actionError ? (
+          <div className="ql-verifymsg bad" role="alert" aria-live="assertive">{actionError}</div>
+        ) : null}
+
+        {/* What the model expects at this desk, beside what the clerk is
+            actually doing. Shown together deliberately: a prediction on its own
+            is a claim; next to their own morning it is confirmation or a
+            question worth asking. Rendered only once the model has produced a
+            figure — an empty box claiming a prediction is worse than no box. */}
+        {d.deskForecast?.predicted?.minutes ? (
+          <div className="ql-meta" style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 12 }}>
+            {/* Model version and sample size were here and are gone: a clerk
+                does not need to know it was gbr-wait-v3 on 21,139 visits, and
+                the provenance made a two-number line read like a footnote.
+                It belongs on the executive's predictions panel, where somebody
+                is actually asking whether to trust the figure. */}
+            <span>
+              <b>{d.deskForecast.predicted.minutes} min</b> expected per person{' '}
+              {d.deskForecast.predicted.basis === 'this hour' ? 'this hour' : 'today'}
+            </span>
+            {d.deskForecast.actual.avg_minutes != null ? (
+              <span>
+                <b>{d.deskForecast.actual.avg_minutes} min</b> your average today
+                <small style={{ opacity: 0.65 }}> · {d.deskForecast.actual.served_today} served</small>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="ql-acts">
           {stage === 'idle' ? (
-            <button type="button" className="ql-btn primary" onClick={callNext} disabled={!next}>
-              <Users size={18} />{next ? `Call ${next.no}` : 'Nobody To Call'}
-            </button>
+            <>
+              <button type="button" className="ql-btn primary" onClick={callNext}
+                disabled={!next || busy} aria-busy={busy}>
+                <Users size={18} />{busy ? 'Calling…' : (next ? `Call ${next.no}` : 'Nobody To Call')}
+              </button>
+              {/* Hold pauses the line; Clock Out ends the shift. Both only mean
+                  something now that a shift is a real record. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => run(() => d.onBreakStart?.())}>
+                <Pause size={17} />Hold
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => run(() => d.onClockOut?.())}>
+                Clock Out
+              </button>
+            </>
           ) : null}
 
           {stage === 'called' ? (
@@ -526,12 +842,12 @@ export function LineOverviewQX() {
                   transition unless the code matches, so there is no way to
                   start one without a verified customer. */}
               <button type="button" className="ql-btn primary" onClick={verify} disabled={!codeReady || busy}
-                title={codeReady ? undefined : 'Enter their six-digit code first'}>
+                title={codeReady ? undefined : 'Enter their six-character code first'}>
                 <Check size={18} />{busy ? 'Checking…' : 'Start Service'}
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { if (activeId) run(() => d.onCallAgain?.(activeId)); }}>
-                <Bell size={17} />Call Again
+                <Bell size={17} />Recall
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}>
@@ -540,7 +856,7 @@ export function LineOverviewQX() {
               <button type="button" className="ql-btn danger" disabled={!canNoShow || busy}
                 onClick={() => { if (activeId) run(() => d.onNoShow?.(activeId)); }}
                 title={canNoShow ? undefined : 'Available five minutes after you first called them'}>
-                <PhoneOff size={17} />Mark As No Show
+                <PhoneOff size={17} />No Show
               </button>
             </>
           ) : null}
@@ -549,17 +865,72 @@ export function LineOverviewQX() {
             <>
               <button type="button" className="ql-btn primary" onClick={finish}
                 disabled={busy || Boolean(active?.readinessExpected && !readinessChoice)}>
-                <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete And Call Next'}
+                <CheckCircle2 size={18} />{busy ? 'Saving…' : 'Complete & Call Next'}
               </button>
-              <button type="button" className="ql-btn" onClick={finish}>
-                <SkipForward size={17} />Transfer
+              {/* Second, quieter, and never the default. Most visits finish. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
+                aria-expanded={endingIncomplete}>
+                <AlertTriangle size={17} />Mark As Incomplete
               </button>
-              <button type="button" className="ql-btn" onClick={finish}>
-                <Timer size={17} />Requeue
+              {/* Hold means "pause my line", and it only exists now that a break
+                  is a real state. It finishes with the person in front of you
+                  first — you are not walking away mid-conversation. */}
+              <button type="button" className="ql-btn" disabled={busy}
+                title="Finish with this person first — Hold pauses your line afterwards"
+                onClick={() => run(() => d.onBreakStart?.())}>
+                <Pause size={17} />Hold
               </button>
+              {/* Transfer and Requeue used to sit here, and BOTH were wired to
+                  `finish` — the Complete action. Three buttons, three labels,
+                  one behaviour: pressing Transfer silently closed the visit as
+                  served and called the next person, and the clerk had no way to
+                  know the customer they meant to move had just been marked
+                  served instead.
+                  Neither can be wired correctly yet. There is no transfer
+                  endpoint at all, and /skip only accepts a ticket that is still
+                  `waiting` — not one already in service — so requeueing from
+                  the counter has nothing to call either. A control that quietly
+                  does something else is worse than one that is not there, so
+                  they are gone until there is something real behind them.
+                  The FAQ at the top of this file still describes Transfer; that
+                  copy is the promise this needs to be built to keep. */}
             </>
           ) : null}
         </div>
+
+        {/* The reason, revealed only when asked for. A permanent dropdown beside
+            Complete would invite a clerk to fill it in on visits that finished
+            perfectly well. */}
+        {stage === 'serving' && endingIncomplete ? (
+          <div className="ql-readiness" role="group" aria-label="Mark this visit as incomplete">
+            <label htmlFor="incomplete-reason">Why is this visit incomplete?</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+              <span className="qx-select">
+                <select id="incomplete-reason" value={incompleteReason}
+                  onChange={(e) => setIncompleteReason(e.target.value)}>
+                  <option value="">Choose a reason…</option>
+                  {INCOMPLETE_REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+                <ChevronDown />
+              </span>
+              <button type="button" className="ql-btn danger" onClick={endIncomplete}
+                disabled={!incompleteReason || busy}>
+                {busy ? 'Saving…' : 'Mark Visit As Incomplete'}
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setEndingIncomplete(false); setIncompleteReason(''); }}>
+                Cancel
+              </button>
+            </div>
+            <small>
+              The visit still counts as time spent at your desk. It is recorded as
+              not having achieved what the person came for.
+            </small>
+          </div>
+        ) : null}
 
         {stage === 'called' && calls > 1 ? (
           <div style={{ marginTop: 12, fontSize: 12, opacity: .72, fontWeight: 600 }}>
@@ -580,20 +951,34 @@ export function LineOverviewQX() {
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
         <div>
-          <Table grid={LQ_GRID} columns={['Ticket', 'Waiting', '']}
+          <Table grid={LQ_GRID} columns={['Ticket', 'Joined', 'Channel', 'Waited', '']}
             items={[...list].sort((a, b) => b.waited - a.waited)}
             empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
             renderRow={(t) => (
               <Row key={t.id} grid={LQ_GRID}>
                 <div className="qx-cellmain">
                   <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
-                  <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{t.no}</b>
+                    <small>
+                      {t.name}
+                      {/* A second call is a different situation from a first,
+                          and the row is where a clerk decides who to try. */}
+                      {(t.callCount || 0) > 1 ? ` · called ${t.callCount}×` : ''}
+                    </small>
+                  </div>
                 </div>
+                <div className="qx-num">{joinedClock(t.joinedAt)}</div>
+                <div className="qx-num"><u>{channelOf(t)}</u></div>
                 <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
                   {t.waited}<u> min</u>
                 </div>
                 <div className="qx-end">
-                  <button type="button" className="qx-btn ghost" disabled={stage !== 'idle'}
+                  {/* Same busy guard as the stage buttons. The row self-disables
+                      a moment later anyway once the stage leaves idle, but "a
+                      moment later" is the window a second press lands in. */}
+                  <button type="button" className="qx-btn ghost" disabled={stage !== 'idle' || busy}
+                    aria-busy={busy}
                     title={stage === 'idle' ? undefined : 'Finish with the person at your window first'}
                     onClick={() => run(() => d.onCall?.(t.id))}>
                     {t.state === 'noresponse' ? 'Call Back' : 'Call'}
@@ -731,7 +1116,18 @@ export function LineHistoryTab() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>{h.at}</div>
               <div className="qx-num">{h.minutes}<u> min</u></div>
-              <div><Status kind={OUTCOME[h.outcome].kind}>{OUTCOME[h.outcome].label}</Status></div>
+              <div>
+                <Status kind={OUTCOME[h.outcome].kind}>{OUTCOME[h.outcome].label}</Status>
+                {/* The reason, where there is one. "Incomplete" says the visit
+                    did not finish; only the reason says whether that is a
+                    document problem the branch can fix or the day simply
+                    ending. */}
+                {h.reason ? (
+                  <small style={{ display: 'block', marginTop: 3, opacity: .7 }}>
+                    {REASON_LABEL[h.reason] || h.reason}
+                  </small>
+                ) : null}
+              </div>
             </Row>
           )} />
       </Card>
@@ -841,8 +1237,11 @@ export function LineSupportTab() {
         <Card title="Get Help Now" cap="Your supervisor first — they are on the floor">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Call Your Supervisor</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
         </Card>
         <Card title="Your Window" cap="Useful when reporting a problem">

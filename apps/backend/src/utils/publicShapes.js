@@ -21,6 +21,10 @@
 const PUBLIC_BUSINESS_FIELDS = [
   'id', 'slug', 'name', 'description', 'logo_url', 'website_url',
   'phone', 'email', 'sector', 'terms',
+  /* Opening hours are on the front door of every branch — withholding them
+     from the app that exists to stop wasted journeys protects nothing and
+     costs the one thing somebody checks before setting off. */
+  'default_opening_time', 'default_closing_time',
 ];
 
 /* Staff — served to managers and executives listing their own team.

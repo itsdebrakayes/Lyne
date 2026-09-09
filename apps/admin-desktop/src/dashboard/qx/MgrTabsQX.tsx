@@ -22,7 +22,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, Clock, Coffee, Download,
-  FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, UserX, Users, Waypoints, Zap,
+  FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, UserX, Users, Waypoints, Zap, PlayCircle,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, IconBtn, Status, Focus, Note, Heatmap,
@@ -31,6 +31,7 @@ import {
 } from '@/design/ui';
 import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
 import { fmtN } from '../insights';
+import { replayTour } from '../../hooks/useTour';
 
 /* ══════════════════════ window cover ══════════════════════
    A branch with no windows configured is NOT a branch where every window is
@@ -66,6 +67,8 @@ export type MgrTargetRow = {
 };
 
 export type MgrTabData = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   branchName: string; org: string; managerName: string;
   staff: MgrStaff[];
   services: MgrSvc[];
@@ -386,6 +389,7 @@ export function MgrServicesTab() {
               : worst.open < worst.counters
                 ? `${worst.waiting} people are waiting on ${worst.open} of ${worst.counters} windows. Opening one more is the single fastest thing you can do this hour.`
                 : `${worst.waiting} people are waiting and every window is already open. This is a pace problem, not a staffing one.`} />
+
         </div>
       </Card>
 
@@ -877,8 +881,11 @@ export function MgrSupportTab() {
         <Card title="Ask Your Executive" cap="For anything set centrally">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Executive</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />support@uselyne.com</button>
+            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
             <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
+            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+              <PlayCircle size={14} />Replay The Tour
+            </button>
           </div>
           <div style={{ marginTop: 13 }}>
             <Note icon={Clock} title="Support Hours"
@@ -928,7 +935,11 @@ export const MGR_TAB_HEAD: Record<string, { title: string; sub: string }> = {
  * numbers are "right now" and "today", not the month.
  */
 const MSVC_OGRID = 'minmax(0,2.4fr) 84px 96px 118px 118px';
-const MSTAFF_OGRID = 'minmax(0,1.7fr) minmax(0,1.4fr) minmax(0,1.2fr) 64px 76px minmax(0,1.35fr)';
+/* The Staff cell stacks the name over "Since 9:26 AM" now that the sign-in
+   time is real rather than an em-dash, so it needs more room than a bare
+   name did — at 1.7fr the names were truncating to "Kem…" and "Alici…".
+   Taken from Counter and Service, which carry short labels. */
+const MSTAFF_OGRID = 'minmax(0,2.4fr) minmax(0,1.15fr) minmax(0,1fr) 64px 76px minmax(0,1.2fr)';
 
 export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
   const d = useMgr();
@@ -967,8 +978,8 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
       <Stat span={3} icon={Clock} tone={joinNowWait > tWait ? 'bad' : 'primary'} label="Wait If You Join Now" value={joinNowWait} unit="min"
         chip={joinNowWait > tWait ? { dir: 'bad', text: `${Math.round(joinNowWait - tWait)} Over` } : { dir: 'good', text: 'On Target' }}
         foot={`What we are telling people right now · target ${tWait} min`} />
-      <Stat span={3} icon={CheckCircle2} tone="primary" label="Served Today" value={d.servedToday}
-        foot="Seen and finished at a counter today" />
+      <Stat span={3} icon={CheckCircle2} tone="primary" label={d.periodLabel ? `Served · ${d.periodLabel}` : 'Served Today'} value={d.servedToday}
+        foot={d.periodLabel ? `Seen and finished at a counter, ${d.periodLabel}` : 'Seen and finished at a counter today'} />
       <Stat span={3} icon={Users} tone={coverTone(open, counters)} label="Windows Open"
         value={`${open} of ${counters}`}
         foot={coverFoot(open, counters)} />
@@ -1016,6 +1027,40 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
                     { label: 'Waiting', value: String(worst.waiting), dir: 'bad' }]}
             action={{ label: 'Open Staff & Counters', onClick: () => onNav('staff') }} />
         ) : null}
+
+        {/* Send it, from the panel it is read on.
+            The recommendation named the fastest fix available this hour and its
+            only button navigated to another tab — the manager still had to find
+            the request over there and retype what this panel already knew. The
+            navigation stays, because moving somebody yourself is often the right
+            answer; this is for when the person who should move is not yours to
+            move.
+
+            Only when there is a window to open: where every window is already
+            staffed the recommendation is about pace, and asking a supervisor to
+            staff it would be asking for something impossible. */}
+        {worst && worst.counters > 0 && worst.open < worst.counters ? (
+          <Card title="Or Ask Someone Else To" cap="Lands in the notifications of every supervisor on this branch">
+            <button type="button" className="qx-btn primary" style={{ width: '100%' }}
+              disabled={d.askState === 'sending' || d.askState === 'sent' || !d.onAskSupervisor}
+              onClick={() => d.onAskSupervisor?.(
+                `${worst.name} has ${worst.waiting} waiting on ${worst.open} of ${worst.counters} windows — longest wait ${worst.longest} min. Opening one more is the fastest fix this hour; please put someone on it.`)}>
+              {d.askState === 'sent' ? 'Supervisor Notified'
+                : d.askState === 'sending' ? 'Sending…'
+                : 'Ask Supervisor To Staff It'}
+            </button>
+            {d.askState === 'error' ? (
+              <div className="qx-cap" style={{ color: 'var(--c-bad)', marginTop: 10 }}>
+                {d.askError || 'The request could not be sent. Nothing was changed — try again, or speak to them directly.'}
+              </div>
+            ) : d.askState === 'sent' ? (
+              <div className="qx-cap" style={{ marginTop: 10 }}>
+                You will see the desk filled on the section board once one of them acts.
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+
         <Card title="Today Against Your Target" cap="The targets this branch is held to">
           {!d.targets.length ? <div className="qx-empty">No targets set yet.</div> : (
             <div className="qx-sbreak">

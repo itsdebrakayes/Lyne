@@ -242,6 +242,16 @@
   white-space: nowrap; border: 1px solid color-mix(in oklab, var(--c-good) 24%, transparent);
 }
 .qx-live i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: qx-pulse 2s ease-out infinite; }
+/* Stale: the last refresh failed, or nothing on screen has loaded in fifteen
+   minutes. Red is reserved for problems in this design system and this is one —
+   a manager acting on figures they believe are current is the whole risk. The
+   pulse stops, because a pulsing dot reads as a live feed and that is precisely
+   what has stopped. */
+.qx-live.stale {
+  background: var(--c-bad-soft); color: var(--c-bad);
+  border-color: color-mix(in oklab, var(--c-bad) 24%, transparent);
+}
+.qx-live.stale i { animation: none; opacity: .8; }
 @keyframes qx-pulse { 0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; } 70% { box-shadow: 0 0 0 7px transparent; opacity: .75; } 100% { box-shadow: 0 0 0 0 transparent; opacity: 1; } }
 
 .qx-pills { display: inline-flex; gap: 2px; padding: 3px; background: var(--glass); border: 1px solid var(--glass-line); border-radius: 13px; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--sh-glass); }
@@ -787,6 +797,26 @@
 /* the ticket number is the single biggest thing on the screen */
 .ql-big { font-size: clamp(44px, 5.4vw, 74px); font-weight: 800; letter-spacing: -.05em; line-height: 1; margin: 10px 0 0; }
 .ql-who { font-size: clamp(17px, 1.6vw, 22px); font-weight: 600; opacity: .86; margin-top: 8px; }
+/* Stage pills — what this person came for, how they reached the counter, and
+   whether their code has been checked.
+   Not .qx-chip: that one is built for the light dashboard surfaces and its
+   soft-tinted backgrounds vanish against the navy stage. These sit on the dark
+   ground, so they are translucent white with a hairline rather than a fill. */
+.ql-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ql-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; padding: 6px 12px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: -.01em;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  white-space: nowrap;
+}
+.ql-tag svg { width: 13px; height: 13px; flex: none; }
+/* Verified is the one a clerk looks for, so it is the one that is not grey. */
+.ql-tag.ok   { background: rgba(47,191,113,.16); border-color: rgba(47,191,113,.34); color: #86e3ad; }
+.ql-tag.warn { background: rgba(229,72,77,.16);  border-color: rgba(229,72,77,.34);  color: #ffa9ab; }
+
 .ql-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .ql-meta span {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px;
@@ -955,6 +985,12 @@
 /* The overview's desk board scrolls instead of growing — 25 desks would push
    everything below it off the screen, and this is the glance card, not the
    planner. */
+/* A card that is as tall as its contents, in a grid whose default is to stretch
+   every cell to the tallest in the row. Use it wherever a short panel sits
+   beside a tall one — blank space inside a bordered card does not read as
+   spare room, it reads as content that failed to arrive. */
+.qs-fitcontent { align-self: start; }
+
 .qs-boardscroll { display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
 .qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .qs-boardscroll .qs-desk { min-height: 74px; padding: 9px 10px; }
@@ -1224,4 +1260,176 @@
   .qx-checkin { flex-direction: column; }
   .qx-checkin input { font-size: 16px; }
   .qx-callout b { font-size: 32px; }
+}
+
+/* ── Date window chip ──────────────────────────────────────────────────────
+   The chip became a control, so it needs a popover. Positioned from the right
+   because it sits in a right-aligned header cluster — anchoring left would push
+   it off-screen on a narrow window. */
+.qx-datewrap { position: relative; display: inline-flex; }
+.qx-datechip.as-button { cursor: pointer; font-family: inherit; }
+.qx-datechip.as-button:hover { border-color: var(--c-primary); }
+.qx-datepop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; gap: 10px;
+  min-width: 250px; padding: 14px;
+  border: 1px solid var(--glass-line); border-radius: 14px;
+  background: var(--c-surface); box-shadow: 0 18px 44px -18px rgba(0,0,0,.45);
+}
+.qx-datepop-row { display: flex; gap: 8px; }
+.qx-datepop-row .qx-btn { flex: 1; justify-content: center; }
+.qx-datepop-field { display: flex; flex-direction: column; gap: 5px; }
+.qx-datepop-field span { font-size: 11px; font-weight: 700; color: var(--c-dim); letter-spacing: .04em; text-transform: uppercase; }
+.qx-datepop-field input {
+  font: inherit; font-size: 12.5px; padding: 8px 10px;
+  border: 1px solid var(--glass-line); border-radius: 10px;
+  background: var(--glass); color: var(--c-text);
+}
+.qx-datepop-today { justify-content: center; }
+
+/* ── Session planner ───────────────────────────────────────────────────────
+   Two answers side by side, deliberately equal in weight: what it takes to get
+   everyone through the door, and what it takes to get them through without a
+   queue. They are different promises and the layout should not imply one is a
+   footnote of the other. */
+.qx-planrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.qx-planbox {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--glass); border: 1px solid var(--glass-line);
+}
+.qx-planbox.accent { border-color: var(--c-primary); }
+.qx-planbox b { font-size: 30px; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.qx-planbox small { font-size: 12px; font-weight: 700; color: var(--c-text); }
+.qx-planbox em { font-size: 11.5px; font-style: normal; color: var(--c-dim); line-height: 1.45; }
+@media (max-width: 720px) { .qx-planrow { grid-template-columns: 1fr; } }
+
+.qx-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--glass-line); border-radius: 11px; background: var(--glass); overflow: hidden; }
+.qx-stepper button { border: 0; background: none; color: var(--c-text); font-size: 16px; font-weight: 700; width: 34px; height: 34px; cursor: pointer; }
+.qx-stepper button:hover { background: var(--c-primary); color: #fff; }
+.qx-stepper span { min-width: 34px; text-align: center; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.qx-tag.warn { border-color: var(--c-warn, #b4801f); color: var(--c-warn, #b4801f); }
+
+/* ── Customer cases ───────────────────────────────────────────────────────
+   The caseload screen: people who keep coming back unserved. Built on the
+   existing tokens — no new colours. The one semantic decision here is that a
+   repeat visit for the SAME service is treated as the hotter signal, because a
+   process failing one person repeatedly is a fixable thing and somebody with
+   several different errands usually is not a problem at all. */
+.qc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.qc-h2 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; color: var(--c-text); margin: 0; }
+.qc-h3 { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--c-faint); margin: 6px 0 0; }
+.qc-sub { font-size: 13.5px; color: var(--c-dim); margin: 5px 0 0; max-width: 62ch; }
+
+.qc-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+.qc-field { display: flex; flex-direction: column; gap: 5px; }
+.qc-field > span { font-size: 10.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--c-faint); }
+.qc-field select {
+  min-height: 38px; border-radius: 10px; border: 1px solid var(--c-line);
+  background: var(--c-surface); color: var(--c-text);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 0 10px;
+}
+.qc-field select:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 1px; }
+
+.qc-count { font-size: 13.5px; color: var(--c-dim); margin: 0; }
+.qc-count b { color: var(--c-text); font-weight: 800; }
+
+.qc-cases { display: flex; flex-direction: column; gap: 10px; }
+.qc-case {
+  display: grid; grid-template-columns: minmax(190px, 1fr) minmax(0, 2fr) auto;
+  gap: 18px; align-items: center; width: 100%; text-align: left;
+  background: var(--c-surface); border: 1px solid var(--c-line);
+  border-radius: 14px; padding: 15px 18px; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.qc-case:hover { border-color: var(--c-primary); }
+.qc-case:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+
+.qc-case-who { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.qc-case-who b { display: block; font-size: 14.5px; font-weight: 800; color: var(--c-text); }
+.qc-case-who small { display: block; font-size: 12px; color: var(--c-faint); margin-top: 2px; }
+.qc-avatar {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  background: var(--c-primary-soft); color: var(--c-primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.qc-avatar--lg { width: 56px; height: 56px; border-radius: 16px; }
+
+.qc-case-mid { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.qc-case-line { font-size: 13.5px; color: var(--c-text); }
+.qc-case-line b { font-weight: 800; }
+.qc-dim { color: var(--c-faint); }
+.qc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.qc-tag {
+  font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 7px;
+  background: var(--c-second-soft); color: var(--c-primary); white-space: nowrap;
+}
+.qc-tag--hot { background: var(--c-bad-soft); color: var(--c-bad); }
+.qc-tag--ok { background: var(--c-good-soft); color: var(--c-good); }
+.qc-tag--quiet { background: transparent; color: var(--c-faint); border: 1px solid var(--c-line); }
+
+.qc-case-end { display: flex; align-items: center; gap: 10px; color: var(--c-faint); }
+.qc-case-end small { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.qc-case-end b { font-size: 13px; font-weight: 700; color: var(--c-text); white-space: nowrap; }
+
+.qc-note {
+  display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--c-dim);
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 12px; padding: 13px 16px;
+}
+.qc-note--bad { color: var(--c-bad); background: var(--c-bad-soft); border-color: transparent; }
+.qc-linkbtn { background: none; border: 0; font: inherit; font-weight: 800; color: inherit; text-decoration: underline; cursor: pointer; }
+
+.qc-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 16px; padding: 40px 28px;
+  color: var(--c-faint);
+}
+.qc-empty b { font-size: 15.5px; font-weight: 800; color: var(--c-text); }
+.qc-empty p { font-size: 13.5px; color: var(--c-dim); margin: 0; max-width: 48ch; }
+
+.qc-foot { font-size: 12.5px; color: var(--c-faint); margin: 4px 0 0; max-width: 70ch; }
+
+.qc-back {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  background: none; border: 0; font: inherit; font-size: 13px; font-weight: 800;
+  color: var(--c-primary); cursor: pointer; padding: 4px 0;
+}
+.qc-back:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; border-radius: 4px; }
+
+.qc-person { display: flex; align-items: center; gap: 16px; }
+.qc-contact { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 0; font-size: 12.5px; color: var(--c-dim); }
+.qc-contact span { display: inline-flex; align-items: center; gap: 5px; }
+
+.qc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.qc-stat {
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 13px;
+  padding: 15px 17px; display: flex; flex-direction: column; gap: 3px;
+}
+.qc-stat b { font-size: 25px; font-weight: 800; letter-spacing: -.02em; color: var(--c-text); font-variant-numeric: tabular-nums; }
+.qc-stat small { font-size: 11.5px; font-weight: 700; color: var(--c-faint); }
+.qc-stat--hot b { color: var(--c-bad); }
+
+.qc-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.qc-visit {
+  display: grid; grid-template-columns: 118px minmax(0, 1fr) auto; gap: 16px; align-items: center;
+  background: var(--c-surface); border: 1px solid var(--c-line);
+  border-left: 3px solid var(--c-line); border-radius: 12px; padding: 13px 16px;
+}
+/* The stripe carries the outcome, so a timeline can be read down its edge
+   without parsing a single word of it. */
+.qc-visit.is-ok   { border-left-color: var(--c-good); }
+.qc-visit.is-bad  { border-left-color: var(--c-bad); }
+.qc-visit.is-live { border-left-color: var(--c-primary-bright); }
+.qc-visit-when { font-size: 12.5px; font-weight: 700; color: var(--c-dim); font-variant-numeric: tabular-nums; }
+.qc-visit-what b { display: block; font-size: 14px; font-weight: 800; color: var(--c-text); }
+.qc-visit-what small { display: block; font-size: 11.5px; color: var(--c-faint); margin-top: 2px; }
+.qc-visit-out { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.qc-visit-out small { font-size: 11.5px; color: var(--c-faint); white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .qc-case { grid-template-columns: 1fr; gap: 12px; }
+  .qc-case-end { justify-content: flex-start; }
+  .qc-visit { grid-template-columns: 1fr; gap: 8px; }
+  .qc-visit-out { justify-content: flex-start; }
 }

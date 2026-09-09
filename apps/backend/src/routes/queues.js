@@ -174,7 +174,27 @@ router.get('/', async (req, res) => {
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting')  AS waiting_count,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'in_service') AS serving_count,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id)                           AS total_count,
-              (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes
+              (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes,
+              /* How many windows this line HAS, and how many are actually being
+                 worked. Both were missing from this payload entirely, and the
+                 manager's overview reads them: with nothing to read it decided
+                 every line had zero counters and told the manager "this line has
+                 no windows set up at all — add its counters before anyone can be
+                 put on it." That is alarming, wrong, and was on the main screen.
+
+                 Open means somebody is ON it: rostered to the counter today,
+                 clocked in, and not on a break. The same definition the section
+                 board and the window-closed notification use, so the three
+                 cannot disagree about whether a window is being worked. */
+              (SELECT COUNT(*) FROM counters c
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id
+                  AND c.is_active = TRUE)                                       AS counters_total,
+              (SELECT COUNT(DISTINCT c.id) FROM counters c
+                 JOIN staff_assignments sa ON sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+                 JOIN staff_shifts sh ON sh.staff_id = sa.staff_id
+                  AND sh.clocked_out_at IS NULL AND sh.on_break_since IS NULL
+                WHERE c.branch_id = q.branch_id AND c.service_id = q.service_id
+                  AND c.is_active = TRUE)                                       AS counters_open
        FROM queues q
        JOIN branches b  ON q.branch_id  = b.id
        JOIN services s  ON q.service_id = s.id

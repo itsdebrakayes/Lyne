@@ -14,12 +14,18 @@ import About from './pages/About';
 import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import DeleteAccount from './pages/DeleteAccount';
+import Download from './pages/Download';
 import NotFound from './pages/NotFound';
+import { ScrollToTop } from './components/ScrollToTop';
+import useSeo from './lib/useSeo';
 import MobileMarketingHome from './pages/mobile/MobileMarketingHome';
 import MobileAbout from './pages/mobile/MobileAbout';
 import MobileJoinUs from './pages/mobile/MobileJoinUs';
 import MobilePrivacy from './pages/mobile/MobilePrivacy';
 import MobileTerms from './pages/mobile/MobileTerms';
+import MobileDeleteAccount from './pages/mobile/MobileDeleteAccount';
+import MobileDownload from './pages/mobile/MobileDownload';
 import MobileNotFound from './pages/mobile/MobileNotFound';
 
 // The account portal needs Supabase values that are intentionally not part of
@@ -42,6 +48,24 @@ function AccountRoute() {
   );
 }
 
+/**
+ * Route wrapper that sets the page's own title, description and canonical.
+ *
+ * Written once here rather than inside each page, because every route has a
+ * desktop and a mobile component and the words describing the page are a
+ * property of the ROUTE, not of which layout happened to render.
+ *
+ * The descriptions are written for a search result, not for the page: each one
+ * has to make sense read on its own, next to nine competitors, by somebody who
+ * has not seen the site. That is also what an answer engine quotes.
+ */
+function Seo({
+  title, description, path, children,
+}: { title: string; description: string; path: string; children: React.ReactNode }) {
+  useSeo({ title, description, path });
+  return <>{children}</>;
+}
+
 function App() {
   return (
     /* Every framer-motion animation on this site — and there are a lot of them,
@@ -61,12 +85,57 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
-            <Route path="/" element={<ResponsivePage desktop={<MarketingHome />} mobile={<MobileMarketingHome />} />} />
-            <Route path="/about" element={<ResponsivePage desktop={<About />} mobile={<MobileAbout />} />} />
-            <Route path="/join-us" element={<ResponsivePage desktop={<JoinUs />} mobile={<MobileJoinUs />} />} />
-            <Route path="/privacy" element={<ResponsivePage desktop={<Privacy />} mobile={<MobilePrivacy />} />} />
-            <Route path="/terms" element={<ResponsivePage desktop={<Terms />} mobile={<MobileTerms />} />} />
+            <Route path="/" element={
+              <Seo
+                path="/"
+                title="Lyne — Skip the Wait, Hold Your Spot From Your Phone"
+                description="See how long the wait is before you leave home, join the line from your phone, and arrive when you are nearly up. Live queue times for agencies, banks and credit unions in Jamaica.">
+                <ResponsivePage desktop={<MarketingHome />} mobile={<MobileMarketingHome />} />
+              </Seo>} />
+            <Route path="/about" element={
+              <Seo
+                path="/about"
+                title="About Lyne — Why We Built a Better Queue"
+                description="Lyne is a Jamaican queue management platform built to end the waiting room. Learn who we are, the problem we set out to fix, and how virtual queueing works.">
+                <ResponsivePage desktop={<About />} mobile={<MobileAbout />} />
+              </Seo>} />
+            <Route path="/join-us" element={
+              <Seo
+                path="/join-us"
+                title="Bring Lyne to Your Branch"
+                description="Give your customers live wait times and let them hold their place from their phone, while your staff work from a live queue dashboard. Talk to us about your branches.">
+                <ResponsivePage desktop={<JoinUs />} mobile={<MobileJoinUs />} />
+              </Seo>} />
+            <Route path="/privacy" element={
+              <Seo
+                path="/privacy"
+                title="Privacy Policy"
+                description="How Lyne collects, uses and protects your personal information, what we keep, and the choices you have.">
+                <ResponsivePage desktop={<Privacy />} mobile={<MobilePrivacy />} />
+              </Seo>} />
+            <Route path="/terms" element={
+              <Seo
+                path="/terms"
+                title="Terms of Service"
+                description="The terms that apply when you use Lyne to join a queue or manage one.">
+                <ResponsivePage desktop={<Terms />} mobile={<MobileTerms />} />
+              </Seo>} />
+            <Route path="/download" element={
+              <Seo
+                path="/download"
+                title="Download Lyne Admin for Desktop"
+                description="Install the Lyne Admin console on a Windows or Mac computer at your branch. Requires an account issued by Lyne under an active agreement — there is no sign-up.">
+                <ResponsivePage desktop={<Download />} mobile={<MobileDownload />} />
+              </Seo>} />
+            <Route path="/delete-account" element={
+              <Seo
+                path="/delete-account"
+                title="Delete Your Account"
+                description="How to delete your Lyne account and everything on it, from inside the app or without it. What is removed, what is kept, and how to ask us.">
+                <ResponsivePage desktop={<DeleteAccount />} mobile={<MobileDeleteAccount />} />
+              </Seo>} />
             {/* Deliberately absent from the nav, the footer and the sitemap.
                 Typing the URL renders <NotFound /> unless the visitor arrived
                 from the app with a valid handoff — see pages/Account.tsx. */}

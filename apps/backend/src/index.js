@@ -18,6 +18,54 @@ const { refreshAnalyticsSummaries } = require('./jobs/refreshAnalytics');
 
 const app = express();
 
+/* Who is the caller, when somebody else forwarded the request?
+ *
+ * Every rate limit in this app counts per `req.ip`. With no trust-proxy
+ * setting Express reports the socket address, which behind a reverse proxy is
+ * the PROXY on every request — so the whole platform shares one bucket and the
+ * first ten sign-ins of any fifteen minutes lock everybody else out. Invisible
+ * locally, total on the day we host.
+ *
+ * The obvious fix is the dangerous one. `trust proxy: true` tells Express to
+ * believe the entire X-Forwarded-For chain, including the part the client
+ * wrote, so anyone can rotate a header and get an unlimited number of buckets.
+ * That does not weaken the limiter, it removes it — strictly worse than the
+ * bug it fixes. express-rate-limit refuses that combination for this reason.
+ *
+ * So it is configured, never guessed, and the default is the safe one:
+ *
+ *   unset        no proxy — trust the socket. Correct for local and for
+ *                anything exposed directly. This is the current behaviour.
+ *   a number     count that many hops back from our own server. One reverse
+ *                proxy (nginx, Caddy, a load balancer) is 1. Cloudflare in
+ *                front of nginx is 2. Count the hops YOU control.
+ *   addresses    a comma-separated list of proxy IPs or CIDR ranges to trust,
+ *                when the hop count varies.
+ *
+ * Getting the number too high is the same failure as `true` for those hops, so
+ * when in doubt set it to 1 and check /api/debug/client-ip below.
+ */
+const trustProxy = (process.env.TRUST_PROXY || '').trim();
+if (trustProxy) {
+  if (/^\d+$/.test(trustProxy)) {
+    app.set('trust proxy', Number(trustProxy));
+  } else if (trustProxy === 'false') {
+    app.set('trust proxy', false);
+  } else if (trustProxy === 'true') {
+    /* Allowed only because someone may genuinely need it on a closed network,
+       and refusing outright would get it worked around less visibly. It is
+       still wrong on the public internet, and it says so on every boot. */
+    console.warn(
+      '[security] TRUST_PROXY=true trusts a client-supplied X-Forwarded-For, '
+      + 'which lets any caller pick their own rate-limit bucket. Set it to the '
+      + 'number of proxies in front of this server instead.');
+    app.set('trust proxy', true);
+  } else {
+    // A list of proxy addresses / CIDRs.
+    app.set('trust proxy', trustProxy.split(',').map(s => s.trim()).filter(Boolean));
+  }
+}
+
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || '')
   .split(',')
   .map(origin => origin.trim())
@@ -173,6 +221,22 @@ app.get('/health', (_req, res) => res.json({
   uptime:    Math.round(process.uptime()),
 }));
 
+/* Is TRUST_PROXY set correctly? — the only way to know is to ask from outside.
+ *
+ * A wrong hop count fails silently in both directions: too low and every user
+ * shares the proxy's bucket, too high and each user can pick their own. Neither
+ * shows up in a log. This returns the address the rate limiters will actually
+ * count against, so after a deploy you can curl it from a phone on mobile data
+ * and check it is your phone's IP and not the load balancer's.
+ *
+ * It tells the caller their own IP and nothing else — no forwarded chain, no
+ * headers, no internal addresses. Whoever is asking already knows their IP. */
+app.get('/api/debug/client-ip', (req, res) => res.json({
+  client_ip: req.ip,
+  trust_proxy: app.get('trust proxy') ?? false,
+  hint: 'If this is not the address you are calling from, TRUST_PROXY is wrong.',
+}));
+
 // 404 handler
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));
 
@@ -247,9 +311,18 @@ app.listen(PORT, () => {
   if (nextEvenHour.getHours() % 2 !== 0) nextEvenHour.setHours(nextEvenHour.getHours() + 1);
   const msUntilAligned = nextEvenHour - now;
 
+  /* bootstrap, not runRefresh — on a demo box the tickets must be re-dated on
+     this cadence too, not only at 00:05.
+     The seeds stamp joined_at as NOW() minus a few minutes, so a box that came
+     up at 11am was, by 20:46, showing a line whose oldest arrival had been
+     "waiting" for ten hours: 604-minute waits on the manager screen and "9h
+     32m since the last call" on the counter. The data was not corrupt — it was
+     just old, and nothing re-dated it between midnights. bootstrap() already
+     sequences seed-then-analytics (they deadlock if run together) and degrades
+     to runRefresh alone when demo refresh is off, so production is unchanged. */
   setTimeout(() => {
-    runRefresh('scheduled');
-    setInterval(() => runRefresh('scheduled'), TWO_HOURS_MS);
+    bootstrap('scheduled');
+    setInterval(() => bootstrap('scheduled'), TWO_HOURS_MS);
   }, msUntilAligned);
 
   console.log(
@@ -283,16 +356,19 @@ app.listen(PORT, () => {
     runTicketExpiry()
       .then((out) => {
         if (!out.enabled) return;
-        if (out.cancelled || out.noShow) {
+        if (out.cancelled || out.noShow || out.unfinished) {
           console.log(
-            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, ${out.noShow} called but absent.`
+            `[TicketExpiry] Closed out (${why}) — ${out.cancelled} never called, `
+            + `${out.noShow} called but absent, ${out.unfinished} left unfinished at a counter.`
           );
         }
-        // Surfaced every pass, because it means a clerk left somebody at a
-        // counter overnight. Silence here would hide a real floor problem.
+        // Still surfaced by name: a clerk repeatedly leaving people open at a
+        // counter is a floor problem, and the sweep closing the tickets does
+        // not make it stop happening. Reported AND closed, rather than reported
+        // and left to pile up across days.
         if (out.stuckInService) {
           console.warn(
-            `[TicketExpiry] ${out.stuckInService} ticket(s) still IN SERVICE past closing at: `
+            `[TicketExpiry] ${out.stuckInService} ticket(s) were still IN SERVICE past closing at: `
             + `${out.stuckBranches.join(', ')} — a clerk did not finish them.`
           );
         }

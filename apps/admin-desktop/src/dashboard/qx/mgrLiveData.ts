@@ -12,10 +12,22 @@
 import type { MgrTabData, MgrStaff, MgrSvc, MgrTargetRow } from './MgrTabsQX';
 import { num, titleCase } from '../insights';
 
+/** "8:04 AM" from a timestamp, or a dash when there is genuinely nothing. */
+const onSinceLabel = (signedIn?: unknown, firstActivity?: unknown) => {
+  const raw = signedIn || firstActivity;
+  if (!raw) return '—';
+  const t = new Date(String(raw));
+  return Number.isFinite(t.getTime())
+    ? t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '—';
+};
+
 const CODE = (name?: string) => (titleCase(name) || '')
   .split(/\s+/).map((w) => w[0] || '').join('').slice(0, 3).toUpperCase() || 'SVC';
 
 export type MgrLiveInput = {
+  /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
+  periodLabel?: string;
   branchName: string; org: string; managerName: string;
   /** live queue rows for today, one per service */
   queues: any[];
@@ -134,11 +146,20 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
        today", which is what tickets_handled says. The old reading marked the
        whole branch as Serving on one tab while the productivity feed called the
        same people Idle on another. */
-    const state: MgrStaff['state'] = idle.has(s.full_name) ? 'idle'
+    /* Presence first, because it is now a fact rather than a guess.
+       "on break" used to mean "handled a ticket today but is not at a desk this
+       second" — which is also what going home looks like, and what being moved
+       between windows looks like. A shift record says which. Only once somebody
+       is known to be present do the performance flags (idle, slow) apply; a
+       clerk who has gone home is not "idle with people waiting", they are off. */
+    const onBreak = Boolean(s.on_break_since);
+    const onShift = Boolean(s.clocked_in_at);
+    const state: MgrStaff['state'] = !onShift ? 'off'
+      : onBreak ? 'break'
+      : idle.has(s.full_name) ? 'idle'
       : slow.has(s.full_name) ? 'slow'
       : desk ? 'serving'
-      : seen > 0 ? 'break'
-      : 'off';
+      : 'idle';
     return {
       id: String(s.staff_id || s.full_name),
       name,
@@ -148,7 +169,7 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
       svc: desk?.svc || '—',
       seen,
       avg: Math.round(num(s.avg_handle_minutes)),
-      since: '—',
+      since: onSinceLabel(s.signed_in_at, s.first_activity_at),
       state,
       note: idle.get(s.full_name) || slow.get(s.full_name),
     };
@@ -193,6 +214,8 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     staff, services, hours, svcHeat, dow, targets,
     faq: i.faq,
     servedToday: i.servedToday,
+    /* Forwarded so the stat labels can name the window they are summing. */
+    periodLabel: i.periodLabel,
     todayByHour: i.todayByHour,
     yesterdayByHour: i.yesterdayByHour,
     /* The card is captioned "Today", so every COUNT in it is today's, straight

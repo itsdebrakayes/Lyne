@@ -1,7 +1,7 @@
 # App Store readiness — Lyne iOS
 
 **Date:** 2026-08-13
-**Scope:** the consumer mobile app (`apps/mobile`, bundle `com.lyne.app`). The admin desktop app and the B2B tenant subscriptions are a different animal and are covered at the end.
+**Scope:** the consumer mobile app (`apps/mobile`, bundle `com.lyne.mobile`). The admin desktop app and the B2B tenant subscriptions are a different animal and are covered at the end.
 
 Everything below was checked against the actual codebase, not recalled from general advice. Where I say something is missing, I grepped for it and it wasn't there.
 

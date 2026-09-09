@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { paymentsConfigured } from '../../lib/stripe';
 import { isDemoBuild } from '../../lib/sectorTerms';
+import { useContentColumn } from '../../lib/stage';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -57,6 +58,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfileScreen() {
+  const column = useContentColumn();
   const topPad = useTopPad(24);
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }, column]} showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 28 }}>
           <Text style={t.h2}>Account</Text>
         </View>
@@ -203,15 +205,6 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* add another document — grayed placeholder for extra doc types */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => Alert.alert('More document types coming', 'Passport and driver’s licence capture is on the way, with secure Face ID-protected storage. For now you can add your National ID and TRN above.')}
-          style={{ marginTop: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surfaceAlt, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          <Icon name="plus" size={19} color={colors.muted} />
-          <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Add another document</Text>
-        </TouchableOpacity>
 
         {/* account & activity */}
         <SectionLabel>Account & activity</SectionLabel>
@@ -221,6 +214,11 @@ export default function ProfileScreen() {
           { icon: 'appearance', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
           { icon: 'financial', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
           { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
+          /* Both stores require the privacy policy to be readable inside the
+             app, not just as a URL on the listing. LegalScreen held both
+             documents and nothing linked to it — the screen existed, the route
+             did not, so the requirement was met on paper only. */
+          { icon: 'document', label: 'Privacy policy & terms', sub: 'How we handle your data', onPress: () => navigation.navigate('Legal') },
           { icon: 'help', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 

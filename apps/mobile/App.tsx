@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
+import OfflineBanner from './src/components/OfflineBanner';
+import { startNetworkWatch } from './src/lib/network';
 import {
   useFonts,
   Manrope_400Regular,
@@ -15,12 +17,17 @@ import {
 } from '@expo-google-fonts/manrope';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
-import OnboardingScreen from './src/screens/auth/OnboardingScreen';
 import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
 
 // Before anything else renders, so a crash during boot is still reported.
 // No-ops entirely until a DSN is configured.
 initMonitoring();
+
+/* Point React Query at the device's real connectivity, so queries pause while
+   offline and refetch themselves on reconnect instead of burning retries into a
+   dead radio. This was written and then never called — the whole network module
+   was orphaned, which is also why nobody noticed the banner was unmounted. */
+startNetworkWatch();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -33,7 +40,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function App() {
   const [launching, setLaunching] = useState(true);
-  const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null);
 
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
@@ -44,13 +50,8 @@ function App() {
   });
 
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem('lyne:first-run-tutorial-v1'),
-      new Promise(resolve => setTimeout(resolve, 1200)),
-    ]).then(([seen]) => {
-      setTutorialSeen(seen === 'complete');
-      setLaunching(false);
-    });
+    const id = setTimeout(() => setLaunching(false), 1200);
+    return () => clearTimeout(id);
   }, []);
 
   // Reveal the animated JS launch screen once the fonts are ready — until then
@@ -60,19 +61,23 @@ function App() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded]);
 
-  const completeTutorial = async () => {
-    await AsyncStorage.setItem('lyne:first-run-tutorial-v1', 'complete').catch(() => {});
-    setTutorialSeen(true);
-  };
-
-  // SafeAreaProvider wraps everything — including the launch/onboarding early
-  // returns — so useSafeAreaInsets() is available on every screen from the
-  // first frame (no flash of un-inset layout).
+  /* The first-run flow — a welcome screen and a four-step explainer that also
+     asked for a town and a set of sectors — is out for version one. It was not
+     finished to the standard of the rest of the app, and an unfinished tutorial
+     is the first thing a new user sees.
+  
+     Nothing downstream depends on it. The Home header asks the phone for a
+     location and falls back to the country rather than to a town somebody
+     typed; Search opens unfiltered; the agency rail orders by wait rather than
+     by a declared sector. The screens are still in the repository
+     (src/screens/auth/Onboarding*.tsx) so putting the flow back is a matter of
+     restoring this gate, not rewriting it.
+  
+     SafeAreaProvider still wraps everything — including the launch early
+     return — so useSafeAreaInsets() is available from the first frame. */
   let body: React.ReactNode;
-  if (launching || tutorialSeen === null || !fontsLoaded) {
+  if (launching || !fontsLoaded) {
     body = <LaunchScreen />;
-  } else if (!tutorialSeen) {
-    body = <OnboardingScreen onComplete={completeTutorial} />;
   } else {
     body = (
       <QueryClientProvider client={queryClient}>
@@ -83,9 +88,19 @@ function App() {
     );
   }
 
+  /* The offline banner sits ABOVE everything, including the launch stage,
+     because losing the connection is true across all of it. It was written for this and then never mounted — the component
+     existed, rendered nowhere, so the app has been silently pretending to be
+     online since it was added. It renders nothing at all when connected, which
+     is why nobody noticed. */
   return (
     <SafeAreaProvider>
-      <ThemeProvider>{body}</ThemeProvider>
+      <ThemeProvider>
+        <View style={{ flex: 1 }}>
+          <OfflineBanner />
+          <View style={{ flex: 1 }}>{body}</View>
+        </View>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

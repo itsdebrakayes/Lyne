@@ -37,7 +37,7 @@ const createInviteSchema = z.object({
   email:       z.string().email('A valid email is required'),
   full_name:   z.string().min(1).max(255),
   role:        z.enum(['line_staff', 'manager'], {
-    errorMap: () => ({ message: 'role must be line_staff or manager' }),
+    error: 'role must be line_staff or manager',
   }),
   business_id: idSchema,
   branch_id:   idSchema.optional(),

@@ -20,6 +20,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
 import { DragSheet } from './DragSheet';
+import { HoldButton } from './HoldButton';
 import { Press } from './Press';
 
 export function ConfirmSheet({
@@ -30,6 +31,9 @@ export function ConfirmSheet({
   cancelLabel = 'Cancel',
   icon = 'alert-circle-outline',
   busy = false,
+  hold = false,
+  holdDoneLabel = 'Done',
+  resetSignal,
   onConfirm,
   onCancel,
 }: {
@@ -41,6 +45,20 @@ export function ConfirmSheet({
   cancelLabel?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   busy?: boolean;
+  /**
+   * Confirm by holding rather than tapping.
+   *
+   * For the costliest actions only. A tap inside a sheet is already guarded by
+   * having to open the sheet, so this is not about a second guard — it is about
+   * the seam where somebody dismisses a sheet they did not read and hits the
+   * red button by muscle memory. You cannot do that by accident with a hold,
+   * and the fill gives you the whole gesture to change your mind in.
+   */
+  hold?: boolean;
+  /** Label beside the tick once the hold lands. */
+  holdDoneLabel?: string;
+  /** Bump to send a completed hold back to rest — see HoldButton. */
+  resetSignal?: number;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -58,28 +76,54 @@ export function ConfirmSheet({
       </View>
       <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.muted, lineHeight: 20, marginTop: 9 }}>{message}</Text>
 
-      <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-        <Press
-          onPress={onCancel}
-          disabled={busy}
-          label={cancelLabel}
-          style={{ flex: 1, minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>{cancelLabel}</Text>
-        </Press>
+      {/* Hold mode stacks instead of splitting the row. A gradient sweeping
+          half a sheet's width is over in a few centimetres and reads as a
+          glitch rather than progress; the gesture needs the full span to be
+          legible. Cancel drops underneath, which also puts the safe choice
+          nearest the thumb. */}
+      {hold ? (
+        <View style={{ marginTop: 22, gap: 10 }}>
+          <HoldButton
+            label={confirmLabel}
+            doneLabel={holdDoneLabel}
+            tone="danger"
+            busy={busy}
+            resetSignal={resetSignal}
+            onComplete={onConfirm}
+          />
+          <Press
+            onPress={onCancel}
+            disabled={busy}
+            label={cancelLabel}
+            style={{ minHeight: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.muted }}>{cancelLabel}</Text>
+          </Press>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
+          <Press
+            onPress={onCancel}
+            disabled={busy}
+            label={cancelLabel}
+            style={{ flex: 1, minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>{cancelLabel}</Text>
+          </Press>
 
-        <Press
-          onPress={onConfirm}
-          disabled={busy}
-          haptic
-          label={confirmLabel}
-          style={{ flex: 1, minHeight: 54, borderRadius: 18, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
-        >
-          {busy
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{confirmLabel}</Text>}
-        </Press>
-      </View>
+          <Press
+            onPress={onConfirm}
+            disabled={busy}
+            haptic
+            label={confirmLabel}
+            style={{ flex: 1, minHeight: 54, borderRadius: 18, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
+          >
+            {busy
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{confirmLabel}</Text>}
+          </Press>
+        </View>
+      )}
     </DragSheet>
   );
 }

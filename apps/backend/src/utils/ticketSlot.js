@@ -21,17 +21,37 @@ const { projectedWaitMinutes } = require('./etaMath');
 const { estimateWaitMinutes } = require('./waitEstimator');
 
 /**
- * A six-digit numeric code, read off a phone or a printed ticket and typed at
- * the counter. Digits rather than hex because it is read aloud across a desk,
- * typed on a numeric keypad, and never has to survive "is that a B or an 8".
+ * A six-character code, read off a phone or a printed ticket and typed at the
+ * counter.
  *
- * Six digits is 900,000 values, which is not enough to stay unique across every
- * ticket a branch will ever issue — so uniqueness is scoped to the queue (one
- * service, one day) by migration 019. Collisions inside that window are
- * retried at insert.
+ * This was six digits, and the reasoning for digits was that a code gets read
+ * aloud across a desk and should never have to survive "is that a B or an 8".
+ * That argument is answered by the alphabet rather than by dropping letters:
+ * 0/O, 1/I/L, 2/Z, 5/S and 8/B are simply not in it, so no two characters in
+ * the set look or sound alike. What is left is 25 characters.
+ *
+ * The reason to change was the other side of it. Six digits is 900,000 values
+ * and a generator walks that in seconds; 25^6 is 244 million — about 270 times
+ * the work, for the same six boxes on screen and the same effort for the person
+ * reading it out. The code is the only thing standing between a queue position
+ * and whoever claims it, so a free 270-fold is worth taking.
+ *
+ * Still not unique across every ticket a branch will ever issue — uniqueness is
+ * scoped to the queue (one service, one day) by migration 019, and collisions
+ * inside that window are retried at insert.
+ *
+ * randomInt, not Math.random: this is a credential, and it is drawn without
+ * modulo bias because the alphabet size is passed to the generator itself.
  */
+const CODE_ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
+const CODE_LENGTH = 6;
+
 function createVerificationCode() {
-  return String(crypto.randomInt(100000, 1000000));
+  let out = '';
+  for (let i = 0; i < CODE_LENGTH; i += 1) {
+    out += CODE_ALPHABET[crypto.randomInt(0, CODE_ALPHABET.length)];
+  }
+  return out;
 }
 
 /**
@@ -51,11 +71,30 @@ async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avg
      row per day, which production guarantees (ensureQueuesForToday creates a
      fresh row) but the demo does not — it re-dates a fixed row, so MAX(position)
      kept climbing and a customer seventh in line was handed ticket PAY-904.
-     Daily numbering is also just the universal convention: A-001 each morning. */
+     Daily numbering is also just the universal convention: A-001 each morning.
+
+     The second clause is what keeps that restart honest. Scoping to CURDATE()
+     alone means the count of live tickets is irrelevant to the number handed
+     out, so a queue that still holds anyone from yesterday restarts at 1 ON TOP
+     of them: two tickets share position 1, both are told "you're next", and
+     whoever just walked in is ranked ahead of someone who waited overnight.
+     waiting_position counts every waiting ticket regardless of date, so the
+     allocator has to respect the same set the consumer reads.
+
+     Nothing guarantees the queue is empty at rollover. expireStaleTickets
+     clears it, but only for branches that have a closing_time recorded, only
+     when TICKET_EXPIRY_ENABLED is not false, and only if the job actually ran.
+     A person's place in line should not depend on a cleanup job having
+     succeeded, so the ordering is made self-enforcing here instead: never issue
+     a position at or below one that is still live. On a queue that WAS tidied,
+     no live tickets remain, nothing matches the second clause, and numbering
+     restarts at 1 exactly as before. */
   const [posRows] = await conn.query(
     `SELECT COALESCE(MAX(position), 0) + 1 AS next_pos
        FROM queue_tickets
-      WHERE queue_id = ? AND DATE(joined_at) = CURDATE()`,
+      WHERE queue_id = ?
+        AND (DATE(joined_at) = CURDATE()
+             OR status IN ('waiting', 'called', 'in_service'))`,
     [queueId]
   );
   const position = posRows[0].next_pos;
@@ -88,4 +127,6 @@ async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avg
   };
 }
 
-module.exports = { issueTicketSlot, createVerificationCode };
+module.exports = {
+  CODE_ALPHABET,
+  CODE_LENGTH, issueTicketSlot, createVerificationCode };

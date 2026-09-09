@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../lib/theme';
+import OfflineState from '../components/OfflineState';
 
 // Auth screens
 import LoginScreen    from '../screens/auth/LoginScreen';
@@ -50,6 +51,8 @@ export type RootStackParamList = {
   PaymentMethods: undefined;
   PrivacySecurity: undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
+  /* A sitting you must hold a place at in advance — only reachable when one is
+     actually open, so the app never shows a door that leads nowhere. */
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -105,7 +108,20 @@ function AuthStack() {
 }
 
 export default function AppNavigator() {
-  const { user, kiosk, loading } = useAuth();
+  const { user, kiosk, loading, unreachable, retrySession } = useAuth();
+
+  /* Signed in, but the profile could not be loaded because we could not reach
+     the API. The old behaviour fell through to the auth stack, which asks for
+     a password to solve a connectivity problem — and implies the session was
+     lost when it is sitting intact on the device. Say what is actually wrong
+     and offer the only thing that helps, which is trying again. */
+  if (!loading && unreachable && !user && !kiosk) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <OfflineState onRetry={() => { void retrySession(); }} />
+      </View>
+    );
+  }
 
   if (loading) {
     return (

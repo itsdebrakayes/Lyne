@@ -7,7 +7,7 @@
  * and returns them as flat, ready-to-render arrays.
  */
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
 
@@ -28,6 +28,10 @@ export type ServiceInsight = {
 };
 export type StaffInsight = {
   staff_id?: string; full_name: string; staff_code?: string; tickets_handled?: number; avg_handle_minutes?: number;
+  signed_in_at?: string | null; first_activity_at?: string | null;
+  /* Presence, from staff_shifts. Null clocked_in_at means not on shift, which
+     is different from being on a break and different again from being idle. */
+  clocked_in_at?: string | null; on_break_since?: string | null;
 };
 export type BranchTrend = {
   branch_id?: string; branch_name?: string; business_name?: string; visit_date?: string; total_visits?: number;
@@ -96,11 +100,41 @@ export function analysisMonthKey(rows: SummaryRow[] = []) {
 }
 
 export function useDashboardData(serviceId = '') {
+  const queryClient = useQueryClient();
   const { admin } = useAdminAuth();
   const businessId = admin?.staffRecord.business_id;
   const branchId = admin?.staffRecord.branch_id;
   const branchScoped = admin?.role === 'manager' || admin?.role === 'supervisor';
   const canAnalytics = branchScoped || admin?.role === 'executive';
+  /* How often the heavy analytics queries re-run, by role.
+   *
+   * Every one of them polled on a fixed 60s (a few on 25s or 120s) regardless
+   * of who was looking, so sixteen aggregate queries hit the API every minute
+   * of every open dashboard. None of that data changes that fast: the model
+   * worker rebuilds predictive_results every two hours, so an executive was
+   * re-fetching the same numbers 120 times between the two occasions they could
+   * possibly differ.
+   *
+   * The cadence now matches how quickly each role's decisions actually move —
+   * a counter clerk works in minutes, an executive in hours — and every
+   * dashboard carries a manual refresh for when you want it now.
+   */
+  const ANALYTICS_INTERVAL: Record<string, number> = {
+    line_staff: 5 * 60_000,
+    supervisor: 30 * 60_000,
+    manager: 60 * 60_000,
+    executive: 120 * 60_000,
+  };
+  const analyticsEvery = ANALYTICS_INTERVAL[admin?.role ?? ''] ?? 60 * 60_000;
+
+  /* The live line is deliberately NOT on that cadence. It is the one thing a
+     person running a counter needs to be true right now — a customer who joined
+     two minutes ago has to appear before they reach the desk. 30s is a
+     compromise: the admin app has no realtime connection at all despite the
+     backend exposing SSE, so polling is the only mechanism it has. Wiring SSE
+     is the real fix and would let this drop to a slow backstop. */
+  const LIVE_INTERVAL = 30_000;
+
   const analyticsQuery = businessId
     ? `business_id=${businessId}${branchId && branchScoped ? `&branch_id=${branchId}` : ''}${serviceId ? `&service_id=${serviceId}` : ''}`
     : '';
@@ -108,7 +142,7 @@ export function useDashboardData(serviceId = '') {
   const queues = useQuery({
     queryKey: ['ops-queues', businessId, branchId, admin?.role],
     queryFn: () => api.get<QueueRow[]>('/queues/mine'),
-    enabled: Boolean(admin), refetchInterval: 10_000,
+    enabled: Boolean(admin), refetchInterval: LIVE_INTERVAL,
   });
   // The summary endpoint defaults to only 30 days. Ask for a wider window so the
   // drill-down's 30/90-day ranges are genuinely 30/90 days, not silently capped.
@@ -116,7 +150,7 @@ export function useDashboardData(serviceId = '') {
   const summary = useQuery({
     queryKey: ['ops-summary', analyticsQuery, historyFrom],
     queryFn: () => api.get<SummaryRow[]>(`/analytics/summary?${analyticsQuery}&from=${historyFrom}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Scope services to exactly the SAME dates the dashboards headline — the last
   // 7 dates that actually have data. A calendar guess (today-6) drifts whenever
@@ -130,46 +164,46 @@ export function useDashboardData(serviceId = '') {
     queryKey: ['ops-services', analyticsQuery, weekWindow.from, weekWindow.to],
     queryFn: () => api.get<ServiceInsight[]>(`/analytics/services?${analyticsQuery}&from=${weekWindow.from}&to=${weekWindow.to}`),
     // wait for the summary so we know which 7 dates to scope to
-    enabled: Boolean(canAnalytics && analyticsQuery && weekWindow.from), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery && weekWindow.from), refetchInterval: analyticsEvery,
   });
   const staff = useQuery({
     queryKey: ['ops-staff-insights', analyticsQuery],
     queryFn: () => api.get<StaffInsight[]>(`/analytics/staff?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const branchTrends = useQuery({
     queryKey: ['ops-branch-trends', analyticsQuery],
     queryFn: () => api.get<BranchTrend[]>(`/analytics/branch-trends?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const heatmap = useQuery({
     queryKey: ['ops-heatmap', analyticsQuery],
     queryFn: () => api.get<HeatmapCell[]>(`/analytics/heatmap?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Rows are services for managers, branches for executives.
   const demandRows = admin?.role === 'executive' ? 'branch' : 'service';
   const demandHourly = useQuery({
     queryKey: ['ops-demand-hourly', analyticsQuery, demandRows],
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=hour`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const demandWeekly = useQuery({
     queryKey: ['ops-demand-weekly', analyticsQuery, demandRows],
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   const targets = useQuery({
     queryKey: ['ops-targets', businessId],
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 120_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   // A branch manager/supervisor also measures against their OWN branch target
   // (which overlays the company target). Executives stay company-scoped.
   const branchTargets = useQuery({
     queryKey: ['ops-branch-targets', branchId],
     queryFn: () => api.get<BranchTargets>(`/targets/branch?branch_id=${branchId}`),
-    enabled: Boolean(branchScoped && branchId), refetchInterval: 120_000,
+    enabled: Boolean(branchScoped && branchId), refetchInterval: analyticsEvery,
   });
   /* Who is actually sat at a desk. The manager's floor view used to infer this
      from tickets_handled, which marked anyone who had touched a ticket all day
@@ -179,7 +213,7 @@ export function useDashboardData(serviceId = '') {
   const counters = useQuery({
     queryKey: ['ops-counters', businessId, branchId],
     queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   // Settings tab: branch policy + this person's own alert thresholds + the
   // read-only hours. Not polled — these change when somebody saves them, not on
@@ -192,38 +226,66 @@ export function useDashboardData(serviceId = '') {
   const employeeKpis = useQuery({
     queryKey: ['ops-executive-kpis', businessId, analysisMonthKey(summary.data || [])],
     queryFn: () => api.get<ExecutiveKpis>(`/analytics/executive-kpis?business_id=${businessId}&month=${analysisMonthKey(summary.data || [])}`),
-    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: 60_000,
+    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: analyticsEvery,
   });
   const predictions = useQuery({
     queryKey: ['ops-predictions', businessId],
     queryFn: () => api.get<PredictionRow[]>(`/predictions?business_id=${businessId}&max_age_minutes=60`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const pipeline = useQuery({
     queryKey: ['ops-pipeline', businessId],
     queryFn: () => api.get<any>(`/pipeline/status?business_id=${businessId}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const balking = useQuery({
     queryKey: ['ops-balking', businessId, branchId, admin?.role, serviceId],
     queryFn: () => api.get<BalkingData>(`/analytics/balking?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: 60_000,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
   });
   const channels = useQuery({
     queryKey: ['ops-channels', analyticsQuery],
     queryFn: () => api.get<ChannelMix>(`/analytics/channels?${analyticsQuery}&days=90`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 120_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
   // Live productivity signals (idle windows / slowdowns) — refreshes often; it's
   // a "do something now" board, not a trend.
   const productivity = useQuery({
     queryKey: ['ops-productivity', analyticsQuery],
     queryFn: () => api.get<ProductivitySignals>(`/analytics/productivity?${analyticsQuery}`),
-    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: 25_000,
+    enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
+
+  /* Every query on the dashboard, in one list, so freshness and refresh are
+     derived from the same set rather than two hand-maintained ones that drift
+     apart the first time somebody adds a panel. */
+  const allQueries = [
+    queues, summary, services, staff, branchTrends, heatmap, demandHourly,
+    demandWeekly, targets, branchTargets, branchSettings, counters,
+    employeeKpis, predictions, pipeline, balking, channels, productivity,
+  ];
+  const activeQueries = allQueries.filter((q) => q.dataUpdatedAt > 0);
 
   return {
     admin, businessId, branchId,
+    /* The OLDEST panel on screen, not the newest.
+       "Updated 14:32" has to be a promise about everything the reader can see.
+       Taking the newest would let one 10-second queue poll vouch for an
+       analytics panel that last loaded two hours ago, which is precisely the
+       staleness this is meant to expose. */
+    lastUpdatedAt: activeQueries.length
+      ? Math.min(...activeQueries.map((q) => q.dataUpdatedAt))
+      : 0,
+    isFetching: allQueries.some((q) => q.isFetching),
+    /* failureCount, NOT isError.
+       Once a query has succeeded, react-query keeps status 'success' and serves
+       the cached data through every later failure — isError stays false forever.
+       So a dashboard left open while the API goes down would have gone on
+       reporting healthy, which is the exact "cannot go un-live" fault this
+       indicator exists to remove. failureCount counts consecutive failed
+       attempts and resets on the next success, which is the signal that
+       actually means "we are no longer getting through". */
+    hasError: allQueries.some((q) => q.failureCount > 0),
     queues: queues.data || [],
     summary: summary.data || [],
     services: services.data || [],
@@ -246,8 +308,17 @@ export function useDashboardData(serviceId = '') {
     balking: balking.data || null,
     channels: channels.data || null,
     productivity: productivity.data || null,
-    refreshAll: () => Promise.all([queues.refetch(), summary.refetch(), services.refetch(), staff.refetch(),
-      branchTrends.refetch(), heatmap.refetch(), demandHourly.refetch(), demandWeekly.refetch(),
-      targets.refetch(), branchTargets.refetch(), branchSettings.refetch(), counters.refetch(), employeeKpis.refetch(), predictions.refetch(), pipeline.refetch(), balking.refetch(), channels.refetch(), productivity.refetch()]),
+    /* Only what this role is actually allowed to load.
+       This used to call .refetch() on all eighteen queries by name, and
+       react-query honours refetch() even on a query whose `enabled` is false.
+       So a supervisor pressing Update fired the executive-only KPI endpoint,
+       collected a 403, and — because a disabled query never refetches again —
+       carried a failure that could not clear for the rest of the session. The
+       freshness pill then read "Not updating" forever on a perfectly healthy
+       dashboard, which is the same lie as the old hardcoded "Live", just
+       pointed the other way.
+       refetchQueries({ type: 'active' }) refetches exactly the queries that are
+       mounted AND enabled, which is the set the reader can actually see. */
+    refreshAll: () => queryClient.refetchQueries({ type: 'active' }),
   };
 }

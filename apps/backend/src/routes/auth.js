@@ -17,6 +17,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { NEVER_EXPOSE } = require('../utils/publicShapes');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { createRevocation } = require('../middleware/sessionLimiter');
@@ -69,10 +70,23 @@ async function getStaffProfile(staffId) {
     [staffId]
   );
 
+  if (!rows[0]) return null;
+
+  /* s.* carries password_hash and supabase_uid, and both went out on every
+     sign-in. publicShapes.js already names them in NEVER_EXPOSE; this route
+     simply never asked. The whitelist itself is the wrong instrument here — a
+     staff member's own profile legitimately carries far more than a colleague's
+     listing does (sector vocabulary, today's counter, shift times), so
+     projecting it through PUBLIC_STAFF_FIELDS would strip what the admin app
+     paints its first screen from. Subtract the forbidden columns instead, from
+     the same list, so a credential column added later is excluded here too. */
+  const profile = { ...rows[0] };
+  for (const field of NEVER_EXPOSE) delete profile[field];
+
   // Staff learn their organisation's vocabulary at sign-in, so every admin
   // screen can be worded correctly on first paint rather than saying "Customer"
   // and then correcting itself once a business lookup returns.
-  return rows[0] ? withTerms(rows[0]) : null;
+  return withTerms(profile);
 }
 
 // ── POST /api/auth/sync-user ──────────────────────────────────
@@ -87,6 +101,42 @@ router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, r
        build keeps working; it just stops leaving a copy behind. */
     const { full_name, phone, date_of_birth } = req.body;
     const supabaseUser = req.supabaseUser;
+
+    /* A staff member is not a customer, and this route used to make them one.
+     *
+     * The mobile app calls sync-user for EVERY sign-in before it calls /auth/me
+     * to find out who it is talking to. So a kiosk clerk — the one staff role
+     * the phone serves — arrived here first, and if their staff row had no
+     * supabase_uid yet, nothing identified them as staff: a users row was
+     * minted, the uid bound to it, and from that moment the address resolved as
+     * a customer. That is why signing in as the kiosk account landed on the
+     * customer tabs instead of the kiosk console.
+     *
+     * It is also permanent without intervention, and it is not limited to
+     * kiosks: any manager or line-staff member who tries the phone gets a
+     * silent customer account for their work address.
+     *
+     * Two guards, and neither may throw — the client calls this unconditionally
+     * and then asks /auth/me, so an error here breaks kiosk sign-in entirely.
+     */
+    if (req.dbStaff) {
+      // Already known to be staff. Nothing to sync; /auth/me will route them.
+      return res.json({ user: null, created: false, staff: true });
+    }
+    const [staffByEmail] = await pool.query(
+      'SELECT id FROM staff WHERE email = ? AND is_active = TRUE LIMIT 1',
+      [supabaseUser.email]
+    );
+    if (staffByEmail.length) {
+      /* A staff row exists for this address but is not linked to this identity.
+         Refusing beats creating a customer: the account keeps its staff meaning
+         and somebody can link it, where a customer row would have to be found
+         and unpicked first. */
+      return res.status(409).json({
+        error: 'This address belongs to a staff account that has not been linked yet. Ask an administrator to link it before signing in.',
+        staff_unlinked: true,
+      });
+    }
 
     // Already synced?
     if (req.dbUser) {

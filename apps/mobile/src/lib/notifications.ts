@@ -37,6 +37,14 @@ export async function ensureNotificationChannels() {
 
 const LIVE_TICKET_ID = 'live-ticket';
 
+/* The departure reminder needs a stable identifier for one reason: without one
+   there is no handle to cancel it with. It was scheduled anonymously, so
+   leaving the queue could dismiss the live-ticket notification and still leave
+   a "Time to head out" alert armed — which then fired, for a line the person
+   had already left. A person can hold only one live ticket, so one id is
+   enough. */
+const DEPARTURE_ID = 'departure-reminder';
+
 type LiveTicketInput = {
   ticketId: string;
   ticketNumber: string;
@@ -152,6 +160,7 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
   const secondsUntilReminder = Math.max(60, (input.estimatedWaitMinutes - travelMinutes - leadTime) * 60);
 
   return Notifications.scheduleNotificationAsync({
+    identifier: DEPARTURE_ID,
     content: {
       title: 'Time to head out',
       body: `Leave soon to reach ${input.branchName} before your queue is called.`,
@@ -163,6 +172,19 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
       repeats: false,
     },
   });
+}
+
+/**
+ * Cancel the pending departure reminder.
+ *
+ * Called whenever the ticket stops being live — left, cancelled, served or
+ * no-showed. `cancelScheduledNotificationAsync` removes it before it fires;
+ * `dismissNotificationAsync` clears it from the tray if it already has. Both
+ * are needed, and both are safe to call when nothing is scheduled.
+ */
+export async function cancelDepartureReminder() {
+  await Notifications.cancelScheduledNotificationAsync(DEPARTURE_ID).catch(() => {});
+  await Notifications.dismissNotificationAsync(DEPARTURE_ID).catch(() => {});
 }
 
 export async function scheduleQueueUpdateNotification(title: string, body: string, ticketId?: string) {
