@@ -11,6 +11,7 @@ this directory is the store side and the order of operations.
 | [app-store-listing.md](app-store-listing.md) | Every App Store Connect field, filled in, plus the App Privacy answers |
 | [play-store-listing.md](play-store-listing.md) | Every Play Console field, filled in, plus Data safety |
 | [screenshots.md](screenshots.md) | Required sizes, the five screenshots to take, and the iPad decision |
+| [desktop-signing.md](desktop-signing.md) | Signing the Windows and Mac admin app, and what a pilot sees if you ship unsigned |
 | [accounts.md](accounts.md) | The accounts and purchases still outstanding |
 
 ## The critical path
