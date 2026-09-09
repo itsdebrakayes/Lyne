@@ -6,12 +6,19 @@
  * highlight border, so surfaces read as frosted glass floating over whatever
  * sits behind them. On web (and if blur is unavailable) they degrade to a
  * high-opacity translucent fill that still looks frosted.
+ *
+ * They also answer Reduce Transparency. That is a separate iOS setting from
+ * Reduce Motion, turned on by people who cannot read text sitting over a
+ * blurred background — and every glass surface in this app used to ignore it.
+ * With it on, the blur goes and the fill becomes opaque: the surface keeps its
+ * shape, its border and its place in the stack, it just stops showing through.
  */
 import React from 'react';
 import { Platform, StyleSheet, View, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, activeScheme } from '../lib/theme';
+import { useReducedTransparency } from '../lib/motion';
 
 const canBlur = Platform.OS !== 'web';
 
@@ -46,14 +53,27 @@ export function GlassView({ children, style, tint, intensity = 40, radius = 24 }
   // Untinted glass follows the active theme — light blur on the light canvas,
   // dark blur in dark mode. Explicit tints (e.g. the dark nav pill) still win.
   const dark = (tint ?? (activeScheme === 'dark' ? 'dark' : 'light')) === 'dark';
+  const opaque = useReducedTransparency();
   const fill = dark ? colors.glassDark : colors.glass;
   const border = dark ? colors.glassDarkBorder : colors.glassBorder;
   const base: ViewStyle = {
     borderRadius: radius,
     borderWidth: 1,
-    borderColor: border,
+    // A hairline of white-on-white is invisible once the fill stops moving,
+    // so the border has to carry the edge on its own here.
+    borderColor: opaque ? (dark ? '#243447' : '#dfe5ee') : border,
     overflow: 'hidden',
   };
+
+  // Reduce Transparency: solid fill, no blur. Checked before the blur branch
+  // so it holds on every platform, not just the ones without BlurView.
+  if (opaque) {
+    return (
+      <View style={[base, { backgroundColor: dark ? '#0b1522' : colors.surface }, style]}>
+        {children}
+      </View>
+    );
+  }
 
   if (canBlur) {
     return (

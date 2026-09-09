@@ -49,13 +49,43 @@ export const easing = {
 /**
  * Springs, for anything that should feel physical rather than timed —
  * a joined queue, a confirmed action, the splash mark landing.
+ *
+ * Apple stopped designing springs with mass/stiffness/damping because nobody
+ * can picture what those three numbers will do together. They use two:
+ *
+ *   damping ratio  z = damping / (2 * sqrt(stiffness * mass))
+ *       1.0 is critically damped — reaches the target and stops dead.
+ *       Below 1.0 it overshoots, by e^(-pi*z / sqrt(1 - z^2)).
+ *   response       T = 2*pi * sqrt(mass / stiffness)
+ *       Roughly how long it takes to arrive. This is NOT a duration: a spring
+ *       has no fixed duration, the settle time falls out of the numbers.
+ *
+ * Both are written out for each spring below, because the three raw numbers
+ * hide whether a spring actually does what its name promises — and two of
+ * these did not. `gentle` was damping: 18, which is z = 0.71 and a 4.2%
+ * overshoot, sitting directly under a comment that said it "settles without
+ * overshoot". `snappy` was z = 0.47, an 18.5% overshoot described as "a
+ * little". The names were right; the constants were wrong.
  */
 export const spring = {
-  /** Settles without overshoot. Safe default for layout. */
-  gentle: { damping: 18, stiffness: 160, mass: 1 },
-  /** A little overshoot. Good for confirmations. */
-  snappy: { damping: 13, stiffness: 210, mass: 0.9 },
-  /** Visible bounce. Brand moments only — it draws attention. */
+  /**
+   * z = 1.00, response 0.50s. Critically damped — arrives and stops, no
+   * bounce at any velocity. The safe default for layout, and the same shape
+   * Apple ships for repositioning something the user did not throw.
+   */
+  gentle: { damping: 25.3, stiffness: 160, mass: 1 },
+  /**
+   * z = 0.80, response 0.41s. ~1.5% overshoot: enough to read as alive,
+   * not enough to read as bounce. This is Apple's shipped value for drawers
+   * and rotation. Use it for confirmations and for anything a gesture threw.
+   */
+  snappy: { damping: 22, stiffness: 210, mass: 0.9 },
+  /**
+   * z = 0.42, response 0.53s. ~23% overshoot — well outside Apple's range,
+   * deliberately. Brand moments only (the splash mark landing): it draws
+   * attention, which is the whole point of it and also why it must not spread
+   * to anything the user touches more than once.
+   */
   bouncy: { damping: 10, stiffness: 140, mass: 1 },
 } as const;
 
@@ -86,4 +116,73 @@ export function useReducedMotion() {
     return () => { alive = false; sub?.remove?.(); };
   }, []);
   return reduced;
+}
+
+/**
+ * Whether the OS has Reduce Transparency on (iOS; Android resolves false).
+ *
+ * This is a different setting from Reduce Motion, turned on for a different
+ * reason, and the app was honouring only the first one. Someone who cannot
+ * read text over a blurred background turns THIS on — and every glass surface
+ * in the app ignored them. Components using GlassView should fall back to an
+ * opaque fill when it is set.
+ */
+export function useReducedTransparency() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const api = AccessibilityInfo as unknown as {
+      isReduceTransparencyEnabled?: () => Promise<boolean>;
+    };
+    api.isReduceTransparencyEnabled?.()
+      .then(v => { if (alive) setReduced(v); })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setReduced);
+    return () => { alive = false; sub?.remove?.(); };
+  }, []);
+  return reduced;
+}
+
+/* ── Gesture physics ─────────────────────────────────────────
+   The two functions a dragged surface needs to feel like an object rather
+   than a slider. Both are Apple's, from the Designing Fluid Interfaces
+   sample code, not approximations of them.
+   ──────────────────────────────────────────────────────────── */
+
+/**
+ * Where a flick would come to rest if you let it decelerate.
+ *
+ * The point of this is that a released gesture should animate to where it was
+ * GOING, not to whatever happened to be nearest when the finger left the
+ * glass. Snapping from the release point is what makes a flick feel like it
+ * was ignored: you threw the sheet and it went back.
+ *
+ * Note this is exponential decay, not the v^2/(2a) from a physics textbook.
+ * The textbook version is the one everybody reaches for and it is not what
+ * iOS does — it decelerates too fast and short flicks under-travel.
+ *
+ * @param velocity px/s at the moment of release
+ * @param decelerationRate 0.998 matches normal scroll; 0.99 is snappier
+ */
+export function projectDecay(velocity: number, decelerationRate = 0.998) {
+  return (velocity / 1000) * (decelerationRate / (1 - decelerationRate));
+}
+
+/**
+ * Rubber-banding: how far a surface should actually move when dragged past a
+ * boundary it cannot pass.
+ *
+ * A hard stop reads as frozen — the user's first thought is that the app has
+ * hung. Continuous resistance reads as "still responding, but there is
+ * nothing more this way", which is the truth. The further past the edge, the
+ * less of each pixel of finger travel the surface follows.
+ *
+ * @param overshoot how far past the boundary the finger has gone
+ * @param dimension the size of the surface, which sets how much give there is
+ */
+export function rubberband(overshoot: number, dimension: number, constant = 0.55) {
+  if (!dimension) return overshoot;
+  const sign = overshoot < 0 ? -1 : 1;
+  const distance = Math.abs(overshoot);
+  return sign * ((distance * dimension * constant) / (dimension + constant * distance));
 }
