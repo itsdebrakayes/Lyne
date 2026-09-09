@@ -80,6 +80,7 @@ const footerGroups = [
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/#pricing" },
       { label: "Mobile App", href: "/#pricing" },
+      { label: "Desktop App", href: "/download" },
       { label: "For business", href: "/#partners" },
     ],
   },

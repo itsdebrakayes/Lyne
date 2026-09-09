@@ -23,6 +23,9 @@ const ROUTES = [
   { path: '/',         priority: '1.0', changefreq: 'weekly'  },
   { path: '/about',    priority: '0.8', changefreq: 'monthly' },
   { path: '/join-us',  priority: '0.8', changefreq: 'monthly' },
+  /* Indexed: the person who needs it is an IT officer at a branch who was sent
+     a link, lost it, and will search for "lyne admin download". */
+  { path: '/download', priority: '0.6', changefreq: 'monthly' },
   { path: '/privacy',  priority: '0.3', changefreq: 'yearly'  },
   /* Indexed on purpose: Google Play requires this page to be reachable by
      somebody who has already uninstalled the app, and the first place they

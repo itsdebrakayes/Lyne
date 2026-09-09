@@ -14,6 +14,7 @@ import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import DeleteAccount from './pages/DeleteAccount';
+import Download from './pages/Download';
 import NotFound from './pages/NotFound';
 import { ScrollToTop } from './components/ScrollToTop';
 import useSeo from './lib/useSeo';
@@ -23,6 +24,7 @@ import MobileJoinUs from './pages/mobile/MobileJoinUs';
 import MobilePrivacy from './pages/mobile/MobilePrivacy';
 import MobileTerms from './pages/mobile/MobileTerms';
 import MobileDeleteAccount from './pages/mobile/MobileDeleteAccount';
+import MobileDownload from './pages/mobile/MobileDownload';
 import MobileNotFound from './pages/mobile/MobileNotFound';
 
 // The account portal needs Supabase values that are intentionally not part of
@@ -106,6 +108,13 @@ function App() {
                 title="Terms of Service"
                 description="The terms that apply when you use Lyne to join a queue or manage one.">
                 <ResponsivePage desktop={<Terms />} mobile={<MobileTerms />} />
+              </Seo>} />
+            <Route path="/download" element={
+              <Seo
+                path="/download"
+                title="Download Lyne Admin for Desktop"
+                description="Install the Lyne Admin console on a Windows or Mac computer at your branch. Requires an account issued by Lyne under an active agreement — there is no sign-up.">
+                <ResponsivePage desktop={<Download />} mobile={<MobileDownload />} />
               </Seo>} />
             <Route path="/delete-account" element={
               <Seo
