@@ -53,7 +53,7 @@ These are permanent once a binary is accepted. Confirm all four:
 | | Value |
 |---|---|
 | Bundle identifier | `com.lyne.mobile` |
-| Android package | `com.lyne.mobile` |
+| Android package | `com.lyne.com` |
 | URL scheme | `lyne` |
 | Version / build | `1.0.0` / `1` |
 
