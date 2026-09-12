@@ -181,12 +181,20 @@ taken in the Apple answers and in the privacy policy.
 
 ### Release notes
 
+Play caps this at 500 characters per language. Paste as-is into **en-US**:
+
 ```
 The first release of Lyne.
 
-See live waits at participating agencies, hold your place in the queue from your
-phone, and get told when to leave so you arrive close to your turn.
+See how long the line is before you leave home, hold your place from your
+phone, and get told when to set off so you arrive close to your turn.
+
+Your ticket, your position and your wait stay live on screen.
 ```
+
+> Say nothing about agencies by name. The listing is read against what the
+> reviewer can actually open, and naming a partner the build cannot show is the
+> fastest way to be asked to prove the relationship.
 
 > **Take Play App Signing.** It is the default, it means a lost upload key is a
 > support ticket rather than an app you can never update again, and it is the
