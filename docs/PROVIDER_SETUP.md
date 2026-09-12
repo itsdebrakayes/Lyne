@@ -29,7 +29,7 @@ Copy these somewhere to hand. All of them are public identifiers.
 | What | Value |
 |---|---|
 | iOS bundle identifier | `com.lyne.mobile` |
-| Android package name | `com.lyne.mobile` |
+| Android package name | `com.lyne.com` |
 | Expo slug | `lyne` |
 | App display name | `LYNE` |
 | Supabase project ref | `edavcmrruwxnmzktvwoz` |

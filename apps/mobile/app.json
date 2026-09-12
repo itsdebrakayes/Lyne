@@ -108,7 +108,7 @@
       }
     },
     "android": {
-      "package": "com.lyne.mobile",
+      "package": "com.lyne.com",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
