@@ -174,10 +174,10 @@ taken in the Apple answers and in the privacy policy.
 
 | Field | Value |
 |---|---|
-| Track for the first submission | Internal testing → then Production |
+| Track for the first submission | Internal testing → then Production. **Not straight to Production**: the bundle points at `api.uselyne.com`, which does not resolve yet |
 | App signing | **Let Google manage the signing key** (Play App Signing). Accept the default |
 | Countries | **DECIDE** — Jamaica only for the pilot; widen later in a click |
-| Release name | `1.0.0 (1)` |
+| Release name | `1.0.0 (2)` — match the version code EAS actually assigned |
 
 ### Release notes
 
