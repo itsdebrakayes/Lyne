@@ -13,8 +13,8 @@
 
     <!--
       Absolute urls, written at build time.
-      Every https://example.invalid below is replaced by VITE_SITE_URL in
-      scripts/generate-sitemap.mjs. Canonical and og:url must be absolute — a
+      Every https://example.invalid below is replaced by the real origin in
+      scripts/generate-sitemap.mjs — VITE_SITE_URL, or its production default. Canonical and og:url must be absolute — a
       relative canonical is ignored, and a card scraper cannot resolve one — and
       the source file cannot know the domain, so it is stamped in during build.
     -->

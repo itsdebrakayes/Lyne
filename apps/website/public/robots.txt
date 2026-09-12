@@ -100,7 +100,8 @@ User-agent: *
 Allow: /
 Disallow: /account
 
-# The sitemap URL must be absolute, so it is written at build time from
-# VITE_SITE_URL by scripts/generate-sitemap.mjs. If the line below still says
-# example.invalid, that variable was not set when the site was built.
+# The sitemap URL must be absolute, so it is written at build time by
+# scripts/generate-sitemap.mjs, from VITE_SITE_URL or its production default.
+# If the line below still says example.invalid, this is the source file in
+# public/ rather than the built copy in dist/.
 Sitemap: https://example.invalid/sitemap.xml
