@@ -34,20 +34,27 @@ const ROUTES = [
   { path: '/terms',    priority: '0.3', changefreq: 'yearly'  },
 ];
 
+/* The production origin. It is a default rather than a required variable
+   because .env is gitignored: a host that clones this repo and builds has no
+   VITE_SITE_URL unless somebody remembered to set it in the host's build
+   settings, and the failure is silent — a sitemap of urls that do not resolve,
+   found weeks later. Being wrong on a preview host is the cheaper mistake, and
+   setting VITE_SITE_URL fixes that one. */
+const DEFAULT_ORIGIN = 'https://uselyne.com';
+
 const raw = process.env.VITE_SITE_URL || process.env.SITE_URL || '';
 const site = raw.trim().replace(/\/+$/, '');
+const origin = site || DEFAULT_ORIGIN;
 
 if (!site) {
-  /* Loud, but not fatal. A build that dies here would block a deploy over a
-     value the deployer may be about to set; a build that says nothing ships a
-     sitemap full of example.invalid and nobody finds out for a month. */
+  /* Not fatal, but say it: on a staging or preview deploy this is the line
+     that explains why the built pages canonicalise to production. */
   console.warn(
-    '\n  ⚠  VITE_SITE_URL is not set.\n' +
-    '     sitemap.xml and robots.txt will point at https://example.invalid, and\n' +
-    '     search engines will reject them. Set it to the live origin, e.g.\n' +
-    '       VITE_SITE_URL=https://lyne.example npm run build\n');
+    `\n  ⚠  VITE_SITE_URL is not set — using ${DEFAULT_ORIGIN}.\n` +
+    '     Correct for a production build. For a staging or preview host, set it\n' +
+    '     so the build does not claim to be production, e.g.\n' +
+    '       VITE_SITE_URL=https://staging.uselyne.com npm run build\n');
 }
-const origin = site || 'https://example.invalid';
 const today = new Date().toISOString().slice(0, 10);
 
 const urls = ROUTES.map(({ path, priority, changefreq }) =>
