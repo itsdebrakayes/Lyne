@@ -14,11 +14,22 @@
    positioned panels, and it animates as one box between steps. */
 .sl-ring {
   position: fixed;
+  top: 0;
+  left: 0;
   border-radius: 14px;
   box-shadow: 0 0 0 9999px rgba(9, 16, 28, .62);
   border: 2px solid #7DAEF2;
   pointer-events: none;
-  transition: top .22s cubic-bezier(.4, 0, .2, 1), left .22s cubic-bezier(.4, 0, .2, 1),
+  /* Position moves on `transform`, not `top`/`left`. Those two are layout
+     properties: animating them makes the browser re-run layout every frame,
+     for an element carrying a 9999px spread shadow, which is the single most
+     expensive box on the page. `transform` is composited — it never touches
+     layout at all. Width and height still animate, but they are confined to
+     this one element: it is position: fixed with no children, so it is its own
+     containing block and nothing else re-flows behind it. */
+  transform: translate3d(var(--sl-x, 0), var(--sl-y, 0), 0);
+  will-change: transform, width, height;
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1),
               width .22s cubic-bezier(.4, 0, .2, 1), height .22s cubic-bezier(.4, 0, .2, 1);
 }
 

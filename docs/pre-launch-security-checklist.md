@@ -22,38 +22,81 @@ audits than this one.
 
 ---
 
-## ⚠️ CORRECTION (2026-08-23) — rows citing PR #3 were wrong
+## Correction history — read both, in order
 
-Every row below that cited "PR #3" was marked from the pull request's
-**description**. PR #3 is an **unmerged draft on a different branch**
-(`claude/ui-security-hardening-ncoet7`), and its commits are **not in this
-branch's history**. `ux-and-security-hardening` diverged before them.
+### ⚠️ 2026-08-23 — rows citing PR #3 were wrong
 
-I verified each claim against the code that is actually here. Six were false:
+Every row below that cited "PR #3" had been marked from the pull request's
+**description**. PR #3 was an unmerged draft on a different branch
+(`claude/ui-security-hardening-ncoet7`) whose commits were not in this branch's
+history, so six rows claimed controls this branch did not have — including,
+most seriously, that identification never left the phone while `sync-user` was
+writing TRNs to the `users` table.
 
-| Row | Claimed | Actually on this branch |
+The error was marking ⚠️/✅ from a document rather than from the code, which is
+the exact failure the status key at the top of this file warns about.
+
+### ✅ 2026-09-09 — the branches were reconciled; that correction is now itself out of date
+
+The two branches have since been merged, and the second correction matters as
+much as the first: read on its own, the section above now says this app is
+collecting Jamaican TRNs onto a server today. **It is not, and has not been
+since the merge.** Leaving that standing would be a worse error than the one it
+was written to fix, because it is alarming and wrong in the direction that
+would change what someone does.
+
+Every row is re-verified against the code in this working tree, by reading the
+handlers rather than any document:
+
+| Row | Was claimed missing | State now, in this tree |
 |---|---|---|
-| 2.3 | Unauthenticated SSE stream removed | **Still present and mounted.** `GET /api/sse/queue/:queue_id` (`routes/sse.js:92`) takes no token and streams the queue; `index.js:154` mounts it |
-| 2.6 | Tokens in `expo-secure-store` | **AsyncStorage** — `lib/apiClient.ts:61`. Readable from an unencrypted device backup |
-| 2.7 | DKS gatekeeps staff invites | No approval gate in `routes/staff-invite.js` |
-| 3.5 / 6.2 | Identification never leaves the phone | **No `documentVault.ts` exists.** `POST /auth/sync-user` and `PATCH /auth/profile` both write `national_id` and `trn` to the `users` table. The demo database holds **30 rows** with one stored |
-| 6.5 | Sensitive detail kept off the lock screen | `routes/tickets.js:920` sends *"…is being called for {service_name}."* — the service name is the leak for a clinic or immigration desk |
-| — | "Preview Premium" bypass removed | Present and **user-toggleable**: a `Switch` in `ProfileScreen.tsx:244` |
-| — | Release build cannot fall back to localhost | Not behind `__DEV__` — it is the final `return` of `inferApiUrl()` (`apiClient.ts:52`) |
+| 2.3 | Unauthenticated SSE stream removed | ✅ `routes/sse.js` does not exist; nothing is mounted at `/api/sse`; `index.js:160` records why it went |
+| 2.6 | Tokens in `expo-secure-store` | ✅ `lib/apiClient.ts:8` imports `secureSessionStorage`; `:69` passes it as the Supabase `storage` |
+| 2.7 | DKS gatekeeps staff invites | ✅ `routes/staff-invite.js:120-131` — a manager's request lands as `requested` with `invite_code: null`; only a platform admin's creates `pending` with a usable code |
+| 3.5 / 6.2 | Identification never leaves the phone | ✅ for the two routes named: `lib/documentVault.ts` exists (keychain-only), and `routes/auth.js:83` records that `national_id` and `trn` are deliberately not read by `sync-user` or `PATCH /profile`. **But see the open item below — this is not the whole story.** |
+| 6.5 | Sensitive detail kept off the lock screen | ✅ `routes/tickets.js:152` defines `NEUTRAL_PUSH_BODIES`; `:175` is what the push body is built from. No service or agency name reaches a lock screen |
+| — | "Preview Premium" bypass removed | ✅ No premium toggle in `ProfileScreen.tsx` |
+| — | Release build cannot fall back to localhost | ✅ `apiClient.ts:53` puts the dev addresses inside `if (__DEV__)`; `:60` throws on an unset `EXPO_PUBLIC_API_URL` |
 
-Three claims did hold here: **2.1** (`route-security.test.js`), **2.2**
-(`tenant-isolation.test.js`) and **6.3** (`DELETE /api/auth/account`,
-`routes/auth.js:226`).
+Nine of nine hold. Three rows (**2.1**, **2.2**, **6.3**) held on both branches
+throughout and are unchanged.
 
-**What this means.** The security work is real, but it lives on the PR branch and
-this branch does not have it. Nothing on this list is safe to call done until
-those two branches are reconciled — and the privacy one is the urgent one,
-because the app is collecting Jamaican TRNs onto the server today while the
-website publishes a policy saying it does not.
+### ❌ Open, found during that re-verification: `POST /api/ocr/scan` still stores identity numbers
 
-**My error, and the lesson for the rest of this list:** I marked ⚠️/✅ from a
-document rather than from the code, which is the exact failure the status key at
-the top warns about. Every row here has now been checked against this branch.
+Row 6.2 is true of the two routes it names and not true of the server as a
+whole. The OCR route is still live and still writes government ID numbers to
+the database:
+
+- `index.js:151` mounts `/api/ocr`.
+- `routes/ocr.js:123` inserts `extracted_national_id`, `extracted_trn`,
+  `extracted_passport`, `extracted_dob` and up to 5,000 characters of
+  `raw_text` into `ocr_results` — the table `routes/auth.js:283` calls "the
+  most sensitive data in the system".
+- The `users.trn` column still exists in the schema (`schema.sql:136`).
+
+What stops this being live data collection today is only that **nothing calls
+it**: `attemptOcr()` in `DocumentCaptureScreen.tsx:71` is a stub returning
+`null`, and no client in this repository posts to `/api/ocr`. So the app's
+behaviour matches the in-app privacy policy; the server's capability does not.
+Any authenticated caller can still push an image to that endpoint and have a
+TRN stored.
+
+This is the decision already flagged: if the document scan conflicts with the
+in-app privacy policy, the scan goes, not the policy. **Not actioned here** —
+removing a route is a product decision, and it is recorded rather than taken.
+The three ways out, in order of preference:
+
+1. Delete `routes/ocr.js`, unmount it, and drop `ocr_results` in a migration —
+   the same treatment `routes/sse.js` got, for the same reason: unused code
+   that stores identity numbers is pure liability.
+2. Keep it, and change the in-app privacy policy to disclose server-side
+   document processing. This adds an App Store privacy declaration and a DPA
+   obligation, for a feature nothing currently uses.
+3. Keep it and rebuild it on-device, so nothing extracted ever reaches the
+   server — the "different way that ties into the privacy policy".
+
+Until one of those happens this row is ❌, not ✅, and it should not go to
+submission open.
 
 ---
 
@@ -72,11 +115,11 @@ the top warns about. Every row here has now been checked against this branch.
 |---|---|---|---|
 | 2.1 | Auth enforced on the **server**, not only in the client | ✅ | PR #3 `route-security` suite, 17 tests |
 | 2.2 | Every user can reach only their own records | ✅ | PR #3 `tenant-isolation` suite, 26 tests — one company cannot reach another's data by changing an identifier |
-| 2.3 | No unauthenticated internal/"hidden" routes | ❌ | `GET /api/sse/queue/:queue_id` takes no token, is mounted, and streams every ticket plus the queue's service and branch names |
+| 2.3 | No unauthenticated internal/"hidden" routes | ✅ | The SSE stream was deleted, not gated: `routes/sse.js` is gone and nothing is mounted at `/api/sse` (`index.js:160`) |
 | 2.4 | Field tampering blocked (client cannot set role, price, premium flags) | ⚠️ | **Two confirmed, both fixed** — role escalation via `staff.role_id`/`supabase_uid`, and a client-controlled **price** on `POST /payments/create-intent`. Both were exactly the cases this row names. Other endpoints still unproven, which is why the 20 remaining unvalidated ones matter |
 | 2.5 | Passwords hashed | ✅ | `bcryptjs` + Supabase Auth |
-| 2.6 | Session cookies / tokens stored securely | ❌ | Supabase session in **AsyncStorage** (`lib/apiClient.ts:61`) — an unencrypted file readable from a device backup |
-| 2.7 | Staff/admin elevation gated | ⚠️ | Role-grant guard added today; the DKS approval gate on invites is **not on this branch** |
+| 2.6 | Session cookies / tokens stored securely | ✅ | Supabase session in `secureSessionStorage` (`lib/apiClient.ts:8`, passed at `:69`) — Keychain/Keystore, chunked past the 2,048-byte item cap |
+| 2.7 | Staff/admin elevation gated | ✅ | Role-grant guard, plus the DKS approval gate: a manager's invite is created `requested` with no code until a platform admin approves it (`routes/staff-invite.js:120-131`) |
 
 ## 3 · Input and output
 
@@ -86,7 +129,7 @@ the top warns about. Every row here has now been checked against this branch.
 | 3.2 | Queries parameterised (no string-built SQL) | ⚠️ | `mysql2` supports it; PR #3 explicitly states the SQL itself is unproven — "the harnesses are not a SQL engine, and there is no MySQL in this environment" |
 | 3.3 | User content escaped on output | ⬜ | Pentest target |
 | 3.4 | File uploads restricted by type and size | ⚠️ | OCR route carries a larger body limit and its own rate limit, but `routes/ocr.js` is unmounted |
-| 3.5 | API responses trimmed — no fields the screen does not need | ❌ | Not audited. PR #3 fixed the direction that mattered (server no longer stores TRN) but did no general over-fetch pass |
+| 3.5 | API responses trimmed — no fields the screen does not need | ⚠️ | The direction that mattered is fixed (`sync-user` and `PATCH /profile` no longer store a TRN), but no general over-fetch pass has been done |
 | 3.6 | Errors reveal nothing — no stack traces, no SQL, no internal paths | ⚠️ | Spot-checked `middleware/tenantAccess.js`: generic messages, no stack. Not swept across all 95 routes |
 
 ## 4 · Transport and headers
@@ -113,10 +156,10 @@ the top warns about. Every row here has now been checked against this branch.
 | # | Item | Status | Evidence / gap |
 |---|---|---|---|
 | 6.1 | Sensitive fields encrypted at rest | ⬜ | Identification no longer stored server-side at all (PR #3), which removes the largest case; remaining fields unaudited |
-| 6.2 | Identification stays on the device | ❌ | No `documentVault.ts`. `sync-user` and `PATCH /profile` both write `national_id`/`trn`; **30 rows** hold one today |
+| 6.2 | Identification stays on the device | ❌ | True of the app: `lib/documentVault.ts` is keychain-only and `routes/auth.js:83` refuses TRN on both write paths. **Not true of the server:** `POST /api/ocr/scan` (`routes/ocr.js:123`) still stores `extracted_trn`/`extracted_national_id`. Nothing calls it — see the open item above |
 | 6.3 | Account deletion really deletes | ✅ | `DELETE /api/auth/account`; PR #3 `account-and-approval` suite, 18 tests |
 | 6.4 | Retention periods enforced, not just published | ✅ | `jobs/retention.js`, 03:00 sweep — **defaults to dry run**; set `RETENTION_ENABLED=true` deliberately at launch |
-| 6.5 | Sensitive detail kept off the lock screen | ❌ | `tickets.js:920` names the service in the push body |
+| 6.5 | Sensitive detail kept off the lock screen | ✅ | Push bodies come from `NEUTRAL_PUSH_BODIES` (`tickets.js:152`, used at `:175`); no service or agency name reaches a lock screen |
 
 ## 7 · Dependencies and supply chain
 

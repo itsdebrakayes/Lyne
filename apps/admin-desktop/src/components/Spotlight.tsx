@@ -14,6 +14,7 @@
  *  • Escape skips, and skipping is remembered. Nobody should meet the same
  *    tour twice because they were busy the first time.
  */
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import './spotlight.css';
@@ -93,7 +94,17 @@ export default function Spotlight({ steps, onDone }: { steps: TourStep[]; onDone
     <div className="sl" role="dialog" aria-label="Guided tour">
       {/* One element does the dimming AND the cutout — a huge spread shadow is
           cheaper and sharper than four positioned panels. */}
-      <div className="sl-ring" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} />
+      <div
+        className="sl-ring"
+        style={{
+          // Custom properties rather than a `transform` string, so the CSS
+          // above owns the transition and this owns only the numbers.
+          ['--sl-x' as string]: `${box.left}px`,
+          ['--sl-y' as string]: `${box.top}px`,
+          width: box.width,
+          height: box.height,
+        } as CSSProperties}
+      />
 
       <div className={`sl-card ${place}`}
         style={{ top: cardTop, left: cardLeft, transform: place === 'top' ? 'translateY(-100%)' : undefined }}>

@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
+import { MotionConfig } from 'framer-motion';
 import { ResponsivePage } from './components/ResponsivePage';
 
 // Marketing
@@ -67,6 +68,18 @@ function Seo({
 
 function App() {
   return (
+    /* Every framer-motion animation on this site — and there are a lot of them,
+       parallax and 1.2s hero reveals among them — ran regardless of whether the
+       visitor had asked their operating system to stop moving things. The CSS
+       had a prefers-reduced-motion block; the JavaScript animations, which are
+       the ones that actually move, had nothing.
+
+       reducedMotion="user" is the whole fix: framer-motion reads the setting
+       and, for anyone who has it on, keeps opacity and colour transitions
+       (which aid comprehension) while dropping transform and layout animation
+       (which is what causes the harm). That is the substitution the guidance
+       asks for — a gentler equivalent, not silence. */
+    <MotionConfig reducedMotion="user">
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <TooltipProvider>
         <Toaster />
@@ -135,6 +148,7 @@ function App() {
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
+    </MotionConfig>
   );
 }
 

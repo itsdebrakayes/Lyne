@@ -425,3 +425,134 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #1b4b8f;
 }
+
+/* ============================================================
+   RESPONSE — feedback on press, not on release
+   ------------------------------------------------------------
+   Every interactive state on this site was :hover, which a phone does not
+   have, so on the device most visitors use nothing acknowledged a tap until
+   the page had already changed. Apple's first fluid-interface rule is to
+   respond on pointer-DOWN; waiting for the click is the largest latency on
+   the input path.
+
+   Same numbers as the admin app and the mobile Press primitive — 90ms to
+   depress, 160ms to release — so the three surfaces feel like one product.
+   :active is the pointer-down state on touch as well as mouse, so this is the
+   entire fix.
+   ------------------------------------------------------------ */
+
+button:not(:disabled),
+a.btn,
+.btn,
+[role="button"]:not([aria-disabled="true"]) {
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease,
+    filter 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:not(:disabled):active,
+a.btn:active,
+.btn:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
+}
+
+/* Large surfaces travel too many pixels at 3% — a card shrinking that far
+   reads as the layout breaking rather than as a press. */
+.glass-hover:active,
+.panel-hover:active,
+a.glass:active,
+button.glass:active {
+  transform: scale(0.99);
+  transition-duration: 90ms;
+}
+
+/* Reduced motion gets a gentler equivalent, not silence — removing the
+   feedback would put this back where the section started. */
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  a.btn:active,
+  .btn:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active,
+  .glass-hover:active,
+  .panel-hover:active {
+    transform: none;
+    filter: brightness(1.18);
+  }
+  html { scroll-behavior: auto; }
+  .float-sq { animation: none; }
+}
+
+/* ============================================================
+   TRANSPARENCY AND CONTRAST PREFERENCES
+   ------------------------------------------------------------
+   This site is built on translucency — .glass, .glass-ticket, .panel and the
+   floating hero squares all lean on backdrop-filter — and it honoured neither
+   of the two settings that exist for people who cannot read through it.
+
+   Reduced transparency: opaque fills, no blur. The surfaces keep their shape,
+   their border and their place in the hierarchy; they just stop showing what
+   is behind them.
+   More contrast: near-solid backgrounds with a defined border, because the
+   1px rgba(255,255,255,0.1) hairlines this design is made of vanish at that
+   setting and the panels lose their edges entirely.
+   ============================================================ */
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-ticket,
+  .panel,
+  .float-sq {
+    background: #101b2e;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+  .panel-elev {
+    background: #0d1626;
+  }
+  .btn-ghost {
+    background: #17233a;
+  }
+  /* Floating decoration over an opaque fill is just clutter. */
+  .float-sq {
+    opacity: 0.35;
+    animation: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .glass,
+  .glass-ticket,
+  .panel,
+  .panel-elev {
+    background: #060d18;
+    border-color: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .chip,
+  .chip-mute {
+    background: #060d18;
+    border-color: #ffffff;
+    color: #ffffff;
+  }
+  .btn-ghost {
+    background: #060d18;
+    border-color: #ffffff;
+  }
+  .btn-primary {
+    background: #2f6bff;
+    border-color: #ffffff;
+    box-shadow: none;
+  }
+  /* --muted-foreground is 3.9:1 on the canvas; at this setting it has to
+     clear 7:1, so secondary text stops being grey. */
+  .text-muted-foreground {
+    color: #d7e3f5 !important;
+  }
+  .float-sq {
+    display: none;
+  }
+}

@@ -3,11 +3,17 @@
  * renders identically on device and in the web preview). Bottom-sheet modal
  * with a month grid, ‹ › month nav, and a tap-the-header year picker for
  * jumping decades back (built for date-of-birth). Future days are disabled.
+ *
+ * On DragSheet, so it can be pulled down and thrown away like every other
+ * sheet on the phone. The grab handle owns the drag; the year list keeps its
+ * own scrolling, because a sheet that dismisses when you try to scroll it is
+ * worse than one that never moved.
  */
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
+import { DragSheet } from './DragSheet';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -62,11 +68,13 @@ export function CalendarSheet({
   const navBtn = { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' } as const;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 22, paddingBottom: 34 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
-
+    <DragSheet
+      visible={visible}
+      onClose={onClose}
+      label="Choose a date"
+      sheetStyle={{ paddingHorizontal: 22, paddingBottom: 34 }}
+    >
+      <View style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <TouchableOpacity onPress={() => setMode(m => (m === 'days' ? 'years' : 'days'))} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 18, color: colors.ink, letterSpacing: -0.3 }}>{MONTHS[month]} {year}</Text>
@@ -110,8 +118,7 @@ export function CalendarSheet({
               </View>
             </ScrollView>
           )}
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+      </View>
+    </DragSheet>
   );
 }
