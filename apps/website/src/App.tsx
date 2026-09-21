@@ -5,6 +5,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { ResponsivePage } from './components/ResponsivePage';
+import { CookieConsent } from './components/lyne/CookieConsent';
+import { SkipToContent } from './components/SkipToContent';
 
 // Marketing
 import MarketingHome from './pages/MarketingHome';
@@ -13,6 +15,8 @@ import About from './pages/About';
 import JoinUs from './pages/JoinUs';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import Cookies from './pages/Cookies';
+import Refunds from './pages/Refunds';
 import DeleteAccount from './pages/DeleteAccount';
 import Download from './pages/Download';
 import NotFound from './pages/NotFound';
@@ -23,6 +27,8 @@ import MobileAbout from './pages/mobile/MobileAbout';
 import MobileJoinUs from './pages/mobile/MobileJoinUs';
 import MobilePrivacy from './pages/mobile/MobilePrivacy';
 import MobileTerms from './pages/mobile/MobileTerms';
+import MobileCookies from './pages/mobile/MobileCookies';
+import MobileRefunds from './pages/mobile/MobileRefunds';
 import MobileDeleteAccount from './pages/mobile/MobileDeleteAccount';
 import MobileDownload from './pages/mobile/MobileDownload';
 import MobileNotFound from './pages/mobile/MobileNotFound';
@@ -73,6 +79,11 @@ function App() {
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <SkipToContent />
+          {/* Before <Routes> on purpose: a keyboard user meets the outstanding
+              consent question on their second Tab rather than after the whole
+              page. It is positioned at the bottom of the viewport visually. */}
+          <CookieConsent />
           <Routes>
             <Route path="/" element={
               <Seo
@@ -108,6 +119,20 @@ function App() {
                 title="Terms of Service"
                 description="The terms that apply when you use Lyne to join a queue or manage one.">
                 <ResponsivePage desktop={<Terms />} mobile={<MobileTerms />} />
+              </Seo>} />
+            <Route path="/cookies" element={
+              <Seo
+                path="/cookies"
+                title="Cookie Policy"
+                description="Lyne sets no cookies and runs no trackers. See exactly what is stored on your device, what it is for, and how to change your choice.">
+                <ResponsivePage desktop={<Cookies />} mobile={<MobileCookies />} />
+              </Seo>} />
+            <Route path="/refunds" element={
+              <Seo
+                path="/refunds"
+                title="Refund and Cancellation Policy"
+                description="How to cancel a Lyne subscription and when a refund is available. Cancelling is always as easy as subscribing.">
+                <ResponsivePage desktop={<Refunds />} mobile={<MobileRefunds />} />
               </Seo>} />
             <Route path="/download" element={
               <Seo

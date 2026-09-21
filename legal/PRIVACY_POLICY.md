@@ -220,7 +220,9 @@ No system is perfectly secure. If a breach occurs:
 
 The mobile app does not use cookies.
 
-This website uses only what is necessary to function — it sets no advertising or cross-site tracking cookies, and embeds no third-party trackers or social media pixels. If that changes we will ask for your consent before it does, not after.
+This website **sets no cookies at all**. It uses two items of browser storage, both of which exist only to make a signed-in account work, and it embeds no third-party trackers, analytics or social media pixels. If that ever changes we will ask for your consent before it does, not after.
+
+Every item is listed by name, with what it is for and how long it lasts, in the **[Cookie and Local Storage Policy](/cookies)** — along with the third-party connections the site makes and the control for changing your choice.
 
 ## 13. Accessibility
 

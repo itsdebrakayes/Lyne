@@ -27,6 +27,10 @@ const ROUTES = [
      a link, lost it, and will search for "lyne admin download". */
   { path: '/download', priority: '0.6', changefreq: 'monthly' },
   { path: '/privacy',  priority: '0.3', changefreq: 'yearly'  },
+  { path: '/cookies',  priority: '0.3', changefreq: 'yearly'  },
+  /* Indexed because somebody looking for "how do I cancel Lyne" should find
+     the answer from a search engine rather than having to sign in first. */
+  { path: '/refunds',  priority: '0.3', changefreq: 'yearly'  },
   /* Indexed on purpose: Google Play requires this page to be reachable by
      somebody who has already uninstalled the app, and the first place they
      will look is a search engine. */

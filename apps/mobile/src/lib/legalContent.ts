@@ -14,6 +14,23 @@ export const APP_NAME = 'Lyne';
 export const SUPPORT_EMAIL = 'customersupport@uselyne.com';
 export const PRIVACY_CONTACT = 'customersupport@uselyne.com';
 
+/**
+ * The independence disclaimer.
+ *
+ * Lyne queues people for agencies, and the agencies it is built for are
+ * government ones — which is exactly the shape Google Play's impersonation
+ * policy is written about, and which App Review reads as a claim of official
+ * status unless something says otherwise. So this sentence is not decoration:
+ * it is the mitigation, and it has to be visible inside the app rather than
+ * only in a store description a user never reads.
+ *
+ * It appears in four places and must say the same thing in all of them: here,
+ * the Play description, the App Store reviewer notes, and the website. If you
+ * change the wording, change it everywhere in the same commit.
+ */
+export const INDEPENDENCE_DISCLAIMER =
+  `${APP_NAME} is an independent service operated by ${COMPANY}. It is not affiliated with, endorsed by, or operated on behalf of any government agency. Queue information is provided by the organisation you are queueing with.`;
+
 export type LegalSection = { heading: string; body: string[] };
 
 export const PRIVACY_POLICY: LegalSection[] = [
@@ -41,6 +58,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
       'Supabase — authentication. Stores your sign-in credentials.',
       'Stripe — payments. Handles and stores card details directly; we hold only a token.',
       'Expo push notification service — delivers notifications to your device.',
+      'Sentry — crash and error reporting, and only if it is switched on for a release. It is configured never to attach your email, name or IP address, and it removes anything resembling an identification number before a report leaves your phone.',
       'The business whose queue you join — receives your name and phone number, so they can call you and check you in. They do not receive your TRN or national ID; those never leave your phone.',
       'We do not sell your personal information, and we do not share it for advertising.',
     ],
@@ -70,6 +88,12 @@ export const PRIVACY_POLICY: LegalSection[] = [
     heading: 'Withdrawing permission',
     body: [
       'You can turn off location and notifications at any time in your device settings, and the app will keep working without them. You can remove a saved payment method from inside the app, and a saved identification number from the screen where you added it. Signing out erases every identification number held on that device. You can withdraw consent entirely by deleting your account.',
+    ],
+  },
+  {
+    heading: 'Cookies',
+    body: [
+      'This app uses no cookies, no advertising identifiers and no analytics SDK. Nothing here profiles you and nothing follows you to another app or website. The Lyne website has a separate Cookie Policy covering what a browser stores.',
     ],
   },
   {
@@ -110,7 +134,16 @@ export const TERMS: LegalSection[] = [
   {
     heading: 'Payments',
     body: [
-      'Any service you pay for is provided by the business, in person. Payments are processed by our payment provider. Refunds are a matter between you and the business that served you.',
+      'Joining a queue is free. Any service you pay the organisation for is provided by them, in person, and a refund for that is a matter between you and them — we do not take that money and cannot return it.',
+    ],
+  },
+  {
+    heading: 'Paid features, cancelling and refunds',
+    body: [
+      'If you buy a paid feature inside this app, Apple or Google takes the payment, not us. Cancel it in your device\u2019s subscription settings — Apple and Google both require it to work that way, and neither lets us cancel on your behalf.',
+      'Cancelling is always as easy as subscribing. If we ever make it harder to find than signing up was, we will not refuse a refund because you cancelled late.',
+      'Where a subscription period has already been used, a refund in full cannot be offered, because the service for that period has been delivered. Depending on the circumstances a partial refund may be considered, but it is not guaranteed.',
+      'If something was faulty, unavailable, or not as we described it, you are entitled to a remedy whatever you have used \u2014 and nothing here removes a right the law gives you. The full Refund and Cancellation Policy is at uselyne.com/refunds.',
     ],
   },
   {

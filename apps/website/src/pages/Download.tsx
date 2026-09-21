@@ -102,7 +102,7 @@ const Download = () => {
 
       <MarketingNav />
 
-      <main className="pb-24 pt-20">
+      <main id="main" className="pb-24 pt-20">
         <div className="lux-container space-y-14">
 
           {/* ── what this is ─────────────────────────────────────────── */}

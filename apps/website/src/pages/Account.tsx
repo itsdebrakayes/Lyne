@@ -55,7 +55,7 @@ export default function Account() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="lux-container pb-24 pt-16">
+      <main id="main" className="lux-container pb-24 pt-16">
         <div className="mx-auto max-w-xl">
           {session ? <Portal session={session} /> : <SignIn />}
         </div>

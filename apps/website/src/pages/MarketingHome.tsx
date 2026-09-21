@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { LEGAL_ENTITY } from "@/lib/legalEntity";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -32,6 +33,7 @@ export default function MarketingHome() {
       </div>
 
       <MarketingNav />
+      <main id="main">
       <Hero />
       <WhatItIs />
       <Features />
@@ -39,6 +41,7 @@ export default function MarketingHome() {
       <Pricing />
       <ForBusiness />
       <Newsletter />
+      </main>
       <MarketingFooter />
     </div>
   );
@@ -288,7 +291,7 @@ function ForBusiness() {
             build it with. Whether you serve ten people a day or ten thousand,
             here is what you stand to gain when you come on board early.
           </p>
-          <a href="mailto:hello@lyne.app" className="btn btn-primary">
+          <a href={`mailto:${LEGAL_ENTITY.supportEmail}`} className="btn btn-primary">
             Talk to us <ArrowRight className="h-4 w-4" />
           </a>
           <div className="mt-8 flex flex-wrap gap-2">
