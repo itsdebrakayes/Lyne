@@ -10,7 +10,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
-import { COMPANY, PRIVACY_POLICY, TERMS, type LegalSection } from '../../lib/legalContent';
+import { COMPANY, INDEPENDENCE_DISCLAIMER, PRIVACY_POLICY, TERMS, type LegalSection } from '../../lib/legalContent';
 
 function Section({ section }: { section: LegalSection }) {
   return (
@@ -47,6 +47,20 @@ export default function LegalScreen() {
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
           <Text style={t.h2}>Legal</Text>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: colors.surfaceAlt,
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 16,
+          }}
+          accessibilityRole="summary"
+        >
+          <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.sub, lineHeight: 19 }}>
+            {INDEPENDENCE_DISCLAIMER}
+          </Text>
         </View>
 
         <View
