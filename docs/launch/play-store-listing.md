@@ -23,8 +23,9 @@ Play Console → **All apps** → **Create app**
 | Free or paid | Free — **this cannot be changed to paid later** |
 | Declarations | Developer Programme Policies: agree · US export laws: agree |
 
-Package name `com.lyne.mobile` is fixed by the first upload and can never be
-changed for the life of the listing.
+Package name `com.lyne.com` is fixed by the first upload and can never be
+changed for the life of the listing. It is **not** the iOS bundle identifier,
+which is `com.lyne.mobile`; the two stores are independent namespaces.
 
 ---
 

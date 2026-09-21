@@ -128,7 +128,9 @@ Apple and Google underneath it, and they are acquired differently:
   V1 credentials must be created and uploaded:
 
   1. <https://console.firebase.google.com> → add a project → add an **Android**
-     app with package name `com.lyne.mobile`.
+     app with package name `com.lyne.com` — the Android package, **not** the
+     iOS bundle identifier. Firebase keys its credentials on this string, and a
+     mismatch is exactly the silent-failure this section warns about.
   2. Download `google-services.json` into `apps/mobile/`, and add
      `"googleServicesFile": "./google-services.json"` under `android` in
      `app.json`.
