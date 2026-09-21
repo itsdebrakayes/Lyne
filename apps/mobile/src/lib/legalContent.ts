@@ -14,6 +14,23 @@ export const APP_NAME = 'Lyne';
 export const SUPPORT_EMAIL = 'customersupport@uselyne.com';
 export const PRIVACY_CONTACT = 'customersupport@uselyne.com';
 
+/**
+ * The independence disclaimer.
+ *
+ * Lyne queues people for agencies, and the agencies it is built for are
+ * government ones — which is exactly the shape Google Play's impersonation
+ * policy is written about, and which App Review reads as a claim of official
+ * status unless something says otherwise. So this sentence is not decoration:
+ * it is the mitigation, and it has to be visible inside the app rather than
+ * only in a store description a user never reads.
+ *
+ * It appears in four places and must say the same thing in all of them: here,
+ * the Play description, the App Store reviewer notes, and the website. If you
+ * change the wording, change it everywhere in the same commit.
+ */
+export const INDEPENDENCE_DISCLAIMER =
+  `${APP_NAME} is an independent service operated by ${COMPANY}. It is not affiliated with, endorsed by, or operated on behalf of any government agency. Queue information is provided by the organisation you are queueing with.`;
+
 export type LegalSection = { heading: string; body: string[] };
 
 export const PRIVACY_POLICY: LegalSection[] = [
