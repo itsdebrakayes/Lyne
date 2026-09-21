@@ -26,4 +26,13 @@ CREATE TABLE IF NOT EXISTS branch_targets (
   CONSTRAINT fk_branch_targets_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
   CONSTRAINT fk_branch_targets_staff    FOREIGN KEY (set_by_staff_id) REFERENCES staff(id) ON DELETE SET NULL,
   INDEX idx_branch_targets_business (business_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- The collation is pinned for the same reason migration 033 pins it, and
+-- this table is why it matters. With no clause here the table takes the
+-- DATABASE default; every table it points at took the CHARSET default.
+-- Those are the same string in development, where the MySQL image creates
+-- the database with no COLLATE — and different in production, where
+-- deploy/init-managed-db.sh asks for utf8mb4_unicode_ci. A foreign key
+-- across two collations is refused with errno 150, so the first
+-- production deploy died here and nowhere else, on a schema that had been
+-- applied cleanly hundreds of times locally.
