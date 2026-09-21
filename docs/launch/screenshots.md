@@ -5,37 +5,34 @@ whether you owe Apple a second set.
 
 ---
 
-## ⚠ Decide this first: does Lyne support iPad?
+## iPad support: settled — it stays on
 
-`apps/mobile/app.json` currently says:
+`apps/mobile/app.json` says:
 
 ```json
 "ios": { "supportsTablet": true }
 ```
 
-That has two consequences you have not chosen yet:
+This was an open question and is now closed, in the direction of keeping it.
+The kiosk terminal is this same binary running on an iPad, so turning tablet
+support off would render the lobby terminal as a scaled-up phone app — the one
+thing the kiosk cannot be. The customer screens hold a centred 780pt reading
+column on any window 700pt or wider (`apps/mobile/src/lib/stage.ts`), so an
+iPad now sees a laid-out app rather than a stretched one, which is what makes
+the claim defensible to a reviewer.
 
-1. **App Store Connect will require a 13-inch iPad screenshot set** in addition
-   to the iPhone one. There is no way to submit without it.
-2. **App Review will test the app on an iPad.** Only five files in
-   `apps/mobile/src` read the window size at all, and none of them lay out
-   differently for a tablet — so what a reviewer sees is a phone layout stretched
-   across a 13-inch screen. "The app's user interface was cramped, laid out
-   poorly, or displayed incorrectly on iPad" is Guideline 4.0, and it is one of
-   the most-cited rejections there is.
+Two consequences, both of which the rest of this document assumes:
 
-**Recommendation: turn it off for version 1.**
+1. **App Store Connect requires a 13-inch iPad screenshot set** as well as the
+   iPhone one. There is no way to submit without it.
+2. **App Review will test on an iPad.** Check the tablet layout on a real iPad
+   or the 13-inch simulator before submitting — Guideline 4.0 ("cramped, laid
+   out poorly, or displayed incorrectly on iPad") is one of the most-cited
+   rejections there is, and the defence against it is that the layout exists,
+   not that the flag is set.
 
-```json
-"ios": { "supportsTablet": false }
-```
-
-The app still installs and runs on iPad in iPhone compatibility mode, you owe
-Apple one screenshot set instead of two, and nobody reviews a tablet layout that
-does not exist yet. Turn it back on when there is a real iPad layout worth
-showing — that is a version 2 feature, not a checkbox.
-
-The rest of this document assumes iPhone only.
+This section used to recommend the opposite, and did so before the tablet
+layout existed. If you are reading an older copy, this is the current answer.
 
 ---
 
@@ -45,7 +42,7 @@ The rest of this document assumes iPhone only.
 |---|---|---|
 | **6.9-inch iPhone** | 1320 × 2868 · 1290 × 2796 · 1260 × 2736 | 1–10, use 5 |
 | 6.5-inch iPhone | 1284 × 2778 · 1242 × 2688 | Alternative to 6.9 — one class is enough |
-| 13-inch iPad | 2064 × 2752 · 2048 × 2732 | **Only if `supportsTablet` stays true** |
+| **13-inch iPad** | 2064 × 2752 · 2048 × 2732 | **Required** — `supportsTablet` is true |
 
 Capture on the iPhone 17 Pro Max simulator at 1320 × 2868 and Apple scales the
 set down for smaller devices. No alpha channel, no rounded corners, no device
@@ -94,6 +91,9 @@ cd apps/mobile
 # iOS — the simulator gives you exact pixel dimensions
 npx expo run:ios --device "iPhone 17 Pro Max"
 # then: Simulator → File → Save Screen  (or ⌘S)
+
+# iOS, the iPad set App Store Connect also requires — same five screens
+npx expo run:ios --device "iPad Pro 13-inch (M4)"
 
 # Android
 npx expo run:android
