@@ -45,6 +45,7 @@ const About = () => {
       </div>
 
       <MarketingNav />
+      <main id="main">
 
       <div className="pb-24 pt-20">
         <div className="lux-container space-y-16">
@@ -129,6 +130,7 @@ const About = () => {
         </div>
       </div>
 
+      </main>
       <MarketingFooter />
     </div>
   );

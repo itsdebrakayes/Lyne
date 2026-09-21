@@ -15,7 +15,7 @@ export default function MobileNotFound() {
   return (
     <div className="flex min-h-screen flex-col bg-lyne-night text-white">
       <MobileMarketingNav />
-      <main className="flex flex-1 items-center justify-center px-5 py-16 text-center">
+      <main id="main" className="flex flex-1 items-center justify-center px-5 py-16 text-center">
         <div>
           <h1 className="text-6xl font-bold tracking-tight">404</h1>
           <p className="mt-4 text-lg text-lyne-lavender/70">Oops! Page not found</p>

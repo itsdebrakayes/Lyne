@@ -17,7 +17,7 @@ export default function Terms() {
         <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-lyne-purple/20 blur-[140px]" />
       </div>
       <MarketingNav />
-      <main className="lux-container pb-24 pt-16">
+      <main id="main" className="lux-container pb-24 pt-16">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <LegalDocument markdown={termsMarkdown} />
         </motion.div>

@@ -17,7 +17,7 @@ export default function MobilePrivacy() {
         <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-lyne-purple/20 blur-[140px]" />
       </div>
       <MobileMarketingNav />
-      <main className="px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <main id="main" className="px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <LegalDocument markdown={privacyMarkdown} />
         </motion.div>

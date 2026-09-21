@@ -1,16 +1,15 @@
 /**
- * Terms — the published Terms of Service.
+ * MobileRefunds — the published Refund and Cancellation Policy, phone layout.
  *
- * Content comes from legal/TERMS_OF_SERVICE.md so there is exactly one copy of
- * the wording. The footer linked here to /about until 21 Aug 2026, which meant
- * the site advertised terms of service and delivered a marketing page.
+ * Same markdown source as the desktop page. If the wording differs between
+ * the two, one of them is wrong — there is only supposed to be one policy.
  */
 import { motion } from "framer-motion";
 import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 import { LegalDocument } from "@/components/lyne/LegalDocument";
-import termsMarkdown from "../../../../../legal/TERMS_OF_SERVICE.md?raw";
+import markdown from "../../../../../legal/REFUND_POLICY.md?raw";
 
-export default function MobileTerms() {
+export default function MobileRefunds() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-lyne-night text-white">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -19,7 +18,7 @@ export default function MobileTerms() {
       <MobileMarketingNav />
       <main id="main" className="px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <LegalDocument markdown={termsMarkdown} />
+          <LegalDocument markdown={markdown} />
         </motion.div>
       </main>
       <MobileMarketingFooter />

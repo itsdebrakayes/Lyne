@@ -88,6 +88,28 @@ Ask your attorney which is sufficient for a government client, because a procure
 
 ---
 
+## Added 21 September 2026 — cookies, refunds, accessibility, and the audit behind them
+
+A second pass, covering the things the first one did not. What changed:
+
+**New documents.** `COOKIE_POLICY.md` and `REFUND_POLICY.md`, published at `/cookies` and `/refunds`, both in the sitemap and both linked from every page footer.
+
+**A cookie banner that actually controls something.** Three options at equal visual weight — Accept all, Necessary only, Reject non-essential — with refusal one click, no pre-ticked boxes and no cookie wall. The consent record lives in `apps/website/src/lib/consent.ts`. **Anything measurement-related added later must load inside `whenAllowed('analytics', ...)`**; the gate was built before there was anything to gate precisely so that rule exists in advance.
+
+**What the audit actually found.** The site sets **no cookies**, runs **no analytics**, embeds **no third-party scripts, iframes, pixels or maps**. Total browser storage is three items, all strictly necessary, all named in the Cookie Policy. That is a genuinely strong position and the documents now say so in checkable terms rather than in reassurance.
+
+**Two real gaps closed:**
+- `mailto:hello@lyne.app` was the primary business call-to-action on the home page. That domain is not ours; the address could never have received a reply.
+- `+1 (876) 000-0000` was published as the company's contact number, on both the desktop and mobile contact blocks.
+
+**One gap left open deliberately** — see the list below: Google Fonts is fetched from Google's servers before the banner is answered, so a visitor's IP reaches Google regardless of what they choose. Section 4 of the Cookie Policy states this plainly rather than letting the banner imply a control it does not have. The fix is to self-host the font files.
+
+**Accessibility.** Contrast was measured, not eyeballed: the primary button gradient put white text at **3.42:1**, below the 4.5:1 floor, and is now 4.83:1 at its lightest point. `.btn` defined no focus style at all, so keyboard users had no visible indication of position — there is now a two-layer focus ring on every interactive element. A skip link was added, and seven pages that had no `<main>` landmark now have one.
+
+**Independence disclaimer** now appears in the website footer as well as in the app, which is the third of the four places it has to match.
+
+---
+
 ## What you must do beyond the documents
 
 - [ ] **Register as a data controller** with the Office of the Information Commissioner. This is a legal obligation under the DPA, not optional, and it has a fee and a renewal.
@@ -96,6 +118,10 @@ Ask your attorney which is sufficient for a government client, because a procure
 - [ ] **A breach-response plan.** The DPA requires notification to the Commissioner, on a clock. Deciding what to do during an incident is too late.
 - [ ] **Retention periods.** The drafts state them; make sure the system actually enforces them — right now nothing expires old `ocr_results` automatically. That's a gap between what the policy promises and what the code does, and that gap is the thing regulators find.
 - [ ] **Records of processing activities.**
+- [ ] **Self-host the web fonts.** The site loads Inter, Instrument Serif, Parisienne and JetBrains Mono from `fonts.googleapis.com`, which sends every visitor's IP address to Google before they have answered the cookie banner. Jamaica's DPA has no ePrivacy-style rule that this breaches, and the practical risk is low and EU-shaped — but it is the only unconsented third-party connection left on the site, and downloading four font families into `public/fonts/` removes it permanently. Not done in this pass because swapping typefaces unreviewed, days before a launch, is a worse risk than the one it fixes.
+- [ ] **Decide whether the 24-month enquiry retention is real.** The quote form's consent notice now states it. Nothing enforces it — enquiries sit in an email inbox. Either enforce it or change the sentence; a stated retention period nobody applies is the exact gap regulators look for.
+- [ ] **A full accessibility pass on the mobile app.** Coverage is partial rather than absent: roughly 65 `accessibilityLabel` and 74 `accessibilityRole` props across 26 screens and 334 touchables. Text buttons inherit an accessible name from their label and are fine; icon-only controls are the ones to check. VoiceOver and TalkBack walkthroughs are the way to find them, and neither was run in this pass.
+- [ ] **Hardcoded demo data in a shipping component.** `ExecTabsQX.tsx` renders `debra.samuels@taj.gov.jm` and "invoiced to the Ministry of Finance" as literals in the Executive settings tab. Harmless on the demo branch; wrong in front of a real tenant.
 
 ## Where the documents go
 

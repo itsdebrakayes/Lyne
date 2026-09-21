@@ -258,6 +258,37 @@
   }
 
   /* Buttons */
+  /* Keyboard focus, which .btn did not define at all.
+     ------------------------------------------------------------------
+     These are pill buttons on a dark ground, and several sit on gradients
+     and glass panels. The browser's default focus ring is a thin dark
+     outline — on this palette it is effectively invisible, so a keyboard
+     user had no way to tell which control they were on. WCAG 2.4.7.
+
+     :focus-visible rather than :focus, so a mouse click does not leave a
+     ring behind; the browser decides, which is what that selector is for.
+     The offset ring is drawn with box-shadow so it follows the 999px
+     border-radius instead of boxing a rounded button in a rectangle. */
+  .btn:focus-visible,
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px #060d1c,
+      0 0 0 4px #b7d5ff;
+  }
+
+  /* Anything that lands via a skip link or an in-page anchor gets breathing
+     room above it, so the heading is not pinned under the fixed header. */
+  :target {
+    scroll-margin-top: 6rem;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -272,7 +303,10 @@
       border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .btn-primary {
-    background: linear-gradient(135deg, #4a86ff 0%, #1d4ed8 100%);
+    /* Was #4a86ff at the light end, where white text measured 3.42:1 —
+       below the 4.5:1 needed for normal text. #2c66f7 measures 4.83:1
+       and both ends of the gradient now clear AA. */
+    background: linear-gradient(135deg, #2c66f7 0%, #1d4ed8 100%);
     color: #fff;
     box-shadow: 0 14px 40px -12px rgba(47, 107, 255, 0.8),
       0 0 0 1px rgba(47, 107, 255, 0.4) inset;
