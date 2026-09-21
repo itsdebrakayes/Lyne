@@ -1,21 +1,15 @@
 /**
- * DeleteAccount — the account-deletion route both stores require.
+ * Refunds — the published Refund and Cancellation Policy.
  *
- * Google Play requires a publicly reachable URL where a user can request
- * deletion WITHOUT the app installed, and it is submitted separately in the
- * Play Console data-safety form. The app has had an in-app deletion path for a
- * while; what was missing was somewhere to point a person who has already
- * uninstalled it.
- *
- * Content comes from legal/ACCOUNT_DELETION.md so there is one copy of the
- * wording, the same as Privacy and Terms.
+ * Content comes from legal/REFUND_POLICY.md so there is exactly one copy of the
+ * wording, shared with every other surface that has to state the same thing.
  */
 import { motion } from "framer-motion";
 import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
 import { LegalDocument } from "@/components/lyne/LegalDocument";
-import deletionMarkdown from "../../../../legal/ACCOUNT_DELETION.md?raw";
+import markdown from "../../../../legal/REFUND_POLICY.md?raw";
 
-export default function DeleteAccount() {
+export default function Refunds() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-lyne-night text-white">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -24,7 +18,7 @@ export default function DeleteAccount() {
       <MarketingNav />
       <main id="main" className="lux-container pb-24 pt-16">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <LegalDocument markdown={deletionMarkdown} />
+          <LegalDocument markdown={markdown} />
         </motion.div>
       </main>
       <MarketingFooter />

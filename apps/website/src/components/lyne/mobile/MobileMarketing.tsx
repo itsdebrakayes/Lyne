@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { LEGAL_ENTITY } from "@/lib/legalEntity";
+import { INDEPENDENCE_DISCLAIMER } from "@/lib/independence";
+import { CookieSettingsLink } from "@/components/lyne/CookieConsent";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { LyneLogo } from "../LyneLogo";
 
@@ -136,12 +139,32 @@ export function MobileMarketingFooter() {
           ))}
         </div>
 
-        <div className="mt-10 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45">
+        {/* Same identity block as the desktop footer, same source. See
+            Marketing.tsx for why it is published at all. */}
+        <div className="mt-10 border-t border-white/[0.06] pt-6 text-xs leading-relaxed text-lyne-lavender/45">
+          <p>
+            <span className="font-semibold text-lyne-lavender/70">{LEGAL_ENTITY.registeredName}</span>
+            {" — "}registered in Jamaica under the Registration of Business Names Act,
+            registration number {LEGAL_ENTITY.businessRegistrationNumber}. Operated as a sole trader.
+          </p>
+          <p className="mt-1">{LEGAL_ENTITY.correspondenceAddress}</p>
+          <p className="mt-1">
+            <a href={`mailto:${LEGAL_ENTITY.supportEmail}`} className="hover:text-white">
+              {LEGAL_ENTITY.supportEmail}
+            </a>
+          </p>
+          <p className="mt-1">{INDEPENDENCE_DISCLAIMER}</p>
+        </div>
+
+        <div className="mt-6 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45">
           <span>© {new Date().getFullYear()} Lyne. All rights reserved.</span>
-          <div className="mt-1 flex items-center gap-6">
+          <nav aria-label="Legal" className="mt-1 flex flex-wrap items-center gap-x-6">
             <Link to="/terms" className="inline-flex min-h-[44px] items-center hover:text-white">Terms</Link>
             <Link to="/privacy" className="inline-flex min-h-[44px] items-center hover:text-white">Privacy</Link>
-          </div>
+            <Link to="/cookies" className="inline-flex min-h-[44px] items-center hover:text-white">Cookies</Link>
+            <Link to="/refunds" className="inline-flex min-h-[44px] items-center hover:text-white">Refunds</Link>
+            <CookieSettingsLink className="inline-flex min-h-[44px] items-center hover:text-white" />
+          </nav>
         </div>
       </div>
     </footer>

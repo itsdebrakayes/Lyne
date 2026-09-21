@@ -38,6 +38,7 @@ const MobileDownload = () => {
       </div>
 
       <MobileMarketingNav />
+      <main id="main">
 
       <div className="pb-16 pt-12 sm:pb-20 sm:pt-16">
         <div className="lux-container space-y-10 sm:space-y-12">
@@ -234,6 +235,7 @@ const MobileDownload = () => {
         </div>
       </div>
 
+      </main>
       <MobileMarketingFooter />
     </div>
   );

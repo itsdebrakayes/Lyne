@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { LEGAL_ENTITY } from "@/lib/legalEntity";
+import { INDEPENDENCE_DISCLAIMER } from "@/lib/independence";
+import { CookieSettingsLink } from "@/components/lyne/CookieConsent";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { LyneLogo } from "./LyneLogo";
 
@@ -22,7 +25,7 @@ export function MarketingNav() {
       <div className="lux-container flex h-16 items-center justify-between">
         <LyneLogo />
 
-        <nav className="hidden items-center gap-8 text-sm text-lyne-lavender/70 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-8 text-sm text-lyne-lavender/70 md:flex">
           {links.map((l) => (
             <a
               key={l.label}
@@ -137,16 +140,42 @@ export function MarketingFooter() {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45 sm:flex-row">
+        {/* Who you are actually dealing with.
+            A trading name and an email are not enough to identify a counterparty,
+            and a business selling subscriptions to public bodies will be asked for
+            exactly this in procurement. It is also the honest answer to "who do I
+            complain to". Sourced from legalEntity.ts so the policies and the
+            footer can never drift apart. */}
+        <div className="mt-14 border-t border-white/[0.06] pt-6 text-xs leading-relaxed text-lyne-lavender/45">
+          <p>
+            <span className="font-semibold text-lyne-lavender/70">{LEGAL_ENTITY.registeredName}</span>
+            {" — "}registered in Jamaica under the Registration of Business Names Act,
+            registration number {LEGAL_ENTITY.businessRegistrationNumber}. Operated as a sole trader.
+          </p>
+          <p className="mt-1">
+            {LEGAL_ENTITY.correspondenceAddress} ·{" "}
+            <a href={`mailto:${LEGAL_ENTITY.supportEmail}`} className="hover:text-white">
+              {LEGAL_ENTITY.supportEmail}
+            </a>
+          </p>
+          <p className="mt-1">{INDEPENDENCE_DISCLAIMER}</p>
+        </div>
+
+        <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-lyne-lavender/45 sm:flex-row">
           <span>© {new Date().getFullYear()} Lyne. All rights reserved.</span>
-          <div className="flex items-center gap-6">
+          <nav aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-6">
             {/* These pointed at /about until 21 Aug 2026 — the site advertised
                 three legal pages and delivered a marketing page. Security has
                 no page of its own, so it is not claimed; the security
                 commitments live in the Privacy Policy. */}
             <Link to="/terms" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Terms</Link>
             <Link to="/privacy" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Privacy</Link>
-          </div>
+            <Link to="/cookies" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Cookies</Link>
+            <Link to="/refunds" className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0">Refunds</Link>
+            {/* Withdrawing consent has to be as easy as giving it, which means
+                a control in reach from every page rather than a browser setting. */}
+            <CookieSettingsLink className="inline-flex min-h-[44px] items-center hover:text-white sm:min-h-0" />
+          </nav>
         </div>
       </div>
     </footer>

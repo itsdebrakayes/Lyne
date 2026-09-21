@@ -4,7 +4,9 @@
  * get an indicative estimate, and send the configuration to sales.
  */
 import * as React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { LEGAL_ENTITY } from "@/lib/legalEntity";
 import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 import { Building2, Calculator, Users, Mail, Phone, MapPin, ArrowRight, Check } from "lucide-react";
 
@@ -83,6 +85,7 @@ const MobileJoinUs = () => {
       </div>
 
       <MobileMarketingNav />
+      <main id="main">
 
       <div className="pb-16 pt-12 sm:pb-20 sm:pt-16">
         <div className="lux-container space-y-10 sm:space-y-14">
@@ -251,7 +254,7 @@ const MobileJoinUs = () => {
                 </div>
                 <div>
                   <label htmlFor="quote-phone" className="mb-2 block text-sm font-medium">Phone</label>
-                  <input id="quote-phone" name="phone" type="tel" placeholder="+1 (876) 000-0000" className={inputClass} />
+                  <input id="quote-phone" name="phone" type="tel" placeholder="876 000 0000" className={inputClass} />
                 </div>
                 <div>
                   <label htmlFor="quote-message" className="mb-2 block text-sm font-medium">Message</label>
@@ -266,8 +269,23 @@ const MobileJoinUs = () => {
                     className={inputClass}
                   />
                 </div>
-                <button type="submit" className="btn btn-primary btn-lg w-full">
-                  Request quote <ArrowRight className="h-5 w-5" />
+                {/* See JoinUs.tsx — this form opens a mail draft rather
+                    than transmitting, so the notice says that plainly. */}
+                <p id="quote-consent" className="text-xs leading-relaxed text-lyne-lavender/60">
+                  Pressing this opens your own email app with the details above as a draft.
+                  Nothing is sent until you send it. When it reaches us we use your name,
+                  email and phone number only to answer your enquiry and, if it goes further,
+                  to prepare a quote — we do not add you to a mailing list and we do not share
+                  it with anyone else. We keep enquiries for 24&nbsp;months, and you can ask us
+                  to delete yours at any time.{" "}
+                  <Link to="/privacy" className="underline underline-offset-2 hover:text-white">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+
+                <button type="submit" aria-describedby="quote-consent" className="btn btn-primary btn-lg w-full">
+                  Request quote <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </button>
                 {submitted && (
                   <p className="flex items-center gap-2 text-sm text-lyne-green">
@@ -289,7 +307,8 @@ const MobileJoinUs = () => {
                 <div className="space-y-5">
                   {[
                     { icon: Mail, label: "Email", value: "customersupport@uselyne.com" },
-                    { icon: Phone, label: "Phone", value: "+1 (876) 000-0000" },
+                    /* Placeholder number removed — see JoinUs.tsx. */
+                    { icon: Mail, label: "Enquiries", value: LEGAL_ENTITY.supportEmail },
                     { icon: MapPin, label: "Location", value: "Kingston, Jamaica" },
                   ].map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-start gap-4">
@@ -318,6 +337,7 @@ const MobileJoinUs = () => {
         </div>
       </div>
 
+      </main>
       <MobileMarketingFooter />
     </div>
   );
