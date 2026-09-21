@@ -59,8 +59,16 @@ mysql_admin -e "SELECT VERSION() AS version, @@require_secure_transport AS tls_r
 
 log "Creating the database and the application login"
 mysql_admin <<SQL
+-- No COLLATE clause on purpose. Naming one here sets the DATABASE default,
+-- which is what a table created without its own charset clause inherits —
+-- while schema.sql's tables all say DEFAULT CHARSET=utf8mb4 and so take the
+-- CHARSET default instead. Asking for utf8mb4_unicode_ci therefore made
+-- production disagree with development about one table's collation, and a
+-- foreign key across two collations is refused (errno 150). Letting the
+-- server decide keeps this database identical to the one the MySQL image
+-- builds in development, which is the only version anybody tests against.
 CREATE DATABASE IF NOT EXISTS \`${DB}\`
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CHARACTER SET utf8mb4;
 CREATE USER IF NOT EXISTS '${APP_USER}'@'%' IDENTIFIED BY '${APP_PASSWORD}';
 ALTER USER '${APP_USER}'@'%' IDENTIFIED BY '${APP_PASSWORD}';
 SQL
