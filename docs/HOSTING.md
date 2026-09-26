@@ -78,10 +78,21 @@ should decide it.
 | Component | Size | Monthly (list) | Why |
 |---|---|---|---|
 | Droplet | 2 vCPU / 4 GB | $24 | API + model worker, comfortably |
-| Managed MySQL | 1 vCPU / 1 GB | $15 | Automated backups, point-in-time restore, one-click resize |
+| Managed MySQL | 1 vCPU / 2 GB | $30 | Automated backups, point-in-time restore, one-click resize. **Not the $15 tier — see below** |
 | Spaces | 250 GB | $5 | Off-box backup destination |
 | Domain + TLS | — | $0 | Domain already owned; Let's Encrypt is free |
-| **Total** | | **~$44** | |
+| **Total** | | **~$59** | |
+
+**Why the 2 GB database rather than the 1 GB one.** `wait_time_records` was
+measured at **0.71 MB per branch per day** — 793 MB of an 806 MB database after
+35 days across 32 branches. With `RETENTION_MEASUREMENTS_MONTHS` now capping it
+at 12 months that growth is bounded, but the steady state for one agency with
+five branches is still around **1.3 GB**, and a 1 GB node gives MySQL roughly a
+700 MB buffer pool. The executive dashboard is what sells this product and its
+aggregate queries were measured at **3.5–4.7 seconds** against a local database
+with more memory than that; running them off disk on an undersized node is the
+wrong place to save $15. Resize up on evidence — but not down into a node the
+working set never fitted in.
 
 **Take the managed database rather than MySQL on the droplet.** It is $15 against
 roughly $6 of droplet capacity, and it buys automated backups, point-in-time
