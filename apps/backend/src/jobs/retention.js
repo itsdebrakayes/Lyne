@@ -29,6 +29,22 @@ const CONFIG = {
   visits: months('RETENTION_VISITS_MONTHS', 24),
   // "12 months" — security logs
   audit: months('RETENTION_AUDIT_MONTHS', 12),
+  /* Raw timing measurements. NOT a privacy period — wait_time_records holds no
+     personal data, only durations and counts. This is a capacity limit, and it
+     is here because without one the table grows forever: it was 793 MB of an
+     806 MB database after 35 days across 32 branches, and nothing ever removed
+     a row.
+
+     12 months is chosen against what actually reads the table:
+       • the wait-time model trains on MODEL_HISTORY_DAYS, default 150
+       • no analytics route looks back further than 90 days
+       • the long view lives in analytics_summaries, which is already rolled up
+         per branch per day and is roughly 700x smaller
+
+     So a year keeps more than twice what anything reads. Do not set this below
+     the model's window — around 6 months is the floor before the ETA starts
+     training on less data than it was tuned for. */
+  measurements: months('RETENTION_MEASUREMENTS_MONTHS', 12),
 };
 
 /**
@@ -78,6 +94,20 @@ function buildSteps() {
       params: [CONFIG.visits],
     },
 
+    // ── Capacity ──────────────────────────────────────────────────────────
+    /* Batched, unlike every other step. This table is two orders of magnitude
+       larger than the rest, and visit_date is only ever a secondary column in
+       the composite indexes — so one unbounded DELETE means a full scan holding
+       locks the whole way, on a managed node with a gigabyte or two of RAM. A
+       batch is a bounded amount of work that can be retried. */
+    {
+      label: 'wait_time_records (raw measurements)',
+      count: 'SELECT COUNT(*) AS n FROM wait_time_records WHERE visit_date < DATE_SUB(CURDATE(), INTERVAL ? MONTH)',
+      run: 'DELETE FROM wait_time_records WHERE visit_date < DATE_SUB(CURDATE(), INTERVAL ? MONTH) LIMIT ?',
+      params: [CONFIG.measurements],
+      batch: 10000,
+    },
+
     // ── Security and housekeeping ─────────────────────────────────────────
     {
       label: 'audit_logs',
@@ -115,6 +145,19 @@ async function runRetentionSweep(options = {}) {
       if (dryRun) {
         const [rows] = await pool.query(step.count, step.params);
         results.push({ label: step.label, rows: Number(rows[0]?.n || 0) });
+      } else if (step.batch) {
+        /* Delete in bounded passes until a pass removes nothing. The iteration
+           cap is a guard against a malformed predicate turning this into an
+           endless loop against production — it stops, and the next scheduled
+           sweep picks up whatever is left rather than the job running away. */
+        let removed = 0;
+        for (let pass = 0; pass < 200; pass += 1) {
+          const [outcome] = await pool.query(step.run, [...step.params, step.batch]);
+          const n = Number(outcome.affectedRows || 0);
+          removed += n;
+          if (n < step.batch) break;
+        }
+        results.push({ label: step.label, rows: removed });
       } else {
         const [outcome] = await pool.query(step.run, step.params);
         results.push({ label: step.label, rows: Number(outcome.affectedRows || 0) });
