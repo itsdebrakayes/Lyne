@@ -15,6 +15,18 @@
 #  it, on 443, with a real certificate.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# SCALING — see docs/SCALING.md §1 before reaching for Kubernetes.
+#
+# Three containers on one droplet. Every service below carries
+# `restart: unless-stopped` and a health check, which is the self-healing people
+# usually adopt Kubernetes to get — at single-machine scale.
+#
+# Kubernetes earns its cost when containers must be scheduled ACROSS machines:
+# one API process can no longer keep up and the droplet has already been resized,
+# or losing this single machine for an hour would breach an obligation. Traffic
+# is the trigger. More tenants is not — ten agencies on one droplet is still one
+# API process.
+
 name: lyne-prod
 
 services:
