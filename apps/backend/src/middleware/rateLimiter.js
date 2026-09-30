@@ -13,6 +13,56 @@
  */
 const rateLimit = require('express-rate-limit');
 
+/* SCALING — see docs/SCALING.md §2 before changing any of this.
+ *
+ * Two known limitations, both deliberate, both fine at one API process:
+ *
+ *   1. These are FIXED WINDOW counters, so a caller can spend a full window in
+ *      its last second and a fresh one immediately after. A TOKEN BUCKET
+ *      refills continuously and removes that entirely. Worth adopting when a
+ *      limit guards real money — paymentLimiter first, where the boundary turns
+ *      ten card attempts an hour into twenty.
+ *
+ *   2. The store is IN MEMORY, so the counts live in one process. The day a
+ *      SECOND API instance starts, every limit here silently doubles and stops
+ *      meaning what it says. That is a hard trigger, not a judgement call:
+ *      move to a shared store (rate-limit-redis) in the same change that adds
+ *      the second instance.
+ */
+
+/**
+ * Who a limit counts against.
+ *
+ * The default in express-rate-limit is the client IP, and for an anonymous
+ * endpoint that is the only honest answer. For an AUTHENTICATED one it is the
+ * wrong answer here, and the reason is specific to where this runs.
+ *
+ * Jamaica's mobile networks put large numbers of subscribers behind
+ * carrier-grade NAT, so thousands of Digicel or Flow customers can share one
+ * public address. An agency office is the same shape: every counter, every
+ * clerk and every customer on the branch wifi leaves through a single IP. Key a
+ * 20-per-15-minutes join limit on that and the twenty-first person at Half Way
+ * Tree is told they are doing it too often, for something twenty strangers did.
+ * It reads as the app being broken, which is the worst kind of bug — nobody
+ * reports it, they just stop using it.
+ *
+ * So: count against the signed-in person when we know who they are, and fall
+ * back to the address when we do not.
+ *
+ * Two things keep this from being a hole. A limiter using this key is mounted
+ * AFTER requireAuth, so the identity is one Supabase has already verified —
+ * never a header the caller can choose. And generalLimiter still applies
+ * per-IP across the whole API, so an address cannot exceed its overall ceiling
+ * by signing in as several people; it only stops innocent neighbours sharing
+ * one person's budget for a specific action.
+ */
+function actorOrIp(req) {
+  const actor = req.dbUser?.id || req.dbStaff?.id;
+  /* `req.ip` is what this library uses by default, so the anonymous path here
+     behaves exactly as it did before this key existed. */
+  return actor ? `actor:${actor}` : `ip:${req.ip}`;
+}
+
 /* One knob, and it is deliberately narrow.
    The end-to-end suite signs in far more often in fifteen minutes than any
    person would, so it exhausts the auth budget partway through a run and the
@@ -33,6 +83,7 @@ const authLimiter = rateLimit({
 
 // ── Queue join ────────────────────────────────────────────────
 const queueJoinLimiter = rateLimit({
+  keyGenerator:     actorOrIp,
   windowMs:         15 * 60 * 1000,
   max:              20,
   standardHeaders:  true,
@@ -42,6 +93,7 @@ const queueJoinLimiter = rateLimit({
 
 // ── OCR scan / upload ─────────────────────────────────────────
 const ocrLimiter = rateLimit({
+  keyGenerator:     actorOrIp,
   windowMs:         15 * 60 * 1000,
   max:              5,
   standardHeaders:  true,
@@ -73,6 +125,7 @@ const publicQueueLimiter = rateLimit({
 // somebody genuinely fighting a declined card, and it takes card testing from
 // "free" to "pointless".
 const paymentLimiter = rateLimit({
+  keyGenerator:     actorOrIp,
   windowMs:        60 * 60 * 1000,
   max:             10,
   standardHeaders: true,
@@ -106,6 +159,7 @@ const sessionLookupLimiter = rateLimit({
 });
 
 module.exports = {
+  actorOrIp,
   authLimiter,
   queueJoinLimiter,
   ocrLimiter,
