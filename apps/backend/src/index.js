@@ -159,7 +159,8 @@ app.use('/api/queues',         require('./routes/queues'));
 // Queue join — stricter rate limit on joining only. Staff serve operations
 // (status updates, reorder, skip) run on the same router and must not be
 // throttled by the customer join limit.
-app.post('/api/tickets',       queueJoinLimiter);
+/* queueJoinLimiter now sits inside routes/tickets.js, after requireAuth —
+   see actorOrIp in middleware/rateLimiter.js for why it has to. */
 app.use('/api/tickets',        require('./routes/tickets'));
 
 // Scheduled sessions — a queue you had to be entitled to join. The /public
@@ -185,18 +186,17 @@ app.use('/api/saved',          require('./routes/saved'));
 /* Card testing goes straight at create-intent, so the limiter is mounted on
    the write path only — the webhook above is Stripe calling us and is verified
    by signature, and GET /methods is a customer reading their own cards. */
-app.post('/api/payments/create-intent', paymentLimiter);
-app.post('/api/payments/methods',       paymentLimiter);
-app.post('/api/payments/subscription',  paymentLimiter);
 /* Public and unauthenticated by necessity — the website has no session yet when
    it asks. That makes it an oracle worth capping: without a limit it is a place
    to grind forged handoff tokens. */
 app.post('/api/payments/portal/verify', sessionLookupLimiter);
-app.post('/api/payments/checkout-session', paymentLimiter);
+/* paymentLimiter likewise moved into routes/payments.js, after requireAuth. */
 app.use('/api/payments',       paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
-app.use('/api/ocr', ocrLimiter, express.json({ limit: '10mb' }), require('./routes/ocr'));
+/* ocrLimiter moved into routes/ocr.js, after requireAuth. The body parser
+   stays here: it is per-mount configuration, not a limit. */
+app.use('/api/ocr', express.json({ limit: '10mb' }), require('./routes/ocr'));
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));

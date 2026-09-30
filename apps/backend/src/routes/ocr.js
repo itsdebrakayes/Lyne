@@ -24,6 +24,7 @@ const { z }   = require('zod');
 const { randomUUID: uuidv4 } = require('crypto');
 const pool    = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { ocrLimiter } = require('../middleware/rateLimiter');
 const { auditLog }    = require('../middleware/auditLog');
 const { maskTRN, maskNationalId } = require('../utils/maskData');
 const { assertBusinessAccess, assertBranchAccess, assertLineStaffQueueAccess } = require('../middleware/tenantAccess');
@@ -87,7 +88,7 @@ function parseOcrText(text) {
 }
 
 // ── POST /api/ocr/scan ────────────────────────────────────────
-router.post('/scan', requireAuth, auditLog('ocr_scan', 'ocr_document'), async (req, res) => {
+router.post('/scan', requireAuth, ocrLimiter, auditLog('ocr_scan', 'ocr_document'), async (req, res) => {
   const parsed = scanSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: validationMessage(parsed.error) });
@@ -166,7 +167,7 @@ router.post('/scan', requireAuth, auditLog('ocr_scan', 'ocr_document'), async (r
 
 // ── POST /api/ocr/save ────────────────────────────────────────
 // Associates an OCR result with a queue/service for record-keeping
-router.post('/save', requireAuth, async (req, res) => {
+router.post('/save', requireAuth, ocrLimiter, async (req, res) => {
   const parsed = saveSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: validationMessage(parsed.error) });

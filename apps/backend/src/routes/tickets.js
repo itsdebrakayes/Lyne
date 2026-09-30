@@ -27,6 +27,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { queueJoinLimiter } = require('../middleware/rateLimiter');
 const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireQueueAccess, requireTicketAccess } = require('../middleware/tenantAccess');
 const { sendPushToUser } = require('../utils/pushSender');
@@ -187,7 +188,7 @@ async function notifyTicketUser(conn, ticket, notificationType, message) {
 }
 
 // POST /api/tickets — Join a queue
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
   const parsed = joinQueueSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: validationMessage(parsed.error) });

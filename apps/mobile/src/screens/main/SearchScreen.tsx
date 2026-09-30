@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, font, shadow, t, initials, inputReset, personInitials, waitShort, branchOpenInfo, hoursFromBranch, openTimeLabel, TAB_BAR_CLEARANCE } from '../../lib/theme';
+import { MatchRank, rankMatch } from '../../lib/fuzzy';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
@@ -168,7 +169,24 @@ export default function SearchScreen() {
 
   const results = useMemo(() => {
     let list = branches;
-    if (term) list = list.filter(b => [b.name, b.business_name, b.city, b.parish].some(v => v?.toLowerCase().includes(term)));
+    /* Forgiving match, ranked. The old test was `.includes(term)` on four
+       fields, which meant "halfway tree" found nothing (the branch is recorded
+       as "Half Way Tree") and one mistyped letter in "Passport" found nothing
+       either. rankMatch keeps exact hits ahead of near ones — see lib/fuzzy.ts.
+
+       business_slug is in the searchable set so the acronyms people actually
+       type — TAJ, PICA, NHT — reach the organisation whose full name never
+       contains those letters in that order. */
+    let ranked: Map<string, number> | null = null;
+    if (term) {
+      ranked = new Map();
+      list = list.filter(b => {
+        const rank = rankMatch(term, [b.name, b.business_name, b.city, b.parish, b.business_slug]);
+        if (rank === MatchRank.None) return false;
+        ranked!.set(b.id, rank);
+        return true;
+      });
+    }
     if (bizFilter) list = list.filter(b => b.business_id === bizFilter);
     // "Open" means the same thing here as everywhere else: the branch is inside
     // its own opening hours AND has a live queue. Filtering on open_queues alone
@@ -178,9 +196,18 @@ export default function SearchScreen() {
       list = list.filter(b =>
         branchOpenInfo(now, hoursFromBranch(b)).state === 'open' && Number(b.open_queues) > 0);
     }
-    return [...list].sort((a, b) => (nearestFirst
-      ? Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
-      : (a.name || '').localeCompare(b.name || '')));
+    return [...list].sort((a, b) => {
+      /* While searching, match quality leads. Somebody who typed a branch name
+         exactly should see it first, not below a fuzzy hit that happens to have
+         a shorter queue. Within one rank the chosen sort decides, as before. */
+      if (ranked) {
+        const byRank = (ranked.get(a.id) ?? MatchRank.None) - (ranked.get(b.id) ?? MatchRank.None);
+        if (byRank !== 0) return byRank;
+      }
+      return nearestFirst
+        ? Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
+        : (a.name || '').localeCompare(b.name || '');
+    });
   }, [branches, term, bizFilter, openOnly, nearestFirst]);
 
   const openBranch = (b: BranchSummary) => {

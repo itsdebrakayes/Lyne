@@ -134,3 +134,7 @@ certs/
 # before the file inside it can be.
 !apps/admin-desktop/build/
 !apps/admin-desktop/build/entitlements.mac.plist
+
+# Written by deploy/deploy.sh on the droplet: the commit of the last deploy
+# that passed its health check. Per-machine state, never committed.
+.deploy-last-good

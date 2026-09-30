@@ -20,6 +20,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { paymentLimiter } = require('../middleware/rateLimiter');
 const { validate, schemas } = require('../middleware/validate');
 
 const DEFAULT_PREMIUM_CENTS = Number(process.env.PREMIUM_PRICE_CENTS || 999);
@@ -157,7 +158,7 @@ router.get('/methods', requireAuth, async (req, res) => {
 // ── POST /api/payments/methods — save a tokenized card ────────
 // Body: { payment_method_id }. The card was tokenized on the client; we only
 // attach the pm id to the customer and store display metadata (brand/last4).
-router.post('/methods', requireAuth, validate(schemas.attachPaymentMethod), async (req, res) => {
+router.post('/methods', requireAuth, paymentLimiter, validate(schemas.attachPaymentMethod), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
   const { payment_method_id } = req.body || {};
@@ -270,7 +271,7 @@ router.post('/portal/verify', (req, res) => {
 // ── POST /api/payments/checkout-session ──
 // Stripe's own hosted page. It handles 3-D Secure, the receipt, and the card
 // form, none of which we should be reimplementing to look slightly different.
-router.post('/checkout-session', requireAuth, async (req, res) => {
+router.post('/checkout-session', requireAuth, paymentLimiter, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
   if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
@@ -369,7 +370,7 @@ router.get('/subscription', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/payments/subscription — start one ──
-router.post('/subscription', requireAuth, validate(schemas.startSubscription), async (req, res) => {
+router.post('/subscription', requireAuth, paymentLimiter, validate(schemas.startSubscription), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
   if (!req.dbUser) return res.status(404).json({ error: 'No user record found.' });
@@ -489,7 +490,7 @@ router.post('/subscription/resume', requireAuth, async (req, res) => {
 
 // ── POST /api/payments/create-intent — start a charge ─────────
 // Body: { payment_method_id, idempotency_key, amount_cents?, purpose?, save_card? }
-router.post('/create-intent', requireAuth, validate(schemas.createIntent), async (req, res) => {
+router.post('/create-intent', requireAuth, paymentLimiter, validate(schemas.createIntent), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'Payments are not configured yet.' });
 
