@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
+import { getDocument, setDocument } from '../../lib/documentVault';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, personInitials, inputReset, depthText } from '../../lib/theme';
 import Icon, { IconName } from '../../components/Icon';
@@ -84,12 +85,22 @@ export default function ProfileScreen() {
   // v5 is one blue and neutrals, so the old per-category pastels (blue TRN,
   // green ID) are gone — two documents are not two categories, and the colour
   // was carrying no meaning.
+  /* Read from the keychain, not from the profile. user.trn / user.national_id
+     are always empty — the API refuses those fields on purpose — so this row
+     said "Add TRN" no matter how many times somebody saved one. */
+  const [vaultDocs, setVaultDocs] = useState<{ trn?: string; national_id?: string }>({});
+  const loadVault = useCallback(async () => {
+    const [trn, national_id] = await Promise.all([getDocument('trn'), getDocument('national_id')]);
+    setVaultDocs({ trn: trn || undefined, national_id: national_id || undefined });
+  }, []);
+  useFocusEffect(useCallback(() => { loadVault(); }, [loadVault]));
+
   const docs: Array<{ key: string; docKey: DocKey; value?: string; icon: IconName; ok: string; missing: string }> = [
     // Phone is a contact detail, not a document — it already has its own row
     // under Personal Details, and listing it twice under two different
     // labels ("Not added yet" / "Add phone") read as two separate things.
-    { key: 'TRN', docKey: 'trn', value: user?.trn, icon: 'document', ok: 'On file', missing: 'Add TRN' },
-    { key: 'National ID', docKey: 'national_id', value: user?.national_id, icon: 'financial', ok: 'On file', missing: 'Add ID' },
+    { key: 'TRN', docKey: 'trn', value: vaultDocs.trn, icon: 'document', ok: 'On file', missing: 'Add TRN' },
+    { key: 'National ID', docKey: 'national_id', value: vaultDocs.national_id, icon: 'financial', ok: 'On file', missing: 'Add ID' },
   ];
 
   const openDocSheet = (docKey: DocKey, current?: string) => {
@@ -103,8 +114,14 @@ export default function ProfileScreen() {
     try {
       setDocSaving(true);
       setDocError('');
-      await api.patch('/auth/profile', { [editingDoc]: docValue.trim() });
-      await refreshProfile();
+      if (editingDoc === 'phone') {
+        await api.patch('/auth/profile', { phone: docValue.trim() });
+        await refreshProfile();
+      } else {
+        // Identification never goes to the server — see lib/documentVault.ts.
+        await setDocument(editingDoc, docValue.trim());
+        await loadVault();
+      }
       setEditingDoc(null);
     } catch (caught: unknown) {
       setDocError(caught instanceof Error ? caught.message : 'Could not save. Try again.');
