@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import api, { supabase, isOffline } from '../lib/apiClient';
+import { clearAllDocuments } from '../lib/documentVault';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 export interface UserProfile {
@@ -211,6 +212,12 @@ export const useAuth = () => {
 
   const signOut = async () => {
     syncedUid.current = null;
+    /* The privacy policy promises this: "Signing out erases every
+       identification number held on that device." These numbers are in the
+       device keychain and nowhere else — not on our server — so if they are
+       not cleared here they are not cleared anywhere, and the next person to
+       sign in on this phone inherits the last person's TRN. */
+    await clearAllDocuments();
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);

@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, inputReset } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
+import { getDocument, isProtected, setDocument, setProtected } from '../../lib/documentVault';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Field = 'national_id' | 'trn';
@@ -80,11 +81,14 @@ export default function DocumentCaptureScreen() {
   const { user, refreshProfile } = useAuth();
   const { width } = useWindowDimensions();
   const cfg = DOC_CONFIG[(route.params?.field as Field) || 'national_id'];
-  const existing = (cfg.field === 'trn' ? user?.trn : user?.national_id) || '';
 
   const [mode, setMode] = useState<'intro' | 'camera' | 'review'>('intro');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [value, setValue] = useState(existing);
+  /* Loaded from the keychain below rather than read off the server profile.
+     user.trn / user.national_id are always empty — the API refuses those
+     fields on purpose (see routes/auth.js) — so seeding from them showed an
+     empty box to somebody who had already saved a number. */
+  const [value, setValue] = useState('');
   const [protect, setProtect] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
@@ -93,7 +97,16 @@ export default function DocumentCaptureScreen() {
   const camRef = useRef<CameraView>(null);
 
   // Load the saved "protected" preference for this doc.
-  useEffect(() => { AsyncStorage.getItem(protectKey(cfg.field)).then(v => setProtect(v === '1')); }, [cfg.field]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [saved, prot] = await Promise.all([getDocument(cfg.field), isProtected(cfg.field)]);
+      if (cancelled) return;
+      if (saved) setValue(saved);
+      setProtect(prot);
+    })();
+    return () => { cancelled = true; };
+  }, [cfg.field]);
 
   // Frame dimensions — credit-card ratio for cards, portrait for pages.
   const frameW = Math.round(width * (cfg.kind === 'card' ? 0.84 : 0.72));
@@ -142,9 +155,14 @@ export default function DocumentCaptureScreen() {
     if (!value.trim()) { setError(`Enter or confirm your ${cfg.valueLabel.toLowerCase()} to save.`); return; }
     setBusy(true); setError('');
     try {
-      await api.patch('/auth/profile', { [cfg.field]: value.trim() });
-      await AsyncStorage.setItem(protectKey(cfg.field), protect ? '1' : '0');
-      await refreshProfile();
+      /* The keychain, not the API.
+         This used to PATCH /auth/profile, which destructures only full_name,
+         phone and date_of_birth — so the number was sent over the network and
+         then silently dropped. Nothing stored it, and the Profile row still
+         read "Add TRN" afterwards. The vault is where the privacy policy says
+         this lives, and now it actually does. */
+      await setDocument(cfg.field, value.trim());
+      await setProtected(cfg.field, protect);
       navigation.goBack();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save. Try again.');
@@ -294,7 +312,7 @@ export default function DocumentCaptureScreen() {
  * Returns true if allowed (unprotected, or auth succeeded).
  */
 export async function unlockDocument(field: Field): Promise<boolean> {
-  const flag = await AsyncStorage.getItem(protectKey(field));
+  const flag = (await isProtected(field)) ? '1' : '0';
   if (flag !== '1') return true;
   const hasHw = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
