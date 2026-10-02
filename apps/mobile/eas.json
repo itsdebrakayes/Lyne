@@ -6,42 +6,51 @@
   "build": {
     "development": {
       "distribution": "internal",
-      "ios": { "simulator": true },
-      "android": { "buildType": "apk" },
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://localhost:4000/api",
         "EXPO_PUBLIC_SITE_URL": "http://localhost:8080",
         "EXPO_PUBLIC_DEMO_BUILD": "false"
       }
     },
-
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.uselyne.com/api",
         "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
-        "EXPO_PUBLIC_DEMO_BUILD": "false"
+        "EXPO_PUBLIC_DEMO_BUILD": "false",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://ba82e91096c08df2cb08646bbb0ffb8a@o4512184921489408.ingest.us.sentry.io/4512184924766208"
       }
     },
-
     "demo": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://demo-api.uselyne.com/api",
         "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
         "EXPO_PUBLIC_DEMO_BUILD": "true"
       }
     },
-
     "production": {
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" },
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.uselyne.com/api",
         "EXPO_PUBLIC_SITE_URL": "https://uselyne.com",
-        "EXPO_PUBLIC_DEMO_BUILD": "false"
+        "EXPO_PUBLIC_DEMO_BUILD": "false",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://ba82e91096c08df2cb08646bbb0ffb8a@o4512184921489408.ingest.us.sentry.io/4512184924766208"
       }
     }
   },

@@ -23,5 +23,8 @@ module.exports = () => ({
     // Stripe publishable key — safe to expose to the client; used only to
     // tokenize cards directly with Stripe (card data never hits our server).
     stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || appJson.expo.extra.stripePublishableKey || '',
+    // monitoring.ts reads EXPO_PUBLIC_SENTRY_DSN first and falls back to this.
+    // Both paths exist so a DSN set either way is picked up.
+    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || appJson.expo.extra.sentryDsn || '',
   },
 });
