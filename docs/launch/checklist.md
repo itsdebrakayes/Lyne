@@ -81,8 +81,12 @@ name against it needs a person; everything else is in
 - [ ] App Privacy answers match `ios.privacyManifests` and the privacy policy
 - [ ] Play listing filled from [play-store-listing.md](play-store-listing.md)
 - [ ] Play **Data safety** answers match the same three sources
-- [ ] The "not affiliated with any government agency" disclaimer is in the Play
-      description **and** in the app's About screen
+- [x] **The "not affiliated with any government agency" disclaimer is in the
+      app.** There is no About screen — it lives on the Legal screen, above the
+      privacy/terms switch so it shows on both tabs, from
+      `INDEPENDENCE_DISCLAIMER` in `apps/mobile/src/lib/legalContent.ts`. That
+      constant is the source of truth; the Play description, the App Store
+      reviewer notes and the website must match its wording exactly.
 - [ ] Content rating questionnaire completed; target audience set to 13+ or 18+,
       **never under 13**
 - [ ] Five screenshots per store, plus Play's 1024 × 500 feature graphic
