@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import secureSessionStorage from './secureSessionStorage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { noteNetworkFailure, noteNetworkSuccess } from './network';
 
 type ExpoExtra = {
   supabaseUrl?: string;
@@ -90,11 +91,24 @@ async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (transportError) {
+    /* Could not reach the server at all. That IS the offline signal, and it is
+       a more trustworthy one than the OS probe — see lib/network.ts. */
+    noteNetworkFailure();
+    throw transportError;
+  }
+
+  /* We got a response. Even a 4xx proves the connection works, so this counts
+     as reaching the server — the distinction that matters here is transport,
+     not whether the server liked the request. */
+  noteNetworkSuccess();
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));

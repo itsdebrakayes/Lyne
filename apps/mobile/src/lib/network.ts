@@ -16,8 +16,53 @@ import { useEffect, useState } from 'react';
 import * as Network from 'expo-network';
 import { onlineManager } from '@tanstack/react-query';
 
+/**
+ * The last time a request to our API actually succeeded.
+ *
+ * This exists because the operating system's answer is not always true. On the
+ * iOS Simulator `isInternetReachable` reports false on a device that is plainly
+ * online — measured directly: the banner was up while /api/queues/mine and
+ * /api/branches were returning 200. Trusting that one signal told people their
+ * connection was gone while the app was actively talking to the server.
+ *
+ * A reachability probe is a guess about whether traffic would work. A request
+ * that just came back is proof that it does. Proof beats the guess.
+ */
+let lastSuccessAt = 0;
+
+/**
+ * Window in which a successful request still counts as evidence of a connection.
+ *
+ * Twice the slowest automatic refetch in the app (30s). Equal would be a race:
+ * the evidence expires at the same moment the next poll is due, and the banner
+ * flashes in the gap. Double leaves one whole missed poll of headroom.
+ *
+ * Beyond this window the OS signal takes over again, which is correct — an app
+ * sitting idle with no traffic has no evidence either way, and deferring to the
+ * operating system is the honest default.
+ */
+const SUCCESS_TTL_MS = 60_000;
+
+/** Called by apiClient on every successful response. */
+export function noteNetworkSuccess() {
+  lastSuccessAt = Date.now();
+}
+
+/** Called by apiClient when a request fails at the transport layer. */
+export function noteNetworkFailure() {
+  lastSuccessAt = 0;
+}
+
+function recentlyReachedServer() {
+  return lastSuccessAt > 0 && Date.now() - lastSuccessAt < SUCCESS_TTL_MS;
+}
+
 function isOnline(state: Network.NetworkState | undefined) {
   if (!state) return true;
+  /* Evidence first. If we have reached our own server in the last half minute
+     the device has a working connection, whatever the OS reports. This is what
+     keeps a false negative from putting "You're offline" over a working app. */
+  if (recentlyReachedServer()) return true;
   // `isInternetReachable` is the honest signal — a device can be joined to Wi-Fi
   // that has no route out. It is undefined while the check is in flight, and
   // treating that as offline would flash the banner on every launch.
@@ -55,7 +100,18 @@ export function useIsOffline() {
       if (!cancelled) setOffline(!isOnline(state));
     });
 
-    return () => { cancelled = true; subscription.remove(); };
+    /* Re-check on a timer as well as on OS events. A successful request is
+       evidence the listener never hears about, so without this the banner
+       would stay up until the radio next changed state — which, on a device
+       that never actually lost its connection, might be never. */
+    const poll = setInterval(() => {
+      if (cancelled) return;
+      Network.getNetworkStateAsync()
+        .then((state) => { if (!cancelled) setOffline(!isOnline(state)); })
+        .catch(() => { if (!cancelled) setOffline(false); });
+    }, 5000);
+
+    return () => { cancelled = true; subscription.remove(); clearInterval(poll); };
   }, []);
 
   return offline;
