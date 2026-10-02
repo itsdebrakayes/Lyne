@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
 import { openSubscriptionPortal } from '../../lib/subscriptionPortal';
+import { PREMIUM_ENABLED } from '../../lib/features';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -223,54 +224,64 @@ export default function PlanVisitScreen() {
                   ))}
                 </View>
 
-                {/* upsell */}
-                <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="time-outline" size={16} color={colors.accent} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
-                  </View>
-                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
-                  {[
-                    'Best time for each service, at every branch',
-                    'Weekly quiet-day strips from real visit data',
-                    'Departure reminders tuned to your travel time',
-                  ].map(line => (
-                    <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11 }}>
-                      <Ionicons name="checkmark-circle" size={15} color={colors.light} />
-                      <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)' }}>{line}</Text>
+                {/* Hidden in version one — see lib/features.ts.
+
+                    Not because the storefront question in the comment below is
+                    settled; that records a real observation and is left intact.
+                    Because the flow cannot complete at all: uselyne.com/account
+                    is a 404, payments are stubbed server-side, and the Stripe
+                    publishable key is empty. A purchase a reviewer taps and
+                    cannot finish is a Guideline 2.1 rejection regardless of
+                    what 3.1.1 says about where the button points. */}
+                {PREMIUM_ENABLED && (
+                  <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="time-outline" size={16} color={colors.accent} />
+                      <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
                     </View>
-                  ))}
-                  {!!trialError && <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#ff9d9d', marginTop: 12 }}>{trialError}</Text>}
-                  <TouchableOpacity disabled={trialBusy} onPress={startTrial} activeOpacity={0.9} style={{ marginTop: 18, backgroundColor: colors.accent, borderRadius: 16, height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {trialBusy ? <ActivityIndicator color={colors.accentInk} /> : (
-                      <>
-                        <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.accentInk }}>Start 14-day free trial</Text>
-                        <Ionicons name="arrow-forward" size={15} color={colors.accentInk} />
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  {/* Purchase happens on our web gateway, by design — no card
-                      sheet here, and no store billing.
+                    <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
+                    {[
+                      'Best time for each service, at every branch',
+                      'Weekly quiet-day strips from real visit data',
+                      'Departure reminders tuned to your travel time',
+                    ].map(line => (
+                      <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11 }}>
+                        <Ionicons name="checkmark-circle" size={15} color={colors.light} />
+                        <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)' }}>{line}</Text>
+                      </View>
+                    ))}
+                    {!!trialError && <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#ff9d9d', marginTop: 12 }}>{trialError}</Text>}
+                    <TouchableOpacity disabled={trialBusy} onPress={startTrial} activeOpacity={0.9} style={{ marginTop: 18, backgroundColor: colors.accent, borderRadius: 16, height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      {trialBusy ? <ActivityIndicator color={colors.accentInk} /> : (
+                        <>
+                          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.accentInk }}>Start 14-day free trial</Text>
+                          <Ionicons name="arrow-forward" size={15} color={colors.accentInk} />
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    {/* Purchase happens on our web gateway, by design — no card
+                        sheet here, and no store billing.
 
-                      This is the pattern the big subscription apps ship in the
-                      Jamaican storefront: the app tells you the plan and the
-                      price and sends you to the website, because in-app
-                      purchase is not offered here. Confirmed against ChatGPT
-                      on a Jamaican account, not inferred from the guidelines —
-                      IAP availability and what a subscription screen is
-                      allowed to do both vary by storefront, so the guideline
-                      text alone is not evidence of what ships.
+                        This is the pattern the big subscription apps ship in the
+                        Jamaican storefront: the app tells you the plan and the
+                        price and sends you to the website, because in-app
+                        purchase is not offered here. Confirmed against ChatGPT
+                        on a Jamaican account, not inferred from the guidelines —
+                        IAP availability and what a subscription screen is
+                        allowed to do both vary by storefront, so the guideline
+                        text alone is not evidence of what ships.
 
-                      openSubscriptionPortal explains where it is going before
-                      it opens anything, which is the part that matters: the
-                      rule Apple enforces is about steering, so informing
-                      before navigating is deliberate, not decoration. */}
-                  <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Ionicons name="open-outline" size={16} color="#fff" />
-                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
-                </View>
+                        openSubscriptionPortal explains where it is going before
+                        it opens anything, which is the part that matters: the
+                        rule Apple enforces is about steering, so informing
+                        before navigating is deliberate, not decoration. */}
+                    <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Ionicons name="open-outline" size={16} color="#fff" />
+                      <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
+                    </TouchableOpacity>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
+                  </View>
+                )}
               </>
             )}
             </>
