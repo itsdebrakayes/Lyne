@@ -56,7 +56,8 @@ export const PRIVACY_POLICY: LegalSection[] = [
     heading: 'Who processes your data',
     body: [
       'Supabase — authentication. Stores your sign-in credentials.',
-      'Stripe — payments. Handles and stores card details directly; we hold only a token.',
+      'Apple or Google — payment processing, if you buy Premium. The store takes the payment, not us; we never see your card.',
+      'Stripe — card processing. Not currently used: the integration exists but is switched off, and no card has been processed through it. Listed here so this stays accurate the day it is switched on.',
       'Expo push notification service — delivers notifications to your device.',
       'Sentry — crash and error reporting, and only if it is switched on for a release. It is configured never to attach your email, name or IP address, and it removes anything resembling an identification number before a report leaves your phone.',
       'The business whose queue you join — receives your name and phone number, so they can call you and check you in. They do not receive your TRN or national ID; those never leave your phone.',

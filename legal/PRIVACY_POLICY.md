@@ -128,15 +128,21 @@ It receives what it needs to serve you: your name, ticket number, verification c
 
 These act on our instructions under contract, may not use your data for their own purposes, and are bound to security terms at least as protective as ours.
 
-| Provider | Purpose | Where |
-|---|---|---|
-| Supabase | Authentication and database hosting | United States (US East, Ohio) |
-| GoDaddy | Website and API hosting | United States |
-| Sentry | Crash and error monitoring | United States |
-| Stripe / Apple | Payment processing | United States / Ireland |
-| Expo / Apple / Google | Push notification delivery | United States |
+| Provider | Purpose | Where | Active |
+|---|---|---|---|
+| Supabase | Authentication | United States (US East, Ohio) | Yes |
+| DigitalOcean | Application and database hosting | United States | Yes |
+| GoDaddy | Marketing website hosting | United States | Yes |
+| Sentry | Crash and error monitoring | United States | Only when a reporting key is configured for a release |
+| Apple / Google | Payment processing for Premium bought in the app | United States / Ireland | Yes, when you buy Premium |
+| Stripe | Card processing | United States / Ireland | **Not currently used.** The integration exists but is switched off; no card has been processed through it |
+| Expo / Apple / Google | Push notification delivery | United States | Yes, if you allow notifications |
 
-We maintain the current list here and will give organisational customers advance notice of a change under their agreement.
+The **Active** column is there because a sub-processor list that quietly includes
+things we do not actually use is as misleading as one that omits something we do.
+Stripe stays listed, marked off, rather than being deleted and forgotten: the
+code is present, and the day it is switched on this row changes to Yes and
+organisational customers get advance notice under their agreement.
 
 ### 7.3 Others
 
@@ -156,13 +162,13 @@ We keep this under review. Organisational customers with a data-residency requir
 | Data | Retained |
 |---|---|
 | Account and profile | Until you delete your account |
-| Identity documents and scans | Until you remove them, or account deletion — **and no longer than [24] months** after last use |
-| Tickets and visit history | [24] months, then anonymised |
+| Identity documents and scans | Until you remove them, or account deletion — **and no longer than 24 months** after last use |
+| Tickets and visit history | 24 months, then anonymised |
 | Session registrations and check-in records | For the organisation's stated period, then anonymised |
 | Anonymised queue statistics | Indefinitely — no longer personal data |
-| Payment records | As required by tax and accounting law, typically [7] years |
-| Crash diagnostics | [90] days |
-| Security and audit logs | [12] months |
+| Payment records | As required by tax and accounting law, typically 7 years |
+| Crash diagnostics | 90 days |
+| Security and audit logs | 12 months |
 
 Where we act as a processor, the organisation's retention instruction governs and may be shorter.
 
@@ -230,7 +236,7 @@ If any part of this policy, or of exercising your rights, is not accessible to y
 
 ## 14. Changes
 
-We will update this policy as the service develops. For **material** changes we will give notice in the app and by email at least **[14] days** before they take effect, and where the law requires consent we will ask for it again rather than assume it. Previous versions are available on request.
+We will update this policy as the service develops. For **material** changes we will give notice in the app and by email at least **14 days** before they take effect, and where the law requires consent we will ask for it again rather than assume it. Previous versions are available on request.
 
 ## 15. Contact
 
