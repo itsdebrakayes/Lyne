@@ -187,6 +187,44 @@ export async function cancelDepartureReminder() {
   await Notifications.dismissNotificationAsync(DEPARTURE_ID).catch(() => {});
 }
 
+/**
+ * A reminder for a quiet hour the customer picked off the heatmap.
+ *
+ * "Remind me" on screen 02 of the Predictive Insights design. It fires the
+ * evening before at 7pm, which is when somebody can still rearrange a morning —
+ * a reminder at 8am for a 10am slot is a reminder you cannot act on.
+ *
+ * If the next occurrence of that weekday is today and 7pm has already passed,
+ * it schedules for the following week rather than firing immediately. A
+ * notification that arrives the instant you ask for it reads as a bug.
+ */
+export async function scheduleQuietHourReminder(input: {
+  branchName: string;
+  serviceName: string;
+  dow: number;
+  hour: number;
+  avgWait: number;
+}): Promise<Date | null> {
+  const now = new Date();
+  const target = new Date(now);
+  /* The day BEFORE the quiet slot, at 7pm. */
+  const daysUntil = (input.dow - now.getDay() + 7) % 7;
+  target.setDate(now.getDate() + daysUntil - 1);
+  target.setHours(19, 0, 0, 0);
+  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 7);
+
+  const hourLabel = input.hour > 12 ? `${input.hour - 12} PM` : `${input.hour} ${input.hour >= 12 ? 'PM' : 'AM'}`;
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `Quiet at ${input.branchName} tomorrow`,
+      body: `${input.serviceName} is quietest around ${hourLabel} — about ${Math.round(input.avgWait)} minutes.`,
+      data: { kind: 'quiet_hour' },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target },
+  });
+  return target;
+}
+
 export async function scheduleQueueUpdateNotification(title: string, body: string, ticketId?: string) {
   return Notifications.scheduleNotificationAsync({
     content: { title, body, data: { ticketId } },

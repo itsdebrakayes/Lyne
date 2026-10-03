@@ -134,12 +134,9 @@
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
 .qx-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; }
-.qx-brand i {
-  width: 33px; height: 33px; border-radius: 11px; font-style: normal; font-weight: 800;
-  display: grid; place-items: center; color: #FFFFFF;
-  background: linear-gradient(150deg, var(--c-primary-bright), var(--c-primary));
-  box-shadow: 0 7px 18px -6px rgba(27, 75, 143, .55);
-}
+/* The brand symbol. No tile behind it: the mark carries its own gradient and
+   sitting it on a second one made two competing blues in a 33px square. */
+.qx-brand .qx-mark { width: 34px; height: 34px; object-fit: contain; flex: none; }
 .qx-brand b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
 .qx-brand small { display: block; color: var(--c-ink-dim); font-size: 10.5px; font-weight: 600; }
 .qx-navlabel { color: var(--c-ink-dim); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; padding: 15px 8px 6px; }
@@ -356,7 +353,19 @@
 .qx-splitrow .n small { font-size: 10.5px; }
 
 /* ── table ── */
-.qx-thead, .qx-trow { display: grid; gap: 10px; align-items: center; }
+/* THE TABLE SCROLLS SIDEWAYS RATHER THAN COLLAPSING ONTO ITSELF.
+   Every grid here is one flexible first column plus four or five FIXED pixel
+   ones — MSVC_OGRID needs 416px of fixed width before the service name gets
+   anything. In a span-8 card on a narrow window that does not fit, and because
+   the flexible column is minmax(0,…) it shrinks to nothing and the fixed ones
+   overlap: the header literally renders SERVICE and WAITING on top of each
+   other, reading as "SRVWAICTEING".
+
+   A table that is wider than its card is a normal thing; a table whose columns
+   sit on top of each other is not. The row keeps its real width and the
+   container scrolls. */
+.qx-table { overflow-x: auto; }
+.qx-thead, .qx-trow { display: grid; gap: 10px; align-items: center; min-width: max-content; }
 .qx-thead { padding: 0 4px 9px; border-bottom: 1px solid var(--c-line); }
 .qx-thead span { color: var(--c-faint); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .qx-trow { padding: 11px 4px; border-bottom: 1px solid var(--c-line); border-radius: 9px; }
@@ -1506,3 +1515,23 @@
 .qx-dirrow .vs b { font-size: 15px; font-variant-numeric: tabular-nums; }
 .qx-dirrow .lv { text-align: right; }
 .qx-dirrow .lv b { font-size: 12.5px; font-weight: 700; }
+
+
+/* ── the wordmark ──────────────────────────────────────────────────────────
+   The word "Lyne" is part of the logo, not a string in the UI typeface. It is
+   set in Cormorant Italic — the face the logo is drawn in — wherever it appears
+   as the brand. Writing it in the UI font with tightened letter-spacing gets
+   ALMOST to the logo, which is worse than plainly not being it.
+
+   Only the brand name uses this. A serif italic anywhere else in a dashboard is
+   unreadable at UI sizes, and the moment it appears somewhere that is not the
+   brand it stops reading as the brand. */
+.lyne-mark {
+  font-family: 'Cormorant', Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 600;
+  /* Cormorant's x-height is small, so it needs a size bump to sit level with
+     the UI face beside it. */
+  font-size: 1.22em;
+  letter-spacing: 0;
+}

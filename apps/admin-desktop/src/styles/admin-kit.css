@@ -497,7 +497,8 @@
 .qa-login-hero{position:relative;overflow:hidden;padding:48px 56px;display:flex;flex-direction:column;color:#EAEFF3;background:linear-gradient(150deg,#16232F,#1F3442 72%)}
 .qa-login-hero::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 92% -8%,rgba(127,178,204,.16),transparent 55%);pointer-events:none}
 .qa-login-brand{display:flex;align-items:center;gap:12px;position:relative}
-.qa-login-brand i{width:40px;height:40px;border-radius:11px;background:var(--qa-grad);display:grid;place-items:center;color:#fff;font-weight:900;font-style:normal;font-size:18px;box-shadow:0 6px 16px -4px rgba(14,120,180,.6)}
+/* The symbol, not a tinted tile with a letter in it. */
+.qa-login-brand .qx-mark{width:40px;height:40px;object-fit:contain;flex:none}
 .qa-login-brand b{font-weight:800;font-size:16px;display:block;line-height:1.1}
 .qa-login-brand small{color:#94A0B8;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
 .qa-login-copy{margin-top:auto;position:relative}

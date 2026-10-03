@@ -264,6 +264,28 @@ const schemas = {
     message: 'Either a recipient role or the message being replied to is required.',
   }),
 
+  /* Line Helper. ISO datetimes are validated as parseable in the handler too —
+     the schema only guarantees a string of plausible shape. */
+  lineHelperQuote: z.object({
+    branch_id:        idSchema,
+    service_id:       idSchema,
+    target_served_at: z.string().min(10).max(40),
+  }),
+
+  lineHelperCreate: z.object({
+    branch_id:        idSchema,
+    service_id:       idSchema,
+    target_served_at: z.string().min(10).max(40),
+    /* Bounded, not free: a travel time of 600 minutes would schedule a "leave
+       home" ten hours before the slot, which is not a plan. */
+    travel_minutes:   z.coerce.number().int().min(0).max(180),
+    let_pass:         z.coerce.boolean().optional().default(true),
+  }),
+
+  lineHelperUpdate: z.object({
+    action: z.enum(['on_my_way', 'push_back', 'check_in', 'release']),
+  }),
+
   attachPaymentMethod: z.object({
     payment_method_id: z.string().min(1).max(255),
   }),

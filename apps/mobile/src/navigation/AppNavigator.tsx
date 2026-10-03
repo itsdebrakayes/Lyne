@@ -8,6 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../lib/theme';
 import OfflineState from '../components/OfflineState';
+import BusyTimesScreen from '../screens/main/BusyTimesScreen';
+import WeekPlannerScreen from '../screens/main/WeekPlannerScreen';
+import LineHelperScreen from '../screens/main/LineHelperScreen';
+import HelperHoldScreen from '../screens/main/HelperHoldScreen';
 
 // Auth screens
 import LoginScreen    from '../screens/auth/LoginScreen';
@@ -25,6 +29,7 @@ import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
+import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
 // Queue flow screens
@@ -50,7 +55,15 @@ export type RootStackParamList = {
   DocumentCapture: { field: 'national_id' | 'trn' };
   PaymentMethods: undefined;
   PrivacySecurity: undefined;
+  Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
+  /* The Predictive Insights screens. Each carries the branch it is about rather
+     than reading a global selection, so a deep link or a back-stack entry lands
+     on the same data it was opened with. */
+  BusyTimes:  { businessId: string; branchId: string; branchName?: string; serviceId?: string };
+  WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string };
+  LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number };
+  HelperHold: { helperId?: string } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is
      actually open, so the app never shows a door that leads nowhere. */
   Business:   { businessId: string; businessName: string };
@@ -158,7 +171,12 @@ export default function AppNavigator() {
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+            <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
+      <Stack.Screen name="BusyTimes" component={BusyTimesScreen} />
+      <Stack.Screen name="WeekPlanner" component={WeekPlannerScreen} />
+      <Stack.Screen name="LineHelper" component={LineHelperScreen} />
+      <Stack.Screen name="HelperHold" component={HelperHoldScreen} />
             <Stack.Screen name="Business"  component={BusinessScreen}  />
             <Stack.Screen name="Branch"    component={BranchScreen}    />
             <Stack.Screen name="Service"   component={ServiceScreen}   />

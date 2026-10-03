@@ -184,6 +184,8 @@ app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/saved',          require('./routes/saved'));
+/* Premium, and gated inside the router — a branch can also refuse it. */
+app.use('/api/line-helper',    require('./routes/line-helper'));
 /* Card testing goes straight at create-intent, so the limiter is mounted on
    the write path only — the webhook above is Stripe calling us and is verified
    by signature, and GET /methods is a customer reading their own cards. */
@@ -378,6 +380,19 @@ app.listen(PORT, () => {
 
   expire('startup');
   setInterval(() => expire('interval'), 15 * 60 * 1000);
+
+  /* ── Line Helper ──
+     A MINUTE tick, not fifteen. The whole promise of the feature is joining at
+     the moment that was agreed, and a quarter-hour of slack would put somebody
+     in the line fifteen minutes late for a slot they planned their morning
+     around. Both halves of the tick are idempotent and claim their rows with a
+     conditional UPDATE, so overlapping runs cannot double-join anybody. */
+  const { runLineHelperTick } = require('./jobs/lineHelper');
+  const helperTick = () => runLineHelperTick()
+    .catch((err) => console.error('[LineHelper] tick failed:', err.message));
+  helperTick();
+  setInterval(helperTick, 60 * 1000);
+  console.log('[LineHelper] Active; joining on the minute and yielding called-but-absent places.');
   console.log(
     `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `
     + `tickets close ${GRACE_MINUTES} min after each branch's closing time.`

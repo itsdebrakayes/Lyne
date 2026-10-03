@@ -36,8 +36,10 @@ export default function LoginPage() {
     <div className="qa-app qa-login" data-theme="light">
       <section className="qa-login-hero">
         <div className="qa-login-brand">
-          <i>L</i>
-          <span><b>Lyne</b><small>Admin Operations</small></span>
+          {/* The brand symbol. The login hero is the dark navy panel, so
+              this is the white-reversed mark; the rail uses the gradient one. */}
+          <img src="/lyne-symbol-white.svg" alt="" aria-hidden="true" className="qx-mark" />
+          <span><b className="lyne-mark">Lyne</b><small>Admin Operations</small></span>
         </div>
         <div className="qa-login-copy">
           <div className="eyebrow">Dashboard Console</div>

@@ -88,12 +88,36 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
   );
 }
 
+/** "10:35" — the time on the hero's helper button. */
+function leaveLabel(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const h = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
+  return `${h}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export default function HomeScreen() {
   const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [sector, setSector] = useState<string | null>(null);
+  /* A live Line Helper, so the hero can show it instead of offering to plan a
+     visit you have already planned. Cheap and quiet: one row, polled slowly,
+     and it simply returns null for everyone who has none. */
+  const helperQuery = useQuery({
+    queryKey: ['line-helper-active'],
+    queryFn: () => api.get<{ helper: { id: string; leave_home_at: string; status: string } | null }>('/line-helper/active'),
+    enabled: Boolean(user?.id),
+    refetchInterval: 120_000,
+    staleTime: 60_000,
+    /* Never let this one break the home screen — it is an enhancement, and a
+       customer with no helper is the overwhelmingly common case. */
+    retry: false,
+  });
+  const activeHelper = helperQuery.data?.helper ?? null;
+
   const [openOnly, setOpenOnly] = useState(true);
   const devicePlace = useDevicePlace();
   const column = useContentColumn();
@@ -388,6 +412,10 @@ export default function HomeScreen() {
         <HomeHero
           onJoinNow={() => navigation.navigate('Search')}
           onPlanLater={() => navigation.navigate('Plan')}
+          helper={activeHelper ? {
+            leaveLabel: leaveLabel(activeHelper.leave_home_at),
+            onOpen: () => navigation.navigate('HelperHold'),
+          } : null}
         />
 
         {/* Popular places — the reference's category grid, carrying agencies
@@ -432,12 +460,41 @@ export default function HomeScreen() {
 
           {isLoading && <SkeletonRows count={2} />}
 
-          {!!error && !isLoading && (
+          {/* AN ERROR CARD ONLY WHEN THERE IS NOTHING TO SHOW.
+              This rendered on `error` alone while the list below rendered on
+              `recommended.length`, and react-query keeps the last good data
+              through a failed refetch — so both were true at once and the card
+              sat on top of the agencies it said could not be loaded. Its "Try
+              again" looked dead for the same reason: the retry worked, the data
+              was already on screen, and nothing visibly changed.
+
+              With data in hand a failed refresh is not a failure worth a card.
+              It gets the line below instead, which says the figures are the
+              last known ones — which is the only thing a person needs to know. */}
+          {!!error && !isLoading && recommended.length === 0 && (
             <ErrorCard
               title="Waits unavailable"
               message="Live queue times could not be loaded."
               onRetry={() => refetch()}
             />
+          )}
+
+          {!!error && !isLoading && recommended.length > 0 && (
+            <TouchableOpacity
+              onPress={() => refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Waits may be out of date. Tap to refresh."
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                backgroundColor: colors.surfaceAlt, borderRadius: 12,
+                paddingVertical: 9, paddingHorizontal: 12, marginBottom: 12,
+              }}
+            >
+              <Icon name="clock" size={14} color={colors.sub} />
+              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12, color: colors.sub }}>
+                Showing the last known waits — tap to refresh.
+              </Text>
+            </TouchableOpacity>
           )}
 
           {/* Two different nothings, and they must not share a sentence.

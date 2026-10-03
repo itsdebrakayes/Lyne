@@ -22,12 +22,27 @@ import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
+import { D } from '../../lib/predictiveDesign';
 import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
 
 interface BestSlot { dow: number; hour: number; visits: number; avg_wait: number; day_name: string; hour_label: string }
+interface ForYouSlot {
+  service_id: string; service_name: string;
+  dow: number; day_name: string; hour: number; hour_label: string;
+  avg_wait: number; visits: number; matches_your_hours: boolean;
+}
+interface ForYou {
+  personalised: boolean;
+  home_branch?: { branch_id: string; branch_name: string; business_id: string; visits: number } | null;
+  top_services?: Array<{ service_id: string; service_name: string; visits: number }>;
+  habits?: { total_visits: number; preferred_hours: number[]; travel_minutes: number | null };
+  best?: ForYouSlot | null;
+  worst?: ForYouSlot | null;
+}
+
 interface TodayPlan {
   dow: number;
   day_name: string;
@@ -69,7 +84,12 @@ const hourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour 
 const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-function WeekStrip({ week, compact = false }: { week: WeekDay[]; compact?: boolean }) {
+function WeekStrip({ week, compact = false }: { week?: WeekDay[]; compact?: boolean }) {
+  /* Optional, and empty renders nothing. `week` only exists on the premium
+     payload, and there is a real window where the user record says premium
+     while the cached response is still the free one — the moment a trial
+     starts. `week.map` threw there and took the whole screen white. */
+  if (!week?.length) return null;
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: compact ? 0 : 12 }}>
       {week.map(day => (
@@ -121,7 +141,26 @@ export default function PlanVisitScreen() {
     enabled: Boolean(branch),
     staleTime: 1000 * 60 * 15,
   });
+  /* THEIR habits, not the branch's. /for-you reads the person's own finished
+     visits — where they actually go, what they actually do there, the hours
+     they turn up in, and the travel time measured from the Line Helpers they
+     have scheduled — and recommends against that. It 402s for a free account
+     and says so plainly when it has not seen enough visits yet, so the
+     branch-level rows below stay the fallback rather than the pretence. */
+  const forYou = useQuery({
+    queryKey: ['for-you', user?.id ?? 'anon'],
+    queryFn: () => api.get<ForYou>('/predictions/for-you'),
+    enabled: Boolean(user?.id && premium),
+    staleTime: 1000 * 60 * 30,
+    retry: false,
+  });
+  const mine = forYou.data?.personalised ? forYou.data : null;
+
   const plan = bestTimes.data;
+  /* What the RESPONSE IN HAND is, which is not always what the user record
+     says. `premium` above drives the badge and the trial button; this drives
+     the layout. */
+  const planIsPremium = Boolean(plan?.premium ?? plan?.services?.some((s) => s.week || s.grid));
 
   const startTrial = async () => {
     try {
@@ -149,16 +188,22 @@ export default function PlanVisitScreen() {
           </View>
         </View>
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentDeep, letterSpacing: 1.6 }}>SMART TIMING</Text>
-        <Text style={[t.h1, { marginTop: 8, marginBottom: 22 }]}>Beat the line before{'\n'}you leave home.</Text>
+        <Text style={{ fontFamily: font.extra, fontSize: 11, color: D.eyebrow, letterSpacing: 1.6 }}>SMART TIMING</Text>
+        {/* 30/1.12/-0.9 and no hard line break — the design lets it wrap, which
+            is what keeps it from breaking in the wrong place on a small phone.
+            The tail is 500 weight in `sub`, not the same weight as the lead. */}
+        <Text style={{ fontSize: 30, lineHeight: 33.6, letterSpacing: -0.9, marginTop: 8, marginBottom: 20 }}>
+          <Text style={{ fontFamily: font.extra, color: D.ink }}>Beat the line </Text>
+          <Text style={{ fontFamily: font.medium, color: D.sub }}>before you leave home.</Text>
+        </Text>
 
         {/* branch chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }} style={{ marginBottom: 20 }}>
           {branches.map(b => {
             const on = branch?.id === b.id;
             return (
               <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 17, paddingVertical: 11, paddingHorizontal: 15 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? colors.accent : colors.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? D.onDarkAccent : D.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
                 <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
               </TouchableOpacity>
             );
@@ -233,13 +278,170 @@ export default function PlanVisitScreen() {
               />
             ) : (
             <>
+            {/* ── FOR YOU ──
+                The design's recommendation rows, which this screen did not
+                have. The forecast above answers "when today"; these answer
+                "what should I actually do this week" — one slot to aim for and
+                one to avoid, picked across every service at the branch.
+
+                They are derived, not decorative: the first is the lowest
+                well-evidenced best-time of any service here, the second the
+                highest busiest-time. The second needs `busiest`, which is a
+                premium field, so a free customer sees the row they can act on
+                and not the one they cannot. */}
+            {(() => {
+              /* PERSONAL FIRST. When /for-you knows this person's habits its
+                 rows replace the branch-level ones entirely — they are about
+                 the service they actually use at the branch they actually go
+                 to, and they carry the reason. The branch rows remain the
+                 fallback for a new customer, which is the honest thing to show
+                 somebody we have not learned anything about yet. */
+              const personalAim = mine?.best ?? null;
+              const personalAvoid = mine?.worst ?? null;
+
+              const withBest = plan.services.filter((x) => x.best);
+              if (!withBest.length && !personalAim) return null;
+              const aim = [...withBest].sort((a, b) => a.best!.avg_wait - b.best!.avg_wait)[0];
+              const withBusy = plan.services.filter((x) => x.busiest);
+              const avoid = withBusy.length
+                ? [...withBusy].sort((a, b) => b.busiest!.avg_wait - a.busiest!.avg_wait)[0]
+                : null;
+
+              const Row = ({
+                chip, chipBg, chipInk, title, sub, onPress, last,
+              }: {
+                chip: string; chipBg: string; chipInk: string;
+                title: string; sub: string; onPress: () => void; last?: boolean;
+              }) => (
+                <TouchableOpacity
+                  onPress={onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${title}. ${sub}`}
+                  style={{
+                    flexDirection: 'row', gap: 12, alignItems: 'center',
+                    paddingVertical: 14, paddingHorizontal: 16,
+                    borderBottomWidth: last ? 0 : 1, borderBottomColor: D.lineSoft,
+                  }}
+                >
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 12, backgroundColor: chipBg,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: chipInk }}>{chip}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: D.ink }}>{title}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>{sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={chipInk} />
+                </TouchableOpacity>
+              );
+
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 22, marginBottom: 12 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                      {/* Says WHY these are the rows — "for you" is a claim, and
+                          a claim with its basis attached is the difference
+                          between a recommendation and a horoscope. */}
+                      {mine?.habits && (
+                        <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>
+                          From your {mine.habits.total_visits} visit{mine.habits.total_visits === 1 ? '' : 's'}
+                          {mine.home_branch ? ` to ${mine.home_branch.branch_name}` : ''}
+                          {mine.habits.travel_minutes ? ` · ${mine.habits.travel_minutes} min away` : ''}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => branch && navigation.navigate('BusyTimes', {
+                        businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                        serviceId: aim.service_id,
+                      })}
+                      accessibilityRole="button"
+                    >
+                      <Text style={{ fontFamily: font.bold, fontSize: 12, color: D.accent }}>See heatmap →</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, overflow: 'hidden' }}>
+                    {personalAim ? (
+                      <Row
+                        chip={personalAim.day_name.slice(0, 2)}
+                        chipBg={D.coolBg} chipInk={D.coolInk}
+                        title={`${personalAim.service_name}: ${personalAim.day_name}, ${personalAim.hour_label.replace(':00', '')}`}
+                        sub={personalAim.matches_your_hours
+                          ? `~${Math.round(personalAim.avg_wait)} min — and it is when you usually go`
+                          : `~${Math.round(personalAim.avg_wait)} min, your quietest option`}
+                        onPress={() => mine?.home_branch && navigation.navigate('LineHelper', {
+                          businessId: mine.home_branch.business_id,
+                          branchId: mine.home_branch.branch_id,
+                          branchName: mine.home_branch.branch_name,
+                          serviceId: personalAim.service_id,
+                          serviceName: personalAim.service_name,
+                          targetDow: personalAim.dow,
+                          targetHour: personalAim.hour,
+                        })}
+                        last={!personalAvoid}
+                      />
+                    ) : (
+                      <Row
+                        chip={aim.best!.day_name.slice(0, 2)}
+                        chipBg={D.coolBg} chipInk={D.coolInk}
+                        title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
+                        sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
+                        onPress={() => branch && navigation.navigate('WeekPlanner', {
+                          businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                          serviceId: aim.service_id,
+                        })}
+                        last={!avoid}
+                      />
+                    )}
+                    {personalAvoid ? (
+                      <Row
+                        chip={personalAvoid.day_name.slice(0, 2)}
+                        chipBg={D.warmBg} chipInk={D.warmInk}
+                        title={`Skip ${personalAvoid.day_name} ${personalAvoid.hour_label.replace(':00', '')}`}
+                        sub={`${personalAvoid.service_name} averages ${Math.round(personalAvoid.avg_wait)} min then`}
+                        onPress={() => mine?.home_branch && navigation.navigate('BusyTimes', {
+                          businessId: mine.home_branch.business_id,
+                          branchId: mine.home_branch.branch_id,
+                          branchName: mine.home_branch.branch_name,
+                          serviceId: personalAvoid.service_id,
+                        })}
+                        last
+                      />
+                    ) : avoid ? (
+                      <Row
+                        chip={avoid.busiest!.day_name.slice(0, 2)}
+                        chipBg={D.warmBg} chipInk={D.warmInk}
+                        title={`Skip ${avoid.busiest!.day_name} ${avoid.busiest!.hour_label.replace(':00', '')}`}
+                        sub={`Averages ${Math.round(avoid.busiest!.avg_wait)} min, the week's peak`}
+                        onPress={() => branch && navigation.navigate('BusyTimes', {
+                          businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                          serviceId: avoid.service_id,
+                        })}
+                        last
+                      />
+                    ) : null}
+                  </View>
+                </>
+              );
+            })()}
+
             {/* per-service planner */}
-            <View style={t.sectionRow}>
+            <View style={[t.sectionRow, { marginTop: 22 }]}>
               <Text style={t.section}>Best time by service</Text>
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>{plan.services.length} services</Text>
             </View>
 
-            {premium ? (
+            {/* `planIsPremium`, not `premium`. The user record and the cached
+                response can disagree for a moment — starting a trial flips the
+                record immediately while the refetch is still in flight — and
+                rendering the premium layout against a free payload is what
+                blanked this screen. The server states what the payload IS, so
+                the layout follows that and converges when the refetch lands. */}
+            {planIsPremium ? (
               <View style={{ gap: 14 }}>
                 {plan.services.map(service => (
                   <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>

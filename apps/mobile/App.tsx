@@ -15,6 +15,11 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+/* The WORDMARK face. Cormorant Italic is what the logo is set in — SIL Open
+   Font License, free for commercial use with logos included — so the brand name
+   is set in it wherever it appears as the brand rather than in the UI typeface
+   pretending to be it. It is NOT a UI font and nothing else uses it. */
+import { Cormorant_600SemiBold_Italic } from '@expo-google-fonts/cormorant';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
@@ -47,6 +52,7 @@ function App() {
     Manrope_600SemiBold,
     Manrope_700Bold,
     Manrope_800ExtraBold,
+    Cormorant_600SemiBold_Italic,
   });
 
   useEffect(() => {
