@@ -28,6 +28,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import PremiumLock from '../../components/PremiumLock';
+import { scheduleQuietHourReminder, ensureNotificationPermission } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'BusyTimes'>;
@@ -58,6 +59,9 @@ export default function BusyTimesScreen() {
   const [sel, setSel] = useState<{ dow: number; hour: number } | null>(null);
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
+  const [reminding, setReminding] = useState(false);
+  const [reminded, setReminded] = useState(false);
+  const [remindError, setRemindError] = useState('');
 
   const { businessId, branchId, branchName } = route.params ?? ({} as any);
 
@@ -113,6 +117,31 @@ export default function BusyTimesScreen() {
       setTrialBusy(false);
     }
   };
+
+  const remindMe = async () => {
+    if (!selected || !service) return;
+    try {
+      setReminding(true); setRemindError('');
+      const granted = await ensureNotificationPermission();
+      if (!granted) {
+        setRemindError('Turn on notifications for Lyne to be reminded.');
+        return;
+      }
+      await scheduleQuietHourReminder({
+        branchName: branchName || 'your branch',
+        serviceName: service.service_name,
+        dow: selected.dow,
+        hour: selected.hour,
+        avgWait: selected.avg_wait,
+      });
+      setReminded(true);
+    } catch (e: any) {
+      setRemindError(e?.message || 'That reminder could not be set.');
+    } finally { setReminding(false); }
+  };
+
+  /* A new cell means a new reminder is on offer. */
+  React.useEffect(() => { setReminded(false); setRemindError(''); }, [sel?.dow, sel?.hour]);
 
   /* ── the placeholder grid a free customer sees under the frost ──
      Six rows of nine, in the real ramp, at the real size. Not data: the server
@@ -345,26 +374,46 @@ export default function BusyTimesScreen() {
                   })()}
                 </Text>
 
+                {/* The design's two actions, and both do the thing they say.
+                    "Remind me" schedules a local notification the evening
+                    before the slot — 7pm, which is when somebody can still
+                    rearrange a morning; a reminder at 8am for a 10am slot is
+                    one you cannot act on. "Hold my place" is the Line Helper. */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('JoinQueue', {
-                      businessId, branchId, serviceId: service!.service_id, serviceName: service!.service_name,
-                    })}
+                    onPress={remindMe}
+                    disabled={reminding || reminded}
                     accessibilityRole="button"
-                    style={{ flex: 1, alignItems: 'center', backgroundColor: D.accentBright, borderRadius: 14, paddingVertical: 12 }}
+                    accessibilityLabel={reminded ? 'Reminder set' : 'Remind me the evening before'}
+                    style={{
+                      flex: 1, alignItems: 'center', borderRadius: 14, paddingVertical: 12,
+                      backgroundColor: reminded ? 'rgba(255,255,255,.12)' : D.accentBright,
+                    }}
                   >
-                    <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Join this line</Text>
+                    {reminding ? <ActivityIndicator color="#fff" size="small" /> : (
+                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>
+                        {reminded ? 'Reminder set ✓' : 'Remind me'}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('WeekPlanner', {
-                      businessId, branchId, branchName, serviceId: service!.service_id,
+                    onPress={() => navigation.navigate('LineHelper', {
+                      businessId, branchId, branchName,
+                      serviceId: service!.service_id, serviceName: service!.service_name,
+                      targetDow: selected.dow, targetHour: selected.hour,
                     })}
                     accessibilityRole="button"
                     style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 14, paddingVertical: 12 }}
                   >
-                    <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>See the week →</Text>
+                    <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Hold my place →</Text>
                   </TouchableOpacity>
                 </View>
+
+                {!!remindError && (
+                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: '#ff9d9d', marginTop: 10 }}>
+                    {remindError}
+                  </Text>
+                )}
               </View>
             )}
           </>
