@@ -114,6 +114,16 @@ export default function HelperHoldScreen() {
   const joined = helper.status === 'holding' || helper.status === 'checked_in';
   const turnAt = new Date(new Date(helper.target_served_at).getTime());
 
+  /* Compared by calendar date, not by elapsed hours: a helper at 9am tomorrow
+     is 18 hours away but is emphatically not "today". */
+  const planDayLabel = (() => {
+    const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((midnight(turnAt) - midnight(new Date())) / 86_400_000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    return turnAt.toLocaleDateString([], { weekday: 'long' });
+  })();
+
   const confirmRelease = () => {
     Alert.alert(
       'Release your place?',
@@ -178,7 +188,12 @@ export default function HelperHoldScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink, marginBottom: 12 }}>Today</Text>
+        {/* The design says "Today" because its mock is a same-day helper. A
+            helper can be scheduled for any day, and a checklist headed "Today"
+            over tomorrow's times is simply wrong — it is the kind of thing that
+            has somebody leaving home 24 hours early. So the heading says which
+            day it actually is. */}
+        <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink, marginBottom: 12 }}>{planDayLabel}</Text>
 
         <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, paddingVertical: 6, paddingHorizontal: 16 }}>
           {[
@@ -191,7 +206,7 @@ export default function HelperHoldScreen() {
             },
             {
               title: 'Leave home',
-              sub: `${clock(helper.leave_home_at)} · ${helper.travel_minutes} min journey`,
+              sub: `${clock(helper.leave_home_at)} · ${helper.travel_minutes} min journey`,  // "journey", not the design's "drive" — a route taxi is not a drive
               state: joined ? 'now' : 'todo',
             },
             {

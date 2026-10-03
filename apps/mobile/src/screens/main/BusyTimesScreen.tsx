@@ -301,19 +301,38 @@ export default function BusyTimesScreen() {
                               backgroundColor: cell
                                 ? RAMP[waitLevel(cell.avg_wait)]
                                 : RAMP[(dow + hour) % 5],
-                              /* The design rings the selected cell with a white
-                                 halo and a dark outer ring. Two borders are not
-                                 available on one View, so the inner ring is the
-                                 border and the outer is the shadow. */
+                              /* The design's inner halo: box-shadow 0 0 0 2px
+                                 #fff. A border works because the cell is a flat
+                                 colour, so insetting it by 2 is invisible. */
                               borderWidth: isSel ? 2 : 0,
                               borderColor: '#fff',
-                              shadowColor: D.ink,
-                              shadowOpacity: isSel ? 1 : 0,
-                              shadowRadius: 0,
-                              shadowOffset: { width: 0, height: 0 },
-                              elevation: isSel ? 4 : 0,
                             }}
-                          />
+                          >
+                            {/* The design's OUTER ring: box-shadow 0 0 0 4px
+                                #0c1826, drawn 2px outside the cell. This was a
+                                shadow with radius 0 and no offset, which draws
+                                nothing at all on iOS — so the selected cell had
+                                a white outline on a pale blue grid and was very
+                                hard to find. A sibling View inset by -2 is the
+                                one way to get a second ring in RN, and it is
+                                positioned outside the cell exactly as the
+                                design offsets it.
+
+                                pointerEvents none so it cannot swallow the tap
+                                it is sitting on top of. */}
+                            {isSel && (
+                              <View
+                                pointerEvents="none"
+                                style={{
+                                  position: 'absolute',
+                                  top: -4, left: -4, right: -4, bottom: -4,
+                                  borderRadius: 10,
+                                  borderWidth: 2,
+                                  borderColor: D.ink,
+                                }}
+                              />
+                            )}
+                          </TouchableOpacity>
                         );
                       })}
                     </View>

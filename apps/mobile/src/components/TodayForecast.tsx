@@ -50,15 +50,34 @@ const NOW_BAR = 'rgba(255,255,255,.55)';
 const IDLE_BAR = 'rgba(255,255,255,.16)';
 const MAX_BAR = 82;
 
+/** "8 AM", "4 PM" — for the closed-now line. */
+const fmtHour = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+
 export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, hours }: TodayForecastProps) {
   if (!hours.length) return null;
 
   const nowHour = new Date().getHours();
   /* "Now" is only meaningful inside opening hours AND on an actual today.
-     Outside them nothing is highlighted, rather than clamping to the first or
+     Outside them no BAR is highlighted, rather than clamping to the first or
      last bar and telling somebody at 9pm that they are standing in the 4pm
-     slot — and a typical-Monday card has no "now" at all. */
+     slot — and a typical-Monday card has no "now" at all. Where it cannot be
+     drawn it is said in words instead, below. */
   const showNow = isToday && hours.some((h) => h.hour === nowHour);
+
+  /* Where "now" actually is, when it is not on the chart. Without this the
+     card simply omits the marker and the reader is left looking for something
+     that is not there — which is exactly how this was reported: "it's 10pm,
+     I'm not seeing the NOW highlight". At 10pm the branch is shut and there is
+     no 10pm bar to mark, so the card has to say so. */
+  const firstHour = hours[0].hour;
+  const lastHour = hours[hours.length - 1].hour;
+  const nowNote = !isToday
+    ? null
+    : showNow
+      ? null
+      : nowHour < firstHour
+        ? `Closed now · opens ${fmtHour(firstHour)}`
+        : `Closed now · today's last hour was ${fmtHour(lastHour)}`;
 
   /* Five labels under nine bars, as the design has it — one per bar is a wall
      of text at this width. Every other hour, always including the last. */
@@ -111,7 +130,18 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
       >
         {hours.map((h) => {
           const isNow = showNow && h.hour === nowHour;
-          const tag = h.is_best ? 'BEST' : isNow ? 'NOW' : '';
+          /* NOW BEFORE BEST, deliberately. These collide whenever the quietest
+             hour of the day happens to be the hour you are in — which is not a
+             rare edge, it is the single most useful moment the card has. With
+             BEST winning, the one thing the reader cannot get anywhere else on
+             this card (where am I in the day?) was dropped in favour of the one
+             thing the heading already states in words two lines above
+             ("BEST TIME TODAY · SATURDAY, 4:00 PM – 5 PM").
+
+             The BAR still carries the best-hour blue, so nothing is lost: a
+             blue bar wearing the NOW ring reads as "this is the best hour, and
+             it is now", which is the whole message. */
+          const tag = isNow ? 'NOW' : h.is_best ? 'BEST' : '';
           return (
             <View key={h.hour} style={{ flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
               {/* An EMPTY VIEW holds the space when there is no tag, rather
@@ -123,7 +153,7 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
                 <Text
                   style={{
                     fontFamily: font.extra, fontSize: 9.5, lineHeight: 12,
-                    color: h.is_best ? BEST_INK : '#fff',
+                    color: isNow ? '#fff' : BEST_INK,
                   }}
                 >
                   {tag}
@@ -153,6 +183,18 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
           </Text>
         ))}
       </View>
+
+      {/* Said in words when it cannot be drawn on a bar. Brighter than the
+          provenance line below it because it is about right now, not about
+          where the numbers came from. */}
+      {!!nowNote && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14 }}>
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,.35)' }} />
+          <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.75)' }}>
+            {nowNote}
+          </Text>
+        </View>
+      )}
 
       <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>
         {isToday

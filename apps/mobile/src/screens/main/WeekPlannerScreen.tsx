@@ -55,6 +55,13 @@ export default function WeekPlannerScreen() {
   const { businessId, branchId, branchName } = route.params ?? ({} as any);
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
+  /* Which week the strip is showing. The design draws a ▾ beside the date, and
+     the day itself is already chosen by the strip below — so the one dimension
+     left for that control is the week. It also makes the label honest: it used
+     to read "Next week" as a hardcoded string no matter which dates were under
+     it. The forecast does not change (the model is per-weekday over 90 days);
+     the DATES do, which is what you need to actually plan the trip. */
+  const [weekOffset, setWeekOffset] = useState(0);
   const [dow, setDow] = useState<number>(() => {
     const today = new Date().getDay();
     return STRIP_DOWS.includes(today) ? today : 1;
@@ -73,6 +80,24 @@ export default function WeekPlannerScreen() {
     enabled: Boolean(businessId && branchId),
     staleTime: 1000 * 60 * 15,
   });
+
+  /* The banner's second line in the design reads "Leave home 25 min before to
+     arrive on time". 25 is a number in a mock; writing it in would be inventing
+     a figure and presenting it as this person's travel time, which is the same
+     mistake as the fabricated branch stats. So it is read from their own
+     habits — the travel time measured from the Line Helpers they have actually
+     scheduled — and the line only claims it when it is real.
+
+     Same queryKey and staleTime as PlanVisitScreen, so arriving here from that
+     screen is a cache hit and not a second request. */
+  const habits = useQuery({
+    queryKey: ['for-you', user?.id ?? 'anon'],
+    queryFn: () => api.get<{ personalised: boolean; habits?: { travel_minutes: number | null } }>('/predictions/for-you'),
+    enabled: Boolean(user?.id && entitled),
+    staleTime: 1000 * 60 * 30,
+    retry: false,
+  });
+  const travelMinutes = habits.data?.habits?.travel_minutes ?? null;
 
   const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
@@ -140,7 +165,7 @@ export default function WeekPlannerScreen() {
   const dateFor = (d: number) => {
     const x = new Date(weekStart);
     /* STRIP_DOWS is Mon(1)…Sat(6), and weekStart is that Monday. */
-    x.setDate(weekStart.getDate() + (d - 1));
+    x.setDate(weekStart.getDate() + (d - 1) + weekOffset * 7);
     return x;
   };
   const chosenDate = dateFor(dow);
@@ -183,19 +208,30 @@ export default function WeekPlannerScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={D.ink} />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
+          {/* The design's header line, and its ▾ does something: it moves the
+              strip a week on and back. A chevron that opens nothing is the
+              thing this app keeps being caught on. */}
+          <TouchableOpacity
+            onPress={() => setWeekOffset((w) => (w === 0 ? 1 : 0))}
+            accessibilityRole="button"
+            accessibilityLabel={`${weekOffset === 0 ? 'This' : 'Next'} week. ${chosenDate.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}. Tap to show ${weekOffset === 0 ? 'next' : 'this'} week.`}
+            style={{ flex: 1 }}
+          >
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted }}>
-              Next week · {branchName || 'this branch'}
+              {weekOffset === 0 ? 'This week' : 'Next week'} · {branchName || 'this branch'}
             </Text>
             <Text style={{ fontSize: 17, marginTop: 1 }}>
               <Text style={{ fontFamily: font.extra, color: D.ink }}>
                 {chosenDate.getDate()} {chosenDate.toLocaleDateString([], { month: 'short' })}
               </Text>
               <Text style={{ fontFamily: font.medium, color: D.muted }}>
-                {'  '}{chosenDate.toLocaleDateString([], { weekday: 'long' })}
+                {' '}{chosenDate.toLocaleDateString([], { weekday: 'long' })}
+              </Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.muted }}>
+                {' '}▾
               </Text>
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* the six-day strip */}
@@ -397,7 +433,9 @@ export default function WeekPlannerScreen() {
               {chosenDate.toLocaleDateString([], { weekday: 'long' })} {hourText(spans.quiet.from)} is your best bet · ~{spans.quiet.wait} min
             </Text>
             <Text style={{ fontFamily: font.medium, fontSize: 11, color: 'rgba(255,255,255,.55)' }}>
-              Tap to have Lyne hold your place
+              {travelMinutes
+                ? `Leave home ${travelMinutes} min before to arrive on time`
+                : 'Tap to have Lyne hold your place'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={D.onDarkAccent} />
