@@ -989,7 +989,18 @@
    every cell to the tallest in the row. Use it wherever a short panel sits
    beside a tall one — blank space inside a bordered card does not read as
    spare room, it reads as content that failed to arrive. */
-.qs-fitcontent { align-self: start; }
+/* Desk Assignment sits at span 8 beside a span-4 stack that is taller than it.
+   `align-self: start` stopped the card stretching — which fixed the ~300px of
+   blank card underneath its content, and left that gap in the ROW instead:
+   empty grid between the bottom of Desk Assignment and Live Queues In Your
+   Section. Both failures are the same shape, a card that is a different height
+   from its content.
+
+   Stretching the card and letting its scroll area take the slack fixes both at
+   once: the card is exactly as tall as its row, and the board inside it fills
+   that height and scrolls, so there is no blank card and no blank row. */
+.qs-fitcontent { align-self: stretch; display: flex; flex-direction: column; }
+.qs-fitcontent > .qs-boardscroll { flex: 1 1 auto; min-height: 220px; max-height: none; }
 
 .qs-boardscroll { display: flex; flex-direction: column; gap: 16px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
 .qs-boardscroll .qs-desks { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
@@ -1477,3 +1488,21 @@
 .qx-mc-answer { padding: 12px 13px; background: var(--c-surface-2); border: 1px solid var(--c-line); border-radius: 12px; }
 .qx-mc-answer b { display: block; font-size: 13px; margin-bottom: 5px; }
 .qx-mc-answer p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--c-dim); }
+
+/* ── customer directory ──────────────────────────────────────────────────── */
+.qx-dirsearch { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--c-line); border-radius: 12px; background: var(--c-surface-2); color: var(--c-dim); }
+.qx-dirsearch input { border: 0; background: transparent; color: var(--c-text); font: inherit; font-size: 12.5px; width: 210px; outline: none; }
+.qx-dirlist { display: flex; flex-direction: column; }
+.qx-dirrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) 62px auto 140px 18px; align-items: center; gap: 14px;
+  width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid var(--c-line);
+  text-align: left; color: var(--c-text); font: inherit; cursor: pointer; }
+.qx-dirrow:last-child { border-bottom: 0; }
+.qx-dirrow:hover { background: var(--c-surface-2); }
+.qx-dirrow:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+.qx-dirrow .qx-av { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--c-surface-2); color: var(--c-dim); }
+.qx-dirrow .nm b { display: block; font-size: 13.5px; }
+.qx-dirrow .nm small, .qx-dirrow .vs small, .qx-dirrow .lv small { display: block; font-size: 11.5px; color: var(--c-dim); }
+.qx-dirrow .vs { text-align: center; }
+.qx-dirrow .vs b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.qx-dirrow .lv { text-align: right; }
+.qx-dirrow .lv b { font-size: 12.5px; font-weight: 700; }

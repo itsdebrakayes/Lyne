@@ -11,6 +11,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock, UserSearch } from 'lucide-react';
 import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
+import { CustomerDirectory } from '../components/dashboard/CustomerDirectory';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
@@ -41,6 +42,11 @@ const NAV: NavItem[] = [
   { key: 'desks', label: 'Desk Assignment', icon: Hand },
   { key: 'staff', label: 'Staff', icon: Users },
   { key: 'cases', label: 'Customer Cases', icon: UserSearch },
+  /* Separate from Customer Cases on purpose. Cases answers "who are we
+     failing"; this is the plain directory, and it used to be the case
+     list or nothing — a customer served correctly every time could not be
+     looked up at all. */
+  { key: 'customers', label: 'Customers', icon: Users },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
   { key: 'targets', label: 'Targets', icon: Target },
@@ -245,6 +251,7 @@ export default function SupervisorDashboard() {
         {tab === 'overview' ? <SupOverviewQX onNav={setTab} />
           : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} />
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
             : supTab(tab, setTab)}
       </SupDataProvider>
       {/* The reply box for a message opened from the bell. It lives at the

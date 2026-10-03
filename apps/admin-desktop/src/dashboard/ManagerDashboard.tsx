@@ -30,6 +30,7 @@ import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
+import { CustomerDirectory } from '../components/dashboard/CustomerDirectory';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -46,6 +47,11 @@ const NAV: NavItem[] = [
   { key: 'staff', label: 'Staff & Counters', icon: Users },
   { key: 'services', label: 'Services', icon: Waypoints },
   { key: 'cases', label: 'Customer Cases', icon: UserSearch },
+  /* Separate from Customer Cases on purpose. Cases answers "who are we
+     failing"; this is the plain directory, and it used to be the case
+     list or nothing — a customer served correctly every time could not be
+     looked up at all. */
+  { key: 'customers', label: 'Customers', icon: Users },
   { key: 'readiness', label: 'Readiness', icon: ClipboardCheck },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
@@ -334,6 +340,7 @@ export default function ManagerDashboard() {
           : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
             : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
       {/* The reply box for a message opened from the bell. It lives at the

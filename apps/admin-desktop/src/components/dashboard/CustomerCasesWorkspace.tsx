@@ -239,7 +239,7 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
   );
 }
 
-function CaseDetail({ businessId, userId, onBack }: { businessId: string; userId: string; onBack: () => void }) {
+export function CaseDetail({ businessId, userId, onBack }: { businessId: string; userId: string; onBack: () => void }) {
   const q = useQuery({
     queryKey: ['customer-detail', businessId, userId],
     queryFn: () => api.get<Detail>(`/analytics/customers/${userId}?business_id=${businessId}&days=180`),
