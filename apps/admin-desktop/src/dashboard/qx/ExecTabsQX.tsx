@@ -215,6 +215,17 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
       </Card>
 
       <Card span={7} title="Why It Moved" cap="Biggest effect first. Each line is one thing that actually happened.">
+        {/* An empty anomaly list is a FINDING, not a failure, and it needs to
+            say so. The card rendered an empty div under a heading promising
+            "each line is one thing that actually happened", which reads as a
+            panel that failed to load. Most tenants see this most of the time:
+            anomalies are flagged against a branch's own normal, so a company
+            running steadily produces none. */}
+        {!d.movers.length ? (
+          <Note icon={CheckCircle2}
+            title="Nothing Moved Unusually In This Period"
+            body="Every branch stayed inside its own normal range for waits, completions and no-shows. This fills in when something steps outside it." />
+        ) : null}
         <div className="qx-movers">
           {d.movers.map((mv, i) => (
             <div className="qx-mover" key={mv.name}>
@@ -229,18 +240,68 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
       <div className="qx-stack s5">
         <Card title="Which Day Is Heaviest" cap="Average customers served per weekday across the period">
           <Bars unit="" items={d.dow.labels.map((l, i) => ({ name: l, value: d.dow.values[i] }))} />
-          <div style={{ marginTop: 13 }}>
-            <Note icon={Zap} title="Monday And Friday Carry Half The Week"
-              body="Branches are shut on Sunday and open a half day on Saturday, so the weekday peaks are sharper than the daily average suggests." />
-          </div>
+          {/* Read off the bars rather than asserted. This said "Monday And
+              Friday Carry Half The Week" to every tenant, whatever their bars
+              showed. */}
+          {(() => {
+            const items = d.dow.labels.map((l, i) => ({ name: l, value: d.dow.values[i] }));
+            const live = items.filter((x) => x.value > 0);
+            if (live.length < 2) return null;
+            const total = live.reduce((t, x) => t + x.value, 0);
+            const top = [...live].sort((x, y) => y.value - x.value).slice(0, 2);
+            const share = Math.round(((top[0].value + top[1].value) / total) * 100);
+            return (
+              <div style={{ marginTop: 13 }}>
+                <Note icon={Zap}
+                  title={`${top[0].name} And ${top[1].name} Carry ${share}% Of The Week`}
+                  body={`${top[0].name} averages ${top[0].value.toLocaleString()} customers and ${top[1].name} ${top[1].value.toLocaleString()}, against ${Math.round(total / live.length).toLocaleString()} on a typical open day. Staff the peaks from the quiet days rather than from overtime.`} />
+              </div>
+            );
+          })()}
         </Card>
-        <Focus eyebrow="Where This Lands" title="On This Trend The Company Hits Its 20-Minute Target In Late September"
-          body="Waits have come down five minutes over four weeks. Holding that rate closes the remaining six-minute gap in about nine weeks — sooner if Ocho Rios is fixed."
-          stats={[{ label: 'Gap To Target', value: '6 min', dir: 'bad' }, { label: 'Rate Of Change', value: '−1.2 min/wk', dir: 'good' }]}
-          action={{ label: 'Review Targets', onClick: () => onNav('targets') }} />
+        {/* Measured. Every figure here was a literal — "late September", "five
+            minutes over four weeks", "nine weeks", "sooner if Ocho Rios is
+            fixed" — shown identically to every tenant. */}
+        {(() => {
+          const pr = d.projection;
+          if (!pr?.enough) {
+            return (
+              <Focus eyebrow="Where This Lands" title="Not Enough Days To Project A Trend"
+                body="A projection needs at least four days of wait figures inside the selected period. Widen the period, or let a few more days close."
+                stats={[{ label: 'Gap To Target', value: pr ? `${Math.max(0, pr.gap)} min` : '—', dir: pr && pr.gap > 0 ? 'bad' : 'good' }]}
+                action={{ label: 'Review Targets', onClick: () => onNav('targets') }} />
+            );
+          }
+          const rate = `${pr.rate >= 0 ? '+' : '−'}${Math.abs(pr.rate).toFixed(1)} min/wk`;
+          if (pr.horizon === 'already') {
+            return (
+              <Focus eyebrow="Where This Lands" title="The Company Is Inside Its Wait Target"
+                body={`Average wait is ${Math.abs(pr.gap)} minute${Math.abs(pr.gap) === 1 ? '' : 's'} under target across this period. The work now is holding it there as volume grows.`}
+                stats={[{ label: 'Under Target By', value: `${Math.abs(pr.gap)} min`, dir: 'good' },
+                        { label: 'Rate Of Change', value: rate, dir: pr.rate <= 0 ? 'good' : 'bad' }]}
+                action={{ label: 'Review Targets', onClick: () => onNav('targets') }} />
+            );
+          }
+          if (!pr.horizon) {
+            return (
+              <Focus eyebrow="Where This Lands" title="Waits Are Not Closing On The Target"
+                body={`Average wait is ${pr.gap} minutes above target and is ${pr.rate > 0.05 ? 'rising' : 'flat'} across this period, so the gap does not close on its own. This needs a staffing or process change rather than time.`}
+                stats={[{ label: 'Gap To Target', value: `${pr.gap} min`, dir: 'bad' },
+                        { label: 'Rate Of Change', value: rate, dir: 'bad' }]}
+                action={{ label: 'Review Targets', onClick: () => onNav('targets') }} />
+            );
+          }
+          return (
+            <Focus eyebrow="Where This Lands" title={`On This Trend The Target Is Met In About ${pr.horizon}`}
+              body={`Average wait is falling ${Math.abs(pr.rate).toFixed(1)} minutes a week across this period. Holding that rate closes the remaining ${pr.gap}-minute gap in roughly ${pr.horizon}.`}
+              stats={[{ label: 'Gap To Target', value: `${pr.gap} min`, dir: 'bad' },
+                      { label: 'Rate Of Change', value: rate, dir: 'good' }]}
+              action={{ label: 'Review Targets', onClick: () => onNav('targets') }} />
+          );
+        })()}
       </div>
 
-      <Card span={12} title="Which Branches Are Improving" cap="Health score now against the same point last period. Falling branches first."
+      <Card span={12} title="Branch Health" cap="Health score across this period, lowest first. A change needs a previous period to compare against."
         tools={<IconBtn label="Export Trend Report"><Download size={15} /></IconBtn>}>
         <Table grid={TRAJ_GRID} columns={['Branch', 'Direction', 'Was', 'Now', 'Change']}
           items={[...d.trajectory].sort((a, b) => (a.now - a.was) - (b.now - b.was))}
@@ -249,7 +310,17 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
               <div className="qx-cellmain">
                 <span className="qx-av" style={avatarStyle(t.name)}>{t.code}</span>
                 <div style={{ minWidth: 0 }}><b>{t.name}</b>
-                  <small>{t.dir === 'good' ? 'Improving each week' : 'Slipping each week'}</small></div>
+                  {/* `was` equals `now` until a previous-period branch score
+                      exists (see trajectory in execLiveData), so there is no
+                      movement to report. This said "Improving each week" or
+                      "Slipping each week" off the absolute score — so a branch
+                      sitting at exactly 100 with a change of 0 was described,
+                      in writing, as improving every week. Describe the state
+                      that was actually measured, and describe movement only
+                      when there is some. */}
+                  <small>{t.now === t.was
+                    ? (t.dir === 'good' ? 'Healthy · no change this period' : 'Needs attention · no change this period')
+                    : t.now > t.was ? 'Improving this period' : 'Slipping this period'}</small></div>
               </div>
               <MiniSpark values={t.spark} bad={t.dir === 'bad'} />
               <div className="qx-num">{t.was}</div>
@@ -719,15 +790,45 @@ const FX_LINE_HEAT = [
   [4, 10, 15, 19, 14, 9, 12, 7, 4],
 ];
 
+/* THE COLUMNS OF THIS GRID ARE DAYS, NOT HOURS.
+   branchHeatmap() in ExecutiveDashboard buckets branch visits by
+   `new Date(visit_date).getDay()` and labels the columns Mon..Sun. The field it
+   travels in is called `hours`, and this tab read it as hours — so the
+   executive's "Busiest Hour" stat proudly reported "Monday".
+
+   The data is right and useful: branch against day of week is the company-level
+   question ("Half Way Tree is buried on Mondays"). It was only ever the labels
+   that were wrong. The manager and supervisor Busy Times tabs are genuinely
+   hourly — they read demandHourly — which is where the naming came from. */
 export function ExecBusy() {
   const d = useExecData();
   const [view, setView] = useState<'branch' | 'service'>('branch');
   const data = view === 'branch' ? d.branchHeat : d.lineHeat;
   const rows = view === 'branch' ? d.branchHeatRows : d.lines.map((l) => l.name);
-  const perHour = d.hours.map((_, i) => data.reduce((t, r) => t + (r[i] ?? 0), 0));
-  const open = perHour.filter((v) => v > 0);
-  const peakIdx = open.length ? perHour.indexOf(Math.max(...open)) : -1;
-  const quietIdx = open.length ? perHour.indexOf(Math.min(...open)) : -1;
+  const days = d.hours;
+  const perDay = days.map((_, i) => data.reduce((t, r) => t + (r[i] ?? 0), 0));
+  const open = perDay.filter((v) => v > 0);
+  const peakIdx = open.length ? perDay.indexOf(Math.max(...open)) : -1;
+  const quietIdx = open.length ? perDay.indexOf(Math.min(...open)) : -1;
+
+  /* Derived, where two of these stats used to be literals in the source:
+     "Most Pressured Branch · Half Way Tree · 88 At Peak · Nearly three times
+     Mandeville's peak", and "Midday Dip · 1pm · Volume drops about 40%". Both
+     were written as fixed strings and shown to every tenant regardless of their
+     data — a credit union with four branches was told about Half Way Tree. */
+  const busiestRow = (() => {
+    if (!data.length || !rows.length) return null;
+    const totals = data.map((r) => r.reduce((t, v) => t + (v ?? 0), 0));
+    const i = totals.indexOf(Math.max(...totals));
+    if (i < 0 || !totals[i]) return null;
+    const rest = totals.filter((_, j) => j !== i);
+    const runnerUp = rest.length ? Math.max(...rest) : 0;
+    return {
+      name: rows[i],
+      peak: Math.max(...(data[i] || [0])),
+      multiple: runnerUp ? totals[i] / runnerUp : 0,
+    };
+  })();
 
   if (!data.length || !d.hours.length || peakIdx < 0) {
     return <EmptyTab title="No Demand Pattern Yet"
@@ -736,24 +837,31 @@ export function ExecBusy() {
 
   return (
     <div className="qx-grid">
-      <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Hour" value={d.hours[peakIdx]}
-        chip={{ dir: 'bad', text: 'Peak' }} foot={`${perHour[peakIdx]} people join in that hour company-wide`} />
-      <Stat span={3} icon={Clock} label="Quietest Open Hour" value={d.hours[quietIdx]}
-        foot="Safest window for breaks, training and stock-taking" />
-      <Stat span={3} icon={Building2} tone="bad" label="Most Pressured Branch" value="Half Way Tree"
-        chip={{ dir: 'bad', text: '88 At Peak' }} foot="Nearly three times Mandeville's peak" />
-      <Stat span={3} icon={Activity} label="Midday Dip" value="1pm"
-        foot="Volume drops about 40% for one hour, then rebounds" />
+      <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Day" value={days[peakIdx]}
+        chip={{ dir: 'bad', text: 'Peak' }} foot={`${perDay[peakIdx]} people join on that day company-wide`} />
+      <Stat span={3} icon={Clock} label="Quietest Open Day" value={days[quietIdx]}
+        foot="Safest day for breaks, training and stock-taking" />
+      {busiestRow ? (
+        <Stat span={3} icon={Building2} tone="bad"
+          label={view === 'branch' ? 'Most Pressured Branch' : 'Most Pressured Service'}
+          value={busiestRow.name}
+          chip={{ dir: 'bad', text: `${busiestRow.peak} At Peak` }}
+          foot={busiestRow.multiple >= 1.25
+            ? `About ${busiestRow.multiple.toFixed(1)}× the next busiest`
+            : 'Narrowly ahead of the next busiest'} />
+      ) : null}
+      <Stat span={3} icon={Activity} label="Days With Demand" value={open.length}
+        foot={`Of ${days.length} in the week — the rest are closed or empty`} />
 
       <Card span={12} title="When The Pressure Lands"
-        cap="Visits per hour. Staff the darkest cells; the pale ones are safe for breaks and training."
+        cap="Visits per day of the week. Staff the darkest cells; the pale ones are safe for breaks and training."
         tools={<Seg value={view} onChange={setView} options={[['branch', 'By Branch'], ['service', 'By Service']]} />}>
-        <Heatmap rowLabels={rows} colLabels={d.hours} data={heatData(data)} display={data} unit="" />
+        <Heatmap rowLabels={rows} colLabels={days} data={heatData(data)} display={data} unit="" />
       </Card>
 
-      <Card span={8} title="Company Load Through The Day" cap="Everyone who joins a line, by hour">
+      <Card span={8} title="Company Load Through The Week" cap="Everyone who joins a line, by day">
         <div className="qx-chartfill">
-          <Chart values={perHour} labels={d.hours} label="Average Weekday" unit="joins" h={230} />
+          <Chart values={perDay} labels={days} label="Visits" unit="joins" h={230} />
         </div>
       </Card>
 
@@ -1871,6 +1979,10 @@ export function ExecSupport() {
  * from the Executive overview the first time it was ported.
  */
 export type ExecTabData = {
+  /** Where average wait is heading against target, measured from the window's
+      own daily rows. Replaces a Focus card whose every figure was a literal. */
+  projection?: { gap: number; rate: number; horizon: string | null; enough: boolean };
+
   metrics: typeof FX_METRICS;
   days: string[]; rangeA: string; rangeB: string;
   movers: typeof FX_MOVERS;

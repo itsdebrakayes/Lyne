@@ -37,7 +37,7 @@ const EXEC_FAQ = [
 ];
 import { CalendarDays, MapPin } from 'lucide-react';
 import { num, fmtN, titleCase, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
-import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { labelFor, makeWindow, previousWindow, rowsIn, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
 import { Empty } from './ManagerDashboard';
 
@@ -257,12 +257,21 @@ export default function ExecutiveDashboard() {
   const isOverview = tab === 'overview';
 
   /* Everything the ported tabs read, mapped from the live layer once. */
+  /* The period the pills select, and the one immediately before it — which is
+     what "measured against the same number of days immediately before" on the
+     Trends card actually means. Both go to buildExecData, which was slicing a
+     fixed fourteen days of its own and ignoring the pills entirely. */
+  const prevWin = useMemo(() => previousWindow(win), [win]);
+  const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
+  const prevRows = useMemo(() => rowsIn(summary, prevWin), [summary, prevWin]);
+
   const liveTabData = useMemo(() => buildExecData({
-    summary, rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
+    summary, windowRows, prevRows,
+    rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
     target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
     channels: d.channels, preds, heat, org, adminName: d.admin?.name,
     faq: EXEC_FAQ,
-  }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
+  }), [summary, windowRows, prevRows, d.summary, week, served, completed, noShows, avgWait, target, managers,
        d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
 
   const qcExec = useQueryClient();
