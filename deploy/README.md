@@ -13,6 +13,7 @@ happen. Companion to [../docs/HOSTING.md](../docs/HOSTING.md), which explains
 | `env.production.example` | Every environment variable, with the reasoning |
 | `deploy.sh` | Build, start, and prove it answers |
 | `verify.sh` | The hardening checklist, re-runnable |
+| `backup-managed-db.sh` | Nightly backups of the MANAGED database, over TLS, with a restore rehearsal |
 
 ---
 
@@ -29,6 +30,26 @@ Three things must already exist:
 
 On the database's **Settings → Trusted sources**, add the droplet. Until you do,
 every connection below is refused and the error looks like a wrong password.
+
+And one setting that is easy to miss because the error it produces points
+somewhere else entirely:
+
+4. **Global SQL mode** — DigitalOcean's default for a managed MySQL cluster
+   includes `ANSI_QUOTES` and `PIPES_AS_CONCAT`. The MySQL image used in
+   development includes neither. With `ANSI_QUOTES` on, `"x"` is an identifier
+   rather than a string, and 21 files under `database/` stop being valid SQL —
+   migration `008` is just the first one reached, so you get a half-built
+   schema and an error about a column that does not exist.
+
+   Go to the database → **Settings → Global SQL mode** and remove
+   `ANSI_QUOTES`, `PIPES_AS_CONCAT` and `IGNORE_SPACE`. `init-managed-db.sh`
+   checks this before it applies anything and refuses to start if it is wrong,
+   so a mistake here costs you a message rather than a rebuild.
+
+Two more managed-MySQL differences that will not bite today but will:
+`sql_require_primary_key` is **ON**, so any future migration creating a table
+without a primary key fails in production only — see
+[../database/migrations/README.md](../database/migrations/README.md).
 
 ---
 
@@ -102,8 +123,33 @@ crontab -e
 
 ```cron
 # Nightly at 02:15 Jamaica time. RETAIN_DAYS defaults to 14.
-15 2 * * * cd /srv/lyne && BACKUP_DIR=/srv/lyne/backups ./scripts/backup-database.sh >> /srv/lyne/backups/backup.log 2>&1
+15 2 * * * cd /srv/lyne && BACKUP_DIR=/srv/lyne/backups bash deploy/backup-managed-db.sh >> /srv/lyne/backups/backup.log 2>&1
 ```
+
+**Use `deploy/backup-managed-db.sh`, not `scripts/backup-database.sh`.** The
+latter is for development: it runs `docker exec lyne_db mysqldump -uroot` with
+`MYSQL_ROOT_PASSWORD`, and production has no `lyne_db` container and no root
+account. Pointed at the managed database it fails every night, into a log file
+nobody opens. That is what the cron line here used to say.
+
+Before the first run, create the backup login — **not** the application login,
+which `harden_database.sql` strips to DML, so a dump taken as `lyne` silently
+omits the views, triggers and events and restores into a database that looks
+right and behaves differently. As `doadmin`:
+
+```sql
+CREATE USER 'lyne_backup'@'%' IDENTIFIED BY '<a fresh password>';
+GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES ON `lyne`.* TO 'lyne_backup'@'%';
+```
+
+```bash
+printf 'BACKUP_MYSQL_USER=lyne_backup\nBACKUP_MYSQL_PASSWORD=<it>\n' \
+  > secrets/backup.env && chmod 600 secrets/backup.env
+```
+
+Those five privileges are exactly what the dump needs and nothing more — no
+DDL, no writes, one schema. The script refuses to run as the application login
+and tells you why.
 
 Two things the cron entry does not do, and you should:
 
@@ -111,7 +157,17 @@ Two things the cron entry does not do, and you should:
   or your own machine. A backup on the same disk as the thing it is backing up
   is not a backup.
 - **Rehearse a restore, now, while the data is invented.** A restore that has
-  never been performed is a hope.
+  never been performed is a hope. The script does this into a scratch schema,
+  so it cannot touch production:
+
+  ```bash
+  ADMIN_USER=doadmin ADMIN_PASSWORD='...' bash deploy/backup-managed-db.sh \
+    --restore /srv/lyne/backups/<the-latest>.sql.gz --into lyne_restore_test
+  ```
+
+  It prints the table count it restored. Drop the scratch schema afterwards.
+  (`--into` is required and has no default: a default of the production
+  database would make the dangerous thing the easy thing to type.)
 
 ---
 
@@ -147,11 +203,53 @@ you took before applying it.
 
 ---
 
+## Getting root on the droplet
+
+After `provision.sh`, **there is no way to become root over SSH.** That is the
+intended end state, but it is worth knowing before the night you need it:
+
+- `lyne` is created with `--disabled-password`, so although it is in the `sudo`
+  group, it has no password for `sudo` to authenticate — `sudo` fails.
+- Root SSH login is disabled.
+- So full root is the **DigitalOcean web console** (Droplet → Console), which
+  logs in out-of-band and does not go through sshd.
+
+`provision.sh` does grant `lyne` one narrow `NOPASSWD` rule, in
+`/etc/sudoers.d/90-lyne-verify`: `ufw status` and `sshd -T`, both read-only.
+Those are the two checks `verify.sh` cannot run unprivileged, and without the
+rule it reported confident failures for a firewall and an sshd that were
+correctly configured — which is worse than not checking, because it teaches you
+to skim past the red.
+
+Nothing else is needed day to day: `deploy.sh` wants Docker and npm, and `lyne`
+is in the `docker` group.
+
+**How much this is actually buying.** Being in the `docker` group is already
+root-equivalent on this box — `docker run -v /:/host --privileged` gets you
+there in one command. So withholding `sudo` from `lyne` does not contain a
+compromise of that account; it only slows down the person operating the
+droplet. It is kept because the cost is low and the console is always there,
+not because it is a real boundary. If you decide the 2am ergonomics matter more
+than the speed bump, that is a defensible call and it is one line:
+
+```bash
+# From the DigitalOcean console, as root:
+echo 'lyne ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/91-lyne-admin
+chmod 440 /etc/sudoers.d/91-lyne-admin
+visudo -c
+```
+
+Do not set a password on `lyne` instead. `PasswordAuthentication no` means a
+password cannot be used to log in over SSH, but it can be used by anyone who
+already has a shell as that user, which is the wrong way round.
+
+---
+
 ## When something is wrong
 
 | Symptom | Where to look first |
 |---|---|
-| API restarts in a loop | `docker compose -f deploy/docker-compose.prod.yml logs api` — "Connections using insecure transport are prohibited" means `MYSQL_SSL`/`MYSQL_SSL_CA` are not right |
+| API restarts in a loop | `docker compose --project-directory . -f deploy/docker-compose.prod.yml logs api` — "Connections using insecure transport are prohibited" means `MYSQL_SSL`/`MYSQL_SSL_CA` are not right |
 | HTTPS never comes up | `... logs caddy` — nearly always DNS not yet pointing here, or 80/443 blocked |
 | Connection refused by the database | The droplet is not on the database's trusted sources list |
 | Live queue screens never update | SSE is being buffered — confirm `flush_interval -1` is still in the Caddyfile |

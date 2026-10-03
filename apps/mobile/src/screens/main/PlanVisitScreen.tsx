@@ -1,10 +1,21 @@
 /**
- * PlanVisitScreen — "Plan your visit" (Smart Timing).
+ * PlanVisitScreen — screen 01 of the Predictive Insights design.
  *
- * Best time to visit, per service, per branch — computed from the last 90
- * days of real visit history. Free tier sees the branch-level headline and a
- * locked preview; Lyne Premium unlocks the per-service planner. The trial
- * button flips the flag server-side so both states are real, not mocked.
+ * Ported literally from the design file, and it ENDS WHERE THE DESIGN ENDS:
+ * header, SMART TIMING, the headline, the branch chips, the dark forecast
+ * card, and the two "For you" rows. Nothing after that.
+ *
+ * It used to carry a second screen's worth of UI below those rows — a "Best
+ * time by service" list with its own cards, green pills, week strips and
+ * collapsible heatmaps, built on the app's generic theme tokens rather than
+ * the design's. The result read as two different screens stapled together,
+ * which is exactly the complaint. That depth is not gone; it moved to the
+ * screens the design gives it: the heatmap is screen 02 (BusyTimesScreen,
+ * which has its own service picker) and the day view is screen 03
+ * (WeekPlannerScreen). "See heatmap →" and the rows are the way in.
+ *
+ * This screen is FREE, end to end. The paywall is on screen 02, over the
+ * heatmap, which is the thing the subscription actually buys.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -12,7 +23,6 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
-import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -20,10 +30,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
-import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
 import { D } from '../../lib/predictiveDesign';
-import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -54,8 +62,10 @@ interface WeekDay { dow: number; day_name: string; avg_wait: number | null; leve
 interface ServicePlan {
   service_id: string;
   service_name: string;
-  /** Day x hour cells from the API — see components/BusyHeatmap.tsx. */
-  grid?: HeatCell[];
+  /** Day x hour cells. Rendered on BusyTimesScreen, not here — screen 01 of
+      the design ends at the two recommendation rows. Kept on the type because
+      its presence is one of the signals that a payload is the premium one. */
+  grid?: unknown[];
   best?: BestSlot | null;
   busiest?: BestSlot | null;
   quietest_day?: { dow: number; day_name: string; avg_wait: number } | null;
@@ -77,45 +87,17 @@ const nextHourLabel = (hour: number) => {
   return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
 };
 
-const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const LEVEL_WORD: Record<number, string> = { 1: 'Quiet', 2: 'Busy', 3: 'Peak' };
-const hourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
-
-const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
-const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-function WeekStrip({ week, compact = false }: { week?: WeekDay[]; compact?: boolean }) {
-  /* Optional, and empty renders nothing. `week` only exists on the premium
-     payload, and there is a real window where the user record says premium
-     while the cached response is still the free one — the moment a trial
-     starts. `week.map` threw there and took the whole screen white. */
-  if (!week?.length) return null;
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: compact ? 0 : 12 }}>
-      {week.map(day => (
-        <View key={day.dow} style={{ alignItems: 'center', gap: 5, flex: 1 }}>
-          <View style={{ width: compact ? 10 : 13, height: compact ? 10 : 13, borderRadius: 7, backgroundColor: LEVEL_DOT[day.level] }} />
-          <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.muted }}>{DAY_SHORT[day.dow]}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 export default function PlanVisitScreen() {
   const topPad = useTopPad(18);
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const { user, refreshProfile } = useAuth();
+  const { user } = useAuth();
   /* Entitlement comes from the server record and nothing else. This used to be
      `|| preview`, where `preview` was a device-local toggle anybody could flip
      in Settings — it unlocked the paid planner for free, and an App Store
      reviewer would have found it in the first minute. */
   const premium = Boolean(Number(user?.is_premium || 0));
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [openHeatmap, setOpenHeatmap] = useState<string | null>(null);
-  const [pickedCell, setPickedCell] = useState<HeatCell | null>(null);
-  const [trialError, setTrialError] = useState('');
 
   const { data: branches = [] } = useQuery({
     queryKey: ['mobile-branches'],
@@ -157,34 +139,42 @@ export default function PlanVisitScreen() {
   const mine = forYou.data?.personalised ? forYou.data : null;
 
   const plan = bestTimes.data;
-  /* What the RESPONSE IN HAND is, which is not always what the user record
-     says. `premium` above drives the badge and the trial button; this drives
-     the layout. */
-  const planIsPremium = Boolean(plan?.premium ?? plan?.services?.some((s) => s.week || s.grid));
 
-  const startTrial = async () => {
-    try {
-      setTrialBusy(true);
-      setTrialError('');
-      await api.post('/auth/start-trial', {});
-      await refreshProfile();
-    } catch (caught: unknown) {
-      setTrialError(caught instanceof Error ? caught.message : 'Could not start your trial.');
-    } finally {
-      setTrialBusy(false);
-    }
-  };
+  /* The badge the design puts in the header. TWO sources, because either one
+     alone gets it wrong: the user record can lag (a trial started on another
+     screen flips the server before this client refetches its profile), and the
+     payload alone would hide the badge while the response is still in flight.
+     Whichever says premium is enough — this only drives a badge.
 
+     Caught by walking the live app against the design: the heatmap had
+     unlocked, so the customer WAS premium, and this header still showed
+     nothing where the design shows PREMIUM. */
+  const showPremiumBadge = premium || Boolean(plan?.premium);
+
+  /* No trial button on this screen any more, and no locked panel. Screen 01 of
+     the design is free end to end — the forecast and the two recommendations
+     are the thing that demonstrates the product, and a paywall in front of
+     that sells nothing. The lock lives on screen 02, over the heatmap, which
+     is what the subscription actually buys. */
 
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 56 }} showsVerticalScrollIndicator={false}>
         {/* top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
+          {/* Labelled, like the back button on every other screen in this
+              flow. An unlabelled icon button is announced as just "button". */}
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={t.iconBtn}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </TouchableOpacity>
           <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
           <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
-            {premium && <PremiumBadge size="sm" />}
+            {showPremiumBadge && <PremiumBadge size="sm" />}
           </View>
         </View>
 
@@ -224,8 +214,8 @@ export default function PlanVisitScreen() {
                 which is a planning question. The one almost everybody opening
                 this screen actually has is "when should I go today", and a row
                 of bars with NOW and BEST on it answers that at a glance with
-                nothing to read. The day-level answer is still below, per
-                service, where it belongs.
+                nothing to read. The day-level answer lives on screens 02 and
+                03, which is where the design puts it.
 
                 Falls back to the old headline when the branch has no history
                 for today's weekday — a Sunday at a branch that never opens on
@@ -265,9 +255,9 @@ export default function PlanVisitScreen() {
               </View>
             )}
 
-            {/* A branch with no served history yet has nothing to forecast from.
-                That is a real state on day one of a pilot, and saying so beats
-                rendering an empty "Best time by service" heading over nothing. */}
+            {/* A branch with no served history yet has nothing to recommend
+                from. That is a real state on day one of a pilot, and saying so
+                beats rendering an empty "For you" card over nothing. */}
             {plan.services.length === 0 ? (
               <EmptyState
                 icon="clock"
@@ -428,164 +418,6 @@ export default function PlanVisitScreen() {
                 </>
               );
             })()}
-
-            {/* per-service planner */}
-            <View style={[t.sectionRow, { marginTop: 22 }]}>
-              <Text style={t.section}>Best time by service</Text>
-              <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>{plan.services.length} services</Text>
-            </View>
-
-            {/* `planIsPremium`, not `premium`. The user record and the cached
-                response can disagree for a moment — starting a trial flips the
-                record immediately while the refetch is still in flight — and
-                rendering the premium layout against a free payload is what
-                blanked this screen. The server states what the payload IS, so
-                the layout follows that and converges when the refetch lands. */}
-            {planIsPremium ? (
-              <View style={{ gap: 14 }}>
-                {plan.services.map(service => (
-                  <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                      <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
-                      {service.best && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.successSoft, borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
-                          <Ionicons name="time" size={12} color="#1f9d5f" />
-                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.successInk }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 14, marginTop: 10 }}>
-                      {service.best && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>~{Math.round(service.best.avg_wait)}m at the best time</Text>}
-                      {service.busiest && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.busy }}>Avoid {service.busiest.day_name.slice(0, 3)} {service.busiest.hour_label}</Text>}
-                    </View>
-                    <WeekStrip week={service.week} />
-
-                    {/* The heatmap is opt-in per service. Sixty-three cells is
-                        a lot of screen, and seven services expanded at once
-                        turns a plan into a scroll. The week strip above already
-                        answers "which day"; this answers "which hour", which is
-                        a question you only ask once you have picked the day. */}
-                    {!!service.grid?.length && (
-                      <>
-                        <TouchableOpacity
-                          onPress={() => setOpenHeatmap(openHeatmap === service.service_id ? null : service.service_id)}
-                          accessibilityRole="button"
-                          accessibilityState={{ expanded: openHeatmap === service.service_id }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}
-                        >
-                          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.accent }}>
-                            {openHeatmap === service.service_id ? 'Hide heatmap' : 'See heatmap'}
-                          </Text>
-                          <Ionicons
-                            name={openHeatmap === service.service_id ? 'chevron-up' : 'chevron-forward'}
-                            size={13}
-                            color={colors.accent}
-                          />
-                        </TouchableOpacity>
-
-                        {openHeatmap === service.service_id && (
-                          <View style={{ marginTop: 14 }}>
-                            <BusyHeatmap grid={service.grid} onSelect={setPickedCell} />
-                            {pickedCell && (
-                              <View style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 14 }}>
-                                <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, letterSpacing: 0.6 }}>
-                                  {DAY_FULL[pickedCell.dow].toUpperCase()}S · {hourLabel(pickedCell.hour)}
-                                </Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-                                  <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>
-                                    {LEVEL_WORD[pickedCell.level]}
-                                  </Text>
-                                  <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accent }}>
-                                    ~{Math.round(pickedCell.avg_wait)}m
-                                  </Text>
-                                </View>
-                                {/* The sample size is shown because it is the
-                                    difference between a finding and a guess —
-                                    and the reader is entitled to judge it. */}
-                                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 3 }}>
-                                  Based on {pickedCell.visits} visits
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        )}
-                      </>
-                    )}
-                    <TouchableOpacity
-                      onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
-                      style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
-                    >
-                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>Join this line now →</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              /* FREE TIER, tiered the way the design tiers it.
-
-                 The service and its best time are NOT behind the paywall. The
-                 locked panel in Predictive Insights covers the heatmap, and
-                 everything above it stays readable — so a free customer gets a
-                 real answer ("Friday 1 PM, about 1 minute") and what they pay
-                 for is the depth behind it.
-
-                 The first version of this blurred the whole list, which hid the
-                 one thing the screen is named after. A paywall that withholds
-                 the headline does not sell the product, it hides it. */
-              <View style={{ gap: 14 }}>
-                {plan.services.map(service => (
-                  <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                      <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
-                      {service.best && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.successSoft, borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
-                          <Ionicons name="time" size={12} color={colors.successInk} />
-                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.successInk }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {service.best && (
-                      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 10 }}>
-                        ~{Math.round(service.best.avg_wait)}m at the best time
-                      </Text>
-                    )}
-
-                    {/* The depth — the seven-day strip and the hour grid — is
-                        what the subscription buys, so this is where the frost
-                        goes. Rendered at the real height so the card does not
-                        change shape when somebody subscribes. */}
-                    <View style={{ marginTop: 14 }}>
-                      <PremiumLock
-                        locked
-                        radius={16}
-                        headline="See every hour of every day"
-                        error={trialError}
-                        trialBusy={trialBusy}
-                        onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
-                        unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined
-                          : 'Premium arrives with the first App Store release.'}
-                      >
-                        <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 10 }}>
-                          {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                            <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-                              <View style={{ width: '100%', height: 38, borderRadius: 9, backgroundColor: i % 3 === 0 ? colors.border : colors.borderSoft }} />
-                              <View style={{ width: 16, height: 7, borderRadius: 4, backgroundColor: colors.borderSoft }} />
-                            </View>
-                          ))}
-                        </View>
-                      </PremiumLock>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
-                      style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
-                    >
-                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>Join this line now →</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
             </>
             )}
           </>

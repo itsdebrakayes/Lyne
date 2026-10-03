@@ -8,7 +8,7 @@
 #  file exists to make impossible.
 #
 #  Run from the repository root on the droplet:
-#      docker compose -f deploy/docker-compose.prod.yml up -d
+#      docker compose --project-directory . -f deploy/docker-compose.prod.yml up -d
 #  or just use deploy/deploy.sh, which does that plus the checks around it.
 #
 #  Nothing here publishes a port except Caddy. The API is reachable only through
