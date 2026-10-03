@@ -151,7 +151,7 @@ you took before applying it.
 
 | Symptom | Where to look first |
 |---|---|
-| API restarts in a loop | `docker compose -f deploy/docker-compose.prod.yml logs api` — "Connections using insecure transport are prohibited" means `MYSQL_SSL`/`MYSQL_SSL_CA` are not right |
+| API restarts in a loop | `docker compose --project-directory . -f deploy/docker-compose.prod.yml logs api` — "Connections using insecure transport are prohibited" means `MYSQL_SSL`/`MYSQL_SSL_CA` are not right |
 | HTTPS never comes up | `... logs caddy` — nearly always DNS not yet pointing here, or 80/443 blocked |
 | Connection refused by the database | The droplet is not on the database's trusted sources list |
 | Live queue screens never update | SSE is being buffered — confirm `flush_interval -1` is still in the Caddyfile |

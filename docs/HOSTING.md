@@ -182,8 +182,8 @@ The API is a **built image** — backend source changes do not take effect until
 is rebuilt.
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml build api
-docker compose -f deploy/docker-compose.prod.yml up -d
+docker compose --project-directory . -f deploy/docker-compose.prod.yml build api
+docker compose --project-directory . -f deploy/docker-compose.prod.yml up -d
 ```
 
 > **A managed database refuses plaintext connections.** Both the API and the

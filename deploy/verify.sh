@@ -39,7 +39,9 @@ systemctl is-active --quiet fail2ban && ok "fail2ban is running" || no "fail2ban
 systemctl is-enabled --quiet unattended-upgrades && ok "unattended security upgrades enabled" || no "unattended upgrades are off"
 
 head_ "Containers"
-COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
+# --project-directory $ROOT for the same reason as deploy.sh: the compose file's
+# paths are relative to the repo root, not to deploy/. ROOT is set at the top.
+COMPOSE="docker compose --project-directory $ROOT -f deploy/docker-compose.prod.yml"
 for svc in caddy api model-worker; do
   state="$($COMPOSE ps --format '{{.Service}} {{.State}}' 2>/dev/null | awk -v s="$svc" '$1==s{print $2}')"
   [ "$state" = "running" ] && ok "$svc is running" || no "$svc is ${state:-absent}"

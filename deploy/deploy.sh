@@ -14,7 +14,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
+# --project-directory is not cosmetic. Every path inside the compose file is
+# written relative to the REPOSITORY ROOT (./apps/backend, ./secrets/mysql-ca.crt,
+# ./deploy/Caddyfile), but Compose resolves relative paths against the directory
+# the compose FILE lives in — deploy/ — so without this the build looks for
+# /srv/lyne/deploy/apps/model and dies with "path not found". Running from $ROOT
+# is not enough; the compose file's own location is what Compose uses.
+#
+# This does not rename anything: the compose file sets `name: lyne-prod` and every
+# service sets container_name explicitly, so the project and containers are
+# identified the same way before and after.
+COMPOSE="docker compose --project-directory $ROOT -f deploy/docker-compose.prod.yml"
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -123,7 +133,7 @@ if curl -fsS --max-time 15 "https://${API_DOMAIN}/health" >/dev/null; then
 else
   echo "    NOT answering yet over HTTPS."
   echo "    If this is the first deploy, Caddy may still be getting its certificate;"
-  echo "    give it a minute, then:  docker compose -f deploy/docker-compose.prod.yml logs caddy"
+  echo "    give it a minute, then:  docker compose --project-directory . -f deploy/docker-compose.prod.yml logs caddy"
   echo "    If it persists, the usual cause is DNS: ${API_DOMAIN} must resolve to this droplet."
 fi
 
