@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
+import MessageComposer from '../components/MessageComposer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
@@ -332,6 +333,20 @@ export default function LineStaffDashboard() {
           : tab === 'readiness' ? <StaffReadinessWorkspace service={readinessServiceId ? { id: readinessServiceId, name: service || 'Assigned service' } : null} />
             : lineTab(tab, (k) => setTab(k))}
       </LineDataProvider>
+      {/* The reply box for a message opened from the bell. It lives at the
+          dashboard level rather than inside the popover because the popover
+          closes the moment an item is clicked. */}
+      {notify.replyTo ? (
+        <MessageComposer
+          target={{
+            mode: 'reply',
+            inReplyTo: notify.replyTo.id,
+            label: notify.replyTo.from,
+            quoted: notify.replyTo.quoted,
+          }}
+          onClose={notify.closeReply}
+        />
+      ) : null}
     </QxShell>
   );
 }

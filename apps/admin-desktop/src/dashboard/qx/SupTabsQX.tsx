@@ -18,8 +18,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, ChevronDown, Clock, Coffee, Headphones, Mail,
-  MessageSquare, Users, Zap, PlayCircle,
-} from 'lucide-react';
+  MessageSquare, Users, Zap, PlayCircle, CalendarClock } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Focus, Note, Heatmap,
   Chip, Ring, Selection, avatarStyle, initials,
@@ -44,9 +43,33 @@ export type SupTargetRow = {
   goodWhen: 'up' | 'down'; help: string;
 };
 
+/** What the period pills select, summed over the chosen window.
+ *
+ *  This exists because the pills did not. They were rendered on every tab of
+ *  this dashboard and read by nothing: the dashboard computed the window
+ *  totals, named the variables, and then passed none of them down. Clicking
+ *  "30 Days" changed one label and not a single number.
+ *
+ *  Every OTHER supervisor tab is deliberately live — the Section Board says
+ *  "right now" and "Served Today" carries a comment explaining why it must not
+ *  be period-labelled. So a window belongs on exactly one tab, Busy Times,
+ *  which is already the tab about time rather than about this minute. The pills
+ *  render there and nowhere else, the same way the Sessions tab already
+ *  suppresses them. */
+export type SupWindow = {
+  /** e.g. "Aug 2 – August 31, 2026", or "Today". */
+  label: string;
+  days: number;
+  visitors: number;
+  completed: number;
+  noShows: number;
+};
+
 export type SupTabData = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
+  /** Absent when there is no analytics history to sum. */
+  window?: SupWindow;
   sectionName: string; branchName: string; supervisorName: string;
   desks: SupDesk[];
   staff: SupStaff[];
@@ -119,6 +142,7 @@ export const SUP_FIXTURES: SupTabData = {
   assigned: {}, onAssign: () => {},
   sectionNames: [...new Set(FX_DESKS.map((x) => x.svc))],
   sparks: { waiting: [4, 7, 11, 14, 16, 17], wait: [24, 29, 33, 37, 39, 41], served: [6, 19, 37, 61, 80, 96], covered: [5, 5, 4, 4, 3, 3] },
+  window: { label: 'Today', days: 1, visitors: 112, completed: 96, noShows: 9 },
 };
 
 export const SUP_EMPTY: SupTabData = {
@@ -456,6 +480,46 @@ export function SupBusyTab() {
       <Stat span={4} icon={Users} label="Desks In This Section" value={d.desks.length}
         foot={`${d.desks.filter((x) => x.staffId).length} covered right now`} />
 
+      {/* The period window, and the only place on this dashboard where the
+          Today / 7 Days / 30 Days pills mean anything. Summed from the
+          analytics summary rows for this branch, which are already fetched
+          over a wide window — so this needed no new request, only wiring.
+          Hidden rather than zero-filled when there is no history: three zeros
+          under a date range reads as a bad month, not as no data. */}
+      {d.window ? (
+        <>
+          <Stat span={4} icon={CheckCircle2} label={`Served · ${d.window.label}`}
+            value={d.window.completed}
+            foot={d.window.days > 1 ? `Across ${d.window.days} days` : 'Finished at a desk today'} />
+          <Stat span={4} icon={Users} label={`Joined The Line · ${d.window.label}`}
+            value={d.window.visitors}
+            foot={d.window.visitors > d.window.completed
+              ? `${d.window.visitors - d.window.completed} did not finish at a desk`
+              : 'Everyone who joined was served'} />
+          <Stat span={4} icon={Clock}
+            tone={d.window.visitors > 0 && d.window.noShows / d.window.visitors > 0.1 ? 'bad' : 'primary'}
+            label={`No-Shows · ${d.window.label}`}
+            value={d.window.noShows}
+            chip={d.window.visitors > 0
+              ? { dir: d.window.noShows / d.window.visitors > 0.1 ? 'bad' : 'good',
+                  text: `${Math.round((d.window.noShows / d.window.visitors) * 100)}%` }
+              : undefined}
+            foot="Called but not at the desk" />
+        </>
+      ) : (
+        /* Absent is not the same as zero, and it is not the same as nothing
+           either. A day is summarised by the analytics job after the fact, so
+           the current day has no row until the first refresh of it lands —
+           which means picking "Today" early in the morning used to make three
+           cards disappear and look exactly like a pill that does nothing. Say
+           which window is empty and why. */
+        <Card span={12} title="No Completed Days In This Window">
+          <Note icon={CalendarClock}
+            title="Nothing finished in this range yet"
+            body="A day is totalled after it ends, so today's figures appear once the day is rolled up. The Section Board is live and unaffected — choose 7 Days or 30 Days to see finished days." />
+        </Card>
+      )}
+
       <Card span={12} title="When This Section Is Busy"
         cap="Visits per hour by desk. Cover the darkest cells; the pale ones are safe for breaks.">
         {/* Rows are SECTIONS, not desks. A section is the service (TRN); a desk
@@ -591,9 +655,16 @@ export function SupSupportTab() {
         <Card title="Ask Your Manager" cap="For anything set above this section">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Manager</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
-            <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
-            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+            {/* A real mailto, where this was a <button> with no onClick — four dead
+                controls sat on this panel. The phone row is gone rather than
+                relabelled: "(876) 555-0142" is a fabricated number (555 is a
+                reserved fictional exchange), and shipping one on a support page
+                is worse than offering no phone at all. Put it back when there is
+                a line that answers. */}
+            <a className="qx-btn ghost" href="mailto:customersupport@uselyne.com">
+              <Mail size={14} />customersupport@uselyne.com
+            </a>
+                        <button type="button" className="qx-btn ghost" onClick={replayTour}>
               <PlayCircle size={14} />Replay The Tour
             </button>
           </div>

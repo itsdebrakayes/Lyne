@@ -688,3 +688,35 @@ SET FOREIGN_KEY_CHECKS = 1;
 UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-taj-001';
 -- Any remaining branches fall back to the same demo window.
 UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE opening_time IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TEST ACCOUNT ENTITLEMENTS
+--
+-- These rows are not created here. A customer account only exists after someone
+-- signs up through Supabase and the app calls /auth/sync-user, so these are
+-- UPDATEs that do nothing until that has happened — which is why they are safe
+-- to run on every re-seed and safe on a database where the accounts were never
+-- created.
+--
+-- They exist because the demo kept drifting. user-premium@test.com — the account
+-- whose entire purpose is to show what a paying customer sees — was sitting at
+-- is_premium = 0 and had never been anything else, so Plan Your Visit showed it
+-- the locked state and the paywall. Meanwhile user@test.com had been flipped to
+-- 1 during testing and left there, so the two accounts demonstrated each other's
+-- state. Pinning both here means a re-seed restores the intended pair rather
+-- than preserving whatever the last session happened to leave behind.
+--
+-- premium_until is NULL deliberately: hasPremium() in lib/premium.js reads NULL
+-- as "a paid subscription with no end date" and a DATE as "a trial that
+-- expires". A demo account with a trial date would silently lapse mid-demo.
+UPDATE users
+   SET is_premium = 1, premium_until = NULL, trial_started_at = NULL,
+       subscription_plan = 'yearly', subscription_status = 'active'
+ WHERE email = 'user-premium@test.com';
+
+-- The deliberately-free account. Reset in full, so a trial started while
+-- testing does not leave it half-entitled.
+UPDATE users
+   SET is_premium = 0, premium_until = NULL, trial_started_at = NULL,
+       subscription_plan = NULL, subscription_status = NULL
+ WHERE email = 'user@test.com';

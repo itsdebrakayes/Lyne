@@ -52,7 +52,10 @@ const BODIES: Satellite[] = [
   { rx: 0.50, ry: 0.40, speed: 0.72, phase: 4.1, size: 4 },
 ];
 
-export function OrbitField({ size = 132, tone = 'dark' }: { size?: number; tone?: 'light' | 'dark' }) {
+/* onDarkSurface, not a theme flag — see the note on OfflineState. Default off
+   so a caller who omits it gets ink that is visible on the canvas, in either
+   theme, rather than a white sphere on a white page. */
+export function OrbitField({ size = 132, onDarkSurface = false }: { size?: number; onDarkSurface?: boolean }) {
   const reduced = useReducedMotion();
   const t = useSharedValue(0);
 
@@ -64,9 +67,8 @@ export function OrbitField({ size = 132, tone = 'dark' }: { size?: number; tone?
     );
   }, [reduced, t]);
 
-  const dark = tone === 'dark';
-  const body = dark ? '#ffffff' : colors.ink;
-  const ring = dark ? 'rgba(255,255,255,.14)' : 'rgba(12,24,38,.12)';
+  const body = onDarkSurface ? '#ffffff' : colors.ink;
+  const ring = onDarkSurface ? 'rgba(255,255,255,.14)' : colors.border;
   const core = size * 0.22;
 
   return (
@@ -93,7 +95,7 @@ export function OrbitField({ size = 132, tone = 'dark' }: { size?: number; tone?
           width: core, height: core, borderRadius: core / 2,
           backgroundColor: body,
           // A touch of lift so the core sits in front of its own orbits.
-          shadowColor: '#000', shadowOpacity: dark ? 0.5 : 0.18,
+          shadowColor: '#000', shadowOpacity: onDarkSurface ? 0.5 : 0.18,
           shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
         }}
       />

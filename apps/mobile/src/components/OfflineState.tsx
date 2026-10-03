@@ -19,18 +19,33 @@ import OrbitField from './OrbitField';
 
 export function OfflineState({
   onRetry,
-  tone = 'dark',
+  /**
+   * Set ONLY when this sits on `colors.dark` — the always-navy hero surface,
+   * which stays navy in both themes and so needs ink that does not adapt.
+   *
+   * It is off by default, and that default is the point. This used to take
+   * `tone` defaulting to `'dark'`, which hardcoded white text; every caller
+   * that placed it on the ordinary canvas got "No connection" in white on
+   * #f1f3f7 — the message rendered, was announced to screen readers, and was
+   * invisible to everyone else. The orbit illustration went with it.
+   *
+   * The deeper mistake was the prop existing in that shape at all. `colors` is
+   * a live binding the ThemeProvider swaps, so `colors.ink` is already dark on
+   * the light canvas and light on the dark one. Asking the caller to describe
+   * the theme duplicated something the tokens know, and the duplicate was the
+   * half that could be wrong.
+   */
+  onDarkSurface = false,
   /** Said above the fold on screens where the user holds a place. */
   reassure = true,
   /** Sized to sit inside a section of a page rather than to be the page. */
   compact,
 }: {
   onRetry?: () => void;
-  tone?: 'light' | 'dark';
+  onDarkSurface?: boolean;
   reassure?: boolean;
   compact?: boolean;
 }) {
-  const dark = tone === 'dark';
 
   return (
     <View
@@ -38,12 +53,12 @@ export function OfflineState({
       accessibilityLabel="You are offline"
       style={{ alignItems: 'center', paddingVertical: compact ? 22 : 40, paddingHorizontal: 20 }}
     >
-      <OrbitField tone={tone} size={compact ? 92 : 132} />
+      <OrbitField onDarkSurface={onDarkSurface} size={compact ? 92 : 132} />
 
-      <Text style={{ fontFamily: font.extra, fontSize: compact ? 18 : 24, letterSpacing: -0.8, color: dark ? '#fff' : colors.ink, textAlign: 'center', marginTop: compact ? 18 : 26 }}>
+      <Text style={{ fontFamily: font.extra, fontSize: compact ? 18 : 24, letterSpacing: -0.8, color: onDarkSurface ? '#fff' : colors.ink, textAlign: 'center', marginTop: compact ? 18 : 26 }}>
         No connection
       </Text>
-      <Text style={{ fontFamily: font.medium, fontSize: compact ? 13 : 14.5, lineHeight: compact ? 18.5 : 21, color: dark ? 'rgba(255,255,255,.55)' : colors.muted, textAlign: 'center', marginTop: 10, maxWidth: 300 }}>
+      <Text style={{ fontFamily: font.medium, fontSize: compact ? 13 : 14.5, lineHeight: compact ? 18.5 : 21, color: onDarkSurface ? 'rgba(255,255,255,.62)' : colors.muted, textAlign: 'center', marginTop: 10, maxWidth: 300 }}>
         {reassure
           ? 'Live waits need a connection, so they are paused. Anything you have already joined is held for you and will catch up on its own.'
           : 'This needs a connection. It will load as soon as you have one.'}

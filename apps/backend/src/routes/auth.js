@@ -25,6 +25,7 @@ const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
 const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
+const { profileSyncLimiter } = require('../middleware/rateLimiter');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
@@ -92,7 +93,7 @@ async function getStaffProfile(staffId) {
 // ── POST /api/auth/sync-user ──────────────────────────────────
 // Called after every Supabase signup / first login.
 // Idempotent: safe to call multiple times.
-router.post('/sync-user', requireAuth, validate(schemas.syncUser), async (req, res) => {
+router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.syncUser), async (req, res) => {
   try {
     /* national_id and trn are deliberately not read. This is the path signup
        takes, and it was the one that put a Jamaican citizen's TRN on our server

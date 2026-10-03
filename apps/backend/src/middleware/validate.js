@@ -252,6 +252,18 @@ const schemas = {
     request_type: z.string().max(50).optional(),
   }),
 
+  /* A note from one member of staff to another, or a reply to one.
+     `to` is a ROLE rather than a staff id — see the handler for why. */
+  staffMessage: z.object({
+    to:           z.enum(['executive', 'manager', 'supervisor', 'line_staff']).optional(),
+    branch_id:    idSchema.optional(),
+    subject:      z.string().max(120).optional(),
+    message:      z.string().min(1).max(2000),
+    in_reply_to:  idSchema.optional(),
+  }).refine((v) => v.to || v.in_reply_to, {
+    message: 'Either a recipient role or the message being replied to is required.',
+  }),
+
   attachPaymentMethod: z.object({
     payment_method_id: z.string().min(1).max(255),
   }),

@@ -22,6 +22,7 @@
  */
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SOCIAL_AUTH_ENABLED } from '../lib/features';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/ThemeProvider';
 import { colors, font } from '../lib/theme';
@@ -35,6 +36,13 @@ const PROVIDERS: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; si
 ];
 
 export function SocialAuthButtons() {
+  /* Version one ships email sign-in only. These buttons rendered disabled
+     under "Apple and Google sign-in arrive with the App Store release", which
+     is a placeholder feature announcing itself — Guideline 2.1. Returning null
+     rather than deleting the component keeps the finished UI ready for the day
+     the providers are wired. See lib/features.ts. */
+  if (!SOCIAL_AUTH_ENABLED) return null;
+
   const { scheme } = useTheme();
   const styles = useMemo(() => makeStyles(), [scheme]);
 

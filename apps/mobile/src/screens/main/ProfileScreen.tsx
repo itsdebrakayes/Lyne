@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { getDocument, setDocument } from '../../lib/documentVault';
+import { PREMIUM_ENABLED } from '../../lib/features';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, personInitials, inputReset, depthText } from '../../lib/theme';
 import Icon, { IconName } from '../../components/Icon';
@@ -229,7 +230,13 @@ export default function ProfileScreen() {
           { icon: 'clock', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
           { icon: 'bell', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
           { icon: 'appearance', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
-          { icon: 'financial', label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') },
+          /* Hidden in version one. The screen mentions Stripe and offers to
+             save a card, but payments are stubbed server-side and the
+             publishable key is empty — it advertises a purchase that cannot
+             happen. See lib/features.ts. */
+          ...(PREMIUM_ENABLED
+            ? [{ icon: 'financial' as IconName, label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') }]
+            : []),
           { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
           /* Both stores require the privacy policy to be readable inside the
              app, not just as a URL on the listing. LegalScreen held both

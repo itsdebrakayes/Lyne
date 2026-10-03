@@ -9,7 +9,7 @@
  * Notifications are per USER (notifications.user_id), so a staff member sees
  * what was addressed to them — including anything a manager sends a supervisor.
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import type { QxNotify, QxNotifyItem } from '@/design/ui';
@@ -21,6 +21,7 @@ type Row = {
   is_read?: boolean | number;
   sent_at?: string | null;
   ticket_number?: string | null;
+  sent_by_name?: string | null;
 };
 
 /** "12 min ago" / "3 hr ago" / "Tue" — short enough for the right edge of a row. */
@@ -46,6 +47,8 @@ const TITLES: Record<string, string> = {
   assignment_request: 'Counter assignment requested',
   staffing_alert: 'A line needs more staff',
   target_missed: 'A branch is over its target',
+  staff_message: 'A message for you',
+  staff_reply: 'A reply to your message',
 };
 
 /** Which ones deserve to look louder than the rest. */
@@ -63,8 +66,18 @@ function titleFor(row: Row) {
     || 'Notification';
 }
 
-export function useNotifications(): QxNotify & { unread: number } {
+/* The two types a person can answer. Anything else is the system telling you
+   something and has nobody to reply to. */
+const REPLYABLE = new Set(['staff_message', 'staff_reply']);
+
+export function useNotifications(): QxNotify & {
+  unread: number;
+  /** The message the viewer has chosen to reply to, if any. */
+  replyTo: { id: string; from: string; quoted: string } | null;
+  closeReply: () => void;
+} {
   const qc = useQueryClient();
+  const [replyTo, setReplyTo] = useState<{ id: string; from: string; quoted: string } | null>(null);
 
   const list = useQuery({
     queryKey: ['notifications'],
@@ -86,10 +99,24 @@ export function useNotifications(): QxNotify & { unread: number } {
   const items: QxNotifyItem[] = rows.map((r) => ({
     id: String(r.id),
     title: titleFor(r),
-    body: [r.message, r.ticket_number ? `Ticket ${r.ticket_number}` : null].filter(Boolean).join(' · ') || undefined,
+    body: [
+      r.sent_by_name ? `From ${r.sent_by_name}` : null,
+      r.message,
+      r.ticket_number ? `Ticket ${r.ticket_number}` : null,
+    ].filter(Boolean).join(' · ') || undefined,
     when: ago(r.sent_at),
     read: Boolean(Number(r.is_read)),
     kind: KINDS[String(r.notification_type || '')] ?? 'info',
+    /* A message from a person opens a reply box. Without this the bell was a
+       read-only list: a manager could be told "approved for October" and have
+       no way to answer from the place they read it. */
+    onOpen: REPLYABLE.has(String(r.notification_type || '')) && r.sent_by_name
+      ? () => setReplyTo({
+          id: String(r.id),
+          from: String(r.sent_by_name),
+          quoted: String(r.message || ''),
+        })
+      : undefined,
   }));
 
   const onRead = useCallback((id: string) => {
@@ -103,5 +130,7 @@ export function useNotifications(): QxNotify & { unread: number } {
     onRead,
     onReadAll: () => readAll.mutate(),
     unread: items.filter((n) => !n.read).length,
+    replyTo,
+    closeReply: () => setReplyTo(null),
   };
 }

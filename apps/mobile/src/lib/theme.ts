@@ -77,6 +77,11 @@ const lightColors = {
   warnSoft: '#fdf3e7',
   dangerSoft: '#fdeceb',
 
+  /* The frosted-panel wash behind a paywall overlay. Must be the SAME
+     lightness family as the surface under it, or the overlay reads as a
+     bright patch in dark mode and its ink — which is theme-aware — ends up
+     white on near-white. See PremiumLock. */
+  scrim: 'rgba(241,243,247,0.72)',
   onDark: '#ffffff',
 };
 
@@ -132,6 +137,7 @@ const darkColors: Palette = {
   warnSoft: 'rgba(245,184,62,0.15)',
   dangerSoft: 'rgba(239,90,95,0.16)',
 
+  scrim: 'rgba(8,14,22,0.74)',
   onDark: '#ffffff',
 };
 

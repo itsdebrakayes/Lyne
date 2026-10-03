@@ -170,7 +170,7 @@ export function Section({
          no signal: nothing went wrong with the section, and retrying will fail
          identically until the connection comes back. Name the real cause — one
          change here covers every section in the app. */
-      if (offline) return <OfflineState compact tone="light" reassure={false} onRetry={onRetry} />;
+      if (offline) return <OfflineState compact reassure={false} onRetry={onRetry} />;
       return (
         <ErrorCard
           compact
