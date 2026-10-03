@@ -21,3 +21,14 @@ test
 coverage
 *.log
 npm-debug.log*
+
+# Demo seeding. deploy/README.md says "production builds strip it" and until now
+# that was not true: the Dockerfile ends in `COPY . .`, so the re-seed script and
+# the demo SQL it reads were baked into the production image. It cannot RUN there
+# — index.js gates it on ALLOW_DEMO_DATA_REFRESH and refuses outright when
+# NODE_ENV is production — but code that writes demo businesses, branches, staff
+# and tickets has no business being inside a production image at all, and the
+# require() in index.js is wrapped in a try/catch precisely so it can be absent.
+# The file stays in the repo because the e2e suite runs it from a checkout.
+scripts/refresh-demo-data.js
+scripts/sync-demo-test-accounts.js

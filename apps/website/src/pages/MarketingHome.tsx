@@ -333,7 +333,12 @@ const plans = [
     href: "#pricing",
   },
   {
-    name: "Pro",
+    /* "Premium", not "Pro". The mobile app, the Terms, the Refund Policy and
+       the database column all say Premium, and the app is where the purchase
+       actually happens — so Premium is the name Apple and Google display on the
+       receipt. A reviewer compares the listing to the policy; this was the one
+       surface out of step. */
+    name: "Premium",
     price: { m: "$9.99/mo", y: "$95.90/yr" },
     desc: "For people who wait often and want more control.",
     features: ["Everything in Free", "Priority alerts when it is nearly your turn", "Favourites with branch wait times", "Your own wait history and trends", "Track more than one line at a time"],

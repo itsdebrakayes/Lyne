@@ -12,7 +12,14 @@ These Terms are between you and **[REGISTERED COMPANY NAME]** ("Lyne", "we", "us
 
 By creating an account or using Lyne you accept these Terms and our [Privacy Policy](./PRIVACY_POLICY.md). **If you do not accept them, do not use the service.**
 
-You must be **18 or over**, or have the consent of a parent or guardian who accepts these Terms on your behalf.
+You must be **18 or over** to use Lyne.
+
+We do not offer accounts to under-18s, and we do not knowingly collect their
+data — the Privacy Policy says the same. An earlier draft allowed a parent or
+guardian to consent on a minor's behalf; that is removed, because we have no way
+to verify such consent, and a permission we cannot check is not a safeguard.
+Children's data carries stricter obligations under the Data Protection Act, and
+the honest position is that this service is not built for them.
 
 ## 2. What Lyne is — and what it is not
 
@@ -66,11 +73,21 @@ You are never required to provide them to use Lyne.
 Premium unlocks additional features, currently including detailed best-time-to-visit forecasting.
 
 - Price, billing period and any trial are shown **before** you buy.
-- Purchases made in the iOS app are processed by **Apple**, and Apple's terms and refund policy govern them. Manage or cancel through your Apple ID settings.
-- Purchases made elsewhere are processed by our payment provider and governed by these Terms.
+- **Premium, bought inside the mobile app**, is processed by **Apple** or
+  **Google**, never by us. Their terms and refund policies govern it, and you
+  manage or cancel it in your Apple ID or Google Play subscription settings —
+  both stores require it to work that way and neither lets us cancel on your
+  behalf. We never see your card.
+- **An organisation subscription to the administrator application** is a
+  separate, invoiced agreement between us and that organisation. It is not sold
+  through the app, and sections 19 onward govern it.
+
+There is no third route. If you are asked to enter card details anywhere else
+claiming to be Lyne, it is not us. See the [Refund and Cancellation Policy](/refunds)
+for who issues a refund in each case.
 - Subscriptions **renew automatically** unless cancelled before the period ends.
 - Cancelling stops future renewals; you keep Premium until the paid period ends.
-- We may change pricing with at least **[30] days'** notice before it affects you.
+- We may change pricing with at least **30 days'** notice before it affects you.
 - Premium improves the *information* you get. **It does not buy you priority in any queue**, and it never will — agencies control their own order of service.
 
 ## 7. Availability
@@ -96,8 +113,8 @@ Subject to that:
 - We are not liable for indirect or consequential loss, or for lost time, income, opportunity or data.
 - Where liability cannot be excluded, our **aggregate** liability to you for all
   claims arising in any 12-month period — however they arise, whether in
-  contract, negligence or otherwise — is limited to the greater of **[the amount
-  you paid us in that period]** and **[JMD 10,000]**.
+  contract, negligence or otherwise — is limited to the greater of **the amount
+  you paid us in that period** and **JMD 10,000**.
 
 ### 9.1 Claims must be brought promptly
 
@@ -143,7 +160,7 @@ Sections that by their nature should survive termination (8, 9, 10, 13) do.
 
 ## 12. Changes to these Terms
 
-We will update these Terms as the service develops. For **material** changes we'll give notice in the app or by email at least **[14] days** before they take effect.
+We will update these Terms as the service develops. For **material** changes we'll give notice in the app or by email at least **14 days** before they take effect.
 
 Continuing to use Lyne after that is acceptance. If you don't accept, stop using the service and delete your account — that is always available to you.
 
@@ -250,9 +267,9 @@ is a deliberate property of the product, not a promise about uptime.
 Fees, the billing period and any minimum term are set out in the order. Unless
 that says otherwise: fees are payable in advance, quoted exclusive of GCT and
 any other applicable tax, and we may adjust them at renewal with at least
-**[60] days'** notice.
+**60 days'** notice.
 
-We may suspend service for undisputed fees more than **[30] days** overdue,
+We may suspend service for undisputed fees more than **30 days** overdue,
 after written notice and a reasonable chance to put it right.
 
 ## 22. Confidentiality
@@ -266,13 +283,13 @@ will give notice where it lawfully can.
 ## 23. Term and termination
 
 The agreement runs for the term stated in the order and renews for successive
-equal periods unless either party gives **[30] days'** notice before renewal.
+equal periods unless either party gives **30 days'** notice before renewal.
 
 Either party may terminate immediately for material breach not cured within
-**[30] days** of written notice, or on the other's insolvency.
+**30 days** of written notice, or on the other's insolvency.
 
 On termination we will make the organisation's data available for export for
-**[30] days**, then delete it in accordance with §18.
+**30 days**, then delete it in accordance with §18.
 
 ## 23A. Organisation's indemnity
 
