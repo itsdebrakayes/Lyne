@@ -170,6 +170,12 @@ function hourLabel(hour) {
   return hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`;
 }
 
+/** "8a", "12p", "4p" — the axis under the today bars, where "12:00 PM" will not fit. */
+function shortHourLabel(hour) {
+  if (hour === 12) return '12p';
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+}
+
 function quietLevel(avgWait, min, max) {
   if (max <= min) return 1;
   const ratio = (avgWait - min) / (max - min);
@@ -319,6 +325,77 @@ router.get('/best-times', optionalAuth, async (req, res) => {
       [...wellEvidenced(branchSlots)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
     );
 
+    /* ── TODAY, HOUR BY HOUR ──────────────────────────────────────────────
+       The hero of "Plan your visit": one bar per opening hour of the day it
+       actually is, with the quietest marked. Branch-wide, not per service,
+       which is what makes it free — the same reasoning as branch_best above.
+       Somebody who has not paid still gets a real answer to "when should I go
+       today", and what the subscription buys is the same question answered per
+       service and across the whole week.
+
+       Built from branchSlots, which is already every (day, hour) cell averaged
+       across services and weighted by visits, so this costs no extra query. */
+    const todayDow = new Date().getDay();
+    let shownDow = todayDow;
+    let todayHours = branchSlots
+      .filter((slot) => slot.dow === todayDow)
+      .sort((a, b) => a.hour - b.hour);
+
+    /* A BRANCH THAT DOES NOT OPEN TODAY STILL HAS A SHAPE WORTH SHOWING.
+       Nineteen of the demo's thirty-two branches have no Saturday history —
+       a traffic court does not sit on a Saturday, which is correct rather than
+       missing — and the card simply vanished on those, taking the hero of the
+       screen with it on any weekend.
+
+       So when today has nothing, fall back to the branch's best-evidenced day
+       and SAY WHICH DAY IT IS. The client switches its heading from "BEST TIME
+       TODAY · SATURDAY" to "A TYPICAL MONDAY", which is a different and still
+       true claim. Labelling Monday's pattern as today's would be the one
+       unacceptable option. */
+    if (!todayHours.length) {
+      const visitsByDow = new Map();
+      branchSlots.forEach((slot) => {
+        visitsByDow.set(slot.dow, (visitsByDow.get(slot.dow) || 0) + slot.visits);
+      });
+      const fallbackDow = [...visitsByDow.entries()]
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (fallbackDow !== undefined) {
+        shownDow = fallbackDow;
+        todayHours = branchSlots
+          .filter((slot) => slot.dow === fallbackDow)
+          .sort((a, b) => a.hour - b.hour);
+      }
+    }
+    const todayWaits = todayHours.map((h) => h.avg_wait);
+    const todayMin = todayWaits.length ? Math.min(...todayWaits) : 0;
+    const todayMax = todayWaits.length ? Math.max(...todayWaits) : 0;
+    /* The quietest hour with real evidence behind it, not simply the lowest
+       number — two lucky visits at 4pm should not beat a calm 10am backed by
+       two hundred. Same MIN_CELL_VISITS rule the rest of this endpoint uses. */
+    const todayBestSlot = todayHours.length
+      ? [...wellEvidenced(todayHours)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
+      : null;
+
+    const today = todayHours.length ? {
+      dow: shownDow,
+      day_name: DAY_NAMES[shownDow],
+      /* False means "this branch has no history for today, so this is another
+         day's pattern" — the client must not call it today. */
+      is_today: shownDow === todayDow,
+      best: decorate(todayBestSlot),
+      hours: todayHours.map((h) => ({
+        hour: h.hour,
+        hour_label: shortHourLabel(h.hour),
+        avg_wait: h.avg_wait,
+        visits: h.visits,
+        level: quietLevel(h.avg_wait, todayMin, todayMax),
+        /* So the client does not have to find the maximum to size a bar, and
+           every client sizes them the same way. */
+        intensity: todayMax > 0 ? Math.round((h.avg_wait / todayMax) * 100) / 100 : 0,
+        is_best: todayBestSlot ? h.hour === todayBestSlot.hour : false,
+      })),
+    } : null;
+
     /* THE ACTUAL PAYWALL. One definition of entitlement — hasPremium() — shared
        with every other paid surface, so a lapsed trial cannot read as current
        here while reading as expired everywhere else.
@@ -333,6 +410,8 @@ router.get('/best-times', optionalAuth, async (req, res) => {
     res.json({
       window_days: 90,
       branch_best: branchBest || null,
+      /* Free, like branch_best — see the note where it is built. */
+      today,
       /* Named so the client does not have to infer it from absent fields, and
          so a future caller cannot mistake "no history" for "not paid". */
       premium: entitled,

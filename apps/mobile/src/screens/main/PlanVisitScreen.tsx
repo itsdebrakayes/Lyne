@@ -21,12 +21,20 @@ import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
+import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
 import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
 
 interface BestSlot { dow: number; hour: number; visits: number; avg_wait: number; day_name: string; hour_label: string }
+interface TodayPlan {
+  dow: number;
+  day_name: string;
+  is_today?: boolean;
+  best: BestSlot | null;
+  hours: ForecastHour[];
+}
 interface WeekDay { dow: number; day_name: string; avg_wait: number | null; level: 0 | 1 | 2 | 3 }
 interface ServicePlan {
   service_id: string;
@@ -38,7 +46,21 @@ interface ServicePlan {
   quietest_day?: { dow: number; day_name: string; avg_wait: number } | null;
   week: WeekDay[];
 }
-interface BestTimes { window_days: number; branch_best?: BestSlot | null; services: ServicePlan[] }
+interface BestTimes {
+  window_days: number;
+  branch_best?: BestSlot | null;
+  /** Today's hourly shape — free, see the note in routes/predictions.js. */
+  today?: TodayPlan | null;
+  /** The server says so explicitly rather than leaving it to be inferred. */
+  premium?: boolean;
+  services: ServicePlan[];
+}
+
+/** "2 PM" given 14 — the end of the best-time window on the forecast card. */
+const nextHourLabel = (hour: number) => {
+  const h = (hour + 1) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+};
 
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const LEVEL_WORD: Record<number, string> = { 1: 'Quiet', 2: 'Busy', 3: 'Peak' };
@@ -150,29 +172,53 @@ export default function PlanVisitScreen() {
 
         {plan && (
           <>
-            {/* branch headline — free for everyone */}
-            <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="time-outline" size={21} color={colors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
-                  {plan.branch_best ? (
-                    <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', marginTop: 3 }}>{plan.branch_best.day_name}s · {plan.branch_best.hour_label}</Text>
-                  ) : (
-                    <Text style={{ fontFamily: font.extra, fontSize: 16, color: '#fff', marginTop: 3 }}>Not enough visits yet</Text>
+            {/* TODAY, HOUR BY HOUR — screen 01 of the Predictive Insights
+                design, and free for everyone.
+
+                What was here answered "which DAY is quietest at this branch",
+                which is a planning question. The one almost everybody opening
+                this screen actually has is "when should I go today", and a row
+                of bars with NOW and BEST on it answers that at a glance with
+                nothing to read. The day-level answer is still below, per
+                service, where it belongs.
+
+                Falls back to the old headline when the branch has no history
+                for today's weekday — a Sunday at a branch that never opens on
+                Sunday is a real case, not a failure. */}
+            {plan.today?.hours?.length ? (
+              <TodayForecast
+                dayName={plan.today.day_name}
+                isToday={plan.today.is_today !== false}
+                bestLabel={plan.today.best
+                  ? `${plan.today.best.hour_label} – ${nextHourLabel(plan.today.best.hour)}`
+                  : undefined}
+                bestWait={plan.today.best?.avg_wait}
+                hours={plan.today.hours}
+              />
+            ) : (
+              <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="time-outline" size={21} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
+                    {plan.branch_best ? (
+                      <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', marginTop: 3 }}>{plan.branch_best.day_name}s · {plan.branch_best.hour_label}</Text>
+                    ) : (
+                      <Text style={{ fontFamily: font.extra, fontSize: 16, color: '#fff', marginTop: 3 }}>Not enough visits yet</Text>
+                    )}
+                  </View>
+                  {plan.branch_best && (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.accent }}>{Math.round(plan.branch_best.avg_wait)}<Text style={{ fontSize: 12 }}>m</Text></Text>
+                      <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>typical wait</Text>
+                    </View>
                   )}
                 </View>
-                {plan.branch_best && (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.accent }}>{Math.round(plan.branch_best.avg_wait)}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                    <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>typical wait</Text>
-                  </View>
-                )}
+                <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
               </View>
-              <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
-            </View>
+            )}
 
             {/* A branch with no served history yet has nothing to forecast from.
                 That is a real state on day one of a pilot, and saying so beats
