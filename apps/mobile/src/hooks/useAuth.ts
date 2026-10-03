@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import api, { supabase, isOffline } from '../lib/apiClient';
+import api, { supabase, isTransient } from '../lib/apiClient';
 import { clearAllDocuments } from '../lib/documentVault';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
@@ -148,7 +148,10 @@ export const useAuth = () => {
 
          A refusal still signs them out, because that one is real: the server
          looked at the token and said no. */
-      if (isOffline(error)) {
+      /* isTransient, not isOffline. A 429 or a 5xx reached the server but says
+         nothing about who the caller is, and treating either as a refusal is
+         what was signing people out — see isTransient's note in apiClient. */
+      if (isTransient(error)) {
         setUnreachable(true);
       } else {
         syncedUid.current = null;

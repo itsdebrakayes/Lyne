@@ -153,6 +153,110 @@ router.post('/staff-request', requireAuth, requireStaffRole('manager', 'executiv
   }
 });
 
+/**
+ * POST /api/notifications/staff-message — a note from one member of staff to
+ * another, and the reply to it.
+ *
+ * The Help & Support panels on the manager and executive dashboards each
+ * carried a "Message Your Executive" / "Start A Conversation" button with no
+ * onClick. They rendered, they highlighted on hover, and they did nothing —
+ * which is worse than their absence, because somebody with a real question
+ * spends their one attempt on them and concludes the product ignores them.
+ *
+ * ADDRESSED BY ROLE, NOT BY PERSON, for the same reason /staff-request is: an
+ * executive is a post, not an individual, and a manager asking "can we raise
+ * the counter target" wants whoever holds that post today — not a name they
+ * picked from a list who may be on leave. Every active holder of the role in
+ * the sender's own business receives it.
+ *
+ * A REPLY is the one case that is addressed to a person: it goes back to
+ * whoever sent the message being replied to, and only the actual recipient of
+ * that message may send it. Without that check, any member of staff who could
+ * guess a notification id could inject a message into a conversation they were
+ * never part of.
+ */
+router.post('/staff-message', requireAuth, validate(schemas.staffMessage), async (req, res) => {
+  try {
+    const from = req.dbStaff;
+    if (!from) return res.status(403).json({ error: 'Staff account required.' });
+
+    const { to, branch_id: branchId, subject, message, in_reply_to: inReplyTo } = req.body || {};
+    const body = String(message || '').trim();
+    if (!body) return res.status(400).json({ error: 'message is required.' });
+
+    let recipients = [];
+    let type = 'staff_message';
+
+    if (inReplyTo) {
+      /* Only the person the original was addressed to may reply to it, and the
+         reply goes to its sender. Both halves are checked in one query so a
+         forged id cannot reach anybody. */
+      const [[original]] = await pool.query(
+        `SELECT n.sent_by_staff_id, s.business_id
+           FROM notifications n
+           JOIN staff s ON s.id = n.sent_by_staff_id
+          WHERE n.id = ? AND n.staff_id = ?
+          LIMIT 1`,
+        [inReplyTo, from.id]
+      );
+      if (!original || !original.sent_by_staff_id) {
+        return res.status(404).json({ error: 'That message is not one you can reply to.' });
+      }
+      if (String(original.business_id) !== String(from.business_id)) {
+        return res.status(403).json({ error: 'That message is not one you can reply to.' });
+      }
+      recipients = [{ id: original.sent_by_staff_id }];
+      type = 'staff_reply';
+    } else {
+      /* Scoped to the sender's own business, always. For a role that belongs to
+         a branch, scoped to a branch as well — otherwise "message the manager"
+         from one branch pages every manager in the company. An executive is
+         company-wide and has no branch. */
+      const branchScoped = to === 'manager' || to === 'supervisor' || to === 'line_staff';
+      const targetBranch = branchId || from.branch_id;
+      if (branchScoped && !targetBranch) {
+        return res.status(400).json({ error: 'branch_id is required for that recipient.' });
+      }
+
+      const params = [to, from.business_id];
+      let sql = `SELECT s.id
+                   FROM staff s
+                   JOIN roles r ON r.id = s.role_id
+                  WHERE r.name = ? AND s.is_active = TRUE AND s.business_id = ?`;
+      if (branchScoped) { sql += ' AND s.branch_id = ?'; params.push(targetBranch); }
+      sql += ' AND s.id <> ?'; params.push(from.id);
+
+      const [rows] = await pool.query(sql, params);
+      recipients = rows;
+
+      if (!recipients.length) {
+        /* Say so rather than reporting a send that reached nobody — the old
+           button at least failed silently in a way nobody could misread as
+           success. */
+        return res.status(404).json({
+          error: `No active ${String(to).replace('_', ' ')} is set up to receive this yet.`,
+        });
+      }
+    }
+
+    const text = subject ? `${String(subject).trim()}: ${body}` : body;
+    const values = recipients.map((r) => [
+      uuidv4(), null, r.id, from.id, null, type, 'in_app', text, false, new Date(),
+    ]);
+    await pool.query(
+      `INSERT INTO notifications
+         (id, user_id, staff_id, sent_by_staff_id, ticket_id, notification_type, channel, message, is_read, sent_at)
+       VALUES ?`,
+      [values]
+    );
+
+    res.status(201).json({ message: 'Sent.', recipients: recipients.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send the message.' });
+  }
+});
+
 router.put('/:id/read', requireAuth, async (req, res) => {
   try {
     await pool.query(

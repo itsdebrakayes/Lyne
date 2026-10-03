@@ -9,7 +9,8 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { hasPremium } = require('../lib/premium');
 const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
@@ -169,6 +170,12 @@ function hourLabel(hour) {
   return hour < 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`;
 }
 
+/** "8a", "12p", "4p" — the axis under the today bars, where "12:00 PM" will not fit. */
+function shortHourLabel(hour) {
+  if (hour === 12) return '12p';
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+}
+
 function quietLevel(avgWait, min, max) {
   if (max <= min) return 1;
   const ratio = (avgWait - min) / (max - min);
@@ -186,7 +193,15 @@ function wellEvidenced(slots) {
   return solid.length ? solid : slots;
 }
 
-router.get('/best-times', async (req, res) => {
+/* optionalAuth, not requireAuth. The branch-level headline below is genuinely
+   free and the screen renders it before anyone signs in, so a token is not
+   required to reach this. It IS required to get anything premium, which is the
+   part that was missing: every caller, signed in or not, was handed the full
+   per-service breakdown — best hour, busiest hour, the seven-day strip and all
+   sixty-three heatmap cells. The paywall existed only in the mobile client, as
+   a drawing. Anyone who opened the URL got the whole product for nothing, and
+   so did any free account. */
+router.get('/best-times', optionalAuth, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id || !branch_id) {
@@ -247,6 +262,32 @@ router.get('/best-times', async (req, res) => {
       }));
       const quietestDay = known.sort((a, b) => a.avg_wait - b.avg_wait)[0];
 
+      /* The day x hour grid, which this endpoint computed and then threw away.
+         The heatmap needs it, and recomputing it on the client would mean
+         shipping the raw visit history to the phone — far more data, and a
+         second place for the thresholds to drift.
+
+         `level` is assigned by the SAME quietLevel() the week strip uses, over
+         the same min/max for this service. That matters: two scales for "busy"
+         on one screen is incoherent, and a cell could read quiet in the heatmap
+         while its day read peak in the strip directly above it.
+
+         Bounded by construction — hours are already restricted to 8-17 and
+         cells need at least 2 visits, so a service contributes at most 70 of
+         these and usually far fewer. */
+      const cellWaits = slots.map((slot) => slot.avg_wait);
+      const cellMin = cellWaits.length ? Math.min(...cellWaits) : 0;
+      const cellMax = cellWaits.length ? Math.max(...cellWaits) : 0;
+      const grid = slots
+        .map((slot) => ({
+          dow: slot.dow,
+          hour: slot.hour,
+          visits: slot.visits,
+          avg_wait: slot.avg_wait,
+          level: quietLevel(slot.avg_wait, cellMin, cellMax),
+        }))
+        .sort((a, b) => a.dow - b.dow || a.hour - b.hour);
+
       return {
         service_id: service.service_id,
         service_name: service.service_name,
@@ -254,6 +295,7 @@ router.get('/best-times', async (req, res) => {
         busiest: decorate(busiest),
         quietest_day: quietestDay || null,
         week,
+        grid,
       };
     }).sort((a, b) => a.service_name.localeCompare(b.service_name));
 
@@ -283,10 +325,113 @@ router.get('/best-times', async (req, res) => {
       [...wellEvidenced(branchSlots)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
     );
 
+    /* ── TODAY, HOUR BY HOUR ──────────────────────────────────────────────
+       The hero of "Plan your visit": one bar per opening hour of the day it
+       actually is, with the quietest marked. Branch-wide, not per service,
+       which is what makes it free — the same reasoning as branch_best above.
+       Somebody who has not paid still gets a real answer to "when should I go
+       today", and what the subscription buys is the same question answered per
+       service and across the whole week.
+
+       Built from branchSlots, which is already every (day, hour) cell averaged
+       across services and weighted by visits, so this costs no extra query. */
+    const todayDow = new Date().getDay();
+    let shownDow = todayDow;
+    let todayHours = branchSlots
+      .filter((slot) => slot.dow === todayDow)
+      .sort((a, b) => a.hour - b.hour);
+
+    /* A BRANCH THAT DOES NOT OPEN TODAY STILL HAS A SHAPE WORTH SHOWING.
+       Nineteen of the demo's thirty-two branches have no Saturday history —
+       a traffic court does not sit on a Saturday, which is correct rather than
+       missing — and the card simply vanished on those, taking the hero of the
+       screen with it on any weekend.
+
+       So when today has nothing, fall back to the branch's best-evidenced day
+       and SAY WHICH DAY IT IS. The client switches its heading from "BEST TIME
+       TODAY · SATURDAY" to "A TYPICAL MONDAY", which is a different and still
+       true claim. Labelling Monday's pattern as today's would be the one
+       unacceptable option. */
+    if (!todayHours.length) {
+      const visitsByDow = new Map();
+      branchSlots.forEach((slot) => {
+        visitsByDow.set(slot.dow, (visitsByDow.get(slot.dow) || 0) + slot.visits);
+      });
+      const fallbackDow = [...visitsByDow.entries()]
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (fallbackDow !== undefined) {
+        shownDow = fallbackDow;
+        todayHours = branchSlots
+          .filter((slot) => slot.dow === fallbackDow)
+          .sort((a, b) => a.hour - b.hour);
+      }
+    }
+    const todayWaits = todayHours.map((h) => h.avg_wait);
+    const todayMin = todayWaits.length ? Math.min(...todayWaits) : 0;
+    const todayMax = todayWaits.length ? Math.max(...todayWaits) : 0;
+    /* The quietest hour with real evidence behind it, not simply the lowest
+       number — two lucky visits at 4pm should not beat a calm 10am backed by
+       two hundred. Same MIN_CELL_VISITS rule the rest of this endpoint uses. */
+    const todayBestSlot = todayHours.length
+      ? [...wellEvidenced(todayHours)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
+      : null;
+
+    const today = todayHours.length ? {
+      dow: shownDow,
+      day_name: DAY_NAMES[shownDow],
+      /* False means "this branch has no history for today, so this is another
+         day's pattern" — the client must not call it today. */
+      is_today: shownDow === todayDow,
+      best: decorate(todayBestSlot),
+      hours: todayHours.map((h) => ({
+        hour: h.hour,
+        hour_label: shortHourLabel(h.hour),
+        avg_wait: h.avg_wait,
+        visits: h.visits,
+        level: quietLevel(h.avg_wait, todayMin, todayMax),
+        /* So the client does not have to find the maximum to size a bar, and
+           every client sizes them the same way. */
+        intensity: todayMax > 0 ? Math.round((h.avg_wait / todayMax) * 100) / 100 : 0,
+        is_best: todayBestSlot ? h.hour === todayBestSlot.hour : false,
+      })),
+    } : null;
+
+    /* THE ACTUAL PAYWALL. One definition of entitlement — hasPremium() — shared
+       with every other paid surface, so a lapsed trial cannot read as current
+       here while reading as expired everywhere else.
+
+       A free caller still gets the service LIST. That is deliberate: the locked
+       panel in the app blurs real cards, and a card needs its own service name
+       to be the thing the customer is being shown they cannot read yet. What it
+       does not get is a single number — no best hour, no busiest hour, no week
+       strip, no grid. Nothing that could be reassembled into the feature. */
+    const entitled = hasPremium(req.dbUser);
+
     res.json({
       window_days: 90,
       branch_best: branchBest || null,
-      services,
+      /* Free, like branch_best — see the note where it is built. */
+      today,
+      /* Named so the client does not have to infer it from absent fields, and
+         so a future caller cannot mistake "no history" for "not paid". */
+      premium: entitled,
+      /* THE TIER LINE, placed where the design puts it. The locked panel in
+         Predictive Insights covers the HEATMAP, not the service list — a free
+         customer sees that Court Order Collection is quietest on Friday at 1pm
+         and cannot see the hour-by-hour grid behind it. That is a better free
+         tier than a blurred wall: it gives a real answer, and what it withholds
+         is the depth rather than the point.
+
+         So `best` ships free — it is the hook — and `week`, `grid`, `busiest`
+         and `quietest_day` do not. Those are the three things the upsell names
+         and the three things that cost a subscription. */
+      services: entitled
+        ? services
+        : services.map((svc) => ({
+            service_id: svc.service_id,
+            service_name: svc.service_name,
+            best: svc.best,
+          })),
     });
   } catch (err) {
     console.error(err);

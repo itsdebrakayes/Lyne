@@ -13,13 +13,34 @@ const CODE = (name: string) => (titleCase(name) || '')
   .replace(/^Kingston — /, '')
   .split(/\s+/).map((w) => w[0] || '').join('').slice(0, 3).toUpperCase() || 'BR';
 
-const dayNum = (v: any) => new Date(v).toLocaleDateString([], { day: 'numeric' });
-const spanLabel = (rows: any[]) => (rows.length
-  ? `${new Date(rows[0].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${new Date(rows[rows.length - 1].summary_date).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
-  : '—');
+/* Parsed from the ISO parts rather than handed to the Date constructor.
+   "2026-10-02" is parsed as UTC midnight and then rendered in local time,
+   which in Jamaica (UTC-5) prints the PREVIOUS day — every label was off by
+   one. An unparseable value returns an empty label rather than the words
+   "Invalid Date", because an axis is better blank than wrong. */
+const dayNum = (v: any) => {
+  const [y, m, d] = String(v ?? '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString([], { day: 'numeric' });
+};
+const dayMon = (v: any) => {
+  const [y, m, d] = String(v ?? '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return new Date(y, m - 1, d).toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
+const spanLabel = (rows: any[]) => {
+  if (!rows.length) return '—';
+  const from = dayMon(rows[0]?.summary_date);
+  const to = dayMon(rows[rows.length - 1]?.summary_date);
+  return from && to ? `${from} – ${to}` : '—';
+};
 
 export type ExecLiveInput = {
   summary: any[];           // daily rollup, oldest → newest
+  /* The rows inside the SELECTED period, and inside the period immediately
+     before it. Both are passed in rather than sliced here — see buildExecData. */
+  windowRows?: any[];
+  prevRows?: any[];
   rawSummary: any[];        // un-rolled analytics rows
   week: any[];
   served: number; completed: number; noShows: number; avgWait: number;
@@ -37,8 +58,24 @@ export type ExecLiveInput = {
 };
 
 export function buildExecData(i: ExecLiveInput): ExecTabData {
-  const a = i.summary.slice(-14);
-  const b = i.summary.slice(-28, -14);
+  /* THE SELECTED PERIOD, not a fixed fortnight.
+
+     These were `i.summary.slice(-14)` and `slice(-28, -14)` — the last fourteen
+     days and the fourteen before them, hardcoded. Every headline number on the
+     Trends tab is computed from the window the pills choose, but every CHART
+     was drawn from these two slices, so changing the period moved the numbers
+     and left the graph identical. The legend was worse than cosmetic: rangeA
+     and rangeB are derived from these arrays, so the chart printed a date
+     range it was not showing.
+
+     The fallback is `??`, not a length check, and that distinction matters. An
+     EMPTY prevRows is a real answer — "there is no history before this window"
+     — and must stay empty so the Trends card says "No Comparison Period Yet".
+     Treating empty as "fall back to the last fortnight" is what made a 90-day
+     view announce it was measured against Aug 8 – Aug 11. The fallback exists
+     only for a caller that passes nothing at all. */
+  const a = i.windowRows ?? i.summary.slice(-14);
+  const b = i.prevRows ?? i.summary.slice(-28, -14);
   const series = (rows: any[], key: string) => rows.map((r) => num(r[key]));
   const pct = (rows: any[], top: string, bottom: string) => rows.map((r) => {
     const den = num(r[bottom]);
@@ -174,8 +211,17 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
   /* ── weekday shape, from the same daily rows ── */
   const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dowTotals = new Map<number, { sum: number; n: number }>();
-  for (const r of i.summary) {
-    const wd = new Date(r.summary_date).getDay();
+  /* Scoped to the SELECTED window, like everything else on this tab. It read
+     the whole of i.summary, so "across the period" described every day the
+     company has ever recorded whichever pill was lit. */
+  for (const r of a) {
+    /* The weekday is read off the ISO parts. `new Date("2026-10-02")` is UTC
+       midnight, and getDay() then answers in local time — which in Jamaica
+       (UTC-5) is the evening BEFORE, so every row was filed under the wrong
+       weekday and the whole chart was shifted by one. */
+    const [yy, mm, dd] = String(r?.summary_date ?? '').slice(0, 10).split('-').map(Number);
+    if (!yy || !mm || !dd) continue;
+    const wd = new Date(yy, mm - 1, dd).getDay();
     const cur = dowTotals.get(wd) || { sum: 0, n: 0 };
     cur.sum += num(r.total_visitors); cur.n += 1;
     dowTotals.set(wd, cur);
@@ -188,7 +234,42 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
     }),
   };
 
+  /* ── where the wait is heading, measured rather than asserted ──
+     The Trends tab carried a Focus card reading "On This Trend The Company Hits
+     Its 20-Minute Target In Late September · Waits have come down five minutes
+     over four weeks · sooner if Ocho Rios is fixed". Every number and the
+     branch name were literals in the source, shown to every tenant — a credit
+     union with four branches was told about Ocho Rios.
+
+     This is the same claim, computed. A least-squares slope over the window's
+     daily average wait gives the rate; the gap to target divided by the rate
+     gives the horizon. When the slope is flat or going the wrong way there is
+     no honest projection to make, and it says so instead. */
+  const waitPoints = a
+    .map((r: any) => num(r.avg_wait_time_minutes))
+    .filter((v: number) => v > 0);
+  const projection = (() => {
+    const n = waitPoints.length;
+    const nowWait = n ? waitPoints[n - 1] : 0;
+    const gap = Math.round(nowWait - targetWait);
+    if (n < 4) return { gap, rate: 0, horizon: null as string | null, enough: false };
+    const meanX = (n - 1) / 2;
+    const meanY = waitPoints.reduce((t: number, v: number) => t + v, 0) / n;
+    let numr = 0; let den = 0;
+    waitPoints.forEach((y: number, x: number) => {
+      numr += (x - meanX) * (y - meanY);
+      den += (x - meanX) ** 2;
+    });
+    const perDay = den ? numr / den : 0;
+    const perWeek = perDay * 7;
+    if (gap <= 0) return { gap, rate: perWeek, horizon: 'already', enough: true };
+    if (perWeek >= -0.05) return { gap, rate: perWeek, horizon: null, enough: true };
+    const weeks = Math.ceil(gap / Math.abs(perWeek));
+    return { gap, rate: perWeek, horizon: `${weeks} week${weeks === 1 ? '' : 's'}`, enough: true };
+  })();
+
   return {
+    projection,
     metrics: {
       served: {
         label: 'Customers Served', unit: 'served', goodWhen: 'up',
@@ -219,7 +300,10 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
         blurb: 'People who took a ticket and never answered the call.',
       },
     },
-    days: a.map(dayNum),
+    /* a is an array of ROWS. `a.map(dayNum)` handed each row object straight
+       to `new Date(...)`, which is Invalid Date every time — that is the
+       "Invalid Date" printed across the bottom of the Trends chart. */
+    days: a.map((r: any) => dayNum(r?.summary_date)),
     rangeA: spanLabel(a),
     rangeB: spanLabel(b),
     movers,

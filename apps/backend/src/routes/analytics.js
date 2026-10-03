@@ -1314,6 +1314,88 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
   }
 });
 
+/* ── Customer directory ────────────────────────────────────────────────────
+ *
+ * Everyone who has visited, not only the people the branch is failing.
+ *
+ * /customer-cases answers one question well — "who keeps coming back without
+ * getting what they came for" — and it is the only way into a customer record
+ * in the whole admin app. So looking up an ordinary customer meant going
+ * through a screen titled "the people the branch keeps failing", and anybody
+ * who is NOT a case is unreachable: served first time, every time, invisible.
+ *
+ * Same tenant scoping, same masking, same definition of a visit — it differs
+ * from customer-cases in exactly two ways: no HAVING clause on unresolved
+ * visits, and a name/email/phone search.
+ */
+router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const { business_id, branch_id, q: search } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
+
+    const days = safeWindowDays(req.query.days, 90);
+    const conditions = ['b.business_id = ?', `t.status IN ${ENDED_STATUSES}`,
+                        'q.queue_date >= CURDATE() - INTERVAL ? DAY'];
+    const params = [scopedBusinessId(req, business_id), days];
+    const scopedBranch = scopedBranchId(req, branch_id);
+    if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+
+    /* Parameterised LIKE with the wildcards in the VALUE, never in the SQL, and
+       the operand escaped so a customer searching for "100%" does not match
+       every row. */
+    const needle = String(search || '').trim();
+    if (needle) {
+      conditions.push("(u.full_name LIKE ? ESCAPE '!' OR u.email LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')");
+      const like = `%${needle.replace(/[!%_]/g, (c) => `!${c}`)}%`;
+      params.push(like, like, like);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT u.id                         AS user_id,
+              u.full_name,
+              u.email,
+              u.phone,
+              COUNT(*)                     AS visits,
+              SUM(${RESOLVED})             AS resolved,
+              SUM(NOT ${RESOLVED})         AS unresolved,
+              COUNT(DISTINCT q.service_id) AS services_tried,
+              MIN(q.queue_date)            AS first_visit,
+              MAX(q.queue_date)            AS last_visit
+         FROM queue_tickets t
+         JOIN queues   q ON q.id = t.queue_id
+         JOIN branches b ON b.id = q.branch_id
+         JOIN users    u ON u.id = t.user_id
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY u.id, u.full_name, u.email, u.phone
+        ORDER BY last_visit DESC, visits DESC
+        LIMIT 200`,
+      params
+    );
+
+    res.json({
+      window_days: days,
+      query: needle,
+      /* Masked in the list, unmasked in the record — the same rule the caseload
+         follows. A directory is skim-read by whoever has the screen open. */
+      customers: rows.map((r) => ({
+        user_id: r.user_id,
+        full_name: r.full_name,
+        email: maskEmail(r.email),
+        phone: maskPhone(r.phone),
+        visits: Number(r.visits),
+        resolved: Number(r.resolved),
+        unresolved: Number(r.unresolved),
+        services_tried: Number(r.services_tried),
+        first_visit: r.first_visit,
+        last_visit: r.last_visit,
+      })),
+    });
+  } catch (error) {
+    console.error('customers directory error:', error);
+    res.status(500).json({ error: 'Failed to load customers.' });
+  }
+});
+
 // ── GET /api/analytics/customers/:user_id ─────────────────────
 // ?business_id=&days=180 — every visit this person has made to THIS business.
 router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '@/lib/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '@/hooks/useNotifications';
+import MessageComposer from '../components/MessageComposer';
 import { LayoutGrid, Building2, UserCheck, Waypoints, Grid3x3, Target, FileText, Settings, Headphones, TrendingUp, CalendarClock } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import Spotlight, { TOURS } from '../components/Spotlight';
@@ -37,7 +38,7 @@ const EXEC_FAQ = [
 ];
 import { CalendarDays, MapPin } from 'lucide-react';
 import { num, fmtN, titleCase, managerScores, dailyRollup, clockLabel, deriveOpsAlerts } from './insights';
-import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { labelFor, makeWindow, previousWindow, rowsIn, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
 import { Empty } from './ManagerDashboard';
 
@@ -257,12 +258,21 @@ export default function ExecutiveDashboard() {
   const isOverview = tab === 'overview';
 
   /* Everything the ported tabs read, mapped from the live layer once. */
+  /* The period the pills select, and the one immediately before it — which is
+     what "measured against the same number of days immediately before" on the
+     Trends card actually means. Both go to buildExecData, which was slicing a
+     fixed fourteen days of its own and ignoring the pills entirely. */
+  const prevWin = useMemo(() => previousWindow(win), [win]);
+  const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
+  const prevRows = useMemo(() => rowsIn(summary, prevWin), [summary, prevWin]);
+
   const liveTabData = useMemo(() => buildExecData({
-    summary, rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
+    summary, windowRows, prevRows,
+    rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
     target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
     channels: d.channels, preds, heat, org, adminName: d.admin?.name,
     faq: EXEC_FAQ,
-  }), [summary, d.summary, week, served, completed, noShows, avgWait, target, managers,
+  }), [summary, windowRows, prevRows, d.summary, week, served, completed, noShows, avgWait, target, managers,
        d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
 
   const qcExec = useQueryClient();
@@ -359,6 +369,20 @@ export default function ExecutiveDashboard() {
             : execTab(tab, setTab)}
         </ExecDataProvider>
       )}
+      {/* The reply box for a message opened from the bell. It lives at the
+          dashboard level rather than inside the popover because the popover
+          closes the moment an item is clicked. */}
+      {notify.replyTo ? (
+        <MessageComposer
+          target={{
+            mode: 'reply',
+            inReplyTo: notify.replyTo.id,
+            label: notify.replyTo.from,
+            quoted: notify.replyTo.quoted,
+          }}
+          onClose={notify.closeReply}
+        />
+      ) : null}
     </QxShell>
   );
 }

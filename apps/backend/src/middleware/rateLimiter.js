@@ -73,12 +73,46 @@ function actorOrIp(req) {
 const AUTH_MAX = Number(process.env.AUTH_RATE_LIMIT_MAX) || 10;
 
 // ── Login / Signup ────────────────────────────────────────────
+/* NOTHING MOUNTS THIS, and that is correct — do not "fix" it by finding
+   something to attach it to. This API has no password endpoint: sign-in happens
+   against Supabase from the client, so the credential-stuffing surface is
+   Supabase's and is rate limited there. Every route under /api/auth sits behind
+   requireAuth and has already proved a valid token.
+
+   It is kept, exported and unused because the moment a real credential endpoint
+   is added here — an organisation SSO callback, a staff PIN, a password reset
+   that we own — this is the shape it needs: a tight per-ADDRESS budget, because
+   before sign-in there is no actor to key on and the address is all there is.
+   That is also exactly why it was wrong on sync-user. */
 const authLimiter = rateLimit({
   windowMs:         15 * 60 * 1000, // 15 minutes
   max:              AUTH_MAX,
   standardHeaders:  true,
   legacyHeaders:    false,
   message: { error: 'Too many authentication attempts. Please try again in 15 minutes.' },
+});
+
+// ── Profile sync ──────────────────────────────────────────────
+/* /api/auth/sync-user is NOT a credential endpoint and must not be limited
+   like one. It sits behind requireAuth, so reaching it already required a
+   valid Supabase token — there is nothing here to brute force. It was sharing
+   authLimiter's ten-per-fifteen-minutes, which is the right shape for a login
+   form and the wrong shape for this: the app calls it on every launch, so the
+   eleventh launch returned 429, and the mobile client treated that as the
+   server refusing the identity and signed the person out.
+
+   The client no longer draws that conclusion (see isTransient in
+   apiClient.ts), but the limit was wrong on its own terms. Keyed by the
+   signed-in person rather than the address, because a branch wifi is one
+   address for everybody in the building — the same reason the other
+   authenticated limiters moved. */
+const profileSyncLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              60,
+  keyGenerator:     actorOrIp,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message: { error: 'Too many profile syncs. Please try again shortly.' },
 });
 
 // ── Queue join ────────────────────────────────────────────────
@@ -161,6 +195,7 @@ const sessionLookupLimiter = rateLimit({
 module.exports = {
   actorOrIp,
   authLimiter,
+  profileSyncLimiter,
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,

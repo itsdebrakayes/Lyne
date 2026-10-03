@@ -26,7 +26,10 @@ import { colors, font, shadow } from '../lib/theme';
 
 export interface HeroBeat {
   kicker: string;
-  headline: string;
+  /** Set in Manrope 800 — the half that carries the idea. */
+  lead: string;
+  /** Set in Manrope 500 — the half that completes the sentence. */
+  tail: string;
   points: [string, string];
 }
 
@@ -36,17 +39,20 @@ export interface HeroBeat {
 export const HERO_BEATS: HeroBeat[] = [
   {
     kicker: 'Still standing in line?',
-    headline: "Let's get you out\nof it.",
+    lead: "Let's get you out",
+    tail: 'of it.',
     points: ['Live waits, measured at the counter', 'Hold your spot from your phone'],
   },
   {
     kicker: 'Not sure when to go?',
-    headline: 'Go when it is\nquiet.',
+    lead: 'Go when it is',
+    tail: 'quiet.',
     points: ['See the wait before you leave home', 'We tell you when to set off'],
   },
   {
     kicker: 'Wasted a morning before?',
-    headline: 'Never queue\nblind again.',
+    lead: 'Never queue',
+    tail: 'blind again.',
     points: ['Know how many are ahead of you', 'Leave the line any time, no penalty'],
   },
 ];
@@ -153,8 +159,24 @@ export function HomeHero({
           <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.62)' }}>
             {b.kicker}
           </Text>
-          <Text style={{ fontFamily: font.extra, fontSize: 27, lineHeight: 32, color: '#fff', letterSpacing: -0.9, marginTop: 6 }}>
-            {b.headline}
+          {/* Two weights in one sentence — the treatment the Predictive
+              Insights design is built on ("Beat the line before you leave
+              home"). The words and the line break are unchanged; only the
+              weight of the second half is. The lighter tail stops a 27pt
+              headline reading as a slab and puts the emphasis on the half
+              that carries the idea.
+
+              One Text, not two: a nested Text inherits the parent's line
+              height, so the two halves stay on one leading grid. Stacking two
+              Texts re-measures the second and the gap drifts by a point or
+              two at larger accessibility sizes. */}
+          <Text
+            style={{ fontFamily: font.extra, fontSize: 27, lineHeight: 32, color: '#fff', letterSpacing: -0.9, marginTop: 6 }}
+            accessibilityLabel={`${b.lead} ${b.tail}`}
+          >
+            {b.lead}
+            {'\n'}
+            <Text style={{ fontFamily: font.medium, color: 'rgba(255,255,255,.80)' }}>{b.tail}</Text>
           </Text>
 
           <View style={{ gap: 8, marginTop: 15 }}>

@@ -206,9 +206,12 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
           </TouchableOpacity>
         ) : <View />}
 
+        {/* The footNote is the only thing that explains a disabled primary, so
+            it cannot be the faintest text on the screen. `sub` at 14px clears
+            4.5:1; `muted` at 13px was 3.69:1. */}
         <View style={{ flex: 1, alignItems: 'center' }}>
           {!!footNote && (
-            <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted, textAlign: 'center' }}>
+            <Text style={{ fontFamily: font.semibold, fontSize: 14, color: colors.sub, textAlign: 'center' }}>
               {footNote}
             </Text>
           )}
@@ -221,21 +224,36 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
             accessibilityRole="button"
             accessibilityLabel={primary.label}
             accessibilityState={{ disabled: !!(primary.disabled || primary.busy) }}
+            /* A DISABLED BUTTON STILL HAS TO LOOK LIKE A BUTTON. This was
+               surfaceAlt (#f2f4f8) with no border, on a surface (#ffffff)
+               footer — 1.10:1, which is not a visible edge. The control did not
+               read as "not yet"; it read as absent. Somebody reached step three,
+               typed their name, saw nothing to press and walked away. That is
+               the whole of the "people cannot join at the kiosk" report.
+
+               So: a real border at 3:1 against the footer, and `sub` for the
+               label at 4.6:1 instead of `muted` at 3.35:1. The button is now
+               plainly present and plainly waiting. */
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 60,
               paddingHorizontal: 30, borderRadius: 18,
               backgroundColor: primary.disabled ? colors.surfaceAlt : colors.accent,
+              borderWidth: primary.disabled ? 1.5 : 0,
+              /* muted, not faint: faint is 2.16:1 on the white footer and still
+                 does not make an edge. muted is 3.69:1 and clears the 3:1 a
+                 non-text boundary needs. */
+              borderColor: colors.muted,
               opacity: primary.busy ? 0.7 : 1,
             }}
           >
             {primary.busy
-              ? <ActivityIndicator color={primary.disabled ? colors.muted : colors.accentInk} />
+              ? <ActivityIndicator color={primary.disabled ? colors.sub : colors.accentInk} />
               : (
                 <>
-                  <Text style={{ fontFamily: font.extra, fontSize: 16, color: primary.disabled ? colors.muted : colors.accentInk }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 16, color: primary.disabled ? colors.sub : colors.accentInk }}>
                     {primary.label}
                   </Text>
-                  <Ionicons name="arrow-forward" size={20} color={primary.disabled ? colors.muted : colors.accentInk} />
+                  <Ionicons name="arrow-forward" size={20} color={primary.disabled ? colors.sub : colors.accentInk} />
                 </>
               )}
           </TouchableOpacity>
@@ -439,7 +457,7 @@ function Details({
 }: {
   name: string; setName: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
-  notify: Notify | null; setNotify: (v: Notify) => void;
+  notify: Notify; setNotify: (v: Notify) => void;
   onBack: () => void; onDone: () => void; busy: boolean; error: string; kx: KioskScale;
 }) {
   const ready = name.trim().length > 1
@@ -660,7 +678,15 @@ export default function KioskScreen() {
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [notify, setNotify] = useState<Notify | null>(null);
+  /* Defaults to 'screen', and that is a correctness fix rather than a
+     convenience. Step three's own subtitle promises "Your name is called out
+     and shown on the screen when it's your turn" — which is true no matter
+     what is chosen here, so watching the screen is not one of two equal
+     options, it is what happens by default and SMS is the addition. Starting at
+     null made the primary button disabled on arrival, and a disabled primary on
+     a self-service terminal is a dead end: there is no one to ask. Now the only
+     thing a walk-in must supply is a name. */
+  const [notify, setNotify] = useState<Notify>('screen');
   const [issued, setIssued] = useState<{ ticket: WalkInTicket; serviceName: string } | null>(null);
   const [error, setError] = useState('');
 
@@ -678,7 +704,7 @@ export default function KioskScreen() {
 
   const reset = useCallback(() => {
     setStep('welcome'); setServiceId(null); setName(''); setPhone('');
-    setNotify(null); setIssued(null); setError('');
+    setNotify('screen'); setIssued(null); setError('');
   }, []);
 
   const issue = useMutation({

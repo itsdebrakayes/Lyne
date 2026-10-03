@@ -30,6 +30,7 @@ import {
   Chip, Select, Ring, avatarStyle, initials,
 } from '@/design/ui';
 import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
+import MessageComposer from '../../components/MessageComposer';
 import { fmtN } from '../insights';
 import { replayTour } from '../../hooks/useTour';
 
@@ -853,6 +854,7 @@ export function MgrSettingsTab() {
 /* ══════════════════════ 7 · HELP & SUPPORT ══════════════════════ */
 export function MgrSupportTab() {
   const d = useMgr();
+  const [compose, setCompose] = useState(false);
   const [open, setOpen] = useState<string | null>(d.faq[0]?.q ?? null);
   const [q, setQ] = useState('');
   const shown = useMemo(() => {
@@ -880,10 +882,19 @@ export function MgrSupportTab() {
       <div className="qx-stack s4">
         <Card title="Ask Your Executive" cap="For anything set centrally">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            <button type="button" className="qx-btn"><MessageSquare size={14} />Message Your Executive</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
-            <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
-            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+            <button type="button" className="qx-btn" onClick={() => setCompose(true)}>
+              <MessageSquare size={14} />Message Your Executive
+            </button>
+            {/* A real mailto, where this was a <button> with no onClick — four dead
+                controls sat on this panel. The phone row is gone rather than
+                relabelled: "(876) 555-0142" is a fabricated number (555 is a
+                reserved fictional exchange), and shipping one on a support page
+                is worse than offering no phone at all. Put it back when there is
+                a line that answers. */}
+            <a className="qx-btn ghost" href="mailto:customersupport@uselyne.com">
+              <Mail size={14} />customersupport@uselyne.com
+            </a>
+                        <button type="button" className="qx-btn ghost" onClick={replayTour}>
               <PlayCircle size={14} />Replay The Tour
             </button>
           </div>
@@ -898,6 +909,12 @@ export function MgrSupportTab() {
           <div className="qx-setrow"><div><b>Kiosk Status</b></div><Status kind="open">Operational</Status></div>
         </Card>
       </div>
+      {compose ? (
+        <MessageComposer
+          target={{ mode: 'role', to: 'executive', label: 'Your executive' }}
+          onClose={() => setCompose(false)}
+        />
+      ) : null}
     </div>
   );
 }

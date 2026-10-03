@@ -7,7 +7,7 @@
  * today's tickets. So the board infers each desk's occupant from who has been
  * serving at that counter today, and says nothing where it cannot tell.
  */
-import type { SupTabData, SupDesk, SupStaff, SupTargetRow } from './SupTabsQX';
+import type { SupTabData, SupWindow, SupDesk, SupStaff, SupTargetRow } from './SupTabsQX';
 import { num, titleCase } from '../insights';
 
 /** "8:04 AM" from a timestamp, or a dash when there is genuinely nothing. */
@@ -23,6 +23,8 @@ const onSinceLabel = (signedIn?: unknown, firstActivity?: unknown) => {
 export type SupLiveInput = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
+  /** The period pills' window, already summed. See SupWindow in SupTabsQX. */
+  window?: SupWindow;
   sectionName: string; branchName: string; supervisorName: string;
   /** live queue rows, one per service — used only for live waiting counts */
   queues: any[];
@@ -144,6 +146,7 @@ export function buildSupData(i: SupLiveInput): SupTabData {
   return {
     /* Forwarded so the stat labels can name the window they are summing. */
     periodLabel: i.periodLabel,
+    window: i.window,
     sectionName: i.sectionName,
     branchName: titleCase(i.branchName) || 'Your Branch',
     supervisorName: titleCase(i.supervisorName) || '—',

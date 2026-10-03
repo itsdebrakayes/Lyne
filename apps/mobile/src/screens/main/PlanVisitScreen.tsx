@@ -12,7 +12,7 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
-import { openSubscriptionPortal } from '../../lib/subscriptionPortal';
+import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -20,21 +20,51 @@ import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
+import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
+import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
+import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
 
 interface BestSlot { dow: number; hour: number; visits: number; avg_wait: number; day_name: string; hour_label: string }
+interface TodayPlan {
+  dow: number;
+  day_name: string;
+  is_today?: boolean;
+  best: BestSlot | null;
+  hours: ForecastHour[];
+}
 interface WeekDay { dow: number; day_name: string; avg_wait: number | null; level: 0 | 1 | 2 | 3 }
 interface ServicePlan {
   service_id: string;
   service_name: string;
+  /** Day x hour cells from the API — see components/BusyHeatmap.tsx. */
+  grid?: HeatCell[];
   best?: BestSlot | null;
   busiest?: BestSlot | null;
   quietest_day?: { dow: number; day_name: string; avg_wait: number } | null;
   week: WeekDay[];
 }
-interface BestTimes { window_days: number; branch_best?: BestSlot | null; services: ServicePlan[] }
+interface BestTimes {
+  window_days: number;
+  branch_best?: BestSlot | null;
+  /** Today's hourly shape — free, see the note in routes/predictions.js. */
+  today?: TodayPlan | null;
+  /** The server says so explicitly rather than leaving it to be inferred. */
+  premium?: boolean;
+  services: ServicePlan[];
+}
+
+/** "2 PM" given 14 — the end of the best-time window on the forecast card. */
+const nextHourLabel = (hour: number) => {
+  const h = (hour + 1) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const LEVEL_WORD: Record<number, string> = { 1: 'Quiet', 2: 'Busy', 3: 'Peak' };
+const hourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
 
 const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -63,6 +93,8 @@ export default function PlanVisitScreen() {
      reviewer would have found it in the first minute. */
   const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
+  const [openHeatmap, setOpenHeatmap] = useState<string | null>(null);
+  const [pickedCell, setPickedCell] = useState<HeatCell | null>(null);
   const [trialError, setTrialError] = useState('');
 
   const { data: branches = [] } = useQuery({
@@ -77,8 +109,15 @@ export default function PlanVisitScreen() {
   );
 
   const bestTimes = useQuery({
-    queryKey: ['best-times', branch?.business_id, branch?.id],
-    queryFn: () => api.get<BestTimes>(`/predictions/best-times?business_id=${branch!.business_id}&branch_id=${branch!.id}`, false),
+    /* user.id in the key: without it, signing in reuses the cached anonymous
+       response and the planner stays locked until the cache expires. */
+    queryKey: ['best-times', branch?.business_id, branch?.id, user?.id ?? 'anon'],
+    /* AUTHENTICATED, where it used to pass `false` to suppress the token. The
+       endpoint decides entitlement from the caller now, so an anonymous request
+       gets the free response — which would have left a paying customer looking
+       at the locked panel. The endpoint still answers without a token; it
+       simply answers less. */
+    queryFn: () => api.get<BestTimes>(`/predictions/best-times?business_id=${branch!.business_id}&branch_id=${branch!.id}`),
     enabled: Boolean(branch),
     staleTime: 1000 * 60 * 15,
   });
@@ -133,29 +172,53 @@ export default function PlanVisitScreen() {
 
         {plan && (
           <>
-            {/* branch headline — free for everyone */}
-            <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="time-outline" size={21} color={colors.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
-                  {plan.branch_best ? (
-                    <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', marginTop: 3 }}>{plan.branch_best.day_name}s · {plan.branch_best.hour_label}</Text>
-                  ) : (
-                    <Text style={{ fontFamily: font.extra, fontSize: 16, color: '#fff', marginTop: 3 }}>Not enough visits yet</Text>
+            {/* TODAY, HOUR BY HOUR — screen 01 of the Predictive Insights
+                design, and free for everyone.
+
+                What was here answered "which DAY is quietest at this branch",
+                which is a planning question. The one almost everybody opening
+                this screen actually has is "when should I go today", and a row
+                of bars with NOW and BEST on it answers that at a glance with
+                nothing to read. The day-level answer is still below, per
+                service, where it belongs.
+
+                Falls back to the old headline when the branch has no history
+                for today's weekday — a Sunday at a branch that never opens on
+                Sunday is a real case, not a failure. */}
+            {plan.today?.hours?.length ? (
+              <TodayForecast
+                dayName={plan.today.day_name}
+                isToday={plan.today.is_today !== false}
+                bestLabel={plan.today.best
+                  ? `${plan.today.best.hour_label} – ${nextHourLabel(plan.today.best.hour)}`
+                  : undefined}
+                bestWait={plan.today.best?.avg_wait}
+                hours={plan.today.hours}
+              />
+            ) : (
+              <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 20, ...shadow.hero }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="time-outline" size={21} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.6 }}>BEST TIME AT {branch?.name?.toUpperCase() || 'THIS BRANCH'}</Text>
+                    {plan.branch_best ? (
+                      <Text style={{ fontFamily: font.extra, fontSize: 19, color: '#fff', marginTop: 3 }}>{plan.branch_best.day_name}s · {plan.branch_best.hour_label}</Text>
+                    ) : (
+                      <Text style={{ fontFamily: font.extra, fontSize: 16, color: '#fff', marginTop: 3 }}>Not enough visits yet</Text>
+                    )}
+                  </View>
+                  {plan.branch_best && (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.accent }}>{Math.round(plan.branch_best.avg_wait)}<Text style={{ fontSize: 12 }}>m</Text></Text>
+                      <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>typical wait</Text>
+                    </View>
                   )}
                 </View>
-                {plan.branch_best && (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 22, color: colors.accent }}>{Math.round(plan.branch_best.avg_wait)}<Text style={{ fontSize: 12 }}>m</Text></Text>
-                    <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 3 }}>typical wait</Text>
-                  </View>
-                )}
+                <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
               </View>
-              <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>From the last {plan.window_days} days of real visits · updates continuously</Text>
-            </View>
+            )}
 
             {/* A branch with no served history yet has nothing to forecast from.
                 That is a real state on day one of a pilot, and saying so beats
@@ -194,6 +257,58 @@ export default function PlanVisitScreen() {
                       {service.busiest && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.busy }}>Avoid {service.busiest.day_name.slice(0, 3)} {service.busiest.hour_label}</Text>}
                     </View>
                     <WeekStrip week={service.week} />
+
+                    {/* The heatmap is opt-in per service. Sixty-three cells is
+                        a lot of screen, and seven services expanded at once
+                        turns a plan into a scroll. The week strip above already
+                        answers "which day"; this answers "which hour", which is
+                        a question you only ask once you have picked the day. */}
+                    {!!service.grid?.length && (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => setOpenHeatmap(openHeatmap === service.service_id ? null : service.service_id)}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: openHeatmap === service.service_id }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}
+                        >
+                          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.accent }}>
+                            {openHeatmap === service.service_id ? 'Hide heatmap' : 'See heatmap'}
+                          </Text>
+                          <Ionicons
+                            name={openHeatmap === service.service_id ? 'chevron-up' : 'chevron-forward'}
+                            size={13}
+                            color={colors.accent}
+                          />
+                        </TouchableOpacity>
+
+                        {openHeatmap === service.service_id && (
+                          <View style={{ marginTop: 14 }}>
+                            <BusyHeatmap grid={service.grid} onSelect={setPickedCell} />
+                            {pickedCell && (
+                              <View style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 14 }}>
+                                <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, letterSpacing: 0.6 }}>
+                                  {DAY_FULL[pickedCell.dow].toUpperCase()}S · {hourLabel(pickedCell.hour)}
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                                  <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>
+                                    {LEVEL_WORD[pickedCell.level]}
+                                  </Text>
+                                  <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accent }}>
+                                    ~{Math.round(pickedCell.avg_wait)}m
+                                  </Text>
+                                </View>
+                                {/* The sample size is shown because it is the
+                                    difference between a finding and a guess —
+                                    and the reader is entitled to judge it. */}
+                                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 3 }}>
+                                  Based on {pickedCell.visits} visits
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </>
+                    )}
                     <TouchableOpacity
                       onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
                       style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
@@ -204,74 +319,70 @@ export default function PlanVisitScreen() {
                 ))}
               </View>
             ) : (
-              <>
-                {/* locked preview */}
-                <View style={[t.card, { borderRadius: 22, overflow: 'hidden' }]}>
-                  {plan.services.slice(0, 4).map((service, index) => (
-                    <View key={service.service_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: index === Math.min(plan.services.length, 4) - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
-                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="lock-closed" size={14} color={colors.muted} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{service.service_name}</Text>
-                        <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.faint, letterSpacing: 2 }}>••••••· ••:•• ••</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        {[0, 1, 2].map(i => <View key={i} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.border }} />)}
-                      </View>
-                    </View>
-                  ))}
-                </View>
+              /* FREE TIER, tiered the way the design tiers it.
 
-                {/* upsell */}
-                <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="time-outline" size={16} color={colors.accent} />
-                    <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
-                  </View>
-                  <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
-                  {[
-                    'Best time for each service, at every branch',
-                    'Weekly quiet-day strips from real visit data',
-                    'Departure reminders tuned to your travel time',
-                  ].map(line => (
-                    <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11 }}>
-                      <Ionicons name="checkmark-circle" size={15} color={colors.light} />
-                      <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)' }}>{line}</Text>
+                 The service and its best time are NOT behind the paywall. The
+                 locked panel in Predictive Insights covers the heatmap, and
+                 everything above it stays readable — so a free customer gets a
+                 real answer ("Friday 1 PM, about 1 minute") and what they pay
+                 for is the depth behind it.
+
+                 The first version of this blurred the whole list, which hid the
+                 one thing the screen is named after. A paywall that withholds
+                 the headline does not sell the product, it hides it. */
+              <View style={{ gap: 14 }}>
+                {plan.services.map(service => (
+                  <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
+                      {service.best && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.successSoft, borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
+                          <Ionicons name="time" size={12} color={colors.successInk} />
+                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.successInk }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
+                        </View>
+                      )}
                     </View>
-                  ))}
-                  {!!trialError && <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#ff9d9d', marginTop: 12 }}>{trialError}</Text>}
-                  <TouchableOpacity disabled={trialBusy} onPress={startTrial} activeOpacity={0.9} style={{ marginTop: 18, backgroundColor: colors.accent, borderRadius: 16, height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    {trialBusy ? <ActivityIndicator color={colors.accentInk} /> : (
-                      <>
-                        <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.accentInk }}>Start 14-day free trial</Text>
-                        <Ionicons name="arrow-forward" size={15} color={colors.accentInk} />
-                      </>
+                    {service.best && (
+                      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 10 }}>
+                        ~{Math.round(service.best.avg_wait)}m at the best time
+                      </Text>
                     )}
-                  </TouchableOpacity>
-                  {/* Purchase happens on our web gateway, by design — no card
-                      sheet here, and no store billing.
 
-                      This is the pattern the big subscription apps ship in the
-                      Jamaican storefront: the app tells you the plan and the
-                      price and sends you to the website, because in-app
-                      purchase is not offered here. Confirmed against ChatGPT
-                      on a Jamaican account, not inferred from the guidelines —
-                      IAP availability and what a subscription screen is
-                      allowed to do both vary by storefront, so the guideline
-                      text alone is not evidence of what ships.
+                    {/* The depth — the seven-day strip and the hour grid — is
+                        what the subscription buys, so this is where the frost
+                        goes. Rendered at the real height so the card does not
+                        change shape when somebody subscribes. */}
+                    <View style={{ marginTop: 14 }}>
+                      <PremiumLock
+                        locked
+                        radius={16}
+                        headline="See every hour of every day"
+                        error={trialError}
+                        trialBusy={trialBusy}
+                        onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
+                        unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined
+                          : 'Premium arrives with the first App Store release.'}
+                      >
+                        <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 10 }}>
+                          {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                              <View style={{ width: '100%', height: 38, borderRadius: 9, backgroundColor: i % 3 === 0 ? colors.border : colors.borderSoft }} />
+                              <View style={{ width: 16, height: 7, borderRadius: 4, backgroundColor: colors.borderSoft }} />
+                            </View>
+                          ))}
+                        </View>
+                      </PremiumLock>
+                    </View>
 
-                      openSubscriptionPortal explains where it is going before
-                      it opens anything, which is the part that matters: the
-                      rule Apple enforces is about steering, so informing
-                      before navigating is deliberate, not decoration. */}
-                  <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Ionicons name="open-outline" size={16} color="#fff" />
-                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
-                </View>
-              </>
+                    <TouchableOpacity
+                      onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
+                      style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
+                    >
+                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>Join this line now →</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             )}
             </>
             )}

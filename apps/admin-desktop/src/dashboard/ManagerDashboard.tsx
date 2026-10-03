@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
+import MessageComposer from '../components/MessageComposer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
@@ -29,6 +30,7 @@ import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
+import { CustomerDirectory } from '../components/dashboard/CustomerDirectory';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -45,6 +47,11 @@ const NAV: NavItem[] = [
   { key: 'staff', label: 'Staff & Counters', icon: Users },
   { key: 'services', label: 'Services', icon: Waypoints },
   { key: 'cases', label: 'Customer Cases', icon: UserSearch },
+  /* Separate from Customer Cases on purpose. Cases answers "who are we
+     failing"; this is the plain directory, and it used to be the case
+     list or nothing — a customer served correctly every time could not be
+     looked up at all. */
+  { key: 'customers', label: 'Customers', icon: Users },
   { key: 'readiness', label: 'Readiness', icon: ClipboardCheck },
   { key: 'sessions', label: 'Sessions', icon: CalendarClock },
   { key: 'busy', label: 'Busy Times', icon: Grid3x3 },
@@ -97,7 +104,6 @@ export default function ManagerDashboard() {
   const [anchor, setAnchor] = useState(today());
   const win = useMemo(() => makeWindow(anchor, windowDaysOf(period)), [anchor, period]);
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
-  const servedSeries = windowRows.map((s) => num(s.completed_count));
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   useEffect(() => { setQ(''); }, [tab]);
@@ -334,8 +340,23 @@ export default function ManagerDashboard() {
           : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
             : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
+      {/* The reply box for a message opened from the bell. It lives at the
+          dashboard level rather than inside the popover because the popover
+          closes the moment an item is clicked. */}
+      {notify.replyTo ? (
+        <MessageComposer
+          target={{
+            mode: 'reply',
+            inReplyTo: notify.replyTo.id,
+            label: notify.replyTo.from,
+            quoted: notify.replyTo.quoted,
+          }}
+          onClose={notify.closeReply}
+        />
+      ) : null}
     </QxShell>
   );
 }
@@ -372,11 +393,24 @@ export function SvcRow({ nm, mini, chg, chgDir, w }: { nm: string; mini?: number
   );
 }
 
-export function ServedChart({ summary }: { summary: any[] }) {
-  const rows = summary.slice(-7);
+/* Takes the rows of the SELECTED period. It used to take the whole summary and
+   slice the last seven days off it, so the period pills moved every number on
+   the screen except this chart — and the footer went on claiming "Period · 7
+   Days" whichever pill was lit. `summary` is still accepted as a fallback so
+   the component renders something if a caller has not been updated. */
+export function ServedChart({ summary, windowRows }: { summary: any[]; windowRows?: any[] }) {
+  const rows = windowRows?.length ? windowRows : summary.slice(-7);
   if (!rows.length) return <Empty msg="No daily data yet." />;
   const vals = rows.map((s) => num(s.completed_count));
-  const labels = rows.map((s) => new Date(s.summary_date).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+  /* Built from the ISO parts, not `new Date(iso)`. An ISO date string is parsed
+     as UTC midnight and rendered in local time, so in Jamaica (UTC-5) every
+     label named the day before. */
+  const labels = rows.map((s) => {
+    const [y, m, dd] = String(s?.summary_date ?? '').slice(0, 10).split('-').map(Number);
+    return (y && m && dd)
+      ? new Date(y, m - 1, dd).toLocaleDateString([], { month: 'short', day: 'numeric' })
+      : '';
+  });
   const best = vals.indexOf(Math.max(...vals));
   const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);   // real reference, not a made-up target
   return (
@@ -814,7 +848,11 @@ export function ReportsTab({ summary, last, completed, total, noShows, scope, se
         </ReportSection>
 
         <ReportSection heading="Customers served per day" blurb={periodBlurb(summary, target, scope)}>
-          <ServedChart summary={summary} />
+          {/* The report's own `summary` IS its period — every KPI above is
+              summed over it — so the chart shows all of it. Slicing the last
+              seven days off meant a 30-day report printed a 7-day chart under
+              30-day totals, with a footer reading "Period · 7 Days". */}
+          <ServedChart summary={summary} windowRows={summary} />
         </ReportSection>
 
         {services.length ? (
