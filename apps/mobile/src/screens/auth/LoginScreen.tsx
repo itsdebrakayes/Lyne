@@ -8,7 +8,7 @@
  * Sign up renders the identical frame, which is the point of sharing it.
  */
 import React, { useMemo, useState } from 'react';
-import {
+import { Image,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
@@ -50,9 +50,26 @@ export default function LoginScreen() {
         {/* On a tablet the form holds a column instead of stretching a text
             field across a thousand points. */}
         <View style={[styles.inner, column]}>
-          {/* brand lockup */}
-          <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
-          <Text style={styles.brand}>Lyne</Text>
+          {/* THE BRAND LOCKUP — the real one.
+              This was a rounded square containing the letter L with the word
+              "Lyne" set in Manrope under it: a placeholder that outlived the
+              brand kit. The kit's primary lockup is the symbol and the wordmark
+              together, and the wordmark is Cormorant Italic, so setting it in
+              the UI typeface was never going to be the logo however close the
+              letters got.
+
+              Two files because a single one cannot work on both grounds: the
+              white-reversed version disappears on the light theme and the
+              gradient version disappears on the dark one. */}
+          <Image
+            source={colors.bg === '#f1f3f7'
+              ? require('../../../assets/lyne-logo-dark.png')
+              : require('../../../assets/lyne-logo-light.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="Lyne"
+          />
           <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
           {!!error && (
@@ -117,13 +134,9 @@ const makeStyles = () => StyleSheet.create({
 
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 30 },
 
-  logo: {
-    width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
-    backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16, ...shadow.card,
-  },
-  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 26 },
-  brand: { fontFamily: font.extra, fontSize: 24, color: colors.ink, textAlign: 'center', letterSpacing: -0.5 },
+  /* The lockup is wordmark-plus-symbol, so it is wide rather than square and
+     carries the name itself — there is no separate brand text under it. */
+  logo: { width: 184, height: 70, alignSelf: 'center', marginBottom: 14 },
   subtitle: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 7, marginBottom: 28 },
 
   errorBanner: {

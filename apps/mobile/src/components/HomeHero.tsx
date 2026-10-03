@@ -117,9 +117,20 @@ function QueueMotif() {
 export function HomeHero({
   onJoinNow,
   onPlanLater,
+  /**
+   * When a Line Helper is holding a place, the second button stops offering to
+   * plan and starts showing the plan you already made.
+   *
+   * Screen 05 otherwise had no door. Planning for later is exactly what you are
+   * no longer doing once a helper is in the line for you — the only thing you
+   * want from this screen then is when to leave, and that is one tap away
+   * rather than buried behind the branch you happened to pick it from.
+   */
+  helper,
 }: {
   onJoinNow: () => void;
   onPlanLater: () => void;
+  helper?: { leaveLabel: string; onOpen: () => void } | null;
 }) {
   const [beat, setBeat] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
@@ -211,18 +222,36 @@ export function HomeHero({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={onPlanLater}
+            onPress={helper ? helper.onOpen : onPlanLater}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Plan a visit for later"
+            accessibilityLabel={helper
+              ? `Your helper is holding your place. Leave by ${helper.leaveLabel}.`
+              : 'Plan a visit for later'}
             style={{
               flex: 1, minHeight: 46, borderRadius: 15,
-              borderWidth: 1, borderColor: 'rgba(255,255,255,.26)',
+              /* Filled green when a helper is live — it is a live state rather
+                 than an offer, and it should not look like the thing beside it
+                 that starts something new. */
+              backgroundColor: helper ? 'rgba(47,191,113,.18)' : 'transparent',
+              borderWidth: 1,
+              borderColor: helper ? 'rgba(63,208,127,.5)' : 'rgba(255,255,255,.26)',
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
             }}
           >
-            <Ionicons name="calendar-outline" size={15} color="#fff" />
-            <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>Plan for later</Text>
+            {helper ? (
+              <>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#3fd07f' }} />
+                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>
+                  Leave by {helper.leaveLabel}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="calendar-outline" size={15} color="#fff" />
+                <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>Plan for later</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>

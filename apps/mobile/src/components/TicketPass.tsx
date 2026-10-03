@@ -195,7 +195,8 @@ export function TicketPass({
   children?: React.ReactNode;
 }) {
   const called = status === 'called' || status === 'in_service';
-  const active = called || status === 'waiting';
+  const waiting = status === 'waiting';
+  const active = called || waiting;
 
   /* Recomputed on a timer, because the whole point of the line is that it
      moves without anybody touching the screen. A minute is the resolution the
@@ -282,11 +283,20 @@ export function TicketPass({
         }}>
           {/* All four are statements about a queue you are still in. On a
               closed ticket they are last week's numbers wearing the present
-              tense, so they read as unknown rather than as facts. */}
-          <Cell label="PLACE" value={active && place != null ? `#${place}` : '—'} />
-          <Cell label="AHEAD" value={active ? ahead : '—'} />
-          <Cell label="WAIT" value={active ? `${progress.remainingMinutes}m` : '—'} />
-          <Cell label="IN LINE" value={active && inLine != null ? inLine : '—'} />
+              tense, so they read as unknown rather than as facts.
+
+              PLACE, AHEAD and IN LINE are statements about WAITING, and once
+              you have been called you are not waiting — you are at the counter.
+              They were still rendering their last values there, so the screen
+              said "It's your turn" and "0m" next to "4 ahead", which is a
+              contradiction and the kind that makes somebody distrust every
+              other number on the card. Once called they are not applicable and
+              say so, and the wait reads "Now" rather than a zero that looks
+              like a countdown that stopped. */}
+          <Cell label="PLACE" value={waiting && place != null ? `#${place}` : '—'} />
+          <Cell label="AHEAD" value={waiting ? ahead : '—'} />
+          <Cell label="WAIT" value={called ? 'Now' : waiting ? `${progress.remainingMinutes}m` : '—'} />
+          <Cell label="IN LINE" value={waiting && inLine != null ? inLine : '—'} />
         </View>
       </View>
 

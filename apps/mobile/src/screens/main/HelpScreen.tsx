@@ -11,6 +11,7 @@ import { Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import Wordmark from '../../components/Wordmark';
 import { colors, font, shadow, t } from '../../lib/theme';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
@@ -77,7 +78,12 @@ export default function HelpScreen() {
         </View>
 
         {/* general */}
-        <Text style={SECTION}>About Lyne</Text>
+        {/* The name is set in the wordmark face even mid-sentence — it is the
+            brand, and a heading is one of the few places it reads well. Body
+            copy and legal text keep the UI face: a serif italic at 13px in a
+            paragraph is harder to read, and the point of a wordmark is that it
+            is the exception. */}
+        <Text style={SECTION}>About <Wordmark size={17} color={colors.ink} /></Text>
         {GENERAL_FAQS.map(f => (
           <FaqBucket key={f.q} q={f.q}><FaqAnswer>{f.a}</FaqAnswer></FaqBucket>
         ))}

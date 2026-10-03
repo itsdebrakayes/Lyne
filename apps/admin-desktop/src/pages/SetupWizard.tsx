@@ -145,7 +145,7 @@ export default function SetupWizard({ onDone }: { onDone?: () => void }) {
     <div className="qx sw-root">
       <div className="sw-shell">
         <aside className="sw-rail">
-          <div className="sw-brand"><i>L</i><div><b>Lyne</b><small>First-time setup</small></div></div>
+          <div className="sw-brand"><img src="/lyne-symbol.svg" alt="" aria-hidden="true" className="qx-mark" /><div><b className="lyne-mark">Lyne</b><small>First-time setup</small></div></div>
           <ol className="sw-steps">
             {STEPS.map((s, i) => {
               const Icon = s.icon;
