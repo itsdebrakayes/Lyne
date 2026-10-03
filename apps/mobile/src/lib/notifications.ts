@@ -198,6 +198,22 @@ export async function cancelDepartureReminder() {
  * it schedules for the following week rather than firing immediately. A
  * notification that arrives the instant you ask for it reads as a bug.
  */
+/**
+ * Ask for notification permission, or confirm we already have it.
+ *
+ * Split out of registerPushNotifications because a local reminder needs the
+ * permission and nothing else — no push token, no device registration, no
+ * network call. Asking for a server-side push registration in order to set an
+ * alarm on the device would fail offline for no reason.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  const existing = await Notifications.getPermissionsAsync();
+  if (existing.granted) return true;
+  if (!existing.canAskAgain) return false;
+  const asked = await Notifications.requestPermissionsAsync();
+  return Boolean(asked.granted);
+}
+
 export async function scheduleQuietHourReminder(input: {
   branchName: string;
   serviceName: string;
