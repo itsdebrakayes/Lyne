@@ -9,6 +9,9 @@
  *   2. the wordmark wipes out from behind it
  *   3. the tagline and the loading rhythm follow
  *
+ * The tagline is the brand kit's — "Spend less time waiting." — not a
+ * second one written for this screen. A product with two taglines has none.
+ *
  * That order is the point. A brand moment that reveals everything simultaneously
  * reads as a static image someone faded up; revealing in sequence reads as
  * something assembling itself, which is what makes it feel designed.
@@ -17,7 +20,7 @@
  * appears, nothing moves.
  */
 import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import Animated, {
   Easing as RNEasing,
   useAnimatedStyle,
@@ -108,17 +111,31 @@ export default function LaunchScreen() {
   }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+    /* BRAND NAVY, fixed, not colors.dark. The native splash underneath is a
+       static image with one background colour, and colors.dark is #0c1826 in
+       the light theme and #16243a in the dark one — so in dark mode the handoff
+       from native splash to this screen was a visible jump between two navies.
+       A launch screen is a brand moment and does not theme-switch; this is the
+       same #0B1B3F the native splash is configured with in app.json. */
+    <View style={{ flex: 1, backgroundColor: '#0B1B3F', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
       <View style={{ alignItems: 'center', justifyContent: 'center' }}>
         <Animated.View
           pointerEvents="none"
-          style={[{ position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: colors.accent }, glowStyle]}
+          style={[{ position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: '#1A4BD8' }, glowStyle]}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          {/* THE BRAND SYMBOL, not a letter in a box.
+
+              This was a rounded square containing a capital "Q" — a survivor of
+              QMe-Now, the name this product had before it was Lyne. It was the
+              first thing anyone saw on launch, and it was the old brand. */}
           <Animated.View style={markStyle}>
-            <View style={{ width: 58, height: 58, borderRadius: 19, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.accentInk, fontFamily: font.extra, fontSize: 30 }}>Q</Text>
-            </View>
+            <Image
+              source={require('../../assets/lyne-symbol.png')}
+              style={{ width: 72, height: 64 }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
           </Animated.View>
           <Animated.View style={[{ overflow: 'hidden' }, wordStyle]}>
             <Text numberOfLines={1} style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>Lyne</Text>
@@ -127,7 +144,7 @@ export default function LaunchScreen() {
       </View>
 
       <Animated.Text style={[{ color: 'rgba(255,255,255,.55)', fontFamily: font.semibold, fontSize: 13.5 }, tailStyle]}>
-        Take your place before you arrive.
+        Spend less time waiting.
       </Animated.Text>
 
       <Animated.View style={[{ flexDirection: 'row', gap: 7, marginTop: 6 }, tailStyle]}>

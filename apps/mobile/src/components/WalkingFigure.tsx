@@ -2,7 +2,7 @@
  * WalkingFigure — a person with an actual walk cycle.
  *
  * What this replaces: Walkers drew the `walk` icon (a circle on a stick) and slid
- * it across; QueueScene drew a circle on a rounded rectangle. Neither had limbs
+ * it across; the old queue scene drew a circle on a rounded rectangle. Neither had limbs
  * that moved, so neither read as walking — they read as shapes being translated,
  * which is what they were.
  *

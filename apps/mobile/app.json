@@ -111,7 +111,7 @@
       "package": "com.lyne.com",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0c1826"
+        "backgroundColor": "#0B1B3F"
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
@@ -131,9 +131,9 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
-          "backgroundColor": "#0c1826",
+          "backgroundColor": "#0B1B3F",
           "dark": {
-            "backgroundColor": "#080e16"
+            "backgroundColor": "#0B1B3F"
           },
           "resizeMode": "contain"
         }
@@ -142,7 +142,7 @@
         "expo-notifications",
         {
           "icon": "./assets/adaptive-icon.png",
-          "color": "#1b4b8f",
+          "color": "#1A4BD8",
           "sounds": []
         }
       ],

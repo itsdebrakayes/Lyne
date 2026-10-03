@@ -29,8 +29,11 @@ const SUP_FAQ = [
   { q: 'Can I Leave A Desk Uncovered?', a: 'Yes, and sometimes you should. An empty desk on a quiet service costs nothing, so the board only flags one when people are actually waiting for it.' },
   { q: 'Who Sees What I Change Here?', a: 'Desk assignments are visible to your branch manager and appear on the customer-facing screens straight away. Nothing here changes anyone’s roster or pay.' },
 ];
-import { num, fmtN, insightData, dailyRollup, deriveOpsAlerts } from './insights';
-import { buildHeatmap } from './ManagerDashboard';
+/* insightData / deriveOpsAlerts / buildHeatmap were imported for a
+   performance score, an alerts list and a heatmap that this screen computed
+   and never rendered. The supervisor's heatmap comes from demandHourly via
+   buildSupData, and manager_performance is never written by the live pipeline. */
+import { num, fmtN, dailyRollup } from './insights';
 
 const NAV: NavItem[] = [
   { key: 'overview', label: 'Section Board', icon: LayoutGrid },
@@ -95,29 +98,47 @@ export default function SupervisorDashboard() {
   const last = summary[summary.length - 1] || {};
   const waitingNow = d.queues.reduce((t, q: any) => t + num(q.waiting_count), 0);
   const liveWait = Math.round(d.queues.reduce((t, q: any) => t + num(q.avg_wait_minutes), 0) / Math.max(1, d.queues.length)) || Math.round(num(last.avg_wait_time_minutes));
-  /* Same fault as the manager's: `period` was written by the pills and read by
-     nothing, the chip printed a hardcoded today, and every number came off one
-     day. Aggregated across the selected window now; with the default "Today"
-     window the values are unchanged, so the screen opens as it did. */
+  /* The manager's dashboard had the same fault and was fixed the same way:
+     `period` was written by the pills and read by nothing. The difference here
+     is where the window can honestly land. A manager's screen is mostly
+     reporting, so most of it takes a date range. A supervisor's is the floor
+     right now, and only Busy Times is about time — so the window is summed
+     here and consumed there, and the pills appear on that tab alone. */
   const [anchor, setAnchor] = useState(today());
   const win = useMemo(() => makeWindow(anchor, windowDaysOf(period)), [anchor, period]);
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
   const sumIn = (k: string) => windowRows.reduce((t, s: any) => t + num(s[k]), 0);
-  const completed = sumIn('completed_count');
-  const totalToday = sumIn('total_visitors') || completed + sumIn('no_show_count');
-  const noShows = sumIn('no_show_count');
+  /* These three were the period pills' entire purpose and were read by nothing.
+     They now travel to Busy Times as `window` — the one tab on this dashboard
+     where a date range describes the content, every other one being live by
+     design. Undefined when the branch has no summary rows at all, so the tab
+     omits the cards rather than showing three confident zeros. */
+  const supWindow = useMemo(() => {
+    if (!windowRows.length) return undefined;
+    const completed = sumIn('completed_count');
+    const noShows = sumIn('no_show_count');
+    return {
+      label: win.days > 1 ? labelFor(win) : 'Today',
+      days: win.days,
+      visitors: sumIn('total_visitors') || completed + noShows,
+      completed,
+      noShows,
+    };
+  }, [windowRows, win]);
 
   // Contextual search — supervisors only have a staff list to filter.
   const [q, setQ] = useState('');
   useEffect(() => { setQ(''); }, [tab]);
   const needle = q.trim().toLowerCase();
+  /* PASSED to buildSupData below, which is the whole of the fix. This was
+     computed here and never handed to anything: the Staff tab rendered
+     `d.staff`, so the search box accepted text, highlighted, and filtered
+     nothing. */
   const shownStaff = (d.staff as any[]).filter((s) => !needle
     || String(s.full_name ?? '').toLowerCase().includes(needle)
     || String(s.staff_code ?? '').toLowerCase().includes(needle));
   const target = d.targets;
 
-  const myScore = insightData(preds, 'manager_performance');
-  const myBranch = (Array.isArray(myScore?.managers) ? myScore.managers : []).find((m: any) => m.branch_id === d.branchId) || (myScore?.managers || [])[0];
 
   const titles: Record<string, [string, string]> = {
     overview: ['Your Floor, Right Now', `${branchName} — Live Queues, Waits And What Needs Attention.`],
@@ -127,17 +148,16 @@ export default function SupervisorDashboard() {
     targets: ['Targets', 'The Branch Targets Your Manager Set — For Reference.'],
     support: ['Help & Support', 'Common Questions For Supervisors.'],
   };
-  const heat = buildHeatmap(d.heatmap);
-  const alerts = useMemo(() => deriveOpsAlerts(preds, d.productivity), [preds, d.productivity]);
 
   const liveData = useMemo(() => buildSupData({
     periodLabel: win.days > 1 ? labelFor(win) : undefined,
+    window: supWindow,
     /* Sections are not modelled on the staff record — a supervisor is attached
        to a branch. Labelled by branch rather than inventing a section name. */
     sectionName: branchName,
     branchName, supervisorName: d.admin?.name || '',
     queues: d.queues as any[], counters: countersQuery.data || [],
-    staff: d.staff as any[], productivity: d.productivity,
+    staff: shownStaff, productivity: d.productivity,
     demandHourly: d.demandHourly as any[], target: d.effectiveTarget,
     avgWait: liveWait,
     coverPct: 0,
@@ -163,8 +183,8 @@ export default function SupervisorDashboard() {
         covered: perHour.map(() => 0),
       };
     })(),
-  }), [assigned, d.admin, branchName, d.queues, countersQuery.data, d.staff, d.productivity, d.demandHourly,
-       d.effectiveTarget, liveWait, last]);
+  }), [assigned, d.admin, branchName, d.queues, countersQuery.data, shownStaff, d.productivity, d.demandHourly,
+       d.effectiveTarget, liveWait, last, supWindow, win]);
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;
 
@@ -200,13 +220,20 @@ export default function SupervisorDashboard() {
             : (SUP_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
-            {/* A session is one fixed DAY — a period pill over it would drive
-                nothing and imply the screen below is a period view. */}
-            {tab !== 'sessions' ? <QxPills value={period} onChange={setPeriod}
+            {/* The pills drive the window cards on Busy Times and nothing
+                else, so Busy Times is where they appear. Every other tab here
+                is live by design — the Section Board is "right now", Desk
+                Assignment is this shift, and Served Today carries a comment
+                saying it must not be period-labelled. A pill over those changed
+                one label and no number, which is the "filters don't work"
+                report: the control responded to the click and the screen did
+                not. Sessions was already excluded for the same reason, one tab
+                at a time. */}
+            {tab === 'busy' ? <QxPills value={period} onChange={setPeriod}
               options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
-            {tab === 'sessions'
-              ? <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
-              : <DateWindowChip window={win} onChange={setAnchor} />}
+            {tab === 'busy'
+              ? <DateWindowChip window={win} onChange={setAnchor} />
+              : <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>}
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
