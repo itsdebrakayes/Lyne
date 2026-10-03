@@ -1433,3 +1433,47 @@
   .qc-visit { grid-template-columns: 1fr; gap: 8px; }
   .qc-visit-out { justify-content: flex-start; }
 }
+
+/* ── message composer ──────────────────────────────────────────────────────
+   The dialog behind "Message Your Executive" and the reply on a notification.
+   Tokens only: --c-surface / --c-line / --c-text and friends all flip with the
+   theme, so this is correct in light and dark without a second block. */
+.qx-mc-scrim {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(8, 14, 24, .52);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.qx-mc {
+  width: min(520px, 100%); max-height: 86vh; overflow: auto;
+  background: var(--c-surface); color: var(--c-text);
+  border: 1px solid var(--c-line); border-radius: 18px;
+  padding: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+.qx-mc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.qx-mc-head small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px; color: var(--c-accent); text-transform: uppercase; }
+.qx-mc-head b { display: block; font-size: 17px; letter-spacing: -.02em; margin-top: 3px; }
+.qx-mc-quote {
+  margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--c-line);
+  background: var(--c-surface-2); border-radius: 0 10px 10px 0;
+  font-size: 12.5px; line-height: 1.5; color: var(--c-dim);
+}
+.qx-mc-field { display: block; margin-bottom: 14px; }
+.qx-mc-field > span { display: block; font-size: 11.5px; font-weight: 700; color: var(--c-dim); margin-bottom: 6px; }
+.qx-mc-field > span i { font-style: normal; font-weight: 600; opacity: .7; }
+.qx-mc-field input, .qx-mc-field textarea {
+  width: 100%; box-sizing: border-box; padding: 11px 12px;
+  background: var(--c-surface-2); color: var(--c-text);
+  border: 1px solid var(--c-line); border-radius: 12px;
+  font: inherit; font-size: 13.5px; resize: vertical;
+}
+.qx-mc-field input:focus, .qx-mc-field textarea:focus { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+.qx-mc-count { display: block; text-align: right; margin-top: 5px; font-size: 11px; color: var(--c-dim); }
+.qx-mc-err { margin: 0 0 12px; font-size: 12.5px; font-weight: 700; color: var(--c-bad); }
+.qx-mc-sent { margin: 6px 0 2px; font-size: 14px; font-weight: 700; color: var(--c-good); }
+.qx-mc-foot { display: flex; justify-content: flex-end; gap: 9px; }
+.qx-mc-hint { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; font-size: 12.5px; line-height: 1.55; color: var(--c-dim); font-weight: 600; }
+.qx-mc-answers { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.qx-mc-answer { padding: 12px 13px; background: var(--c-surface-2); border: 1px solid var(--c-line); border-radius: 12px; }
+.qx-mc-answer b { display: block; font-size: 13px; margin-bottom: 5px; }
+.qx-mc-answer p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--c-dim); }

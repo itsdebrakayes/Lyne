@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
+import MessageComposer from '../components/MessageComposer';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 import { LayoutGrid, Users, Grid3x3, Target, Headphones, Hand, CalendarClock, UserSearch } from 'lucide-react';
@@ -246,6 +247,20 @@ export default function SupervisorDashboard() {
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : supTab(tab, setTab)}
       </SupDataProvider>
+      {/* The reply box for a message opened from the bell. It lives at the
+          dashboard level rather than inside the popover because the popover
+          closes the moment an item is clicked. */}
+      {notify.replyTo ? (
+        <MessageComposer
+          target={{
+            mode: 'reply',
+            inReplyTo: notify.replyTo.id,
+            label: notify.replyTo.from,
+            quoted: notify.replyTo.quoted,
+          }}
+          onClose={notify.closeReply}
+        />
+      ) : null}
     </QxShell>
   );
 }

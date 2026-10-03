@@ -19,6 +19,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { replayTour } from '../../hooks/useTour';
+import SupportAsk from '../../components/SupportAsk';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp,
@@ -1908,6 +1909,7 @@ const FX_FAQ: Array<{ q: string; a: string }> = [
 
 export function ExecSupport() {
   const d = useExecData();
+  const [ask, setAsk] = useState(false);
   // `d.faq[0].q` threw outright when the list was empty, which is the same
   // black-screen class of bug as the Managers tab.
   const [open, setOpen] = useState<string | null>(d.faq[0]?.q ?? null);
@@ -1936,10 +1938,24 @@ export function ExecSupport() {
       <div className="qx-stack s4">
         <Card title="Still Stuck?" cap="We answer within one business day">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            <button type="button" className="qx-btn"><MessageSquare size={14} />Start A Conversation</button>
-            <button type="button" className="qx-btn ghost"><Mail size={14} />customersupport@uselyne.com</button>
-            <button type="button" className="qx-btn ghost"><Headphones size={14} />(876) 555-0142</button>
-            <button type="button" className="qx-btn ghost" onClick={replayTour}>
+            {/* "Start A Conversation" never said with whom, and did nothing.
+                An executive is the top of their own organisation — there is
+                nobody above them inside it — so the only honest answer is
+                Lyne support, which is us. It opens the answer panel below
+                rather than a messaging box to a person who does not exist. */}
+            <button type="button" className="qx-btn" onClick={() => setAsk(true)}>
+              <MessageSquare size={14} />Ask Lyne Support
+            </button>
+            {/* A real mailto, where this was a <button> with no onClick — four dead
+                controls sat on this panel. The phone row is gone rather than
+                relabelled: "(876) 555-0142" is a fabricated number (555 is a
+                reserved fictional exchange), and shipping one on a support page
+                is worse than offering no phone at all. Put it back when there is
+                a line that answers. */}
+            <a className="qx-btn ghost" href="mailto:customersupport@uselyne.com">
+              <Mail size={14} />customersupport@uselyne.com
+            </a>
+                        <button type="button" className="qx-btn ghost" onClick={replayTour}>
               <PlayCircle size={14} />Replay The Tour
             </button>
           </div>
@@ -1964,6 +1980,9 @@ export function ExecSupport() {
           </div>
         </Card>
       </div>
+      {ask ? (
+        <SupportAsk faq={d.faq} supportEmail="customersupport@uselyne.com" onClose={() => setAsk(false)} />
+      ) : null}
     </div>
   );
 }

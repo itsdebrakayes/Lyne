@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
+import MessageComposer from '../components/MessageComposer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
@@ -335,6 +336,20 @@ export default function ManagerDashboard() {
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
+      {/* The reply box for a message opened from the bell. It lives at the
+          dashboard level rather than inside the popover because the popover
+          closes the moment an item is clicked. */}
+      {notify.replyTo ? (
+        <MessageComposer
+          target={{
+            mode: 'reply',
+            inReplyTo: notify.replyTo.id,
+            label: notify.replyTo.from,
+            quoted: notify.replyTo.quoted,
+          }}
+          onClose={notify.closeReply}
+        />
+      ) : null}
     </QxShell>
   );
 }
