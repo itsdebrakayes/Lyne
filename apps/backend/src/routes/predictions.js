@@ -247,6 +247,32 @@ router.get('/best-times', async (req, res) => {
       }));
       const quietestDay = known.sort((a, b) => a.avg_wait - b.avg_wait)[0];
 
+      /* The day x hour grid, which this endpoint computed and then threw away.
+         The heatmap needs it, and recomputing it on the client would mean
+         shipping the raw visit history to the phone — far more data, and a
+         second place for the thresholds to drift.
+
+         `level` is assigned by the SAME quietLevel() the week strip uses, over
+         the same min/max for this service. That matters: two scales for "busy"
+         on one screen is incoherent, and a cell could read quiet in the heatmap
+         while its day read peak in the strip directly above it.
+
+         Bounded by construction — hours are already restricted to 8-17 and
+         cells need at least 2 visits, so a service contributes at most 70 of
+         these and usually far fewer. */
+      const cellWaits = slots.map((slot) => slot.avg_wait);
+      const cellMin = cellWaits.length ? Math.min(...cellWaits) : 0;
+      const cellMax = cellWaits.length ? Math.max(...cellWaits) : 0;
+      const grid = slots
+        .map((slot) => ({
+          dow: slot.dow,
+          hour: slot.hour,
+          visits: slot.visits,
+          avg_wait: slot.avg_wait,
+          level: quietLevel(slot.avg_wait, cellMin, cellMax),
+        }))
+        .sort((a, b) => a.dow - b.dow || a.hour - b.hour);
+
       return {
         service_id: service.service_id,
         service_name: service.service_name,
@@ -254,6 +280,7 @@ router.get('/best-times', async (req, res) => {
         busiest: decorate(busiest),
         quietest_day: quietestDay || null,
         week,
+        grid,
       };
     }).sort((a, b) => a.service_name.localeCompare(b.service_name));
 
