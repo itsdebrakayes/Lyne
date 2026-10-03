@@ -22,6 +22,7 @@ import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
+import { D } from '../../lib/predictiveDesign';
 import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -149,16 +150,22 @@ export default function PlanVisitScreen() {
           </View>
         </View>
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.accentDeep, letterSpacing: 1.6 }}>SMART TIMING</Text>
-        <Text style={[t.h1, { marginTop: 8, marginBottom: 22 }]}>Beat the line before{'\n'}you leave home.</Text>
+        <Text style={{ fontFamily: font.extra, fontSize: 11, color: D.eyebrow, letterSpacing: 1.6 }}>SMART TIMING</Text>
+        {/* 30/1.12/-0.9 and no hard line break — the design lets it wrap, which
+            is what keeps it from breaking in the wrong place on a small phone.
+            The tail is 500 weight in `sub`, not the same weight as the lead. */}
+        <Text style={{ fontSize: 30, lineHeight: 33.6, letterSpacing: -0.9, marginTop: 8, marginBottom: 20 }}>
+          <Text style={{ fontFamily: font.extra, color: D.ink }}>Beat the line </Text>
+          <Text style={{ fontFamily: font.medium, color: D.sub }}>before you leave home.</Text>
+        </Text>
 
         {/* branch chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }} style={{ marginBottom: 20 }}>
           {branches.map(b => {
             const on = branch?.id === b.id;
             return (
               <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 17, paddingVertical: 11, paddingHorizontal: 15 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? colors.accent : colors.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
+                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? D.onDarkAccent : D.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
                 <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
               </TouchableOpacity>
             );
@@ -233,8 +240,103 @@ export default function PlanVisitScreen() {
               />
             ) : (
             <>
+            {/* ── FOR YOU ──
+                The design's recommendation rows, which this screen did not
+                have. The forecast above answers "when today"; these answer
+                "what should I actually do this week" — one slot to aim for and
+                one to avoid, picked across every service at the branch.
+
+                They are derived, not decorative: the first is the lowest
+                well-evidenced best-time of any service here, the second the
+                highest busiest-time. The second needs `busiest`, which is a
+                premium field, so a free customer sees the row they can act on
+                and not the one they cannot. */}
+            {(() => {
+              const withBest = plan.services.filter((x) => x.best);
+              if (!withBest.length) return null;
+              const aim = [...withBest].sort((a, b) => a.best!.avg_wait - b.best!.avg_wait)[0];
+              const withBusy = plan.services.filter((x) => x.busiest);
+              const avoid = withBusy.length
+                ? [...withBusy].sort((a, b) => b.busiest!.avg_wait - a.busiest!.avg_wait)[0]
+                : null;
+
+              const Row = ({
+                chip, chipBg, chipInk, title, sub, onPress, last,
+              }: {
+                chip: string; chipBg: string; chipInk: string;
+                title: string; sub: string; onPress: () => void; last?: boolean;
+              }) => (
+                <TouchableOpacity
+                  onPress={onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${title}. ${sub}`}
+                  style={{
+                    flexDirection: 'row', gap: 12, alignItems: 'center',
+                    paddingVertical: 14, paddingHorizontal: 16,
+                    borderBottomWidth: last ? 0 : 1, borderBottomColor: D.lineSoft,
+                  }}
+                >
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 12, backgroundColor: chipBg,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: chipInk }}>{chip}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: D.ink }}>{title}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>{sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={chipInk} />
+                </TouchableOpacity>
+              );
+
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 22, marginBottom: 12 }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                    <TouchableOpacity
+                      onPress={() => branch && navigation.navigate('BusyTimes', {
+                        businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                        serviceId: aim.service_id,
+                      })}
+                      accessibilityRole="button"
+                    >
+                      <Text style={{ fontFamily: font.bold, fontSize: 12, color: D.accent }}>See heatmap →</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, overflow: 'hidden' }}>
+                    <Row
+                      chip={aim.best!.day_name.slice(0, 2)}
+                      chipBg={D.coolBg} chipInk={D.coolInk}
+                      title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
+                      sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
+                      onPress={() => branch && navigation.navigate('WeekPlanner', {
+                        businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                        serviceId: aim.service_id,
+                      })}
+                      last={!avoid}
+                    />
+                    {avoid && (
+                      <Row
+                        chip={avoid.busiest!.day_name.slice(0, 2)}
+                        chipBg={D.warmBg} chipInk={D.warmInk}
+                        title={`Skip ${avoid.busiest!.day_name} ${avoid.busiest!.hour_label.replace(':00', '')}`}
+                        sub={`Averages ${Math.round(avoid.busiest!.avg_wait)} min, the week's peak`}
+                        onPress={() => branch && navigation.navigate('BusyTimes', {
+                          businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                          serviceId: avoid.service_id,
+                        })}
+                        last
+                      />
+                    )}
+                  </View>
+                </>
+              );
+            })()}
+
             {/* per-service planner */}
-            <View style={t.sectionRow}>
+            <View style={[t.sectionRow, { marginTop: 22 }]}>
               <Text style={t.section}>Best time by service</Text>
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>{plan.services.length} services</Text>
             </View>

@@ -432,12 +432,41 @@ export default function HomeScreen() {
 
           {isLoading && <SkeletonRows count={2} />}
 
-          {!!error && !isLoading && (
+          {/* AN ERROR CARD ONLY WHEN THERE IS NOTHING TO SHOW.
+              This rendered on `error` alone while the list below rendered on
+              `recommended.length`, and react-query keeps the last good data
+              through a failed refetch — so both were true at once and the card
+              sat on top of the agencies it said could not be loaded. Its "Try
+              again" looked dead for the same reason: the retry worked, the data
+              was already on screen, and nothing visibly changed.
+
+              With data in hand a failed refresh is not a failure worth a card.
+              It gets the line below instead, which says the figures are the
+              last known ones — which is the only thing a person needs to know. */}
+          {!!error && !isLoading && recommended.length === 0 && (
             <ErrorCard
               title="Waits unavailable"
               message="Live queue times could not be loaded."
               onRetry={() => refetch()}
             />
+          )}
+
+          {!!error && !isLoading && recommended.length > 0 && (
+            <TouchableOpacity
+              onPress={() => refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Waits may be out of date. Tap to refresh."
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                backgroundColor: colors.surfaceAlt, borderRadius: 12,
+                paddingVertical: 9, paddingHorizontal: 12, marginBottom: 12,
+              }}
+            >
+              <Icon name="clock" size={14} color={colors.sub} />
+              <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12, color: colors.sub }}>
+                Showing the last known waits — tap to refresh.
+              </Text>
+            </TouchableOpacity>
           )}
 
           {/* Two different nothings, and they must not share a sentence.
