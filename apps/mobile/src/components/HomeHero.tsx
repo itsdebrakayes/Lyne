@@ -125,6 +125,13 @@ export function HomeHero({
    * no longer doing once a helper is in the line for you — the only thing you
    * want from this screen then is when to leave, and that is one tap away
    * rather than buried behind the branch you happened to pick it from.
+   *
+   * That reasoning holds for a helper LATER TODAY and not for one scheduled
+   * next Tuesday — and this button is the only route into "Plan your visit"
+   * anywhere in the app, so taking the slot took Smart Timing with it: schedule
+   * a helper a week out and the whole premium feature was unreachable until it
+   * ran. The link below the row puts it back without giving the offer equal
+   * weight to the live state.
    */
   helper,
 }: {
@@ -254,6 +261,22 @@ export function HomeHero({
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Only while the helper has the button. Quiet on purpose: it restores
+            the route without competing with the live state above it. */}
+        {!!helper && (
+          <TouchableOpacity
+            onPress={onPlanLater}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Plan another visit"
+            style={{ alignSelf: 'center', paddingTop: 12, paddingHorizontal: 8 }}
+          >
+            <Text style={{ fontFamily: font.bold, fontSize: 12, color: 'rgba(255,255,255,.6)' }}>
+              Plan another visit →
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Dots sit OUTSIDE the card, as in the reference — inside, they compete

@@ -258,7 +258,11 @@ export default function LineHelperScreen() {
             </View>
             <View style={{
               width: 46, height: 28, borderRadius: 14, padding: 3,
-              backgroundColor: letPass ? D.accent : '#d3d8e0',
+              /* The design's off-track is #e7eaf0 (D.line). It is pale against
+                 the white card, and it is legible anyway because the knob
+                 carries the design's own drop shadow — which is what draws the
+                 edge. Default is on, so this is the rarer state. */
+              backgroundColor: letPass ? D.accent : D.line,
               flexDirection: 'row', justifyContent: letPass ? 'flex-end' : 'flex-start',
             }}>
               <View style={{
