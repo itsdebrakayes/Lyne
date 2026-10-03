@@ -97,9 +97,19 @@ NAMES you set and any that are still blank.
 
 Run deploy/init-managed-db.sh with ADMIN_USER=doadmin and the doadmin password.
 
-It applies schema.sql, then every migration in alphabetical order, then
-harden_database.sql — and then reconnects as the APPLICATION login and fails
-loudly if that login can still DROP.
+It applies schema.sql, then every migration in alphabetical order (034, Line
+Helper, is the newest), then harden_database.sql — and then reconnects as the
+APPLICATION login and fails loudly if that login can still DROP.
+
+Then confirm these three, which are what an empty production database needs to
+be RIGHT and are easy to assume rather than check:
+
+  SELECT COUNT(*) FROM subscription_tiers;   -- > 0, from migration 020
+  SHOW TABLES LIKE 'line_helper_requests';   -- exists, from migration 034
+  SELECT COUNT(*) FROM businesses;           -- 0
+
+The first is reference data the system misbehaves without. The third is the
+whole point of main: if it is not zero, demo data got in — stop and tell me.
 
 That last check is the point of the whole script. If it does not run, or it
 passes suspiciously fast, say so. The requirement is that the application
@@ -139,6 +149,25 @@ Then do the two things that README says the cron does not:
   - REHEARSE A RESTORE NOW, while the data is worthless. Restore the backup
     into a scratch database and confirm the tables arrive. Tell me it worked.
     A restore that has never been performed is a hope.
+
+== STEP 6b — LINE HELPER, AND ONE DECISION I NEED FROM YOU ==
+
+Line Helper joins a queue on a customer's behalf at an agreed time — it puts a
+ticket in a real line for somebody who is not yet in the building. Confirm all
+three gates before anyone uses it:
+
+  - Premium only. A free account gets 402.
+  - branches.line_helper_enabled defaults TRUE. ASK ME which branches should
+    have it on at launch, and set the rest to 0. An agency that has not agreed
+    to remote place-holding must not have customers arriving with tickets its
+    clerks will refuse.
+  - "Let people pass if I'm late" yields the place to whoever is behind, up to
+    three turns, then the ticket ends. That is what makes the feature
+    defensible rather than a paid queue-jump.
+
+Check the API log says "[LineHelper] Active" on boot. That line means the
+minute tick is running; without it a scheduled helper never joins and never
+yields, and the failure is silent.
 
 == STEP 7 — SUPABASE ==
 
@@ -197,9 +226,15 @@ build actually used before submitting.
 Before you submit, confirm each of these and report them as a list:
   - The app icon has NO alpha channel. App Store Connect rejects one that does.
   - The build points at api.uselyne.com, not localhost and not demo-api.
-  - PREMIUM_ENABLED is false and SOCIAL_AUTH_ENABLED matches reality.
+  - PREMIUM_ENABLED is false (no web checkout on iOS) while
+    PREMIUM_TRIAL_ENABLED is true — the 14-day trial is a server-side flag flip
+    that completes with no payment, so neither Guideline 2.1 nor 3.1.1 touches
+    it. Do not switch PREMIUM_ENABLED on.
+  - SOCIAL_AUTH_ENABLED matches reality — see step 8.
   - docs/launch/reviewer-notes.md is filled in, and the review account in it
     actually signs in against the PRODUCTION API. Test it.
+  - The production image does NOT contain the demo seeder. One line of proof:
+    `docker run --rm <image> ls scripts/` must not list refresh-demo-data.js.
 
 Then:
   eas submit --platform ios --profile production
