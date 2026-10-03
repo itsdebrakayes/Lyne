@@ -32,7 +32,7 @@ const { auditLog } = require('../middleware/auditLog');
 const router = express.Router();
 
 /** Absent rows mean defaults, so GET never 404s on a branch nobody has configured. */
-const BRANCH_DEFAULTS = Object.freeze({ allow_overflow: false });
+const BRANCH_DEFAULTS = Object.freeze({ allow_overflow: false, line_helper_enabled: true });
 const ALERT_DEFAULTS = Object.freeze({ idle_after_minutes: 20, line_over_target: 'on' });
 
 /** Only thresholds the UI offers. Anything else falls back rather than being stored. */
@@ -42,6 +42,11 @@ function shapeBranch(row) {
   if (!row) return { ...BRANCH_DEFAULTS };
   return {
     allow_overflow: Boolean(row.allow_overflow),
+    /* Read off the branches row, not branch_settings — the Line Helper join
+       path reads branches.line_helper_enabled, and one column read by two
+       places that could disagree is a bug waiting to happen. */
+    line_helper_enabled: row.line_helper_enabled === undefined
+      ? true : Boolean(row.line_helper_enabled),
     updated_by_name: row.updated_by_name || null,
     updated_at: row.updated_at || null,
   };
@@ -67,10 +72,16 @@ router.get('/branch', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
 
     const [[branchRow], [alertRow], [hoursRow]] = await Promise.all([
       pool.query(
-        `SELECT bs.*, s.full_name AS updated_by_name
-           FROM branch_settings bs
+        /* RIGHT JOIN from branches, because a branch that has never had its
+           settings saved has no branch_settings row at all — and it still has a
+           line_helper_enabled value that the UI must show. Starting from
+           branch_settings returned nothing and the toggle rendered at its
+           default regardless of the column. */
+        `SELECT bs.*, s.full_name AS updated_by_name, b.line_helper_enabled
+           FROM branches b
+           LEFT JOIN branch_settings bs ON bs.branch_id = b.id
            LEFT JOIN staff s ON s.id = bs.updated_by
-          WHERE bs.branch_id = ?`,
+          WHERE b.id = ?`,
         [branchId]
       ).then((r) => r[0]),
       pool.query('SELECT * FROM staff_alert_prefs WHERE staff_id = ?', [req.dbStaff?.id || null])
@@ -113,6 +124,16 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
 
     const allowOverflow = req.body.allow_overflow ? 1 : 0;
 
+    /* Written to the branches row, which is where the Line Helper join path
+       reads it. Only when it was actually sent: a settings save that only
+       touched overflow must not silently switch Line Helper back on. */
+    if (req.body.line_helper_enabled !== undefined) {
+      await pool.query(
+        'UPDATE branches SET line_helper_enabled = ?, updated_at = NOW() WHERE id = ?',
+        [req.body.line_helper_enabled ? 1 : 0, branchId]
+      );
+    }
+
     await pool.query(
       `INSERT INTO branch_settings (branch_id, allow_overflow, updated_by)
        VALUES (?, ?, ?)
@@ -123,10 +144,11 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
     );
 
     const [rows] = await pool.query(
-      `SELECT bs.*, s.full_name AS updated_by_name
-         FROM branch_settings bs
+      `SELECT bs.*, s.full_name AS updated_by_name, b.line_helper_enabled
+         FROM branches b
+         LEFT JOIN branch_settings bs ON bs.branch_id = b.id
          LEFT JOIN staff s ON s.id = bs.updated_by
-        WHERE bs.branch_id = ?`,
+        WHERE b.id = ?`,
       [branchId]
     );
     res.json({ branch_id: branchId, branch: shapeBranch(rows[0]) });

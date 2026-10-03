@@ -109,11 +109,11 @@ export type MgrTabData = {
      the tab used to be pure useState, so a manager could switch a policy off,
      watch it move, and change nothing. */
   settings?: {
-    branch: { allow_overflow: boolean; updated_by_name?: string | null };
+    branch: { allow_overflow: boolean; line_helper_enabled?: boolean; updated_by_name?: string | null };
     alerts: { idle_after_minutes: number | null; line_over_target: 'on' | 'off' };
     hours: { opening_time: string | null; closing_time: string | null } | null;
   } | null;
-  onSaveBranchSettings?: (patch: { allow_overflow?: boolean }) => Promise<void> | void;
+  onSaveBranchSettings?: (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean }) => Promise<void> | void;
   onSaveAlertPrefs?: (patch: { idle_after_minutes?: number | null; line_over_target?: 'on' | 'off' }) => Promise<void> | void;
   settingsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
   settingsSaveError?: string | null;
@@ -775,6 +775,9 @@ export function MgrSettingsTab() {
   const d = useMgr();
   const saving = d.settingsSaveState === 'saving';
   const overflowOn = !!d.settings?.branch.allow_overflow;
+  /* Defaults to ON, matching the column, so the toggle is never briefly wrong
+     while the settings request is still in flight. */
+  const helperOn = d.settings?.branch.line_helper_enabled !== false;
   const idleAfter = d.settings?.alerts.idle_after_minutes ?? null;
   const lineAlert = d.settings?.alerts.line_over_target ?? 'on';
 
@@ -804,6 +807,28 @@ export function MgrSettingsTab() {
               disabled={saving || !d.onSaveBranchSettings}
               onClick={() => d.onSaveBranchSettings?.({ allow_overflow: !overflowOn })} />
           </div>
+          {/* THE OFF SWITCH FOR LINE HELPER.
+              It ships on at every branch, which is the launch decision — so
+              this is how a branch turns it off, and it has to be a toggle on
+              the tab the manager already uses rather than a SQL statement
+              somebody runs against production. The moment an agency objects to
+              a ticket being held for somebody who is not in the building, the
+              person they tell can act on it. */}
+          <div className="qx-setrow">
+            <div>
+              <b>Let Lyne Hold A Place For Customers</b>
+              <small>
+                Line Helper joins the line for a customer at a time they agree, and tells them
+                when to leave home. If they are called before they arrive, their place passes to
+                the next person — up to three turns, then the ticket ends. Switch this off and
+                this branch stops offering it.
+              </small>
+            </div>
+            <Toggle on={helperOn} label="Line Helper"
+              disabled={saving || !d.onSaveBranchSettings}
+              onClick={() => d.onSaveBranchSettings?.({ line_helper_enabled: !helperOn })} />
+          </div>
+
           {/* Disabled, not fake. Neither feature exists: the backend has no SMS
               integration and the kiosk has no printer driver. */}
           <div className="qx-setrow">
