@@ -6,7 +6,7 @@ const compression = require('compression');
 const morgan      = require('morgan');
 
 const {
-  authLimiter,
+  profileSyncLimiter,
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
@@ -145,7 +145,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use(generalLimiter);
 
 // Routes with per-endpoint rate limits
-app.use('/api/auth/sync-user', authLimiter);
+/* sync-user is limited inside routes/auth.js now, after requireAuth, so the
+   budget is per person rather than per address — see profileSyncLimiter. */
 app.use('/api/auth',           require('./routes/auth'));
 
 app.use('/api/businesses',     require('./routes/businesses'));

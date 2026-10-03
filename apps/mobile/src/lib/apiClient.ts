@@ -135,6 +135,32 @@ export function isOffline(error: unknown): boolean {
   return error instanceof Error && typeof (error as { status?: number }).status !== 'number';
 }
 
+/**
+ * True when a failure says nothing about whether the caller is signed in.
+ *
+ * The distinction that matters at the sign-out decision is not "did this
+ * reach the server" but "did the server look at this token and reject the
+ * person". Three outcomes do NOT mean that:
+ *
+ *   - no status at all — never arrived (isOffline)
+ *   - 429 — arrived, and the server said slow down. It is a statement about
+ *     request RATE, not identity.
+ *   - 5xx — arrived, and the server broke. That is our fault, not theirs.
+ *
+ * This existed as isOffline alone, and the gap signed people out. Relaunching
+ * the app calls /auth/sync-user each time, that endpoint allowed ten requests
+ * per fifteen minutes PER IP, and the eleventh returned 429 — which carried a
+ * status, so it read as a refusal and cleared the session. On a branch wifi
+ * where many people share one address, ten launches between them logged
+ * everyone out and handed them a password form for a problem a password never
+ * had anything to do with.
+ */
+export function isTransient(error: unknown): boolean {
+  if (isOffline(error)) return true;
+  const status = (error as { status?: number })?.status;
+  return status === 429 || (typeof status === 'number' && status >= 500);
+}
+
 const api = {
   get:    <T>(path: string, auth = true) => request<T>('GET',    path, undefined, auth),
   post:   <T>(path: string, body: unknown, auth = true) => request<T>('POST',   path, body, auth),
