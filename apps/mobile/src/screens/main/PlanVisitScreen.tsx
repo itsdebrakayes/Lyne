@@ -29,6 +29,20 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 type Params = RouteProp<RootStackParamList, 'Plan'>;
 
 interface BestSlot { dow: number; hour: number; visits: number; avg_wait: number; day_name: string; hour_label: string }
+interface ForYouSlot {
+  service_id: string; service_name: string;
+  dow: number; day_name: string; hour: number; hour_label: string;
+  avg_wait: number; visits: number; matches_your_hours: boolean;
+}
+interface ForYou {
+  personalised: boolean;
+  home_branch?: { branch_id: string; branch_name: string; business_id: string; visits: number } | null;
+  top_services?: Array<{ service_id: string; service_name: string; visits: number }>;
+  habits?: { total_visits: number; preferred_hours: number[]; travel_minutes: number | null };
+  best?: ForYouSlot | null;
+  worst?: ForYouSlot | null;
+}
+
 interface TodayPlan {
   dow: number;
   day_name: string;
@@ -127,6 +141,21 @@ export default function PlanVisitScreen() {
     enabled: Boolean(branch),
     staleTime: 1000 * 60 * 15,
   });
+  /* THEIR habits, not the branch's. /for-you reads the person's own finished
+     visits — where they actually go, what they actually do there, the hours
+     they turn up in, and the travel time measured from the Line Helpers they
+     have scheduled — and recommends against that. It 402s for a free account
+     and says so plainly when it has not seen enough visits yet, so the
+     branch-level rows below stay the fallback rather than the pretence. */
+  const forYou = useQuery({
+    queryKey: ['for-you', user?.id ?? 'anon'],
+    queryFn: () => api.get<ForYou>('/predictions/for-you'),
+    enabled: Boolean(user?.id && premium),
+    staleTime: 1000 * 60 * 30,
+    retry: false,
+  });
+  const mine = forYou.data?.personalised ? forYou.data : null;
+
   const plan = bestTimes.data;
   /* What the RESPONSE IN HAND is, which is not always what the user record
      says. `premium` above drives the badge and the trial button; this drives
@@ -261,8 +290,17 @@ export default function PlanVisitScreen() {
                 premium field, so a free customer sees the row they can act on
                 and not the one they cannot. */}
             {(() => {
+              /* PERSONAL FIRST. When /for-you knows this person's habits its
+                 rows replace the branch-level ones entirely — they are about
+                 the service they actually use at the branch they actually go
+                 to, and they carry the reason. The branch rows remain the
+                 fallback for a new customer, which is the honest thing to show
+                 somebody we have not learned anything about yet. */
+              const personalAim = mine?.best ?? null;
+              const personalAvoid = mine?.worst ?? null;
+
               const withBest = plan.services.filter((x) => x.best);
-              if (!withBest.length) return null;
+              if (!withBest.length && !personalAim) return null;
               const aim = [...withBest].sort((a, b) => a.best!.avg_wait - b.best!.avg_wait)[0];
               const withBusy = plan.services.filter((x) => x.busiest);
               const avoid = withBusy.length
@@ -302,7 +340,19 @@ export default function PlanVisitScreen() {
               return (
                 <>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 22, marginBottom: 12 }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                      {/* Says WHY these are the rows — "for you" is a claim, and
+                          a claim with its basis attached is the difference
+                          between a recommendation and a horoscope. */}
+                      {mine?.habits && (
+                        <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>
+                          From your {mine.habits.total_visits} visit{mine.habits.total_visits === 1 ? '' : 's'}
+                          {mine.home_branch ? ` to ${mine.home_branch.branch_name}` : ''}
+                          {mine.habits.travel_minutes ? ` · ${mine.habits.travel_minutes} min away` : ''}
+                        </Text>
+                      )}
+                    </View>
                     <TouchableOpacity
                       onPress={() => branch && navigation.navigate('BusyTimes', {
                         businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
@@ -315,18 +365,53 @@ export default function PlanVisitScreen() {
                   </View>
 
                   <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, overflow: 'hidden' }}>
-                    <Row
-                      chip={aim.best!.day_name.slice(0, 2)}
-                      chipBg={D.coolBg} chipInk={D.coolInk}
-                      title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
-                      sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
-                      onPress={() => branch && navigation.navigate('WeekPlanner', {
-                        businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
-                        serviceId: aim.service_id,
-                      })}
-                      last={!avoid}
-                    />
-                    {avoid && (
+                    {personalAim ? (
+                      <Row
+                        chip={personalAim.day_name.slice(0, 2)}
+                        chipBg={D.coolBg} chipInk={D.coolInk}
+                        title={`${personalAim.service_name}: ${personalAim.day_name}, ${personalAim.hour_label.replace(':00', '')}`}
+                        sub={personalAim.matches_your_hours
+                          ? `~${Math.round(personalAim.avg_wait)} min — and it is when you usually go`
+                          : `~${Math.round(personalAim.avg_wait)} min, your quietest option`}
+                        onPress={() => mine?.home_branch && navigation.navigate('LineHelper', {
+                          businessId: mine.home_branch.business_id,
+                          branchId: mine.home_branch.branch_id,
+                          branchName: mine.home_branch.branch_name,
+                          serviceId: personalAim.service_id,
+                          serviceName: personalAim.service_name,
+                          targetDow: personalAim.dow,
+                          targetHour: personalAim.hour,
+                        })}
+                        last={!personalAvoid}
+                      />
+                    ) : (
+                      <Row
+                        chip={aim.best!.day_name.slice(0, 2)}
+                        chipBg={D.coolBg} chipInk={D.coolInk}
+                        title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
+                        sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
+                        onPress={() => branch && navigation.navigate('WeekPlanner', {
+                          businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
+                          serviceId: aim.service_id,
+                        })}
+                        last={!avoid}
+                      />
+                    )}
+                    {personalAvoid ? (
+                      <Row
+                        chip={personalAvoid.day_name.slice(0, 2)}
+                        chipBg={D.warmBg} chipInk={D.warmInk}
+                        title={`Skip ${personalAvoid.day_name} ${personalAvoid.hour_label.replace(':00', '')}`}
+                        sub={`${personalAvoid.service_name} averages ${Math.round(personalAvoid.avg_wait)} min then`}
+                        onPress={() => mine?.home_branch && navigation.navigate('BusyTimes', {
+                          businessId: mine.home_branch.business_id,
+                          branchId: mine.home_branch.branch_id,
+                          branchName: mine.home_branch.branch_name,
+                          serviceId: personalAvoid.service_id,
+                        })}
+                        last
+                      />
+                    ) : avoid ? (
                       <Row
                         chip={avoid.busiest!.day_name.slice(0, 2)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
@@ -338,7 +423,7 @@ export default function PlanVisitScreen() {
                         })}
                         last
                       />
-                    )}
+                    ) : null}
                   </View>
                 </>
               );

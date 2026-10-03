@@ -439,6 +439,183 @@ router.get('/best-times', optionalAuth, async (req, res) => {
   }
 });
 
+/* ── GET /api/predictions/for-you ──────────────────────────────────────────
+ *
+ * The same prediction engine, pointed at ONE PERSON'S habits.
+ *
+ * /best-times answers "when is this branch quiet", which is a fact about the
+ * branch and the same for everybody. That is generic analytics with a paywall
+ * in front of it, and it is a thin thing to charge for: a subscriber gets the
+ * identical answer the person beside them would get.
+ *
+ * This answers "when should YOU go", which needs three things the branch does
+ * not know and we do:
+ *
+ *   WHERE YOU ACTUALLY GO.   Somebody who has been to Half Way Tree eleven
+ *   times and Portmore once does not want them weighted equally, and does not
+ *   want to pick a branch from a list of thirty every time they open the app.
+ *
+ *   WHAT YOU ACTUALLY DO.    A person who only ever files GCT returns should
+ *   be told about the GCT line, not about the quietest service at that branch.
+ *
+ *   HOW LONG YOU TAKE TO GET THERE.  A ten-minute window at 8am is useless to
+ *   somebody with a forty-minute journey. Travel time comes from the Line
+ *   Helper requests they have actually made, which is a measured number rather
+ *   than a guess, and it narrows the recommendation to windows they can reach.
+ *
+ * It also reads the hours they tend to GO, because a quiet slot at 3pm is not a
+ * recommendation for somebody who has only ever come in the morning — that is a
+ * suggestion to rearrange their life, not to avoid a queue. Preferred hours are
+ * a soft weight rather than a filter: a genuinely empty hour outside their
+ * pattern is still worth naming, with the reason attached.
+ *
+ * Premium only, and it says plainly when it does not know enough yet rather
+ * than dressing up the branch average as a personal insight.
+ */
+router.get('/for-you', requireAuth, async (req, res) => {
+  try {
+    const user = req.dbUser;
+    if (!user?.id) return res.status(403).json({ error: 'Customer account required.' });
+    if (!hasPremium(user)) {
+      return res.status(402).json({ error: 'Personal timing is part of Lyne Premium.' });
+    }
+
+    /* Finished visits only. Somebody standing in a line right now is not yet
+       evidence of a habit, and counting them makes today look like a pattern. */
+    /* Grouped by the ALIASES dow and hour. Under only_full_group_by the GROUP BY
+       expression has to match the selected one exactly, and DAYOFWEEK(x) - 1 is
+       a different expression from DAYOFWEEK(x) — grouping by the latter while
+       selecting the former is rejected. (The explanation lives out here because
+       a backtick inside a template literal ends it.) */
+    const [history] = await pool.query(
+      `SELECT q.branch_id, b.name AS branch_name, b.business_id, bus.name AS business_name,
+              q.service_id, s.name AS service_name,
+              DAYOFWEEK(t.joined_at) - 1 AS dow,
+              HOUR(t.joined_at)        AS hour,
+              COUNT(*)                 AS visits
+         FROM queue_tickets t
+         JOIN queues     q   ON q.id = t.queue_id
+         JOIN branches   b   ON b.id = q.branch_id
+         JOIN businesses bus ON bus.id = b.business_id
+         JOIN services   s   ON s.id = q.service_id
+        WHERE t.user_id = ?
+          AND t.status IN ('served','left','cancelled','no_show')
+          AND t.joined_at >= DATE_SUB(CURDATE(), INTERVAL 180 DAY)
+        GROUP BY q.branch_id, b.name, b.business_id, bus.name, q.service_id, s.name, dow, hour`,
+      [user.id]
+    );
+
+    const totalVisits = history.reduce((n, r) => n + Number(r.visits), 0);
+
+    /* Two visits is not a habit. Below that the honest answer is that we do not
+       know them yet, and the app falls back to the branch view — which is a
+       real answer rather than a personalised-looking guess. */
+    const MIN_VISITS_FOR_HABITS = 2;
+    if (totalVisits < MIN_VISITS_FOR_HABITS) {
+      return res.json({
+        personalised: false,
+        reason: 'not_enough_history',
+        visits_seen: totalVisits,
+        visits_needed: MIN_VISITS_FOR_HABITS,
+      });
+    }
+
+    const tally = (keyOf, labelOf) => {
+      const m = new Map();
+      history.forEach((r) => {
+        const k = keyOf(r);
+        if (k === null || k === undefined) return;
+        const cur = m.get(k) || { key: k, label: labelOf(r), visits: 0, extra: r };
+        cur.visits += Number(r.visits);
+        m.set(k, cur);
+      });
+      return [...m.values()].sort((a, b) => b.visits - a.visits);
+    };
+
+    const branches = tally((r) => r.branch_id, (r) => r.branch_name);
+    const services = tally((r) => r.service_id, (r) => r.service_name);
+    const hours    = tally((r) => Number(r.hour), (r) => String(r.hour));
+    const home = branches[0];
+
+    /* Their journey, measured rather than assumed: the median travel time of
+       the Line Helper requests they have made. No requests means no claim. */
+    const [[travel]] = await pool.query(
+      `SELECT ROUND(AVG(travel_minutes)) AS mins, COUNT(*) AS n
+         FROM line_helper_requests WHERE user_id = ?`,
+      [user.id]
+    );
+    const travelMinutes = Number(travel?.n) > 0 ? Number(travel.mins) : null;
+
+    /* The hours they actually turn up in, as a soft preference. */
+    const preferredHours = hours.slice(0, 3).map((h) => Number(h.key)).sort((a, b) => a - b);
+
+    /* Now the prediction, for THEIR branch and THEIR services only. */
+    const serviceIds = services.slice(0, 4).map((x) => x.key);
+    const [slots] = await pool.query(
+      `SELECT w.service_id, s.name AS service_name,
+              w.day_of_week AS dow, w.hour_of_day AS hour,
+              COUNT(*) AS visits, ROUND(AVG(w.wait_time_minutes), 1) AS avg_wait
+         FROM wait_time_records w
+         JOIN services s ON s.id = w.service_id
+        WHERE w.branch_id = ?
+          AND w.service_id IN (?)
+          AND w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+          AND w.hour_of_day BETWEEN 8 AND 17
+        GROUP BY w.service_id, s.name, w.day_of_week, w.hour_of_day
+       HAVING COUNT(*) >= ?`,
+      [home.key, serviceIds.length ? serviceIds : [''], MIN_CELL_VISITS]
+    );
+
+    const scored = slots.map((r) => {
+      const hour = Number(r.hour);
+      const inPattern = preferredHours.length === 0 || preferredHours.includes(hour);
+      return {
+        service_id: r.service_id,
+        service_name: r.service_name,
+        dow: Number(r.dow),
+        day_name: DAY_NAMES[Number(r.dow)],
+        hour,
+        hour_label: hourLabel(hour),
+        avg_wait: Number(r.avg_wait),
+        visits: Number(r.visits),
+        /* An hour they already favour wins ties against an equally quiet one
+           they have never used — the recommendation should fit the life they
+           have, not ask them to rearrange it. A clearly quieter slot still
+           wins outright, and carries the reason. */
+        score: Number(r.avg_wait) - (inPattern ? 3 : 0),
+        matches_your_hours: inPattern,
+      };
+    });
+
+    const best = [...scored].sort((a, b) => a.score - b.score)[0] || null;
+    const worst = [...scored].sort((a, b) => b.avg_wait - a.avg_wait)[0] || null;
+
+    res.json({
+      personalised: true,
+      home_branch: home ? {
+        branch_id: home.key,
+        branch_name: home.label,
+        business_id: home.extra.business_id,
+        business_name: home.extra.business_name,
+        visits: home.visits,
+      } : null,
+      top_services: services.slice(0, 4).map((x) => ({
+        service_id: x.key, service_name: x.label, visits: x.visits,
+      })),
+      habits: {
+        total_visits: totalVisits,
+        preferred_hours: preferredHours,
+        travel_minutes: travelMinutes,
+      },
+      best,
+      worst: worst && best && worst.hour === best.hour && worst.dow === best.dow ? null : worst,
+    });
+  } catch (err) {
+    console.error('for-you error:', err);
+    res.status(500).json({ error: 'Could not work out your timings.' });
+  }
+});
+
 router.get(
   '/',
   requireAuth,
