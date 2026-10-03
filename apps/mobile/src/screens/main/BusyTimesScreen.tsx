@@ -45,7 +45,13 @@ export default function BusyTimesScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const premium = Boolean(Number(user?.is_premium || 0));
+  /* Two sources, and they can disagree for a moment. The user record flips the
+     instant a trial starts; the cached response is still the free one until the
+     refetch lands. Whichever says premium is enough to unlock — the record
+     because entitlement is real, the payload because the data is already here.
+     Reading only the record left the panel frosted over data it had; reading
+     only the payload would leave it frosted until the network answered. */
+  const entitled = Boolean(Number(user?.is_premium || 0));
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
   const [picking, setPicking] = useState(false);
@@ -62,6 +68,7 @@ export default function BusyTimesScreen() {
     staleTime: 1000 * 60 * 15,
   });
 
+  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,

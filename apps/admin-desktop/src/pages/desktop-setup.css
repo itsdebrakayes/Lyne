@@ -25,11 +25,8 @@
 }
 .ds-titlebar b { font-size: 13px; font-weight: 700; }
 .ds-titlebar small { margin-left: auto; color: var(--c-ink-dim); font-size: 11.5px; font-weight: 600; }
-.ds-mark {
-  width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
-  font-size: 12px; font-weight: 800; color: #fff;
-  background: linear-gradient(150deg, var(--c-primary-bright), var(--c-primary));
-}
+/* The brand symbol carries its own gradient, so no tile behind it. */
+.ds-mark { width: 22px; height: 22px; object-fit: contain; flex: none; }
 
 .ds-body { display: grid; grid-template-columns: 190px minmax(0, 1fr); min-height: 430px; }
 @media (max-width: 720px) { .ds-body { grid-template-columns: 1fr; } .ds-side { display: none; } }
@@ -38,10 +35,7 @@
   background: linear-gradient(165deg, var(--c-primary) 0%, #0E1B2E 100%);
   color: #E9EEF6; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;
 }
-.ds-sidemark {
-  width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center;
-  background: rgba(255, 255, 255, .16); font-size: 22px; font-weight: 800;
-}
+.ds-sidemark { width: 46px; height: 46px; object-fit: contain; flex: none; }
 .ds-side p { margin: 0; font-size: 13px; line-height: 1.55; opacity: .84; }
 
 .ds-content { padding: 28px 30px; display: flex; flex-direction: column; overflow-y: auto; max-height: 62vh; }

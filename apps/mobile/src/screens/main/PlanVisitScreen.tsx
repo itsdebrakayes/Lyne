@@ -70,7 +70,12 @@ const hourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour 
 const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-function WeekStrip({ week, compact = false }: { week: WeekDay[]; compact?: boolean }) {
+function WeekStrip({ week, compact = false }: { week?: WeekDay[]; compact?: boolean }) {
+  /* Optional, and empty renders nothing. `week` only exists on the premium
+     payload, and there is a real window where the user record says premium
+     while the cached response is still the free one — the moment a trial
+     starts. `week.map` threw there and took the whole screen white. */
+  if (!week?.length) return null;
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: compact ? 0 : 12 }}>
       {week.map(day => (
@@ -123,6 +128,10 @@ export default function PlanVisitScreen() {
     staleTime: 1000 * 60 * 15,
   });
   const plan = bestTimes.data;
+  /* What the RESPONSE IN HAND is, which is not always what the user record
+     says. `premium` above drives the badge and the trial button; this drives
+     the layout. */
+  const planIsPremium = Boolean(plan?.premium ?? plan?.services?.some((s) => s.week || s.grid));
 
   const startTrial = async () => {
     try {
@@ -341,7 +350,13 @@ export default function PlanVisitScreen() {
               <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted }}>{plan.services.length} services</Text>
             </View>
 
-            {premium ? (
+            {/* `planIsPremium`, not `premium`. The user record and the cached
+                response can disagree for a moment — starting a trial flips the
+                record immediately while the refetch is still in flight — and
+                rendering the premium layout against a free payload is what
+                blanked this screen. The server states what the payload IS, so
+                the layout follows that and converges when the refetch lands. */}
+            {planIsPremium ? (
               <View style={{ gap: 14 }}>
                 {plan.services.map(service => (
                   <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>

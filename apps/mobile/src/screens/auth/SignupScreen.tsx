@@ -7,7 +7,7 @@
  * of birth (in-app calendar), password + confirmation, and TRN.
  */
 import React, { useMemo, useState } from 'react';
-import {
+import { Image,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
@@ -81,7 +81,16 @@ export default function SignupScreen() {
         <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }, column]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
-            <View style={styles.logo}><Text style={styles.logoText}>L</Text></View>
+            {/* The real lockup, as on sign-in — see the note there. */}
+            <Image
+              source={colors.bg === '#f1f3f7'
+                ? require('../../../assets/lyne-logo-dark.png')
+                : require('../../../assets/lyne-logo-light.png')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel="Lyne"
+            />
             <Text style={styles.brand}>Create your account</Text>
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
@@ -166,12 +175,7 @@ const makeStyles = () => StyleSheet.create({
      form ended underneath the fade instead of above it. */
   inner: { paddingHorizontal: 28, paddingTop: 118, paddingBottom: 150 },
 
-  logo: {
-    width: 58, height: 58, borderRadius: 20, alignSelf: 'center',
-    backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16, ...shadow.card,
-  },
-  logoText: { color: colors.accent, fontFamily: font.extra, fontSize: 26 },
+  logo: { width: 160, height: 60, alignSelf: 'center', marginBottom: 12 },
   brand: { fontFamily: font.extra, fontSize: 24, color: colors.ink, textAlign: 'center', letterSpacing: -0.5 },
   subtitle: { fontFamily: font.medium, fontSize: 14.5, color: colors.muted, textAlign: 'center', marginTop: 7, maxWidth: 280 },
 

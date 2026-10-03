@@ -27,6 +27,7 @@ import { D } from '../../lib/predictiveDesign';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
+import HoldButton from '../../components/HoldButton';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'LineHelper'>;
@@ -76,6 +77,9 @@ export default function LineHelperScreen() {
   const [letPass, setLetPass] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  /* Bumped on failure so the hold ring returns to empty rather than sitting
+     complete over an error. */
+  const [resetTick, setResetTick] = useState(0);
 
   /* Quotes for all three chips at once, so the labels are real before anybody
      chooses. They come from the server because the prediction lives there and
@@ -138,6 +142,7 @@ export default function LineHelperScreen() {
       navigation.replace('HelperHold');
     } catch (e: any) {
       setError(e?.message || 'That did not schedule. Try again in a moment.');
+      setResetTick((n) => n + 1);
     } finally { setBusy(false); }
   };
 
@@ -306,22 +311,20 @@ export default function LineHelperScreen() {
 
       {/* the committed action */}
       <View style={{ position: 'absolute', left: 22, right: 22, bottom: 28 }}>
-        <TouchableOpacity
-          onPress={schedule}
-          disabled={!joinAt || busy}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !joinAt || busy }}
-          style={{
-            height: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-            backgroundColor: joinAt ? D.accent : '#c7ccd6',
-          }}
-        >
-          {busy ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>
-              {joinAt ? `Schedule helper for ${clock(joinAt)}` : 'Pick a time with history'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* HOLD, not tap — the same gesture as joining a line, for the same
+            reason. This commits you to a place in a real queue at a real time
+            and the branch's no-show rules then apply to it, so it should take
+            the same deliberate half-second that joining does. Two actions with
+            the same consequence should not have different weights. */}
+        <HoldButton
+          label={joinAt ? `Hold to schedule for ${clock(joinAt)}` : 'Pick a time with history'}
+          holdingLabel="Keep holding…"
+          doneLabel="Scheduled"
+          onComplete={schedule}
+          disabled={!joinAt}
+          busy={busy}
+          resetSignal={resetTick}
+        />
         {!!joinAt && (
           <Text style={{ textAlign: 'center', fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 10 }}>
             Cancel free until {clock(joinAt)} · the branch&rsquo;s no-show rules apply

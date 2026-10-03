@@ -32,6 +32,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { colors, font } from '../lib/theme';
+import Wordmark from './Wordmark';
 import { duration, easing, spring, useReducedMotion } from '../lib/motion';
 
 /** A single loading dot that breathes on a staggered loop. */
@@ -138,7 +139,10 @@ export default function LaunchScreen() {
             />
           </Animated.View>
           <Animated.View style={[{ overflow: 'hidden' }, wordStyle]}>
-            <Text numberOfLines={1} style={{ color: '#fff', fontFamily: font.extra, fontSize: 40, letterSpacing: -1.4 }}>Lyne</Text>
+            {/* The wordmark face, not Manrope at -1.4 letter-spacing pretending
+                to be it. This is the brand's first appearance on every launch,
+                so it is the last place to approximate the logo. */}
+            <Wordmark size={44} color="#fff" />
           </Animated.View>
         </View>
       </View>

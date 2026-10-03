@@ -33,7 +33,7 @@ type Params = RouteProp<RootStackParamList, 'WeekPlanner'>;
 
 interface Cell { dow: number; hour: number; visits: number; avg_wait: number }
 interface ServicePlan { service_id: string; service_name: string; grid?: Cell[] }
-interface BestTimes { window_days: number; services: ServicePlan[] }
+interface BestTimes { window_days: number; premium?: boolean; services: ServicePlan[] }
 
 /** The design's row pitch. The blocks are placed against it, so it is one value. */
 const ROW_H = 56;
@@ -45,7 +45,13 @@ export default function WeekPlannerScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
-  const premium = Boolean(Number(user?.is_premium || 0));
+  /* Two sources, and they can disagree for a moment. The user record flips the
+     instant a trial starts; the cached response is still the free one until the
+     refetch lands. Whichever says premium is enough to unlock — the record
+     because entitlement is real, the payload because the data is already here.
+     Reading only the record left the panel frosted over data it had; reading
+     only the payload would leave it frosted until the network answered. */
+  const entitled = Boolean(Number(user?.is_premium || 0));
   const { businessId, branchId, branchName } = route.params ?? ({} as any);
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
@@ -53,6 +59,11 @@ export default function WeekPlannerScreen() {
     const today = new Date().getDay();
     return STRIP_DOWS.includes(today) ? today : 1;
   });
+  /* Having opened on a day the branch does not run — a traffic court on a
+     Saturday — the screen showed its empty state as the FIRST thing, which
+     reads as a broken screen rather than a closed day. Moves once, to the day
+     with the most evidence behind it, and only when the chosen day has none. */
+  const movedRef = React.useRef(false);
   const [trialBusy, setTrialBusy] = useState(false);
   const [trialError, setTrialError] = useState('');
 
@@ -63,6 +74,7 @@ export default function WeekPlannerScreen() {
     staleTime: 1000 * 60 * 15,
   });
 
+  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,
@@ -102,12 +114,33 @@ export default function WeekPlannerScreen() {
     return { peak: span(worst), quiet: span(best) };
   }, [dayHours]);
 
-  /** The date on each strip square — this week's occurrence of that weekday. */
-  const dateFor = (d: number) => {
+  /**
+   * The dates on the strip, anchored to ONE week so they are contiguous.
+   *
+   * Computing each square as "the next occurrence of that weekday" looked right
+   * and was not: on a Saturday it put Saturday at today's date and Monday to
+   * Friday in the following week, so the strip read Mon 5 · Tue 6 · Wed 7 ·
+   * Thu 8 · Fri 9 · Sat 3. Six days that are not a week.
+   *
+   * The design's strip is next week — 5 to 10 October — which is also the
+   * useful answer: this screen is for planning a visit, and most of the current
+   * week is already behind you by the time you look at it. So it anchors on the
+   * Monday of next week and counts forward.
+   */
+  const weekStart = useMemo(() => {
     const now = new Date();
-    const delta = (d - now.getDay() + 7) % 7;
     const x = new Date(now);
-    x.setDate(now.getDate() + delta);
+    /* Days until the NEXT Monday; a Monday today means the Monday after. */
+    const untilMonday = ((1 - now.getDay() + 7) % 7) || 7;
+    x.setDate(now.getDate() + untilMonday);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  }, []);
+
+  const dateFor = (d: number) => {
+    const x = new Date(weekStart);
+    /* STRIP_DOWS is Mon(1)…Sat(6), and weekStart is that Monday. */
+    x.setDate(weekStart.getDate() + (d - 1));
     return x;
   };
   const chosenDate = dateFor(dow);
@@ -122,6 +155,16 @@ export default function WeekPlannerScreen() {
       setTrialError(e?.message || 'That did not work. Try again in a moment.');
     } finally { setTrialBusy(false); }
   };
+
+  React.useEffect(() => {
+    if (movedRef.current || !grid.length || dayHours.length) return;
+    const visitsByDow = new Map<number, number>();
+    grid.forEach((c) => visitsByDow.set(c.dow, (visitsByDow.get(c.dow) || 0) + c.visits));
+    const busiest = [...visitsByDow.entries()]
+      .filter(([d]) => STRIP_DOWS.includes(d))
+      .sort((a, b) => b[1] - a[1])[0];
+    if (busiest) { movedRef.current = true; setDow(busiest[0]); }
+  }, [grid, dayHours.length]);
 
   const rowIndexOf = (hour: number) => dayHours.findIndex((h) => h.hour === hour);
 
@@ -142,7 +185,7 @@ export default function WeekPlannerScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted }}>
-              This week · {branchName || 'this branch'}
+              Next week · {branchName || 'this branch'}
             </Text>
             <Text style={{ fontSize: 17, marginTop: 1 }}>
               <Text style={{ fontFamily: font.extra, color: D.ink }}>

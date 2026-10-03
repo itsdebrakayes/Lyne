@@ -105,8 +105,11 @@ export function Shell({
     <div className="qx qx-shell" data-theme={theme || 'light'}>
       <aside className="qx-rail">
         <div className="qx-brand">
-          <i>L</i>
-          <div><b>{brand}</b>{brandSub ? <small>{brandSub}</small> : null}</div>
+          {/* The brand symbol, where this was the letter L in a gradient tile —
+              a placeholder from before the brand kit existed. The SVG is served
+              from /public so it scales on a HiDPI rail without a sprite sheet. */}
+          <img src="/lyne-symbol-white.svg" alt="" aria-hidden="true" className="qx-mark" />
+          <div><b className="lyne-mark">{brand}</b>{brandSub ? <small>{brandSub}</small> : null}</div>
         </div>
         {groups.map((g, gi) => (
           <div key={g.label || gi}>
