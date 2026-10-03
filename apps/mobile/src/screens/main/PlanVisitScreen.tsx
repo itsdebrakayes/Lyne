@@ -21,6 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
+import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -30,12 +31,18 @@ interface WeekDay { dow: number; day_name: string; avg_wait: number | null; leve
 interface ServicePlan {
   service_id: string;
   service_name: string;
+  /** Day x hour cells from the API — see components/BusyHeatmap.tsx. */
+  grid?: HeatCell[];
   best?: BestSlot | null;
   busiest?: BestSlot | null;
   quietest_day?: { dow: number; day_name: string; avg_wait: number } | null;
   week: WeekDay[];
 }
 interface BestTimes { window_days: number; branch_best?: BestSlot | null; services: ServicePlan[] }
+
+const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const LEVEL_WORD: Record<number, string> = { 1: 'Quiet', 2: 'Busy', 3: 'Peak' };
+const hourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
 
 const LEVEL_DOT: Record<number, string> = { 0: colors.border, 1: colors.light, 2: colors.moderate, 3: colors.busy };
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -64,6 +71,8 @@ export default function PlanVisitScreen() {
      reviewer would have found it in the first minute. */
   const premium = Boolean(Number(user?.is_premium || 0));
   const [trialBusy, setTrialBusy] = useState(false);
+  const [openHeatmap, setOpenHeatmap] = useState<string | null>(null);
+  const [pickedCell, setPickedCell] = useState<HeatCell | null>(null);
   const [trialError, setTrialError] = useState('');
 
   const { data: branches = [] } = useQuery({
@@ -195,6 +204,58 @@ export default function PlanVisitScreen() {
                       {service.busiest && <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.busy }}>Avoid {service.busiest.day_name.slice(0, 3)} {service.busiest.hour_label}</Text>}
                     </View>
                     <WeekStrip week={service.week} />
+
+                    {/* The heatmap is opt-in per service. Sixty-three cells is
+                        a lot of screen, and seven services expanded at once
+                        turns a plan into a scroll. The week strip above already
+                        answers "which day"; this answers "which hour", which is
+                        a question you only ask once you have picked the day. */}
+                    {!!service.grid?.length && (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => setOpenHeatmap(openHeatmap === service.service_id ? null : service.service_id)}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: openHeatmap === service.service_id }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}
+                        >
+                          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.accent }}>
+                            {openHeatmap === service.service_id ? 'Hide heatmap' : 'See heatmap'}
+                          </Text>
+                          <Ionicons
+                            name={openHeatmap === service.service_id ? 'chevron-up' : 'chevron-forward'}
+                            size={13}
+                            color={colors.accent}
+                          />
+                        </TouchableOpacity>
+
+                        {openHeatmap === service.service_id && (
+                          <View style={{ marginTop: 14 }}>
+                            <BusyHeatmap grid={service.grid} onSelect={setPickedCell} />
+                            {pickedCell && (
+                              <View style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 14 }}>
+                                <Text style={{ fontFamily: font.semibold, fontSize: 11, color: colors.muted, letterSpacing: 0.6 }}>
+                                  {DAY_FULL[pickedCell.dow].toUpperCase()}S · {hourLabel(pickedCell.hour)}
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                                  <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.5 }}>
+                                    {LEVEL_WORD[pickedCell.level]}
+                                  </Text>
+                                  <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.accent }}>
+                                    ~{Math.round(pickedCell.avg_wait)}m
+                                  </Text>
+                                </View>
+                                {/* The sample size is shown because it is the
+                                    difference between a finding and a guess —
+                                    and the reader is entitled to judge it. */}
+                                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 3 }}>
+                                  Based on {pickedCell.visits} visits
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </>
+                    )}
                     <TouchableOpacity
                       onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
                       style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
