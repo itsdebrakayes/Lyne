@@ -108,7 +108,7 @@
       }
     },
     "android": {
-      "package": "com.lyne.com",
+      "package": "com.lyne.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B1B3F"
