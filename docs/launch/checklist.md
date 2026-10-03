@@ -50,8 +50,8 @@ name against it needs a person; everything else is in
 - [ ] `eas init` run; `projectId` no longer empty in `app.json`
 - [ ] `ascAppId` and `appleTeamId` filled into `eas.json`
 - [ ] Identifiers confirmed everywhere — both are permanent once a binary is
-      accepted. They deliberately differ: iOS bundle ID `com.lyne.mobile`,
-      Android package `com.lyne.com` (what is registered on Play).
+      accepted. They are deliberately the SAME string: iOS bundle ID and
+      Android package are both `com.lyne.mobile`.
 - [ ] `EXPO_PUBLIC_SENTRY_DSN` set as an EAS secret
 - [ ] iOS production build made and installed from TestFlight
 - [ ] **The on-device bug sweep done** — the one item in

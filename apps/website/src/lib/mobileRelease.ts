@@ -16,7 +16,7 @@
  * into an actual download link, with no copy to rewrite.
  *
  *   VITE_IOS_APP_URL      https://apps.apple.com/app/id...
- *   VITE_ANDROID_APP_URL  https://play.google.com/store/apps/details?id=com.lyne.com
+ *   VITE_ANDROID_APP_URL  https://play.google.com/store/apps/details?id=com.lyne.mobile
  *
  * Set whichever exists. One store going live first is the normal case — Play
  * review is usually faster than App Review — and a half-published state should
