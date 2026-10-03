@@ -244,12 +244,17 @@ export default function ManagerDashboard() {
      tab — controls that moved and changed nothing. */
   const [setState, setSetState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [setError, setSetError] = useState<string | null>(null);
-  const saveBranchSettings = useCallback(async (patch: { allow_overflow?: boolean }) => {
+  const saveBranchSettings = useCallback(async (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean }) => {
     setSetState('saving'); setSetError(null);
     try {
+      /* The patch is spread rather than destructured field by field. Naming
+         each one meant every new setting silently did nothing until somebody
+         remembered to add it here — and a toggle that moves and does not save
+         is the worst kind, because it looks like it worked. The server only
+         acts on keys that are actually present. */
       await api.put('/settings/branch', {
         branch_id: d.admin?.staffRecord?.branch_id,
-        allow_overflow: patch.allow_overflow,
+        ...patch,
       });
       await qc.invalidateQueries({ queryKey: ['ops-branch-settings'] });
       setSetState('saved');

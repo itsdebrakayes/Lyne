@@ -81,6 +81,12 @@ const schemas = {
     open_days:      z.string().regex(/^[0-6](,[0-6])*$/, 'open_days must be comma-separated day numbers, 0=Sunday').max(20).optional(),
     is_main_branch: z.coerce.boolean().optional(),
     is_active:      z.coerce.boolean().optional(),
+    /* Line Helper, per branch. It ships ON everywhere, so this is the OFF
+       switch — and it has to exist in the product rather than as a SQL
+       statement somebody runs against production, because the moment an agency
+       objects to remote place-holding the fix needs to be one toggle by the
+       person they told, not a deploy. */
+    line_helper_enabled: z.coerce.boolean().optional(),
   }),
 
   // Services
@@ -326,6 +332,12 @@ const schemas = {
   branchSettings: z.object({
     branch_id:      idSchema.optional(),
     allow_overflow: z.coerce.boolean().optional(),
+    /* Line Helper, per branch. It ships ON at every branch, so this is the OFF
+       switch. It lives on the settings endpoint rather than on PUT /branches
+       because it is a POLICY rather than a detail — it belongs beside
+       allow_overflow, under the same audit log, on the same tab, editable by
+       the person an agency would actually tell. */
+    line_helper_enabled: z.coerce.boolean().optional(),
   }),
 
   /* idle_after_minutes is a three-way: null and 'off' both mean "never", a

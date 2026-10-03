@@ -106,17 +106,40 @@ be RIGHT and are easy to assume rather than check:
 
   SELECT COUNT(*) FROM subscription_tiers;   -- > 0, from migration 020
   SHOW TABLES LIKE 'line_helper_requests';   -- exists, from migration 034
-  SELECT COUNT(*) FROM businesses;           -- 0
+  SELECT COUNT(*) FROM businesses;           -- 0 at this point
 
 The first is reference data the system misbehaves without. The third is the
-whole point of main: if it is not zero, demo data got in — stop and tell me.
+whole point of main: nothing is seeded by the migrations, so if it is not zero
+here, demo data got in — stop and tell me. The review tenant is added next,
+deliberately and on its own.
 
 That last check is the point of the whole script. If it does not run, or it
 passes suspiciously fast, say so. The requirement is that the application
 database user CANNOT drop or create tables. Confirm it explicitly and tell me
 the result.
 
-Do not seed demo data. Production starts empty — that is intentional.
+DO NOT apply any database/demo_*.sql. Those tenants are Tax Administration
+Jamaica, PICA and the National Housing Trust — real government bodies we have no
+agreement with. Standing them up where a store reviewer and later the public can
+see them claims an affiliation that does not exist, which is an impersonation
+rejection (App Store 5.2.1, Play Impersonation) and a problem that does not end
+at the store.
+
+APPLY EXACTLY ONE SEED, AND ONLY THIS ONE:
+
+  mysql ... lyne < database/review_tenant_seed.sql
+
+Production is empty of real agencies because none has signed yet, and that is
+deliberate — the logic is all there, waiting for the first one. But an App Store
+reviewer who signs in and finds NO agency to queue for cannot exercise the app
+at all, and files Guideline 2.1. This seed is the answer: one fictional tenant,
+Blue Harbour, named so that nobody mistakes it for a real agency. It creates no
+queues and no tickets — the application opens queues for the current date by
+itself, so the tenant is still correct in six months with nothing scheduled.
+
+After it, confirm: SELECT name FROM businesses; should return Blue Harbour and
+nothing else. If it returns TAJ, PICA or NHT, a demo seed was applied — stop and
+tell me.
 
 == STEP 4 — DEPLOY ==
 
@@ -157,10 +180,11 @@ ticket in a real line for somebody who is not yet in the building. Confirm all
 three gates before anyone uses it:
 
   - Premium only. A free account gets 402.
-  - branches.line_helper_enabled defaults TRUE. ASK ME which branches should
-    have it on at launch, and set the rest to 0. An agency that has not agreed
-    to remote place-holding must not have customers arriving with tickets its
-    clerks will refuse.
+  - branches.line_helper_enabled defaults TRUE and STAYS TRUE at launch — that
+    is decided, you do not need to ask. If an agency later objects to a place
+    being held for somebody not in the building, their manager switches it off
+    themselves: Settings → "Let Lyne Hold A Place For Customers". It is a
+    toggle in the product, not a SQL statement, and it is audit-logged.
   - "Let people pass if I'm late" yields the place to whoever is behind, up to
     three turns, then the ticket ends. That is what makes the feature
     defensible rather than a paid queue-jump.
