@@ -1,50 +1,53 @@
 /**
- * PremiumBadge — Lyne's premium marker, styled after the JamAI subscription
- * badge: a rounded-full pill with a tier icon, a gradient fill, and white
- * text. One component so every "Premium" marker in the app reads the same.
+ * PremiumBadge — the marker that says this account is on Lyne Premium.
+ *
+ * A flat ink pill with letter-spaced white caps, which is what the Predictive
+ * Insights design specifies and what the rest of the v5 system looks like.
+ *
+ * It was a cyan-to-blue gradient (#1fc2de → #2b6fe3) carried over from the v4
+ * palette, and it was the only cyan left on the screen — a leftover that read
+ * as a sticker from a different app sitting on a navy page. The v5 system is
+ * one deep blue and neutrals; a badge is a label, not a feature, and it does
+ * not get the loudest treatment on the screen.
  */
 import React from 'react';
 import { Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { font } from '../lib/theme';
-
-// Cyan → blue, echoing JamAI's "Plus" gradient but on Lyne's brand cyan.
-const GRADIENT = ['#1fc2de', '#2b6fe3'] as const;
+import { colors, font } from '../lib/theme';
 
 export function PremiumBadge({
-  label = 'Premium',
-  icon = 'star',
+  label = 'PREMIUM',
   size = 'md',
 }: {
   label?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
   size?: 'sm' | 'md';
 }) {
   const sm = size === 'sm';
   return (
-    <LinearGradient
-      colors={GRADIENT}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <View
+      accessibilityRole="text"
+      accessibilityLabel="Lyne Premium account"
       style={{
-        flexDirection: 'row', alignItems: 'center', gap: sm ? 4 : 5,
-        borderRadius: 999, paddingVertical: sm ? 4 : 5.5, paddingHorizontal: sm ? 9 : 11,
+        borderRadius: 12,
+        paddingVertical: sm ? 5 : 6,
+        paddingHorizontal: sm ? 9 : 10,
+        /* colors.dark, not a literal: it is the same navy the hero cards use,
+           and it stays navy in the dark theme, where the ink token would flip
+           to near-white and take the label with it. */
+        backgroundColor: colors.dark,
       }}
     >
-      <Ionicons name={icon} size={sm ? 11 : 12.5} color="#fff" />
-      <Text style={{ fontFamily: font.extra, fontSize: sm ? 11 : 12.5, color: '#fff', letterSpacing: 0.2 }}>{label}</Text>
-    </LinearGradient>
-  );
-}
-
-/** A whole-pill variant used where premium/free tiers are shown side by side. */
-export function TierPill({ premium }: { premium: boolean }) {
-  if (premium) return <PremiumBadge label="Premium" icon="star" size="sm" />;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9, backgroundColor: '#eceef1' }}>
-      <Ionicons name="ellipse-outline" size={11} color="#8a919b" />
-      <Text style={{ fontFamily: font.extra, fontSize: 11, color: '#5c636d', letterSpacing: 0.2 }}>Free</Text>
+      <Text
+        style={{
+          fontFamily: font.extra,
+          fontSize: sm ? 9 : 9.5,
+          letterSpacing: 1,
+          color: '#fff',
+        }}
+      >
+        {label.toUpperCase()}
+      </Text>
     </View>
   );
 }
+
+export default PremiumBadge;

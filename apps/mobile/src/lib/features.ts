@@ -59,3 +59,27 @@ export const SOCIAL_AUTH_ENABLED = false;
  * has no jurisdiction over it, and nothing about it is sold inside this app.
  */
 export const PREMIUM_ENABLED = false;
+
+/**
+ * The 14-day free trial, on its own.
+ *
+ * Split out of PREMIUM_ENABLED because the two were never the same risk and
+ * folding them together hid a feature that works behind one that does not.
+ *
+ * Starting a trial is a POST to /auth/start-trial. It sets is_premium and
+ * premium_until fourteen days out and returns the updated row. No card, no
+ * Stripe, no storefront, no web page — it completes every time, today, and it
+ * has been tested end to end against the API. So neither of the rules that
+ * gate PREMIUM_ENABLED applies to it: Guideline 2.1 is about controls that
+ * cannot finish, and this one finishes; 3.1.1 is about steering a customer
+ * outside the app to pay, and nothing is being paid.
+ *
+ * With both behind one flag, a free customer got a paywall with no way past it
+ * — the one action we could actually honour was switched off alongside the one
+ * we could not. That reads as a broken screen, and it costs the trial starts
+ * that are the whole point of having a free tier.
+ *
+ * CONVERSION after the trial is the part that still needs store billing, and
+ * that is what PREMIUM_ENABLED above still gates.
+ */
+export const PREMIUM_TRIAL_ENABLED = true;

@@ -9,7 +9,8 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { hasPremium } = require('../lib/premium');
 const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
@@ -186,7 +187,15 @@ function wellEvidenced(slots) {
   return solid.length ? solid : slots;
 }
 
-router.get('/best-times', async (req, res) => {
+/* optionalAuth, not requireAuth. The branch-level headline below is genuinely
+   free and the screen renders it before anyone signs in, so a token is not
+   required to reach this. It IS required to get anything premium, which is the
+   part that was missing: every caller, signed in or not, was handed the full
+   per-service breakdown — best hour, busiest hour, the seven-day strip and all
+   sixty-three heatmap cells. The paywall existed only in the mobile client, as
+   a drawing. Anyone who opened the URL got the whole product for nothing, and
+   so did any free account. */
+router.get('/best-times', optionalAuth, async (req, res) => {
   try {
     const { business_id, branch_id } = req.query;
     if (!business_id || !branch_id) {
@@ -310,10 +319,40 @@ router.get('/best-times', async (req, res) => {
       [...wellEvidenced(branchSlots)].sort((a, b) => a.avg_wait - b.avg_wait || b.visits - a.visits)[0]
     );
 
+    /* THE ACTUAL PAYWALL. One definition of entitlement — hasPremium() — shared
+       with every other paid surface, so a lapsed trial cannot read as current
+       here while reading as expired everywhere else.
+
+       A free caller still gets the service LIST. That is deliberate: the locked
+       panel in the app blurs real cards, and a card needs its own service name
+       to be the thing the customer is being shown they cannot read yet. What it
+       does not get is a single number — no best hour, no busiest hour, no week
+       strip, no grid. Nothing that could be reassembled into the feature. */
+    const entitled = hasPremium(req.dbUser);
+
     res.json({
       window_days: 90,
       branch_best: branchBest || null,
-      services,
+      /* Named so the client does not have to infer it from absent fields, and
+         so a future caller cannot mistake "no history" for "not paid". */
+      premium: entitled,
+      /* THE TIER LINE, placed where the design puts it. The locked panel in
+         Predictive Insights covers the HEATMAP, not the service list — a free
+         customer sees that Court Order Collection is quietest on Friday at 1pm
+         and cannot see the hour-by-hour grid behind it. That is a better free
+         tier than a blurred wall: it gives a real answer, and what it withholds
+         is the depth rather than the point.
+
+         So `best` ships free — it is the hook — and `week`, `grid`, `busiest`
+         and `quietest_day` do not. Those are the three things the upsell names
+         and the three things that cost a subscription. */
+      services: entitled
+        ? services
+        : services.map((svc) => ({
+            service_id: svc.service_id,
+            service_name: svc.service_name,
+            best: svc.best,
+          })),
     });
   } catch (err) {
     console.error(err);

@@ -12,8 +12,7 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
-import { openSubscriptionPortal } from '../../lib/subscriptionPortal';
-import { PREMIUM_ENABLED } from '../../lib/features';
+import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
 import { useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
@@ -22,6 +21,7 @@ import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
 import { PremiumBadge } from '../../components/PremiumBadge';
 import BusyHeatmap, { HeatCell } from '../../components/BusyHeatmap';
+import PremiumLock from '../../components/PremiumLock';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -87,8 +87,15 @@ export default function PlanVisitScreen() {
   );
 
   const bestTimes = useQuery({
-    queryKey: ['best-times', branch?.business_id, branch?.id],
-    queryFn: () => api.get<BestTimes>(`/predictions/best-times?business_id=${branch!.business_id}&branch_id=${branch!.id}`, false),
+    /* user.id in the key: without it, signing in reuses the cached anonymous
+       response and the planner stays locked until the cache expires. */
+    queryKey: ['best-times', branch?.business_id, branch?.id, user?.id ?? 'anon'],
+    /* AUTHENTICATED, where it used to pass `false` to suppress the token. The
+       endpoint decides entitlement from the caller now, so an anonymous request
+       gets the free response — which would have left a paying customer looking
+       at the locked panel. The endpoint still answers without a token; it
+       simply answers less. */
+    queryFn: () => api.get<BestTimes>(`/predictions/best-times?business_id=${branch!.business_id}&branch_id=${branch!.id}`),
     enabled: Boolean(branch),
     staleTime: 1000 * 60 * 15,
   });
@@ -266,84 +273,70 @@ export default function PlanVisitScreen() {
                 ))}
               </View>
             ) : (
-              <>
-                {/* locked preview */}
-                <View style={[t.card, { borderRadius: 22, overflow: 'hidden' }]}>
-                  {plan.services.slice(0, 4).map((service, index) => (
-                    <View key={service.service_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderBottomWidth: index === Math.min(plan.services.length, 4) - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
-                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="lock-closed" size={14} color={colors.muted} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{service.service_name}</Text>
-                        <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.faint, letterSpacing: 2 }}>••••••· ••:•• ••</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        {[0, 1, 2].map(i => <View key={i} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.border }} />)}
-                      </View>
-                    </View>
-                  ))}
-                </View>
+              /* FREE TIER, tiered the way the design tiers it.
 
-                {/* Hidden in version one — see lib/features.ts.
+                 The service and its best time are NOT behind the paywall. The
+                 locked panel in Predictive Insights covers the heatmap, and
+                 everything above it stays readable — so a free customer gets a
+                 real answer ("Friday 1 PM, about 1 minute") and what they pay
+                 for is the depth behind it.
 
-                    Not because the storefront question in the comment below is
-                    settled; that records a real observation and is left intact.
-                    Because the flow cannot complete at all: uselyne.com/account
-                    is a 404, payments are stubbed server-side, and the Stripe
-                    publishable key is empty. A purchase a reviewer taps and
-                    cannot finish is a Guideline 2.1 rejection regardless of
-                    what 3.1.1 says about where the button points. */}
-                {PREMIUM_ENABLED && (
-                  <View style={{ backgroundColor: colors.dark, borderRadius: 26, padding: 22, marginTop: 16, ...shadow.hero }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="time-outline" size={16} color={colors.accent} />
-                      <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: colors.accent, letterSpacing: 1.6 }}>LYNE PREMIUM</Text>
-                    </View>
-                    <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.4, marginTop: 10, lineHeight: 26 }}>Know the quietest hour{'\n'}for every service.</Text>
-                    {[
-                      'Best time for each service, at every branch',
-                      'Weekly quiet-day strips from real visit data',
-                      'Departure reminders tuned to your travel time',
-                    ].map(line => (
-                      <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11 }}>
-                        <Ionicons name="checkmark-circle" size={15} color={colors.light} />
-                        <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.75)' }}>{line}</Text>
-                      </View>
-                    ))}
-                    {!!trialError && <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#ff9d9d', marginTop: 12 }}>{trialError}</Text>}
-                    <TouchableOpacity disabled={trialBusy} onPress={startTrial} activeOpacity={0.9} style={{ marginTop: 18, backgroundColor: colors.accent, borderRadius: 16, height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      {trialBusy ? <ActivityIndicator color={colors.accentInk} /> : (
-                        <>
-                          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.accentInk }}>Start 14-day free trial</Text>
-                          <Ionicons name="arrow-forward" size={15} color={colors.accentInk} />
-                        </>
+                 The first version of this blurred the whole list, which hid the
+                 one thing the screen is named after. A paywall that withholds
+                 the headline does not sell the product, it hides it. */
+              <View style={{ gap: 14 }}>
+                {plan.services.map(service => (
+                  <View key={service.service_id} style={[t.card, { padding: 18, borderRadius: 24 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{service.service_name}</Text>
+                      {service.best && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.successSoft, borderRadius: 13, paddingVertical: 6, paddingHorizontal: 11 }}>
+                          <Ionicons name="time" size={12} color={colors.successInk} />
+                          <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.successInk }}>{service.best.day_name.slice(0, 3)} · {service.best.hour_label}</Text>
+                        </View>
                       )}
-                    </TouchableOpacity>
-                    {/* Purchase happens on our web gateway, by design — no card
-                        sheet here, and no store billing.
+                    </View>
+                    {service.best && (
+                      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, marginTop: 10 }}>
+                        ~{Math.round(service.best.avg_wait)}m at the best time
+                      </Text>
+                    )}
 
-                        This is the pattern the big subscription apps ship in the
-                        Jamaican storefront: the app tells you the plan and the
-                        price and sends you to the website, because in-app
-                        purchase is not offered here. Confirmed against ChatGPT
-                        on a Jamaican account, not inferred from the guidelines —
-                        IAP availability and what a subscription screen is
-                        allowed to do both vary by storefront, so the guideline
-                        text alone is not evidence of what ships.
+                    {/* The depth — the seven-day strip and the hour grid — is
+                        what the subscription buys, so this is where the frost
+                        goes. Rendered at the real height so the card does not
+                        change shape when somebody subscribes. */}
+                    <View style={{ marginTop: 14 }}>
+                      <PremiumLock
+                        locked
+                        radius={16}
+                        headline="See every hour of every day"
+                        error={trialError}
+                        trialBusy={trialBusy}
+                        onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
+                        unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined
+                          : 'Premium arrives with the first App Store release.'}
+                      >
+                        <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 10 }}>
+                          {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                            <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                              <View style={{ width: '100%', height: 38, borderRadius: 9, backgroundColor: i % 3 === 0 ? colors.border : colors.borderSoft }} />
+                              <View style={{ width: 16, height: 7, borderRadius: 4, backgroundColor: colors.borderSoft }} />
+                            </View>
+                          ))}
+                        </View>
+                      </PremiumLock>
+                    </View>
 
-                        openSubscriptionPortal explains where it is going before
-                        it opens anything, which is the part that matters: the
-                        rule Apple enforces is about steering, so informing
-                        before navigating is deliberate, not decoration. */}
-                    <TouchableOpacity onPress={() => openSubscriptionPortal('upgrade')} activeOpacity={0.85} style={{ marginTop: 12, height: 48, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,.22)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Ionicons name="open-outline" size={16} color="#fff" />
-                      <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Subscribe on the web</Text>
+                    <TouchableOpacity
+                      onPress={() => branch && navigation.navigate('JoinQueue', { businessId: branch.business_id, branchId: branch.id, serviceId: service.service_id, serviceName: service.service_name })}
+                      style={{ marginTop: 14, backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}
+                    >
+                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: colors.ink }}>Join this line now →</Text>
                     </TouchableOpacity>
-                    <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.4)', textAlign: 'center', marginTop: 11 }}>No card needed for the trial · cancel anytime</Text>
                   </View>
-                )}
-              </>
+                ))}
+              </View>
             )}
             </>
             )}
