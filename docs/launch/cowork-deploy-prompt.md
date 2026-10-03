@@ -12,7 +12,13 @@ stop rather than guess:
 | Droplet IP | DigitalOcean → Droplets |
 | `doadmin` database password | DigitalOcean → Databases → Connection details |
 | Managed MySQL CA certificate | Same panel → "Download CA certificate" |
-| Everything else | `secrets/deploy-values.txt` in the repo (17 values, gitignored) |
+| Everything else | `secrets/deploy-values.txt` in the repo (gitignored) |
+
+> **`deploy-values.txt` is not a `.env` file.** Its `MYSQL_*` values are the
+> `doadmin` admin login, for `init-managed-db.sh` only. `.env` needs the
+> application login (`lyne`/`lyne`) with a password you generate, and the
+> private database host. The prompt says this again at step 2; it is the one
+> place where copying the obvious thing quietly undoes the security work.
 
 ---
 
@@ -65,10 +71,30 @@ them. Then verify, and report:
   - On the database's Settings → Trusted sources, the droplet is listed. If it
     is not, tell me and wait. Every connection is refused until it is, and the
     error reads exactly like a wrong password.
+  - On the database's Settings → Global SQL mode, ANSI_QUOTES, PIPES_AS_CONCAT
+    and IGNORE_SPACE are all OFF. DigitalOcean turns the first two ON by
+    default and the MySQL image we develop against has neither. With
+    ANSI_QUOTES on, "x" is an identifier rather than a string and 21 files
+    under database/ stop being valid SQL — you get a half-applied schema and an
+    error about a column that does not exist. Fix it in the panel before step
+    3; init-managed-db.sh refuses to start if it is still wrong.
 
 == STEP 1 — PROVISION THE DROPLET ==
 
 Follow deploy/README.md §1 using provision.sh.
+
+It installs Node 20 into /usr/local (official tarball, checksum verified).
+deploy.sh builds the admin PWA on the host, so npm is a hard requirement of
+deploying and not a convenience — a droplet without it fails at the admin build
+several steps after the point you would think to look. Confirm `node --version`
+and `npm --version` answer before you move on.
+
+Note what the end state is, because it is easy to discover at a bad moment:
+after this script nobody can become root over SSH. The lyne user has no
+password (so sudo cannot authenticate it) and root SSH login is off, so full
+root is the DigitalOcean web console. provision.sh grants lyne one narrow
+read-only sudo rule for the two checks verify.sh needs. This is intended and is
+written up in deploy/README.md under "Getting root on the droplet".
 
 Before you close the root session, open a second connection and confirm
 `ssh lyne@<ip>` works. Password and root login are off by the time the script
@@ -79,10 +105,38 @@ through the DigitalOcean web console.
 
 Clone the repo to /srv/lyne and check out `main`.
 
-Build .env from deploy/env.production.example. Fill every REQUIRED value from
-secrets/deploy-values.txt — it has all 17. Generate NODE_ENV=production and a
-fresh handoff secret ON THE DROPLET with `openssl rand -base64 48`; do not
-reuse one from anywhere else.
+Build .env from deploy/env.production.example.
+
+READ THIS BEFORE YOU COPY ANYTHING. secrets/deploy-values.txt is not a .env
+file and must not be pasted into one. The database values in it are the ADMIN
+login — MYSQL_USER=doadmin, MYSQL_DATABASE=defaultdb — which exist for
+init-managed-db.sh in step 3 and NOTHING else. .env takes the APPLICATION
+login, which is a different account with a different password and only DML
+privileges:
+
+  MYSQL_USER=lyne
+  MYSQL_DATABASE=lyne
+  MYSQL_PASSWORD=<generate a NEW password here; init-managed-db.sh creates the
+                  account with whatever you put in .env>
+  MYSQL_HOST=<the PRIVATE host — MYSQL_PRIVATE_HOST in the secrets file, the
+              one starting private-. The public host works and sends every
+              query across the internet.>
+
+Putting doadmin in .env gives the API superuser rights on the database and
+makes step 3's hardening check meaningless, which is the one check in this
+whole deploy that cannot be re-run later.
+
+Everything else in .env — Supabase, Resend, Spaces, the domains — comes from
+secrets/deploy-values.txt as written.
+
+Generate a fresh handoff secret ON THE DROPLET with `openssl rand -base64 48`;
+do not reuse one from anywhere else.
+
+Do NOT put NODE_ENV in .env. deploy.sh sources .env before `npm ci`, and
+NODE_ENV=production makes npm skip devDependencies — so vite is never installed
+and the admin build fails on a missing binary. The containers get NODE_ENV from
+docker-compose.prod.yml, which is where it belongs. deploy.sh now unsets it and
+warns if it finds it, but do not rely on that.
 
 Paste the managed MySQL CA certificate into secrets/mysql-ca.crt. Ask me for it
 if it is not already on the droplet — it comes from the database panel.
@@ -100,6 +154,17 @@ Run deploy/init-managed-db.sh with ADMIN_USER=doadmin and the doadmin password.
 It applies schema.sql, then every migration in alphabetical order (034, Line
 Helper, is the newest), then harden_database.sql — and then reconnects as the
 APPLICATION login and fails loudly if that login can still DROP.
+
+Expect one non-fatal complaint during the hardening step:
+
+    DROP USER 'root'@'%' was refused, and FLUSH PRIVILEGES after it did not run
+
+That is correct on managed MySQL and is not a problem. There is no root@'%' on
+a DigitalOcean cluster (the admin account is doadmin) and doadmin may not drop
+reserved accounts; mysql stops at the first error, so the FLUSH after it never
+runs. Every GRANT and REVOKE against the application login comes EARLIER in
+that file and has already applied — which the next step proves by reconnecting
+as that login. Do not try to "fix" this.
 
 Then confirm these three, which are what an empty production database needs to
 be RIGHT and are easy to assume rather than check:
@@ -163,14 +228,36 @@ self-signed.
 
 == STEP 6 — BACKUPS ==
 
-Add the nightly cron from deploy/README.md §5.
+Use deploy/backup-managed-db.sh. Do NOT use scripts/backup-database.sh — that
+one runs `docker exec lyne_db mysqldump -uroot`, and production has no lyne_db
+container and no root account, so it fails every night into a log nobody opens.
 
-Then do the two things that README says the cron does not:
+First create the backup login as doadmin. Not the application login: it holds
+DML only, so a dump taken as `lyne` omits the views, triggers and events and
+restores into a database that looks right and behaves differently. The script
+refuses to run as it.
+
+  CREATE USER 'lyne_backup'@'%' IDENTIFIED BY '<generate one>';
+  GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES
+    ON `lyne`.* TO 'lyne_backup'@'%';
+
+  printf 'BACKUP_MYSQL_USER=lyne_backup\nBACKUP_MYSQL_PASSWORD=<it>\n' \
+    > secrets/backup.env && chmod 600 secrets/backup.env
+
+Take one backup by hand and confirm it says "verified". Then add the nightly
+cron from deploy/README.md §5.
+
+Then do the two things the cron does not:
   - Copy one backup to DigitalOcean Spaces (credentials are in
     secrets/deploy-values.txt under SPACES_*). A backup on the same disk as the
     thing it backs up is not a backup.
-  - REHEARSE A RESTORE NOW, while the data is worthless. Restore the backup
-    into a scratch database and confirm the tables arrive. Tell me it worked.
+  - REHEARSE A RESTORE NOW, while the data is worthless:
+
+      ADMIN_USER=doadmin ADMIN_PASSWORD='...' bash deploy/backup-managed-db.sh \
+        --restore /srv/lyne/backups/<the-latest>.sql.gz --into lyne_restore_test
+
+    It restores into a SCRATCH schema, so it cannot touch production, and
+    prints the table count. Tell me that count, then drop the scratch schema.
     A restore that has never been performed is a hope.
 
 == STEP 6b — LINE HELPER, AND ONE DECISION I NEED FROM YOU ==

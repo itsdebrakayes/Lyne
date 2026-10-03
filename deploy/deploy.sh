@@ -47,7 +47,10 @@ rollback_to() {
   local target="$1"
   warn "Rolling back to ${target}"
   git -C "$ROOT" checkout --quiet "$target" || die "could not check out ${target}. Roll back by hand."
-  ( cd "$ROOT/apps/admin-desktop" && npm ci --silent && npx vite build ) \
+  # unset NODE_ENV for the same reason as the main build below — and separately,
+  # because `deploy.sh rollback` reaches here WITHOUT sourcing .env, so it is the
+  # invoking shell's NODE_ENV that would strand vite in that path.
+  ( unset NODE_ENV; cd "$ROOT/apps/admin-desktop" && npm ci --silent && npx vite build ) \
     || warn "the admin app failed to rebuild on the rolled-back commit; the API is what matters here."
   $COMPOSE build --pull || die "the rolled-back image would not build. This droplet needs hands."
   $COMPOSE up -d --remove-orphans || die "the rolled-back containers would not start. This droplet needs hands."
@@ -85,6 +88,25 @@ case "${ALLOWED_ORIGINS}" in
   *localhost*|*127.0.0.1*|*'*'*) die "ALLOWED_ORIGINS contains localhost or a wildcard. Production takes exact public origins only." ;;
 esac
 [ -z "${ALLOW_DEMO_DATA_REFRESH:-}" ] || die "ALLOW_DEMO_DATA_REFRESH is set. Unset it — this is production."
+
+# NODE_ENV must not survive into the admin build.
+#
+# .env was just sourced into this shell. If it carries NODE_ENV=production, the
+# `npm ci` below installs PRODUCTION DEPENDENCIES ONLY — so vite, which is a
+# devDependency, is never installed, and `npx vite build` fails on a fresh
+# droplet with nothing but a missing-binary error to go on.
+#
+# Unsetting it here is safe and is not a behaviour change for anything that
+# matters: the API and the model worker get NODE_ENV from
+# docker-compose.prod.yml, which sets it per-service, not from this shell. This
+# runs before BOTH places that build the admin app — here and in rollback_to.
+if [ -n "${NODE_ENV:-}" ]; then
+  warn "NODE_ENV=${NODE_ENV} was set (almost certainly from .env) and is being unset for this run.
+         With it set, npm ci skips devDependencies, vite is never installed, and the
+         admin build fails. The containers take NODE_ENV from docker-compose.prod.yml,
+         so nothing needs it here. Remove it from .env."
+  unset NODE_ENV
+fi
 
 # ── Admin PWA ────────────────────────────────────────────────────────────────
 # Caddy serves apps/admin-desktop/dist. `npm run build` there also runs

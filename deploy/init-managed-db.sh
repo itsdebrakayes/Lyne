@@ -57,6 +57,43 @@ log "Checking connectivity and TLS"
 mysql_admin -e "SELECT VERSION() AS version, @@require_secure_transport AS tls_required\G" \
   || die "could not connect. Check the host, the port, and that this droplet's IP is on the database's trusted sources list."
 
+# ── The server's SQL mode, checked before anything is applied ────────────────
+# DigitalOcean's default "Global SQL mode" for a managed MySQL cluster includes
+# ANSI_QUOTES and PIPES_AS_CONCAT. The MySQL Docker image used in development
+# includes neither, so this is the one difference between the two that silently
+# invalidates SQL that has always worked.
+#
+# ANSI_QUOTES makes "..." an IDENTIFIER rather than a string literal. 21 of the
+# files below contain double-quoted strings — migration 008 is simply the first
+# one reached — so with it on, this script fails partway through and leaves a
+# half-built schema, which is the worst of the available outcomes.
+#
+# PIPES_AS_CONCAT makes || string concatenation rather than logical OR, so a
+# WHERE clause stops meaning what it says instead of failing.
+#
+# Both are fixed in the DigitalOcean panel, not from here: a managed admin
+# account cannot SET GLOBAL sql_mode, and setting it for this session only would
+# fix this script while leaving every later connection — the API's included —
+# running under the wrong mode. So this refuses to start.
+log "Checking the server SQL mode"
+SQL_MODE="$(mysql_admin -N -B -e 'SELECT @@GLOBAL.sql_mode;' 2>/dev/null || true)"
+[ -n "$SQL_MODE" ] || die "could not read @@GLOBAL.sql_mode"
+BAD_MODES=""
+case "$SQL_MODE" in *ANSI_QUOTES*)     BAD_MODES="ANSI_QUOTES" ;; esac
+case "$SQL_MODE" in *PIPES_AS_CONCAT*) BAD_MODES="${BAD_MODES:+$BAD_MODES, }PIPES_AS_CONCAT" ;; esac
+if [ -n "$BAD_MODES" ]; then
+  die "the database's global SQL mode includes ${BAD_MODES}, which this schema is not
+       written for. NOTHING HAS BEEN APPLIED — fix the mode first, or you get a
+       half-built schema.
+
+       DigitalOcean panel → your database → Settings → Global SQL mode.
+       Remove ANSI_QUOTES, PIPES_AS_CONCAT and IGNORE_SPACE, save, then re-run this.
+
+       Current mode:
+       ${SQL_MODE}"
+fi
+echo "    no ANSI_QUOTES, no PIPES_AS_CONCAT"
+
 log "Creating the database and the application login"
 mysql_admin <<SQL
 -- No COLLATE clause on purpose. Naming one here sets the DATABASE default,
@@ -86,12 +123,31 @@ for f in database/migrations/*.sql; do
 done
 
 log "Hardening: stripping the application login down to DML"
-# The script ends with FLUSH PRIVILEGES, which needs RELOAD. A managed admin
-# account may not hold it; the grants themselves take effect on the next
-# connection regardless, so a failure at that final line is not a failure of the
-# hardening. Everything before it has already applied.
+# This exits non-zero on a managed database, and that is expected. The reason is
+# NOT the final FLUSH PRIVILEGES, which is what this message used to claim —
+# it is the statement before it:
+#
+#     DROP USER IF EXISTS 'root'@'%';
+#
+# DigitalOcean's managed MySQL has no root@'%' to begin with (the admin account
+# is doadmin) and does not permit doadmin to drop reserved accounts, so the
+# statement is refused. `mysql` stops at the first error, so FLUSH PRIVILEGES
+# after it never runs either.
+#
+# Neither matters here, and the distinction is worth getting right because the
+# question this output has to answer is "did the app login actually get locked
+# down?". It did: every GRANT and REVOKE against the application login comes
+# BEFORE the DROP USER in that file and has already applied. The root@'%' the
+# statement targets is an artefact of the MySQL Docker image, not of this
+# database, so there is nothing left open.
+#
+# It is verified rather than assumed — the next step reconnects AS the
+# application login and fails this script if it still holds DDL.
 mysql_admin < database/security/harden_database.sql \
-  || echo "    (the final FLUSH PRIVILEGES was refused — expected on a managed database; the grants above did apply)"
+  || echo "    (DROP USER 'root'@'%' was refused, and FLUSH PRIVILEGES after it did not run.
+     Both are expected on managed MySQL: there is no root@'%' here, and doadmin may not
+     drop reserved accounts. The application login's GRANTs come earlier in the file and
+     did apply — the check below proves it.)"
 
 log "Verifying the application login is not able to change structure"
 GRANTS="$(mysql --host="$HOST" --port="$PORT" --user="$APP_USER" --password="$APP_PASSWORD" \
