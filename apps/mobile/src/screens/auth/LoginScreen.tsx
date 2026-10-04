@@ -118,7 +118,7 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <SocialAuthButtons />
+          <SocialAuthButtons onError={setError} />
 
           <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
