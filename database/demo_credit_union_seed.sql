@@ -30,7 +30,10 @@ INSERT INTO branches
 VALUES
   ('br-cfcu-hwt', 'biz-cfcu-001', 'Half Way Tree Member Centre',
    '10 Hope Road, Kingston 10', 'Kingston', 'Kingston', '876-555-0100',
-   18.012900, -76.795200, '07:00:00', '20:00:00', '0,1,2,3,4,5,6', TRUE, TRUE)
+   -- 8 to 5, weekdays. Was 07:00-20:00 seven days a week, which no Jamaican
+   -- credit union does and which made every weekend look like a normal trading
+   -- day in the analytics. This is the late branch of the three.
+   18.012900, -76.795200, '08:00:00', '17:00:00', '1,2,3,4,5', TRUE, TRUE)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name), address = VALUES(address), phone = VALUES(phone),
   opening_time = VALUES(opening_time), closing_time = VALUES(closing_time),
@@ -221,11 +224,12 @@ ON DUPLICATE KEY UPDATE saved_at = saved_at;
 -- below is still fictional and synthetic.
 -- =============================================================
 
--- Demo hours. The rest of the demo estate runs around the clock so an evening
--- investor call never opens on a dead app; this tenant was left on 07:00-20:00
--- and would have read "closed" while every other agency read "open".
-UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6'
-WHERE business_id = 'biz-cfcu-001';
+-- Ordinary credit-union hours, weekdays only — matching the rest of the estate
+-- since demo_active_seed.sql stopped forcing everything open around the clock.
+-- The per-branch values in the INSERT below are the real ones; this only catches
+-- a branch that somehow arrived without any.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+WHERE business_id = 'biz-cfcu-001' AND (opening_time IS NULL OR open_days IS NULL OR open_days LIKE '%0%');
 
 INSERT INTO branches
   (id, business_id, name, address, city, parish, phone, latitude, longitude,
@@ -233,10 +237,12 @@ INSERT INTO branches
 VALUES
   ('br-cfcu-por', 'biz-cfcu-001', 'Portmore Member Centre',
    '5 Municipal Boulevard, Portmore', 'Portmore', 'St. Catherine', '876-555-0110',
-   17.949800, -76.879500, '00:00:00', '23:59:59', '0,1,2,3,4,5,6', FALSE, TRUE),
+   -- Was literally 00:00-23:59, all seven days: open always, closed never.
+   17.949800, -76.879500, '08:30:00', '16:00:00', '1,2,3,4,5', FALSE, TRUE),
   ('br-cfcu-mob', 'biz-cfcu-001', 'Montego Bay Member Centre',
    '18 Queens Drive, Montego Bay', 'Montego Bay', 'St. James', '876-555-0120',
-   18.489100, -77.913800, '00:00:00', '23:59:59', '0,1,2,3,4,5,6', FALSE, TRUE)
+   -- The smaller branch, so it closes earliest.
+   18.489100, -77.913800, '08:30:00', '15:30:00', '1,2,3,4,5', FALSE, TRUE)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name), address = VALUES(address), city = VALUES(city), parish = VALUES(parish),
   opening_time = VALUES(opening_time), closing_time = VALUES(closing_time),
