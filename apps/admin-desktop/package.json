@@ -1,7 +1,7 @@
 {
   "name": "lyne-admin-desktop",
   "version": "1.0.0",
-  "description": "Lyne Admin Desktop App \u2014 Electron + React + Vite",
+  "description": "Lyne Admin Desktop App — Electron + React + Vite",
   "main": "dist-electron/main.js",
   "author": "Lyne",
   "license": "MIT",
@@ -14,7 +14,13 @@
     "build:mac": "vite build && electron-builder --mac",
     "build:linux": "vite build && electron-builder --linux",
     "build:all": "vite build && electron-builder --mac --win --linux",
-    "build:win:unsigned": "WINDOWS_SIGNING=off vite build && WINDOWS_SIGNING=off electron-builder --win"
+    "build:win:unsigned": "WINDOWS_SIGNING=off vite build && WINDOWS_SIGNING=off electron-builder --win",
+    "build:renderer": "vite build --mode production",
+    "check:bundle": "node scripts/assert-production-bundle.mjs",
+    "package": "npm run build:renderer && npm run check:bundle && electron-builder",
+    "package:mac": "npm run build:renderer && npm run check:bundle && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.mac.identity=null",
+    "package:win": "npm run build:renderer && npm run check:bundle && WINDOWS_SIGNING=off electron-builder --win",
+    "package:all": "npm run build:renderer && npm run check:bundle && CSC_IDENTITY_AUTO_DISCOVERY=false WINDOWS_SIGNING=off electron-builder --mac --win -c.mac.identity=null"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -52,7 +58,15 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "src/assets/icon.ico",
       "signtoolOptions": {
         "sign": "electron/sign-windows.js"

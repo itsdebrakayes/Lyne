@@ -8,7 +8,14 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-export const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api';
+/* The localhost fallback is behind import.meta.env.DEV deliberately. Vite
+   replaces that with `false` in a production build and the minifier then drops
+   the branch, so the string `http://localhost:4000/api` does not exist in a
+   shipped bundle at all — which is what makes the build-time localhost check
+   in scripts/assert-production-bundle.mjs meaningful rather than a check that
+   can never pass. */
+export const API_URL = (import.meta.env.VITE_API_URL as string)
+  || (import.meta.env.DEV ? 'http://localhost:4000/api' : '');
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
