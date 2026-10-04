@@ -57,9 +57,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "REPLACE_WITH_APPLE_ID_EMAIL",
-        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "REPLACE_WITH_10_CHAR_TEAM_ID"
+        "appleId": "debrakayesam@gmail.com",
+        "ascAppId": "6818920326",
+        "appleTeamId": "UD8HYB75P4"
       },
       "android": {
         "serviceAccountKeyPath": "../../secrets/play-service-account.json",
