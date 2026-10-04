@@ -409,6 +409,13 @@ BEGIN
   DECLARE v_svc DECIMAL(5,2);
 
   WHILE v_day < 7 DO
+    /* Weekdays only. This loop had no weekday test, so a seven-day sweep always
+       produced two days of records for branches that open Monday to Friday —
+       and Smart Timing reads this table, so it could recommend a Sunday.
+       Scheduled sessions are the deliberate exception to "no weekends", and
+       they are not generated here: they carry their own dates, so a Saturday
+       session still shows up where it should. */
+    IF DAYOFWEEK(DATE_SUB(CURDATE(), INTERVAL v_day DAY)) BETWEEN 2 AND 6 THEN
     SET v_hour = 8;
     WHILE v_hour < 17 DO
       -- Volume varies by hour (peaks at 9 and 13)
@@ -454,6 +461,7 @@ BEGIN
 
       SET v_hour = v_hour + 1;
     END WHILE;
+    END IF;
     SET v_day = v_day + 1;
   END WHILE;
 END$$

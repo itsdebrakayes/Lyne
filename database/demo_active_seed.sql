@@ -517,6 +517,34 @@ ON DUPLICATE KEY UPDATE
   served_by_staff_id = VALUES(served_by_staff_id),
   served_at_counter_id = VALUES(served_at_counter_id);
 
+/* ── Clear history that falls outside the branch's real hours ────────────────
+   Adding the open_days/opening_hours filter to the INSERT below stops NEW rows
+   landing on a Sunday; it does nothing about the ones already there, and this
+   seed upserts rather than truncating. The demo database had 113,143 weekend
+   records and 21,714 outside opening hours from when the estate was seeded as
+   open around the clock.
+
+   They are not cosmetic. Smart Timing, the busy-times heatmap and the week
+   planner all read this table directly, so leaving them means "best time to
+   visit" keeps naming hours the office has never been open for.
+
+   Safe to run before the INSERT: everything removed here is synthetic demo
+   history, and this file only ever touches the demo database. */
+DELETE w FROM wait_time_records w
+  JOIN branches b ON b.id = w.branch_id
+ WHERE FIND_IN_SET(DAYOFWEEK(w.visit_date) - 1,
+                   COALESCE(NULLIF(b.open_days, ''), '1,2,3,4,5')) = 0
+    OR w.hour_of_day <  HOUR(COALESCE(b.opening_time, '08:30:00'))
+    OR w.hour_of_day >= HOUR(COALESCE(b.closing_time, '16:00:00'));
+
+/* The daily roll-ups are built from the same visits, so a weekend summary is a
+   summary of nothing. analytics_summaries feeds the admin dashboards and the
+   executive trends chart. */
+DELETE a FROM analytics_summaries a
+  JOIN branches b ON b.id = a.branch_id
+ WHERE FIND_IN_SET(DAYOFWEEK(a.summary_date) - 1,
+                   COALESCE(NULLIF(b.open_days, ''), '1,2,3,4,5')) = 0;
+
 INSERT INTO wait_time_records
   (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
    wait_time_minutes, service_time_minutes, status, staff_count_at_time, queue_length_at_time, active_counters_at_time)
@@ -560,6 +588,25 @@ JOIN (
 ) h
 WHERE br.is_active = TRUE
   AND br.business_id IN ('biz-taj-001', 'biz-pica-001', 'biz-nht-001')
+  /* ── Only the days and hours the branch is actually open ──────────────────
+     This cross join used to run 30 days x 6 hours against every branch with no
+     reference to its own hours, so the history said a tax office was serving
+     people at 3pm on a Sunday. That is not a cosmetic problem: Smart Timing
+     reads exactly this table, so "best time to visit" could return a Saturday
+     at a branch that has never opened on one, and the busy-times heatmap drew
+     seven columns for a five-day week.
+
+     open_days is a CSV of weekday numbers, 0=Sun..6=Sat, which is what
+     FIND_IN_SET is for. A branch with no open_days set is treated as weekdays
+     rather than skipped, so a new branch still gets history. */
+  AND FIND_IN_SET(
+        DAYOFWEEK(DATE_SUB(CURDATE(), INTERVAL d.n DAY)) - 1,
+        COALESCE(NULLIF(br.open_days, ''), '1,2,3,4,5')
+      ) > 0
+  /* And inside opening hours. `< HOUR(closing_time)` not `<=`: a branch closing
+     at 16:00 serves nobody in the 16:00 hour. */
+  AND h.hour_val >= HOUR(COALESCE(br.opening_time, '08:30:00'))
+  AND h.hour_val <  HOUR(COALESCE(br.closing_time, '16:00:00'))
 ON DUPLICATE KEY UPDATE
   wait_time_minutes = VALUES(wait_time_minutes),
   service_time_minutes = VALUES(service_time_minutes),
@@ -672,22 +719,58 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- per-branch Open / About-to-open / Closed and gates joining accordingly.
 -- open_days: CSV of weekday numbers, 0=Sun..6=Sat.
 --
--- DEMO WINDOW, NOT REAL OFFICE HOURS. Real agency hours are 08:00–16:00 Mon–Fri,
--- but the join gate is enforced for real: outside these hours every branch reads
--- "Closed" and the customer journey cannot be shown at all. A demo or rehearsal
--- that runs early, late, or at a weekend would have nothing to demo.
+-- REAL OFFICE HOURS, by sector. Weekdays only.
 --
--- The window was 07:00–20:00, which still failed the case that matters most:
--- investor and stakeholder calls land in the evening, and at 9pm every screen
--- in the app read "Closed" with a dash for every wait. The demo box is a
--- showroom, not a branch, so it is now open around the clock — the gate logic
--- is unchanged and still enforced, there is simply never an hour when there is
--- nothing to show. Production tenants set their own real hours through the
--- admin app; this file only ever touches the demo database.
--- To rehearse the closed state on purpose, set a narrow window here and re-seed.
-UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE business_id = 'biz-taj-001';
--- Any remaining branches fall back to the same demo window.
-UPDATE branches SET opening_time = '00:00:00', closing_time = '23:59:59', open_days = '0,1,2,3,4,5,6' WHERE opening_time IS NULL;
+-- This block used to force the whole estate to 00:00-23:59, seven days, so that
+-- an evening investor call never opened on an app reading "Closed". That bought
+-- a working demo at any hour and cost the thing the demo is for: a queue app
+-- whose branches never close is not a queue app, the Open/Closed state could
+-- never be shown, and 30% of the generated history sat on Saturdays and Sundays
+-- — which Smart Timing reads, so "best time to visit" could name a day the
+-- office has never opened.
+--
+-- THE TRADE IS REAL AND IT IS DELIBERATE: outside these hours the demo estate
+-- now reads Closed and joining is gated, because that is what the product
+-- actually does. Two things cover the cases that used to need the hack:
+--   * Weekends — a SCHEDULED SESSION carries its own date and window, so a
+--     Saturday session is live on a Saturday. That is the honest weekend demo.
+--   * Evenings — database/demo_open_now.sql widens the estate for one demo and
+--     says how to put it back.
+--
+-- Hours below are the ordinary Jamaican ones for each kind of office, which is
+-- why they differ: a tax office and a university registry do not keep the same
+-- day. open_days is a CSV of weekday numbers, 0=Sun..6=Sat.
+-- Production tenants set their own hours through the admin app; this file only
+-- ever touches the demo database.
+--
+-- Today's queues are closed for branches shut today by the sweep at the end of
+-- demo_sector_seed.sql, which is the last file applied.
+
+-- Revenue and government service offices: 8:30 to 4, except NHT which opens at 8.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+ WHERE business_id IN ('biz-taj-001', 'biz-pica-001');
+UPDATE branches SET opening_time = '08:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+ WHERE business_id = 'biz-nht-001';
+
+-- Court lists are called from 9, and the registry shuts with the court.
+UPDATE branches SET opening_time = '09:00:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+ WHERE business_id = 'biz-court-001';
+
+-- Student services and the registry run a little later into the afternoon.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:30:00', open_days = '1,2,3,4,5'
+ WHERE business_id IN ('biz-uwi-001', 'biz-utech-001');
+
+-- Credit unions: most to 4, the head office to 5. A late branch is worth having
+-- in the estate — it is the one that shows a 5pm wait on a Friday.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+ WHERE business_id = 'biz-fhc-001';
+UPDATE branches SET opening_time = '08:30:00', closing_time = '17:00:00', open_days = '1,2,3,4,5'
+ WHERE business_id = 'biz-fhc-001' AND is_main_branch = TRUE;
+
+-- Anything added later without hours gets the ordinary office day rather than
+-- the round-the-clock window that used to be the fallback.
+UPDATE branches SET opening_time = '08:30:00', closing_time = '16:00:00', open_days = '1,2,3,4,5'
+ WHERE opening_time IS NULL OR open_days IS NULL;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TEST ACCOUNT ENTITLEMENTS

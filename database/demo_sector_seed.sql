@@ -622,3 +622,47 @@ FROM (SELECT (a.d + b.d * 10) + 1 AS n FROM
 WHERE seq.n <= 87;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CLOSED DAYS — runs last, because it undoes what every seed above assumes
+--
+-- Every seed opens today's line for every branch with CURDATE(), which was
+-- written when the demo estate was open around the clock. Now that it keeps
+-- real hours, that produces a Saturday on which no branch opens and 120 queues
+-- are nonetheless live with people apparently standing in them. The app reads
+-- Closed from the branch hours while the data says otherwise, and that
+-- contradiction is the kind an audience spots before you do.
+--
+-- This is the LAST thing in the LAST seed file on purpose: the installer
+-- (database/docker-init.sh) and the daily refresh
+-- (apps/backend/scripts/refresh-demo-data.js) apply these files in the same
+-- order, so one sweep here covers both and no earlier file has to care.
+--
+-- Deactivated, not deleted. Queue ids are referenced literally by seed.sql and
+-- demo_credit_union_seed.sql, and queue_tickets cascades on queue delete, so
+-- removing the row would take real demo tickets with it.
+--
+-- SCHEDULED SESSIONS ARE DELIBERATELY UNTOUCHED, and they are the weekend
+-- story: a session carries its own date and window and does not depend on the
+-- branch's ordinary opening days, so a Saturday session is live on a Saturday
+-- exactly as intended.
+UPDATE queues q
+  JOIN branches b ON b.id = q.branch_id
+   SET q.is_active = FALSE
+ WHERE q.queue_date = CURDATE()
+   AND FIND_IN_SET(DAYOFWEEK(CURDATE()) - 1,
+                   COALESCE(NULLIF(b.open_days, ''), '1,2,3,4,5')) = 0;
+
+-- And nobody is left standing in a line that is not running. Cancelled with a
+-- reason rather than deleted, so the history stays honest — the same treatment
+-- refresh-demo-data.js gives a ticket stranded by a date change.
+UPDATE queue_tickets t
+  JOIN queues q ON q.id = t.queue_id
+  JOIN branches b ON b.id = q.branch_id
+   SET t.status = 'cancelled',
+       t.closed_reason = 'branch_closed_before_called',
+       t.completed_at = COALESCE(t.completed_at, t.joined_at)
+ WHERE q.queue_date = CURDATE()
+   AND t.status IN ('waiting', 'called', 'in_service')
+   AND FIND_IN_SET(DAYOFWEEK(CURDATE()) - 1,
+                   COALESCE(NULLIF(b.open_days, ''), '1,2,3,4,5')) = 0;
