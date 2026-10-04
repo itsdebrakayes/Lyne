@@ -11,6 +11,7 @@ import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { cancelDepartureReminder, dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
 import { useContentColumn } from '../../lib/stage';
+import { WALLET_PASS_ENABLED } from '../../lib/features';
 import Code39Barcode from '../../components/Code39Barcode';
 import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
@@ -26,7 +27,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
 /* Whose wallet, and whose store. Read once — the platform does not change
-   while the app is running. */
+   while the app is running. Only ever reached when WALLET_PASS_ENABLED is on. */
 const WALLET_NAME = Platform.OS === 'android' ? 'Google Wallet' : 'Apple Wallet';
 const WALLET_NOTE = Platform.OS === 'android'
   ? 'Wallet passes arrive with the Play Store release.'
@@ -336,10 +337,14 @@ export default function TicketScreen() {
                 Wallet, and offering them one is the kind of detail that tells
                 somebody the app was built for a different device than the one
                 in their hand. */}
-            {/* Only while there is something to carry. Offering to add a
-                finished visit to a wallet is offering to keep a boarding pass
-                for a flight that landed. */}
-            {active && (
+            {/* Off in version one — see WALLET_PASS_ENABLED in lib/features.ts.
+                Renders nothing at all when the flag is off: no disabled
+                button, and no gap where one used to be.
+
+                The `active` half stays regardless. Offering to add a finished
+                visit to a wallet is offering to keep a boarding pass for a
+                flight that landed. */}
+            {WALLET_PASS_ENABLED && active && (
               <>
                 <View style={{
                   flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,

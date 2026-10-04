@@ -108,3 +108,36 @@ export const PREMIUM_ENABLED = false;
  * that is what PREMIUM_ENABLED above still gates.
  */
 export const PREMIUM_TRIAL_ENABLED = true;
+
+/**
+ * The "Add to Apple Wallet" / "Add to Google Wallet" control on the ticket.
+ *
+ * The feature is worth having and the reason is offline: at the counter the
+ * phone may have no signal, and a pass in Wallet scans from the lock screen
+ * without the app running at all. None of that is why this is off.
+ *
+ * It is off because the control cannot work. A signed pass needs an Apple Pass
+ * Type ID certificate, and the Android half needs a Google Wallet issuer
+ * account; neither exists, and both arrive with store enrolment rather than
+ * with a code change. What shipped in the meantime was a button-shaped view
+ * with a caption underneath reading "Wallet passes arrive with the App Store
+ * release" — which is the exact shape of a Guideline 2.1 rejection: a control
+ * that looks finished, does nothing, and explains itself. The explanation is
+ * what makes it worse, not better.
+ *
+ * One thing it did get right, and which is worth not losing when this is
+ * turned back on: both the label and the caption followed Platform.OS, so an
+ * Android build said "Google Wallet" and "the Play Store release". A control
+ * that offers an Android customer an Apple wallet is the kind of detail that
+ * tells somebody the app was built for a different phone than the one in their
+ * hand. Keep that if the button returns.
+ *
+ * Nothing is lost by hiding it. The Code 39 barcode above it is what the
+ * counter actually scans, and it is real.
+ *
+ * TO ENABLE: obtain the Apple Pass Type ID certificate and the Google Wallet
+ * issuer account, add a backend endpoint that signs a .pkpass and a Google
+ * Wallet JWT for a ticket, wire the button to it, and flip this. Until then it
+ * renders nothing — not a disabled button, and not a gap where one was.
+ */
+export const WALLET_PASS_ENABLED = false;
