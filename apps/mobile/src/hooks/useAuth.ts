@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import api, { supabase, isTransient } from '../lib/apiClient';
+import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
@@ -194,6 +195,40 @@ export const useAuth = () => {
     return { error };
   };
 
+  /**
+   * Apple and Google, landing in exactly the state signIn leaves behind.
+   *
+   * The shape is deliberately the same as signIn's: get a Supabase session,
+   * then immediately bootstrap the MySQL profile and record the synced uid.
+   * onAuthStateChange would eventually do that by itself, but "eventually" is
+   * the problem — the screen needs to know whether the profile load succeeded
+   * before it stops showing a spinner, and a kiosk or admin account has to be
+   * refused here rather than a moment later on a screen that already navigated.
+   *
+   * The metadata argument is what carries Apple's name through. Apple returns
+   * it on the first authorisation only, so it goes straight into the same
+   * sync-user call email sign-up uses for its full_name.
+   */
+  const signInWithSocial = async (provider: SocialProvider): Promise<SocialAuthResult> => {
+    const result = await signInWithProvider(provider);
+    if (result.status !== 'success') return result;
+
+    try {
+      await syncMobileUser(result.metadata);
+      const { data: { session } } = await supabase.auth.getSession();
+      syncedUid.current = session?.user?.id ?? null;
+    } catch (syncError) {
+      /* The provider accepted them but we could not finish. syncMobileUser has
+         already signed them out of Supabase for a refusal (an admin account on
+         the phone), so the message is the whole story the screen can tell. */
+      const message = syncError instanceof Error
+        ? syncError.message
+        : 'Signed in, but your profile could not be loaded.';
+      return { status: 'error', message };
+    }
+    return result;
+  };
+
   const signUp = async (email: string, password: string, nameOrMeta: string | Record<string, string>): Promise<{ error: Error | null; needsConfirmation?: boolean }> => {
     const metadata: Record<string, string> = typeof nameOrMeta === 'string'
       ? { full_name: nameOrMeta }
@@ -244,5 +279,5 @@ export const useAuth = () => {
     return me.record;
   }, []);
 
-  return { user, kiosk, loading, unreachable, signIn, signUp, signOut, refreshProfile, retrySession };
+  return { user, kiosk, loading, unreachable, signIn, signUp, signInWithSocial, signOut, refreshProfile, retrySession };
 };

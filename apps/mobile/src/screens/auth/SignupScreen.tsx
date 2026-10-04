@@ -153,7 +153,7 @@ export default function SignupScreen() {
             )}
           </TouchableOpacity>
 
-          <SocialAuthButtons />
+          <SocialAuthButtons onError={setError} />
 
           <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
