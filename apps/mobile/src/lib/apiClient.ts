@@ -71,6 +71,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     autoRefreshToken: true,
     persistSession:   true,
     detectSessionInUrl: false,
+    /* PKCE, not the library's default of 'implicit'.
+       This app is a PUBLIC client — the bundle ships to phones and holds no
+       secret — which is exactly the case PKCE exists for. Under 'implicit' the
+       provider hands back the access and refresh tokens in the URL FRAGMENT of
+       a `lyne://` redirect; any app on the device that has registered the same
+       scheme receives them, and they land in logs on the way through. Under
+       PKCE it hands back a single-use code that is worthless without the
+       verifier, which never leaves this process.
+       Nothing else in the app depends on the flow: there is no
+       resetPasswordForEmail, no emailRedirectTo and no deep-link handler, so
+       the email templates and the password path are untouched by this. */
+    flowType: 'pkce',
   },
 });
 
