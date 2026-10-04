@@ -88,6 +88,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES
 -- the host. Verify before running this that
 --   docker exec <container> mysql -uroot -p...
 -- works, because that is the account this leaves you with.
+-- ON MANAGED MYSQL THIS LINE IS REFUSED, AND THAT IS FINE. DigitalOcean's
+-- admin account is doadmin, there is no root@'%' to remove, and doadmin is not
+-- permitted to drop reserved accounts. `mysql` stops at the first error, so the
+-- FLUSH PRIVILEGES below does not run either. Everything above — which is all
+-- of the application login's hardening — has already applied by this point, and
+-- deploy/init-managed-db.sh verifies that by reconnecting as that login.
 DROP USER IF EXISTS 'root'@'%';
 
 FLUSH PRIVILEGES;

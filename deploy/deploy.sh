@@ -14,7 +14,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
+# --project-directory is not cosmetic. Every path inside the compose file is
+# written relative to the REPOSITORY ROOT (./apps/backend, ./secrets/mysql-ca.crt,
+# ./deploy/Caddyfile), but Compose resolves relative paths against the directory
+# the compose FILE lives in — deploy/ — so without this the build looks for
+# /srv/lyne/deploy/apps/model and dies with "path not found". Running from $ROOT
+# is not enough; the compose file's own location is what Compose uses.
+#
+# This does not rename anything: the compose file sets `name: lyne-prod` and every
+# service sets container_name explicitly, so the project and containers are
+# identified the same way before and after.
+COMPOSE="docker compose --project-directory $ROOT -f deploy/docker-compose.prod.yml"
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -37,7 +47,10 @@ rollback_to() {
   local target="$1"
   warn "Rolling back to ${target}"
   git -C "$ROOT" checkout --quiet "$target" || die "could not check out ${target}. Roll back by hand."
-  ( cd "$ROOT/apps/admin-desktop" && npm ci --silent && npx vite build ) \
+  # unset NODE_ENV for the same reason as the main build below — and separately,
+  # because `deploy.sh rollback` reaches here WITHOUT sourcing .env, so it is the
+  # invoking shell's NODE_ENV that would strand vite in that path.
+  ( unset NODE_ENV; cd "$ROOT/apps/admin-desktop" && npm ci --silent && npx vite build ) \
     || warn "the admin app failed to rebuild on the rolled-back commit; the API is what matters here."
   $COMPOSE build --pull || die "the rolled-back image would not build. This droplet needs hands."
   $COMPOSE up -d --remove-orphans || die "the rolled-back containers would not start. This droplet needs hands."
@@ -75,6 +88,25 @@ case "${ALLOWED_ORIGINS}" in
   *localhost*|*127.0.0.1*|*'*'*) die "ALLOWED_ORIGINS contains localhost or a wildcard. Production takes exact public origins only." ;;
 esac
 [ -z "${ALLOW_DEMO_DATA_REFRESH:-}" ] || die "ALLOW_DEMO_DATA_REFRESH is set. Unset it — this is production."
+
+# NODE_ENV must not survive into the admin build.
+#
+# .env was just sourced into this shell. If it carries NODE_ENV=production, the
+# `npm ci` below installs PRODUCTION DEPENDENCIES ONLY — so vite, which is a
+# devDependency, is never installed, and `npx vite build` fails on a fresh
+# droplet with nothing but a missing-binary error to go on.
+#
+# Unsetting it here is safe and is not a behaviour change for anything that
+# matters: the API and the model worker get NODE_ENV from
+# docker-compose.prod.yml, which sets it per-service, not from this shell. This
+# runs before BOTH places that build the admin app — here and in rollback_to.
+if [ -n "${NODE_ENV:-}" ]; then
+  warn "NODE_ENV=${NODE_ENV} was set (almost certainly from .env) and is being unset for this run.
+         With it set, npm ci skips devDependencies, vite is never installed, and the
+         admin build fails. The containers take NODE_ENV from docker-compose.prod.yml,
+         so nothing needs it here. Remove it from .env."
+  unset NODE_ENV
+fi
 
 # ── Admin PWA ────────────────────────────────────────────────────────────────
 # Caddy serves apps/admin-desktop/dist. `npm run build` there also runs
@@ -123,7 +155,7 @@ if curl -fsS --max-time 15 "https://${API_DOMAIN}/health" >/dev/null; then
 else
   echo "    NOT answering yet over HTTPS."
   echo "    If this is the first deploy, Caddy may still be getting its certificate;"
-  echo "    give it a minute, then:  docker compose -f deploy/docker-compose.prod.yml logs caddy"
+  echo "    give it a minute, then:  docker compose --project-directory . -f deploy/docker-compose.prod.yml logs caddy"
   echo "    If it persists, the usual cause is DNS: ${API_DOMAIN} must resolve to this droplet."
 fi
 

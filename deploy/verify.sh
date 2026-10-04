@@ -11,7 +11,11 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+# `set -e` is deliberately not on in this script — a failing check must report
+# and carry on — so this cd needs its own guard. Several checks below read
+# relative paths (secrets/mysql-ca.crt, deploy/backup-managed-db.sh); from the
+# wrong directory they would report absent files as real failures.
+cd "$ROOT" || { echo "could not cd to $ROOT" >&2; exit 1; }
 # shellcheck disable=SC1091
 [ -f .env ] && set -a && . ./.env && set +a
 
@@ -21,25 +25,58 @@ no()   { printf '  \033[1;31m✗\033[0m %s\n' "$*"; FAIL=$((FAIL+1)); }
 hmm()  { printf '  \033[1;33m!\033[0m %s\n' "$*"; WARN=$((WARN+1)); }
 head_() { printf '\n\033[1;34m%s\033[0m\n' "$*"; }
 
-head_ "Firewall"
-if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
-  ok "ufw is active"
-  ufw status | grep -qE '^3306' && no "3306 is open to the world — close it" || ok "MySQL is not exposed"
-  ufw status | grep -qE '^4000' && no "4000 is open — the API should only be reachable through Caddy" || ok "the API port is not exposed"
+# ── Checks that need root ────────────────────────────────────────────────────
+# ufw and sshd both refuse to report to an ordinary user. This script is meant
+# to be run as the deploy user, and run that way these checks used to print
+# confident FAILURES for a firewall and an sshd that were correctly configured —
+# which is worse than not checking them, because it teaches you to skim past the
+# red. provision.sh grants a narrow NOPASSWD rule for exactly these two
+# read-only commands, so the normal case reads them properly; where it cannot,
+# this says so rather than guessing.
+#
+# Deliberately NOT `sudo -n true` to detect privilege: under the narrow rule
+# `true` is not permitted, so that probe reports no access on exactly the box
+# where the real commands work.
+if [ "$(id -u)" -eq 0 ]; then
+  as_root() { "$@"; }
 else
-  no "ufw is not active"
+  as_root() { sudo -n "$@" 2>/dev/null; }
+fi
+NEED_ROOT_HINT="needs root: re-run as 'sudo bash deploy/verify.sh', or check it from the DigitalOcean console"
+
+head_ "Firewall"
+if ! command -v ufw >/dev/null; then
+  no "ufw is not installed"
+else
+  UFW_STATUS="$(as_root ufw status || true)"
+  if [ -z "$UFW_STATUS" ]; then
+    hmm "could not read ufw status — ${NEED_ROOT_HINT}"
+  elif printf '%s\n' "$UFW_STATUS" | grep -q "Status: active"; then
+    ok "ufw is active"
+    printf '%s\n' "$UFW_STATUS" | grep -qE '^3306' && no "3306 is open to the world — close it" || ok "MySQL is not exposed"
+    printf '%s\n' "$UFW_STATUS" | grep -qE '^4000' && no "4000 is open — the API should only be reachable through Caddy" || ok "the API port is not exposed"
+  else
+    no "ufw is not active"
+  fi
 fi
 
 head_ "SSH"
-sshd -T 2>/dev/null | grep -q '^permitrootlogin no' && ok "root login disabled" || no "root login is still permitted"
-sshd -T 2>/dev/null | grep -q '^passwordauthentication no' && ok "password authentication disabled" || no "password authentication is still on"
+SSHD_CONF="$(as_root sshd -T || true)"
+if [ -z "$SSHD_CONF" ]; then
+  hmm "could not read the effective sshd config — ${NEED_ROOT_HINT}"
+else
+  printf '%s\n' "$SSHD_CONF" | grep -q '^permitrootlogin no' && ok "root login disabled" || no "root login is still permitted"
+  printf '%s\n' "$SSHD_CONF" | grep -q '^passwordauthentication no' && ok "password authentication disabled" || no "password authentication is still on"
+fi
 
 head_ "Automatic updates and fail2ban"
 systemctl is-active --quiet fail2ban && ok "fail2ban is running" || no "fail2ban is not running"
 systemctl is-enabled --quiet unattended-upgrades && ok "unattended security upgrades enabled" || no "unattended upgrades are off"
 
 head_ "Containers"
-COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
+# --project-directory $ROOT for the same reason as deploy.sh: the compose file's
+# paths are relative to the repo root, not to deploy/. ROOT is set at the top.
+COMPOSE="docker compose --project-directory $ROOT -f deploy/docker-compose.prod.yml"
 for svc in caddy api model-worker; do
   state="$($COMPOSE ps --format '{{.Service}} {{.State}}' 2>/dev/null | awk -v s="$svc" '$1==s{print $2}')"
   [ "$state" = "running" ] && ok "$svc is running" || no "$svc is ${state:-absent}"
@@ -102,18 +139,46 @@ else
 fi
 
 head_ "Backups"
-if [ -x scripts/backup-database.sh ]; then
-  ok "the backup script is present and executable"
-  latest="$(ls -t /srv/lyne/backups/*.sql.gz 2>/dev/null | head -1)"
-  if [ -n "$latest" ]; then
-    age=$(( ( $(date +%s) - $(date -r "$latest" +%s) ) / 86400 ))
-    [ "$age" -le 2 ] && ok "most recent backup is ${age} day(s) old" || no "most recent backup is ${age} days old"
-  else
-    no "no backup has ever been taken"
-  fi
-  crontab -l 2>/dev/null | grep -q backup-database && ok "a backup cron entry exists" || no "backups are not scheduled"
+# The MANAGED script, not scripts/backup-database.sh. That one shells into a
+# local `lyne_db` container as root, which production does not have — pointed at
+# the managed database it fails every night into a log nobody opens.
+if [ -r deploy/backup-managed-db.sh ]; then
+  ok "deploy/backup-managed-db.sh is present"
 else
-  no "scripts/backup-database.sh is missing or not executable"
+  no "deploy/backup-managed-db.sh is missing — the managed database has no backup script"
+fi
+
+if [ -r secrets/backup.env ]; then
+  ok "secrets/backup.env exists (backups run as their own login)"
+  perms="$(stat -c '%a' secrets/backup.env 2>/dev/null || stat -f '%Lp' secrets/backup.env 2>/dev/null || echo '')"
+  case "$perms" in
+    600|400) ok "secrets/backup.env is ${perms}" ;;
+    '')      hmm "could not read the mode of secrets/backup.env" ;;
+    *)       no "secrets/backup.env is mode ${perms} — it holds a password; chmod 600 it" ;;
+  esac
+else
+  hmm "secrets/backup.env is absent — backups are falling back to the admin login (see deploy/README.md §5)"
+fi
+
+BACKUP_GLOB="${LYNE_BACKUP_DIR:-/srv/lyne/backups}"
+latest="$(ls -t "$BACKUP_GLOB"/*.sql.gz 2>/dev/null | head -1)"
+if [ -n "$latest" ]; then
+  age=$(( ( $(date +%s) - $(date -r "$latest" +%s) ) / 86400 ))
+  [ "$age" -le 2 ] && ok "most recent backup is ${age} day(s) old" || no "most recent backup is ${age} days old"
+else
+  no "no backup has ever been taken"
+fi
+
+# Match the managed script specifically. A cron line still calling the
+# development script is WORSE than no cron line, because it looks scheduled and
+# produces nothing — so it is called out rather than counted as a pass.
+CRON="$(crontab -l 2>/dev/null || true)"
+if printf '%s\n' "$CRON" | grep -q 'backup-managed-db'; then
+  ok "a nightly managed-database backup is scheduled"
+elif printf '%s\n' "$CRON" | grep -q 'backup-database'; then
+  no "cron still calls scripts/backup-database.sh, which cannot back up a managed database — it fails nightly. Use deploy/backup-managed-db.sh"
+else
+  no "backups are not scheduled"
 fi
 
 printf '\n\033[1m%d passed, %d failed, %d to look at\033[0m\n\n' "$PASS" "$FAIL" "$WARN"
