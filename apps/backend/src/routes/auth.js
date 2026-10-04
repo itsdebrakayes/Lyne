@@ -358,6 +358,13 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
   const userId = req.dbUser.id;
   const supabaseUid = req.supabaseUser.id;
 
+  /* Everything after the DELETE is cleanup of things that live OUTSIDE the
+     users row, and none of it can be undone by failing. Once this is true the
+     personal data is gone, so no later error may abort the remaining steps and
+     no later message may say nothing changed. That sentence is what made the
+     original bug a lie rather than just a 500. */
+  let dataDeleted = false;
+
   try {
     // Refuse while the customer is still standing in a line — deleting now
     // would strand a ticket that staff are actively serving.
@@ -377,18 +384,45 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
     await withTransaction(async (conn) => {
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
+    dataDeleted = true;
+
+    /* ── Past the point of no return ─────────────────────────────────────────
+       Each remaining step is attempted independently and records its own
+       failure. They used to be a chain, so the first one to throw skipped the
+       rest — and the first one threw EVERY TIME, because 'account_deleted' was
+       not in the reason ENUM (fixed by migration 035). The identity deletion
+       below, which is the step that actually matters to the person asking to be
+       deleted, was therefore never reached even once. */
+    const unfinished = [];
 
     // Sign the account out everywhere before releasing the identity.
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await createRevocation(supabaseUid, null, 'account_deleted', expiresAt, null);
+    try {
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await createRevocation(supabaseUid, null, 'account_deleted', expiresAt, null);
+    } catch (revokeError) {
+      /* Deliberately not fatal. A revocation row is belt-and-braces: deleting
+         the Supabase identity below invalidates the tokens anyway. Letting this
+         stop the identity deletion trades a small safeguard for the whole
+         point of the request. */
+      console.error('[DeleteAccount] revocation failed:', revokeError.message);
+      unfinished.push('existing sign-ins could not be revoked');
+    }
 
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(supabaseUid);
     if (authError) {
-      // The personal data is already gone; surface the failure so the identity
-      // can be cleaned up rather than silently reporting complete success.
       console.error('[DeleteAccount] Supabase identity delete failed:', authError.message);
+      unfinished.push('the sign-in record could not be removed');
+    }
+
+    if (unfinished.length) {
+      /* 500, because something genuinely did not finish — but the message says
+         what IS gone. Someone who reads "nothing was changed" and tries again
+         gets 403 (their user row no longer exists), concludes the app is
+         broken, and never learns their data was in fact deleted. */
       return res.status(500).json({
-        error: 'Your personal data was deleted, but the sign-in record could not be removed. Please contact support so we can finish.',
+        error: `Your personal data was deleted, but ${unfinished.join(' and ')}. `
+             + 'Please contact support so we can finish — do not try again, your data is already gone.',
+        data_deleted: true,
       });
     }
 
@@ -408,6 +442,16 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
     });
   } catch (err) {
     console.error('delete-account error:', err);
+    /* "Nothing was changed" is only true BEFORE the delete commits. Saying it
+       afterwards is what turned a 500 into a false statement about somebody's
+       personal data. */
+    if (dataDeleted) {
+      return res.status(500).json({
+        error: 'Your personal data was deleted, but we could not finish releasing your sign-in. '
+             + 'Please contact support — do not try again, your data is already gone.',
+        data_deleted: true,
+      });
+    }
     res.status(500).json({ error: 'Failed to delete your account. Nothing was changed.' });
   }
 });
