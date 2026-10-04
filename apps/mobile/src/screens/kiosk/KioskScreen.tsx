@@ -31,7 +31,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text,
+  ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, Text,
   TextInput, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -308,6 +308,42 @@ function Welcome({ org, branch, onStart, kx }: {
             <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 12.5, color: colors.muted, marginTop: 4 }}>{small}</Text>
           </View>
         ))}
+      </View>
+
+      {/* Powered by Lyne.
+          The kiosk is the one screen in the product that belongs to the AGENCY
+          rather than to us — it carries their name at 74pt and stands in their
+          branch — so the only honest place for our mark is down here, quiet and
+          underneath. It is the real logo file rather than the word set in the UI
+          font: the wordmark is Cormorant italic, and a sans approximation of it
+          is the thing that reads as almost-right.
+
+          One accessibility label on the row, not two: a screen reader should say
+          "Powered by Lyne" once, not read the words and then announce an image
+          beside them. */}
+      <View
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel="Powered by Lyne"
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: kx.wide ? kx.s(12) : 8,
+          marginTop: kx.wide ? kx.s(56) : 36,
+          opacity: 0.55,
+        }}
+      >
+        <Text style={{
+          fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 12,
+          color: colors.muted, letterSpacing: 0.4,
+        }}>
+          Powered by
+        </Text>
+        <Image
+          source={require('../../../assets/lyne-logo-dark.png')}
+          /* The navy lockup, because the kiosk's background is light. The light
+             file is white and would vanish completely here. */
+          resizeMode="contain"
+          style={{ height: kx.wide ? kx.s(26) : 18, width: kx.wide ? kx.s(68) : 47 }}
+        />
       </View>
     </TouchableOpacity>
   );
