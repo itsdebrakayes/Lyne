@@ -5,6 +5,7 @@ import { API_URL, supabase } from '@/lib/apiClient';
 // Type-only: erased at build time, so this does not create a runtime import
 // cycle with useSectorTerms, which imports this module for real.
 import type { SectorTerms } from './useSectorTerms';
+import { identifyForMonitoring } from '../lib/monitoring';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
@@ -89,12 +90,18 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const applySession = useCallback(async (accessToken: string | null | undefined) => {
     if (!accessToken) {
       setAdmin(null);
+      /* Clear the error-reporting identity on the way out, or the next person
+         to sign in on a shared branch terminal inherits the last one's id. */
+      identifyForMonitoring(null, null);
       setError(null);
       return;
     }
 
     const nextAdmin = await fetchAdmin(accessToken);
     setAdmin(nextAdmin);
+    /* Two opaque ids only — never the email or name that sit beside them on
+       this same object. See lib/monitoring.ts. */
+    identifyForMonitoring(nextAdmin?.staffRecord?.id ?? null, nextAdmin?.staffRecord?.business_id ?? null);
     setError(null);
   }, []);
 

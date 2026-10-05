@@ -3,6 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 
+/* Error reporting. Must be required and initialised before the window exists,
+   so a crash during startup is still reported. Off entirely without a DSN, and
+   off in `npm run dev` even with one — see electron/monitoring.js. */
+const { initMonitoring } = require('./monitoring');
+initMonitoring();
+
 /* ── Why the packaged app is not loaded from file:// ─────────────────────────
  *
  * It used to be, via win.loadFile(), and that is what broke it against a real
