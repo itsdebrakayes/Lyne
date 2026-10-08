@@ -20,7 +20,7 @@
  * on it (the animation starts from an empty stage), so the handoff is
  * invisible. Under Reduce Motion it is a short fade of the finished lockup.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing, ReduceMotion, runOnJS, useAnimatedProps, useAnimatedStyle, useReducedMotion,
@@ -175,7 +175,18 @@ function TaglineWord({ T, word, index, k }: { T: Clock; word: string; index: num
 }
 
 // ── the stage ──────────────────────────────────────────────────────────────
-export default function LaunchScreen({ onDone, onFirstLayout }: { onDone?: () => void; onFirstLayout?: () => void }) {
+/* How long the finished lockup may hold waiting for the app underneath. Past
+   this it fades anyway: a slow network shows the app's own loading state
+   rather than a splash that never ends. */
+const MAX_HOLD_MS = 6000;
+
+export default function LaunchScreen({ onDone, onFirstLayout, ready = true }: {
+  onDone?: () => void;
+  onFirstLayout?: () => void;
+  /** False while the app underneath is still settling; the lockup holds on its
+      final frame until it is true, so the fade never reveals a spinner. */
+  ready?: boolean;
+}) {
   const { width: W, height: H } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   // The design's portrait stage, fitted to the screen (an iPad gets the same framing, not a giant logo).
@@ -183,18 +194,43 @@ export default function LaunchScreen({ onDone, onFirstLayout }: { onDone?: () =>
   const T = useSharedValue(reduceMotion ? CUES.Tagline + 1.0 : 0);
   const fade = useSharedValue(reduceMotion ? 0 : 1);
 
+  const [held, setHeld] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const leaving = useRef(false);
+
   useEffect(() => {
-    const finish = (ok?: boolean) => { 'worklet'; if (ok && onDone) runOnJS(onDone)(); };
     if (reduceMotion) {
       // The finished lockup, faded in and out. Nothing moves.
-      fade.value = withTiming(1, { duration: 300, reduceMotion: ReduceMotion.Never }, () => {
-        fade.value = withTiming(0, { duration: 300, reduceMotion: ReduceMotion.Never }, finish);
+      fade.value = withTiming(1, { duration: 300, reduceMotion: ReduceMotion.Never }, (ok) => {
+        'worklet';
+        if (ok) runOnJS(setHeld)(true);
       });
       return;
     }
-    T.value = withTiming(TOTAL, { duration: TOTAL * 1000, easing: Easing.linear, reduceMotion: ReduceMotion.Never }, finish);
+    // Play up to the fade, then wait for the app (see the effect below).
+    T.value = withTiming(CUES.Out, { duration: CUES.Out * 1000, easing: Easing.linear, reduceMotion: ReduceMotion.Never }, (ok) => {
+      'worklet';
+      if (ok) runOnJS(setHeld)(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!held) return;
+    const id = setTimeout(() => setTimedOut(true), MAX_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [held]);
+  useEffect(() => {
+    if (!held || !(ready || timedOut) || leaving.current) return;
+    leaving.current = true;
+    const finish = (ok?: boolean) => { 'worklet'; if (ok && onDone) runOnJS(onDone)(); };
+    if (reduceMotion) {
+      fade.value = withTiming(0, { duration: 300, reduceMotion: ReduceMotion.Never }, finish);
+      return;
+    }
+    T.value = withTiming(TOTAL, { duration: (TOTAL - CUES.Out) * 1000, easing: Easing.linear, reduceMotion: ReduceMotion.Never }, finish);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [held, ready, timedOut]);
 
   const camera = useAnimatedStyle(() => {
     const t = T.value;

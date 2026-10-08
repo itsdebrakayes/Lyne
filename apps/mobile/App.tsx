@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 // Must load before anything else so the background task exists when Android wakes the app for it.
 import { registerLiveTicketTask } from './src/lib/liveTicketTask';
 import { StyleSheet, View } from 'react-native';
@@ -51,6 +51,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function App() {
   const [launching, setLaunching] = useState(true);
+  const [appReady, setAppReady] = useState(false);
+  const markReady = useCallback(() => setAppReady(true), []);
 
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
@@ -99,7 +101,7 @@ function App() {
       <>
         <QueryClientProvider client={queryClient}>
           <LockGate paused={launching}>
-            <AppNavigator />
+            <AppNavigator onReady={markReady} />
           </LockGate>
         </QueryClientProvider>
         {launching && (
@@ -107,7 +109,7 @@ function App() {
             {/* Light text over the navy stage; unmounting hands the bar back
                 to the theme's own setting. */}
             <StatusBar style="light" />
-            <LaunchScreen onFirstLayout={revealLaunch} onDone={() => setLaunching(false)} />
+            <LaunchScreen ready={appReady} onFirstLayout={revealLaunch} onDone={() => setLaunching(false)} />
           </View>
         )}
       </>

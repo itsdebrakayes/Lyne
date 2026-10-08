@@ -119,10 +119,14 @@ function AuthStack() {
   );
 }
 
-export default function AppNavigator() {
+export default function AppNavigator({ onReady }: { onReady?: () => void } = {}) {
   const { user, kiosk, loading, unreachable, retrySession } = useAuth();
   const returning = useReturningDevice();
   React.useEffect(() => { if (user || kiosk) void markDeviceSignedIn(); }, [user, kiosk]);
+  /* Tells the launch animation it may fade: the session is settled, so what
+     sits underneath is the real first screen, not this spinner. */
+  const settled = !loading && returning !== null;
+  React.useEffect(() => { if (settled) onReady?.(); }, [settled, onReady]);
 
   /* Signed in, but the profile could not be loaded because we could not reach
      the API. The old behaviour fell through to the auth stack, which asks for
