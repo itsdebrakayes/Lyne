@@ -543,6 +543,7 @@ router.get('/active', requireAuth, async (req, res) => {
       `SELECT t.*,
               q.branch_id, q.service_id, q.queue_date,
               b.name AS branch_name,
+              (SELECT biz.name FROM businesses biz WHERE biz.id = b.business_id) AS business_name,
               s.name AS service_name,
               (SELECT COUNT(*) + 1
                FROM queue_tickets t2
