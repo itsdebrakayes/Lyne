@@ -29,8 +29,9 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
+import { InsightsHeader, PremiumPill } from '../../components/InsightsHeader';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
-import { D } from '../../lib/predictiveDesign';
+import { D, hourText } from '../../lib/predictiveDesign';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -159,33 +160,12 @@ export default function PlanVisitScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 56 + lift }} showsVerticalScrollIndicator={false}>
-        {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          {/* Labelled, like the back button on every other screen in this
-              flow. An unlabelled icon button is announced as just "button". */}
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={t.iconBtn}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <Text style={{ fontFamily: font.semibold, fontSize: 16, color: colors.ink }}>Plan your visit</Text>
-          <View style={{ minWidth: 40, alignItems: 'flex-end' }}>
-            {/* v2: an outlined pill, not the filled navy badge. */}
-            {showPremiumBadge && (
-              <View
-                accessibilityRole="text"
-                accessibilityLabel="Lyne Premium account"
-                style={{ height: 28, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, justifyContent: 'center' }}
-              >
-                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.accent }}>Premium</Text>
-              </View>
-            )}
-          </View>
-        </View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 56 + lift }} showsVerticalScrollIndicator={false}>
+        <InsightsHeader
+          title="Plan your visit"
+          onBack={() => navigation.goBack()}
+          right={showPremiumBadge ? <PremiumPill /> : undefined}
+        />
 
         {/* v2: one tone, no eyebrow, and no hard line break — it wraps where
             the phone needs it to. */}
@@ -365,10 +345,10 @@ export default function PlanVisitScreen() {
                       <Row
                         chip={personalAim.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
-                        title={`${personalAim.service_name}: ${personalAim.day_name}, ${personalAim.hour_label.replace(':00', '')}`}
+                        title={`${personalAim.day_name} at ${hourText(personalAim.hour)}`}
                         sub={personalAim.matches_your_hours
-                          ? `~${Math.round(personalAim.avg_wait)} min — and it is when you usually go`
-                          : `~${Math.round(personalAim.avg_wait)} min, your quietest option`}
+                          ? `${personalAim.service_name} · about ${Math.round(personalAim.avg_wait)} min, when you usually go`
+                          : `${personalAim.service_name} · about ${Math.round(personalAim.avg_wait)} min`}
                         onPress={() => mine?.home_branch && navigation.navigate('LineHelper', {
                           businessId: mine.home_branch.business_id,
                           branchId: mine.home_branch.branch_id,
@@ -384,8 +364,8 @@ export default function PlanVisitScreen() {
                       <Row
                         chip={aim.best!.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
-                        title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
-                        sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
+                        title={`${aim.best!.day_name} at ${hourText(aim.best!.hour)}`}
+                        sub={`${aim.service_name} · about ${Math.round(aim.best!.avg_wait)} min`}
                         onPress={() => branch && navigation.navigate('WeekPlanner', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
                           serviceId: aim.service_id,
@@ -397,7 +377,7 @@ export default function PlanVisitScreen() {
                       <Row
                         chip={personalAvoid.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
-                        title={`Skip ${personalAvoid.day_name} ${personalAvoid.hour_label.replace(':00', '')}`}
+                        title={`Skip ${personalAvoid.day_name} at ${hourText(personalAvoid.hour)}`}
                         sub={`${personalAvoid.service_name} averages ${Math.round(personalAvoid.avg_wait)} min then`}
                         onPress={() => mine?.home_branch && navigation.navigate('BusyTimes', {
                           businessId: mine.home_branch.business_id,
@@ -411,7 +391,7 @@ export default function PlanVisitScreen() {
                       <Row
                         chip={avoid.busiest!.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
-                        title={`Skip ${avoid.busiest!.day_name} ${avoid.busiest!.hour_label.replace(':00', '')}`}
+                        title={`Skip ${avoid.busiest!.day_name} at ${hourText(avoid.busiest!.hour)}`}
                         sub={`Averages ${Math.round(avoid.busiest!.avg_wait)} min, the week's peak`}
                         onPress={() => branch && navigation.navigate('BusyTimes', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
