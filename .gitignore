@@ -141,3 +141,6 @@ certs/
 
 # compiled mobile unit tests
 apps/mobile/.test-build/
+
+# Playwright sessions saved by e2e/customer.setup.ts — never commit
+e2e/.auth/
