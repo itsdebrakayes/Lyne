@@ -21,7 +21,9 @@
         "NSUserNotificationUsageDescription": "LYNE sends queue updates and departure reminders.",
         "NSCameraUsageDescription": "LYNE uses the camera to scan your ID, TRN or passport so agencies can verify you faster.",
         "NSPhotoLibraryUsageDescription": "LYNE lets you upload a photo or document of your ID, TRN or passport.",
-        "NSFaceIDUsageDescription": "LYNE uses Face ID to protect your saved documents and sensitive details."
+        "NSFaceIDUsageDescription": "LYNE uses Face ID to protect your saved documents and sensitive details.",
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -106,7 +108,8 @@
             ]
           }
         ]
-      }
+      },
+      "appleTeamId": "UD8HYB75P4"
     },
     "android": {
       "package": "com.lyne.mobile",
@@ -168,13 +171,14 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-iap",
+      "@bacons/apple-targets"
     ],
     "extra": {
       "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",
       "supabaseAnonKey": "sb_publishable_DlwXt8oEDcFNrYFmOMsxGA_z7qU9cXA",
       "apiUrl": "",
-      "stripePublishableKey": "",
       "eas": {
         "projectId": "7eb42042-2a2e-43df-860c-0c52eb3d9a94"
       }

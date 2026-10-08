@@ -9,7 +9,8 @@ import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { cancelDepartureReminder, dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
+import { cancelDepartureReminder, registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
+import { endLiveTicket, syncLiveTicket } from '../../lib/liveTicket';
 import { useContentColumn } from '../../lib/stage';
 import { WALLET_PASS_ENABLED } from '../../lib/features';
 import Code39Barcode from '../../components/Code39Barcode';
@@ -117,19 +118,12 @@ export default function TicketScreen() {
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
       scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
     }
-    // Ongoing "live ticket" notification (Android sticky; iOS passive/time-sensitive)
-    // mirrors the in-app pill on the lock screen and notification shade.
+    // The ticket on the lock screen: a Live Activity on iOS, the ongoing
+    // notification on Android (lib/liveTicket.ts).
     if (liveStatuses.includes(ticket.status)) {
-      updateLiveTicketNotification({
-        ticketId: ticket.id,
-        ticketNumber: ticket.ticket_number,
-        status: ticket.status as 'waiting' | 'called' | 'in_service',
-        ahead: Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1),
-        estimatedWaitMinutes: ticket.estimated_wait_minutes,
-        branchName: ticket.branch_name,
-      }).catch(() => {});
+      syncLiveTicket(ticket).catch(() => {});
     } else if (previous.current.status && liveStatuses.includes(previous.current.status)) {
-      dismissLiveTicketNotification();
+      endLiveTicket(ticket).catch(() => {});
       // The ticket has gone terminal by any route — served, no-showed, swept at
       // closing. Whatever armed the "head out" alert, it is no longer true.
       cancelDepartureReminder();
@@ -187,7 +181,7 @@ export default function TicketScreen() {
       await api.put(`/tickets/${ticketId}/incomplete`, {});
       await Promise.all([
         cancelDepartureReminder(),
-        dismissLiveTicketNotification(),
+        endLiveTicket(ticket || undefined),
         queryClient.invalidateQueries({ queryKey: ['active-ticket'] }),
         queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] }),
       ]);
@@ -214,7 +208,7 @@ export default function TicketScreen() {
          they were no longer in. */
       await Promise.all([
         cancelDepartureReminder(),
-        dismissLiveTicketNotification(),
+        endLiveTicket(ticket || undefined),
         queryClient.invalidateQueries({ queryKey: ['active-ticket'] }),
         queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] }),
       ]);

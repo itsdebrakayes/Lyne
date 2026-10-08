@@ -1,0 +1,7 @@
+{
+  "name": "live-activity",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starts, updates and ends Lyne's ticket Live Activity (iOS ActivityKit).",
+  "main": "src/index.ts"
+}

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
+import { syncLiveTicket } from '../lib/liveTicket';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow, hexToRgba } from '../lib/theme';
 import { GlassView } from './Glass';
@@ -29,6 +30,9 @@ export function useActiveTicket() {
     queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
     refetchInterval: 8_000,
   });
+  /* Wherever the person is in the app, keep the lock-screen ticket in step
+     with this poll; liveTicket.ts drops repeats, so every caller may do it. */
+  useEffect(() => { syncLiveTicket(ticket).catch(() => {}); }, [ticket]);
   if (!ticket || !['waiting', 'called', 'in_service'].includes(ticket.status)) return null;
   return ticket;
 }
