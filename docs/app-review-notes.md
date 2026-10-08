@@ -35,7 +35,7 @@ demonstration organisation, "Blue Harbour Civic Centre", created for review.
     "Blue Harbour Main Office".
  b. Choose a service ("General Enquiries" is simplest), tap "See the line",
     then "Join this line". If the service lists required items, tick them,
-    then hold the button to join. You get a ticket number, a six-character
+    then tap the button to join. You get a ticket number, a six-character
     code, and your live position and estimated wait.
  c. While in line the ticket also appears on the Lock Screen and in the
     Dynamic Island (Live Activity), and updates as the line moves.
@@ -102,7 +102,7 @@ the code.
 
 | Statement | Needs | Status |
 |---|---|---|
-| Demo account signs in and sees Blue Harbour | Reviewer account in Supabase Auth on the production project; `database/review_tenant_seed.sql` (and the extra branches/history) applied to production; one sign-in on a real device so the MySQL user row exists | **You** — see item 17 |
+| Demo account signs in and sees Blue Harbour | Reviewer account in Supabase Auth on the production project; `database/review_tenant_seed.sql` then `database/review_tenant_history.sql` applied to production (re-run the history file every few weeks to keep the 90-day window full); one sign-in on a real device so the MySQL user row exists | **You** — see item 17 |
 | "one-time code emailed to confirm a new account" | `supabase/templates/confirm-signup.html` pasted into Supabase → Email Templates → Confirm signup; `https://uselyne.com/auth/confirmed` added to Redirect URLs; website deployed | **You** |
 | Live Activity updates while the app is closed | APNs key: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` on the production API; migration 036 applied | **You** (without it the Live Activity still updates while the app is open) |
 | In-App Purchase, verified server-side | Paid Apps agreement, banking and tax in App Store Connect; subscription group "Lyne Premium" with `com.lyne.mobile.premium.monthly` and `com.lyne.mobile.premium.yearly`; In-App Purchase key as `APPSTORE_ISSUER_ID`, `APPSTORE_KEY_ID`, `APPSTORE_PRIVATE_KEY`; migration 037 applied | **You** |
