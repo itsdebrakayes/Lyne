@@ -81,15 +81,18 @@ interface BestTimes {
   services: ServicePlan[];
 }
 
-/** "2 PM" given 14 — the end of the best-time window on the forecast card. */
-const nextHourLabel = (hour: number) => {
-  const h = (hour + 1) % 24;
-  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+/** "12 – 1 PM", or "11 AM – 12 PM" across noon — the one-hour best-time
+    window on the forecast card, as v2 writes it. */
+const hourWindowLabel = (hour: number) => {
+  const end = (hour + 1) % 24;
+  const n = (h: number) => (h % 12 === 0 ? 12 : h % 12);
+  const ap = (h: number) => (h < 12 ? 'AM' : 'PM');
+  return ap(hour) === ap(end) ? `${n(hour)} – ${n(end)} ${ap(end)}` : `${n(hour)} ${ap(hour)} – ${n(end)} ${ap(end)}`;
 };
 
 
 export default function PlanVisitScreen() {
-  const topPad = useTopPad(18);
+  const topPad = useTopPad(8);
   const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
@@ -211,7 +214,7 @@ export default function PlanVisitScreen() {
                 dayName={plan.today.day_name}
                 isToday={plan.today.is_today !== false}
                 bestLabel={plan.today.best
-                  ? `${plan.today.best.hour_label} – ${nextHourLabel(plan.today.best.hour)}`
+                  ? hourWindowLabel(plan.today.best.hour)
                   : undefined}
                 bestWait={plan.today.best?.avg_wait}
                 hours={plan.today.hours}
