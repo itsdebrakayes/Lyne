@@ -12,9 +12,9 @@ Google Play and the App Store both require that you be able to delete your accou
 
 This is the fastest way, and it takes effect immediately.
 
-1. Open Lyne and go to **Profile**.
-2. Scroll to **Delete account**.
-3. Tap **Delete my account** and confirm.
+1. Open Lyne and go to the **Profile** tab.
+2. Scroll to the bottom and tap **Delete account**.
+3. Type **DELETE** and tap **Delete everything**.
 
 Your account is closed as soon as you confirm. There is no waiting period and no email round-trip.
 

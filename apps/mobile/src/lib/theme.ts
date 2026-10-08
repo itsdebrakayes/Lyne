@@ -67,6 +67,8 @@ const lightColors = {
   moderate: '#f5a623',
   busy: '#e5484d',
   danger: '#e5484d',
+  // Red TEXT on a light surface (Log out, Delete account): #e5484d is a fill colour and too light to read as words.
+  dangerInk: '#a62b25',
 
   // Soft semantic tints for info / success / warn / danger cards, plus the ink
   // that sits on them. Light keeps the exact hand-picked pastels; dark uses
@@ -131,6 +133,7 @@ const darkColors: Palette = {
   moderate: '#f5b83e',
   busy: '#ef5a5f',
   danger: '#ef5a5f',
+  dangerInk: '#ff8f8b',
 
   infoSoft: 'rgba(76,130,255,0.14)', infoInk: '#9dbaff',
   successSoft: 'rgba(63,208,127,0.15)', successInk: '#5fd99a',

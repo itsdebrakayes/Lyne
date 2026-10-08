@@ -7,7 +7,6 @@ import api from '../lib/apiClient';
 import { syncLiveTicket } from '../lib/liveTicket';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow, hexToRgba } from '../lib/theme';
-import { GlassView } from './Glass';
 import Icon, { IconName } from './Icon';
 import { useNavBarLift } from '../lib/insets';
 
@@ -112,15 +111,14 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140 + lift, zIndex: 29 }}
       />
       {showTicketPill && <ActiveTicketPill />}
-      <GlassView
-        tint="dark"
-        intensity={55}
-        radius={34}
+      {/* Solid, not glass (App Screens Refresh): the same pill, now an opaque
+          navy surface, 62pt tall, so it reads the same over any content. */}
+      <View
         style={{
-          position: 'absolute', bottom: 24 + lift, alignSelf: 'center',
-          flexDirection: 'row', alignItems: 'center', gap: 10,
-          paddingHorizontal: 16, paddingVertical: 8,
-          zIndex: 30, ...shadow.floating,
+          position: 'absolute', bottom: 24 + lift, alignSelf: 'center', height: 62,
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          paddingHorizontal: 8, borderRadius: 31, backgroundColor: colors.dark,
+          zIndex: 30, shadowColor: colors.dark, shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 12 }, elevation: 12,
         }}
       >
         {LEFT_TABS.map(tab => (
@@ -131,7 +129,7 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
           disabled={!hasTicket}
           activeOpacity={hasTicket ? 0.85 : 1}
           style={{
-            width: 50, height: 50, borderRadius: 25, marginHorizontal: 3,
+            width: 50, height: 50, borderRadius: 25, marginHorizontal: 2,
             alignItems: 'center', justifyContent: 'center',
             backgroundColor: hasTicket ? colors.accent : 'rgba(255,255,255,0.08)',
             borderWidth: hasTicket ? 0 : 1.5, borderColor: 'rgba(255,255,255,0.22)',
@@ -143,7 +141,7 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         {RIGHT_TABS.map(tab => (
           <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
         ))}
-      </GlassView>
+      </View>
     </>
   );
 }

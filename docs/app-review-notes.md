@@ -46,8 +46,8 @@ demonstration organisation, "Blue Harbour Civic Centre", created for review.
     or open Profile → Lyne Premium to see the subscription offered through
     In-App Purchase (use a Sandbox Apple ID to test a purchase). "Restore
     purchases" is on the same screen.
- f. Account deletion: Profile → scroll to "Delete account" → "Delete my
-    account" → type DELETE to confirm. It deletes the account and its data on
+ f. Account deletion: Profile tab → scroll to the bottom → "Delete account"
+    → type DELETE → "Delete everything". It deletes the account and its data on
     our servers and the sign-in record.
 
 3. EXTERNAL SERVICES THE APP USES
