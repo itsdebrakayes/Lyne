@@ -888,6 +888,206 @@ router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
   }
 });
 
+/**
+ * The writes every status change shares, from the staff controls and from the
+ * customer's own "Mark as incomplete" alike: the analytics and visit-history
+ * rows for a terminal status, the status update itself, the audit trail entry,
+ * and the re-estimate of everyone still waiting behind.
+ *
+ * One function so that a visit the customer closes is recorded exactly the way
+ * a visit staff close is. Two copies would drift, and the first sign would be a
+ * report that disagrees with the line it describes.
+ *
+ * Runs inside the caller's transaction and does not commit.
+ */
+async function applyStatusChange(conn, ticket, { newStatus, prevStatus, extraFields, extraParams, staffId, notes, now }) {
+  // Record analytics for terminal statuses
+  if (['served', 'left', 'cancelled', 'no_show'].includes(newStatus)) {
+    const joinedAt  = ticket.joined_at ? new Date(ticket.joined_at) : null;
+    const startedAt = ticket.started_serving_at ? new Date(ticket.started_serving_at) : null;
+    const calledAt  = ticket.called_at ? new Date(ticket.called_at) : null;
+    const waitEndAt = startedAt || calledAt || now;
+    const waitMin   = joinedAt && waitEndAt ? (waitEndAt - joinedAt) / 60000 : null;
+    const svcMin    = newStatus === 'served' && startedAt ? (now - startedAt) / 60000 : null;
+
+    const [qLen] = await conn.query(
+      "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
+      [ticket.queue_id]
+    );
+    const [staffCnt] = await conn.query(
+      'SELECT COUNT(*) AS cnt FROM staff_assignments WHERE counter_id IN (SELECT id FROM counters WHERE branch_id = ?) AND assignment_date = CURDATE()',
+      [ticket.branch_id]
+    );
+    const [activeCounters] = await conn.query(
+      `SELECT COUNT(DISTINCT c.id) AS cnt
+       FROM counters c
+       JOIN staff_assignments sa ON sa.counter_id = c.id AND sa.assignment_date = CURDATE()
+       WHERE c.branch_id = ? AND c.service_id = ? AND c.is_active = TRUE`,
+      [ticket.branch_id, ticket.service_id]
+    );
+
+    await conn.query(
+      `INSERT INTO wait_time_records
+         (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
+          wait_time_minutes, service_time_minutes, status, channel, staff_count_at_time, queue_length_at_time, active_counters_at_time)
+       SELECT ?, ?, b.business_id, b.id, q.service_id, CURDATE(),
+              DAYOFWEEK(NOW())-1, HOUR(NOW()), MONTH(NOW()),
+              ?, ?, ?, ?, ?, ?, ?
+       FROM queues q JOIN branches b ON q.branch_id = b.id WHERE q.id = ?`,
+      [uuidv4(), ticket.id, waitMin, svcMin, newStatus, ticket.channel || 'app', staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
+    );
+
+    if (ticket.user_id) {
+      const [qInfo] = await conn.query(
+        `SELECT br.name AS branch_name, biz.name AS business_name, biz.id AS business_id,
+                s.name AS service_name, br.id AS branch_id, s.id AS service_id
+         FROM queues q
+         JOIN branches br ON q.branch_id = br.id
+         JOIN businesses biz ON br.business_id = biz.id
+         JOIN services s ON q.service_id = s.id
+         WHERE q.id = ?`,
+        [ticket.queue_id]
+      );
+      if (qInfo.length) {
+        await conn.query(
+          `INSERT INTO visit_history
+             (id, user_id, ticket_id, business_id, branch_id, service_id,
+              business_name, branch_name, service_name, ticket_number, visit_date,
+              wait_time_minutes, service_time_minutes, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?)`,
+          [uuidv4(), ticket.user_id, ticket.id, qInfo[0].business_id, qInfo[0].branch_id,
+           qInfo[0].service_id, qInfo[0].business_name, qInfo[0].branch_name,
+           qInfo[0].service_name, ticket.ticket_number,
+           Math.round(waitMin || 0), Math.round(svcMin || 0), newStatus]
+        );
+      }
+    }
+  }
+
+  await conn.query(
+    `UPDATE queue_tickets SET status = ? ${extraFields} WHERE id = ?`,
+    [newStatus, ...extraParams, ticket.id]
+  );
+
+  await conn.query(
+    `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [uuidv4(), ticket.id, prevStatus, newStatus, staffId, notes || null]
+  );
+
+  // Recalculate wait times for remaining WAITING tickets after terminal events.
+  // Prefer the model-based grid (same source as the join-time ETA) so the
+  // number a customer sees doesn't revert to a naive formula on the next
+  // queue update; fall back to position × recent-average service time.
+  if (['served', 'left', 'cancelled', 'no_show'].includes(newStatus)) {
+    const [avgRows] = await conn.query(
+      `SELECT AVG(service_time_minutes) AS avg_svc
+       FROM wait_time_records w
+       JOIN queue_tickets recent_ticket ON recent_ticket.id = w.ticket_id
+       WHERE recent_ticket.queue_id = ? AND w.status = 'served'
+       ORDER BY w.created_at DESC LIMIT 20`,
+      [ticket.queue_id]
+    );
+    const [qInfo] = await conn.query(
+      `SELECT q.branch_id, q.service_id, s.base_avg_time_minutes
+       FROM queues q JOIN services s ON q.service_id = s.id
+       WHERE q.id = ?`,
+      [ticket.queue_id]
+    );
+    const dynamicAvg = avgRows[0]?.avg_svc || qInfo[0]?.base_avg_time_minutes || 15;
+
+    const [waiting] = await conn.query(
+      `SELECT id, position FROM queue_tickets
+       WHERE queue_id = ? AND status = 'waiting' ORDER BY position`,
+      [ticket.queue_id]
+    );
+    if (waiting.length) {
+      const hour = new Date().getHours();
+      const updates = [];
+      for (let i = 0; i < waiting.length; i++) {
+        const modelWait = await estimateWaitMinutes({
+          branchId: qInfo[0]?.branch_id,
+          serviceId: qInfo[0]?.service_id,
+          position: i + 1,          // rank among remaining waiters
+          hour,
+        });
+        updates.push({ id: waiting[i].id, wait: modelWait ?? Math.round(i * dynamicAvg) });
+      }
+      const cases = updates.map(() => 'WHEN ? THEN ?').join(' ');
+      const params = updates.flatMap((u) => [u.id, u.wait]);
+      await conn.query(
+        `UPDATE queue_tickets SET estimated_wait_minutes = CASE id ${cases} END
+         WHERE id IN (${updates.map(() => '?').join(',')})`,
+        [...params, ...updates.map((u) => u.id)]
+      );
+    }
+  }
+}
+
+/**
+ * PUT /api/tickets/:id/incomplete — the customer closes their own visit as
+ * unfinished.
+ *
+ * For the person who reached the counter and could not complete what they came
+ * for. Once a ticket is in_service there is no queue left to leave, so this is
+ * the only honest exit the customer has, and it must land in the same place the
+ * clerk's "Incomplete" control does: status served, outcome incomplete, the
+ * standard "left part-way" reason, and an automatic note saying who closed it,
+ * so the manager's incomplete-visit report counts it with everything else.
+ */
+const CUSTOMER_INCOMPLETE_NOTE = 'Marked incomplete by the customer in the app.';
+
+router.put('/:id/incomplete', requireAuth, requireTicketAccess, async (req, res) => {
+  if (!req.dbUser) {
+    return res.status(403).json({ error: 'Only the customer can mark their own visit incomplete.' });
+  }
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [tickets] = await conn.query(
+      `SELECT t.*, q.branch_id, q.service_id, b.business_id, b.name AS branch_name, s.name AS service_name
+       FROM queue_tickets t
+       JOIN queues q ON t.queue_id = q.id
+       JOIN branches b ON q.branch_id = b.id
+       JOIN services s ON q.service_id = s.id
+       WHERE t.id = ? FOR UPDATE`,
+      [req.params.id]
+    );
+    if (!tickets.length || tickets[0].user_id !== req.dbUser.id) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+    const ticket = tickets[0];
+    if (ticket.status !== 'in_service') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Only a visit that is being served can be marked incomplete.' });
+    }
+
+    const now = new Date();
+    await applyStatusChange(conn, ticket, {
+      newStatus: 'served',
+      prevStatus: ticket.status,
+      extraFields: ', completed_at = ?, readiness_outcome = ?, readiness_note = ?, closed_reason = ?',
+      extraParams: [now, 'incomplete', CUSTOMER_INCOMPLETE_NOTE, 'customer_left'],
+      staffId: null,
+      notes: CUSTOMER_INCOMPLETE_NOTE,
+      now,
+    });
+    await conn.commit();
+
+    const [updated] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    const { verification_code: _code, ...staffSafe } = updated[0];
+    broadcast(ticket.queue_id, staffSafe);
+    res.json(updated[0]);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to mark the visit incomplete.' });
+  } finally {
+    conn.release();
+  }
+});
+
 router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
   const parsed = updateStatusSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -1007,79 +1207,10 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
       extraParams = [now];
     }
 
-    // Record analytics for terminal statuses
-    if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
-      const joinedAt  = ticket.joined_at ? new Date(ticket.joined_at) : null;
-      const startedAt = ticket.started_serving_at ? new Date(ticket.started_serving_at) : null;
-      const calledAt  = ticket.called_at ? new Date(ticket.called_at) : null;
-      const waitEndAt = startedAt || calledAt || now;
-      const waitMin   = joinedAt && waitEndAt ? (waitEndAt - joinedAt) / 60000 : null;
-      const svcMin    = new_status === 'served' && startedAt ? (now - startedAt) / 60000 : null;
-
-      const [qLen] = await conn.query(
-        "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",
-        [ticket.queue_id]
-      );
-      const [staffCnt] = await conn.query(
-        'SELECT COUNT(*) AS cnt FROM staff_assignments WHERE counter_id IN (SELECT id FROM counters WHERE branch_id = ?) AND assignment_date = CURDATE()',
-        [ticket.branch_id]
-      );
-      const [activeCounters] = await conn.query(
-        `SELECT COUNT(DISTINCT c.id) AS cnt
-         FROM counters c
-         JOIN staff_assignments sa ON sa.counter_id = c.id AND sa.assignment_date = CURDATE()
-         WHERE c.branch_id = ? AND c.service_id = ? AND c.is_active = TRUE`,
-        [ticket.branch_id, ticket.service_id]
-      );
-
-      await conn.query(
-        `INSERT INTO wait_time_records
-           (id, ticket_id, business_id, branch_id, service_id, visit_date, day_of_week, hour_of_day, month_of_year,
-            wait_time_minutes, service_time_minutes, status, channel, staff_count_at_time, queue_length_at_time, active_counters_at_time)
-         SELECT ?, ?, b.business_id, b.id, q.service_id, CURDATE(),
-                DAYOFWEEK(NOW())-1, HOUR(NOW()), MONTH(NOW()),
-                ?, ?, ?, ?, ?, ?, ?
-         FROM queues q JOIN branches b ON q.branch_id = b.id WHERE q.id = ?`,
-        [uuidv4(), ticket.id, waitMin, svcMin, new_status, ticket.channel || 'app', staffCnt[0].cnt, qLen[0].cnt, activeCounters[0].cnt, ticket.queue_id]
-      );
-
-      if (ticket.user_id) {
-        const [qInfo] = await conn.query(
-          `SELECT br.name AS branch_name, biz.name AS business_name, biz.id AS business_id,
-                  s.name AS service_name, br.id AS branch_id, s.id AS service_id
-           FROM queues q
-           JOIN branches br ON q.branch_id = br.id
-           JOIN businesses biz ON br.business_id = biz.id
-           JOIN services s ON q.service_id = s.id
-           WHERE q.id = ?`,
-          [ticket.queue_id]
-        );
-        if (qInfo.length) {
-          await conn.query(
-            `INSERT INTO visit_history
-               (id, user_id, ticket_id, business_id, branch_id, service_id,
-                business_name, branch_name, service_name, ticket_number, visit_date,
-                wait_time_minutes, service_time_minutes, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?)`,
-            [uuidv4(), ticket.user_id, ticket.id, qInfo[0].business_id, qInfo[0].branch_id,
-             qInfo[0].service_id, qInfo[0].business_name, qInfo[0].branch_name,
-             qInfo[0].service_name, ticket.ticket_number,
-             Math.round(waitMin || 0), Math.round(svcMin || 0), new_status]
-          );
-        }
-      }
-    }
-
-    await conn.query(
-      `UPDATE queue_tickets SET status = ? ${extraFields} WHERE id = ?`,
-      [new_status, ...extraParams, ticket.id]
-    );
-
-    await conn.query(
-      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [uuidv4(), ticket.id, prevStatus, new_status, req.dbStaff?.id || null, notes || null]
-    );
+    await applyStatusChange(conn, ticket, {
+      newStatus: new_status, prevStatus, extraFields, extraParams,
+      staffId: req.dbStaff?.id || null, notes, now,
+    });
 
     let pendingPush = null;
     if (new_status === 'called') {
@@ -1096,54 +1227,6 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
         'no_show',
         `${ticket.ticket_number} was marked as a no-show because the call window expired, and your place in line was released. You can rejoin the queue from the app, or speak with staff at the branch if you are on site.`
       );
-    }
-
-    // Recalculate wait times for remaining WAITING tickets after terminal events.
-    // Prefer the model-based grid (same source as the join-time ETA) so the
-    // number a customer sees doesn't revert to a naive formula on the next
-    // queue update; fall back to position × recent-average service time.
-    if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) {
-      const [avgRows] = await conn.query(
-        `SELECT AVG(service_time_minutes) AS avg_svc
-         FROM wait_time_records w
-         JOIN queue_tickets recent_ticket ON recent_ticket.id = w.ticket_id
-         WHERE recent_ticket.queue_id = ? AND w.status = 'served'
-         ORDER BY w.created_at DESC LIMIT 20`,
-        [ticket.queue_id]
-      );
-      const [qInfo] = await conn.query(
-        `SELECT q.branch_id, q.service_id, s.base_avg_time_minutes
-         FROM queues q JOIN services s ON q.service_id = s.id
-         WHERE q.id = ?`,
-        [ticket.queue_id]
-      );
-      const dynamicAvg = avgRows[0]?.avg_svc || qInfo[0]?.base_avg_time_minutes || 15;
-
-      const [waiting] = await conn.query(
-        `SELECT id, position FROM queue_tickets
-         WHERE queue_id = ? AND status = 'waiting' ORDER BY position`,
-        [ticket.queue_id]
-      );
-      if (waiting.length) {
-        const hour = new Date().getHours();
-        const updates = [];
-        for (let i = 0; i < waiting.length; i++) {
-          const modelWait = await estimateWaitMinutes({
-            branchId: qInfo[0]?.branch_id,
-            serviceId: qInfo[0]?.service_id,
-            position: i + 1,          // rank among remaining waiters
-            hour,
-          });
-          updates.push({ id: waiting[i].id, wait: modelWait ?? Math.round(i * dynamicAvg) });
-        }
-        const cases = updates.map(() => 'WHEN ? THEN ?').join(' ');
-        const params = updates.flatMap((u) => [u.id, u.wait]);
-        await conn.query(
-          `UPDATE queue_tickets SET estimated_wait_minutes = CASE id ${cases} END
-           WHERE id IN (${updates.map(() => '?').join(',')})`,
-          [...params, ...updates.map((u) => u.id)]
-        );
-      }
     }
 
     await conn.commit();
