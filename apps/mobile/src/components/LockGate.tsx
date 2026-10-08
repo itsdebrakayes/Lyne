@@ -14,7 +14,11 @@ import { colors, font } from '../lib/theme';
 
 export const APP_LOCK_KEY = 'lyne.app-lock';
 
-export function LockGate({ children }: { children: React.ReactNode }) {
+/**
+ * `paused` holds the Face ID prompt while the launch animation is still on
+ * screen (the app mounts underneath it); the prompt comes as the lockup fades.
+ */
+export function LockGate({ children, paused = false }: { children: React.ReactNode; paused?: boolean }) {
   const [state, setState] = useState<'checking' | 'locked' | 'open'>('checking');
 
   const attempt = async () => {
@@ -27,7 +31,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
     setState(res.success ? 'open' : 'locked');
   };
 
-  useEffect(() => { attempt(); }, []);
+  useEffect(() => { if (!paused) attempt(); }, [paused]);
 
   if (state === 'open') return <>{children}</>;
 

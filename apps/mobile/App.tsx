@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 // Must load before anything else so the background task exists when Android wakes the app for it.
 import { registerLiveTicketTask } from './src/lib/liveTicketTask';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,6 +22,8 @@ import {
    is set in it wherever it appears as the brand rather than in the UI typeface
    pretending to be it. It is NOT a UI font and nothing else uses it. */
 import { Cormorant_600SemiBold_Italic } from '@expo-google-fonts/cormorant';
+// The splash's wordmark and tagline face, as the Lyne Splash design sets them.
+import { CormorantGaramond_500Medium_Italic } from '@expo-google-fonts/cormorant-garamond';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
@@ -56,19 +58,19 @@ function App() {
     Manrope_700Bold,
     Manrope_800ExtraBold,
     Cormorant_600SemiBold_Italic,
+    CormorantGaramond_500Medium_Italic,
   });
 
-  useEffect(() => {
-    const id = setTimeout(() => setLaunching(false), 1200);
-    return () => clearTimeout(id);
-  }, []);
+  /* The launch animation decides when it is over (LaunchScreen onDone), so
+     the app appears as the lockup fades rather than cutting it off part-way. */
 
   // Reveal the animated JS launch screen once the fonts are ready — until then
   // the matching-dark native splash stays up, so the brand lockup never flashes
   // in a fallback system font.
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded]);
+  /* The native splash comes down from the launch animation's first layout,
+     not when the fonts arrive: between those two moments Android drew its
+     white window background, which flashed between two navy screens. */
+  const revealLaunch = () => { SplashScreen.hideAsync().catch(() => {}); };
 
   /* The first-run flow — a welcome screen and a four-step explainer that also
      asked for a town and a set of sectors — is out for version one. It was not
@@ -85,15 +87,26 @@ function App() {
      SafeAreaProvider still wraps everything — including the launch early
      return — so useSafeAreaInsets() is available from the first frame. */
   let body: React.ReactNode;
-  if (launching || !fontsLoaded) {
-    body = <LaunchScreen />;
+  if (!fontsLoaded) {
+    /* The native splash is still up and is this same navy; mounting the
+       animation now would start its clock behind it and lose the opening. */
+    body = <View style={{ flex: 1, backgroundColor: '#0C1B40' }} />;
   } else {
+    /* The app mounts underneath the launch animation, so sign-in state is
+       already settled when the lockup fades: no spinner after the splash. */
     body = (
-      <QueryClientProvider client={queryClient}>
-        <LockGate>
-          <AppNavigator />
-        </LockGate>
-      </QueryClientProvider>
+      <>
+        <QueryClientProvider client={queryClient}>
+          <LockGate paused={launching}>
+            <AppNavigator />
+          </LockGate>
+        </QueryClientProvider>
+        {launching && (
+          <View style={StyleSheet.absoluteFill}>
+            <LaunchScreen onFirstLayout={revealLaunch} onDone={() => setLaunching(false)} />
+          </View>
+        )}
+      </>
     );
   }
 
