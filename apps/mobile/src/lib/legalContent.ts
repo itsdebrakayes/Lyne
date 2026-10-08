@@ -80,7 +80,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
   {
     heading: 'Deleting your account',
     body: [
-      'You can delete your account from inside the app at any time: Profile, then Privacy & security, then Delete account. You do not need to email us or call us.',
+      'You can delete your account from inside the app at any time: Profile, scroll to Delete account, then Delete my account and confirm. You do not need to email us or call us.',
       'Deleting removes your profile and contact details, your saved businesses and recent searches, your notifications and device tokens, your saved payment methods, your visit history, and your sign-in record. Any identification number saved on this device is erased at the same time.',
       'Deletion is immediate and cannot be undone.',
     ],
