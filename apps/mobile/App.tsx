@@ -100,7 +100,7 @@ function App() {
     body = (
       <>
         <QueryClientProvider client={queryClient}>
-          <LockGate paused={launching}>
+          <LockGate paused={launching} onLocked={markReady}>
             <AppNavigator onReady={markReady} />
           </LockGate>
         </QueryClientProvider>
