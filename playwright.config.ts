@@ -34,6 +34,12 @@ export default defineConfig({
   },
   projects: [
     {
+      /* The public website, built and served: `cd apps/website && npx vite build --outDir /tmp/lyne-website-dist && npx vite preview --outDir /tmp/lyne-website-dist --port 8086`. No sign-in. */
+      name: 'website',
+      testMatch: /web-.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], baseURL: process.env.WEBSITE_URL || 'http://localhost:8086' },
+    },
+    {
       name: 'admin',
       testMatch: /admin-.*\.spec\.ts|api-.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
