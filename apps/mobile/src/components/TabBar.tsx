@@ -12,6 +12,11 @@ import { useNavBarLift } from '../lib/insets';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
 
+/* Spoken names for the icon-only tabs. Without them VoiceOver and TalkBack
+   announced four identical "button"s. Profile is labelled as the screen it
+   opens, which is titled Settings. */
+const TAB_LABEL: Record<TabKey, string> = { Home: 'Home', Search: 'Search', Saved: 'Saved places', Profile: 'Settings' };
+
 // Compact dark pill: icon-only tabs, active icon lifted in a white circle,
 // and a blue center action for the app's core verb — joining a line.
 const LEFT_TABS: Array<{ key: TabKey; icon: IconName; iconOn: IconName }> = [
@@ -56,6 +61,8 @@ export function ActiveTicketPill() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
+      accessibilityRole="button"
+      accessibilityLabel={`${headline}. ${sub}. Open your ticket.`}
       style={{ position: 'absolute', bottom: 102 + lift, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
       <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
@@ -72,6 +79,9 @@ function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: IconName;
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityLabel={TAB_LABEL[tab.key]}
+      accessibilityState={{ selected: active }}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
       style={{
         width: 46, height: 46, borderRadius: 23,
@@ -127,6 +137,9 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         <TouchableOpacity
           onPress={centerPress}
           disabled={!hasTicket}
+          accessibilityRole="button"
+          accessibilityLabel={hasTicket ? 'Your ticket' : 'Your ticket (you are not in a line)'}
+          accessibilityState={{ disabled: !hasTicket }}
           activeOpacity={hasTicket ? 0.85 : 1}
           style={{
             width: 50, height: 50, borderRadius: 25, marginHorizontal: 2,
