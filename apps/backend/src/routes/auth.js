@@ -382,6 +382,20 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
     }
 
     await withTransaction(async (conn) => {
+      /* The tables that only SET NULL on a user's deletion, emptied of the
+         person first (see the note above this route). These were here once and
+         were lost in a later port, which left scanned ID numbers and intake
+         answers behind, orphaned but intact, after "your data is gone". */
+      await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
+      await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
+      await conn.query(
+        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL WHERE user_id = ?',
+        [userId]
+      );
+      await conn.query(
+        'UPDATE session_registrations SET guest_name = NULL, guest_phone = NULL, guest_email = NULL WHERE user_id = ?',
+        [userId]
+      );
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
     dataDeleted = true;
