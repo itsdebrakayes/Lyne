@@ -60,7 +60,7 @@ export type RootStackParamList = {
      than reading a global selection, so a deep link or a back-stack entry lands
      on the same data it was opened with. */
   BusyTimes:  { businessId: string; branchId: string; branchName?: string; serviceId?: string };
-  WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string };
+  WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string; targetDow?: number };
   LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number };
   HelperHold: { helperId?: string } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is

@@ -371,7 +371,7 @@ export default function PlanVisitScreen() {
                         sub={`${aim.service_name} · about ${Math.round(aim.best!.avg_wait)} min`}
                         onPress={() => branch && navigation.navigate('WeekPlanner', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
-                          serviceId: aim.service_id,
+                          serviceId: aim.service_id, targetDow: aim.best!.dow,
                         })}
                         last={!avoid}
                       />

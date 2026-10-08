@@ -79,6 +79,9 @@ export default function WeekPlannerScreen() {
      the DATES do, which is what you need to actually plan the trip. */
   const [weekOffset, setWeekOffset] = useState(0);
   const [dow, setDow] = useState<number>(() => {
+    // Opened from a recommendation ("Friday at 1 PM"): start on that day.
+    const asked = route.params?.targetDow;
+    if (typeof asked === 'number' && STRIP_DOWS.includes(asked)) return asked;
     const today = new Date().getDay();
     return STRIP_DOWS.includes(today) ? today : 1;
   });
@@ -425,7 +428,7 @@ export default function WeekPlannerScreen() {
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 3 }}>
               About {spans.quiet.wait} min wait · {travelMinutes
                 ? `leave by ${clockText(spans.quiet.from * 60 - travelMinutes)}`
-                : 'tap to have Lyne hold your place'}
+                : 'tap to hold your place'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,.6)" />
