@@ -21,6 +21,7 @@ import { useContentColumn } from '../../lib/stage';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
+import { AuthModeSwitch } from '../../components/AuthModeSwitch';
 
 
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
@@ -96,6 +97,8 @@ export default function SignupScreen() {
             <Text style={styles.subtitle}>A few details and you’re ready to skip the line.</Text>
           </View>
 
+          <AuthModeSwitch current="signup" />
+
           {confirmSent ? (
             <View style={{ alignItems: 'center', paddingVertical: 18 }}>
               <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -156,7 +159,7 @@ export default function SignupScreen() {
 
           <SocialAuthButtons onError={setError} />
 
-          <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
+          <TouchableOpacity onPress={() => navigation.replace('Auth')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Already a member?  <Text style={styles.switchBold}>Sign in</Text></Text>
           </TouchableOpacity>
           </>

@@ -20,6 +20,7 @@ import { colors, font, shadow, inputReset } from '../../lib/theme';
 import { useContentColumn } from '../../lib/stage';
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
+import { AuthModeSwitch } from '../../components/AuthModeSwitch';
 
 export default function LoginScreen() {
   const column = useContentColumn();
@@ -72,6 +73,8 @@ export default function LoginScreen() {
           />
           <Text style={styles.subtitle}>Sign in to skip the line.</Text>
 
+          <AuthModeSwitch current="signin" />
+
           {!!error && (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle" size={15} color={colors.danger} />
@@ -120,7 +123,7 @@ export default function LoginScreen() {
 
           <SocialAuthButtons onError={setError} />
 
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
+          <TouchableOpacity onPress={() => navigation.replace('Signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
             <Text style={styles.switchText}>Don’t have an account?  <Text style={styles.switchBold}>Sign up</Text></Text>
           </TouchableOpacity>
         </View>

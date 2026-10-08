@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { markDeviceSignedIn, useReturningDevice } from '../lib/deviceHistory';
 import { colors } from '../lib/theme';
 import OfflineState from '../components/OfflineState';
 import BusyTimesScreen from '../screens/main/BusyTimesScreen';
@@ -122,6 +123,8 @@ function AuthStack() {
 
 export default function AppNavigator() {
   const { user, kiosk, loading, unreachable, retrySession } = useAuth();
+  const returning = useReturningDevice();
+  React.useEffect(() => { if (user || kiosk) void markDeviceSignedIn(); }, [user, kiosk]);
 
   /* Signed in, but the profile could not be loaded because we could not reach
      the API. The old behaviour fell through to the auth stack, which asks for
@@ -136,7 +139,7 @@ export default function AppNavigator() {
     );
   }
 
-  if (loading) {
+  if (loading || returning === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.accent} />
@@ -157,10 +160,19 @@ export default function AppNavigator() {
           // queue-joining flow. Their whole job is adding walk-ins for others.
           <Stack.Screen name="Kiosk" component={KioskScreen} />
         ) : !user ? (
-          <>
-            <Stack.Screen name="Auth" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-          </>
+          /* The first screen listed is the one shown. A device nobody has
+             signed in on opens on sign-up; see lib/deviceHistory.ts. */
+          returning ? (
+            <>
+              <Stack.Screen name="Auth" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignupScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen name="Auth" component={LoginScreen} />
+            </>
+          )
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
