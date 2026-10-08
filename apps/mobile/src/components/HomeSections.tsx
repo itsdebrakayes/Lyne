@@ -172,7 +172,7 @@ export function BranchCard({
     /* Wider and taller than the first pass. At 232 the badge sat on top of the
        agency name and the branch name clipped — on a phone, held at arm's
        length, that is a card you have to decode rather than read. */
-    <View style={{ width: wide ? 344 : 268, borderRadius: wide ? 28 : 24, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.card }}>
+    <View style={{ width: wide ? 344 : 268, borderRadius: wide ? 28 : 24, backgroundColor: colors.surface, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderSoft }}>
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onOpen}
@@ -181,8 +181,8 @@ export function BranchCard({
       >
         {/* Head: the agency, and whether it is live. Nothing else competes for
             this strip now that the badge has moved down. */}
-        <View style={{ height: 74, backgroundColor: colors.dark, paddingHorizontal: 16, justifyContent: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+        <View style={{ height: 72, backgroundColor: colors.dark, paddingHorizontal: 16, justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{
               width: 40, height: 40, borderRadius: 13, backgroundColor: '#fff',
               alignItems: 'center', justifyContent: 'center',
@@ -199,18 +199,15 @@ export function BranchCard({
               </Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff', letterSpacing: -0.2 }}>
-                {orgAcronym(branch.business_id, branch.business_name)}
+              <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>
+                {(branch.business_name || '').replace(/\s*\([^)]*\)\s*$/, '')}
               </Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,.58)', marginTop: 2 }}>
                 {live ? 'Line moving now' : open ? 'Open, no queue' : 'Closed'}
               </Text>
             </View>
             {live && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} />
-                <Text style={{ fontFamily: font.extra, fontSize: 10, color: colors.light, letterSpacing: 0.5 }}>LIVE</Text>
-              </View>
+              <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#3fd07f' }}>Live</Text>
             )}
           </View>
         </View>
@@ -221,20 +218,20 @@ export function BranchCard({
             the agency name; here it is plainly a label ABOUT the branch below
             it, which is what it is. */}
         {!!b && (
-          <View style={{ flexDirection: 'row', marginBottom: 9 }}>
-            <View style={{ borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: b.bg }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 10.5, color: b.fg, letterSpacing: 0.3 }}>{b.label}</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <View style={{ height: 30, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center', backgroundColor: b.bg }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 12, color: b.fg, letterSpacing: 0.1 }}>{b.label}</Text>
             </View>
           </View>
         )}
 
         {/* Two lines allowed. A branch name is the one thing on this card that
             must never be truncated — it is the answer to "where do I go". */}
-        <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: wide ? 20 : 17, lineHeight: wide ? 25 : 21, color: colors.ink, letterSpacing: -0.4 }}>
+        <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: wide ? 20 : 18, lineHeight: wide ? 25 : 22, color: colors.ink, letterSpacing: -0.4 }}>
           {shortBranchName(branch.name)}
         </Text>
 
-        <View style={{ gap: 7, marginTop: 11, marginBottom: 14 }}>
+        <View style={{ gap: 8, marginTop: 12, marginBottom: 16 }}>
           <Stat icon="time-outline" value={wait ? `${wait} min` : 'No wait'} caption="to be seen" />
           <Stat icon="people-outline" value={String(waiting)} caption={waiting === 1 ? 'person ahead' : 'people ahead'} />
         </View>
@@ -247,12 +244,12 @@ export function BranchCard({
           accessibilityLabel={open ? `Join the line at ${branch.name}` : `${branch.name} is closed`}
           accessibilityState={{ disabled: !open }}
           style={{
-            minHeight: 44, borderRadius: 14, marginTop: 'auto', paddingTop: 0,
+            minHeight: 48, borderRadius: 14, marginTop: 'auto', paddingTop: 0,
             backgroundColor: open ? colors.accent : colors.surfaceAlt,
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Text style={{ fontFamily: font.extra, fontSize: wide ? 16.5 : 14, color: open ? colors.accentInk : colors.muted }}>
+          <Text style={{ fontFamily: font.bold, fontSize: wide ? 17 : 16, color: open ? colors.accentInk : colors.muted }}>
             {open ? 'Join now' : 'Closed'}
           </Text>
         </TouchableOpacity>
