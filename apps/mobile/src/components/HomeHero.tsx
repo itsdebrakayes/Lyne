@@ -119,6 +119,7 @@ export function HomeHero({
   const [beat, setBeat] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [beatHeight, setBeatHeight] = useState(0);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
@@ -150,7 +151,16 @@ export function HomeHero({
       >
         <TicketMotif />
 
-        <Animated.View style={{ opacity: fade }}>
+        {/* Held at the tallest beat seen so far. The beats wrap to different
+            heights, and without this the two buttons below moved every few
+            seconds — a tap aimed at "Plan for later" landed on empty card. */}
+        <Animated.View
+          style={{ opacity: fade, minHeight: beatHeight }}
+          onLayout={(e) => {
+            const h = Math.ceil(e.nativeEvent.layout.height);
+            if (h > beatHeight) setBeatHeight(h);
+          }}
+        >
           <View style={{ paddingRight: 120 }}>
           <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.62)' }}>
             {b.kicker}
