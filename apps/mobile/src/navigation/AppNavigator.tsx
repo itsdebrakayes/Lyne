@@ -15,8 +15,7 @@ import LineHelperScreen from '../screens/main/LineHelperScreen';
 import HelperHoldScreen from '../screens/main/HelperHoldScreen';
 
 // Auth screens
-import LoginScreen    from '../screens/auth/LoginScreen';
-import SignupScreen   from '../screens/auth/SignupScreen';
+import AuthScreen     from '../screens/auth/AuthScreen';
 
 // Main screens
 import HomeScreen       from '../screens/main/HomeScreen';
@@ -45,8 +44,7 @@ import TicketScreen     from '../screens/queue/TicketScreen';
 import KioskScreen      from '../screens/kiosk/KioskScreen';
 
 export type RootStackParamList = {
-  Auth:       undefined;
-  Signup:     undefined;
+  Auth:       { mode?: 'signin' | 'signup' } | undefined;
   Kiosk:      undefined;
   Main:       undefined;
   History:    undefined;
@@ -116,7 +114,7 @@ function MainTabs() {
 function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Auth" component={LoginScreen} />
+      <Stack.Screen name="Auth" component={AuthScreen} />
     </Stack.Navigator>
   );
 }
@@ -160,19 +158,9 @@ export default function AppNavigator() {
           // queue-joining flow. Their whole job is adding walk-ins for others.
           <Stack.Screen name="Kiosk" component={KioskScreen} />
         ) : !user ? (
-          /* The first screen listed is the one shown. A device nobody has
-             signed in on opens on sign-up; see lib/deviceHistory.ts. */
-          returning ? (
-            <>
-              <Stack.Screen name="Auth" component={LoginScreen} />
-              <Stack.Screen name="Signup" component={SignupScreen} />
-            </>
-          ) : (
-            <>
-              <Stack.Screen name="Signup" component={SignupScreen} />
-              <Stack.Screen name="Auth" component={LoginScreen} />
-            </>
-          )
+          /* Sign in and create account are one screen; a device nobody has
+             signed in on opens it in Create account (lib/deviceHistory.ts). */
+          <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
