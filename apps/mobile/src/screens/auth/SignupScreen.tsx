@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
 import { colors, font, shadow, inputReset } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useContentColumn } from '../../lib/stage';
 import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSheet';
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
@@ -28,6 +28,7 @@ type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
 export default function SignupScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(72);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const { signUp } = useAuth();
   const [fullName, setFullName] = useState('');
@@ -78,7 +79,7 @@ export default function SignupScreen() {
       <AuthMotifFrame />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[styles.inner, { paddingTop: topPad }, column]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[[styles.inner, { paddingBottom: 150 + lift }], { paddingTop: topPad }, column]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* brand lockup */}
           <View style={{ alignItems: 'center', marginBottom: 22 }}>
             {/* The real lockup, as on sign-in — see the note there. */}

@@ -8,6 +8,7 @@ import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow, hexToRgba } from '../lib/theme';
 import { GlassView } from './Glass';
 import Icon, { IconName } from './Icon';
+import { useNavBarLift } from '../lib/insets';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
 
@@ -34,6 +35,7 @@ export function useActiveTicket() {
 
 export function ActiveTicketPill() {
   const navigation = useNavigation<any>();
+  const lift = useNavBarLift();
   const ticket = useActiveTicket();
   if (!ticket) return null;
   const called = ticket.status === 'called';
@@ -51,7 +53,7 @@ export function ActiveTicketPill() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-      style={{ position: 'absolute', bottom: 102, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
+      style={{ position: 'absolute', bottom: 102 + lift, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
       <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
       <View style={{ flex: 1 }}>
@@ -86,6 +88,7 @@ function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: IconName;
  */
 export function TabBar({ active, showTicketPill = true }: { active: TabKey; showTicketPill?: boolean }) {
   const navigation = useNavigation<any>();
+  const lift = useNavBarLift();
   const ticket = useActiveTicket();
 
   // Center = the live ticket. It only lights cyan when there IS a line to
@@ -102,7 +105,7 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         pointerEvents="none"
         colors={[hexToRgba(colors.bg, 0), hexToRgba(colors.bg, 0.85), colors.bg]}
         locations={[0, 0.42, 0.78]}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140 + lift, zIndex: 29 }}
       />
       {showTicketPill && <ActiveTicketPill />}
       <GlassView
@@ -110,7 +113,7 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         intensity={55}
         radius={34}
         style={{
-          position: 'absolute', bottom: 24, alignSelf: 'center',
+          position: 'absolute', bottom: 24 + lift, alignSelf: 'center',
           flexDirection: 'row', alignItems: 'center', gap: 10,
           paddingHorizontal: 16, paddingVertical: 8,
           zIndex: 30, ...shadow.floating,

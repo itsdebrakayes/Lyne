@@ -24,7 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import Svg, { Circle, Path, Polyline } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font, shadow, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary } from '../../lib/mobileData';
@@ -102,6 +102,7 @@ export default function QueueMapScreen() {
   const column = useContentColumn();
   const barColumn = useContentColumnInner();
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { businessId, branchId, serviceId, serviceName } = route.params;
@@ -146,7 +147,7 @@ export default function QueueMapScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150, ...column }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 + lift, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 6, paddingBottom: 18 }}>
@@ -288,7 +289,7 @@ export default function QueueMapScreen() {
           screen, so three screens in a row do not each invent a way forward. */}
       <View style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
-        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30,
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30 + lift,
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity

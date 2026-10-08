@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../../lib/theme';
 import { D, RAMP, LEVEL_NAMES, waitLevel, hourText, hourShort, DAY_SHORT, DAY_FULL } from '../../lib/predictiveDesign';
 import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
@@ -43,6 +43,7 @@ interface BestTimes { window_days: number; premium?: boolean; services: ServiceP
 
 export default function BusyTimesScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
@@ -169,7 +170,7 @@ export default function BusyTimesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40 + lift }} showsVerticalScrollIndicator={false}>
 
         {/* header — back · title · 44px spacer so the title sits centred */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>

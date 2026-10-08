@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, TAB_BAR_CLEARANCE } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
@@ -50,6 +50,7 @@ const STATUS_TONE: Record<string, string> = {
 
 export default function HistoryScreen() {
   const topPad = useTopPad(18);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const [refreshing, setRefreshing] = useState(false);
   const { data: history = [], isLoading, error, refetch } = useQuery({
@@ -88,7 +89,7 @@ export default function HistoryScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE + lift }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >

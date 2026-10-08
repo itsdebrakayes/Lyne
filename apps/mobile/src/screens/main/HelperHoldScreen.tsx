@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
 import { D } from '../../lib/predictiveDesign';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
@@ -72,6 +72,7 @@ function relative(iso?: string | null): string {
 
 export default function HelperHoldScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
 
@@ -187,7 +188,7 @@ export default function HelperHoldScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 + lift }} showsVerticalScrollIndicator={false}>
         {/* The design says "Today" because its mock is a same-day helper. A
             helper can be scheduled for any day, and a checklist headed "Today"
             over tomorrow's times is simply wrong — it is the kind of thing that

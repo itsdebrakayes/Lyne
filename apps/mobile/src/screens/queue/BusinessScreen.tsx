@@ -31,7 +31,7 @@ import {
   BranchSummary, SavedBusiness, ServiceSummary, orgAcronym, shortBranchName,
 } from '../../lib/mobileData';
 import { colors, font, shadow, t, isBranchOpen, waitShort } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { ErrorCard } from '../../components/Feedback';
@@ -122,6 +122,7 @@ export default function BusinessScreen() {
   const column = useContentColumn();
   const barColumn = useContentColumnInner();
   const topPad = useTopPad(12);
+  const lift = useNavBarLift();
   const route = useRoute<Params>();
   const nav = useNavigation<any>();
   const queryClient = useQueryClient();
@@ -191,7 +192,7 @@ export default function BusinessScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 152, ...column }}
+        contentContainerStyle={{ paddingBottom: 152 + lift, ...column }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}
       >
@@ -397,7 +398,7 @@ export default function BusinessScreen() {
           gradient that reads instantly as "press here". */}
       <View style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
-        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30,
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30 + lift,
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity

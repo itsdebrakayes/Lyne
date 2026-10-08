@@ -27,6 +27,7 @@ import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { getDocument, isProtected, setDocument, setProtected } from '../../lib/documentVault';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useNavBarLift } from '../../lib/insets';
 
 type Field = 'national_id' | 'trn';
 interface DocConfig {
@@ -80,6 +81,7 @@ export default function DocumentCaptureScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'DocumentCapture'>>();
   const { user, refreshProfile } = useAuth();
   const { width } = useWindowDimensions();
+  const lift = useNavBarLift();
   const cfg = DOC_CONFIG[(route.params?.field as Field) || 'national_id'];
 
   const [mode, setMode] = useState<'intro' | 'camera' | 'review'>('intro');
@@ -190,7 +192,7 @@ export default function DocumentCaptureScreen() {
             <Ionicons name="close" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
-        <View style={{ position: 'absolute', bottom: 46, left: 0, right: 0, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', bottom: 46 + lift, left: 0, right: 0, alignItems: 'center' }}>
           <TouchableOpacity onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.accent }} />
           </TouchableOpacity>

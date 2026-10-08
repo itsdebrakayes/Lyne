@@ -13,7 +13,7 @@ import { RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } f
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, shadow, t, initials, inputReset, waitShort, branchOpenInfo, hoursFromBranch, openTimeLabel, TAB_BAR_CLEARANCE } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness } from '../../lib/mobileData';
 import { TabBar } from '../../components/TabBar';
@@ -31,6 +31,7 @@ interface VisitRow {
 
 export default function SavedScreen() {
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('');
@@ -96,7 +97,7 @@ export default function SavedScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE + lift }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}

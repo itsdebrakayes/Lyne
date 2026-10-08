@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
 import { HoldButton } from '../../components/HoldButton';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
@@ -18,6 +18,7 @@ interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_m
 
 export default function JoinQueueScreen() {
   const topPad = useTopPad(12);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { branchId, serviceId } = route.params;
@@ -123,7 +124,7 @@ export default function JoinQueueScreen() {
      is the same treatment BranchScreen uses. */
   return (
     <View style={{ flex: 1, backgroundColor: colors.dark }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 148 }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 148 + lift }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
         <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
           style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
@@ -309,7 +310,7 @@ export default function JoinQueueScreen() {
           on the dark ground the CTA had no edge at all and read as loose text.
           The accent is what the sibling "Join this line" button already uses on
           the same ground. The scrim keeps the card behind from running into it. */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28, backgroundColor: colors.dark }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 + lift, backgroundColor: colors.dark }}>
         {/* Held when it can be pressed, plain when it cannot.
             A hold button that refuses to fill is a worse blocked state than a
             dimmed one: the person holds, nothing happens, and the interface has

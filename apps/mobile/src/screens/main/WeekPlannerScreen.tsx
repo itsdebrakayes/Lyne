@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
 import { D, RAMP, waitLevel, hourText } from '../../lib/predictiveDesign';
 import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
@@ -42,6 +42,7 @@ const STRIP_DOWS = [1, 2, 3, 4, 5, 6];
 
 export default function WeekPlannerScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user, refreshProfile } = useAuth();
@@ -277,7 +278,7 @@ export default function WeekPlannerScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 + lift }} showsVerticalScrollIndicator={false}>
         {q.isLoading ? (
           <View style={{ padding: 22 }}><SkeletonRows count={6} /></View>
         ) : q.error ? (
@@ -419,7 +420,7 @@ export default function WeekPlannerScreen() {
           })}
           accessibilityRole="button"
           style={{
-            position: 'absolute', left: 16, right: 16, bottom: 22,
+            position: 'absolute', left: 16, right: 16, bottom: 22 + lift,
             backgroundColor: D.ink, borderRadius: 21,
             paddingVertical: 13, paddingHorizontal: 17,
             flexDirection: 'row', alignItems: 'center', gap: 12,

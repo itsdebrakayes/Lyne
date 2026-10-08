@@ -24,7 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
 import { D } from '../../lib/predictiveDesign';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import HoldButton from '../../components/HoldButton';
@@ -45,6 +45,7 @@ const clock = (d: Date) => {
 
 export default function LineHelperScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user } = useAuth();
@@ -167,7 +168,7 @@ export default function LineHelperScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 160 + lift }} showsVerticalScrollIndicator={false}>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Close"
@@ -314,7 +315,7 @@ export default function LineHelperScreen() {
       </ScrollView>
 
       {/* the committed action */}
-      <View style={{ position: 'absolute', left: 22, right: 22, bottom: 28 }}>
+      <View style={{ position: 'absolute', left: 22, right: 22, bottom: 28 + lift }}>
         {/* HOLD, not tap — the same gesture as joining a line, for the same
             reason. This commits you to a place in a real queue at a real time
             and the branch's no-show rules then apply to it, so it should take

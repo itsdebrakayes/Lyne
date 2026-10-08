@@ -32,6 +32,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { activeScheme, colors, font, hexToRgba, radius, shadow, sp } from '../../lib/theme';
 import { CITIES, SECTORS, writePreferences } from '../../lib/preferences';
 import { useStage } from '../../lib/stage';
+import { useNavBarLift } from '../../lib/insets';
 
 /* ── the pictures ─────────────────────────────────────────────────────────
    Built from primitives rather than shipped as images: they inherit the theme,
@@ -147,6 +148,7 @@ const STEPS: Step[] = [
 ];
 
 export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
+  const lift = useNavBarLift();
   const { height } = useWindowDimensions();
   const stage = useStage();
   const [step, setStep] = useState(0);
@@ -277,7 +279,7 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
       </Animated.View>
 
       <View style={{
-        paddingHorizontal: stage.wide ? stage.pad : sp.screen, paddingBottom: 40,
+        paddingHorizontal: stage.wide ? stage.pad : sp.screen, paddingBottom: 40 + lift,
         width: '100%', maxWidth: stage.maxWidth ? stage.maxWidth + stage.pad * 2 : undefined,
         alignSelf: 'center',
       }}>
