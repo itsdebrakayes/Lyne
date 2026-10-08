@@ -46,11 +46,13 @@ export interface PremiumLockProps {
   radius?: number;
   /** Replaces the CTA when purchasing is not available on this build. */
   unavailableNote?: string;
+  /** Opens the subscription plans (App Store / Google Play). */
+  onSeePlans?: () => void;
 }
 
 export function PremiumLock({
   children, locked, headline, onStartTrial, trialBusy, error,
-  radius = 24, unavailableNote,
+  radius = 24, unavailableNote, onSeePlans,
 }: PremiumLockProps) {
   if (!locked) return <>{children}</>;
 
@@ -157,6 +159,12 @@ export function PremiumLock({
             {unavailableNote}
           </Text>
         ) : null}
+
+        {onSeePlans && (
+          <TouchableOpacity onPress={onSeePlans} accessibilityRole="button" style={{ minHeight: 40, justifyContent: 'center', marginTop: 2 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.ink, textDecorationLine: 'underline' }}>See plans</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

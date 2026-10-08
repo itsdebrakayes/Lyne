@@ -13,8 +13,6 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
-import { paymentsConfigured } from '../../lib/stripe';
-import { isDemoBuild } from '../../lib/sectorTerms';
 import { useContentColumn } from '../../lib/stage';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
@@ -235,8 +233,14 @@ export default function ProfileScreen() {
              save a card, but payments are stubbed server-side and the
              publishable key is empty — it advertises a purchase that cannot
              happen. See lib/features.ts. */
+          /* Premium is sold through the App Store and Google Play only. The old
+             "Payment methods" card list is gone: a card form for a digital
+             subscription is exactly what Guideline 3.1.1 forbids. */
           ...(PREMIUM_ENABLED
-            ? [{ icon: 'financial' as IconName, label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') }]
+            ? [
+                { icon: 'check' as IconName, label: 'Lyne Premium', sub: Number(user?.is_premium || 0) ? 'Active · manage your plan' : 'Plans and free trial', onPress: () => navigation.navigate('Premium') },
+                { icon: 'arrowDown' as IconName, label: 'Restore purchases', sub: 'Bought Premium on another device?', onPress: () => navigation.navigate('Premium') },
+              ]
             : []),
           { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
           /* Both stores require the privacy policy to be readable inside the
@@ -247,13 +251,6 @@ export default function ProfileScreen() {
           { icon: 'help', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
         ]} />
 
-        {/* Demo-only. Gated on the release flag, not on payments being
-            unconfigured — see isDemoBuild(). */}
-        {isDemoBuild() && !paymentsConfigured() && (
-          <>
-            <SectionLabel>Demo controls</SectionLabel>
-          </>
-        )}
 
         <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
           <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Log out</Text>

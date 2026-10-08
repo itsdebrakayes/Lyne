@@ -297,6 +297,7 @@ export default function WeekPlannerScreen() {
               trialBusy={trialBusy}
               onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
               unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
+              onSeePlans={() => navigation.navigate('Premium')}
             >
               <View>
                 {Array.from({ length: 8 }).map((_, i) => (

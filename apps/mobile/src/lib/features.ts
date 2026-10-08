@@ -74,16 +74,18 @@ export const SOCIAL_AUTH_ENABLED = false;
  *    use Apple's in-app purchase. Copying "the big apps" here means copying
  *    IAP, not copying a web link.
  *
- * TO ENABLE: implement StoreKit in-app purchase for iOS and Google Play
- * Billing for Android, confirm Apple supports developer payouts to a Jamaican
- * bank account, then flip this. A web checkout is NOT the route for the
- * consumer subscription.
+ * DONE: Premium is now sold through StoreKit and Google Play Billing
+ * (lib/purchases.ts, PremiumScreen), verified by the server with the store
+ * (POST /iap/verify), with Restore purchases. No card form and no web link
+ * remain in the app. Before release: the Paid Apps agreement, banking and tax
+ * in App Store Connect and Play Console, and the two subscription products
+ * (com.lyne.mobile.premium.monthly / .yearly) created in both.
  *
  * This does not affect the ORGANISATION subscription. That is a business
  * buying administrator software through an invoice or a web checkout, Apple
  * has no jurisdiction over it, and nothing about it is sold inside this app.
  */
-export const PREMIUM_ENABLED = false;
+export const PREMIUM_ENABLED = true;
 
 /**
  * The 14-day free trial, on its own.

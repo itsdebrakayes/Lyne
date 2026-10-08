@@ -255,6 +255,7 @@ export default function BusyTimesScreen() {
               trialBusy={trialBusy}
               onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
               unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
+              onSeePlans={() => navigation.navigate('Premium')}
             >
               <View style={{
                 backgroundColor: D.surface, borderRadius: 24,
