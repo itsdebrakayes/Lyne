@@ -16,7 +16,8 @@
  */
 import React from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
@@ -74,6 +75,7 @@ export default function HelperHoldScreen() {
   const topPad = useTopPad(8);
   const lift = useNavBarLift();
   const navigation = useNavigation<any>();
+  const focused = useIsFocused();
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -180,6 +182,8 @@ export default function HelperHoldScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
+      {/* Light status bar over the dark head; leaving hands it back. */}
+      {focused && <StatusBar style="light" />}
       {/* ── the dark head ── */}
       <View style={{ backgroundColor: D.ink, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingTop: topPad }}>
         {android ? (
