@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
 import OfflineBanner from './src/components/OfflineBanner';
@@ -103,6 +104,9 @@ function App() {
         </QueryClientProvider>
         {launching && (
           <View style={StyleSheet.absoluteFill}>
+            {/* Light text over the navy stage; unmounting hands the bar back
+                to the theme's own setting. */}
+            <StatusBar style="light" />
             <LaunchScreen onFirstLayout={revealLaunch} onDone={() => setLaunching(false)} />
           </View>
         )}
