@@ -1,4 +1,18 @@
 require('dotenv').config();
+
+/* Sentry goes first, before express and before any route module is required,
+   so that a crash while the app is still wiring itself up is still reported.
+   It reads SENTRY_DSN; with no DSN this call returns immediately and nothing
+   is installed, so a box without one behaves exactly as it did before.
+
+   Note for when a DSN IS set: @sentry/node's default integrations install
+   handlers for uncaughtException and unhandledRejection, and the uncaught
+   handler keeps Node's own behaviour of terminating afterwards. That is the
+   right outcome — a process in an unknown state should be replaced, and both
+   compose files already say `restart: unless-stopped`. */
+const { initMonitoring, captureServerError } = require('./lib/monitoring');
+initMonitoring({ service: 'api' });
+
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
@@ -244,9 +258,16 @@ app.get('/api/debug/client-ip', (req, res) => res.json({
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));
 
 // Error handler
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.message || err);
   const status = err.status || 500;
+
+  /* Only 5xx reaches Sentry — captureServerError enforces that, and the CORS
+     refusal above never gets here anyway because it answers 403 itself. A 4xx
+     is the system correctly saying no, and alerting on it buries the one real
+     500 in a feed nobody reads. */
+  captureServerError(err, req);
+
   res.status(status).json({
     error: process.env.NODE_ENV === 'production'
       ? 'Internal server error.'

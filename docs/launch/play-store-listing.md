@@ -181,10 +181,10 @@ taken in the Apple answers and in the privacy policy.
 
 | Field | Value |
 |---|---|
-| Track for the first submission | Internal testing → then Production. **Not straight to Production**: the bundle points at `api.uselyne.com`, which does not resolve yet |
+| Track for the first submission | Internal testing → then Production. The old reason for this (`api.uselyne.com` not resolving) is **gone** — it answers 200 as of 4 Oct 2026. Internal testing is still the faster path, because Production is gated on the Data safety form and Production review takes days |
 | App signing | **Let Google manage the signing key** (Play App Signing). Accept the default |
 | Countries | **DECIDE** — Jamaica only for the pilot; widen later in a click |
-| Release name | `1.0.0 (2)` — match the version code EAS actually assigned |
+| Release name | `1.0.0 (4)` for the current build. Always match the version code EAS actually assigned — `eas build:list --platform android --limit 1` prints it, and Play rejects a code it has already seen |
 
 ### Release notes
 

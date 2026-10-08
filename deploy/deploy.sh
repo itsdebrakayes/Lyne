@@ -89,6 +89,30 @@ case "${ALLOWED_ORIGINS}" in
 esac
 [ -z "${ALLOW_DEMO_DATA_REFRESH:-}" ] || die "ALLOW_DEMO_DATA_REFRESH is set. Unset it — this is production."
 
+# ── Which build is this? ─────────────────────────────────────────────────────
+# Stamps the deployed commit onto every Sentry event, so an issue says which
+# build it came from and "did the fix go out" is answerable without guessing.
+# Exported (set -a is already off by here) so compose interpolates it.
+#
+# Entirely optional: an unset SENTRY_RELEASE groups everything under one
+# release, which is less useful and not broken — and with no SENTRY_DSN none of
+# this is read at all. Never fails the deploy, because a missing git history is
+# not a reason to refuse to ship.
+if [ -z "${SENTRY_RELEASE:-}" ]; then
+  if SENTRY_RELEASE="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)"; then
+    export SENTRY_RELEASE
+    # A plain `[ ... ] && log ...` here would be the last command in this
+    # branch, so under `set -e` an empty SENTRY_DSN would abort the deploy.
+    if [ -n "${SENTRY_DSN:-}" ]; then
+      log "Sentry release: $SENTRY_RELEASE"
+    fi
+  else
+    unset SENTRY_RELEASE
+  fi
+else
+  export SENTRY_RELEASE
+fi
+
 # NODE_ENV must not survive into the admin build.
 #
 # .env was just sourced into this shell. If it carries NODE_ENV=production, the

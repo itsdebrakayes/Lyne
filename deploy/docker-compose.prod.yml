@@ -91,6 +91,10 @@ services:
       # real client address instead of the container's gateway.
       TRUST_PROXY:              ${TRUST_PROXY:-1}
 
+      # Error reporting. Empty = off completely; see env.production.example.
+      SENTRY_DSN:               ${SENTRY_DSN:-}
+      SENTRY_RELEASE:           ${SENTRY_RELEASE:-}
+
       TICKET_EXPIRY_ENABLED:         ${TICKET_EXPIRY_ENABLED:-true}
       TICKET_EXPIRY_GRACE_MINUTES:   ${TICKET_EXPIRY_GRACE_MINUTES:-30}
       RETENTION_ENABLED:             ${RETENTION_ENABLED:-true}
@@ -132,6 +136,11 @@ services:
       PIPELINE_PASSWORD:    ${PIPELINE_PASSWORD:-}
       PIPELINE_BUSINESS_ID: ${PIPELINE_BUSINESS_ID:-}
       PIPELINE_TIMEZONE:    ${PIPELINE_TIMEZONE:-America/Jamaica}
+      # Same DSN as the API. The worker tags itself service:model-worker, so one
+      # Sentry project covers both and an alert can still tell them apart.
+      SENTRY_DSN:           ${SENTRY_DSN:-}
+      SENTRY_RELEASE:       ${SENTRY_RELEASE:-}
+      NODE_ENV:             production
     volumes:
       - ./secrets/mysql-ca.crt:/run/secrets/mysql-ca.crt:ro
       - model_outputs:/app/outputs
