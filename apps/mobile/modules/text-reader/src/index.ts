@@ -9,20 +9,27 @@
  * reject only when the file cannot be opened. Finding a TRN in those lines is
  * the caller's job (lib/trn.ts), so it can be tested without a device.
  */
-import { requireNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
 interface TextReaderNative {
   readImage(uri: string): Promise<string[]>;
   readPdf(uri: string, maxPages: number): Promise<string[]>;
 }
 
-const native = requireNativeModule<TextReaderNative>('TextReader');
+/* Optional, not required: on the web build (used by the Playwright suite) and
+   in any binary built without the module, importing it must not take the whole
+   app down. Without it there is simply no text, and the capture screen falls
+   back to its "type it in" path. */
+const native = requireOptionalNativeModule<TextReaderNative>('TextReader');
+
+/** False where the native reader is absent (web). */
+export const isTextReaderAvailable = native !== null;
 
 export function readImageText(uri: string): Promise<string[]> {
-  return native.readImage(uri);
+  return native ? native.readImage(uri) : Promise.resolve([]);
 }
 
 /** Reads the PDF's own text where it has some, and renders and recognises the page where it does not (a scan). */
 export function readPdfText(uri: string, maxPages = 3): Promise<string[]> {
-  return native.readPdf(uri, maxPages);
+  return native ? native.readPdf(uri, maxPages) : Promise.resolve([]);
 }
