@@ -6,7 +6,7 @@
  * that collects everything a branch needs up front: name, email, phone, date
  * of birth (in-app calendar), password + confirmation, and TRN.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image,
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -22,6 +22,10 @@ import { CalendarSheet, formatDob, toISODate } from '../../components/CalendarSh
 import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 import { AuthModeSwitch } from '../../components/AuthModeSwitch';
+import { SignupCodeEntry } from '../../components/SignupCodeEntry';
+import { clearPendingSignup, readPendingSignup, rememberPendingSignup } from '../../lib/pendingSignup';
+import { setDocument } from '../../lib/documentVault';
+import { formatTrn, isValidTrn } from '../../lib/trn';
 
 
 type Field = 'name' | 'email' | 'phone' | 'trn' | 'password' | 'confirm';
@@ -45,6 +49,10 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  /* An account created here earlier that still needs its code (the app was
+     closed in between): reopen on the code screen. */
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  useEffect(() => { readPendingSignup().then(setPendingEmail); }, []);
   const { scheme } = useTheme();
   const styles = useMemo(() => makeStyles(), [scheme]);
 
@@ -55,16 +63,24 @@ export default function SignupScreen() {
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
     if (!trn.trim()) { setError('Add your TRN. Branches use it to verify you.'); return; }
+    if (!isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
     setLoading(true); setError(null);
     try {
+      /* The TRN is not sent anywhere. It used to ride along as account
+         metadata, which put it on Supabase's servers despite the privacy
+         policy's promise that it stays on the phone. It goes to the device
+         keychain instead, where the TRN screen reads it. */
       const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         phone: phone.trim(),
         date_of_birth: toISODate(dob),
-        trn: trn.trim(),
       });
       if (signupError) throw signupError;
-      if (needsConfirmation) setConfirmSent(true);
+      await setDocument('trn', formatTrn(trn.trim()));
+      if (needsConfirmation) {
+        await rememberPendingSignup(email.trim().toLowerCase());
+        setConfirmSent(true);
+      }
     } catch (e: any) {
       setError(e.message || 'Signup failed. Please try again.');
     } finally {
@@ -99,17 +115,14 @@ export default function SignupScreen() {
 
           <AuthModeSwitch current="signup" />
 
-          {confirmSent ? (
-            <View style={{ alignItems: 'center', paddingVertical: 18 }}>
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Ionicons name="mail-unread-outline" size={26} color={colors.light} />
-              </View>
-              <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, textAlign: 'center', letterSpacing: -0.3 }}>Confirm your email</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 8, maxWidth: 300 }}>We sent a confirmation link to {email.trim().toLowerCase()}. Tap it to activate your account, then sign in.</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Auth')} style={[styles.btn, { alignSelf: 'stretch', marginTop: 24 }]}>
-                <Text style={styles.btnText}>Back to sign in</Text>
-              </TouchableOpacity>
-            </View>
+          {confirmSent || pendingEmail ? (
+            <SignupCodeEntry
+              email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
+              password={confirmSent ? password : undefined}
+              metadata={confirmSent && dob ? { full_name: fullName.trim(), phone: phone.trim(), date_of_birth: toISODate(dob) } : undefined}
+              onUseDifferentEmail={async () => { await clearPendingSignup(); setPendingEmail(null); setConfirmSent(false); }}
+              onGoToSignIn={() => navigation.replace('Auth')}
+            />
           ) : (
           <>
           {!!error && (

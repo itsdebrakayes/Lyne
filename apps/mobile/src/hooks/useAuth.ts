@@ -5,6 +5,9 @@ import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '
 import { clearAllDocuments } from '../lib/documentVault';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
+/** Where the confirmation link lands; see apps/website AuthConfirmed. */
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://uselyne.com').replace(/\/+$/, '');
+
 export interface UserProfile {
   id: string;
   supabase_uid?: string;
@@ -233,7 +236,13 @@ export const useAuth = () => {
     const metadata: Record<string, string> = typeof nameOrMeta === 'string'
       ? { full_name: nameOrMeta }
       : nameOrMeta;
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+    /* The email carries a six-digit code the app takes directly, which signs
+       the person in on this device with nothing to retype. Its link is the
+       fallback, and lands on a page that says plainly whether it worked. */
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: metadata, emailRedirectTo: `${SITE_URL}/auth/confirmed` },
+    });
     if (error) return { error };
     // When the project requires email confirmation, signUp succeeds but returns
     // no session — we can't sync to the backend (it needs a token) until they
@@ -246,6 +255,40 @@ export const useAuth = () => {
       return { error: syncError as Error };
     }
     return { error: null };
+  };
+
+  /**
+   * The code from the confirmation email. Supabase returns a session for it,
+   * so the person is signed in on the device they signed up on without
+   * typing their email or password again; the profile is then bootstrapped
+   * exactly as signIn does.
+   */
+  const verifySignupCode = async (email: string, code: string, metadata?: Record<string, string>): Promise<{ error: Error | null }> => {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'signup' });
+    if (error) return { error };
+    try {
+      /* After an app restart the form is gone, but the profile fields went up
+         with signUp as account metadata, so take them from the session. */
+      const stored = (data.session?.user?.user_metadata || {}) as Record<string, unknown>;
+      const fromAccount: Record<string, string> = {};
+      for (const key of ['full_name', 'phone', 'date_of_birth']) {
+        if (typeof stored[key] === 'string') fromAccount[key] = stored[key] as string;
+      }
+      await syncMobileUser(metadata ?? fromAccount);
+      const { data: { session } } = await supabase.auth.getSession();
+      syncedUid.current = session?.user?.id ?? null;
+    } catch (syncError) {
+      return { error: syncError as Error };
+    }
+    return { error: null };
+  };
+
+  const resendSignupCode = async (email: string): Promise<{ error: Error | null }> => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup', email,
+      options: { emailRedirectTo: `${SITE_URL}/auth/confirmed` },
+    });
+    return { error };
   };
 
   const signOut = async () => {
@@ -279,5 +322,5 @@ export const useAuth = () => {
     return me.record;
   }, []);
 
-  return { user, kiosk, loading, unreachable, signIn, signUp, signInWithSocial, signOut, refreshProfile, retrySession };
+  return { user, kiosk, loading, unreachable, signIn, signUp, verifySignupCode, resendSignupCode, signInWithSocial, signOut, refreshProfile, retrySession };
 };

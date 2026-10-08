@@ -20,6 +20,7 @@ import Refunds from './pages/Refunds';
 import DeleteAccount from './pages/DeleteAccount';
 import Download from './pages/Download';
 import NotFound from './pages/NotFound';
+import AuthConfirmed from './pages/AuthConfirmed';
 import { ScrollToTop } from './components/ScrollToTop';
 import useSeo from './lib/useSeo';
 import MobileMarketingHome from './pages/mobile/MobileMarketingHome';
@@ -147,6 +148,15 @@ function App() {
                 title="Delete Your Account"
                 description="How to delete your Lyne account and everything on it, from inside the app or without it. What is removed, what is kept, and how to ask us.">
                 <ResponsivePage desktop={<DeleteAccount />} mobile={<MobileDeleteAccount />} />
+              </Seo>} />
+            {/* Where the confirmation email's link lands. One layout serves
+                both widths; it is a single card. */}
+            <Route path="/auth/confirmed" element={
+              <Seo
+                path="/auth/confirmed"
+                title="Email confirmation — Lyne"
+                description="Confirms the email address for a new Lyne account and returns you to the app.">
+                <AuthConfirmed />
               </Seo>} />
             {/* Deliberately absent from the nav, the footer and the sitemap.
                 Typing the URL renders <NotFound /> unless the visitor arrived
