@@ -29,7 +29,6 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import { PremiumBadge } from '../../components/PremiumBadge';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
 import { D } from '../../lib/predictiveDesign';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -173,19 +172,25 @@ export default function PlanVisitScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
-          <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
-            {showPremiumBadge && <PremiumBadge size="sm" />}
+          <Text style={{ fontFamily: font.semibold, fontSize: 16, color: colors.ink }}>Plan your visit</Text>
+          <View style={{ minWidth: 40, alignItems: 'flex-end' }}>
+            {/* v2: an outlined pill, not the filled navy badge. */}
+            {showPremiumBadge && (
+              <View
+                accessibilityRole="text"
+                accessibilityLabel="Lyne Premium account"
+                style={{ height: 28, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.accent }}>Premium</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11, color: D.eyebrow, letterSpacing: 1.6 }}>SMART TIMING</Text>
-        {/* 30/1.12/-0.9 and no hard line break — the design lets it wrap, which
-            is what keeps it from breaking in the wrong place on a small phone.
-            The tail is 500 weight in `sub`, not the same weight as the lead. */}
-        <Text style={{ fontSize: 30, lineHeight: 33.6, letterSpacing: -0.9, marginTop: 8, marginBottom: 20 }}>
-          <Text style={{ fontFamily: font.extra, color: D.ink }}>Beat the line </Text>
-          <Text style={{ fontFamily: font.medium, color: D.sub }}>before you leave home.</Text>
+        {/* v2: one tone, no eyebrow, and no hard line break — it wraps where
+            the phone needs it to. */}
+        <Text style={{ fontFamily: font.semibold, fontSize: 28, lineHeight: 32, letterSpacing: -0.7, color: colors.ink, marginBottom: 20 }}>
+          Beat the line before you leave home.
         </Text>
 
         {/* branch chips */}
@@ -193,9 +198,9 @@ export default function PlanVisitScreen() {
           {branches.map(b => {
             const on = branch?.id === b.id;
             return (
-              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 17, paddingVertical: 11, paddingHorizontal: 15 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? D.onDarkAccent : D.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
+              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 36, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 18, paddingHorizontal: 14 }}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: on ? D.onDarkAccent : '#8a94a6' }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
               </TouchableOpacity>
             );
           })}
@@ -310,21 +315,21 @@ export default function PlanVisitScreen() {
                   accessibilityLabel={`${title}. ${sub}`}
                   style={{
                     flexDirection: 'row', gap: 12, alignItems: 'center',
-                    paddingVertical: 14, paddingHorizontal: 16,
+                    padding: 16,
                     borderBottomWidth: last ? 0 : 1, borderBottomColor: D.lineSoft,
                   }}
                 >
                   <View style={{
-                    width: 36, height: 36, borderRadius: 12, backgroundColor: chipBg,
+                    width: 40, height: 40, borderRadius: 12, backgroundColor: chipBg,
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: chipInk }}>{chip}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: chipInk }}>{chip}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: D.ink }}>{title}</Text>
-                    <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>{sub}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 15, color: colors.ink }}>{title}</Text>
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#8a94a6', marginTop: 2 }}>{sub}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={chipInk} />
+                  <Ionicons name="chevron-forward" size={16} color={colors.muted} />
                 </TouchableOpacity>
               );
 
@@ -332,7 +337,7 @@ export default function PlanVisitScreen() {
                 <>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 22, marginBottom: 12 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                      <Text style={{ fontFamily: font.semibold, fontSize: 17, color: colors.ink }}>For you</Text>
                       {/* Says WHY these are the rows — "for you" is a claim, and
                           a claim with its basis attached is the difference
                           between a recommendation and a horoscope. */}
@@ -351,14 +356,14 @@ export default function PlanVisitScreen() {
                       })}
                       accessibilityRole="button"
                     >
-                      <Text style={{ fontFamily: font.bold, fontSize: 12, color: D.accent }}>See heatmap →</Text>
+                      <Text style={{ fontFamily: font.semibold, fontSize: 14, color: D.accent }}>Busy times</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, overflow: 'hidden' }}>
+                  <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
                     {personalAim ? (
                       <Row
-                        chip={personalAim.day_name.slice(0, 2)}
+                        chip={personalAim.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
                         title={`${personalAim.service_name}: ${personalAim.day_name}, ${personalAim.hour_label.replace(':00', '')}`}
                         sub={personalAim.matches_your_hours
@@ -377,7 +382,7 @@ export default function PlanVisitScreen() {
                       />
                     ) : (
                       <Row
-                        chip={aim.best!.day_name.slice(0, 2)}
+                        chip={aim.best!.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
                         title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
                         sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
@@ -390,7 +395,7 @@ export default function PlanVisitScreen() {
                     )}
                     {personalAvoid ? (
                       <Row
-                        chip={personalAvoid.day_name.slice(0, 2)}
+                        chip={personalAvoid.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
                         title={`Skip ${personalAvoid.day_name} ${personalAvoid.hour_label.replace(':00', '')}`}
                         sub={`${personalAvoid.service_name} averages ${Math.round(personalAvoid.avg_wait)} min then`}
@@ -404,7 +409,7 @@ export default function PlanVisitScreen() {
                       />
                     ) : avoid ? (
                       <Row
-                        chip={avoid.busiest!.day_name.slice(0, 2)}
+                        chip={avoid.busiest!.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
                         title={`Skip ${avoid.busiest!.day_name} ${avoid.busiest!.hour_label.replace(':00', '')}`}
                         sub={`Averages ${Math.round(avoid.busiest!.avg_wait)} min, the week's peak`}

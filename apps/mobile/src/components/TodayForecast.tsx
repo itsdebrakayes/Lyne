@@ -46,12 +46,19 @@ export interface TodayForecastProps {
 const CARD = '#0c1826';
 const BEST_BAR = '#2e6bff';
 const BEST_INK = '#7da3e0';
-const NOW_BAR = 'rgba(255,255,255,.55)';
-const IDLE_BAR = 'rgba(255,255,255,.16)';
-const MAX_BAR = 82;
+const NOW_BAR = 'rgba(255,255,255,.6)';
+const IDLE_BAR = 'rgba(255,255,255,.14)';
+const MAX_BAR = 72;
 
 /** "8 AM", "4 PM" — for the closed-now line. */
 const fmtHour = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+
+/** v2 axis: "8 am · 10 · 12 pm · 2 · 4 pm" — the meridiem only where it
+    changes meaning (the ends and noon), bare numbers between. */
+const axisLabel = (h: number, edge: boolean) => {
+  const n = h % 12 === 0 ? 12 : h % 12;
+  return edge || h === 12 ? `${n} ${h < 12 ? 'am' : 'pm'}` : `${n}`;
+};
 
 export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, hours }: TodayForecastProps) {
   if (!hours.length) return null;
@@ -87,7 +94,7 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
     <View
       style={{
         backgroundColor: CARD,
-        borderRadius: 26,
+        borderRadius: 24,
         padding: 20,
         shadowColor: '#0c1826',
         shadowOpacity: 0.6,
@@ -98,20 +105,19 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 10.5, letterSpacing: 0.6, color: 'rgba(255,255,255,.55)' }}>
-            {isToday ? `BEST TIME TODAY · ${dayName.toUpperCase()}` : `A TYPICAL ${dayName.toUpperCase()}`}
+          {/* v2: sentence case, no tracking. The day still says which day it
+              is when it is not today, which must never read as today. */}
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)' }}>
+            {isToday ? 'Best time today' : `A typical ${dayName}`}
           </Text>
-          <Text style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.4, color: '#fff', marginTop: 4 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: 28, letterSpacing: -0.6, color: '#fff', marginTop: 4 }}>
             {bestLabel || 'No clear best hour'}
           </Text>
         </View>
         {typeof bestWait === 'number' && (
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 26, color: BEST_INK, lineHeight: 28 }}>
-              {Math.round(bestWait)}<Text style={{ fontSize: 13 }}>m</Text>
-            </Text>
-            <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 4 }}>
-              typical wait
+            <Text style={{ fontFamily: font.semibold, fontSize: 28, color: BEST_INK, lineHeight: 32, marginTop: 21 }}>
+              {Math.round(bestWait)}<Text style={{ fontFamily: font.medium, fontSize: 15 }}> min</Text>
             </Text>
           </View>
         )}
@@ -126,7 +132,7 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
           `${isToday ? 'Wait by hour today' : `Wait by hour on a typical ${dayName}`}. Quietest at ${bestLabel || 'no clear hour'}`
           + (typeof bestWait === 'number' ? `, about ${Math.round(bestWait)} minutes.` : '.')
         }
-        style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 110, marginTop: 20 }}
+        style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 96, marginTop: 20 }}
       >
         {hours.map((h) => {
           const isNow = showNow && h.hour === nowHour;
@@ -152,7 +158,7 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
               {tag ? (
                 <Text
                   style={{
-                    fontFamily: font.extra, fontSize: 9.5, lineHeight: 12,
+                    fontFamily: font.semibold, fontSize: 10, lineHeight: 12,
                     color: isNow ? '#fff' : BEST_INK,
                   }}
                 >
@@ -165,10 +171,10 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
                 style={{
                   width: '100%',
                   height: Math.max(10, Math.round(h.intensity * MAX_BAR)),
-                  borderRadius: 7,
+                  borderRadius: 4,
                   backgroundColor: h.is_best ? BEST_BAR : isNow ? NOW_BAR : IDLE_BAR,
                   borderWidth: isNow ? 1.5 : 0,
-                  borderColor: 'rgba(255,255,255,.5)',
+                  borderColor: 'rgba(255,255,255,.85)',
                 }}
               />
             </View>
@@ -177,9 +183,9 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-        {axis.map((h) => (
-          <Text key={h.hour} style={{ fontFamily: font.bold, fontSize: 10.5, color: 'rgba(255,255,255,.45)' }}>
-            {h.hour_label}
+        {axis.map((h, i) => (
+          <Text key={h.hour} style={{ fontFamily: font.medium, fontSize: 11, color: 'rgba(255,255,255,.45)' }}>
+            {axisLabel(h.hour, i === 0 || i === axis.length - 1)}
           </Text>
         ))}
       </View>
@@ -196,10 +202,11 @@ export function TodayForecast({ dayName, isToday = true, bestLabel, bestWait, ho
         </View>
       )}
 
-      <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 14 }}>
+      <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,.1)', marginTop: 16 }} />
+      <Text style={{ fontFamily: font.medium, fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,.5)', marginTop: 14 }}>
         {isToday
-          ? 'From the last 90 days of real visits · updates continuously'
-          : `This branch has no history for today, so this is its busiest day. From the last 90 days of real visits.`}
+          ? 'Typical wait · based on 90 days of visits at this branch'
+          : `Typical wait · this branch has no history for today, so this is its busiest day. Based on 90 days of visits.`}
       </Text>
     </View>
   );
