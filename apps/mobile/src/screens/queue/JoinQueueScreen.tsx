@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font, t, initials, remoteJoinInfo, hoursFromBranch } from '../../lib/theme';
-import { HoldButton } from '../../components/HoldButton';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
@@ -27,7 +27,6 @@ export default function JoinQueueScreen() {
   /* Bumped when a join fails, to send the hold button back to rest. Without
      it a failed request leaves a tick sitting above the error explaining the
      join did not happen. */
-  const [resetTick, setResetTick] = useState(0);
   const [checkedReadiness, setCheckedReadiness] = useState<string[]>([]);
   const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false) });
   const serviceQuery = useQuery({ queryKey: ['service', serviceId], queryFn: () => api.get<ServiceSummary>(`/services/${serviceId}`, false) });
@@ -60,12 +59,19 @@ export default function JoinQueueScreen() {
     : !queueOpen ? { label: 'Not taking a line today', detail: `${service?.name || 'This service'} has no queue open at ${branch.name} today. Try another service, or check back tomorrow.` }
     : null;
 
-  const ctaLabel = canJoin ? 'Confirm & join queue →'
-    : joinState.allowed && queueOpen && !readinessConfirmed ? 'Check the required items first'
+  const requiredLeft = requiredReadiness.filter(item => !checkedReadiness.includes(item.id)).length;
+  const ahead = Number(liveQueue?.waiting_count ?? 0);
+  const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+  const joinTitle = canJoin ? 'Join this line'
+    : joinState.allowed && queueOpen && !readinessConfirmed ? 'Tick required items first'
     : joinState.state === 'closed' ? 'Closed right now'
     : joinState.state === 'about_to_open' ? 'Opening soon'
     : joinState.state === 'buffer' ? 'Walk-ins joining first'
     : 'Not available';
+  const joinSub = canJoin ? `You'd be ${ordinal(ahead + 1)} · about ${liveQueue?.estimated_wait_minutes ?? 0} min`
+    : joinState.allowed && queueOpen && !readinessConfirmed ? `${requiredLeft} required item${requiredLeft === 1 ? '' : 's'} left`
+    : blockedNotice?.detail || '';
+
 
   const noticeIcon = joinState.state === 'closed' ? 'moon-outline'
     : joinState.state === 'about_to_open' ? 'time-outline'
@@ -107,7 +113,6 @@ export default function JoinQueueScreen() {
       navigation.navigate('Ticket', { ticketId: ticket.id, businessId: branch.business_id, branchId, serviceId });
     } catch (caught: unknown) {
       haptics.error();
-      setResetTick(n => n + 1);
       setError(caught instanceof Error ? caught.message : 'Could not join this queue. Please try again.');
     } finally {
       setLoading(false);
@@ -130,8 +135,8 @@ export default function JoinQueueScreen() {
           style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,.11)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
           <Ionicons name="chevron-back" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={{ fontFamily: font.extra, fontSize: 11, color: 'rgba(255,255,255,.6)', letterSpacing: 0.6, textTransform: 'uppercase' }}>Join remotely</Text>
-        <Text style={[t.h1, { marginTop: 8, marginBottom: 10, color: '#fff' }]}>Take your spot{'\n'}from anywhere.</Text>
+        <Text style={{ fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Join remotely</Text>
+        <Text style={{ fontFamily: font.extra, fontSize: 30, lineHeight: 34, letterSpacing: -1, color: '#fff', marginTop: 8, marginBottom: 10 }}>Take your spot{'\n'}from anywhere.</Text>
 
         {pageLoading && <ActivityIndicator color={colors.accent} style={{ marginTop: 36 }} />}
         {!!pageError && <Text style={{ fontFamily: font.bold, color: '#ff9a9d' }}>Live queue details could not be loaded.</Text>}
@@ -175,31 +180,32 @@ export default function JoinQueueScreen() {
             ) : null}
 
             {readiness.length > 0 ? (
-              <View style={{ marginTop: 22, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
-                <View style={{ padding: 18, paddingBottom: 14, backgroundColor: 'rgba(47,191,113,.08)', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="checkmark-done-outline" size={19} color={colors.light} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Have these ready</Text>
-                      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 2 }}>
-                        Tick each required item before taking your place. Staff will still check at the branch.
-                      </Text>
-                    </View>
+              /* App Screens Refresh 1c: a bigger checklist in the Reminders
+                 style. Tap a row to tick it; required items gate the button. */
+              <View style={{ marginTop: 20, borderRadius: 24, backgroundColor: '#fff', overflow: 'hidden' }}>
+                <View style={{ paddingTop: 22, paddingHorizontal: 20, paddingBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.6, color: '#0c1826' }}>Have these ready</Text>
+                    <Text style={{ fontFamily: font.bold, fontSize: 13, color: readinessConfirmed ? '#166b41' : '#7a8699' }}>
+                      {readinessConfirmed ? 'All set' : `${requiredLeft} left`}
+                    </Text>
                   </View>
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 19, color: '#7a8699', marginTop: 6 }}>
+                    Tick each required item before you take your place. Staff still check at the branch.
+                  </Text>
                 </View>
 
                 {(['bring', 'prepare'] as const).map(kind => {
                   const items = readiness.filter(item => item.kind === kind);
                   if (!items.length) return null;
                   return (
-                    <View key={kind} style={{ paddingHorizontal: 18, paddingTop: 16 }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 11, color: colors.muted, letterSpacing: 0.45, textTransform: 'uppercase', marginBottom: 7 }}>
+                    <View key={kind}>
+                      <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#5c6779', paddingTop: kind === 'bring' ? 16 : 18, paddingHorizontal: 20, paddingBottom: 2 }}>
                         {kind === 'bring' ? 'Bring with you' : 'Do before you arrive'}
                       </Text>
-                      {items.map(item => {
+                      {items.map((item, i) => {
                         const checked = checkedReadiness.includes(item.id);
+                        const last = i === items.length - 1;
                         return (
                           <TouchableOpacity
                             key={item.id}
@@ -212,29 +218,21 @@ export default function JoinQueueScreen() {
                             }}
                             accessibilityRole="checkbox"
                             accessibilityState={{ checked }}
-                            style={{ flexDirection: 'row', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                            accessibilityLabel={`${item.label}. ${item.is_mandatory ? 'Required' : 'Helpful'}${item.detail ? `. ${item.detail}` : ''}`}
+                            style={{ flexDirection: 'row', gap: 14, paddingHorizontal: 20 }}
                           >
-                            <View style={{ width: 24, height: 24, borderRadius: 8, backgroundColor: checked ? colors.accent : colors.surfaceAlt, borderWidth: 1, borderColor: checked ? colors.accent : colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                              {checked ? <Ionicons name="checkmark" size={16} color={colors.accentInk} /> : null}
+                            <View style={{ width: 24, height: 24, marginTop: 13, borderRadius: 7, backgroundColor: checked ? '#1b4b8f' : '#fff', borderWidth: 2, borderColor: checked ? '#1b4b8f' : '#c4ccd8', alignItems: 'center', justifyContent: 'center' }}>
+                              {checked ? <Ionicons name="checkmark" size={15} color="#fff" /> : null}
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
-                                <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{item.label}</Text>
-                                {item.is_mandatory ? (
-                                  <Text style={{ fontFamily: font.extra, fontSize: 9.5, color: colors.danger, textTransform: 'uppercase', letterSpacing: 0.35 }}>Required</Text>
-                                ) : (
-                                  <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.35 }}>Helpful</Text>
-                                )}
-                              </View>
-                              {item.detail ? <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 3 }}>{item.detail}</Text> : null}
-                              {item.lead_minutes ? (
-                                <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: colors.accentDeep, marginTop: 5 }}>
-                                  <Ionicons name="time-outline" size={12} color={colors.accentDeep} />{' '}
-                                  {item.lead_minutes >= 60
-                                    ? `${Math.round(item.lead_minutes / 60)} hour${Math.round(item.lead_minutes / 60) === 1 ? '' : 's'} before`
-                                    : `${item.lead_minutes} minutes before`}
-                                </Text>
-                              ) : null}
+                            <View style={{ flex: 1, paddingVertical: 13, borderBottomWidth: last ? 0 : 1, borderBottomColor: '#eef1f6' }}>
+                              <Text style={{ fontFamily: font.semibold, fontSize: 15, lineHeight: 20, color: checked ? '#7a8699' : '#0c1826' }}>{item.label}</Text>
+                              <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: '#7a8699', marginTop: 2 }}>
+                                <Text style={{ fontFamily: font.bold, color: item.is_mandatory ? '#e5484d' : '#7a8699' }}>{item.is_mandatory ? 'Required' : 'Helpful'}</Text>
+                                {item.detail ? ` · ${item.detail}` : ''}
+                                {item.lead_minutes ? ` · ${item.lead_minutes >= 60
+                                  ? `${Math.round(item.lead_minutes / 60)} hour${Math.round(item.lead_minutes / 60) === 1 ? '' : 's'} before`
+                                  : `${item.lead_minutes} minutes before`}` : ''}
+                              </Text>
                             </View>
                           </TouchableOpacity>
                         );
@@ -242,36 +240,26 @@ export default function JoinQueueScreen() {
                     </View>
                   );
                 })}
-
-                <View style={{ padding: 16, flexDirection: 'row', gap: 9, alignItems: 'center' }}>
-                  <Ionicons
-                    name={readinessConfirmed ? 'checkmark-circle' : 'information-circle-outline'}
-                    size={17}
-                    color={readinessConfirmed ? colors.light : colors.muted}
-                  />
-                  <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 12, color: readinessConfirmed ? colors.ink : colors.muted }}>
-                    {readinessConfirmed
-                      ? 'Required items confirmed. You can join when the line is open.'
-                      : `${requiredReadiness.filter(item => !checkedReadiness.includes(item.id)).length} required item${requiredReadiness.filter(item => !checkedReadiness.includes(item.id)).length === 1 ? '' : 's'} left to confirm.`}
-                  </Text>
-                </View>
+                <View style={{ height: 14 }} />
               </View>
             ) : null}
 
-            <View style={{ marginTop: 22, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 18 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.ink, marginBottom: 14 }}>What happens next</Text>
-              {[
-                { icon: 'ticket-outline', text: 'You get a ticket number and a six-character code, straight away.' },
-                { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
-                { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
-              ].map(step => (
-                <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
-                  <Ionicons name={step.icon as any} size={16} color={colors.accentDeep} style={{ marginTop: 1 }} />
-                  <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: colors.sub, lineHeight: 18 }}>{step.text}</Text>
-                </View>
-              ))}
-              <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 2 }}>
-                You can leave the queue at any time, and nothing is charged for taking a place in line.
+            <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: '#fff', padding: 20 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 17, letterSpacing: -0.3, color: '#0c1826' }}>Good to know</Text>
+              <View style={{ gap: 12, marginTop: 14 }}>
+                {[
+                  { icon: 'ticket-outline', text: 'You get a ticket number and a six-character code straight away.' },
+                  { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
+                  { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
+                ].map(step => (
+                  <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                    <Ionicons name={step.icon as any} size={17} color="#143a6e" style={{ marginTop: 1 }} />
+                    <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 13.5, color: '#5c6779', lineHeight: 20 }}>{step.text}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: '#7a8699', lineHeight: 18, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#eef1f6' }}>
+                Leave the queue any time. Taking a place in line is free.
               </Text>
             </View>
 
@@ -306,33 +294,36 @@ export default function JoinQueueScreen() {
         )}
         {!!error && <Text style={{ fontFamily: font.bold, color: colors.danger, marginTop: 14 }}>{error}</Text>}
       </ScrollView>
-      {/* t.primaryBtn is colors.dark — the same navy as this page now uses, so
-          on the dark ground the CTA had no edge at all and read as loose text.
-          The accent is what the sibling "Join this line" button already uses on
-          the same ground. The scrim keeps the card behind from running into it. */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 + lift, backgroundColor: colors.dark }}>
-        {/* Held when it can be pressed, plain when it cannot.
-            A hold button that refuses to fill is a worse blocked state than a
-            dimmed one: the person holds, nothing happens, and the interface has
-            told them nothing about why. So the blocked case keeps the label
-            that explains itself and stays an ordinary disabled control. */}
-        {canJoin ? (
-          <HoldButton
-            label="Hold to join the line"
-            doneLabel="You're in"
-            hint="Holds your place in this queue"
-            busy={loading}
-            disabled={pageLoading}
-            resetSignal={resetTick}
-            style={{ borderRadius: 19, minHeight: 58 }}
-            onComplete={joinQueue}
-          />
-        ) : (
-          <TouchableOpacity disabled
-            style={[t.primaryBtn, { backgroundColor: colors.accent }, { opacity: 0.45 }]}>
-            {pageLoading ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>{ctaLabel}</Text>}
-          </TouchableOpacity>
-        )}
+      {/* App Screens Refresh 1c: one wide button at the foot, unlocking once
+          the required items are ticked. The design makes it a tap with an
+          arrow (it was hold-to-join); leaving is one tap on the ticket anyway. */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: (Platform.OS === 'ios' ? 28 : 14) + lift, backgroundColor: colors.dark,
+        shadowColor: colors.dark, shadowOpacity: 1, shadowRadius: 16, shadowOffset: { width: 0, height: -18 } }}>
+        <TouchableOpacity
+          disabled={!canJoin || loading}
+          onPress={joinQueue}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canJoin }}
+          accessibilityLabel={`${joinTitle}. ${joinSub}`}
+          style={{ borderRadius: 24, overflow: 'hidden', ...(canJoin ? { shadowColor: '#2e6bff', shadowOpacity: 0.65, shadowRadius: 18, shadowOffset: { width: 0, height: 16 }, elevation: 10 } : null) }}
+        >
+          <LinearGradient
+            colors={canJoin ? ['#143a6e', '#2e6bff'] : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.08)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{ minHeight: 78, paddingLeft: 22, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 17, letterSpacing: -0.4, color: canJoin ? '#fff' : 'rgba(255,255,255,.7)' }}>{joinTitle}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 13, color: canJoin ? 'rgba(255,255,255,.72)' : 'rgba(255,255,255,.45)', marginTop: 3 }}>{joinSub}</Text>
+            </View>
+            <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: canJoin ? '#fff' : 'rgba(255,255,255,.12)', alignItems: 'center', justifyContent: 'center' }}>
+              {loading || pageLoading ? <ActivityIndicator color={canJoin ? colors.dark : '#fff'} /> : (
+                <Ionicons name="arrow-forward" size={20} color={canJoin ? '#0c1826' : 'rgba(255,255,255,.5)'} />
+              )}
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </View>
   );
