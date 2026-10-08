@@ -27,7 +27,7 @@ import { D } from '../../lib/predictiveDesign';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import HoldButton from '../../components/HoldButton';
+import { InsightsHeader } from '../../components/InsightsHeader';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'LineHelper'>;
@@ -78,9 +78,6 @@ export default function LineHelperScreen() {
   const [letPass, setLetPass] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  /* Bumped on failure so the hold ring returns to empty rather than sitting
-     complete over an error. */
-  const [resetTick, setResetTick] = useState(0);
 
   /* Quotes for all three chips at once, so the labels are real before anybody
      chooses. They come from the server because the prediction lives there and
@@ -122,10 +119,10 @@ export default function LineHelperScreen() {
   const steps = useMemo(() => {
     if (!joinAt) return [];
     return [
-      { label: 'Helper joins the line', at: joinAt, dot: D.accentBright },
-      { label: 'You leave home', at: leaveAt, dot: D.onDarkAccent },
-      { label: 'You arrive and check in', at: new Date(target.getTime() - 2 * 60000), dot: 'rgba(255,255,255,.35)' },
-      { label: 'Called to counter', at: target, dot: '#3fd07f' },
+      { label: 'Helper joins the line', at: joinAt, dot: D.accentBright, icon: 'list' as const },
+      { label: 'You leave home', at: leaveAt, dot: '#f5a623', icon: 'home' as const },
+      { label: 'You arrive and check in', at: new Date(target.getTime() - 2 * 60000), dot: D.sub, icon: 'log-in-outline' as const },
+      { label: 'Called to counter', at: target, dot: D.good, icon: 'notifications' as const },
     ].sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [joinAt, leaveAt, target]);
 
@@ -143,22 +140,18 @@ export default function LineHelperScreen() {
       navigation.replace('HelperHold');
     } catch (e: any) {
       setError(e?.message || 'That did not schedule. Try again in a moment.');
-      setResetTick((n) => n + 1);
     } finally { setBusy(false); }
   };
 
   if (!premium) {
     return (
       <View style={{ flex: 1, backgroundColor: D.bg, paddingTop: topPad }}>
-        <View style={{ padding: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Close"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: D.surface, borderWidth: 1, borderColor: D.line, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="close" size={20} color={D.ink} />
-          </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 24, color: D.ink, marginTop: 20, letterSpacing: -0.6 }}>
+        <View style={{ paddingHorizontal: 20 }}>
+          <InsightsHeader title="Line Helper" onBack={() => navigation.goBack()} />
+          <Text style={{ fontFamily: font.semibold, fontSize: 24, color: D.ink, marginTop: 12, letterSpacing: -0.5 }}>
             Line Helper is part of Premium
           </Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 14, color: D.sub, marginTop: 10, lineHeight: 21 }}>
+          <Text style={{ fontFamily: font.medium, fontSize: 15, color: D.sub, marginTop: 8, lineHeight: 22 }}>
             It joins the line for you at the time you agree, and tells you when to leave home.
           </Text>
         </View>
@@ -168,27 +161,19 @@ export default function LineHelperScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 160 + lift }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 + lift }} showsVerticalScrollIndicator={false}>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Close"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: D.surface, borderWidth: 1, borderColor: D.line, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="close" size={20} color={D.ink} />
-          </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 15, color: D.ink }}>Line Helper</Text>
-          <View style={{ width: 44 }} />
-        </View>
+        <InsightsHeader title="Line Helper" onBack={() => navigation.goBack()} />
 
-        <Text style={{ fontSize: 28, lineHeight: 32, letterSpacing: -0.8, marginBottom: 6 }}>
-          <Text style={{ fontFamily: font.extra, color: D.ink }}>Lyne joins the line </Text>
-          <Text style={{ fontFamily: font.medium, color: D.sub }}>at the time you agree.</Text>
+        <Text style={{ fontFamily: font.semibold, fontSize: 24, lineHeight: 29, letterSpacing: -0.5, color: D.ink, maxWidth: 300 }}>
+          Lyne joins the line at the time you agree.
         </Text>
-        <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: D.muted, marginBottom: 18 }}>
-          {target.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' })} · {branchName || 'this branch'} · {serviceName || 'this service'}
+        <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.sub, marginTop: 8, marginBottom: 16 }}>
+          {target.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })} · {branchName || 'this branch'} · {serviceName || 'this service'}
         </Text>
 
-        <View style={{ backgroundColor: D.surface, borderRadius: 22, padding: 16, borderWidth: 1, borderColor: D.lineSoft }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: D.ink, marginBottom: 10 }}>I want to be served around</Text>
+        <View style={{ backgroundColor: D.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#edf0f4' }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.sub, marginBottom: 10 }}>Be served around</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {hourOptions.map((h) => {
               const on = h === hour;
@@ -202,25 +187,25 @@ export default function LineHelperScreen() {
                   accessibilityRole="radio"
                   accessibilityState={{ selected: on, disabled: !usable }}
                   style={{
-                    flex: 1, borderRadius: 15, paddingVertical: 10, alignItems: 'center',
+                    flex: 1, borderRadius: 14, paddingVertical: 8, alignItems: 'center',
                     backgroundColor: on ? D.ink : D.surface,
-                    borderWidth: 1, borderColor: on ? D.ink : D.line,
+                    borderWidth: 1, borderColor: on ? D.ink : '#e3e7ee',
                     opacity: usable ? 1 : 0.5,
                   }}
                 >
-                  <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: on ? '#fff' : D.ink }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 15, color: on ? '#fff' : D.ink }}>
                     {clock(dateFor(h))}
                   </Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10, marginTop: 2, color: on ? 'rgba(255,255,255,.7)' : D.muted }}>
-                    {quotes.isLoading ? '…' : usable ? `~${w}m wait` : 'no history'}
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, marginTop: 2, color: on ? '#fff' : D.ink, opacity: 0.65 }}>
+                    {quotes.isLoading ? '…' : usable ? `~${w} min wait` : 'No history'}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: D.ink, marginTop: 16, marginBottom: 10 }}>My travel time</Text>
-          <View style={{ flexDirection: 'row', gap: 6, backgroundColor: '#f2f4f8', borderRadius: 14, padding: 4 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.sub, marginTop: 14, marginBottom: 10 }}>Travel time</Text>
+          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: D.bg, borderRadius: 12, padding: 4 }}>
             {TRAVEL.map((t) => {
               const on = t === travel;
               return (
@@ -230,14 +215,14 @@ export default function LineHelperScreen() {
                   accessibilityRole="radio"
                   accessibilityState={{ selected: on }}
                   style={{
-                    flex: 1, alignItems: 'center', borderRadius: 11, paddingVertical: 9,
+                    flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 9, height: 34,
                     backgroundColor: on ? D.surface : 'transparent',
                     shadowColor: '#000', shadowOpacity: on ? 0.08 : 0,
                     shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
                     elevation: on ? 2 : 0,
                   }}
                 >
-                  <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: on ? D.ink : D.muted }}>{t} min</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 14, color: on ? D.ink : '#8a94a6' }}>{t} min</Text>
                 </TouchableOpacity>
               );
             })}
@@ -248,22 +233,22 @@ export default function LineHelperScreen() {
             onPress={() => setLetPass((v) => !v)}
             accessibilityRole="switch"
             accessibilityState={{ checked: letPass }}
-            accessibilityLabel="Let people pass if I'm late. Keeps your place for up to 3 turns."
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}
+            accessibilityLabel="Let others pass if I'm late. Holds your place for up to 3 turns."
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#edf0f4' }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: D.ink }}>Let people pass if I&rsquo;m late</Text>
-              <Text style={{ fontFamily: font.semibold, fontSize: 11, color: D.muted, marginTop: 2 }}>
-                Keeps your place for up to 3 turns
+              <Text style={{ fontFamily: font.semibold, fontSize: 15, color: D.ink }}>Let others pass if I&rsquo;m late</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#8a94a6', marginTop: 2 }}>
+                Holds your place for up to 3 turns
               </Text>
             </View>
             <View style={{
-              width: 46, height: 28, borderRadius: 14, padding: 3,
+              width: 48, height: 28, borderRadius: 14, padding: 3,
               /* The design's off-track is #e7eaf0 (D.line). It is pale against
                  the white card, and it is legible anyway because the knob
                  carries the design's own drop shadow — which is what draws the
                  edge. Default is on, so this is the rarer state. */
-              backgroundColor: letPass ? D.accent : D.line,
+              backgroundColor: letPass ? D.accent : '#d8dee7',
               flexDirection: 'row', justifyContent: letPass ? 'flex-end' : 'flex-start',
             }}>
               <View style={{
@@ -277,30 +262,32 @@ export default function LineHelperScreen() {
               prevented — but the consequence is stated, because the person
               choosing it is choosing the branch's ordinary no-show rules. */}
           {!letPass && (
-            <Text style={{ fontFamily: font.semibold, fontSize: 11, color: D.warmInk, marginTop: 10, lineHeight: 16 }}>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.warmInk, marginTop: 10, lineHeight: 18 }}>
               With this off, your place is held rigidly — and if you are not there when you are called, the branch&rsquo;s normal no-show rules apply straight away.
             </Text>
           )}
         </View>
 
         {/* YOUR PLAN */}
-        <View style={{ backgroundColor: D.ink, borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, marginTop: 12 }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 10.5, letterSpacing: 0.6, color: 'rgba(255,255,255,.55)', marginBottom: 12 }}>
-            YOUR PLAN
+        <View style={{ backgroundColor: D.ink, borderRadius: 20, paddingVertical: 16, paddingHorizontal: 20, marginTop: 12 }}>
+          <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginBottom: 10 }}>
+            Your plan
           </Text>
           {quotes.isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : !joinAt ? (
-            <Text style={{ fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.65)', lineHeight: 18 }}>
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.65)', lineHeight: 19 }}>
               There is not enough history for that slot yet, so a helper would be guessing at when to join. Pick another time.
             </Text>
           ) : (
-            <View style={{ gap: 10 }}>
+            <View style={{ gap: 8 }}>
               {steps.map((s) => (
                 <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: s.dot }} />
-                  <Text style={{ flex: 1, fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,.85)' }}>{s.label}</Text>
-                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: '#fff' }}>{clock(s.at)}</Text>
+                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: s.dot, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={s.icon} size={12} color="#fff" />
+                  </View>
+                  <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,.85)' }}>{s.label}</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#fff' }}>{clock(s.at)}</Text>
                 </View>
               ))}
             </View>
@@ -315,24 +302,31 @@ export default function LineHelperScreen() {
       </ScrollView>
 
       {/* the committed action */}
-      <View style={{ position: 'absolute', left: 22, right: 22, bottom: 28 + lift }}>
-        {/* HOLD, not tap — the same gesture as joining a line, for the same
-            reason. This commits you to a place in a real queue at a real time
-            and the branch's no-show rules then apply to it, so it should take
-            the same deliberate half-second that joining does. Two actions with
-            the same consequence should not have different weights. */}
-        <HoldButton
-          label={joinAt ? `Hold to schedule for ${clock(joinAt)}` : 'Pick a time with history'}
-          holdingLabel="Keep holding…"
-          doneLabel="Scheduled"
-          onComplete={schedule}
-          disabled={!joinAt}
-          busy={busy}
-          resetSignal={resetTick}
-        />
+      <View style={{ position: 'absolute', left: 20, right: 20, bottom: 34 + lift }}>
+        {/* A TAP, as v2 draws it — and as joining a line now is. Both used to be
+            hold-to-confirm; the design changed both together, so the two
+            actions with the same consequence still carry the same weight. The
+            line under the button says what the commitment is. */}
+        <TouchableOpacity
+          onPress={schedule}
+          disabled={!joinAt || busy}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !joinAt || busy, busy }}
+          style={{
+            height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: D.accent, opacity: joinAt ? 1 : 0.5,
+          }}
+        >
+          {busy ? <ActivityIndicator color="#fff" /> : (
+            <Text style={{ fontFamily: font.semibold, fontSize: 16, color: '#fff' }}>
+              {joinAt ? `Schedule for ${clock(joinAt)}` : 'Pick a time with history'}
+            </Text>
+          )}
+        </TouchableOpacity>
         {!!joinAt && (
-          <Text style={{ textAlign: 'center', fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 10 }}>
-            Cancel free until {clock(joinAt)} · the branch&rsquo;s no-show rules apply
+          <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 12, color: '#8a94a6', marginTop: 10 }}>
+            Free to cancel until {clock(joinAt)}. Branch no-show rules apply.
           </Text>
         )}
       </View>
