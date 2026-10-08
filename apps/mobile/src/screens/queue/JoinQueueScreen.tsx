@@ -149,7 +149,7 @@ export default function JoinQueueScreen() {
             <View style={{ backgroundColor: 'rgba(255,255,255,.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,.10)', borderRadius: 26, padding: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.ink }}>{initials(branch.business_name)}</Text>
+                  <Text style={{ fontFamily: font.extra, fontSize: 12, color: "#0c1826" }}>{initials(branch.business_name)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: font.semibold, fontSize: 12, color: 'rgba(255,255,255,.6)' }}>{branch.business_name}</Text>
@@ -285,8 +285,9 @@ export default function JoinQueueScreen() {
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16, padding: 16, borderRadius: 18, backgroundColor: 'rgba(245,166,35,.10)', borderWidth: 1, borderColor: 'rgba(245,166,35,.28)' }}>
                 <Ionicons name={noticeIcon as any} size={18} color={colors.moderate} style={{ marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{blockedNotice.label}</Text>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted, lineHeight: 19, marginTop: 3 }}>{blockedNotice.detail}</Text>
+                  {/* This sits on the navy page, not on a card: white text. */}
+                  <Text style={{ fontFamily: font.extra, fontSize: 14, color: '#fff' }}>{blockedNotice.label}</Text>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 19, marginTop: 3 }}>{blockedNotice.detail}</Text>
                 </View>
               </View>
             )}
