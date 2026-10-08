@@ -1,7 +1,7 @@
 {
   "name": "lyne-mobile",
   "version": "1.0.0",
-  "description": "LYNE Mobile App — Expo + React Native",
+  "description": "LYNE Mobile App \u2014 Expo + React Native",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "eas build --platform android",
-    "build:ios": "eas build --platform ios"
+    "build:ios": "eas build --platform ios",
+    "test": "tsc -p tsconfig.test.json && node --test .test-build/test"
   },
   "dependencies": {
     "@expo-google-fonts/cormorant": "^0.4.2",

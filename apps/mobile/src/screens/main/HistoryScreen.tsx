@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, TAB_BAR_CLEARANCE } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
+import { apiDateKey, toISODate } from '../../lib/dates';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
@@ -23,6 +24,7 @@ interface VisitHistoryRow {
   service_name: string;
   ticket_number: string;
   visit_date: string;
+  created_at?: string;
   wait_time_minutes?: number | null;
   service_time_minutes?: number | null;
   status: string;
@@ -31,9 +33,10 @@ interface VisitHistoryRow {
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+/* Visits key on the calendar date the server recorded (see apiDateKey); days
+   the picker builds locally are already calendar dates. */
 function dateKey(value: string | Date) {
-  const d = typeof value === 'string' ? new Date(value) : value;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return typeof value === 'string' ? apiDateKey(value) : toISODate(value);
 }
 
 function formatStatus(status: string) {
@@ -141,7 +144,9 @@ export default function HistoryScreen() {
             const first = index === 0;
             const last = index === dayVisits.length - 1;
             const tone = STATUS_TONE[visit.status] || colors.muted;
-            const timeLabel = new Date(visit.visit_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            /* visit_date is a date with no time, so it always read as midnight. The
+               row's created_at is when the visit actually ended. */
+            const timeLabel = visit.created_at ? new Date(visit.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
             return (
               <View key={visit.id} style={{ flexDirection: 'row', gap: 16 }}>
                 {/* rail */}
