@@ -65,6 +65,9 @@ function liveTicketWait(ticket) {
 
 // Lazy-load to avoid circular dependency at startup
 function broadcast(queueId, ticket) {
+  /* Every live ticket in this queue has a new place in line: push it to their
+     lock screens (Live Activity) and Android ongoing notifications. */
+  require('../utils/liveUpdates').scheduleQueueRefresh(queueId, ticket);
   try {
     const { broadcastQueueUpdate } = require('./sse');
     broadcastQueueUpdate(queueId, ticket).catch(() => {});
@@ -852,6 +855,44 @@ router.put('/:id/leave-reason', requireAuth, requireTicketAccess, async (req, re
 
 // PUT /api/tickets/:id/status — Update ticket status
 // Transitions: waiting->in_service, in_service->served, *->left, *->cancelled
+/**
+ * POST /api/tickets/:id/live-activity — the push token ActivityKit issued for
+ * this ticket's Live Activity, so the server can update the lock screen while
+ * the app is closed. DELETE removes it when the person ends the activity.
+ */
+const liveActivitySchema = z.object({ push_token: z.string().regex(/^[0-9a-fA-F]{32,200}$/, 'push_token must be hex.') });
+
+router.post('/:id/live-activity', requireAuth, requireTicketAccess, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'User account required.' });
+  const parsed = liveActivitySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: validationMessage(parsed.error) });
+  try {
+    const [rows] = await pool.query('SELECT user_id, status FROM queue_tickets WHERE id = ?', [req.params.id]);
+    if (!rows.length || rows[0].user_id !== req.dbUser.id) return res.status(404).json({ error: 'Ticket not found.' });
+    if (!['waiting', 'called', 'in_service'].includes(rows[0].status)) {
+      return res.status(409).json({ error: 'This ticket is no longer live.' });
+    }
+    await require('../utils/liveUpdates').registerLiveActivityToken({
+      ticketId: req.params.id, userId: req.dbUser.id, pushToken: parsed.data.push_token.toLowerCase(),
+    });
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not register the Live Activity.' });
+  }
+});
+
+router.delete('/:id/live-activity', requireAuth, requireTicketAccess, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'User account required.' });
+  try {
+    await pool.query('DELETE FROM live_activity_tokens WHERE ticket_id = ? AND user_id = ?', [req.params.id, req.dbUser.id]);
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not remove the Live Activity.' });
+  }
+});
+
 router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
   const conn = await pool.getConnection();
   try {
