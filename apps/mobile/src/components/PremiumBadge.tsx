@@ -1,21 +1,26 @@
 /**
  * PremiumBadge — the marker that says this account is on Lyne Premium.
  *
- * A flat ink pill with letter-spaced white caps, which is what the Predictive
- * Insights design specifies and what the rest of the v5 system looks like.
+ * Modelled on JamAI's "Plus" badge (itsdebrakayes/JamAI,
+ * src/components/SubscriptionBadge.tsx): a rounded pill with a left-to-right
+ * blue-to-cyan gradient, a small lightning bolt, and the tier name in white,
+ * medium weight, sentence case. The blue end is Lyne's own brand blue (the
+ * logo's rope) rather than Tailwind's blue-500; the cyan end is JamAI's.
  *
- * It was a cyan-to-blue gradient (#1fc2de → #2b6fe3) carried over from the v4
- * palette, and it was the only cyan left on the screen — a leftover that read
- * as a sticker from a different app sitting on a navy page. The v5 system is
- * one deep blue and neutrals; a badge is a label, not a feature, and it does
- * not get the loudest treatment on the screen.
+ * The same badge appears wherever Premium is shown: the Predictive Insights
+ * header, Settings' Premium card and the Premium screen.
  */
 import React from 'react';
 import { Text, View } from 'react-native';
-import { colors, font } from '../lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { font } from '../lib/theme';
+
+const FROM = '#3370FF';
+const TO = '#06B6D4';
 
 export function PremiumBadge({
-  label = 'PREMIUM',
+  label = 'Premium',
   size = 'md',
 }: {
   label?: string;
@@ -23,29 +28,19 @@ export function PremiumBadge({
 }) {
   const sm = size === 'sm';
   return (
-    <View
-      accessibilityRole="text"
-      accessibilityLabel="Lyne Premium account"
-      style={{
-        borderRadius: 12,
-        paddingVertical: sm ? 5 : 6,
-        paddingHorizontal: sm ? 9 : 10,
-        /* colors.dark, not a literal: it is the same navy the hero cards use,
-           and it stays navy in the dark theme, where the ink token would flip
-           to near-white and take the label with it. */
-        backgroundColor: colors.dark,
-      }}
-    >
-      <Text
+    <View accessibilityRole="text" accessibilityLabel={label === "Premium" ? "Lyne Premium" : `Lyne Premium, ${label}`} style={{ borderRadius: 999, overflow: 'hidden' }}>
+      <LinearGradient
+        colors={[FROM, TO]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
         style={{
-          fontFamily: font.extra,
-          fontSize: sm ? 9 : 9.5,
-          letterSpacing: 1,
-          color: '#fff',
+          flexDirection: 'row', alignItems: 'center', gap: 4,
+          paddingHorizontal: sm ? 10 : 12, paddingVertical: sm ? 4 : 5,
         }}
       >
-        {label.toUpperCase()}
-      </Text>
+        <Ionicons name="flash" size={sm ? 11 : 12} color="#fff" />
+        <Text style={{ fontFamily: font.semibold, fontSize: sm ? 12 : 13, color: '#fff' }}>{label}</Text>
+      </LinearGradient>
     </View>
   );
 }

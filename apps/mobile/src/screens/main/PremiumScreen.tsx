@@ -8,13 +8,15 @@
  * links. The purchase itself is lib/purchases.ts.
  */
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ProductSubscription } from 'expo-iap';
 import { colors, font, shadow, t } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useAuth } from '../../hooks/useAuth';
+import { PremiumHero } from '../../components/PremiumHero';
+import { PremiumBadge } from '../../components/PremiumBadge';
 import { buyPremium, loadPremiumProducts, manageSubscription, restorePremium } from '../../lib/purchases';
 
 const BENEFITS = [
@@ -34,6 +36,7 @@ export default function PremiumScreen() {
   const navigation = useNavigation<any>();
   const topPad = useTopPad(14);
   const lift = useNavBarLift();
+  const { width } = useWindowDimensions();
   const { user, refreshProfile } = useAuth();
   const [products, setProducts] = useState<ProductSubscription[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -83,13 +86,18 @@ export default function PremiumScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40 + lift }} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <Text style={t.h2}>Lyne Premium</Text>
+      {/* flexGrow + a flex:1 middle: on a tall phone the offer sits in the
+          vertical centre and Restore / Terms / Privacy rest near the bottom; on
+          a short one it simply scrolls. */}
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 18 + lift }} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Go back"><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
         </View>
 
-        <View style={[t.card, { padding: 18, gap: 14, ...shadow.card }]}>
+        <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 20 }}>
+        <PremiumHero width={Math.min(360, width - 44)} />
+
+        <View style={[t.card, { padding: 18, gap: 14, marginTop: 22, ...shadow.card }]}>
           {BENEFITS.map(b => (
             <View key={b.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
               <Ionicons name={b.icon} size={20} color={colors.accentDeep} />
@@ -100,7 +108,10 @@ export default function PremiumScreen() {
 
         {premium ? (
           <View style={[t.card, { padding: 18, marginTop: 18, ...shadow.card }]}>
-            <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink }}>Premium is on</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <PremiumBadge />
+              <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink }}>is on</Text>
+            </View>
             <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 6, lineHeight: 19 }}>
               Change plan or cancel in your {store}'s subscriptions.
             </Text>
@@ -155,17 +166,18 @@ export default function PremiumScreen() {
 
         {!!error && <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.danger, marginTop: 14 }}>{error}</Text>}
         {!!notice && <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.light, marginTop: 14 }}>{notice}</Text>}
+        </View>
 
-        <TouchableOpacity onPress={restore} disabled={!!busy} style={{ alignItems: 'center', marginTop: 20, minHeight: 44, justifyContent: 'center' }} accessibilityRole="button">
+        <TouchableOpacity onPress={restore} disabled={!!busy} style={{ alignItems: 'center', minHeight: 44, justifyContent: 'center' }} accessibilityRole="button">
           {busy === 'restore' ? <ActivityIndicator color={colors.accentDeep} /> : (
             <Text style={{ fontFamily: font.bold, fontSize: 14.5, color: colors.accentDeep }}>Restore purchases</Text>
           )}
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, marginTop: 4 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Legal', { tab: 'terms' })} style={{ minHeight: 40, justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Legal', { tab: 'terms' })} accessibilityRole="link" style={{ minHeight: 40, justifyContent: 'center' }}>
             <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted }}>Terms of Use</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Legal', { tab: 'privacy' })} style={{ minHeight: 40, justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Legal', { tab: 'privacy' })} accessibilityRole="link" style={{ minHeight: 40, justifyContent: 'center' }}>
             <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.muted }}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>

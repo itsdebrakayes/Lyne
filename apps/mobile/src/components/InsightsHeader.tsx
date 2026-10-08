@@ -10,6 +10,7 @@ import React from 'react';
 import { Platform, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
+import { PremiumBadge } from './PremiumBadge';
 
 export function InsightsHeader({
   title,
@@ -65,17 +66,9 @@ export function InsightsHeader({
   );
 }
 
-/** The outlined "Premium" pill from the v2 header. */
+/** The Premium badge in the header (the shared JamAI-style pill). */
 export function PremiumPill() {
-  return (
-    <View
-      accessibilityRole="text"
-      accessibilityLabel="Lyne Premium account"
-      style={{ height: 28, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, justifyContent: 'center' }}
-    >
-      <Text style={{ fontFamily: font.semibold, fontSize: 12, color: colors.accent }}>Premium</Text>
-    </View>
-  );
+  return <PremiumBadge size="sm" />;
 }
 
 export default InsightsHeader;

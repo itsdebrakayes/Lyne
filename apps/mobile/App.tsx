@@ -24,7 +24,7 @@ import {
    pretending to be it. It is NOT a UI font and nothing else uses it. */
 import { Cormorant_600SemiBold_Italic } from '@expo-google-fonts/cormorant';
 // The splash's wordmark and tagline face, as the Lyne Splash design sets them.
-import { CormorantGaramond_500Medium_Italic } from '@expo-google-fonts/cormorant-garamond';
+import { CormorantGaramond_500Medium_Italic, CormorantGaramond_700Bold_Italic } from '@expo-google-fonts/cormorant-garamond';
 import AppNavigator from './src/navigation/AppNavigator';
 import LaunchScreen from './src/components/LaunchScreen';
 import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring';
@@ -62,6 +62,7 @@ function App() {
     Manrope_800ExtraBold,
     Cormorant_600SemiBold_Italic,
     CormorantGaramond_500Medium_Italic,
+    CormorantGaramond_700Bold_Italic,
   });
 
   /* The launch animation decides when it is over (LaunchScreen onDone), so

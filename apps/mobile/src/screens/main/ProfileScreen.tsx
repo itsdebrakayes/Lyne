@@ -13,6 +13,7 @@ import Constants from 'expo-constants';
 
 const appVersion = Constants.expoConfig?.version || '';
 import Icon, { IconName } from '../../components/Icon';
+import { PremiumBadge } from '../../components/PremiumBadge';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
@@ -206,7 +207,10 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={() => navigation.navigate('Premium')} accessibilityRole="button"
             style={{ marginTop: 12, backgroundColor: colors.dark, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>Lyne Premium</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>Lyne Premium</Text>
+                {!!Number(user?.is_premium || 0) && <PremiumBadge size="sm" label="Active" />}
+              </View>
               <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>
                 {Number(user?.is_premium || 0) ? 'Active. Manage your plan or restore it' : 'Busy-hour forecasts and Line Helper'}
               </Text>
