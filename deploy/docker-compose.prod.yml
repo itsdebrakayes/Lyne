@@ -95,6 +95,23 @@ services:
       SENTRY_DSN:               ${SENTRY_DSN:-}
       SENTRY_RELEASE:           ${SENTRY_RELEASE:-}
 
+      # Live Activity pushes straight to APNs. Empty = Live Activities still
+      # update while the app is open, just not while it is closed.
+      APNS_KEY_ID:              ${APNS_KEY_ID:-}
+      APNS_TEAM_ID:             ${APNS_TEAM_ID:-}
+      APNS_PRIVATE_KEY:         ${APNS_PRIVATE_KEY:-}
+      APNS_BUNDLE_ID:           ${APNS_BUNDLE_ID:-com.lyne.mobile}
+      APNS_ENV:                 ${APNS_ENV:-production}
+
+      # In-app purchase verification. Empty = /api/iap/verify refuses, so
+      # nobody is granted Premium on an unchecked receipt.
+      APPSTORE_ISSUER_ID:       ${APPSTORE_ISSUER_ID:-}
+      APPSTORE_KEY_ID:          ${APPSTORE_KEY_ID:-}
+      APPSTORE_PRIVATE_KEY:     ${APPSTORE_PRIVATE_KEY:-}
+      APPSTORE_BUNDLE_ID:       ${APPSTORE_BUNDLE_ID:-com.lyne.mobile}
+      GOOGLE_PLAY_SERVICE_ACCOUNT: ${GOOGLE_PLAY_SERVICE_ACCOUNT:-}
+      PLAY_PACKAGE_NAME:        ${PLAY_PACKAGE_NAME:-com.lyne.mobile}
+
       TICKET_EXPIRY_ENABLED:         ${TICKET_EXPIRY_ENABLED:-true}
       TICKET_EXPIRY_GRACE_MINUTES:   ${TICKET_EXPIRY_GRACE_MINUTES:-30}
       RETENTION_ENABLED:             ${RETENTION_ENABLED:-true}
