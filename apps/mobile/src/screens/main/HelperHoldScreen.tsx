@@ -14,7 +14,7 @@
  * to hold should take a moment of intent, and it genuinely leaves the queue so
  * the people behind move up.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -40,6 +40,7 @@ interface Helper {
   leave_home_at: string;
   predicted_wait_minutes: number;
   status: 'scheduled' | 'holding' | 'checked_in' | string;
+  ticket_id: string | null;
   ticket_number: string | null;
   people_ahead: number | null;
 }
@@ -86,10 +87,22 @@ export default function HelperHoldScreen() {
     refetchInterval: 30_000,
   });
 
+  /* Set once "I'm on my way" is accepted, so the tap is visibly answered:
+     the action records that the holder is moving and changes nothing else on
+     screen, which made the button feel broken. */
+  const [onWay, setOnWay] = useState(false);
   const act = useMutation({
     mutationFn: (action: 'on_my_way' | 'push_back' | 'release') =>
       api.patch(`/line-helper/${q.data!.helper!.id}`, { action }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['line-helper-active'] }),
+    onSuccess: (_d, action) => {
+      if (action === 'on_my_way') setOnWay(true);
+      qc.invalidateQueries({ queryKey: ['line-helper-active'] });
+    },
+    /* A failure used to vanish without a word, leaving someone who tapped
+       Release still holding a place they believed they had given up. */
+    onError: (err: unknown) => {
+      Alert.alert('That did not go through', err instanceof Error && err.message ? err.message : 'Check your connection and try again.');
+    },
   });
 
   const helper = q.data?.helper ?? null;
@@ -166,8 +179,11 @@ export default function HelperHoldScreen() {
       state: checkedIn ? 'done' : joined ? 'now' : 'todo',
     },
     {
-      title: 'Check in at the branch',
-      sub: 'Scan at the kiosk to take over',
+      /* There is no check-in step: once the helper has joined, the place is an
+         ordinary ticket, followed on the ticket screen like any other. This
+         row only says when to be there. */
+      title: 'Be at the branch',
+      sub: joined ? 'Follow your place on your ticket' : 'Your ticket appears once the helper joins',
       time: `~${hhmm(new Date(turnAt.getTime() - 2 * 60000).toISOString())}`,
       state: checkedIn ? 'done' : 'todo',
     },
@@ -291,14 +307,26 @@ export default function HelperHoldScreen() {
           </Text>
         )}
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+        {/* Once joined, the helper's place IS a ticket: the same screen, the
+            same live position and code as a line joined by hand. */}
+        {joined && helper.ticket_id && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Ticket', { ticketId: helper.ticket_id! })}
+            accessibilityRole="button"
+            style={{ height: 50, borderRadius: 14, marginTop: 16, backgroundColor: D.ink, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>See my ticket{helper.ticket_number ? ` ${helper.ticket_number}` : ''}</Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: joined && helper.ticket_id ? 8 : 16 }}>
           <TouchableOpacity
             onPress={() => act.mutate('on_my_way')}
-            disabled={act.isPending}
+            disabled={act.isPending || onWay}
             accessibilityRole="button"
             style={{ flex: 1, height: 50, borderRadius: 14, backgroundColor: D.accent, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>I&rsquo;m on my way</Text>
+            <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>{onWay ? 'On your way ✓' : 'I\u2019m on my way'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => act.mutate('push_back')}

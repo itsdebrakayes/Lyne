@@ -107,7 +107,7 @@ export const TERMS: LegalSection[] = [
   {
     heading: 'What this service does',
     body: [
-      `${APP_NAME} lets you join a queue at a participating business or agency from your phone, follow your place in that queue, and check in when you arrive. ${COMPANY} operates the app; the business you visit provides the actual service.`,
+      `${APP_NAME} lets you join a queue at a participating business or agency from your phone and follow your place in that queue until you are called. ${COMPANY} operates the app; the business you visit provides the actual service.`,
     ],
   },
   {
