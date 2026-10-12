@@ -119,7 +119,7 @@ function AuthStack() {
 
 export default function AppNavigator({ onReady }: { onReady?: () => void } = {}) {
   const { user, kiosk, loading, unreachable, retrySession } = useAuth();
-  const returning = useReturningDevice();
+  const returning = useReturningDevice(Boolean(user || kiosk));
   React.useEffect(() => { if (user || kiosk) void markDeviceSignedIn(); }, [user, kiosk]);
   /* Tells the launch animation it may fade: the session is settled, so what
      sits underneath is the real first screen, not this spinner. */

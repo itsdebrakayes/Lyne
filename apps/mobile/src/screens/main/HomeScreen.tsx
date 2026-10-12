@@ -398,7 +398,7 @@ export default function HomeScreen() {
           <Text style={{ ...type.callout, fontSize: wide ? 19 : 14.5, color: colors.muted }}>
             {greeting}, {firstName}.
           </Text>
-          <Text style={{ fontFamily: font.extra, fontSize: wide ? 40 : 27, lineHeight: wide ? 46 : 32, color: colors.ink, letterSpacing: wide ? -1.4 : -0.9, marginTop: wide ? 8 : 6 }}>
+          <Text style={{ fontFamily: font.semibold, fontSize: wide ? 40 : 28, lineHeight: wide ? 46 : 32, color: colors.ink, letterSpacing: wide ? -1 : -0.7, marginTop: wide ? 8 : 6 }}>
             What do you need{'\n'}to get done?
           </Text>
         </View>
