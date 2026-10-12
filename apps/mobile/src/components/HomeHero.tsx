@@ -244,7 +244,7 @@ export function HomeHero({
             {helper ? (
               <>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#3fd07f' }} />
-                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ flexShrink: 1, fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>
                   Leave by {helper.leaveLabel}
                 </Text>
               </>
