@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import api, { supabase, isTransient } from '../lib/apiClient';
 import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
+import { clearPendingSignup } from '../lib/pendingSignup';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 /** Where the confirmation link lands; see apps/website AuthConfirmed. */
@@ -178,6 +179,11 @@ export const useAuth = () => {
       // keep the same user, so they must not trigger another sync.
       if (event === 'SIGNED_OUT') { applySession(null); return; }
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+        /* A signed-in session means any sign-up waiting for its email code on
+           this phone is finished, however it finished (the code, the link, or a
+           plain sign-in). Left behind, the record reopened "Enter the code we
+           emailed you" after the next sign-out instead of a fresh form. */
+        if (session) clearPendingSignup();
         applySession(session);
       }
     });
@@ -299,6 +305,9 @@ export const useAuth = () => {
        not cleared here they are not cleared anywhere, and the next person to
        sign in on this phone inherits the last person's TRN. */
     await clearAllDocuments();
+    /* Nothing from a sign-up survives a sign-out (or a deleted account): the
+       next person sees the fresh Sign in and Create account forms. */
+    await clearPendingSignup();
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);
