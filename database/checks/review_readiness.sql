@@ -6,6 +6,12 @@ SELECT 'migration 034 (Line Helper)' AS check_name,
        IF(COUNT(*) = 1, 'OK', 'MISSING') AS result
   FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'line_helper_requests'
 UNION ALL
+SELECT 'migration 035 (account deletion can sign out)',
+       IF(COUNT(*) = 1, 'OK', 'MISSING — apply 035, or Delete account fails')
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'token_revocations'
+   AND COLUMN_NAME = 'reason' AND COLUMN_TYPE LIKE '%account_deleted%'
+UNION ALL
 SELECT 'migration 036 (Live Activity tokens)',
        IF(COUNT(*) = 1, 'OK', 'MISSING — apply 036')
   FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'live_activity_tokens'
