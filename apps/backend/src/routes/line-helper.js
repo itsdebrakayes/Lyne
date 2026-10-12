@@ -356,7 +356,7 @@ router.patch('/:id', requireAuth, validate(schemas.lineHelperUpdate), async (req
          forgotten about, so the people behind actually move up. */
       if (row.ticket_id) {
         await pool.query(
-          `UPDATE queue_tickets SET status = 'left', closed_reason = 'helper_released', updated_at = NOW()
+          `UPDATE queue_tickets SET status = 'left', closed_reason = 'helper_released', completed_at = NOW()
             WHERE id = ? AND status IN ('waiting','called')`,
           [row.ticket_id]
         );

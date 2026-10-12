@@ -186,7 +186,7 @@ function WhatItIs() {
 function Features() {
   const features = [
     { icon: Clock, tag: "Live", title: "See the real wait", body: "Know how long it will take before you leave home — no guessing, and no standing around wondering." },
-    { icon: QrCode, tag: "Fair", title: "Scan to check in", body: "A quick scan confirms you are there. Nobody skips ahead, and nobody loses their spot." },
+    { icon: QrCode, tag: "Fair", title: "Your code at the counter", body: "Staff confirm your six-character code when you are called. Nobody skips ahead, and nobody loses their spot." },
     { icon: Bell, tag: "Free time", title: "We will call you", body: "Get a ping when you are next, so you can run an errand or grab something to eat and still keep your place." },
     { icon: Zap, tag: "Staff", title: "Screens that make sense", body: "Front desk, supervisor and owner each get one simple screen showing only what they need." },
     { icon: TrendingUp, tag: "Insight", title: "Know your busy hours", body: "See how many people you served, when the rush hits, and where things slow down — updated as the day goes." },
