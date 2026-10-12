@@ -52,75 +52,36 @@ export default function LineHelperScreen() {
 
   const { businessId, branchId, branchName, serviceId, serviceName, targetDow, targetHour } = route.params ?? ({} as any);
 
-  /** The three arrival options, around the hour the caller suggested. */
-  const baseHour = typeof targetHour === 'number' ? targetHour : 11;
-  const hourOptions = useMemo(
-    () => [baseHour, baseHour + 3, baseHour + 4].filter((h) => h >= 7 && h <= 18),
-    [baseHour],
-  );
-
-  /** The date those hours land on — the next occurrence of the chosen weekday. */
-  const dateFor = (hour: number) => {
-    const now = new Date();
-    const want = typeof targetDow === 'number' ? targetDow : now.getDay();
-    const delta = (want - now.getDay() + 7) % 7;
-    const d = new Date(now);
-    d.setDate(now.getDate() + delta);
-    d.setHours(hour, 0, 0, 0);
-    /* If that moment has already passed today, it means next week. */
-    if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 7);
-    return d;
-  };
-
-  const [hour, setHour] = useState<number>(hourOptions[0] ?? 11);
   const [travel, setTravel] = useState<number>(25);
   const [letPass, setLetPass] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  /* Quotes for all three chips at once, so the labels are real before anybody
-     chooses. They come from the server because the prediction lives there and
-     must match what the scheduler will actually use. */
-  type Quote = { wait: number | null; closed: string | null };
-  const quotes = useQuery({
-    queryKey: ['helper-quotes', branchId, serviceId, hourOptions.join(','), targetDow],
-    queryFn: async () => {
-      const out: Record<number, Quote> = {};
-      await Promise.all(hourOptions.map(async (h) => {
-        try {
-          const r = await api.post<{ predicted_wait_minutes: number | null; available?: boolean; message?: string }>(
-            '/line-helper/quote',
-            { branch_id: branchId, service_id: serviceId, target_served_at: dateFor(h).toISOString() },
-          );
-          /* available: false means the branch does not serve this then (closed,
-             or the service is not offered). Shown as Closed and never
-             selectable, so the app cannot offer a time the server refuses. */
-          out[h] = r.available === false
-            ? { wait: null, closed: r.message || 'Not available at that time.' }
-            : { wait: r.predicted_wait_minutes, closed: null };
-        } catch { out[h] = { wait: null, closed: null }; }
-      }));
-      return out;
-    },
-    enabled: Boolean(branchId && serviceId && hourOptions.length),
-    staleTime: 1000 * 60 * 10,
+  /* The bookable times come from the server: within opening hours, with
+     enough history to predict the wait, and far enough ahead for the helper
+     to join. The app never guesses a time the server would refuse, so there
+     is no "Closed" state to show. Days ahead are normal — booking Thursday
+     8am on a Monday is the point of the feature. */
+  type Option = { served_at: string; hour: number; predicted_wait_minutes: number };
+  const options = useQuery({
+    queryKey: ['helper-options', branchId, serviceId, targetDow, targetHour],
+    queryFn: () => api.post<{ day?: string; moved?: boolean; options: Option[]; message?: string }>('/line-helper/options', {
+      branch_id: branchId,
+      service_id: serviceId,
+      ...(typeof targetDow === 'number' ? { target_dow: targetDow } : {}),
+      ...(typeof targetHour === 'number' ? { target_hour: targetHour } : {}),
+    }),
+    enabled: Boolean(branchId && serviceId),
+    staleTime: 1000 * 60 * 5,
   });
+  const offered = options.data?.options ?? [];
+  const [picked, setPicked] = useState(0);
+  const option: Option | null = offered[picked] ?? offered[0] ?? null;
 
-  const waitFor = (h: number) => quotes.data?.[h]?.wait ?? null;
-  const closedFor = (h: number) => quotes.data?.[h]?.closed ?? null;
-  const chosenWait = waitFor(hour);
-  const target = dateFor(hour);
+  const target = option ? new Date(option.served_at) : new Date();
+  const chosenWait = option ? option.predicted_wait_minutes : null;
   const joinAt = chosenWait === null ? null : new Date(target.getTime() - chosenWait * 60000);
   const leaveAt = new Date(target.getTime() - travel * 60000);
-
-  /* If the pre-selected hour turns out to have no history, move to one that
-     does rather than leaving the primary button disabled with no explanation. */
-  useEffect(() => {
-    if (!quotes.data) return;
-    if (waitFor(hour) !== null) return;
-    const usable = hourOptions.find((h) => waitFor(h) !== null);
-    if (usable !== undefined) setHour(usable);
-  }, [quotes.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps = useMemo(() => {
     if (!joinAt) return [];
@@ -164,30 +125,38 @@ export default function LineHelperScreen() {
 
         <View style={{ backgroundColor: D.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#edf0f4' }}>
           <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.sub, marginBottom: 10 }}>Be served around</Text>
+          {!!options.data?.moved && offered.length > 0 && (
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: D.sub, marginTop: -4, marginBottom: 10, lineHeight: 18 }}>
+              These are the nearest times the branch is open and Lyne can book for you.
+            </Text>
+          )}
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            {hourOptions.map((h) => {
-              const on = h === hour;
-              const w = waitFor(h);
-              const usable = w !== null;
+            {options.isLoading ? (
+              <ActivityIndicator color={D.accent} style={{ paddingVertical: 14 }} />
+            ) : offered.length === 0 ? (
+              <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 13, color: D.sub, lineHeight: 19 }}>
+                {options.data?.message || (options.error ? 'Times could not be loaded. Check your connection and try again.' : 'No bookable times yet.')}
+              </Text>
+            ) : offered.map((o, i) => {
+              const on = o === option;
               return (
                 <TouchableOpacity
-                  key={h}
-                  disabled={!usable}
-                  onPress={() => setHour(h)}
+                  key={o.served_at}
+                  onPress={() => setPicked(i)}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: on, disabled: !usable }}
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`${clock(new Date(o.served_at))}, about ${o.predicted_wait_minutes} minute wait`}
                   style={{
                     flex: 1, borderRadius: 14, paddingVertical: 8, alignItems: 'center',
                     backgroundColor: on ? D.ink : D.surface,
                     borderWidth: 1, borderColor: on ? D.ink : '#e3e7ee',
-                    opacity: usable ? 1 : 0.5,
                   }}
                 >
                   <Text style={{ fontFamily: font.semibold, fontSize: 15, color: on ? '#fff' : D.ink }}>
-                    {clock(dateFor(h))}
+                    {clock(new Date(o.served_at))}
                   </Text>
                   <Text style={{ fontFamily: font.medium, fontSize: 12, marginTop: 2, color: on ? '#fff' : D.ink, opacity: 0.65 }}>
-                    {quotes.isLoading ? '…' : usable ? `~${w} min wait` : closedFor(h) ? 'Closed' : 'No history'}
+                    ~{o.predicted_wait_minutes} min wait
                   </Text>
                 </TouchableOpacity>
               );
@@ -263,11 +232,11 @@ export default function LineHelperScreen() {
           <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginBottom: 10 }}>
             Your plan
           </Text>
-          {quotes.isLoading ? (
+          {options.isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : !joinAt ? (
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.65)', lineHeight: 19 }}>
-              {closedFor(hour) || 'There is not enough history for that slot yet, so a helper would be guessing at when to join. Pick another time.'}
+              {options.data?.message || 'Pick a time above to see the plan.'}
             </Text>
           ) : (
             <View style={{ gap: 8 }}>

@@ -278,6 +278,13 @@ const schemas = {
     target_served_at: z.string().min(10).max(40),
   }),
 
+  lineHelperOptions: z.object({
+    branch_id:   idSchema,
+    service_id:  idSchema,
+    target_dow:  z.number().int().min(0).max(6).optional(),
+    target_hour: z.number().int().min(0).max(23).optional(),
+  }),
+
   lineHelperCreate: z.object({
     branch_id:        idSchema,
     service_id:       idSchema,

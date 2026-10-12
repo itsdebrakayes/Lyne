@@ -22,6 +22,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
+const { sendPushToUser } = require('../utils/pushSender');
 
 /** Joins at most this many per tick, so a backlog cannot monopolise a minute. */
 const BATCH = 50;
@@ -79,6 +80,11 @@ async function joinDueHelpers(now = new Date()) {
         await conn.query(`UPDATE line_helper_requests SET status = 'expired' WHERE id = ?`, [h.id]);
         await conn.commit();
         skipped += 1;
+        await sendPushToUser(h.user_id, {
+          title: 'Your Line Helper could not join',
+          body: 'The line was not open at the time you chose. Open Lyne to pick another time.',
+          data: { type: 'helper_expired', helperId: h.id },
+        });
         continue;
       }
 
@@ -153,6 +159,16 @@ async function joinDueHelpers(now = new Date()) {
 
       await conn.commit();
       joined += 1;
+
+      /* And on the phone. The customer booked this days ago; a helper that
+         joins without a push is one they only discover by opening the app.
+         Lock-screen wording stays vague by design (no agency, no service) —
+         see the privacy text — so it says what happened and where they are. */
+      await sendPushToUser(h.user_id, {
+        title: 'Your Line Helper joined the line',
+        body: `You're number ${slot.position} · ticket ${ticketNumber}. Open Lyne to see when to leave.`,
+        data: { type: 'helper_joined', ticketId, helperId: h.id },
+      });
     } catch (err) {
       await conn.rollback().catch(() => {});
       console.error('[LineHelper] join failed for', h.id, err.message);

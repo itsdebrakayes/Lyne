@@ -57,6 +57,21 @@ test('the helper job joins TODAY\'s queue, opening it first', () => {
 
 test('quote and scheduling use the same availability rule', () => {
   const src = fs.readFileSync(require.resolve('../src/routes/line-helper.js'), 'utf8');
-  assert.equal((src.match(/serviceAvailableAt\(/g) || []).length, 2);
+  assert.ok((src.match(/serviceAvailableAt\(/g) || []).length >= 2);
   assert.ok(!/error: 'That service is not running/.test(src), 'the old refusal must be gone');
+});
+
+test('the app is offered only bookable times, from the server', () => {
+  const src = fs.readFileSync(require.resolve('../src/routes/line-helper.js'), 'utf8');
+  assert.match(src, /router\.post\('\/options'/);
+  const opt = src.slice(src.indexOf("router.post('/options'"), src.indexOf("router.post('/quote'"));
+  assert.match(opt, /serviceAvailableAt\(/, 'options must use the same availability rule');
+  assert.match(opt, /predictWait\(/, 'options must only offer times with a prediction');
+  assert.match(opt, /MIN_LEAD_MINUTES/, 'options must not offer a time too soon for the helper to join');
+});
+
+test('the helper pushes the customer when it joins, and when it cannot', () => {
+  const src = fs.readFileSync(require.resolve('../src/jobs/lineHelper.js'), 'utf8');
+  assert.match(src, /title: 'Your Line Helper joined the line'/);
+  assert.match(src, /title: 'Your Line Helper could not join'/);
 });
