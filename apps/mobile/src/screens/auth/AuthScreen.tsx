@@ -129,7 +129,10 @@ export default function AuthScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.inner, { paddingTop: topPad, paddingBottom: 150 + lift }, column]}
+          /* Sign in is short, so it sat high with a band of empty space below it;
+             32pt more at the top centres it (measured on a 6.1" iPhone). Create
+             account fills the screen and keeps the original spacing. */
+          contentContainerStyle={[styles.inner, { paddingTop: topPad + (signup ? 0 : 32), paddingBottom: 150 + lift }, column]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

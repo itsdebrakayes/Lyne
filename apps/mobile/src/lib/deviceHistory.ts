@@ -17,15 +17,23 @@ export async function markDeviceSignedIn(): Promise<void> {
   try { await AsyncStorage.setItem(KEY, '1'); } catch { /* a missed write only costs the default screen */ }
 }
 
-/** null while reading; then whether the device has seen a sign-in before. */
-export function useReturningDevice(): boolean | null {
+/**
+ * null while reading; then whether the device has seen a sign-in before.
+ *
+ * `signedInNow` flips the answer to true for the rest of the session the
+ * moment anybody signs in. Without it the value was read once at launch, so
+ * signing in and then out on a fresh install still opened Create account —
+ * the device was "new" according to a reading taken before the sign-in.
+ */
+export function useReturningDevice(signedInNow = false): boolean | null {
   const [returning, setReturning] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
     AsyncStorage.getItem(KEY)
-      .then(v => { if (live) setReturning(v === '1'); })
+      .then(v => { if (live) setReturning(prev => prev === true || v === '1'); })
       .catch(() => { if (live) setReturning(true); });
     return () => { live = false; };
   }, []);
+  useEffect(() => { if (signedInNow) setReturning(true); }, [signedInNow]);
   return returning;
 }
