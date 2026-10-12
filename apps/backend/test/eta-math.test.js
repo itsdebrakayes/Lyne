@@ -44,3 +44,8 @@ test('never returns a negative or fractional minute', () => {
 test('garbage inputs degrade to zero rather than NaN', () => {
   assert.equal(projectedWaitMinutes({ ahead: null, perServiceMinutes: undefined, counters: NaN }), 0);
 });
+
+test('a near-zero observed service time still projects a real wait for people ahead', () => {
+  assert.equal(projectedWaitMinutes({ ahead: 4, perServiceMinutes: 0.1, counters: 1 }), 8);
+  assert.equal(projectedWaitMinutes({ ahead: 0, perServiceMinutes: 0, counters: 1 }), 0);
+});

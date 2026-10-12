@@ -22,13 +22,21 @@
  * @param {number}  args.counters        counters open for this service (>=1 enforced)
  * @returns {number} whole minutes, never negative
  */
+/** Shortest believable time to serve one person. */
+const MIN_SERVICE_MINUTES = 2;
+
 function projectedWaitMinutes({ ahead, perServiceMinutes, counters }) {
   const inLine = Math.max(0, Number(ahead) || 0);
-  const perPerson = Math.max(0, Number(perServiceMinutes) || 0);
+  /* Floored at MIN_SERVICE_MINUTES. The per-person figure is today's observed
+     average, and a run of visits closed seconds after they started (a clerk
+     clearing the screen, a test) drags it to zero — after which four people
+     ahead projected to "0 min" and the ticket said "you are next". Nobody is
+     served in under a couple of minutes. */
+  const perPerson = Math.max(MIN_SERVICE_MINUTES, Number(perServiceMinutes) || 0);
   // A queue with no counter open still has to be served by at least one, and
   // dividing by zero would blow the estimate up to Infinity.
   const lanes = Math.max(1, Math.floor(Number(counters) || 0));
   return Math.round((inLine / lanes) * perPerson);
 }
 
-module.exports = { projectedWaitMinutes };
+module.exports = { projectedWaitMinutes, MIN_SERVICE_MINUTES };

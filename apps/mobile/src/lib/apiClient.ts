@@ -164,7 +164,7 @@ async function request<T>(
        failure by construction. */
     throw Object.assign(
       new Error(err.error || err.message || `HTTP ${res.status}`),
-      { status: res.status },
+      { status: res.status, body: err },
     );
   }
 
