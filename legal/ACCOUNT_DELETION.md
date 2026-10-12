@@ -33,7 +33,7 @@ We action deletion requests within **30 days**, and in practice much sooner. We 
 Deleting your account permanently removes:
 
 - Your profile — name, email address, phone number.
-- Any identification details you saved, such as a TRN or national ID.
+- Any TRN or national ID saved on that phone (these are kept only on your phone, never on our servers).
 - Your queue history, including which branches you visited and which services you joined.
 - Your notification history and any device tokens used to alert you.
 - Your saved agencies and preferences.

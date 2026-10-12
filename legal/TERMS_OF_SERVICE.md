@@ -59,12 +59,12 @@ You agree not to:
 
 ## 5. Identity documents
 
-If you choose to add identity details or scans (TRN, National ID, passport):
+If you choose to save your TRN or National ID in the app, or scan a document to find your TRN:
 
 - you confirm they are **yours** and accurate;
-- you consent to us storing them and sharing them **with the agency you are queueing for**, for identification;
-- you can remove them at any time;
-- we handle them as described in the Privacy Policy.
+- the number is kept **only on your phone**, in its keychain, and is never sent to us or to any agency — you read it out yourself when a counter asks;
+- a scanned image or PDF is read on your phone and is never uploaded or saved;
+- you can remove a saved number at any time, and signing out or deleting your account erases it from that phone.
 
 You are never required to provide them to use Lyne.
 
