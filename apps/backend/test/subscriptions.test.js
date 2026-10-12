@@ -68,12 +68,12 @@ test('a cancelled or unpaid subscription does not entitle', () => {
 
 test('a lapsed paid-through date ends access with no sweep job', () => {
   const yesterday = new Date(Date.now() - 86400000);
-  assert.equal(hasPremium({ is_premium: 1, premium_until: yesterday }), false);
+  assert.equal(hasPremium({ is_premium: 1, premium_until: yesterday }, { paymentsEnabled: true }), false);
 });
 
 test('a legacy grant with no end date is not retroactively revoked', () => {
   // Rows that predate migration 014 keep premium_until NULL and stay premium.
-  assert.equal(hasPremium({ is_premium: 1, premium_until: null }), true);
+  assert.equal(hasPremium({ is_premium: 1, premium_until: null }, { paymentsEnabled: true }), true);
 });
 
 // ── the shape the app renders ───────────────────────────────────────────────

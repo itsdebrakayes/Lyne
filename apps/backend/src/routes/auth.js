@@ -24,7 +24,7 @@ const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
-const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
+const { withPremiumState, trialEndsAt, TRIAL_DAYS, requirePayments } = require('../lib/premium');
 const { profileSyncLimiter } = require('../middleware/rateLimiter');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
@@ -252,7 +252,7 @@ router.patch('/profile', requireAuth, validate(schemas.updateProfile), async (re
 // ── POST /api/auth/start-trial ───────────────────────────────
 // Unlocks Lyne Premium (Smart Timing / visit planner) for this user.
 // Billing comes later — for now a trial start simply flips the flag.
-router.post('/start-trial', requireAuth, async (req, res) => {
+router.post('/start-trial', requirePayments, requireAuth, async (req, res) => {
   if (!req.dbUser) {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }

@@ -150,7 +150,12 @@ app.use((err, req, res, next) => {
 // Stripe webhook needs the RAW body for signature verification — mount it
 // before express.json() so the parser doesn't consume the body.
 const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+/* Purchases are switched off for the free release (lib/premium.js
+   PAYMENTS_ENABLED). requirePayments answers 404 { available: false } before
+   any database, store or billing credential is touched — on the webhook, on
+   /api/iap and on every /api/payments route. */
+const { requirePayments } = require('./lib/premium');
+app.post('/api/payments/webhook', requirePayments, express.raw({ type: 'application/json' }), webhookHandler);
 
 // Body parsing — limit OCR uploads separately (see /api/ocr route)
 app.use(express.json({ limit: '1mb' }));
@@ -197,7 +202,7 @@ app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
-app.use('/api/iap',            require('./routes/iap'));
+app.use('/api/iap',            requirePayments, require('./routes/iap'));
 app.use('/api/saved',          require('./routes/saved'));
 /* Premium, and gated inside the router — a branch can also refuse it. */
 app.use('/api/line-helper',    require('./routes/line-helper'));
@@ -209,7 +214,7 @@ app.use('/api/line-helper',    require('./routes/line-helper'));
    to grind forged handoff tokens. */
 app.post('/api/payments/portal/verify', sessionLookupLimiter);
 /* paymentLimiter likewise moved into routes/payments.js, after requireAuth. */
-app.use('/api/payments',       paymentsRouter);
+app.use('/api/payments',       requirePayments, paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
 /* ocrLimiter moved into routes/ocr.js, after requireAuth. The body parser
