@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, t, type, initials } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
@@ -55,6 +56,7 @@ export default function TicketScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(14);
   const lift = useNavBarLift();
+  const focused = useIsFocused();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user } = useAuth();
@@ -106,8 +108,22 @@ export default function TicketScreen() {
       // forward (the whole point of the app) and losing your place.
       if (ticket.status === 'called') haptics.success();
       else if (ticket.status === 'no_show') haptics.error();
-      const title = ticket.status === 'called' ? "You're being called" : ticket.status === 'no_show' ? 'You lost your place in line' : 'Queue status updated';
-      scheduleQueueUpdateNotification(title, `${ticket.branch_name || 'Your branch'}: ${ticket.status.replace('_', ' ')}`, ticket.id).catch(() => {});
+      /* Plain sentences, not the raw status ("Blue Harbour: in service").
+         Leaving is something the person just did on this screen, so it gets
+         no banner telling them about it. */
+      const where = ticket.branch_name || 'Your branch';
+      const incomplete = ticket.readiness_outcome === 'incomplete';
+      const banner: Record<string, [string, string] | undefined> = {
+        called: ["You're being called", `${where}: head to the counter and show your code.`],
+        in_service: ["You're at the counter", `${where}: you are being served now.`],
+        served: incomplete
+          ? ['Visit marked incomplete', `${where}: join the line again whenever you are ready.`]
+          : ['Visit complete', `${where}: thanks for using Lyne.`],
+        no_show: ['You lost your place in line', `${where}: you were called and did not reach the counter.`],
+        waiting: ['Back in line', `${where}: you are waiting again.`],
+      };
+      const note = banner[ticket.status];
+      if (note) scheduleQueueUpdateNotification(note[0], note[1], ticket.id).catch(() => {});
       /* Pull the bell forward to meet the banner.
          The banner is local and fires the instant this 5s poll sees the change;
          the notification list is a separate query that polls every 20-30s. So
@@ -116,7 +132,9 @@ export default function TicketScreen() {
          the phone simply had not asked yet. Ask now. */
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
-      scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
+      scheduleQueueUpdateNotification('Wait time updated', Number(ticket.estimated_wait_minutes) > 0
+        ? `Your estimated wait is now ${ticket.estimated_wait_minutes} ${Number(ticket.estimated_wait_minutes) === 1 ? 'minute' : 'minutes'}.`
+        : 'You should be called any moment now.', ticket.id).catch(() => {});
     }
     // The ticket on the lock screen: a Live Activity on iOS, the ongoing
     // notification on Android (lib/liveTicket.ts).
@@ -242,6 +260,8 @@ export default function TicketScreen() {
   // Empty state — the centre tab sits hollow when this is what you'd land on.
   if (!ticketId) return (
     <View style={{ flex: 1, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+      {/* Light status bar over the dark screen; leaving hands it back. */}
+      {focused && <StatusBar style="light" />}
       <View style={{ width: 132, height: 132, borderRadius: 44, backgroundColor: 'rgba(255,255,255,.07)', alignItems: 'center', justifyContent: 'center', marginBottom: 26 }}>
         <Icon name="ticketOutline" size={62} color="rgba(255,255,255,.4)" />
       </View>
@@ -294,6 +314,8 @@ export default function TicketScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.dark }}>
+      {/* Light status bar over the dark screen; leaving hands it back. */}
+      {focused && <StatusBar style="light" />}
       {/* The terminal does not scroll; the paper does. Keeping the header above
           the slot is what lets the ticket feed back INTO the machine when you
           scroll it up, instead of sliding under a picture of one. */}
@@ -317,7 +339,7 @@ export default function TicketScreen() {
         {/* status banner — the one thing that must never be missed */}
         {(called || inService) && (
           <View style={{ backgroundColor: called ? colors.accent : colors.light, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-            <Icon name="check" size={22} color="#fff" />
+            <Icon name="check" size={22} color="#fff" knockout={called ? colors.accent : colors.light} />
             <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{statusLabel}</Text>
           </View>
         )}
