@@ -88,7 +88,7 @@ export default function LineHelperScreen() {
     return [
       { label: 'Helper joins the line', at: joinAt, dot: D.accentBright, icon: 'list' as const },
       { label: 'You leave home', at: leaveAt, dot: '#f5a623', icon: 'home' as const },
-      { label: 'You arrive and check in', at: new Date(target.getTime() - 2 * 60000), dot: D.sub, icon: 'log-in-outline' as const },
+      { label: 'You reach the branch', at: new Date(target.getTime() - 2 * 60000), dot: D.sub, icon: 'log-in-outline' as const },
       { label: 'Called to counter', at: target, dot: D.good, icon: 'notifications' as const },
     ].sort((a, b) => a.at.getTime() - b.at.getTime());
   }, [joinAt, leaveAt, target]);

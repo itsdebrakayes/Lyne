@@ -213,7 +213,7 @@ async function yieldAbsentHolders() {
 
       if (Number(c.passes_used) + 1 > Number(c.max_pass_turns)) {
         await conn.query(
-          `UPDATE queue_tickets SET status = 'no_show', closed_reason = 'helper_passes_exhausted', updated_at = NOW()
+          `UPDATE queue_tickets SET status = 'no_show', closed_reason = 'helper_passes_exhausted', completed_at = NOW()
             WHERE id = ?`, [c.ticket_id]);
         await conn.query(`UPDATE line_helper_requests SET status = 'expired' WHERE id = ?`, [c.id]);
         await conn.query(
