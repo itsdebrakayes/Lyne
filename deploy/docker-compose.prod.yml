@@ -103,8 +103,8 @@ services:
       APNS_BUNDLE_ID:           ${APNS_BUNDLE_ID:-com.lyne.mobile}
       APNS_ENV:                 ${APNS_ENV:-production}
 
-      # In-app purchase verification. Empty = /api/iap/verify refuses, so
-      # nobody is granted Premium on an unchecked receipt.
+      # In-app purchase verification — unused in 1.0 (payments are off and
+      # /api/iap answers "not available" without reading these). Optional.
       APPSTORE_ISSUER_ID:       ${APPSTORE_ISSUER_ID:-}
       APPSTORE_KEY_ID:          ${APPSTORE_KEY_ID:-}
       APPSTORE_PRIVATE_KEY:     ${APPSTORE_PRIVATE_KEY:-}

@@ -17,7 +17,6 @@ It covers everything for the resubmission that happens outside the code:
 | Thing | Where |
 |---|---|
 | Your Apple ID password and phone (two-factor codes) | You |
-| Prices for Premium monthly and yearly | Your decision. The prompt asks; it will not pick them |
 | The reviewer account password | You type it into App Store Connect and Play Console yourself |
 | Droplet IP and `doadmin` password | DigitalOcean, as before |
 
@@ -26,6 +25,8 @@ It covers everything for the resubmission that happens outside the code:
 ```
 You are getting Lyne 1.0 ready for its second App Store and Google Play
 submission. The code is finished and tested; what is left is outside the code.
+Lyne 1.0 is FREE: it sells nothing, has no in-app purchases and no
+subscriptions. Do not create any purchase products, agreements or keys.
 The repository is ~/Developer/Lyne (GitHub: itsdebrakayes/Lyne). Production is
 already deployed: read deploy/README.md and docs/launch/cowork-deploy-prompt.md
 for how it was set up.
@@ -73,62 +74,45 @@ d. Clean up old sign-up data. Earlier app versions put the TRN into
      update auth.users set raw_user_meta_data = raw_user_meta_data - 'trn'
       where raw_user_meta_data ? 'trn';
 
-== STEP 3 — APPLE KEYS (browser: developer.apple.com and App Store Connect) ==
+== STEP 3 — APPLE (browser: developer.apple.com) ==
 
-a. APNs key for Live Activities. In Certificates, IDs & Profiles → Keys, first
-   check whether key 549M7577B2 (the AuthKey_549M7577B2.p8 already in
-   secrets/) has "Apple Push Notifications service" enabled.
-   - If it does, reuse it: APNS_KEY_ID=549M7577B2.
-   - If not, create a new key with APNs enabled, name it "Lyne APNs", and
-     download it into ~/Developer/Lyne/secrets/. Apple allows only one
-     download.
-   Team ID is UD8HYB75P4.
-b. In-App Purchase key. App Store Connect → Users and Access → Integrations →
-   In-App Purchase → generate a key named "Lyne IAP verification". Download
-   the .p8 into secrets/ and note the Key ID and the Issuer ID shown on that
-   page.
-c. Identifiers: confirm both com.lyne.mobile and com.lyne.mobile.liveactivity
-   exist (EAS registered the second one today).
+a. APNs key for Live Activities: do NOT create a new key. Reuse the existing
+   "Expo Push Notifications Key", Key ID 6H44RYBAX3 (APNs, sandbox and
+   production), Team ID UD8HYB75P4. Its .p8 is already in
+   ~/Developer/Lyne/secrets/apns-6H44RYBAX3.p8. Just confirm in Certificates,
+   IDs & Profiles → Keys that 6H44RYBAX3 still exists with APNs enabled.
+   Key 549M7577B2 is the Sign in with Apple key and has NO push service; do
+   not use it for APNs.
+b. Identifiers: confirm both com.lyne.mobile and com.lyne.mobile.liveactivity
+   exist (EAS registered the second one).
 
-== STEP 4 — APP STORE CONNECT: SUBSCRIPTIONS AND REVIEW INFO ==
+== STEP 4 — APP STORE CONNECT: PRIVACY AND REVIEW INFO ==
 
-a. Business: make sure the Paid Apps agreement is Active, with banking and
-   tax complete. If anything is pending, tell me exactly what it asks for and
-   stop on that item; keep going with the rest.
-b. Lyne → Monetization → Subscriptions. Create the group "Lyne Premium", with
-   two auto-renewable subscriptions whose Product IDs are EXACTLY:
-     com.lyne.mobile.premium.monthly   (1 month)
-     com.lyne.mobile.premium.yearly    (1 year)
-   Prices: ASK ME. Display name "Lyne Premium Monthly" / "Lyne Premium
-   Yearly". Description: "Busy times, the week planner and Line Helper."
-   Review screenshot: the Premium screen from store-assets (or ask me for
-   one). Leave both "Ready to Submit"; they go to review with the build.
-c. App Privacy: add "Purchases → Purchase History", linked to the user, used
-   for App Functionality, not for tracking. Change nothing else without
-   asking me.
-d. App Review Information → Notes: paste the fenced block under "Paste into
-   App Store Connect" in docs/app-review-notes.md, exactly. Sign-in required:
-   yes. Username appreview@uselyne.com. Let ME type the password.
+a. App Privacy: location is now used on the device only and never leaves it.
+   Remove "Location" (Coarse/Precise) from the data the app collects. Make
+   sure nothing under "Purchases" is declared. Show me the summary before
+   saving and change nothing else without asking me.
+b. App Review Information → Notes: paste the fenced block under "Paste into
+   App Store Connect" in docs/app-review-notes.md, exactly (it is under
+   3,900 characters). Sign-in required: yes. Username appreview@uselyne.com.
+   Let ME type the password.
+c. If an "In-App Purchases" section or any subscription was created for this
+   app earlier, tell me what is there; do not attach any to the build.
 
 == STEP 5 — GOOGLE (browser: Google Cloud console and Play Console) ==
 
-a. Service account for Play. In the Google Cloud project linked to Play
-   Console (Play Console → Setup → API access shows which one):
+a. Service account for Play submission. In the Google Cloud project linked to
+   Play Console (Play Console → Setup → API access shows which one):
    - create a service account "lyne-play",
    - create a JSON key and save it as
      ~/Developer/Lyne/secrets/play-service-account.json (eas.json submits
      Android with that exact path),
    - in Play Console → Users and permissions, invite its email with access to
-     Lyne and the permissions "View financial data", "Manage orders and
-     subscriptions" and "Release to testing tracks".
-b. Play Console → Lyne → Monetize → Subscriptions. Create two subscriptions
-   with Product IDs EXACTLY com.lyne.mobile.premium.monthly and
-   com.lyne.mobile.premium.yearly. Each gets one auto-renewing base plan
-   (P1M / P1Y). Same prices as Apple (ASK ME). Activate them.
-c. App content → Data safety: add "Financial info → Purchase history",
-   collected, not shared, for App functionality. Show me the summary before
-   saving.
-d. App content → App access: paste the fenced block under "Play Console →
+     Lyne and the permission "Release to testing tracks".
+b. App content → Data safety: remove "Location" from collected data (it is
+   used on the device only), and make sure no financial or purchase data is
+   declared. Show me the summary before saving.
+c. App content → App access: paste the fenced block under "Play Console →
    App access" in docs/app-review-notes.md. Let ME type the reviewer password.
 
 == STEP 6 — PRODUCTION SERVER (shell: ssh lyne@<droplet-ip>) ==
@@ -138,18 +122,17 @@ b. Back up the database (deploy/README.md shows how), then apply, in order,
    using the doadmin login exactly as deploy/README.md "Deploying a change
    later" shows:
      database/migrations/036_live_activity_tokens.sql
-     database/migrations/037_iap_subscriptions.sql
-c. Add to /srv/lyne/.env. deploy/env.production.example documents each one.
-   Put each .p8 and the Play JSON on ONE line, writing each newline as \n,
-   inside single quotes.
-     APNS_KEY_ID, APNS_TEAM_ID=UD8HYB75P4, APNS_PRIVATE_KEY, APNS_ENV=production
-     APPSTORE_ISSUER_ID, APPSTORE_KEY_ID, APPSTORE_PRIVATE_KEY
-     GOOGLE_PLAY_SERVICE_ACCOUNT, PLAY_PACKAGE_NAME=com.lyne.mobile
-   Copy the key files to the droplet over scp only, and delete any temporary
-   copy afterwards.
-d. bash deploy/deploy.sh, then bash deploy/verify.sh. Also check:
-     curl -s https://api.uselyne.com/api/iap/products
-   It must list both product IDs.
+   Do NOT apply 037_iap_subscriptions.sql: payments are off in 1.0.
+c. Add to /srv/lyne/.env (deploy/env.production.example documents them):
+     APNS_KEY_ID=6H44RYBAX3
+     APNS_TEAM_ID=UD8HYB75P4
+     APNS_PRIVATE_KEY   the contents of secrets/apns-6H44RYBAX3.p8 on ONE
+                        line, each newline written as \n, inside single quotes
+     APNS_ENV=production
+   Do NOT add any APPSTORE_* or GOOGLE_PLAY_SERVICE_ACCOUNT billing variable;
+   the server does not need them. Copy the .p8 to the droplet over scp only and
+   delete any temporary copy afterwards. Never print it.
+d. bash deploy/deploy.sh, then bash deploy/verify.sh.
 e. Reviewer data. Ask me first, take another backup, then run, in order:
      database/review_tenant_seed.sql
      database/review_tenant_history.sql
@@ -167,7 +150,7 @@ or reinstall the app so it picks up main. Then open
 https://uselyne.com/auth/confirmed: it must say "We could not confirm this
 link". That is correct with no token in the address.
 
-== STEP 8 — iOS BUILD (shell, interactive) ==
+== STEP 8 — BUILDS (shell, interactive for iOS) ==
 
 The automatic build stopped because the new Live Activity extension
 (com.lyne.mobile.liveactivity) needs its own provisioning profile, which EAS
@@ -181,15 +164,20 @@ STOP and let me sign in (two-factor). Let it create the provisioning profile
 for the extension and reuse the existing distribution certificate. Report the
 build URL.
 
-The Android build was already started:
-https://expo.dev/accounts/itsdebrakaye/projects/lyne/builds/c1c814c7-3994-4a42-a5e8-7b2b8cd0d404
-Check that it finished.
+Then build Android from the same code:
+  npx eas-cli@latest build --platform android --profile production
+
+Do NOT submit the earlier Android build (versionCode 6,
+https://expo.dev/accounts/itsdebrakaye/projects/lyne/builds/c1c814c7-3994-4a42-a5e8-7b2b8cd0d404):
+it predates the free release and still contains the paywall and the billing
+library. Only submit builds made after step 1's push.
 
 == STEP 9 — SUBMIT TO TESTING TRACKS (not to review) ==
 
-When both builds have finished:
-  npx eas-cli@latest submit --platform ios --profile production --latest
-  npx eas-cli@latest submit --platform android --profile production --latest
+When both new builds have finished, submit each by its build ID (not
+--latest, so the old Android build cannot be picked up by mistake):
+  npx eas-cli@latest submit --platform ios --profile production --id <ios-build-id>
+  npx eas-cli@latest submit --platform android --profile production --id <android-build-id>
 iOS goes to TestFlight. Android goes to the internal track as a DRAFT
 (eas.json). Do NOT press "Submit for review" in either console. I will test
 both on real phones first, and we still have screen recordings to make.
