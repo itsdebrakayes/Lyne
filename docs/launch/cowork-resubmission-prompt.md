@@ -133,6 +133,10 @@ c. Add to /srv/lyne/.env (deploy/env.production.example documents them):
    the server does not need them. Copy the .p8 to the droplet over scp only and
    delete any temporary copy afterwards. Never print it.
 d. bash deploy/deploy.sh, then bash deploy/verify.sh.
+   Then run the READ-ONLY readiness check and show me its table:
+     mysql ... lyne < database/checks/review_readiness.sql
+   Every row must read OK before submitting, except the two informational
+   ones (037 absent is expected; is_premium accounts are harmless).
 e. Reviewer data. Ask me first, take another backup, then run, in order:
      database/review_tenant_seed.sql
      database/review_tenant_history.sql
@@ -140,7 +144,9 @@ e. Reviewer data. Ask me first, take another backup, then run, in order:
      select count(*) from wait_time_records w
        join queue_tickets t on t.id = w.ticket_id
       where t.id like 't-rvh-%';
-   Expect about 13,800.
+   Expect about 13,800. Then run database/checks/review_readiness.sql again;
+   the Blue Harbour rows must now read OK. The reviewer rows need the
+   reviewer account to have signed in once on a real device.
 
 == STEP 7 — WEBSITE (GoDaddy) ==
 
