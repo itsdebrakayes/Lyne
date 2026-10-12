@@ -265,6 +265,9 @@ async function resolveQueue(conn, session) {
 }
 
 function broadcast(queueId, ticket) {
+  /* Every live ticket in this queue has a new place in line: push it to their
+     lock screens (Live Activity) and Android ongoing notifications. */
+  require('../utils/liveUpdates').scheduleQueueRefresh(queueId, ticket);
   try {
     const { broadcastQueueUpdate } = require('./sse');
     broadcastQueueUpdate(queueId, ticket).catch(() => {});

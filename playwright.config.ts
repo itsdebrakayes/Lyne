@@ -34,6 +34,12 @@ export default defineConfig({
   },
   projects: [
     {
+      /* The public website, built and served: `cd apps/website && npx vite build --outDir /tmp/lyne-website-dist && npx vite preview --outDir /tmp/lyne-website-dist --port 8086`. No sign-in. */
+      name: 'website',
+      testMatch: /web-.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], baseURL: process.env.WEBSITE_URL || 'http://localhost:8086' },
+    },
+    {
       name: 'admin',
       testMatch: /admin-.*\.spec\.ts|api-.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
@@ -58,11 +64,25 @@ export default defineConfig({
          time, and without them the app cannot reach anything. Until that is
          wired, this points at the dev server and tolerates one retry. */
       retries: 1,
-      testMatch: /mobile-.*\.spec\.ts/,
+      testMatch: /mobile-(feedback|release)\.spec\.ts/,
       /* Pixel 5, not an iPhone: the iPhone profiles run WebKit, and only
          Chromium is installed here. What is under test is the React tree the
          native app also renders, so the engine is not the variable that
          matters — the phone-sized viewport and touch emulation are. */
+      use: { ...devices['Pixel 5'], baseURL: process.env.MOBILE_URL || 'http://localhost:5173' },
+    },
+    {
+      /* One manual sign-in (see e2e/customer.setup.ts). Run headed. */
+      name: 'customer-setup',
+      testMatch: /customer\.setup\.ts/,
+      use: { ...devices['Pixel 5'], headless: false },
+    },
+    {
+      /* Signed-in customer checks, reusing that session. Not dependent on the
+         setup project: the saved session is reused until it expires. */
+      name: 'customer',
+      testMatch: /mobile-customer\.spec\.ts/,
+      timeout: 240_000,
       use: { ...devices['Pixel 5'], baseURL: process.env.MOBILE_URL || 'http://localhost:5173' },
     },
   ],

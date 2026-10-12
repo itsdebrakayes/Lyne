@@ -30,6 +30,9 @@ function freshDb() {
     }],
     revocations: [],
     audit: [],
+    ocr_results: [],
+    intake_forms: [],
+    session_registrations: [],
   };
 }
 
@@ -144,6 +147,22 @@ function fakeQuery(sql, params = []) {
   if (q.startsWith('SELECT * FROM users WHERE id')) {
     const user = db.users.find((row) => row.id === params[0]);
     return [user ? [{ ...user }] : []];
+  }
+  if (q.startsWith('DELETE FROM ocr_results WHERE user_id')) {
+    db.ocr_results = db.ocr_results.filter((row) => row.user_id !== params[0]);
+    return [{ affectedRows: 1 }];
+  }
+  if (q.startsWith('DELETE FROM intake_forms WHERE user_id')) {
+    db.intake_forms = db.intake_forms.filter((row) => row.user_id !== params[0]);
+    return [{ affectedRows: 1 }];
+  }
+  if (q.startsWith('UPDATE queue_tickets SET guest_name = NULL')) {
+    for (const t of db.tickets) if (t.user_id === params[0]) Object.assign(t, { guest_name: null, guest_phone: null, guest_access_token: null });
+    return [{ affectedRows: 1 }];
+  }
+  if (q.startsWith('UPDATE session_registrations SET guest_name = NULL')) {
+    for (const r of db.session_registrations) if (r.user_id === params[0]) Object.assign(r, { guest_name: null, guest_phone: null, guest_email: null });
+    return [{ affectedRows: 1 }];
   }
   if (q.startsWith('DELETE FROM users WHERE id')) {
     const before = db.users.length;

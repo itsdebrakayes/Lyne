@@ -163,3 +163,18 @@ test('sync-user will not store a TRN or national ID either', async () => {
   assert.equal(db.users[0].trn, undefined);
   assert.equal(db.users[0].national_id, undefined);
 });
+
+test('deletion removes ID scans and intake answers, and scrubs names left on old records', async () => {
+  db.ocr_results.push({ id: 'ocr-1', user_id: 'user-1', extracted_trn: '123-456-789' });
+  db.intake_forms.push({ id: 'form-1', user_id: 'user-1', form_data: '{"reason":"passport"}' });
+  db.tickets.push({ id: 'ticket-old', user_id: 'user-1', status: 'served', guest_name: 'A Customer', guest_phone: '876 555 0100' });
+  db.session_registrations.push({ id: 'reg-1', user_id: 'user-1', guest_name: 'A Customer', guest_email: 'customer@test.jm' });
+
+  const result = await callAs('user-1', '/api/auth/account', { method: 'DELETE' });
+  assert.equal(result.status, 200);
+  assert.equal(db.ocr_results.length, 0, 'a scanned TRN left behind with a null user_id is still personal data');
+  assert.equal(db.intake_forms.length, 0);
+  assert.equal(db.tickets[0].guest_name, null);
+  assert.equal(db.tickets[0].guest_phone, null);
+  assert.equal(db.session_registrations[0].guest_email, null);
+});

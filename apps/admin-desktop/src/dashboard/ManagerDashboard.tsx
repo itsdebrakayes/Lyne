@@ -31,6 +31,7 @@ import { ManagerReadinessWorkspace, type ReadinessService } from '../components/
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
 import { CustomerDirectory } from '../components/dashboard/CustomerDirectory';
+import { parseDateOnly } from '../lib/dates';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -549,7 +550,7 @@ export function DemandCard({ preds, branchId, span }: { preds: any[]; branchId?:
     <Card span={span} title="Expected Demand · Next 7 Days" cap="Forecast Arrivals — Schedule & Holiday Aware">
       {days.length ? days.map((day) => (
         <div key={day.date} className="qa-svcrow" style={{ gridTemplateColumns: '1fr 1fr 44px' }}>
-          <span className="nm">{day.label} · {new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+          <span className="nm">{day.label} · {parseDateOnly(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
           <span className="bar" style={{ height: 7, borderRadius: 5, background: 'var(--qa-surface-3)', overflow: 'hidden', alignSelf: 'center' }}>
             <i style={{ display: 'block', height: '100%', width: `${Math.max(8, (day.expected / max) * 100)}%`, background: day.surge ? 'var(--qa-neg)' : 'var(--qa-accent)' }} />
           </span>

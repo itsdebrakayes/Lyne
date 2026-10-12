@@ -21,6 +21,8 @@
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { issueTicketSlot } = require('../utils/ticketSlot');
+const { ensureQueuesForToday } = require('../routes/queues');
+const { sendPushToUser } = require('../utils/pushSender');
 
 /** Joins at most this many per tick, so a backlog cannot monopolise a minute. */
 const BATCH = 50;
@@ -35,7 +37,7 @@ const BATCH = 50;
  */
 async function joinDueHelpers(now = new Date()) {
   const [due] = await pool.query(
-    `SELECT h.id, h.user_id, h.branch_id, h.service_id, h.target_served_at
+    `SELECT h.id, h.user_id, h.business_id, h.branch_id, h.service_id, h.target_served_at
        FROM line_helper_requests h
       WHERE h.status = 'scheduled'
         AND h.scheduled_join_at <= ?
@@ -60,9 +62,13 @@ async function joinDueHelpers(now = new Date()) {
       );
       if (!claim.affectedRows) { await conn.rollback(); continue; }
 
+      /* TODAY's queue, opened first if nobody has opened the day yet. Without
+         the date this picked any active queue row for the service, which
+         could be an earlier day's that was never closed. */
+      await ensureQueuesForToday(h.business_id, h.branch_id);
       const [[queue]] = await conn.query(
         `SELECT id, branch_id FROM queues
-          WHERE branch_id = ? AND service_id = ? AND is_active = TRUE
+          WHERE branch_id = ? AND service_id = ? AND is_active = TRUE AND queue_date = CURDATE()
           LIMIT 1 FOR UPDATE`,
         [h.branch_id, h.service_id]
       );
@@ -74,6 +80,11 @@ async function joinDueHelpers(now = new Date()) {
         await conn.query(`UPDATE line_helper_requests SET status = 'expired' WHERE id = ?`, [h.id]);
         await conn.commit();
         skipped += 1;
+        await sendPushToUser(h.user_id, {
+          title: 'Your Line Helper could not join',
+          body: 'The line was not open at the time you chose. Open Lyne to pick another time.',
+          data: { type: 'helper_expired', helperId: h.id },
+        });
         continue;
       }
 
@@ -148,6 +159,16 @@ async function joinDueHelpers(now = new Date()) {
 
       await conn.commit();
       joined += 1;
+
+      /* And on the phone. The customer booked this days ago; a helper that
+         joins without a push is one they only discover by opening the app.
+         Lock-screen wording stays vague by design (no agency, no service) —
+         see the privacy text — so it says what happened and where they are. */
+      await sendPushToUser(h.user_id, {
+        title: 'Your Line Helper joined the line',
+        body: `You're number ${slot.position} · ticket ${ticketNumber}. Open Lyne to see when to leave.`,
+        data: { type: 'helper_joined', ticketId, helperId: h.id },
+      });
     } catch (err) {
       await conn.rollback().catch(() => {});
       console.error('[LineHelper] join failed for', h.id, err.message);

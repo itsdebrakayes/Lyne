@@ -5,10 +5,14 @@
  * cut-out sized to the document, with guidance) or file upload → review (the
  * captured image + a confirm/enter field + optional Face ID protection) → save.
  *
- * OCR note: true on-device auto-extraction isn't available in Expo Go, so the
- * captured image is sent to the backend OCR service (Tesseract, server-side)
- * when reachable; until then it falls back to confirm/type. `attemptOcr` is the
- * single integration point.
+ * A number already saved opens on "on file" instead: masked, revealed only
+ * after Face ID or the device passcode when protection is on, then editable or
+ * removable. It used to open the same scan flow as a first-timer.
+ *
+ * Reading the number happens on the phone (modules/text-reader: Apple Vision,
+ * Google ML Kit), for photos and PDFs alike, and lib/trn.ts picks the TRN out
+ * of the text. When nothing convincing is found the field turns red and says
+ * so, with a retake, instead of silently staying empty.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -25,8 +29,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, inputReset } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import { getDocument, isProtected, setDocument, setProtected } from '../../lib/documentVault';
+import { clearDocument, getDocument, isProtected, setDocument, setProtected } from '../../lib/documentVault';
+import { readImageText, readPdfText } from '../../../modules/text-reader/src';
+import { extractTrn, formatTrn, isValidTrn } from '../../lib/trn';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useNavBarLift } from '../../lib/insets';
 
 type Field = 'national_id' | 'trn';
 interface DocConfig {
@@ -66,11 +74,15 @@ const DOC_CONFIG: Record<Field, DocConfig> = {
   },
 };
 
-// Placeholder for server-side OCR. Returns null today (Expo Go can't OCR
-// on-device); wire this to POST the image to the backend OCR endpoint once the
-// API is hosted, and it will pre-fill the field automatically.
-async function attemptOcr(_field: Field, _uri: string): Promise<string | null> {
-  return null;
+type Source = 'camera' | 'photo' | 'file';
+
+const READ_FAILED = "We couldn't read a TRN from this image. Retake the photo or type it in.";
+const READ_FAILED_PDF = "We couldn't read a TRN from this file. Choose another file or type it in.";
+
+/** "•••-•••-789": enough to recognise your own number, not enough to copy it. */
+function masked(value: string): string {
+  const d = value.replace(/\D/g, '');
+  return d.length >= 3 ? `•••-•••-${d.slice(-3)}` : '•••';
 }
 
 const protectKey = (field: Field) => `lyne.doc-protected.${field}`;
@@ -80,9 +92,16 @@ export default function DocumentCaptureScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'DocumentCapture'>>();
   const { user, refreshProfile } = useAuth();
   const { width } = useWindowDimensions();
+  const lift = useNavBarLift();
   const cfg = DOC_CONFIG[(route.params?.field as Field) || 'national_id'];
 
-  const [mode, setMode] = useState<'intro' | 'camera' | 'review'>('intro');
+  const [mode, setMode] = useState<'loading' | 'onfile' | 'intro' | 'camera' | 'review'>('loading');
+  const [saved, setSaved] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [source, setSource] = useState<Source | null>(null);
+  const [readFailed, setReadFailed] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   /* Loaded from the keychain below rather than read off the server profile.
      user.trn / user.national_id are always empty — the API refuses those
@@ -102,8 +121,8 @@ export default function DocumentCaptureScreen() {
     (async () => {
       const [saved, prot] = await Promise.all([getDocument(cfg.field), isProtected(cfg.field)]);
       if (cancelled) return;
-      if (saved) setValue(saved);
       setProtect(prot);
+      if (saved) { setSaved(saved); setValue(saved); setMode('onfile'); } else setMode('intro');
     })();
     return () => { cancelled = true; };
   }, [cfg.field]);
@@ -112,10 +131,45 @@ export default function DocumentCaptureScreen() {
   const frameW = Math.round(width * (cfg.kind === 'card' ? 0.84 : 0.72));
   const frameH = Math.round(cfg.kind === 'card' ? frameW / 1.586 : frameW * 1.32);
 
-  const runOcr = async (uri: string) => {
+  /* Only a TRN is read automatically: its shape is known (nine digits) and
+     lib/trn.ts can tell a real one from noise. A National ID scan keeps the
+     picture and leaves the number to be typed. */
+  const runOcr = async (uri: string, kind: 'image' | 'pdf') => {
+    setReadFailed(null);
+    if (cfg.field !== 'trn') return;
     setOcrBusy(true);
-    try { const found = await attemptOcr(cfg.field, uri); if (found) setValue(found); }
-    finally { setOcrBusy(false); }
+    try {
+      const lines = kind === 'pdf' ? await readPdfText(uri) : await readImageText(uri);
+      const found = extractTrn(lines);
+      if (found) setValue(found);
+      else setReadFailed(kind === 'pdf' ? READ_FAILED_PDF : READ_FAILED);
+    } catch {
+      setReadFailed(kind === 'pdf' ? READ_FAILED_PDF : READ_FAILED);
+    } finally {
+      setOcrBusy(false);
+    }
+  };
+
+  const retake = () => {
+    if (source === 'camera') openCamera();
+    else if (source === 'photo') pickImage();
+    else if (source === 'file') pickDocument();
+    else setMode('intro');
+  };
+
+  const reveal = async () => {
+    if (await unlockDocument(cfg.field)) setRevealed(true);
+  };
+
+  const editSaved = () => {
+    setValue(saved || ''); setImageUri(null); setFileName(null); setSource(null); setReadFailed(null);
+    setMode('review');
+  };
+
+  const removeSaved = async () => {
+    await clearDocument(cfg.field);
+    setSaved(null); setValue(''); setRevealed(false); setConfirmRemove(false); setProtect(false);
+    setMode('intro');
   };
 
   const openCamera = async () => {
@@ -130,14 +184,14 @@ export default function DocumentCaptureScreen() {
   const capture = async () => {
     try {
       const photo = await camRef.current?.takePictureAsync({ quality: 0.7 });
-      if (photo?.uri) { setImageUri(photo.uri); setMode('review'); runOcr(photo.uri); }
+      if (photo?.uri) { setSource('camera'); setFileName(null); setValue(''); setImageUri(photo.uri); setMode('review'); runOcr(photo.uri, 'image'); }
     } catch { setError('Could not take the photo. Try again or upload a file.'); }
   };
 
   const pickImage = async () => {
     setError('');
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (!res.canceled && res.assets[0]?.uri) { setImageUri(res.assets[0].uri); setMode('review'); runOcr(res.assets[0].uri); }
+    if (!res.canceled && res.assets[0]?.uri) { setSource('photo'); setFileName(null); setValue(''); setImageUri(res.assets[0].uri); setMode('review'); runOcr(res.assets[0].uri, 'image'); }
   };
 
   const pickDocument = async () => {
@@ -145,14 +199,18 @@ export default function DocumentCaptureScreen() {
     const res = await DocumentPicker.getDocumentAsync({ type: ['image/*', 'application/pdf'], copyToCacheDirectory: true });
     if (!res.canceled && res.assets?.[0]?.uri) {
       const a = res.assets[0];
-      setImageUri(a.mimeType?.startsWith('image/') ? a.uri : null);
+      const isImage = !!a.mimeType?.startsWith('image/');
+      setSource('file'); setValue('');
+      setImageUri(isImage ? a.uri : null);
+      setFileName(isImage ? null : a.name || 'Document.pdf');
       setMode('review');
-      if (a.mimeType?.startsWith('image/')) runOcr(a.uri);
+      runOcr(a.uri, isImage ? 'image' : 'pdf');
     }
   };
 
   const save = async () => {
     if (!value.trim()) { setError(`Enter or confirm your ${cfg.valueLabel.toLowerCase()} to save.`); return; }
+    if (cfg.field === 'trn' && !isValidTrn(value)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
     setBusy(true); setError('');
     try {
       /* The keychain, not the API.
@@ -161,7 +219,7 @@ export default function DocumentCaptureScreen() {
          then silently dropped. Nothing stored it, and the Profile row still
          read "Add TRN" afterwards. The vault is where the privacy policy says
          this lives, and now it actually does. */
-      await setDocument(cfg.field, value.trim());
+      await setDocument(cfg.field, cfg.field === 'trn' ? formatTrn(value.trim()) : value.trim());
       await setProtected(cfg.field, protect);
       navigation.goBack();
     } catch (e: unknown) {
@@ -190,7 +248,7 @@ export default function DocumentCaptureScreen() {
             <Ionicons name="close" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
-        <View style={{ position: 'absolute', bottom: 46, left: 0, right: 0, alignItems: 'center' }}>
+        <View style={{ position: 'absolute', bottom: 46 + lift, left: 0, right: 0, alignItems: 'center' }}>
           <TouchableOpacity onPress={capture} style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,.4)' }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.accent }} />
           </TouchableOpacity>
@@ -218,21 +276,80 @@ export default function DocumentCaptureScreen() {
               </View>
             </View>
           ) : null}
+          {mode === 'review' && fileName ? (
+            <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, marginBottom: 18, ...shadow.card }]}>
+              <Ionicons name="document-text-outline" size={22} color={colors.accentDeep} />
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.semibold, fontSize: 14, color: colors.ink }}>{fileName}</Text>
+            </View>
+          ) : null}
 
-          {mode === 'review' ? (
+          {mode === 'loading' ? (
+            <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
+          ) : mode === 'onfile' ? (
+            <>
+              <View style={[t.card, { padding: 18, ...shadow.card }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.light} />
+                  <Text style={{ fontFamily: font.bold, fontSize: 15, color: colors.ink }}>{cfg.title} on file</Text>
+                  {protect && <Ionicons name="lock-closed" size={14} color={colors.muted} style={{ marginLeft: 'auto' }} />}
+                </View>
+                <Text
+                  selectable={revealed}
+                  accessibilityLabel={revealed ? `${cfg.title} ${saved}` : `${cfg.title} hidden`}
+                  style={{ fontFamily: font.extra, fontSize: 24, letterSpacing: 1.5, color: colors.ink, marginTop: 14 }}
+                >
+                  {revealed ? saved : masked(saved || '')}
+                </Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>
+                  Kept on this phone only. Never uploaded.
+                </Text>
+              </View>
+              {!revealed ? (
+                <TouchableOpacity onPress={reveal} style={[t.primaryBtn, { minHeight: 54, marginTop: 18 }]} accessibilityRole="button">
+                  <Ionicons name={protect ? 'lock-open-outline' : 'eye-outline'} size={18} color={colors.onDark} />
+                  <Text style={[t.primaryBtnText, { marginLeft: 8 }]}>Show {cfg.title}</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
+                  <TouchableOpacity onPress={editSaved} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]} accessibilityRole="button">
+                    <Ionicons name="create-outline" size={18} color={colors.ink} />
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, marginLeft: 8 }}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setConfirmRemove(true)} style={[t.ghostBtn, { flex: 1, minHeight: 54 }]} accessibilityRole="button">
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.danger, marginLeft: 8 }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          ) : mode === 'review' ? (
             <>
               <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.sub, marginBottom: 7, marginLeft: 2 }}>
                 {cfg.valueLabel}{ocrBusy ? ' · reading…' : ''}
               </Text>
               <TextInput
                 value={value}
-                onChangeText={setValue}
+                onChangeText={(v) => { setValue(v); if (readFailed) setReadFailed(null); if (error) setError(''); }}
                 placeholder={cfg.placeholder}
                 placeholderTextColor={colors.faint}
                 keyboardType={cfg.keyboard}
                 autoCapitalize="characters"
-                style={[{ backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 16, height: 54, fontFamily: font.semibold, color: colors.ink, fontSize: 15 }, inputReset]}
+                accessibilityLabel={cfg.valueLabel}
+                accessibilityHint={readFailed || undefined}
+                style={[{ backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: readFailed ? colors.danger : colors.border, borderRadius: 16, paddingHorizontal: 16, height: 54, fontFamily: font.semibold, color: colors.ink, fontSize: 15 }, inputReset]}
               />
+              {readFailed && (
+                <View accessibilityLiveRegion="polite" style={{ backgroundColor: colors.dangerSoft, borderRadius: 14, padding: 14, marginTop: 10, gap: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Ionicons name="alert-circle" size={17} color={colors.danger} style={{ marginTop: 1 }} />
+                    <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{readFailed}</Text>
+                  </View>
+                  <TouchableOpacity onPress={retake} accessibilityRole="button" style={{ alignSelf: 'flex-start', minHeight: 40, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.danger, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name={source === 'file' ? 'document-attach-outline' : 'camera-outline'} size={16} color={colors.danger} />
+                    <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.danger }}>{source === 'file' ? 'Choose another file' : 'Retake'}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Face ID protection */}
               <View style={[t.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, marginTop: 16, ...shadow.card }]}>
@@ -240,8 +357,8 @@ export default function DocumentCaptureScreen() {
                   <Ionicons name="lock-closed-outline" size={18} color={colors.accentDeep} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.ink }}>Protect with Face ID</Text>
-                  <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 1 }}>Require Face ID to view this later</Text>
+                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.ink }}>{Platform.OS === 'ios' ? 'Protect with Face ID' : 'Protect with your fingerprint'}</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 1 }}>Ask for it, or your passcode, before showing this</Text>
                 </View>
                 <Switch value={protect} onValueChange={setProtect} trackColor={{ true: colors.accent, false: colors.border }} />
               </View>
@@ -251,8 +368,8 @@ export default function DocumentCaptureScreen() {
               <TouchableOpacity disabled={busy} onPress={save} style={[t.primaryBtn, { marginTop: 18, minHeight: 54 }]}>
                 {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>Save to profile</Text>}
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setImageUri(null); setMode('intro'); }} style={{ alignItems: 'center', marginTop: 14 }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>{imageUri ? 'Retake or choose again' : 'Back to options'}</Text>
+              <TouchableOpacity onPress={() => { setImageUri(null); setFileName(null); setReadFailed(null); setMode(saved ? 'onfile' : 'intro'); }} style={{ alignItems: 'center', marginTop: 14 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>{saved ? 'Cancel' : imageUri || fileName ? 'Retake or choose again' : 'Back to options'}</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -303,6 +420,16 @@ export default function DocumentCaptureScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <ConfirmSheet
+        visible={confirmRemove}
+        title={`Remove your ${cfg.title}?`}
+        message={`It is deleted from this phone. You can add it again any time.`}
+        confirmLabel="Remove"
+        cancelLabel="Keep it"
+        icon="trash-outline"
+        onConfirm={removeSaved}
+        onCancel={() => setConfirmRemove(false)}
+      />
     </View>
   );
 }
@@ -312,11 +439,16 @@ export default function DocumentCaptureScreen() {
  * Returns true if allowed (unprotected, or auth succeeded).
  */
 export async function unlockDocument(field: Field): Promise<boolean> {
-  const flag = (await isProtected(field)) ? '1' : '0';
-  if (flag !== '1') return true;
-  const hasHw = await LocalAuthentication.hasHardwareAsync();
-  const enrolled = await LocalAuthentication.isEnrolledAsync();
-  if (!hasHw || !enrolled) return true; // no biometrics available — don't lock the user out
-  const res = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock your saved document' });
+  if (!(await isProtected(field))) return true;
+  /* Biometrics where enrolled, otherwise the device passcode. A phone with no
+     lock at all has nothing to ask for, and locking the owner out of their own
+     number would be worse than showing it. */
+  const level = await LocalAuthentication.getEnrolledLevelAsync();
+  if (level === LocalAuthentication.SecurityLevel.NONE) return true;
+  const res = await LocalAuthentication.authenticateAsync({
+    promptMessage: 'Unlock your saved document',
+    fallbackLabel: 'Use passcode',
+    disableDeviceFallback: false,
+  });
   return res.success;
 }

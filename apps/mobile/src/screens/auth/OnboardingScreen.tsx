@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { activeScheme, colors, font, hexToRgba, shadow } from '../../lib/theme';
 import { useStage } from '../../lib/stage';
+import { useNavBarLift } from '../../lib/insets';
 
 type Tile = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string; h: number };
 
@@ -61,6 +62,7 @@ function MosaicColumn({ tiles, offset = 0 }: { tiles: Tile[]; offset?: number })
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   const { height } = useWindowDimensions();
+  const lift = useNavBarLift();
   const { wide, maxWidth, pad } = useStage();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -110,7 +112,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       <View style={{
         flex: 1, paddingHorizontal: pad,
         alignItems: 'center', justifyContent: wide ? 'center' : 'flex-end',
-        paddingBottom: wide ? 0 : 46,
+        paddingBottom: wide ? lift : 46 + lift,
       }}>
         <View style={{ width: '100%', maxWidth: maxWidth, alignItems: 'center' }}>
           <View style={{ width: wide ? 76 : 58, height: wide ? 76 : 58, borderRadius: wide ? 26 : 20, backgroundColor: colors.dark, alignItems: 'center', justifyContent: 'center', marginBottom: wide ? 30 : 22, ...shadow.card }}>

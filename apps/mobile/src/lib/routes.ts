@@ -10,7 +10,7 @@ export const MOBILE_ROUTES = {
   AUTH: {
     STACK:    'AuthStack',
     LOGIN:    'Login',
-    SIGNUP:   'Signup',
+    SIGNUP:   'Auth',
     ONBOARD:  'Onboarding',
   },
 

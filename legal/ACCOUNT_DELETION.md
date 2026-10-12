@@ -12,9 +12,9 @@ Google Play and the App Store both require that you be able to delete your accou
 
 This is the fastest way, and it takes effect immediately.
 
-1. Open Lyne and go to **Profile**.
-2. Scroll to **Delete account**.
-3. Tap **Delete my account** and confirm.
+1. Open Lyne and tap the person icon at the bottom right to open **Settings**.
+2. Scroll to the bottom and tap **Delete account**.
+3. Type **DELETE** and tap **Delete everything**.
 
 Your account is closed as soon as you confirm. There is no waiting period and no email round-trip.
 
@@ -33,11 +33,10 @@ We action deletion requests within **30 days**, and in practice much sooner. We 
 Deleting your account permanently removes:
 
 - Your profile — name, email address, phone number.
-- Any identification details you saved, such as a TRN or national ID.
+- Any TRN or national ID saved on that phone (these are kept only on your phone, never on our servers).
 - Your queue history, including which branches you visited and which services you joined.
 - Your notification history and any device tokens used to alert you.
 - Your saved agencies and preferences.
-- Any saved payment cards and your premium subscription, if you have one.
 
 Anything still active is closed as part of the same process: if you are holding a place in a line when you delete, that place is released.
 
@@ -47,7 +46,7 @@ Two narrow categories survive deletion, and neither of them identifies you.
 
 **Anonymous queue statistics.** Branches rely on aggregate figures — how long a line took, how many people were served in an hour — to staff their counters. Once your visit is stripped of everything that ties it to you, what remains is a number in an average. It cannot be traced back to you and is not used to build any profile.
 
-**Records the law requires us to keep.** Payment and tax records have a statutory retention period. We keep the minimum the law requires, for only as long as it requires, and we do not use them for anything else.
+**Records the law requires us to keep.** Where a law or a lawful request requires a specific record to be kept, we keep the minimum it requires, for only as long as it requires, and we do not use it for anything else. Lyne sells nothing in the app, so there are no payment records about you.
 
 ## Changing your mind
 

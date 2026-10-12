@@ -21,7 +21,9 @@
         "NSUserNotificationUsageDescription": "LYNE sends queue updates and departure reminders.",
         "NSCameraUsageDescription": "LYNE uses the camera to scan your ID, TRN or passport so agencies can verify you faster.",
         "NSPhotoLibraryUsageDescription": "LYNE lets you upload a photo or document of your ID, TRN or passport.",
-        "NSFaceIDUsageDescription": "LYNE uses Face ID to protect your saved documents and sensitive details."
+        "NSFaceIDUsageDescription": "LYNE uses Face ID to protect your saved documents and sensitive details.",
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -74,14 +76,6 @@
             ]
           },
           {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCoarseLocation",
-            "NSPrivacyCollectedDataTypeLinked": true,
-            "NSPrivacyCollectedDataTypeTracking": false,
-            "NSPrivacyCollectedDataTypePurposes": [
-              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
-            ]
-          },
-          {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
@@ -106,7 +100,8 @@
             ]
           }
         ]
-      }
+      },
+      "appleTeamId": "UD8HYB75P4"
     },
     "android": {
       "package": "com.lyne.mobile",
@@ -119,8 +114,17 @@
         "ACCESS_COARSE_LOCATION",
         "POST_NOTIFICATIONS",
         "CAMERA",
-        "READ_MEDIA_IMAGES",
         "USE_BIOMETRIC"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
       ]
     },
     "web": {
@@ -130,11 +134,11 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
-          "backgroundColor": "#0B1B3F",
+          "image": "./assets/splash-blank.png",
+          "imageWidth": 1,
+          "backgroundColor": "#0C1B40",
           "dark": {
-            "backgroundColor": "#0B1B3F"
+            "backgroundColor": "#0C1B40"
           },
           "resizeMode": "contain"
         }
@@ -147,18 +151,28 @@
           "sounds": []
         }
       ],
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lyne uses your location while the app is open to estimate when you should leave for the branch. It stays on your phone.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
       "expo-font",
       [
         "expo-camera",
         {
-          "cameraPermission": "LYNE uses the camera to scan your ID, TRN or passport."
+          "cameraPermission": "LYNE uses the camera to scan your ID, TRN or passport.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "LYNE lets you upload a photo of your ID, TRN or passport."
+          "photosPermission": "LYNE lets you upload a photo of your ID, TRN or passport.",
+          "microphonePermission": false
         }
       ],
       [
@@ -168,13 +182,13 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@bacons/apple-targets"
     ],
     "extra": {
       "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",
       "supabaseAnonKey": "sb_publishable_DlwXt8oEDcFNrYFmOMsxGA_z7qU9cXA",
       "apiUrl": "",
-      "stripePublishableKey": "",
       "eas": {
         "projectId": "7eb42042-2a2e-43df-860c-0c52eb3d9a94"
       }

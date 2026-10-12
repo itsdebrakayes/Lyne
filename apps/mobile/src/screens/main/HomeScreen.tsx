@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { colors, font, shadow, t, sp, type, initials, personInitials, statusFromWait, statusMeta, waitShort, waitPhrase, branchOpenInfo, isBranchOpen, openTimeLabel, hoursFromBranch, depthText, TAB_BAR_CLEARANCE, radius} from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary, orgAcronym, shortBranchName } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
@@ -99,6 +99,7 @@ function leaveLabel(iso?: string | null): string {
 
 export default function HomeScreen() {
   const topPad = useTopPad(18);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -311,7 +312,7 @@ export default function HomeScreen() {
   return (
     <View style={t.root}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE, ...column }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE + lift, ...column }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
@@ -365,25 +366,28 @@ export default function HomeScreen() {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14, ...shadow.card }}
+            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14, borderWidth: 1, borderColor: colors.borderSoft }}
           >
             <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="clock" size={23} color={colors.accent} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
-                {ticket.status === 'called' ? "It's your turn" : "You're in line"}
+                {ticket.status === 'called' ? "It's your turn" : ticket.status === 'in_service' ? 'You are being served' : "You're in line"}
               </Text>
-              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>
-                {ticket.branch_name || 'Your branch'} · {ahead} ahead
+              <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3 }}>
+                {ticket.branch_name || 'Your branch'}{ticket.status === 'waiting' ? ` · ${ahead} ahead` : ''}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <View style={{ backgroundColor: colors.dark, borderRadius: 9, paddingVertical: 8, paddingHorizontal: 8, minWidth: 32, alignItems: 'center' }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>{Math.max(0, Number(ticket.estimated_wait_minutes || 0))}</Text>
+            {ticket.status === 'waiting' && (
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 24, lineHeight: 26, letterSpacing: -0.6, color: colors.accent, fontVariant: ['tabular-nums'] }}>
+                  {Math.max(0, Number(ticket.estimated_wait_minutes || 0))}
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, letterSpacing: 0, color: colors.muted }}> min</Text>
+                </Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 4 }}>left to wait</Text>
               </View>
-              <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.muted }}>min</Text>
-            </View>
+            )}
           </TouchableOpacity>
         )}
 

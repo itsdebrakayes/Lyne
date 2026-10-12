@@ -138,3 +138,9 @@ certs/
 # Written by deploy/deploy.sh on the droplet: the commit of the last deploy
 # that passed its health check. Per-machine state, never committed.
 .deploy-last-good
+
+# compiled mobile unit tests
+apps/mobile/.test-build/
+
+# Playwright sessions saved by e2e/customer.setup.ts — never commit
+e2e/.auth/

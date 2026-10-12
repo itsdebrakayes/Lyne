@@ -21,6 +21,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
+import { useNavBarLift } from '../lib/insets';
 
 /** Values match the server's accepted set. Order is by how often we expect it. */
 export const LEAVE_REASONS: { value: string; label: string }[] = [
@@ -42,6 +43,7 @@ export function LeaveReasonSheet({
   onPick: (reason: string) => Promise<void> | void;
   onSkip: () => void;
 }) {
+  const lift = useNavBarLift();
   const [sending, setSending] = useState<string | null>(null);
 
   const choose = async (value: string) => {
@@ -58,7 +60,7 @@ export function LeaveReasonSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onSkip}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <TouchableOpacity activeOpacity={1} onPress={onSkip} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
-        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
 
           <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>
