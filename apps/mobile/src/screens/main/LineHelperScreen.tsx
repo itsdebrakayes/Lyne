@@ -81,18 +81,24 @@ export default function LineHelperScreen() {
   /* Quotes for all three chips at once, so the labels are real before anybody
      chooses. They come from the server because the prediction lives there and
      must match what the scheduler will actually use. */
+  type Quote = { wait: number | null; closed: string | null };
   const quotes = useQuery({
     queryKey: ['helper-quotes', branchId, serviceId, hourOptions.join(','), targetDow],
     queryFn: async () => {
-      const out: Record<number, number | null> = {};
+      const out: Record<number, Quote> = {};
       await Promise.all(hourOptions.map(async (h) => {
         try {
-          const r = await api.post<{ predicted_wait_minutes: number | null }>(
+          const r = await api.post<{ predicted_wait_minutes: number | null; available?: boolean; message?: string }>(
             '/line-helper/quote',
             { branch_id: branchId, service_id: serviceId, target_served_at: dateFor(h).toISOString() },
           );
-          out[h] = r.predicted_wait_minutes;
-        } catch { out[h] = null; }
+          /* available: false means the branch does not serve this then (closed,
+             or the service is not offered). Shown as Closed and never
+             selectable, so the app cannot offer a time the server refuses. */
+          out[h] = r.available === false
+            ? { wait: null, closed: r.message || 'Not available at that time.' }
+            : { wait: r.predicted_wait_minutes, closed: null };
+        } catch { out[h] = { wait: null, closed: null }; }
       }));
       return out;
     },
@@ -100,7 +106,8 @@ export default function LineHelperScreen() {
     staleTime: 1000 * 60 * 10,
   });
 
-  const waitFor = (h: number) => quotes.data?.[h] ?? null;
+  const waitFor = (h: number) => quotes.data?.[h]?.wait ?? null;
+  const closedFor = (h: number) => quotes.data?.[h]?.closed ?? null;
   const chosenWait = waitFor(hour);
   const target = dateFor(hour);
   const joinAt = chosenWait === null ? null : new Date(target.getTime() - chosenWait * 60000);
@@ -111,7 +118,7 @@ export default function LineHelperScreen() {
   useEffect(() => {
     if (!quotes.data) return;
     if (waitFor(hour) !== null) return;
-    const usable = hourOptions.find((h) => quotes.data?.[h] !== null);
+    const usable = hourOptions.find((h) => waitFor(h) !== null);
     if (usable !== undefined) setHour(usable);
   }, [quotes.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -180,7 +187,7 @@ export default function LineHelperScreen() {
                     {clock(dateFor(h))}
                   </Text>
                   <Text style={{ fontFamily: font.medium, fontSize: 12, marginTop: 2, color: on ? '#fff' : D.ink, opacity: 0.65 }}>
-                    {quotes.isLoading ? '…' : usable ? `~${w} min wait` : 'No history'}
+                    {quotes.isLoading ? '…' : usable ? `~${w} min wait` : closedFor(h) ? 'Closed' : 'No history'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -260,7 +267,7 @@ export default function LineHelperScreen() {
             <ActivityIndicator color="#fff" />
           ) : !joinAt ? (
             <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.65)', lineHeight: 19 }}>
-              There is not enough history for that slot yet, so a helper would be guessing at when to join. Pick another time.
+              {closedFor(hour) || 'There is not enough history for that slot yet, so a helper would be guessing at when to join. Pick another time.'}
             </Text>
           ) : (
             <View style={{ gap: 8 }}>

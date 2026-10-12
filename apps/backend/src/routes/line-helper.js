@@ -28,6 +28,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { hasPremium } = require('../lib/premium');
+const { serviceAvailableAt } = require('../utils/serviceAvailability');
 
 const router = express.Router();
 
@@ -139,8 +140,18 @@ router.post('/quote', requireAuth, validate(schemas.lineHelperQuote), async (req
     if (Number.isNaN(target.getTime())) {
       return res.status(400).json({ error: 'That is not a valid time.' });
     }
+    /* Same rule scheduling enforces, so the app is never shown a time the
+       server would then refuse. */
+    const availability = await serviceAvailableAt(pool, branchId, serviceId, target);
+    if (!availability.ok) {
+      return res.json({
+        predicted_wait_minutes: null, enough_history: false,
+        available: false, reason: availability.reason, message: availability.message,
+      });
+    }
     const wait = await predictWait(branchId, serviceId, target.getDay(), target.getHours());
     res.json({
+      available: true,
       predicted_wait_minutes: wait,
       /* Null is a real answer and the client must say so rather than showing a
          confident zero. */
@@ -194,11 +205,16 @@ router.post('/', requireAuth, validate(schemas.lineHelperCreate), async (req, re
       return res.status(409).json({ error: `${branch.name} does not offer Line Helper.` });
     }
 
-    const [[queue]] = await conn.query(
-      `SELECT id FROM queues WHERE branch_id = ? AND service_id = ? AND is_active = TRUE LIMIT 1`,
-      [branchId, serviceId]
-    );
-    if (!queue) { await conn.rollback(); return res.status(404).json({ error: 'That service is not running at this branch.' }); }
+    /* The branch must offer the service and be open at that time. NOT "is a
+       queue row active right now": queues are created a day at a time, so a
+       helper for any later day (or before today's queue opened) was refused
+       with "That service is not running at this branch" for a slot the app
+       had just recommended. */
+    const availability = await serviceAvailableAt(conn, branchId, serviceId, target);
+    if (!availability.ok) {
+      await conn.rollback();
+      return res.status(409).json({ error: availability.message, reason: availability.reason });
+    }
 
     /* ONE AT A TIME, for the same reason the app allows one live ticket: two
        helpers holding two places for one person is the abuse this feature would

@@ -21,6 +21,7 @@
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { issueTicketSlot } = require('../utils/ticketSlot');
+const { ensureQueuesForToday } = require('../routes/queues');
 
 /** Joins at most this many per tick, so a backlog cannot monopolise a minute. */
 const BATCH = 50;
@@ -35,7 +36,7 @@ const BATCH = 50;
  */
 async function joinDueHelpers(now = new Date()) {
   const [due] = await pool.query(
-    `SELECT h.id, h.user_id, h.branch_id, h.service_id, h.target_served_at
+    `SELECT h.id, h.user_id, h.business_id, h.branch_id, h.service_id, h.target_served_at
        FROM line_helper_requests h
       WHERE h.status = 'scheduled'
         AND h.scheduled_join_at <= ?
@@ -60,9 +61,13 @@ async function joinDueHelpers(now = new Date()) {
       );
       if (!claim.affectedRows) { await conn.rollback(); continue; }
 
+      /* TODAY's queue, opened first if nobody has opened the day yet. Without
+         the date this picked any active queue row for the service, which
+         could be an earlier day's that was never closed. */
+      await ensureQueuesForToday(h.business_id, h.branch_id);
       const [[queue]] = await conn.query(
         `SELECT id, branch_id FROM queues
-          WHERE branch_id = ? AND service_id = ? AND is_active = TRUE
+          WHERE branch_id = ? AND service_id = ? AND is_active = TRUE AND queue_date = CURDATE()
           LIMIT 1 FOR UPDATE`,
         [h.branch_id, h.service_id]
       );
