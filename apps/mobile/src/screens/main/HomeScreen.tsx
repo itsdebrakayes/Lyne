@@ -88,13 +88,18 @@ function Monogram({ label, size = 60, radius = 30, bg = colors.surface, fg = col
   );
 }
 
-/** "10:35" — the time on the hero's helper button. */
+/** "10:35 AM" today, "Wed 1:35 PM" on another day — the time on the hero's
+    helper button. A helper is booked days ahead, and a bare "1:35" for
+    Wednesday read as this afternoon. */
 function leaveLabel(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   const h = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
-  return `${h}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const time = `${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return time;
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${time}`;
 }
 
 export default function HomeScreen() {
