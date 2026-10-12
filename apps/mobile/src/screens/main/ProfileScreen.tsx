@@ -6,14 +6,12 @@ import { useQuery } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../hooks/useAuth';
 import { getDocument, setDocument } from '../../lib/documentVault';
-import { PREMIUM_ENABLED } from '../../lib/features';
 import api, { supabase } from '../../lib/apiClient';
 import { colors, font, shadow, t, personInitials, inputReset, TAB_BAR_CLEARANCE } from '../../lib/theme';
 import Constants from 'expo-constants';
 
 const appVersion = Constants.expoConfig?.version || '';
 import Icon, { IconName } from '../../components/Icon';
-import { PremiumBadge } from '../../components/PremiumBadge';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
@@ -201,25 +199,6 @@ export default function ProfileScreen() {
           </View>
           <Icon name="chevronRight" size={16} color={colors.chevron} />
         </TouchableOpacity>
-
-        {/* premium */}
-        {PREMIUM_ENABLED && (
-          <TouchableOpacity onPress={() => navigation.navigate('Premium')} accessibilityRole="button"
-            style={{ marginTop: 12, backgroundColor: colors.dark, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontFamily: font.semibold, fontSize: 15, color: '#fff' }}>Lyne Premium</Text>
-                {!!Number(user?.is_premium || 0) && <PremiumBadge size="sm" label="Active" />}
-              </View>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>
-                {Number(user?.is_premium || 0) ? 'Active. Manage your plan or restore it' : 'Busy-hour forecasts and Line Helper'}
-              </Text>
-            </View>
-            <View style={{ height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: '#fff', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: colors.dark }}>{Number(user?.is_premium || 0) ? 'Manage' : 'Try free'}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
 
         <Group title="Personal details" rows={[
           { icon: 'phone', label: 'Phone', value: user?.phone || 'Add', valueTone: user?.phone ? 'muted' : 'accent', onPress: () => openDocSheet('phone', user?.phone) },

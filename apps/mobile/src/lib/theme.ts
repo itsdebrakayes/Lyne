@@ -82,7 +82,7 @@ const lightColors = {
   /* The frosted-panel wash behind a paywall overlay. Must be the SAME
      lightness family as the surface under it, or the overlay reads as a
      bright patch in dark mode and its ink — which is theme-aware — ends up
-     white on near-white. See PremiumLock. */
+     white on near-white. */
   scrim: 'rgba(241,243,247,0.72)',
   onDark: '#ffffff',
 };

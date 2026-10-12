@@ -49,7 +49,6 @@ export default function LineHelperScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user } = useAuth();
-  const premium = Boolean(Number(user?.is_premium || 0));
 
   const { businessId, branchId, branchName, serviceId, serviceName, targetDow, targetHour } = route.params ?? ({} as any);
 
@@ -97,7 +96,7 @@ export default function LineHelperScreen() {
       }));
       return out;
     },
-    enabled: Boolean(premium && branchId && serviceId && hourOptions.length),
+    enabled: Boolean(branchId && serviceId && hourOptions.length),
     staleTime: 1000 * 60 * 10,
   });
 
@@ -142,22 +141,6 @@ export default function LineHelperScreen() {
       setError(e?.message || 'That did not schedule. Try again in a moment.');
     } finally { setBusy(false); }
   };
-
-  if (!premium) {
-    return (
-      <View style={{ flex: 1, backgroundColor: D.bg, paddingTop: topPad }}>
-        <View style={{ paddingHorizontal: 20 }}>
-          <InsightsHeader title="Line Helper" onBack={() => navigation.goBack()} />
-          <Text style={{ fontFamily: font.semibold, fontSize: 24, color: D.ink, marginTop: 12, letterSpacing: -0.5 }}>
-            Line Helper is part of Premium
-          </Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 15, color: D.sub, marginTop: 8, lineHeight: 22 }}>
-            It joins the line for you at the time you agree, and tells you when to leave home.
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>

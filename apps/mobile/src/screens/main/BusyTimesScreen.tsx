@@ -21,13 +21,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../../lib/theme';
 import { D, RAMP, LEVEL_NAMES, waitLevel, hourText, DAY_SHORT, DAY_FULL } from '../../lib/predictiveDesign';
-import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import PremiumLock from '../../components/PremiumLock';
 import { InsightsHeader } from '../../components/InsightsHeader';
 import { scheduleQuietHourReminder, ensureNotificationPermission } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -40,27 +38,18 @@ interface ServicePlan {
   service_name: string;
   grid?: Cell[];
 }
-interface BestTimes { window_days: number; premium?: boolean; services: ServicePlan[] }
+interface BestTimes { window_days: number; services: ServicePlan[] }
 
 export default function BusyTimesScreen() {
   const topPad = useTopPad(8);
   const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const { user, refreshProfile } = useAuth();
-  /* Two sources, and they can disagree for a moment. The user record flips the
-     instant a trial starts; the cached response is still the free one until the
-     refetch lands. Whichever says premium is enough to unlock — the record
-     because entitlement is real, the payload because the data is already here.
-     Reading only the record left the panel frosted over data it had; reading
-     only the payload would leave it frosted until the network answered. */
-  const entitled = Boolean(Number(user?.is_premium || 0));
+  const { user } = useAuth();
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
   const [picking, setPicking] = useState(false);
   const [sel, setSel] = useState<{ dow: number; hour: number } | null>(null);
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [trialError, setTrialError] = useState('');
   const [reminding, setReminding] = useState(false);
   const [reminded, setReminded] = useState(false);
   const [remindError, setRemindError] = useState('');
@@ -74,16 +63,12 @@ export default function BusyTimesScreen() {
     staleTime: 1000 * 60 * 15,
   });
 
-  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,
     [services, serviceId],
   );
 
-  /* The grid is premium. For a free customer the server sends no cells at all,
-     so the panel below renders a representative shape and PremiumLock frosts
-     it — there is nothing real to leak because nothing real was sent. */
   const grid = service?.grid ?? [];
 
   const { hours, days, byKey } = useMemo(() => {
@@ -106,19 +91,6 @@ export default function BusyTimesScreen() {
     const pool = solid.length ? solid : grid;
     return [...pool].sort((a, b) => a.avg_wait - b.avg_wait)[0] ?? null;
   }, [sel, byKey, grid]);
-
-  const startTrial = async () => {
-    try {
-      setTrialBusy(true); setTrialError('');
-      await api.post('/auth/start-trial', {});
-      await refreshProfile();
-      await q.refetch();
-    } catch (e: any) {
-      setTrialError(e?.message || 'That did not work. Try again in a moment.');
-    } finally {
-      setTrialBusy(false);
-    }
-  };
 
   const remindMe = async () => {
     if (!selected || !service) return;
@@ -145,12 +117,6 @@ export default function BusyTimesScreen() {
   /* A new cell means a new reminder is on offer. */
   React.useEffect(() => { setReminded(false); setRemindError(''); }, [sel?.dow, sel?.hour]);
 
-  /* ── the placeholder grid a free customer sees under the frost ──
-     Six rows of nine, in the real ramp, at the real size. Not data: the server
-     sent none. It exists so the locked panel has the silhouette of the thing
-     being sold rather than a grey rectangle. */
-  const PLACEHOLDER_ROWS = 6;
-  const PLACEHOLDER_COLS = 9;
 
   const body = () => {
     if (q.isLoading) return <SkeletonRows count={6} />;
@@ -232,16 +198,6 @@ export default function BusyTimesScreen() {
             )}
 
             {/* the grid */}
-            <PremiumLock
-              locked={!premium}
-              radius={20}
-              headline="See every hour, for every service"
-              error={trialError}
-              trialBusy={trialBusy}
-              onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
-              unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
-              onSeePlans={() => navigation.navigate('Premium')}
-            >
               <View style={{
                 backgroundColor: D.surface, borderRadius: 20,
                 paddingVertical: 20, paddingHorizontal: 18,
@@ -250,7 +206,7 @@ export default function BusyTimesScreen() {
                 {/* hour axis — a 30px label gutter, then one column per hour */}
                 <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
                   <View style={{ width: 28 }} />
-                  {(premium ? hours : Array.from({ length: PLACEHOLDER_COLS }, (_, i) => 8 + i)).map((h) => (
+                  {hours.map((h) => (
                     <View key={h} style={{ flex: 1 }}>
                       <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 10, color: '#8a94a6' }}>
                         {h > 12 ? h - 12 : h}
@@ -260,13 +216,13 @@ export default function BusyTimesScreen() {
                 </View>
 
                 <View style={{ gap: 8, marginTop: 10 }}>
-                  {(premium ? days : Array.from({ length: PLACEHOLDER_ROWS }, (_, i) => i + 1)).map((dow) => (
+                  {days.map((dow) => (
                     <View key={dow} style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
                       <Text style={{ width: 28, fontFamily: font.semibold, fontSize: 12, color: D.sub }}>
                         {DAY_SHORT[dow]}
                       </Text>
-                      {(premium ? hours : Array.from({ length: PLACEHOLDER_COLS }, (_, i) => 8 + i)).map((hour) => {
-                        const cell = premium ? byKey.get(`${dow}-${hour}`) : undefined;
+                      {hours.map((hour) => {
+                        const cell = byKey.get(`${dow}-${hour}`);
                         const isSel = selected && cell
                           && selected.dow === cell.dow && selected.hour === cell.hour;
                         /* aspectRatio 1 on a flex child gives the design's
@@ -285,9 +241,9 @@ export default function BusyTimesScreen() {
                             accessibilityState={{ selected: Boolean(isSel) }}
                             style={{
                               flex: 1, aspectRatio: 1, borderRadius: 6,
-                              backgroundColor: cell
-                                ? RAMP[waitLevel(cell.avg_wait)]
-                                : RAMP[(dow + hour) % 5],
+                              /* An hour with no recorded visits is drawn empty,
+                                 never in a made-up shade. */
+                              backgroundColor: cell ? RAMP[waitLevel(cell.avg_wait)] : D.bg,
                               /* The design's inner halo: box-shadow 0 0 0 2px
                                  #fff. A border works because the cell is a flat
                                  colour, so insetting it by 2 is invisible. */
@@ -337,10 +293,9 @@ export default function BusyTimesScreen() {
                   <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#8a94a6' }}>Peak</Text>
                 </View>
               </View>
-            </PremiumLock>
 
             {/* the selected cell, in detail */}
-            {premium && selected && (
+            {selected && (
               <View style={{
                 backgroundColor: D.ink, borderRadius: 24, padding: 20, marginTop: 24,
               }}>

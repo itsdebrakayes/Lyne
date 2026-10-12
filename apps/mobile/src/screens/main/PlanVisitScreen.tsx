@@ -29,7 +29,7 @@ import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import { InsightsHeader, PremiumPill } from '../../components/InsightsHeader';
+import { InsightsHeader } from '../../components/InsightsHeader';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
 import { D, hourText } from '../../lib/predictiveDesign';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -101,7 +101,6 @@ export default function PlanVisitScreen() {
      `|| preview`, where `preview` was a device-local toggle anybody could flip
      in Settings — it unlocked the paid planner for free, and an App Store
      reviewer would have found it in the first minute. */
-  const premium = Boolean(Number(user?.is_premium || 0));
 
   const { data: branches = [] } = useQuery({
     queryKey: ['mobile-branches'],
@@ -136,7 +135,7 @@ export default function PlanVisitScreen() {
   const forYou = useQuery({
     queryKey: ['for-you', user?.id ?? 'anon'],
     queryFn: () => api.get<ForYou>('/predictions/for-you'),
-    enabled: Boolean(user?.id && premium),
+    enabled: Boolean(user?.id),
     staleTime: 1000 * 60 * 30,
     retry: false,
   });
@@ -144,30 +143,12 @@ export default function PlanVisitScreen() {
 
   const plan = bestTimes.data;
 
-  /* The badge the design puts in the header. TWO sources, because either one
-     alone gets it wrong: the user record can lag (a trial started on another
-     screen flips the server before this client refetches its profile), and the
-     payload alone would hide the badge while the response is still in flight.
-     Whichever says premium is enough — this only drives a badge.
-
-     Caught by walking the live app against the design: the heatmap had
-     unlocked, so the customer WAS premium, and this header still showed
-     nothing where the design shows PREMIUM. */
-  const showPremiumBadge = premium || Boolean(plan?.premium);
-
-  /* No trial button on this screen any more, and no locked panel. Screen 01 of
-     the design is free end to end — the forecast and the two recommendations
-     are the thing that demonstrates the product, and a paywall in front of
-     that sells nothing. The lock lives on screen 02, over the heatmap, which
-     is what the subscription actually buys. */
-
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 56 + lift }} showsVerticalScrollIndicator={false}>
         <InsightsHeader
           title="Plan your visit"
           onBack={() => navigation.goBack()}
-          right={showPremiumBadge ? <PremiumPill /> : undefined}
         />
 
         {/* v2: one tone, no eyebrow, and no hard line break — it wraps where

@@ -28,7 +28,6 @@ import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
 import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
-import PremiumScreen from '../screens/main/PremiumScreen';
 import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
@@ -52,7 +51,6 @@ export type RootStackParamList = {
   Help:       undefined;
   AgencyHelp: { slug: string };
   DocumentCapture: { field: 'national_id' | 'trn' };
-  Premium: undefined;
   PrivacySecurity: undefined;
   Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
@@ -173,7 +171,6 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
             <Stack.Screen name="Help"      component={HelpScreen}      />
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
-            <Stack.Screen name="Premium" component={PremiumScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />

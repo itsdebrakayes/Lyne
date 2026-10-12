@@ -10,7 +10,6 @@ import React from 'react';
 import { Platform, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
-import { PremiumBadge } from './PremiumBadge';
 
 export function InsightsHeader({
   title,
@@ -19,7 +18,7 @@ export function InsightsHeader({
 }: {
   title: string;
   onBack: () => void;
-  /** Trailing element (the Premium pill on Plan your visit). */
+  /** Optional trailing element. */
   right?: React.ReactNode;
 }) {
   if (Platform.OS === 'android') {
@@ -64,11 +63,6 @@ export function InsightsHeader({
       <View style={{ minWidth: 40, alignItems: 'flex-end' }}>{right}</View>
     </View>
   );
-}
-
-/** The Premium badge in the header (the shared JamAI-style pill). */
-export function PremiumPill() {
-  return <PremiumBadge size="sm" />;
 }
 
 export default InsightsHeader;

@@ -20,13 +20,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
 import { D, RAMP, waitLevel, hourText } from '../../lib/predictiveDesign';
-import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import PremiumLock from '../../components/PremiumLock';
 import { InsightsHeader } from '../../components/InsightsHeader';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -34,7 +32,7 @@ type Params = RouteProp<RootStackParamList, 'WeekPlanner'>;
 
 interface Cell { dow: number; hour: number; visits: number; avg_wait: number }
 interface ServicePlan { service_id: string; service_name: string; grid?: Cell[] }
-interface BestTimes { window_days: number; premium?: boolean; services: ServicePlan[] }
+interface BestTimes { window_days: number; services: ServicePlan[] }
 
 /** The design's row pitch. The blocks are placed against it, so it is one value. */
 const ROW_H = 56;
@@ -60,14 +58,7 @@ export default function WeekPlannerScreen() {
   const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const { user, refreshProfile } = useAuth();
-  /* Two sources, and they can disagree for a moment. The user record flips the
-     instant a trial starts; the cached response is still the free one until the
-     refetch lands. Whichever says premium is enough to unlock — the record
-     because entitlement is real, the payload because the data is already here.
-     Reading only the record left the panel frosted over data it had; reading
-     only the payload would leave it frosted until the network answered. */
-  const entitled = Boolean(Number(user?.is_premium || 0));
+  const { user } = useAuth();
   const { businessId, branchId, branchName } = route.params ?? ({} as any);
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
@@ -90,8 +81,6 @@ export default function WeekPlannerScreen() {
      reads as a broken screen rather than a closed day. Moves once, to the day
      with the most evidence behind it, and only when the chosen day has none. */
   const movedRef = React.useRef(false);
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [trialError, setTrialError] = useState('');
 
   const q = useQuery({
     queryKey: ['best-times', businessId, branchId, user?.id ?? 'anon'],
@@ -112,13 +101,12 @@ export default function WeekPlannerScreen() {
   const habits = useQuery({
     queryKey: ['for-you', user?.id ?? 'anon'],
     queryFn: () => api.get<{ personalised: boolean; habits?: { travel_minutes: number | null } }>('/predictions/for-you'),
-    enabled: Boolean(user?.id && entitled),
+    enabled: Boolean(user?.id),
     staleTime: 1000 * 60 * 30,
     retry: false,
   });
   const travelMinutes = habits.data?.habits?.travel_minutes ?? null;
 
-  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,
@@ -188,17 +176,6 @@ export default function WeekPlannerScreen() {
     return x;
   };
   const chosenDate = dateFor(dow);
-
-  const startTrial = async () => {
-    try {
-      setTrialBusy(true); setTrialError('');
-      await api.post('/auth/start-trial', {});
-      await refreshProfile();
-      await q.refetch();
-    } catch (e: any) {
-      setTrialError(e?.message || 'That did not work. Try again in a moment.');
-    } finally { setTrialBusy(false); }
-  };
 
   React.useEffect(() => {
     if (movedRef.current || !grid.length || dayHours.length) return;
@@ -291,32 +268,6 @@ export default function WeekPlannerScreen() {
               message="This branch's pattern could not be loaded."
               onRetry={() => q.refetch()} />
           </View>
-        ) : !premium ? (
-          <View style={{ padding: 22 }}>
-            <PremiumLock
-              locked
-              radius={20}
-              headline="Plan any day of the week"
-              error={trialError}
-              trialBusy={trialBusy}
-              onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
-              unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
-              onSeePlans={() => navigation.navigate('Premium')}
-            >
-              <View>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <View key={i} style={{ flexDirection: 'row', height: ROW_H, borderTopWidth: 1, borderTopColor: D.lineSoft, alignItems: 'flex-start' }}>
-                    <View style={{ width: 58, paddingTop: 8, alignItems: 'center' }}>
-                      <View style={{ width: 18, height: 13, borderRadius: 4, backgroundColor: D.lineSoft }} />
-                    </View>
-                    <View style={{ flex: 1, paddingTop: 10, alignItems: 'flex-end', paddingRight: 18 }}>
-                      <View style={{ width: 34, height: 9, borderRadius: 4, backgroundColor: D.lineSoft }} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </PremiumLock>
-          </View>
         ) : !dayHours.length ? (
           <View style={{ padding: 22 }}>
             <EmptyState icon="clock" title="No pattern for that day"
@@ -400,7 +351,7 @@ export default function WeekPlannerScreen() {
       </ScrollView>
 
       {/* the bottom banner */}
-      {premium && spans.quiet && (
+      {spans.quiet && (
         <TouchableOpacity
           onPress={() => navigation.navigate('LineHelper', {
             businessId, branchId, branchName,
