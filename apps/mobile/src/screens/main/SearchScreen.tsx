@@ -26,7 +26,10 @@ import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 
 const RECENTS_KEY = 'lyne.recent-searches';
-const SUGGESTIONS = ['Passport renewal', 'TRN registration', 'Tax payments', 'NHT benefits'];
+/* Generic kinds of visit, never an agency's name: these show on a fresh install
+   and in the store screenshots, where naming a real organisation would imply a
+   partnership we do not have. */
+const SUGGESTIONS = ['Tax payments', 'Document collection', 'Member services', 'Clinic registration'];
 
 async function loadRecents(): Promise<string[]> {
   try { return JSON.parse((await AsyncStorage.getItem(RECENTS_KEY)) || '[]'); } catch { return []; }
@@ -225,16 +228,24 @@ export default function SearchScreen() {
         {/* query field */}
         <View style={{ height: 52, marginTop: 16, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 8 }}>
           <Icon name="search" size={18} color={colors.muted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Agency, branch or service"
-            placeholderTextColor={colors.muted}
-            returnKeyType="search"
-            accessibilityLabel="Search agencies, branches or services"
-            onSubmitEditing={() => pushRecent(search).then(() => loadRecents().then(setRecents))}
-            style={[{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.ink }, inputReset]}
-          />
+          {/* The hint is drawn as our own Text, not the native placeholder: iOS
+              release builds spread the native placeholder's letters across the
+              field ("A g e n c y ,  b r a n c h"). */}
+          <View style={{ flex: 1, height: '100%', justifyContent: 'center' }}>
+            {!search && (
+              <Text pointerEvents="none" numberOfLines={1} style={{ position: 'absolute', left: 0, right: 0, fontFamily: font.medium, fontSize: 15, color: colors.muted }}>
+                Agency, branch or service
+              </Text>
+            )}
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+              accessibilityLabel="Search agencies, branches or services"
+              onSubmitEditing={() => pushRecent(search).then(() => loadRecents().then(setRecents))}
+              style={[{ height: '100%', fontFamily: font.medium, fontSize: 15, color: colors.ink }, inputReset]}
+            />
+          </View>
           {searching && (
             <TouchableOpacity onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="Clear search"
               style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>

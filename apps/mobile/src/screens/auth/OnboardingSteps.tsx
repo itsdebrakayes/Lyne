@@ -46,7 +46,7 @@ function ArtLiveWait() {
       <View style={{ backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, gap: 12, ...shadow.card }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
           <View style={{ width: 42, height: 42, borderRadius: radius.m, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentInk }}>TAJ</Text>
+            <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentInk }}>BHCC</Text>
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ height: 9, width: '78%', borderRadius: 5, backgroundColor: colors.borderSoft }} />
