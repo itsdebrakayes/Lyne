@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -156,6 +156,17 @@ export default function ProfileScreen() {
       // longer exists on the server.
       await signOut();
     } catch (caught: unknown) {
+      /* The server reports data_deleted when the account is already gone and
+         only a clean-up step after it failed. Leaving the person signed in to
+         an account that no longer exists, behind a red error, is the worst
+         outcome: sign them out, and tell them what happened. */
+      const body = (caught as { body?: { data_deleted?: boolean } })?.body;
+      if (body?.data_deleted) {
+        setDeleteOpen(false);
+        await signOut();
+        Alert.alert('Your account has been deleted', 'Your personal data is gone. If you see anything of yours in Lyne again, write to customersupport@uselyne.com.');
+        return;
+      }
       setDeleteError(caught instanceof Error ? caught.message : 'Could not delete your account. Nothing was removed.');
     } finally {
       setDeleting(false);

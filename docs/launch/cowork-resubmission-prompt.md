@@ -121,7 +121,11 @@ a. cd /srv/lyne && git pull   (now at the main you pushed in step 1)
 b. Back up the database (deploy/README.md shows how), then apply, in order,
    using the doadmin login exactly as deploy/README.md "Deploying a change
    later" shows:
+     database/migrations/035_enum_values_the_code_writes.sql
      database/migrations/036_live_activity_tokens.sql
+   035 is safe to run even if it was applied at the first deploy (it only
+   widens two ENUMs). Without it, Delete account deletes the data but fails
+   to finish, which App Review tests.
    Do NOT apply 037_iap_subscriptions.sql: payments are off in 1.0.
 c. Add to /srv/lyne/.env (deploy/env.production.example documents them):
      APNS_KEY_ID=6H44RYBAX3
