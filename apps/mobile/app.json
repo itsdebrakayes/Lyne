@@ -114,8 +114,17 @@
         "ACCESS_COARSE_LOCATION",
         "POST_NOTIFICATIONS",
         "CAMERA",
-        "READ_MEDIA_IMAGES",
         "USE_BIOMETRIC"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
       ]
     },
     "web": {
@@ -142,18 +151,28 @@
           "sounds": []
         }
       ],
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lyne uses your location while the app is open to estimate when you should leave for the branch. It stays on your phone.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
       "expo-font",
       [
         "expo-camera",
         {
-          "cameraPermission": "LYNE uses the camera to scan your ID, TRN or passport."
+          "cameraPermission": "LYNE uses the camera to scan your ID, TRN or passport.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "LYNE lets you upload a photo of your ID, TRN or passport."
+          "photosPermission": "LYNE lets you upload a photo of your ID, TRN or passport.",
+          "microphonePermission": false
         }
       ],
       [
