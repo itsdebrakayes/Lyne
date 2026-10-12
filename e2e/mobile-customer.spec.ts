@@ -12,8 +12,8 @@ import { demoDb } from './helpers';
  *   C7  Live Activity token register / refuse when ended / unregister
  *   F14 the deletion path exists and is guarded by typing DELETE
  *       (stops before the final press — this is the review account)
- *   F15 Premium screen shows plans, Restore and the auto-renew terms;
- *       the server refuses unknown products and unverifiable purchases
+ *   Free release: no purchases or trial on the server, no lock on Busy times,
+ *       the week planner or Line Helper, no Premium card in Settings
  *
  * Needs the session from e2e/customer.setup.ts, the API on :4000 against the
  * local demo database, and the Expo web server on :5173. The counter side of
@@ -148,30 +148,57 @@ test('C7: a Live Activity token registers, is refused once the ticket ends, and 
   expect(r.status()).toBe(409);
 });
 
-test('F15: the server refuses unknown products and purchases it cannot verify', async () => {
-  const products = await (await api.get('iap/products')).json();
-  expect(products.products).toEqual(['com.lyne.mobile.premium.monthly', 'com.lyne.mobile.premium.yearly']);
-
-  const [before] = await demoDb('SELECT is_premium FROM users WHERE id = ?', [userId]);
-  let r = await api.post('iap/verify', { data: { platform: 'ios', product_id: 'com.lyne.mobile.premium.lifetime', transaction_id: '1' } });
-  expect(r.status()).toBe(400);
-  r = await api.post('iap/verify', { data: { platform: 'ios', product_id: 'com.lyne.mobile.premium.monthly', transaction_id: '2000000000000000' } });
-  expect(r.status(), 'an unverifiable purchase must not succeed').toBeGreaterThanOrEqual(400);
-  r = await api.post('iap/verify', { data: { platform: 'android', product_id: 'com.lyne.mobile.premium.yearly', purchase_token: 'not-a-real-token' } });
-  expect(r.status()).toBeGreaterThanOrEqual(400);
-  const [after] = await demoDb('SELECT is_premium FROM users WHERE id = ?', [userId]);
-  expect(after.is_premium).toBe(before.is_premium);
+test('Free release: purchases are not available, and nothing becomes premium', async () => {
+  const [before] = await demoDb('SELECT is_premium, trial_started_at FROM users WHERE id = ?', [userId]);
+  for (const [method, path, data] of [
+    ['get', 'iap/products', undefined],
+    ['post', 'iap/verify', { platform: 'ios', product_id: 'com.lyne.mobile.premium.monthly', transaction_id: '2000000000000000' }],
+    ['get', 'payments/plans', undefined],
+    ['post', 'auth/start-trial', {}],
+  ] as const) {
+    const r = method === 'get' ? await api.get(path) : await api.post(path, { data });
+    expect(r.status(), `${method} ${path}`).toBe(404);
+    expect((await r.json()).available, `${method} ${path}`).toBe(false);
+  }
+  const [after] = await demoDb('SELECT is_premium, trial_started_at FROM users WHERE id = ?', [userId]);
+  expect(after).toEqual(before);
 });
 
-test('F15: the Premium screen offers plans, Restore and the renewal terms', async ({ page }) => {
+test('Free release: Busy times, the week planner and Line Helper open with no lock', async ({ page }) => {
+  const [branch] = await demoDb<{ business_id: string; id: string; name: string }>(
+    `SELECT b.business_id, b.id, b.name FROM branches b
+       JOIN wait_time_records w ON w.branch_id = b.id
+      WHERE b.is_active = TRUE GROUP BY b.id ORDER BY COUNT(*) DESC LIMIT 1`);
+  test.skip(!branch, 'no branch with history in the local demo DB');
+  // The server: the full grid, for an account that never paid.
+  const r = await api.get(`predictions/best-times?business_id=${branch.business_id}&branch_id=${branch.id}`);
+  const body = await r.json();
+  expect(body.services.some((s: any) => (s.grid ?? []).length > 0), 'the grid must be sent to everyone').toBe(true);
+
+  await page.goto(MOBILE);
+  await expect(page.getByText(/What do you need/)).toBeVisible({ timeout: 150_000 });
+  await expect(page.getByText(/Premium/)).toHaveCount(0);
+  await page.getByText('Plan for later').first().click();
+  await expect(page.getByText('Beat the line before you leave home.')).toBeVisible({ timeout: 30_000 });
+  await page.getByText('Busy times', { exact: true }).last().click();
+  await expect(page.getByText(/Quiet hours at/)).toBeVisible({ timeout: 30_000 });
+  for (const gone of [/Start 14-day free trial/, /See plans/, /Lyne Premium/, /Premium/]) {
+    await expect(page.getByText(gone)).toHaveCount(0);
+  }
+  await expect(page.getByText('Hold my place').first()).toBeVisible();
+  await page.getByText('Hold my place').first().click();
+  await expect(page.getByText(/Lyne joins the line at the time you agree/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/part of Premium/)).toHaveCount(0);
+});
+
+test('Free release: Settings has no Premium card and no purchase screen', async ({ page }) => {
   await page.goto(MOBILE);
   await expect(page.getByText(/What do you need/)).toBeVisible({ timeout: 150_000 });
   await page.getByLabel('Settings').click();
-  await page.getByText(/Lyne Premium/).first().click();
-  await expect(page.getByText('Restore purchases')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/Renews automatically|Premium is on/).first()).toBeVisible();
-  await expect(page.getByText(/Terms/).first()).toBeVisible();
-  await expect(page.getByText(/Privacy/).first()).toBeVisible();
+  await expect(page.getByText('Delete account').first()).toBeVisible({ timeout: 30_000 });
+  for (const gone of [/Lyne Premium/, /Try free/, /Restore purchases/, /Subscribe/]) {
+    await expect(page.getByText(gone)).toHaveCount(0);
+  }
 });
 
 test('F14: Delete account is the last row and needs DELETE typed (not pressed here)', async ({ page }) => {
