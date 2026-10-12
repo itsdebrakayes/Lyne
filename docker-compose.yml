@@ -77,6 +77,9 @@ services:
       SUPABASE_URL:         ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      # Empty locally, which means Sentry is off. Present so a developer can
+      # set it for one run to check the wiring without editing compose.
+      SENTRY_DSN:           ${SENTRY_DSN:-}
       FRONTEND_URL:         ${FRONTEND_URL:-http://localhost:8080}
       PORTAL_HANDOFF_SECRET: ${PORTAL_HANDOFF_SECRET}
       ALLOWED_ORIGINS:      ${ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
@@ -114,6 +117,9 @@ services:
       API_URL:                http://api:4000/api
       SUPABASE_URL:           ${SUPABASE_URL}
       SUPABASE_ANON_KEY:      ${SUPABASE_PUBLISHABLE_KEY}
+      # Empty locally, which means Sentry is off. Present so a developer can
+      # set it for one run to check the wiring without editing compose.
+      SENTRY_DSN:             ${SENTRY_DSN:-}
       PIPELINE_EMAIL:         ${PIPELINE_EMAIL:-}
       PIPELINE_PASSWORD:      ${PIPELINE_PASSWORD:-}
       PIPELINE_BUSINESS_ID:   ${PIPELINE_BUSINESS_ID:-}

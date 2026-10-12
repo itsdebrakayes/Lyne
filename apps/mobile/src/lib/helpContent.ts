@@ -27,7 +27,8 @@ export const GENERAL_FAQS: FaqItem[] = [
   { q: 'How accurate are the wait times?', a: 'Wait times are estimated from the live queue and how quickly each service is currently moving, and they update continuously. They’re a close guide, not a guarantee.' },
   { q: 'Can I join before I leave home?', a: 'Yes. You can join remotely and watch your position on the way. We’ll let you know when you’re getting close so you can time your arrival.' },
   { q: 'What are the opening hours?', a: 'Most agencies on Lyne are open Monday to Friday, 8:00–8:30 AM to 4:00–4:30 PM, and closed on weekends and public holidays. Exact hours are shown on each agency’s page in the app.' },
-  { q: 'What is Lyne Premium / Plan Your Visit?', a: 'Premium unlocks Plan Your Visit: per-service “best time to go” predictions built from real visit history, so you can pick the quietest window. Joining queues is always free; Premium is optional.' },
+  { q: 'What is Plan your visit?', a: 'Plan your visit shows the best time to go for each service, built from real visit history: today’s quietest hour, busy times across the week, a week planner, and Line Helper, which joins the line for you at a time you agree. It is free, like everything in Lyne.' },
+  { q: 'Does Lyne cost anything?', a: 'No. Lyne is free to use, and nothing in the app is for sale.' },
   { q: 'What happens if I miss my turn?', a: 'If you’re not there when you’re called, you may be marked as a no-show. You can simply rejoin the queue and take a new position.' },
   { q: 'Who can see my saved documents?', a: 'Details you save to your profile (like your TRN or ID) are only shared with the agency serving you, to speed up verification at the counter. They’re not shown to other users.' },
 ];

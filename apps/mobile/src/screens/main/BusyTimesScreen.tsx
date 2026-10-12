@@ -20,14 +20,13 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../../lib/theme';
-import { D, RAMP, LEVEL_NAMES, waitLevel, hourText, hourShort, DAY_SHORT, DAY_FULL } from '../../lib/predictiveDesign';
-import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
-import { useTopPad } from '../../lib/insets';
+import { D, RAMP, LEVEL_NAMES, waitLevel, hourText, DAY_SHORT, DAY_FULL } from '../../lib/predictiveDesign';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import PremiumLock from '../../components/PremiumLock';
+import { InsightsHeader } from '../../components/InsightsHeader';
 import { scheduleQuietHourReminder, ensureNotificationPermission } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -39,26 +38,18 @@ interface ServicePlan {
   service_name: string;
   grid?: Cell[];
 }
-interface BestTimes { window_days: number; premium?: boolean; services: ServicePlan[] }
+interface BestTimes { window_days: number; services: ServicePlan[] }
 
 export default function BusyTimesScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const { user, refreshProfile } = useAuth();
-  /* Two sources, and they can disagree for a moment. The user record flips the
-     instant a trial starts; the cached response is still the free one until the
-     refetch lands. Whichever says premium is enough to unlock — the record
-     because entitlement is real, the payload because the data is already here.
-     Reading only the record left the panel frosted over data it had; reading
-     only the payload would leave it frosted until the network answered. */
-  const entitled = Boolean(Number(user?.is_premium || 0));
+  const { user } = useAuth();
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
   const [picking, setPicking] = useState(false);
   const [sel, setSel] = useState<{ dow: number; hour: number } | null>(null);
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [trialError, setTrialError] = useState('');
   const [reminding, setReminding] = useState(false);
   const [reminded, setReminded] = useState(false);
   const [remindError, setRemindError] = useState('');
@@ -72,16 +63,12 @@ export default function BusyTimesScreen() {
     staleTime: 1000 * 60 * 15,
   });
 
-  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,
     [services, serviceId],
   );
 
-  /* The grid is premium. For a free customer the server sends no cells at all,
-     so the panel below renders a representative shape and PremiumLock frosts
-     it — there is nothing real to leak because nothing real was sent. */
   const grid = service?.grid ?? [];
 
   const { hours, days, byKey } = useMemo(() => {
@@ -104,19 +91,6 @@ export default function BusyTimesScreen() {
     const pool = solid.length ? solid : grid;
     return [...pool].sort((a, b) => a.avg_wait - b.avg_wait)[0] ?? null;
   }, [sel, byKey, grid]);
-
-  const startTrial = async () => {
-    try {
-      setTrialBusy(true); setTrialError('');
-      await api.post('/auth/start-trial', {});
-      await refreshProfile();
-      await q.refetch();
-    } catch (e: any) {
-      setTrialError(e?.message || 'That did not work. Try again in a moment.');
-    } finally {
-      setTrialBusy(false);
-    }
-  };
 
   const remindMe = async () => {
     if (!selected || !service) return;
@@ -143,12 +117,6 @@ export default function BusyTimesScreen() {
   /* A new cell means a new reminder is on offer. */
   React.useEffect(() => { setReminded(false); setRemindError(''); }, [sel?.dow, sel?.hour]);
 
-  /* ── the placeholder grid a free customer sees under the frost ──
-     Six rows of nine, in the real ramp, at the real size. Not data: the server
-     sent none. It exists so the locked panel has the silhouette of the thing
-     being sold rather than a grey rectangle. */
-  const PLACEHOLDER_ROWS = 6;
-  const PLACEHOLDER_COLS = 9;
 
   const body = () => {
     if (q.isLoading) return <SkeletonRows count={6} />;
@@ -169,56 +137,40 @@ export default function BusyTimesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 40 + lift }} showsVerticalScrollIndicator={false}>
 
-        {/* header — back · title · 44px spacer so the title sits centred */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button" accessibilityLabel="Go back"
-            style={{
-              width: 44, height: 44, borderRadius: 22, backgroundColor: D.surface,
-              borderWidth: 1, borderColor: D.line, alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="chevron-back" size={20} color={D.ink} />
-          </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 15, color: D.ink }}>Busy times</Text>
-          <View style={{ width: 44 }} />
-        </View>
+        <InsightsHeader title="Busy times" onBack={() => navigation.goBack()} />
 
-        {/* "When it's quiet at TAJ Constant Spring" — 500 lead, 800 tail */}
-        <Text style={{ fontSize: 28, lineHeight: 32, letterSpacing: -0.8, marginBottom: 16 }}>
-          <Text style={{ fontFamily: font.medium, color: D.sub }}>When it&rsquo;s quiet at </Text>
-          <Text style={{ fontFamily: font.extra, color: D.ink }}>{branchName || 'this branch'}</Text>
+        <Text style={{ fontFamily: font.semibold, fontSize: 24, lineHeight: 29, letterSpacing: -0.5, color: D.ink, maxWidth: 300, marginBottom: 16 }}>
+          Quiet hours at {branchName || 'this branch'}
         </Text>
 
         {earlier || (
           <>
             {/* service picker · window chip */}
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
               <TouchableOpacity
                 onPress={() => setPicking((v) => !v)}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: picking }}
                 accessibilityLabel={`Service: ${service?.service_name ?? 'choose'}`}
                 style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-                  backgroundColor: D.surface, borderWidth: 1, borderColor: D.line,
-                  borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14,
+                  flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, height: 36,
+                  backgroundColor: D.surface, borderWidth: 1, borderColor: '#e3e7ee',
+                  borderRadius: 18, paddingLeft: 14, paddingRight: 12,
                 }}
               >
-                <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.bold, fontSize: 12.5, color: D.ink }}>
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: font.semibold, fontSize: 13, color: D.ink }}>
                   {service?.service_name ?? 'Choose a service'}
                 </Text>
-                <Ionicons name={picking ? 'chevron-up' : 'chevron-down'} size={13} color={D.muted} />
+                <Ionicons name={picking ? 'chevron-up' : 'chevron-down'} size={14} color={D.ink} />
               </TouchableOpacity>
               <View style={{
-                backgroundColor: D.surface, borderWidth: 1, borderColor: D.line,
-                borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, justifyContent: 'center',
+                backgroundColor: D.surface, borderWidth: 1, borderColor: '#e3e7ee',
+                borderRadius: 18, height: 36, paddingHorizontal: 14, justifyContent: 'center',
               }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: D.muted }}>
-                  {q.data?.window_days ?? 90} days
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.sub }}>
+                  Last {q.data?.window_days ?? 90} days
                 </Text>
               </View>
             </View>
@@ -226,7 +178,7 @@ export default function BusyTimesScreen() {
             {picking && (
               <View style={{
                 backgroundColor: D.surface, borderWidth: 1, borderColor: D.lineSoft,
-                borderRadius: 18, marginTop: -12, marginBottom: 20, overflow: 'hidden',
+                borderRadius: 18, marginTop: -16, marginBottom: 24, overflow: 'hidden',
               }}>
                 {services.map((s, i) => (
                   <TouchableOpacity
@@ -239,47 +191,38 @@ export default function BusyTimesScreen() {
                       backgroundColor: s.service_id === service?.service_id ? D.coolBg : 'transparent',
                     }}
                   >
-                    <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: D.ink }}>{s.service_name}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.ink }}>{s.service_name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
             {/* the grid */}
-            <PremiumLock
-              locked={!premium}
-              radius={24}
-              headline="See every hour, for every service"
-              error={trialError}
-              trialBusy={trialBusy}
-              onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
-              unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
-            >
               <View style={{
-                backgroundColor: D.surface, borderRadius: 24,
-                paddingTop: 16, paddingHorizontal: 14, paddingBottom: 14,
-                borderWidth: 1, borderColor: D.lineSoft,
+                backgroundColor: D.surface, borderRadius: 20,
+                paddingVertical: 20, paddingHorizontal: 18,
+                borderWidth: 1, borderColor: '#edf0f4',
               }}>
                 {/* hour axis — a 30px label gutter, then one column per hour */}
                 <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-                  <View style={{ width: 30 }} />
-                  {(premium ? hours : Array.from({ length: PLACEHOLDER_COLS }, (_, i) => 8 + i)).map((h) => (
+                  <View style={{ width: 28 }} />
+                  {hours.map((h) => (
                     <View key={h} style={{ flex: 1 }}>
-                      <Text style={{ textAlign: 'center', fontFamily: font.bold, fontSize: 9.5, color: D.faint }}>
-                        {hourShort(h)}
+                      <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 10, color: '#8a94a6' }}>
+                        {h > 12 ? h - 12 : h}
                       </Text>
                     </View>
                   ))}
                 </View>
 
-                <View style={{ gap: 4, marginTop: 6 }}>
-                  {(premium ? days : Array.from({ length: PLACEHOLDER_ROWS }, (_, i) => i + 1)).map((dow) => (
+                <View style={{ gap: 8, marginTop: 10 }}>
+                  {days.map((dow) => (
                     <View key={dow} style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-                      <Text style={{ width: 30, fontFamily: font.extra, fontSize: 11, color: D.muted }}>
+                      <Text style={{ width: 28, fontFamily: font.semibold, fontSize: 12, color: D.sub }}>
                         {DAY_SHORT[dow]}
                       </Text>
-                      {(premium ? hours : Array.from({ length: PLACEHOLDER_COLS }, (_, i) => 8 + i)).map((hour) => {
-                        const cell = premium ? byKey.get(`${dow}-${hour}`) : undefined;
+                      {hours.map((hour) => {
+                        const cell = byKey.get(`${dow}-${hour}`);
                         const isSel = selected && cell
                           && selected.dow === cell.dow && selected.hour === cell.hour;
                         /* aspectRatio 1 on a flex child gives the design's
@@ -297,10 +240,10 @@ export default function BusyTimesScreen() {
                               : undefined}
                             accessibilityState={{ selected: Boolean(isSel) }}
                             style={{
-                              flex: 1, aspectRatio: 1, borderRadius: 8,
-                              backgroundColor: cell
-                                ? RAMP[waitLevel(cell.avg_wait)]
-                                : RAMP[(dow + hour) % 5],
+                              flex: 1, aspectRatio: 1, borderRadius: 6,
+                              /* An hour with no recorded visits is drawn empty,
+                                 never in a made-up shade. */
+                              backgroundColor: cell ? RAMP[waitLevel(cell.avg_wait)] : D.bg,
                               /* The design's inner halo: box-shadow 0 0 0 2px
                                  #fff. A border works because the cell is a flat
                                  colour, so insetting it by 2 is invisible. */
@@ -325,9 +268,9 @@ export default function BusyTimesScreen() {
                                 pointerEvents="none"
                                 style={{
                                   position: 'absolute',
-                                  top: -4, left: -4, right: -4, bottom: -4,
-                                  borderRadius: 10,
-                                  borderWidth: 2,
+                                  top: -3.5, left: -3.5, right: -3.5, bottom: -3.5,
+                                  borderRadius: 9,
+                                  borderWidth: 1.5,
                                   borderColor: D.ink,
                                 }}
                               />
@@ -340,56 +283,49 @@ export default function BusyTimesScreen() {
                 </View>
 
                 {/* Quiet ———— Peak */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: D.muted }}>Quiet</Text>
-                  <View style={{ flexDirection: 'row', gap: 4, flex: 1, marginHorizontal: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#8a94a6' }}>Quiet</Text>
+                  <View style={{ flexDirection: 'row', gap: 3, flex: 1 }}>
                     {RAMP.map((c) => (
-                      <View key={c} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: c }} />
+                      <View key={c} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: c }} />
                     ))}
                   </View>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: D.muted }}>Peak</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#8a94a6' }}>Peak</Text>
                 </View>
               </View>
-            </PremiumLock>
 
             {/* the selected cell, in detail */}
-            {premium && selected && (
+            {selected && (
               <View style={{
-                backgroundColor: D.ink, borderRadius: 24,
-                paddingTop: 18, paddingHorizontal: 18, paddingBottom: 16, marginTop: 14,
+                backgroundColor: D.ink, borderRadius: 24, padding: 20, marginTop: 24,
               }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: font.bold, fontSize: 10.5, letterSpacing: 0.6, color: 'rgba(255,255,255,.55)' }}>
-                      {DAY_FULL[selected.dow].toUpperCase()}S · {hourText(selected.hour)}
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)' }}>
+                      {DAY_FULL[selected.dow]}s at {hourText(selected.hour)}
                     </Text>
-                    <Text style={{ fontFamily: font.extra, fontSize: 20, letterSpacing: -0.3, color: '#fff', marginTop: 4 }}>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 22, letterSpacing: -0.4, color: '#fff', marginTop: 4 }}>
                       {LEVEL_NAMES[waitLevel(selected.avg_wait)]}
                     </Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 26, color: D.onDarkAccent, lineHeight: 28 }}>
-                      {Math.round(selected.avg_wait)}<Text style={{ fontSize: 13 }}>m</Text>
-                    </Text>
-                    <Text style={{ fontFamily: font.bold, fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 4 }}>
-                      typical wait
-                    </Text>
-                  </View>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 28, letterSpacing: -0.6, color: D.onDarkAccent, marginTop: 12 }}>
+                    {Math.round(selected.avg_wait)}<Text style={{ fontFamily: font.medium, fontSize: 15, letterSpacing: 0 }}> min</Text>
+                  </Text>
                 </View>
 
                 {/* The design's note is "Based on N visits · a good time to go",
                     or a pointer to a better slot. The alternative named here is
                     the quietest cell on the SAME day, so the suggestion is a
                     different hour rather than a different trip. */}
-                <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 10 }}>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.55)', marginTop: 12 }}>
                   {(() => {
-                    const base = `Based on ${selected.visits} visit${selected.visits === 1 ? '' : 's'}`;
-                    if (waitLevel(selected.avg_wait) <= 1) return `${base} · a good time to go`;
+                    const base = `Based on ${selected.visits} visit${selected.visits === 1 ? '' : 's'}.`;
+                    if (waitLevel(selected.avg_wait) <= 1) return `${base} A good time to go.`;
                     const sameDay = grid.filter((c) => c.dow === selected.dow && c.visits >= 8);
                     const better = [...sameDay].sort((a, b) => a.avg_wait - b.avg_wait)[0];
                     return better && better.hour !== selected.hour
-                      ? `${base} · try ${hourText(better.hour)} for ~${Math.round(better.avg_wait)} min`
-                      : `${base} · this is the quietest hour that day`;
+                      ? `${base} Try ${DAY_FULL[selected.dow]} at ${hourText(better.hour)} for about ${Math.round(better.avg_wait)} min.`
+                      : `${base} This is the quietest hour that day.`;
                   })()}
                 </Text>
 
@@ -398,20 +334,20 @@ export default function BusyTimesScreen() {
                     before the slot — 7pm, which is when somebody can still
                     rearrange a morning; a reminder at 8am for a 10am slot is
                     one you cannot act on. "Hold my place" is the Line Helper. */}
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
                   <TouchableOpacity
                     onPress={remindMe}
                     disabled={reminding || reminded}
                     accessibilityRole="button"
                     accessibilityLabel={reminded ? 'Reminder set' : 'Remind me the evening before'}
                     style={{
-                      flex: 1, alignItems: 'center', borderRadius: 14, paddingVertical: 12,
-                      backgroundColor: reminded ? 'rgba(255,255,255,.12)' : D.accentBright,
+                      flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12,
+                      backgroundColor: 'rgba(125,163,224,.16)',
                     }}
                   >
-                    {reminding ? <ActivityIndicator color="#fff" size="small" /> : (
-                      <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>
-                        {reminded ? 'Reminder set ✓' : 'Remind me'}
+                    {reminding ? <ActivityIndicator color="#b9cdee" size="small" /> : (
+                      <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#b9cdee' }}>
+                        {reminded ? 'Reminder set' : 'Remind me'}
                       </Text>
                     )}
                   </TouchableOpacity>
@@ -422,14 +358,14 @@ export default function BusyTimesScreen() {
                       targetDow: selected.dow, targetHour: selected.hour,
                     })}
                     accessibilityRole="button"
-                    style={{ flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 14, paddingVertical: 12 }}
+                    style={{ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: D.accentBright, borderRadius: 12 }}
                   >
-                    <Text style={{ fontFamily: font.extra, fontSize: 12.5, color: '#fff' }}>Hold my place →</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 14, color: '#fff' }}>Hold my place</Text>
                   </TouchableOpacity>
                 </View>
 
                 {!!remindError && (
-                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: '#ff9d9d', marginTop: 10 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#ff9d9d', marginTop: 12 }}>
                     {remindError}
                   </Text>
                 )}

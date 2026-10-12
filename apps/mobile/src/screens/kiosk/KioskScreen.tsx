@@ -38,7 +38,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { colors, font, shadow } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { haptics } from '../../lib/haptics';
 import { ServiceSummary } from '../../lib/mobileData';
 import { useKioskScale, type KioskScale } from '../../lib/stage';
@@ -162,6 +162,7 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
   primary?: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean };
   footNote?: string; kx: KioskScale;
 }) {
+  const lift = useNavBarLift();
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingTop: kx.wide ? kx.s(34) : 22, paddingBottom: 14 }}>
@@ -188,7 +189,7 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
 
       <View style={{
         flexDirection: 'row', alignItems: 'center', gap: 14,
-        paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingTop: 14, paddingBottom: 22,
+        paddingHorizontal: kx.wide ? kx.s(44) : 22, paddingTop: 14, paddingBottom: 22 + lift,
         borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface,
       }}>
         {onBack ? (

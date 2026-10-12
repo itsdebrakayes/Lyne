@@ -8,7 +8,7 @@ import { LayoutAnimation, ScrollView, Text, TouchableOpacity, View } from 'react
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import Icon from '../../components/Icon';
 import { agencyGuide, AgencyService } from '../../lib/helpContent';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
@@ -63,6 +63,7 @@ function ServiceBucket({ service }: { service: AgencyService }) {
 export default function AgencyHelpScreen() {
   const navigation = useNavigation<any>();
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
   const route = useRoute<RouteProp<RootStackParamList, 'AgencyHelp'>>();
   const guide = agencyGuide(route.params?.slug);
 
@@ -78,7 +79,7 @@ export default function AgencyHelpScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 + lift }}
         showsVerticalScrollIndicator={false}
       >
         {/* Circular back, name, one muted line — the header the agency and

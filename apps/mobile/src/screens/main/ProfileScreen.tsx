@@ -3,18 +3,18 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, S
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../hooks/useAuth';
 import { getDocument, setDocument } from '../../lib/documentVault';
-import { PREMIUM_ENABLED } from '../../lib/features';
 import api, { supabase } from '../../lib/apiClient';
-import { colors, font, shadow, t, personInitials, inputReset, depthText } from '../../lib/theme';
+import { colors, font, shadow, t, personInitials, inputReset, TAB_BAR_CLEARANCE } from '../../lib/theme';
+import Constants from 'expo-constants';
+
+const appVersion = Constants.expoConfig?.version || '';
 import Icon, { IconName } from '../../components/Icon';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
-import { Sheen } from '../../components/Glass';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
-import { paymentsConfigured } from '../../lib/stripe';
-import { isDemoBuild } from '../../lib/sectorTerms';
 import { useContentColumn } from '../../lib/stage';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
@@ -25,43 +25,44 @@ const DOC_SHEET: Record<DocKey, { title: string; hint: string; placeholder: stri
   phone: { title: 'Add your phone', hint: 'Used for queue updates if push notifications are unavailable.', placeholder: '876-000-0000', keyboard: 'phone-pad' },
 };
 
-type Row = { icon: IconName; label: string; sub: string; onPress?: () => void; badge?: string };
+/* App Screens Refresh 1d: the grouped-list pattern most apps use. A row is an
+   icon, a label, and on the right its current value and a chevron. */
+type Row = { icon: IconName; label: string; value?: string; valueTone?: 'muted' | 'accent'; dot?: boolean; onPress?: () => void };
 
-function ListCard({ rows }: { rows: Row[] }) {
+function Group({ title, rows }: { title?: string; rows: Row[] }) {
   return (
-    <View style={{ backgroundColor: colors.surface, borderRadius: 22, overflow: 'hidden', ...shadow.card }}>
-      {rows.map((r, i) => (
-        <TouchableOpacity
-          key={r.label}
-          disabled={!r.onPress}
-          onPress={r.onPress}
-          accessibilityRole="button"
-          accessibilityLabel={`${r.label}. ${r.sub}`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 17, paddingHorizontal: 17, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}
-        >
-          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={r.icon} size={20} color={colors.ink} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15.5, color: colors.ink, letterSpacing: -0.3 }}>{r.label}</Text>
-            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 3 }}>{r.sub}</Text>
-          </View>
-          {r.badge
-            ? <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.accentInk }}>{r.badge}</Text></View>
-            : <Icon name="chevronRight" size={18} color={colors.chevron} />}
-        </TouchableOpacity>
-      ))}
+    <View>
+      {title ? <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, marginTop: 24, marginBottom: 8, marginLeft: 16 }}>{title}</Text> : null}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
+        {rows.map((r, i) => (
+          <TouchableOpacity
+            key={r.label}
+            disabled={!r.onPress}
+            onPress={r.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={r.value ? `${r.label}, ${r.value}` : r.label}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
+          >
+            <Icon name={r.icon} size={19} color={colors.sub} />
+            <View style={{ flex: 1, minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 16, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
+              <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.ink }}>{r.label}</Text>
+              {r.dot ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} /> : null}
+              {r.value ? (
+                <Text numberOfLines={1} style={{ maxWidth: 170, fontFamily: font.medium, fontSize: 15, color: r.valueTone === 'accent' ? colors.accent : colors.muted }}>{r.value}</Text>
+              ) : null}
+              {r.onPress ? <Icon name="chevronRight" size={16} color={colors.chevron} /> : null}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <Text style={{ fontFamily: font.extra, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 30, marginBottom: 13, marginLeft: 4 }}>{children}</Text>;
 }
 
 export default function ProfileScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(24);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const { user, signOut, refreshProfile } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -80,6 +81,13 @@ export default function ProfileScreen() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  const [notifState, setNotifState] = useState<'On' | 'Off'>('Off');
+  const [emailVerified, setEmailVerified] = useState(false);
+  useFocusEffect(useCallback(() => {
+    Notifications.getPermissionsAsync().then(p => setNotifState(p.granted ? 'On' : 'Off')).catch(() => {});
+    supabase.auth.getSession().then(({ data }) => setEmailVerified(Boolean(data.session?.user?.email_confirmed_at))).catch(() => {});
+  }, []));
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
@@ -176,111 +184,66 @@ export default function ProfileScreen() {
 
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={[t.content, { paddingTop: topPad }, column]} showsVerticalScrollIndicator={false}>
-        <View style={{ marginBottom: 28 }}>
-          <Text style={t.h2}>Account</Text>
-        </View>
+      <ScrollView contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE + lift }, column]} showsVerticalScrollIndicator={false}>
+        <Text accessibilityRole="header" style={{ fontFamily: font.semibold, fontSize: 32, letterSpacing: -0.8, lineHeight: 35, color: colors.ink }}>Settings</Text>
 
         {/* profile */}
-        <View style={{ alignItems: 'center' }}>
-          <View style={{ borderRadius: 44, ...shadow.depth }}>
-            <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', overflow: 'hidden' }}>
-              <Sheen radius={44} />
-              <Text style={{ fontFamily: font.extra, fontSize: 30, color: '#fff', ...depthText }}>{personInitials(name)}</Text>
-            </View>
+        <TouchableOpacity onPress={openEmailSheet} accessibilityRole="button" accessibilityLabel={`${name}, ${email}`}
+          style={{ marginTop: 20, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: font.semibold, fontSize: 18, color: '#fff' }}>{personInitials(name)}</Text>
           </View>
-          <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.4, marginTop: 13 }}>{name}</Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{email}</Text>
-        </View>
-
-        {/* personal details */}
-        <SectionLabel>Personal details</SectionLabel>
-        <ListCard rows={[
-          { icon: 'phone', label: 'Phone', sub: user?.phone || 'Not added yet', onPress: () => openDocSheet('phone', user?.phone) },
-          { icon: 'mail', label: 'Email', sub: email, onPress: openEmailSheet },
-        ]} />
-
-        {/* documents */}
-        <SectionLabel>My documents</SectionLabel>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {docs.map(d => (
-            <TouchableOpacity
-              key={d.key}
-              activeOpacity={0.85}
-              onPress={() => d.docKey === 'phone' ? openDocSheet('phone', user?.phone) : navigation.navigate('DocumentCapture', { field: d.docKey as 'national_id' | 'trn' })}
-              style={[t.card, { flex: 1, padding: 15, borderRadius: 20, ...shadow.card }]}
-            >
-              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: d.value ? colors.infoSoft : colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden' }}>
-                <Sheen radius={14} strength={0.6} />
-                <Icon name={d.icon} size={20} color={d.value ? colors.accent : colors.muted} />
-              </View>
-              <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>{d.key}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 }}>
-                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.value ? colors.light : colors.moderate }} />
-                <Text style={{ fontFamily: font.bold, fontSize: 12, color: colors.muted }}>{d.value ? d.ok : d.missing}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-
-        {/* account & activity */}
-        <SectionLabel>Account & activity</SectionLabel>
-        <ListCard rows={[
-          { icon: 'clock', label: 'Queue history', sub: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
-          { icon: 'bell', label: 'Notifications', sub: 'Queue & peak-hour alerts', onPress: () => navigation.navigate('Notifications') },
-          { icon: 'appearance', label: 'Appearance', sub: themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
-          /* Hidden in version one. The screen mentions Stripe and offers to
-             save a card, but payments are stubbed server-side and the
-             publishable key is empty — it advertises a purchase that cannot
-             happen. See lib/features.ts. */
-          ...(PREMIUM_ENABLED
-            ? [{ icon: 'financial' as IconName, label: 'Payment methods', sub: 'Manage cards', onPress: () => navigation.navigate('PaymentMethods') }]
-            : []),
-          { icon: 'shield', label: 'Privacy & security', sub: 'App lock, sessions, data', onPress: () => navigation.navigate('PrivacySecurity') },
-          /* Both stores require the privacy policy to be readable inside the
-             app, not just as a URL on the listing. LegalScreen held both
-             documents and nothing linked to it — the screen existed, the route
-             did not, so the requirement was met on paper only. */
-          { icon: 'document', label: 'Privacy policy & terms', sub: 'How we handle your data', onPress: () => navigation.navigate('Legal') },
-          { icon: 'help', label: 'Help & support', sub: 'FAQs, contact us', onPress: () => navigation.navigate('Help') },
-        ]} />
-
-        {/* Demo-only. Gated on the release flag, not on payments being
-            unconfigured — see isDemoBuild(). */}
-        {isDemoBuild() && !paymentsConfigured() && (
-          <>
-            <SectionLabel>Demo controls</SectionLabel>
-          </>
-        )}
-
-        <TouchableOpacity onPress={signOut} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 15, alignItems: 'center', marginTop: 16 }}>
-          <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.ink }}>Log out</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 17, color: colors.ink }}>{name}</Text>
+            <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>{email}</Text>
+          </View>
+          <Icon name="chevronRight" size={16} color={colors.chevron} />
         </TouchableOpacity>
 
-        {/* Danger zone. Deliberately last, visually separated, and worded so the
-            consequence is unmissable BEFORE the sheet opens — someone should
-            never reach the confirmation unsure of what it does. */}
-        <SectionLabel>Delete account</SectionLabel>
-        <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border }}>
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, lineHeight: 19 }}>
-            Deleting your account is permanent. We erase your profile, your saved agencies, your visit history,
-            your notifications, your saved cards, and every document you scanned — including any TRN, National ID
-            or passport details we hold. Any line you are currently in is given up.
-          </Text>
-          <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, lineHeight: 19, marginTop: 10 }}>
-            Agencies keep an anonymous record that a visit happened, for their own service statistics. It carries
-            nothing that identifies you.
-          </Text>
+        <Group title="Personal details" rows={[
+          { icon: 'phone', label: 'Phone', value: user?.phone || 'Add', valueTone: user?.phone ? 'muted' : 'accent', onPress: () => openDocSheet('phone', user?.phone) },
+          { icon: 'mail', label: 'Email', value: emailVerified ? 'Verified' : 'Unverified', onPress: openEmailSheet },
+        ]} />
+
+        <Group title="Documents" rows={docs.map(d => ({
+          icon: d.icon, label: d.key, value: d.value ? 'On file' : 'Add', valueTone: d.value ? 'muted' as const : 'accent' as const, dot: Boolean(d.value),
+          onPress: () => navigation.navigate('DocumentCapture', { field: d.docKey as 'national_id' | 'trn' }),
+        }))} />
+
+        <Group title="App" rows={[
+          { icon: 'bell', label: 'Notifications', value: notifState, onPress: () => navigation.navigate('Notifications') },
+          { icon: 'appearance', label: 'Appearance', value: themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light', onPress: () => setAppearanceOpen(true) },
+          { icon: 'shield', label: 'Privacy and security', onPress: () => navigation.navigate('PrivacySecurity') },
+          { icon: 'clock', label: 'Queue history', value: `${history.length} ${history.length === 1 ? 'visit' : 'visits'}`, onPress: () => navigation.navigate('History') },
+        ]} />
+
+        {/* Both stores require the privacy policy to be readable inside the app. */}
+        <Group title="Support" rows={[
+          { icon: 'help', label: 'Help and support', onPress: () => navigation.navigate('Help') },
+          { icon: 'document', label: 'Privacy policy and terms', onPress: () => navigation.navigate('Legal') },
+        ]} />
+
+        {/* Log out and Delete account: last, in red, and Delete opens a sheet
+            that says exactly what goes before anything is removed. */}
+        <View style={{ marginTop: 24, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
+          <TouchableOpacity onPress={signOut} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}>
+            <Ionicons name="log-out-outline" size={19} color={colors.dangerInk} />
+            <View style={{ flex: 1, minHeight: 50, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: colors.borderSoft }}>
+              <Text style={{ fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Log out</Text>
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); }}
             accessibilityRole="button"
-            accessibilityLabel="Delete my account permanently"
-            style={{ backgroundColor: colors.dangerSoft, borderRadius: 15, paddingVertical: 15, alignItems: 'center', marginTop: 16 }}
+            accessibilityLabel="Delete account"
+            accessibilityHint="Opens a confirmation. Deletion is permanent."
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
           >
-            <Text style={{ fontFamily: font.extra, fontSize: 14.5, color: colors.danger }}>Delete my account</Text>
+            <Ionicons name="trash-outline" size={19} color={colors.dangerInk} />
+            <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Delete account</Text>
           </TouchableOpacity>
         </View>
+        <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: 16 }}>Lyne {appVersion}</Text>
       </ScrollView>
       <TabBar active="Profile" />
 
@@ -288,10 +251,12 @@ export default function ProfileScreen() {
       <Modal visible={deleteOpen} transparent animationType="slide" onRequestClose={() => setDeleteOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => !deleting && setDeleteOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(6,12,20,.55)' }} />
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
             <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.5 }}>Delete your account?</Text>
             <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.sub, marginTop: 10, lineHeight: 20 }}>
-              This cannot be undone. Everything listed above is erased straight away, and you will be signed out.
+              This cannot be undone. We erase your profile, saved agencies, visit history, notifications, and any
+              document you scanned, including TRN, National ID or passport details, and you are signed out. Agencies
+              keep an anonymous record that a visit happened, with nothing that identifies you.
               To confirm, type <Text style={{ fontFamily: font.extra, color: colors.ink }}>DELETE</Text> below.
             </Text>
             <TextInput
@@ -325,7 +290,7 @@ export default function ProfileScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setEditingDoc(null)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
           {editingDoc && (
-            <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+            <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
               <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>{DOC_SHEET[editingDoc].title}</Text>
               <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6, lineHeight: 18 }}>{DOC_SHEET[editingDoc].hint}</Text>
@@ -356,7 +321,7 @@ export default function ProfileScreen() {
       <Modal visible={emailOpen} transparent animationType="slide" onRequestClose={() => setEmailOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setEmailOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             {emailSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 6 }}>
@@ -402,7 +367,7 @@ export default function ProfileScreen() {
       <Modal visible={appearanceOpen} transparent animationType="slide" onRequestClose={() => setAppearanceOpen(false)}>
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setAppearanceOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Appearance</Text>
             <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6 }}>Choose how Lyne looks. “System” follows your phone.</Text>

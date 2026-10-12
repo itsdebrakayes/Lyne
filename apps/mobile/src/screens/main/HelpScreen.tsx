@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import Wordmark from '../../components/Wordmark';
 import { colors, font, shadow, t } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import Icon from '../../components/Icon';
 import { GENERAL_FAQS, AGENCY_GUIDES } from '../../lib/helpContent';
@@ -36,6 +36,7 @@ const SECTION = {
 export default function HelpScreen() {
   const navigation = useNavigation<any>();
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
 
   /* Which of the curated guides are about an agency that is actually on Lyne.
      The guides are a hand-written file, and a hand-written file does not know
@@ -55,7 +56,7 @@ export default function HelpScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 + lift }}
         showsVerticalScrollIndicator={false}
       >
         {/* The header every pushed screen in the app now uses: a circular back

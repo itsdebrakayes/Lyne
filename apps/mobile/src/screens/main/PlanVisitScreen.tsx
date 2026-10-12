@@ -23,15 +23,15 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t, initials } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { BranchSummary } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import { PremiumBadge } from '../../components/PremiumBadge';
+import { InsightsHeader } from '../../components/InsightsHeader';
 import TodayForecast, { ForecastHour } from '../../components/TodayForecast';
-import { D } from '../../lib/predictiveDesign';
+import { D, hourText } from '../../lib/predictiveDesign';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Plan'>;
@@ -81,15 +81,19 @@ interface BestTimes {
   services: ServicePlan[];
 }
 
-/** "2 PM" given 14 — the end of the best-time window on the forecast card. */
-const nextHourLabel = (hour: number) => {
-  const h = (hour + 1) % 24;
-  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? 'AM' : 'PM'}`;
+/** "12 – 1 PM", or "11 AM – 12 PM" across noon — the one-hour best-time
+    window on the forecast card, as v2 writes it. */
+const hourWindowLabel = (hour: number) => {
+  const end = (hour + 1) % 24;
+  const n = (h: number) => (h % 12 === 0 ? 12 : h % 12);
+  const ap = (h: number) => (h < 12 ? 'AM' : 'PM');
+  return ap(hour) === ap(end) ? `${n(hour)} – ${n(end)} ${ap(end)}` : `${n(hour)} ${ap(hour)} – ${n(end)} ${ap(end)}`;
 };
 
 
 export default function PlanVisitScreen() {
-  const topPad = useTopPad(18);
+  const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user } = useAuth();
@@ -97,7 +101,6 @@ export default function PlanVisitScreen() {
      `|| preview`, where `preview` was a device-local toggle anybody could flip
      in Settings — it unlocked the paid planner for free, and an App Store
      reviewer would have found it in the first minute. */
-  const premium = Boolean(Number(user?.is_premium || 0));
 
   const { data: branches = [] } = useQuery({
     queryKey: ['mobile-branches'],
@@ -132,7 +135,7 @@ export default function PlanVisitScreen() {
   const forYou = useQuery({
     queryKey: ['for-you', user?.id ?? 'anon'],
     queryFn: () => api.get<ForYou>('/predictions/for-you'),
-    enabled: Boolean(user?.id && premium),
+    enabled: Boolean(user?.id),
     staleTime: 1000 * 60 * 30,
     retry: false,
   });
@@ -140,51 +143,18 @@ export default function PlanVisitScreen() {
 
   const plan = bestTimes.data;
 
-  /* The badge the design puts in the header. TWO sources, because either one
-     alone gets it wrong: the user record can lag (a trial started on another
-     screen flips the server before this client refetches its profile), and the
-     payload alone would hide the badge while the response is still in flight.
-     Whichever says premium is enough — this only drives a badge.
-
-     Caught by walking the live app against the design: the heatmap had
-     unlocked, so the customer WAS premium, and this header still showed
-     nothing where the design shows PREMIUM. */
-  const showPremiumBadge = premium || Boolean(plan?.premium);
-
-  /* No trial button on this screen any more, and no locked panel. Screen 01 of
-     the design is free end to end — the forecast and the two recommendations
-     are the thing that demonstrates the product, and a paywall in front of
-     that sells nothing. The lock lives on screen 02, over the heatmap, which
-     is what the subscription actually buys. */
-
   return (
     <View style={t.root}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 56 }} showsVerticalScrollIndicator={false}>
-        {/* top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-          {/* Labelled, like the back button on every other screen in this
-              flow. An unlabelled icon button is announced as just "button". */}
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={t.iconBtn}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Plan your visit</Text>
-          <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
-            {showPremiumBadge && <PremiumBadge size="sm" />}
-          </View>
-        </View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 56 + lift }} showsVerticalScrollIndicator={false}>
+        <InsightsHeader
+          title="Plan your visit"
+          onBack={() => navigation.goBack()}
+        />
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11, color: D.eyebrow, letterSpacing: 1.6 }}>SMART TIMING</Text>
-        {/* 30/1.12/-0.9 and no hard line break — the design lets it wrap, which
-            is what keeps it from breaking in the wrong place on a small phone.
-            The tail is 500 weight in `sub`, not the same weight as the lead. */}
-        <Text style={{ fontSize: 30, lineHeight: 33.6, letterSpacing: -0.9, marginTop: 8, marginBottom: 20 }}>
-          <Text style={{ fontFamily: font.extra, color: D.ink }}>Beat the line </Text>
-          <Text style={{ fontFamily: font.medium, color: D.sub }}>before you leave home.</Text>
+        {/* v2: one tone, no eyebrow, and no hard line break — it wraps where
+            the phone needs it to. */}
+        <Text style={{ fontFamily: font.semibold, fontSize: 28, lineHeight: 32, letterSpacing: -0.7, color: colors.ink, marginBottom: 20 }}>
+          Beat the line before you leave home.
         </Text>
 
         {/* branch chips */}
@@ -192,9 +162,9 @@ export default function PlanVisitScreen() {
           {branches.map(b => {
             const on = branch?.id === b.id;
             return (
-              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 17, paddingVertical: 11, paddingHorizontal: 15 }}>
-                <Text style={{ fontFamily: font.extra, fontSize: 11, color: on ? D.onDarkAccent : D.muted }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
-                <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
+              <TouchableOpacity key={b.id} onPress={() => setSelectedId(b.id)} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 36, backgroundColor: on ? colors.dark : colors.surface, borderWidth: 1, borderColor: on ? colors.dark : colors.border, borderRadius: 18, paddingHorizontal: 14 }}>
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: on ? D.onDarkAccent : '#8a94a6' }}>{b.business_slug?.toUpperCase() || initials(b.business_name)}</Text>
+                <Text style={{ fontFamily: font.semibold, fontSize: 13, color: on ? '#fff' : colors.ink }}>{b.name}</Text>
               </TouchableOpacity>
             );
           })}
@@ -225,7 +195,7 @@ export default function PlanVisitScreen() {
                 dayName={plan.today.day_name}
                 isToday={plan.today.is_today !== false}
                 bestLabel={plan.today.best
-                  ? `${plan.today.best.hour_label} – ${nextHourLabel(plan.today.best.hour)}`
+                  ? hourWindowLabel(plan.today.best.hour)
                   : undefined}
                 bestWait={plan.today.best?.avg_wait}
                 hours={plan.today.hours}
@@ -309,21 +279,21 @@ export default function PlanVisitScreen() {
                   accessibilityLabel={`${title}. ${sub}`}
                   style={{
                     flexDirection: 'row', gap: 12, alignItems: 'center',
-                    paddingVertical: 14, paddingHorizontal: 16,
+                    padding: 16,
                     borderBottomWidth: last ? 0 : 1, borderBottomColor: D.lineSoft,
                   }}
                 >
                   <View style={{
-                    width: 36, height: 36, borderRadius: 12, backgroundColor: chipBg,
+                    width: 40, height: 40, borderRadius: 12, backgroundColor: chipBg,
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 12, color: chipInk }}>{chip}</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: chipInk }}>{chip}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 13.5, color: D.ink }}>{title}</Text>
-                    <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted, marginTop: 2 }}>{sub}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 15, color: colors.ink }}>{title}</Text>
+                    <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#8a94a6', marginTop: 2 }}>{sub}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={chipInk} />
+                  <Ionicons name="chevron-forward" size={16} color={colors.muted} />
                 </TouchableOpacity>
               );
 
@@ -331,7 +301,7 @@ export default function PlanVisitScreen() {
                 <>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 22, marginBottom: 12 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: font.extra, fontSize: 17, color: D.ink }}>For you</Text>
+                      <Text style={{ fontFamily: font.semibold, fontSize: 17, color: colors.ink }}>For you</Text>
                       {/* Says WHY these are the rows — "for you" is a claim, and
                           a claim with its basis attached is the difference
                           between a recommendation and a horoscope. */}
@@ -350,19 +320,19 @@ export default function PlanVisitScreen() {
                       })}
                       accessibilityRole="button"
                     >
-                      <Text style={{ fontFamily: font.bold, fontSize: 12, color: D.accent }}>See heatmap →</Text>
+                      <Text style={{ fontFamily: font.semibold, fontSize: 14, color: D.accent }}>Busy times</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <View style={{ backgroundColor: D.surface, borderRadius: 22, borderWidth: 1, borderColor: D.lineSoft, overflow: 'hidden' }}>
+                  <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
                     {personalAim ? (
                       <Row
-                        chip={personalAim.day_name.slice(0, 2)}
+                        chip={personalAim.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
-                        title={`${personalAim.service_name}: ${personalAim.day_name}, ${personalAim.hour_label.replace(':00', '')}`}
+                        title={`${personalAim.day_name} at ${hourText(personalAim.hour)}`}
                         sub={personalAim.matches_your_hours
-                          ? `~${Math.round(personalAim.avg_wait)} min — and it is when you usually go`
-                          : `~${Math.round(personalAim.avg_wait)} min, your quietest option`}
+                          ? `${personalAim.service_name} · about ${Math.round(personalAim.avg_wait)} min, when you usually go`
+                          : `${personalAim.service_name} · about ${Math.round(personalAim.avg_wait)} min`}
                         onPress={() => mine?.home_branch && navigation.navigate('LineHelper', {
                           businessId: mine.home_branch.business_id,
                           branchId: mine.home_branch.branch_id,
@@ -376,22 +346,22 @@ export default function PlanVisitScreen() {
                       />
                     ) : (
                       <Row
-                        chip={aim.best!.day_name.slice(0, 2)}
+                        chip={aim.best!.day_name.slice(0, 3)}
                         chipBg={D.coolBg} chipInk={D.coolInk}
-                        title={`${aim.service_name}: ${aim.best!.day_name}, ${aim.best!.hour_label.replace(':00', '')}`}
-                        sub={`~${Math.round(aim.best!.avg_wait)} min, quietest slot this week`}
+                        title={`${aim.best!.day_name} at ${hourText(aim.best!.hour)}`}
+                        sub={`${aim.service_name} · about ${Math.round(aim.best!.avg_wait)} min`}
                         onPress={() => branch && navigation.navigate('WeekPlanner', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
-                          serviceId: aim.service_id,
+                          serviceId: aim.service_id, targetDow: aim.best!.dow,
                         })}
                         last={!avoid}
                       />
                     )}
                     {personalAvoid ? (
                       <Row
-                        chip={personalAvoid.day_name.slice(0, 2)}
+                        chip={personalAvoid.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
-                        title={`Skip ${personalAvoid.day_name} ${personalAvoid.hour_label.replace(':00', '')}`}
+                        title={`Skip ${personalAvoid.day_name} at ${hourText(personalAvoid.hour)}`}
                         sub={`${personalAvoid.service_name} averages ${Math.round(personalAvoid.avg_wait)} min then`}
                         onPress={() => mine?.home_branch && navigation.navigate('BusyTimes', {
                           businessId: mine.home_branch.business_id,
@@ -403,9 +373,9 @@ export default function PlanVisitScreen() {
                       />
                     ) : avoid ? (
                       <Row
-                        chip={avoid.busiest!.day_name.slice(0, 2)}
+                        chip={avoid.busiest!.day_name.slice(0, 3)}
                         chipBg={D.warmBg} chipInk={D.warmInk}
-                        title={`Skip ${avoid.busiest!.day_name} ${avoid.busiest!.hour_label.replace(':00', '')}`}
+                        title={`Skip ${avoid.busiest!.day_name} at ${hourText(avoid.busiest!.hour)}`}
                         sub={`Averages ${Math.round(avoid.busiest!.avg_wait)} min, the week's peak`}
                         onPress={() => branch && navigation.navigate('BusyTimes', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,

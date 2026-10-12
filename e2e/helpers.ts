@@ -109,3 +109,35 @@ export async function verificationCodeFor(ticketId: string): Promise<string | nu
   await conn.end();
   return (rows as any[])[0]?.verification_code ?? null;
 }
+
+/**
+ * Run SQL against the local demo database (port 3308 — never the hosted one).
+ *
+ * The customer tests use this for the half of a visit that happens at the
+ * counter: calling or serving a ticket is a staff action, and these tests sign
+ * in only as the customer.
+ */
+export async function demoDb<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const { createRequire } = await import('module');
+  const require = createRequire(process.cwd() + '/apps/backend/package.json');
+  const mysql = require('mysql2/promise');
+  const { readFileSync } = await import('fs');
+  const env = Object.fromEntries(
+    readFileSync(process.cwd() + '/.env', 'utf8').split('\n')
+      .filter((l: string) => l.includes('=') && !l.trim().startsWith('#'))
+      .map((l: string) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, '')]; })
+  ) as Record<string, string>;
+  const conn = await mysql.createConnection({
+    host: '127.0.0.1',
+    port: Number(process.env.CHECK_MYSQL_PORT || 3308),
+    user: env.MYSQL_USER || 'lyne',
+    password: env.MYSQL_PASSWORD,
+    database: env.MYSQL_DATABASE || 'lyne',
+  });
+  try {
+    const [rows] = await conn.query(sql, params);
+    return rows as T[];
+  } finally {
+    await conn.end();
+  }
+}

@@ -3,14 +3,16 @@ import { ActivityIndicator, Alert, Linking, Platform, RefreshControl, ScrollView
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, font, t, type, initials } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { cancelDepartureReminder, dismissLiveTicketNotification, registerPushNotifications, scheduleQueueUpdateNotification, updateLiveTicketNotification } from '../../lib/notifications';
+import { cancelDepartureReminder, registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
+import { endLiveTicket, syncLiveTicket } from '../../lib/liveTicket';
 import { useContentColumn } from '../../lib/stage';
+import { WALLET_PASS_ENABLED } from '../../lib/features';
 import Code39Barcode from '../../components/Code39Barcode';
 import { Press } from '../../components/Press';
 import { ErrorCard } from '../../components/Feedback';
@@ -26,7 +28,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
 /* Whose wallet, and whose store. Read once — the platform does not change
-   while the app is running. */
+   while the app is running. Only ever reached when WALLET_PASS_ENABLED is on. */
 const WALLET_NAME = Platform.OS === 'android' ? 'Google Wallet' : 'Apple Wallet';
 const WALLET_NOTE = Platform.OS === 'android'
   ? 'Wallet passes arrive with the Play Store release.'
@@ -52,12 +54,15 @@ function Cell({ label, value, wide }: { label: string; value: React.ReactNode; w
 export default function TicketScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { user } = useAuth();
   const providedTicketId = route.params?.ticketId;
   const [leaving, setLeaving] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmIncomplete, setConfirmIncomplete] = useState(false);
+  const [closing, setClosing] = useState(false);
   /* Holds the id of the ticket they just left, so the reason can still be sent
      after the ticket query has moved on. */
   const [askWhy, setAskWhy] = useState<string | null>(null);
@@ -113,19 +118,12 @@ export default function TicketScreen() {
     } else if (previous.current.wait !== undefined && previous.current.wait !== ticket.estimated_wait_minutes) {
       scheduleQueueUpdateNotification('Wait time updated', `Your estimated wait is now ${ticket.estimated_wait_minutes} minutes.`, ticket.id).catch(() => {});
     }
-    // Ongoing "live ticket" notification (Android sticky; iOS passive/time-sensitive)
-    // mirrors the in-app pill on the lock screen and notification shade.
+    // The ticket on the lock screen: a Live Activity on iOS, the ongoing
+    // notification on Android (lib/liveTicket.ts).
     if (liveStatuses.includes(ticket.status)) {
-      updateLiveTicketNotification({
-        ticketId: ticket.id,
-        ticketNumber: ticket.ticket_number,
-        status: ticket.status as 'waiting' | 'called' | 'in_service',
-        ahead: Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1),
-        estimatedWaitMinutes: ticket.estimated_wait_minutes,
-        branchName: ticket.branch_name,
-      }).catch(() => {});
+      syncLiveTicket(ticket).catch(() => {});
     } else if (previous.current.status && liveStatuses.includes(previous.current.status)) {
-      dismissLiveTicketNotification();
+      endLiveTicket(ticket).catch(() => {});
       // The ticket has gone terminal by any route — served, no-showed, swept at
       // closing. Whatever armed the "head out" alert, it is no longer true.
       cancelDepartureReminder();
@@ -174,6 +172,27 @@ export default function TicketScreen() {
 
   // Leaving is irreversible — the place in line is released to the next person
   // and cannot be reclaimed — so it is confirmed rather than fired on one tap.
+  /* For the person who reached the counter and could not finish. Recorded on
+     the server exactly as the clerk's Incomplete control records it. */
+  const markIncomplete = async () => {
+    if (!ticketId) return;
+    try {
+      setClosing(true); setError('');
+      await api.put(`/tickets/${ticketId}/incomplete`, {});
+      await Promise.all([
+        cancelDepartureReminder(),
+        endLiveTicket(ticket || undefined),
+        queryClient.invalidateQueries({ queryKey: ['active-ticket'] }),
+        queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] }),
+      ]);
+      setConfirmIncomplete(false);
+    } catch (err: any) {
+      setError(err?.message || 'Could not update this visit. Try again, or tell the staff at the counter.');
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const leaveQueue = async () => {
     if (!ticketId) return;
     try {
@@ -189,7 +208,7 @@ export default function TicketScreen() {
          they were no longer in. */
       await Promise.all([
         cancelDepartureReminder(),
-        dismissLiveTicketNotification(),
+        endLiveTicket(ticket || undefined),
         queryClient.invalidateQueries({ queryKey: ['active-ticket'] }),
         queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] }),
       ]);
@@ -256,7 +275,16 @@ export default function TicketScreen() {
   const active = ['waiting', 'called', 'in_service'].includes(ticket.status);
   const called = ticket.status === 'called';
   const inService = ticket.status === 'in_service';
-  const terminal = TERMINAL_META[ticket.status];
+  /* A visit closed as incomplete is stored as served (that is how the branch
+     counts it), but telling the customer it is "complete" would contradict the
+     button they just pressed. */
+  const terminal = ticket.status === 'served' && ticket.readiness_outcome === 'incomplete'
+    ? { ...TERMINAL_META.served, label: 'Marked incomplete', note: 'This visit was marked incomplete. You can join the line again whenever you are ready.' }
+    : TERMINAL_META[ticket.status];
+  /* Still in the line, so leaving and alerts still mean something. Once the
+     ticket is in_service neither does: there is no place left to give up and
+     nothing left to be told. */
+  const queued = called || ticket.status === 'waiting';
   const statusLabel = called
     ? "It's your turn. Head to the counter"
     : inService
@@ -283,7 +311,7 @@ export default function TicketScreen() {
           same ticket. This screen is checked over and over while somebody
           waits. */}
       <TicketPrinter printKey={active ? ticketId : undefined}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32, ...column }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32 + lift, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* status banner — the one thing that must never be missed */}
@@ -336,10 +364,14 @@ export default function TicketScreen() {
                 Wallet, and offering them one is the kind of detail that tells
                 somebody the app was built for a different device than the one
                 in their hand. */}
-            {/* Only while there is something to carry. Offering to add a
-                finished visit to a wallet is offering to keep a boarding pass
-                for a flight that landed. */}
-            {active && (
+            {/* Off in version one — see WALLET_PASS_ENABLED in lib/features.ts.
+                Renders nothing at all when the flag is off: no disabled
+                button, and no gap where one used to be.
+
+                The `active` half stays regardless. Offering to add a finished
+                visit to a wallet is offering to keep a boarding pass for a
+                flight that landed. */}
+            {WALLET_PASS_ENABLED && active && (
               <>
                 <View style={{
                   flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
@@ -396,6 +428,12 @@ export default function TicketScreen() {
         </View>
 
         {/* terminal note */}
+        {inService && (
+          <View style={{ backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 19, marginTop: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+            <Icon name="check" size={22} color={colors.light} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.8)', lineHeight: 19 }}>You are now being served.</Text>
+          </View>
+        )}
         {terminal && (
           <View style={{ backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 19, marginTop: 16, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
             <Icon name={ticket.status === 'served' ? 'check' : 'bell'} size={22} color={terminal.tone} />
@@ -407,7 +445,20 @@ export default function TicketScreen() {
 
         {/* actions */}
         <View style={{ marginTop: 22, gap: 10 }}>
-          {active ? (
+          {inService ? (
+            <TouchableOpacity
+              onPress={() => { haptics.warning(); setConfirmIncomplete(true); }}
+              disabled={closing}
+              activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityHint="For when you reached the counter but could not finish"
+              style={{ minHeight: 58, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {closing ? <ActivityIndicator color="#fff" /> : (
+                <Text style={{ fontFamily: font.extra, fontSize: 15, color: '#fff' }}>Mark as incomplete</Text>
+              )}
+            </TouchableOpacity>
+          ) : queued ? (
             /* Stacked and full width, not two halves.
                Side by side, "Notify me" and "Leave queue" each had about half a
                phone's width for a two-word label and an icon, so both sat
@@ -492,8 +543,8 @@ export default function TicketScreen() {
             </TouchableOpacity>
           )}
         </View>
-        {active && alerts === 'on' && <Text style={{ ...type.caption, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
-        {active && alerts === 'denied' && <Text style={{ ...type.caption, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
+        {queued && alerts === 'on' && <Text style={{ ...type.caption, color: colors.light, textAlign: 'center', marginTop: 12 }}>We&apos;ll ping you when you&apos;re called or the wait changes.</Text>}
+        {queued && alerts === 'denied' && <Text style={{ ...type.caption, color: 'rgba(255,255,255,.55)', textAlign: 'center', marginTop: 12 }}>Enable notifications in Settings to get called-up alerts.</Text>}
       </ScrollView>
       </TicketPrinter>
 
@@ -512,6 +563,18 @@ export default function TicketScreen() {
         holdDoneLabel="Left the line"
         onConfirm={leaveQueue}
         onCancel={() => setConfirmLeave(false)}
+      />
+
+      <ConfirmSheet
+        visible={confirmIncomplete}
+        title="Mark this visit incomplete?"
+        message="Use this if you reached the counter but could not finish. The branch will see the visit as incomplete, and you can join the line again whenever you are ready."
+        confirmLabel="Mark incomplete"
+        cancelLabel="Keep the visit open"
+        icon="alert-circle-outline"
+        busy={closing}
+        onConfirm={markIncomplete}
+        onCancel={() => setConfirmIncomplete(false)}
       />
 
       <LeaveReasonSheet

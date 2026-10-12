@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../lib/apiClient';
+import { syncLiveTicket } from '../lib/liveTicket';
 import { TicketRecord } from '../lib/mobileData';
 import { colors, font, shadow, hexToRgba } from '../lib/theme';
-import { GlassView } from './Glass';
 import Icon, { IconName } from './Icon';
+import { useNavBarLift } from '../lib/insets';
 
 type TabKey = 'Home' | 'Search' | 'Saved' | 'Profile';
+
+/* Spoken names for the icon-only tabs. Without them VoiceOver and TalkBack
+   announced four identical "button"s. Profile is labelled as the screen it
+   opens, which is titled Settings. */
+const TAB_LABEL: Record<TabKey, string> = { Home: 'Home', Search: 'Search', Saved: 'Saved places', Profile: 'Settings' };
 
 // Compact dark pill: icon-only tabs, active icon lifted in a white circle,
 // and a blue center action for the app's core verb — joining a line.
@@ -28,12 +34,16 @@ export function useActiveTicket() {
     queryFn: () => api.get<TicketRecord | null>('/tickets/active'),
     refetchInterval: 8_000,
   });
+  /* Wherever the person is in the app, keep the lock-screen ticket in step
+     with this poll; liveTicket.ts drops repeats, so every caller may do it. */
+  useEffect(() => { syncLiveTicket(ticket).catch(() => {}); }, [ticket]);
   if (!ticket || !['waiting', 'called', 'in_service'].includes(ticket.status)) return null;
   return ticket;
 }
 
 export function ActiveTicketPill() {
   const navigation = useNavigation<any>();
+  const lift = useNavBarLift();
   const ticket = useActiveTicket();
   if (!ticket) return null;
   const called = ticket.status === 'called';
@@ -51,7 +61,9 @@ export function ActiveTicketPill() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-      style={{ position: 'absolute', bottom: 102, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
+      accessibilityRole="button"
+      accessibilityLabel={`${headline}. ${sub}. Open your ticket.`}
+      style={{ position: 'absolute', bottom: 102 + lift, left: 16, right: 16, backgroundColor: called ? colors.accent : colors.dark, borderRadius: 21, paddingVertical: 13, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 31, ...shadow.hero }}
     >
       <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: called ? colors.accentInk : colors.light }} />
       <View style={{ flex: 1 }}>
@@ -67,6 +79,9 @@ function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: IconName;
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityLabel={TAB_LABEL[tab.key]}
+      accessibilityState={{ selected: active }}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
       style={{
         width: 46, height: 46, borderRadius: 23,
@@ -86,6 +101,7 @@ function TabIcon({ tab, active, onPress }: { tab: { key: TabKey; icon: IconName;
  */
 export function TabBar({ active, showTicketPill = true }: { active: TabKey; showTicketPill?: boolean }) {
   const navigation = useNavigation<any>();
+  const lift = useNavBarLift();
   const ticket = useActiveTicket();
 
   // Center = the live ticket. It only lights cyan when there IS a line to
@@ -102,18 +118,17 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         pointerEvents="none"
         colors={[hexToRgba(colors.bg, 0), hexToRgba(colors.bg, 0.85), colors.bg]}
         locations={[0, 0.42, 0.78]}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, zIndex: 29 }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140 + lift, zIndex: 29 }}
       />
       {showTicketPill && <ActiveTicketPill />}
-      <GlassView
-        tint="dark"
-        intensity={55}
-        radius={34}
+      {/* Solid, not glass (App Screens Refresh): the same pill, now an opaque
+          navy surface, 62pt tall, so it reads the same over any content. */}
+      <View
         style={{
-          position: 'absolute', bottom: 24, alignSelf: 'center',
-          flexDirection: 'row', alignItems: 'center', gap: 10,
-          paddingHorizontal: 16, paddingVertical: 8,
-          zIndex: 30, ...shadow.floating,
+          position: 'absolute', bottom: 24 + lift, alignSelf: 'center', height: 62,
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          paddingHorizontal: 8, borderRadius: 31, backgroundColor: colors.dark,
+          zIndex: 30, shadowColor: colors.dark, shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 12 }, elevation: 12,
         }}
       >
         {LEFT_TABS.map(tab => (
@@ -122,9 +137,12 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         <TouchableOpacity
           onPress={centerPress}
           disabled={!hasTicket}
+          accessibilityRole="button"
+          accessibilityLabel={hasTicket ? 'Your ticket' : 'Your ticket (you are not in a line)'}
+          accessibilityState={{ disabled: !hasTicket }}
           activeOpacity={hasTicket ? 0.85 : 1}
           style={{
-            width: 50, height: 50, borderRadius: 25, marginHorizontal: 3,
+            width: 50, height: 50, borderRadius: 25, marginHorizontal: 2,
             alignItems: 'center', justifyContent: 'center',
             backgroundColor: hasTicket ? colors.accent : 'rgba(255,255,255,0.08)',
             borderWidth: hasTicket ? 0 : 1.5, borderColor: 'rgba(255,255,255,0.22)',
@@ -136,7 +154,7 @@ export function TabBar({ active, showTicketPill = true }: { active: TabKey; show
         {RIGHT_TABS.map(tab => (
           <TabIcon key={tab.key} tab={tab} active={tab.key === active} onPress={() => navigation.navigate(tab.key)} />
         ))}
-      </GlassView>
+      </View>
     </>
   );
 }

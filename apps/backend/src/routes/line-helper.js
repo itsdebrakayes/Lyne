@@ -28,6 +28,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { hasPremium } = require('../lib/premium');
+const { serviceAvailableAt } = require('../utils/serviceAvailability');
 
 const router = express.Router();
 
@@ -125,6 +126,72 @@ router.get('/active', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/line-helper/options ─────────────────────────────
+// The times a helper can actually be booked for. The app used to guess
+// ("the suggested hour, plus three and four hours") and could land outside
+// opening hours; now the server offers only times it would accept: the branch
+// serves the service then, there is enough history to predict the wait, and
+// the helper would join far enough ahead. Days ahead are the point of the
+// feature — a Monday booking for Thursday 8am is normal.
+router.post('/options', requireAuth, validate(schemas.lineHelperOptions), async (req, res) => {
+  try {
+    const { branch_id: branchId, service_id: serviceId, target_dow: targetDow, target_hour: targetHour } = req.body;
+    const now = new Date();
+    const wantDow = typeof targetDow === 'number' ? targetDow : now.getDay();
+    const wantHour = typeof targetHour === 'number' ? targetHour : 11;
+
+    // The next occurrence of the wanted weekday, then later days if that one
+    // has nothing bookable (closed, or too soon) — never past MAX_DAYS_AHEAD.
+    const first = new Date(now);
+    first.setHours(0, 0, 0, 0);
+    first.setDate(first.getDate() + ((wantDow - now.getDay() + 7) % 7));
+
+    for (let offset = 0; offset <= MAX_DAYS_AHEAD; offset += 1) {
+      const day = new Date(first);
+      day.setDate(first.getDate() + offset);
+      if (day.getTime() - now.getTime() > MAX_DAYS_AHEAD * 86400000) break;
+
+      const candidates = [];
+      for (let hour = 0; hour < 24; hour += 1) {
+        const at = new Date(day);
+        at.setHours(hour, 0, 0, 0);
+        if (at.getTime() <= now.getTime()) continue;
+        if (at.getTime() - now.getTime() > MAX_DAYS_AHEAD * 86400000) continue;
+        const availability = await serviceAvailableAt(pool, branchId, serviceId, at);
+        if (!availability.ok) {
+          if (availability.reason === 'not_offered') {
+            return res.json({ options: [], message: availability.message });
+          }
+          if (availability.reason === 'closed_day') break; // the whole day is closed
+          continue;
+        }
+        const wait = await predictWait(branchId, serviceId, at.getDay(), hour);
+        if (wait === null) continue;
+        const joinAt = at.getTime() - wait * 60000;
+        if (joinAt - now.getTime() < MIN_LEAD_MINUTES * 60000) continue;
+        candidates.push({ served_at: at.toISOString(), hour, predicted_wait_minutes: wait });
+      }
+      if (!candidates.length) continue;
+
+      // The asked-for hour (or the nearest bookable one) first, then the two
+      // quietest of the rest, shown in time order after it.
+      const nearest = [...candidates].sort((a, b) => Math.abs(a.hour - wantHour) - Math.abs(b.hour - wantHour))[0];
+      const quiet = candidates.filter((c) => c !== nearest)
+        .sort((a, b) => a.predicted_wait_minutes - b.predicted_wait_minutes).slice(0, 2)
+        .sort((a, b) => a.hour - b.hour);
+      return res.json({
+        day: day.toISOString(),
+        moved: offset > 0 || nearest.hour !== wantHour,
+        options: [nearest, ...quiet],
+      });
+    }
+    res.json({ options: [], message: 'There is not enough visit history at this branch yet to book a helper. Try again in a few days.' });
+  } catch (err) {
+    console.error('line-helper options:', err);
+    res.status(500).json({ error: 'Could not work out the times.' });
+  }
+});
+
 // ── POST /api/line-helper/quote ───────────────────────────────
 // What WOULD happen, without committing to it. The setup screen needs the
 // predicted wait for each arrival option before the customer picks one, and
@@ -139,8 +206,18 @@ router.post('/quote', requireAuth, validate(schemas.lineHelperQuote), async (req
     if (Number.isNaN(target.getTime())) {
       return res.status(400).json({ error: 'That is not a valid time.' });
     }
+    /* Same rule scheduling enforces, so the app is never shown a time the
+       server would then refuse. */
+    const availability = await serviceAvailableAt(pool, branchId, serviceId, target);
+    if (!availability.ok) {
+      return res.json({
+        predicted_wait_minutes: null, enough_history: false,
+        available: false, reason: availability.reason, message: availability.message,
+      });
+    }
     const wait = await predictWait(branchId, serviceId, target.getDay(), target.getHours());
     res.json({
+      available: true,
       predicted_wait_minutes: wait,
       /* Null is a real answer and the client must say so rather than showing a
          confident zero. */
@@ -194,11 +271,16 @@ router.post('/', requireAuth, validate(schemas.lineHelperCreate), async (req, re
       return res.status(409).json({ error: `${branch.name} does not offer Line Helper.` });
     }
 
-    const [[queue]] = await conn.query(
-      `SELECT id FROM queues WHERE branch_id = ? AND service_id = ? AND is_active = TRUE LIMIT 1`,
-      [branchId, serviceId]
-    );
-    if (!queue) { await conn.rollback(); return res.status(404).json({ error: 'That service is not running at this branch.' }); }
+    /* The branch must offer the service and be open at that time. NOT "is a
+       queue row active right now": queues are created a day at a time, so a
+       helper for any later day (or before today's queue opened) was refused
+       with "That service is not running at this branch" for a slot the app
+       had just recommended. */
+    const availability = await serviceAvailableAt(conn, branchId, serviceId, target);
+    if (!availability.ok) {
+      await conn.rollback();
+      return res.status(409).json({ error: availability.message, reason: availability.reason });
+    }
 
     /* ONE AT A TIME, for the same reason the app allows one live ticket: two
        helpers holding two places for one person is the abuse this feature would

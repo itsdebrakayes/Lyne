@@ -27,8 +27,7 @@
 import React from 'react';
 import { Text, TouchableOpacity, View, ActivityIndicator, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow } from '../lib/theme';
+import { colors, font } from '../lib/theme';
 
 export interface PremiumLockProps {
   /** The real feature. Rendered, then covered. */
@@ -46,11 +45,13 @@ export interface PremiumLockProps {
   radius?: number;
   /** Replaces the CTA when purchasing is not available on this build. */
   unavailableNote?: string;
+  /** Opens the subscription plans (App Store / Google Play). */
+  onSeePlans?: () => void;
 }
 
 export function PremiumLock({
   children, locked, headline, onStartTrial, trialBusy, error,
-  radius = 24, unavailableNote,
+  radius = 24, unavailableNote, onSeePlans,
 }: PremiumLockProps) {
   if (!locked) return <>{children}</>;
 
@@ -90,21 +91,21 @@ export function PremiumLock({
              with white theme-aware ink sitting on top of it. */
           backgroundColor: colors.scrim,
           alignItems: 'center', justifyContent: 'center',
-          paddingVertical: 24, paddingHorizontal: 24, gap: 10,
+          paddingVertical: 24, paddingHorizontal: 24, gap: 8,
         }}
       >
         <Text
           style={{
-            fontFamily: font.extra, fontSize: 10.5, letterSpacing: 1.6,
-            color: colors.accentDeep, textAlign: 'center',
+            fontFamily: font.semibold, fontSize: 13,
+            color: colors.accent, textAlign: 'center',
           }}
         >
-          LYNE PREMIUM
+          Lyne Premium
         </Text>
         <Text
           style={{
-            fontFamily: font.extra, fontSize: 18, lineHeight: 22.5,
-            letterSpacing: -0.3, color: colors.ink, textAlign: 'center',
+            fontFamily: font.semibold, fontSize: 17, lineHeight: 22,
+            color: colors.ink, textAlign: 'center', maxWidth: 220,
           }}
         >
           {headline}
@@ -125,22 +126,18 @@ export function PremiumLock({
             accessibilityLabel="Start 14 day free trial"
             accessibilityState={{ disabled: !!trialBusy }}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4,
-              minHeight: 46, paddingVertical: 12, paddingHorizontal: 18,
-              borderRadius: 14, backgroundColor: colors.accent,
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8,
+              minHeight: 44, paddingHorizontal: 20,
+              borderRadius: 12, backgroundColor: colors.accent,
               opacity: trialBusy ? 0.75 : 1,
-              ...shadow.card,
             }}
           >
             {trialBusy
               ? <ActivityIndicator color={colors.accentInk} size="small" />
               : (
-                <>
-                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accentInk }}>
-                    Start 14-day free trial
-                  </Text>
-                  <Ionicons name="arrow-forward" size={14} color={colors.accentInk} />
-                </>
+                <Text style={{ fontFamily: font.semibold, fontSize: 14, color: colors.accentInk }}>
+                  Start 14-day free trial
+                </Text>
               )}
           </TouchableOpacity>
         ) : unavailableNote ? (
@@ -157,6 +154,12 @@ export function PremiumLock({
             {unavailableNote}
           </Text>
         ) : null}
+
+        {onSeePlans && (
+          <TouchableOpacity onPress={onSeePlans} accessibilityRole="button" style={{ minHeight: 40, justifyContent: 'center', marginTop: 2 }}>
+            <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.ink, textDecorationLine: 'underline' }}>See plans</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

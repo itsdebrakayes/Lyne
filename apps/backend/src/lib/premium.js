@@ -9,6 +9,35 @@
 
 const TRIAL_DAYS = 14;
 
+/* ── THE PAYMENTS SWITCH ─────────────────────────────────────────────────
+   Lyne 1.0 ships free. Busy times, the week planner and Line Helper are open
+   to every signed-in customer, and nothing is sold: no trial, no in-app
+   purchase, no web checkout.
+
+   A constant, not an environment variable, on purpose. An env switch is a
+   second way to turn selling on that nobody reviews; flipping this one is a
+   code change, a test run and a release, which is what turning payments back
+   on should cost. The purchase code below and in routes/iap.js and
+   routes/payments.js is kept intact behind it.
+
+   While it is false:
+     - hasPremium() is true for every user, so every paid gate is open;
+     - /api/auth/start-trial, /api/iap/* and the customer subscription routes
+       in /api/payments answer paymentsUnavailable (404) before touching the
+       database, a store, or any billing credential. */
+const PAYMENTS_ENABLED = false;
+
+/** Express handler: the clean "not available" every purchase route returns while payments are off. */
+function paymentsUnavailable(_req, res) {
+  return res.status(404).json({ available: false, error: 'Purchases are not available. Lyne is free.' });
+}
+
+/** Middleware: let the request through only when payments are switched on. */
+function requirePayments(req, res, next) {
+  if (!PAYMENTS_ENABLED) return paymentsUnavailable(req, res);
+  return next();
+}
+
 /* ── The price list ───────────────────────────────────────────────────────
    Server-side, like every price in this codebase — see PURPOSE_PRICES in
    routes/payments.js and the reason it exists.
@@ -52,7 +81,12 @@ function subscriptionEntitles(status) {
 /** True only while access is genuinely current. */
 const { NEVER_EXPOSE } = require('../utils/publicShapes');
 
-function hasPremium(user) {
+/* `paymentsEnabled` exists for the tests: the paid-access rules below are kept
+   for when payments return, and stay tested in that mode. Production callers
+   never pass it. */
+function hasPremium(user, { paymentsEnabled = PAYMENTS_ENABLED } = {}) {
+  // Free release: every signed-in customer has every feature.
+  if (!paymentsEnabled) return Boolean(user);
   if (!user || !Number(user.is_premium)) return false;
   if (!user.premium_until) return true; // no end date: a paid subscription
   return new Date(user.premium_until).getTime() > Date.now();
@@ -70,9 +104,9 @@ function hasPremium(user) {
  * reads it. This function already claims to be the boundary, so it may as well
  * be one.
  */
-function withPremiumState(user) {
+function withPremiumState(user, opts) {
   if (!user) return user;
-  const safe = { ...user, is_premium: hasPremium(user) ? 1 : 0 };
+  const safe = { ...user, is_premium: hasPremium(user, opts) ? 1 : 0 };
   for (const field of NEVER_EXPOSE) delete safe[field];
   return safe;
 }
@@ -82,6 +116,7 @@ function trialEndsAt(from = new Date()) {
 }
 
 module.exports = {
+  PAYMENTS_ENABLED, paymentsUnavailable, requirePayments,
   hasPremium, withPremiumState, trialEndsAt, TRIAL_DAYS,
   PLANS, PLAN_IDS, planFor, yearlySavingCents,
   ENTITLING_STATUSES, subscriptionEntitles,

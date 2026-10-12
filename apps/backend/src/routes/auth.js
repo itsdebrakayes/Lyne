@@ -24,7 +24,7 @@ const { createRevocation } = require('../middleware/sessionLimiter');
 const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
-const { withPremiumState, trialEndsAt, TRIAL_DAYS } = require('../lib/premium');
+const { withPremiumState, trialEndsAt, TRIAL_DAYS, requirePayments } = require('../lib/premium');
 const { profileSyncLimiter } = require('../middleware/rateLimiter');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
@@ -252,7 +252,7 @@ router.patch('/profile', requireAuth, validate(schemas.updateProfile), async (re
 // ── POST /api/auth/start-trial ───────────────────────────────
 // Unlocks Lyne Premium (Smart Timing / visit planner) for this user.
 // Billing comes later — for now a trial start simply flips the flag.
-router.post('/start-trial', requireAuth, async (req, res) => {
+router.post('/start-trial', requirePayments, requireAuth, async (req, res) => {
   if (!req.dbUser) {
     return res.status(404).json({ error: 'No user record found. Please sync first.' });
   }
@@ -382,6 +382,20 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
     }
 
     await withTransaction(async (conn) => {
+      /* The tables that only SET NULL on a user's deletion, emptied of the
+         person first (see the note above this route). These were here once and
+         were lost in a later port, which left scanned ID numbers and intake
+         answers behind, orphaned but intact, after "your data is gone". */
+      await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
+      await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
+      await conn.query(
+        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL WHERE user_id = ?',
+        [userId]
+      );
+      await conn.query(
+        'UPDATE session_registrations SET guest_name = NULL, guest_phone = NULL, guest_email = NULL WHERE user_id = ?',
+        [userId]
+      );
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
     dataDeleted = true;

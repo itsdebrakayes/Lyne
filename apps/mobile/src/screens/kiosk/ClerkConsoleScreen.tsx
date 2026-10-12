@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/apiClient';
 import { colors, font, t, shadow, inputReset, statusFromWait, statusMeta } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { haptics } from '../../lib/haptics';
 import { ServiceSummary } from '../../lib/mobileData';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
@@ -85,6 +85,7 @@ function TicketIssued({ ticket, serviceName, onAddAnother }: {
 
 export default function KioskScreen() {
   const topPad = useTopPad(18);
+  const lift = useNavBarLift();
   const { kiosk, signOut } = useAuth();
   const queryClient = useQueryClient();
   /* `kiosk` CAN be null here, despite the cast that used to say otherwise.
@@ -139,7 +140,7 @@ export default function KioskScreen() {
     <View style={t.root}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 22, paddingTop: topPad, paddingBottom: 40 + lift, flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

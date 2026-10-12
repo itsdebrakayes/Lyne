@@ -15,6 +15,7 @@ import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font } from '../lib/theme';
 import { HoldButton } from './HoldButton';
+import { useNavBarLift } from '../lib/insets';
 
 export function ConfirmSheet({
   visible,
@@ -55,11 +56,12 @@ export function ConfirmSheet({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const lift = useNavBarLift();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <TouchableOpacity activeOpacity={1} onPress={onCancel} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
-        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>

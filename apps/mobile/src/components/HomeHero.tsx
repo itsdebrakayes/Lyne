@@ -21,7 +21,6 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow } from '../lib/theme';
 
 export interface HeroBeat {
@@ -60,54 +59,32 @@ export const HERO_BEATS: HeroBeat[] = [
 const ROTATE_MS = 6500;
 
 /** The drawn motif: a queue of people compressing into one held ticket. */
-function QueueMotif() {
+/**
+ * The hero's illustration (App Screens Refresh 1a): a real ticket, the thing
+ * Lyne hands you, tilted over a faint second one. It replaced an abstract
+ * stack of dots and a placeholder card.
+ */
+const BARS = [1.5, 1.5, 2, 1.5, 1, 2, 1.5, 1, 1.5, 2, 1, 1.5, 2, 1.5, 1, 1.5, 2, 1, 1.5, 1.5, 2, 1, 1.5];
+
+function TicketMotif() {
   return (
-    <View
-      pointerEvents="none"
-      accessible={false}
-      style={{ position: 'absolute', right: -6, top: 0, bottom: 0, width: 128, justifyContent: 'center' }}
-    >
-      {/* The line, thinning as it approaches the ticket.
-
-          Parked clear of the ticket's left edge. At right:74 the stack ran
-          from 74 to 94 and the ticket from 14 to 96, so the last three people
-          in the queue sat on top of the thing they were queuing for. */}
-      <View style={{ position: 'absolute', right: 92, top: 36, gap: 7 }}>
-        {[0.30, 0.22, 0.15, 0.09].map((o, i) => (
-          <View
-            key={i}
-            style={{
-              width: 18 - i * 2, height: 18 - i * 2, borderRadius: 9,
-              backgroundColor: `rgba(255,255,255,${o})`, alignSelf: 'flex-end',
-            }}
-          />
-        ))}
-      </View>
-
-      {/* The ticket the line becomes. Tilted so it reads as an object rather
-          than another rectangle in a stack of rectangles. */}
-      <View
-        style={{
-          position: 'absolute', right: 8, top: 46, width: 78, borderRadius: 16,
-          backgroundColor: 'rgba(255,255,255,.10)', borderWidth: 1,
-          borderColor: 'rgba(255,255,255,.16)', paddingVertical: 14, paddingHorizontal: 12,
-          transform: [{ rotate: '7deg' }],
-        }}
-      >
-        <View style={{ height: 5, width: 26, borderRadius: 3, backgroundColor: 'rgba(255,255,255,.34)' }} />
-        <Text style={{ fontFamily: font.extra, fontSize: 21, color: '#fff', letterSpacing: -0.8, marginTop: 7 }}>
-          A-14
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: 9 }}>
-          {[0, 1, 2, 3].map(i => (
-            <View
-              key={i}
-              style={{
-                width: 6, height: 6, borderRadius: 3,
-                backgroundColor: i < 2 ? colors.accentOnDark : 'rgba(255,255,255,.24)',
-              }}
-            />
-          ))}
+    <View pointerEvents="none" accessible={false} style={{ position: 'absolute', right: 0, top: 0, width: 120, height: 130 }}>
+      <View style={{ position: 'absolute', right: 26, top: 14, width: 80, height: 98, borderRadius: 10, backgroundColor: 'rgba(255,255,255,.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,.12)', transform: [{ rotate: '-8deg' }] }} />
+      <View style={{ position: 'absolute', right: 14, top: 10, width: 84, borderRadius: 10, backgroundColor: '#fff', overflow: 'hidden', transform: [{ rotate: '7deg' }], shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 14 }, elevation: 8 }}>
+        <View style={{ paddingTop: 10, paddingHorizontal: 10 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: 8, letterSpacing: 1.2, color: colors.accent }}>LYNE</Text>
+          <Text style={{ fontFamily: font.semibold, fontSize: 8, color: '#7a8699', marginTop: 5 }}>Your number</Text>
+          <Text style={{ fontFamily: font.extra, fontSize: 21, letterSpacing: -0.8, lineHeight: 23, color: colors.dark }}>A-047</Text>
+        </View>
+        <View style={{ marginTop: 7, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#d3d9e2' }}>
+          <View style={{ position: 'absolute', left: -6, top: -6, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.dark }} />
+          <View style={{ position: 'absolute', right: -6, top: -6, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.dark }} />
+        </View>
+        <View style={{ paddingTop: 7, paddingHorizontal: 10, paddingBottom: 8 }}>
+          <View style={{ height: 10, flexDirection: 'row', gap: 1.5, overflow: 'hidden' }}>
+            {BARS.map((w, i) => <View key={i} style={{ width: w, height: 10, backgroundColor: colors.dark }} />)}
+          </View>
+          <Text style={{ fontFamily: font.bold, fontSize: 7.5, color: '#7a8699', marginTop: 5 }}>7 ahead · ~26 min</Text>
         </View>
       </View>
     </View>
@@ -142,6 +119,7 @@ export function HomeHero({
   const [beat, setBeat] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [beatHeight, setBeatHeight] = useState(0);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
@@ -167,13 +145,23 @@ export function HomeHero({
     <View style={{ marginTop: 18 }}>
       <View
         style={{
-          backgroundColor: colors.dark, borderRadius: 26, padding: 20,
+          backgroundColor: colors.dark, borderRadius: 26, paddingTop: 22, paddingHorizontal: 20, paddingBottom: 20,
           overflow: 'hidden', ...shadow.hero,
         }}
       >
-        <QueueMotif />
+        <TicketMotif />
 
-        <Animated.View style={{ opacity: fade, paddingRight: 96 }}>
+        {/* Held at the tallest beat seen so far. The beats wrap to different
+            heights, and without this the two buttons below moved every few
+            seconds — a tap aimed at "Plan for later" landed on empty card. */}
+        <Animated.View
+          style={{ opacity: fade, minHeight: beatHeight }}
+          onLayout={(e) => {
+            const h = Math.ceil(e.nativeEvent.layout.height);
+            if (h > beatHeight) setBeatHeight(h);
+          }}
+        >
+          <View style={{ paddingRight: 120 }}>
           <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.62)' }}>
             {b.kicker}
           </Text>
@@ -197,23 +185,18 @@ export function HomeHero({
             <Text style={{ fontFamily: font.medium, color: 'rgba(255,255,255,.80)' }}>{b.tail}</Text>
           </Text>
 
-          <View style={{ gap: 8, marginTop: 15 }}>
-            {b.points.map((p, i) => (
-              <View key={p} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons
-                  name={i === 0 ? 'flash' : 'shield-checkmark'}
-                  size={13}
-                  color={colors.accentOnDark}
-                />
-                <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 12.5, color: 'rgba(255,255,255,.78)' }}>
-                  {p}
-                </Text>
+          </View>
+          <View style={{ gap: 8, marginTop: 16 }}>
+            {b.points.map(p => (
+              <View key={p} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accentOnDark }} />
+                <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,.78)' }}>{p}</Text>
               </View>
             ))}
           </View>
         </Animated.View>
 
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
           <TouchableOpacity
             onPress={onJoinNow}
             activeOpacity={0.9}
@@ -224,8 +207,7 @@ export function HomeHero({
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
             }}
           >
-            <Ionicons name="flash" size={15} color={colors.dark} />
-            <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: colors.dark }}>Join a line now</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.dark }}>Join a line now</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -255,8 +237,7 @@ export function HomeHero({
               </>
             ) : (
               <>
-                <Ionicons name="calendar-outline" size={15} color="#fff" />
-                <Text style={{ fontFamily: font.extra, fontSize: 13.5, color: '#fff' }}>Plan for later</Text>
+                <Text style={{ fontFamily: font.bold, fontSize: 14, color: '#fff' }}>Plan for later</Text>
               </>
             )}
           </TouchableOpacity>

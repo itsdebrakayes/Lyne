@@ -274,3 +274,49 @@ test('nobody can join, move or leave a queue without signing in', async () => {
   assert.equal((await callAs(null, '/api/tickets/ticket-1/leave', { method: 'PUT' })).status, 401);
   assert.equal((await callAs(null, '/api/tickets/ticket-1/status', { method: 'PUT', body: { new_status: 'called' } })).status, 401);
 });
+
+// ── The customer closes an unfinished visit ───────────────────
+
+async function startService(ticketId, code) {
+  await setStatus(ticketId, 'called', { call_timeout_seconds: 120 });
+  await setStatus(ticketId, 'in_service', { verification_code: code });
+}
+
+test('a customer being served can mark the visit incomplete, recorded as staff would', async () => {
+  await startService('ticket-1', 'ABC12345');
+
+  const res = await callAs('user-1', '/api/tickets/ticket-1/incomplete', { method: 'PUT' });
+  assert.equal(res.status, 200, `mark incomplete failed: ${JSON.stringify(res.body)}`);
+
+  const ticket = ticketById('ticket-1');
+  assert.equal(ticket.status, 'served', 'the admin counts incomplete visits among completed ones');
+  assert.equal(ticket.readiness_outcome, 'incomplete');
+  assert.equal(ticket.closed_reason, 'customer_left', 'must use a reason the admin already labels');
+  assert.match(ticket.readiness_note, /customer/i, 'the note has to say who closed it');
+  assert.ok(ticket.completed_at, 'history and analytics read completed_at');
+
+  const last = db.queue_events.filter((row) => row.ticket_id === 'ticket-1').pop();
+  assert.equal(`${last.previous_status}->${last.new_status}`, 'in_service->served');
+  assert.equal(db.wait_time_records.length, 1, 'the visit must reach the branch reports');
+  assert.equal(db.visit_history.length, 1, 'the visit must reach the customer history');
+});
+
+test('a customer cannot mark a visit incomplete before being served', async () => {
+  const res = await callAs('user-1', '/api/tickets/ticket-1/incomplete', { method: 'PUT' });
+  assert.equal(res.status, 400);
+  assert.equal(ticketById('ticket-1').status, 'waiting', 'a waiting ticket is left exactly as it was');
+});
+
+test("a customer cannot mark someone else's visit incomplete", async () => {
+  await startService('ticket-1', 'ABC12345');
+  const res = await callAs('user-2', '/api/tickets/ticket-1/incomplete', { method: 'PUT' });
+  assert.ok([403, 404].includes(res.status), `expected refusal, got ${res.status}`);
+  assert.equal(ticketById('ticket-1').status, 'in_service');
+});
+
+test('staff use their own controls, not the customer route', async () => {
+  await startService('ticket-1', 'ABC12345');
+  const res = await callAs('staff-a', '/api/tickets/ticket-1/incomplete', { method: 'PUT' });
+  assert.equal(res.status, 403);
+  assert.equal(ticketById('ticket-1').status, 'in_service');
+});

@@ -75,31 +75,24 @@ async function sessionLimiter(req, res, next) {
     const sessionType = req.dbStaff ? 'staff' : 'user';
 
     if (jti) {
-      // Upsert by jti (same token seen again → just update last_seen_at)
-      const [existing] = await pool.query(
-        'SELECT id FROM user_sessions WHERE jti = ? LIMIT 1',
-        [jti]
+      /* One atomic upsert by jti. It was SELECT-then-INSERT, and the app's
+         parallel first requests (several sync-user calls at sign-in) all saw
+         "not there" and all inserted, so all but one failed on the unique
+         jti with "Duplicate entry" — and that error skipped the session cap
+         below for those requests. */
+      await pool.query(
+        `INSERT INTO user_sessions
+           (id, user_id, staff_id, session_type, supabase_uid, jti, ip_address, user_agent, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE last_seen_at = NOW(), expires_at = VALUES(expires_at)`,
+        [
+          uuidv4(),
+          sessionType === 'user'  ? actorId : null,
+          sessionType === 'staff' ? actorId : null,
+          sessionType,
+          uid, jti, ipAddress, userAgent, expiresAt,
+        ]
       );
-
-      if (existing.length > 0) {
-        await pool.query(
-          'UPDATE user_sessions SET last_seen_at = NOW(), expires_at = ? WHERE jti = ?',
-          [expiresAt, jti]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO user_sessions
-             (id, user_id, staff_id, session_type, supabase_uid, jti, ip_address, user_agent, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            uuidv4(),
-            sessionType === 'user'  ? actorId : null,
-            sessionType === 'staff' ? actorId : null,
-            sessionType,
-            uid, jti, ipAddress, userAgent, expiresAt,
-          ]
-        );
-      }
     }
 
     // ── 3. Enforce session cap — evict oldest if over limit ─────

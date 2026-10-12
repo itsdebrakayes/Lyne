@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -18,6 +19,26 @@ export function useTopPad(gap = 16): number {
 export function useBottomPad(gap = 0): number {
   const insets = useSafeAreaInsets();
   return insets.bottom + gap;
+}
+
+/**
+ * How far bottom-anchored UI must rise on Android to clear the system nav bar.
+ *
+ * Every bottom value in the app (the tab bar at 24, sticky footers at 28-30,
+ * sheets padded 34, scroll ends at 150) was tuned on iPhone, where the home
+ * indicator sits in the bottom 34pt and a bar at 24 deliberately overlaps it.
+ * Expo 54 draws Android edge to edge, so the 48dp three-button bar now covers
+ * that same strip, and it does not tolerate overlap the way a gesture line does.
+ *
+ * iOS returns 0, so nothing there moves. Android returns the real inset minus
+ * the 12pt the iPhone layout already leaves clear: 36 with three buttons, about
+ * 12 with gesture navigation, never negative. Add it to bottom offsets,
+ * paddingBottom on scroll content and sticky footers, and sheet padding.
+ */
+export function useNavBarLift(): number {
+  const { bottom } = useSafeAreaInsets();
+  if (Platform.OS !== 'android') return 0;
+  return Math.max(0, bottom - 12);
 }
 
 export { useSafeAreaInsets };

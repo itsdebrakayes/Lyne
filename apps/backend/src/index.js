@@ -1,4 +1,18 @@
 require('dotenv').config();
+
+/* Sentry goes first, before express and before any route module is required,
+   so that a crash while the app is still wiring itself up is still reported.
+   It reads SENTRY_DSN; with no DSN this call returns immediately and nothing
+   is installed, so a box without one behaves exactly as it did before.
+
+   Note for when a DSN IS set: @sentry/node's default integrations install
+   handlers for uncaughtException and unhandledRejection, and the uncaught
+   handler keeps Node's own behaviour of terminating afterwards. That is the
+   right outcome — a process in an unknown state should be replaced, and both
+   compose files already say `restart: unless-stopped`. */
+const { initMonitoring, captureServerError } = require('./lib/monitoring');
+initMonitoring({ service: 'api' });
+
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
@@ -136,7 +150,12 @@ app.use((err, req, res, next) => {
 // Stripe webhook needs the RAW body for signature verification — mount it
 // before express.json() so the parser doesn't consume the body.
 const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+/* Purchases are switched off for the free release (lib/premium.js
+   PAYMENTS_ENABLED). requirePayments answers 404 { available: false } before
+   any database, store or billing credential is touched — on the webhook, on
+   /api/iap and on every /api/payments route. */
+const { requirePayments } = require('./lib/premium');
+app.post('/api/payments/webhook', requirePayments, express.raw({ type: 'application/json' }), webhookHandler);
 
 // Body parsing — limit OCR uploads separately (see /api/ocr route)
 app.use(express.json({ limit: '1mb' }));
@@ -183,6 +202,7 @@ app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
 app.use('/api/history',        require('./routes/history'));
+app.use('/api/iap',            requirePayments, require('./routes/iap'));
 app.use('/api/saved',          require('./routes/saved'));
 /* Premium, and gated inside the router — a branch can also refuse it. */
 app.use('/api/line-helper',    require('./routes/line-helper'));
@@ -194,7 +214,7 @@ app.use('/api/line-helper',    require('./routes/line-helper'));
    to grind forged handoff tokens. */
 app.post('/api/payments/portal/verify', sessionLookupLimiter);
 /* paymentLimiter likewise moved into routes/payments.js, after requireAuth. */
-app.use('/api/payments',       paymentsRouter);
+app.use('/api/payments',       requirePayments, paymentsRouter);
 
 // OCR — strict rate limit + larger body size for image uploads
 /* ocrLimiter moved into routes/ocr.js, after requireAuth. The body parser
@@ -244,9 +264,16 @@ app.get('/api/debug/client-ip', (req, res) => res.json({
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));
 
 // Error handler
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.message || err);
   const status = err.status || 500;
+
+  /* Only 5xx reaches Sentry — captureServerError enforces that, and the CORS
+     refusal above never gets here anyway because it answers 403 itself. A 4xx
+     is the system correctly saying no, and alerting on it buries the one real
+     500 in a feed nobody reads. */
+  captureServerError(err, req);
+
   res.status(status).json({
     error: process.env.NODE_ENV === 'production'
       ? 'Internal server error.'

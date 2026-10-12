@@ -1,0 +1,166 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-electron
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.worktrees/
+worktrees/
+
+# Release credentials — never committed. The Play service account JSON, the
+# Apple .p8 sign-in key, and anything else a build needs to prove it is us.
+secrets/
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+
+# Build and generated output
+build/
+release/
+coverage/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python/Jupyter/model artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+apps/model/outputs/**
+!apps/model/outputs/**/
+!apps/model/outputs/**/.gitkeep
+apps/model/data_exports/*.csv
+apps/model/data_exports/plots/**
+
+# Local app caches
+.expo/
+.turbo/
+.vite/
+supabase/.temp/
+
+# Local coding-assistant and generated analysis metadata
+.agent/
+.agents/
+.claude/
+.codebuddy/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.kiro/
+.lovable/
+.manos/
+.cloud/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.windsurf/
+graphify-out/
+skills-lock.json
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Expo prebuild output (regenerate with: npx expo prebuild)
+apps/mobile/ios/
+apps/mobile/android/
+
+# Reference material and generated deliverables — kept locally, not in the repo.
+# The substance of the videos lives in docs/WEB_AND_APP_UX_PRINCIPLES.md; the
+# 40MB of third-party clips themselves do not belong in git history.
+Web design and App Videos/
+
+# outputs/ is BUILT from research/*.md by the scripts below — 74MB of PDF, DOCX
+# and page renders. The builders are source and are kept; their output is not.
+outputs/*
+!outputs/*.py
+
+# Office lock files
+~$*
+
+# Finder / iCloud duplicates.
+#
+# macOS appends " 2" when it resolves a sync collision, and it does this to
+# whole trees at once. A `git add -A` then sweeps up a hundred stale copies of
+# real source files — which is exactly what happened in 4b17392: 108 of them,
+# including a `.htaccess 2` that shipped into the website build.
+#
+# They are never wanted. Ignoring them means the next bulk add cannot repeat it.
+* 2
+* 2.*
+# Finder numbers its copies upwards, so " 3" and beyond arrived after the first
+# sweep and one of them ("MarketingHome 3.tsx") got committed.
+* [0-9]
+* [0-9].*
+* [0-9]
+* [0-9].*
+
+# Database dumps. Large, and full of every customer record we hold —
+# a backup committed to a repository is a breach with a git history.
+backups/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Apple/Windows signing artifacts (local only, never commit)
+certs/
+
+# The macOS entitlements file lives under a `build/` directory, which the rule
+# above ignores as a compiler output. It is source, not output: without it
+# electron-builder fails on any machine but the one it was written on. Git will
+# not descend into an ignored directory, so the directory has to be un-ignored
+# before the file inside it can be.
+!apps/admin-desktop/build/
+!apps/admin-desktop/build/entitlements.mac.plist
+
+# Written by deploy/deploy.sh on the droplet: the commit of the last deploy
+# that passed its health check. Per-machine state, never committed.
+.deploy-last-good
+
+# compiled mobile unit tests
+apps/mobile/.test-build/
+
+# Playwright sessions saved by e2e/customer.setup.ts — never commit
+e2e/.auth/
+
+# ── EAS only: not needed to build the mobile app ──
+outputs/
+Web design and App Videos/
+research/
+store-assets/
+design-specs/
+backups/
+test-results/
+docs/
+legal/
+scripts/ios-screenshots/
+scripts/ios-screenshots.sh
+apps/admin-desktop/
+apps/website/
+apps/model/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/.test-build/
+e2e/

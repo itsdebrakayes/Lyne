@@ -20,38 +20,45 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { font } from '../../lib/theme';
 import { D, RAMP, waitLevel, hourText } from '../../lib/predictiveDesign';
-import { PREMIUM_TRIAL_ENABLED } from '../../lib/features';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import PremiumLock from '../../components/PremiumLock';
+import { InsightsHeader } from '../../components/InsightsHeader';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'WeekPlanner'>;
 
 interface Cell { dow: number; hour: number; visits: number; avg_wait: number }
 interface ServicePlan { service_id: string; service_name: string; grid?: Cell[] }
-interface BestTimes { window_days: number; premium?: boolean; services: ServicePlan[] }
+interface BestTimes { window_days: number; services: ServicePlan[] }
 
 /** The design's row pitch. The blocks are placed against it, so it is one value. */
 const ROW_H = 56;
+
+/** "10 AM – 12 PM", or "2 – 4 PM" when both ends share a meridiem. */
+function spanText(from: number, to: number): string {
+  const ap = (h: number) => (h >= 12 ? 'PM' : 'AM');
+  const n = (h: number) => (h % 12 === 0 ? 12 : h % 12);
+  return ap(from) === ap(to) ? `${n(from)} – ${n(to)} ${ap(to)}` : `${hourText(from)} – ${hourText(to)}`;
+}
+
+/** Minutes after midnight → "1:35 PM". */
+function clockText(mins: number): string {
+  const m = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(m / 60);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m % 60).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
 /** Mon–Sat, as the design's strip has it. Sunday is not an agency day here. */
 const STRIP_DOWS = [1, 2, 3, 4, 5, 6];
 
 export default function WeekPlannerScreen() {
   const topPad = useTopPad(8);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
-  const { user, refreshProfile } = useAuth();
-  /* Two sources, and they can disagree for a moment. The user record flips the
-     instant a trial starts; the cached response is still the free one until the
-     refetch lands. Whichever says premium is enough to unlock — the record
-     because entitlement is real, the payload because the data is already here.
-     Reading only the record left the panel frosted over data it had; reading
-     only the payload would leave it frosted until the network answered. */
-  const entitled = Boolean(Number(user?.is_premium || 0));
+  const { user } = useAuth();
   const { businessId, branchId, branchName } = route.params ?? ({} as any);
 
   const [serviceId, setServiceId] = useState<string | null>(route.params?.serviceId ?? null);
@@ -63,6 +70,9 @@ export default function WeekPlannerScreen() {
      the DATES do, which is what you need to actually plan the trip. */
   const [weekOffset, setWeekOffset] = useState(0);
   const [dow, setDow] = useState<number>(() => {
+    // Opened from a recommendation ("Friday at 1 PM"): start on that day.
+    const asked = route.params?.targetDow;
+    if (typeof asked === 'number' && STRIP_DOWS.includes(asked)) return asked;
     const today = new Date().getDay();
     return STRIP_DOWS.includes(today) ? today : 1;
   });
@@ -71,8 +81,6 @@ export default function WeekPlannerScreen() {
      reads as a broken screen rather than a closed day. Moves once, to the day
      with the most evidence behind it, and only when the chosen day has none. */
   const movedRef = React.useRef(false);
-  const [trialBusy, setTrialBusy] = useState(false);
-  const [trialError, setTrialError] = useState('');
 
   const q = useQuery({
     queryKey: ['best-times', businessId, branchId, user?.id ?? 'anon'],
@@ -93,13 +101,12 @@ export default function WeekPlannerScreen() {
   const habits = useQuery({
     queryKey: ['for-you', user?.id ?? 'anon'],
     queryFn: () => api.get<{ personalised: boolean; habits?: { travel_minutes: number | null } }>('/predictions/for-you'),
-    enabled: Boolean(user?.id && entitled),
+    enabled: Boolean(user?.id),
     staleTime: 1000 * 60 * 30,
     retry: false,
   });
   const travelMinutes = habits.data?.habits?.travel_minutes ?? null;
 
-  const premium = entitled || Boolean(q.data?.premium);
   const services = q.data?.services ?? [];
   const service = useMemo(
     () => services.find((s) => s.service_id === serviceId) || services[0] || null,
@@ -170,17 +177,6 @@ export default function WeekPlannerScreen() {
   };
   const chosenDate = dateFor(dow);
 
-  const startTrial = async () => {
-    try {
-      setTrialBusy(true); setTrialError('');
-      await api.post('/auth/start-trial', {});
-      await refreshProfile();
-      await q.refetch();
-    } catch (e: any) {
-      setTrialError(e?.message || 'That did not work. Try again in a moment.');
-    } finally { setTrialBusy(false); }
-  };
-
   React.useEffect(() => {
     if (movedRef.current || !grid.length || dayHours.length) return;
     const visitsByDow = new Map<number, number>();
@@ -196,46 +192,32 @@ export default function WeekPlannerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: D.surface }}>
       {/* ── the light header block ── */}
-      <View style={{ backgroundColor: D.bg, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: D.line, paddingTop: topPad }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 22, paddingBottom: 18 }}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button" accessibilityLabel="Go back"
-            style={{
-              width: 44, height: 44, borderRadius: 22, backgroundColor: D.surface,
-              borderWidth: 1, borderColor: D.line, alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="chevron-back" size={20} color={D.ink} />
-          </TouchableOpacity>
-          {/* The design's header line, and its ▾ does something: it moves the
-              strip a week on and back. A chevron that opens nothing is the
-              thing this app keeps being caught on. */}
-          <TouchableOpacity
-            onPress={() => setWeekOffset((w) => (w === 0 ? 1 : 0))}
-            accessibilityRole="button"
-            accessibilityLabel={`${weekOffset === 0 ? 'This' : 'Next'} week. ${chosenDate.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}. Tap to show ${weekOffset === 0 ? 'next' : 'this'} week.`}
-            style={{ flex: 1 }}
-          >
-            <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.muted }}>
-              {weekOffset === 0 ? 'This week' : 'Next week'} · {branchName || 'this branch'}
-            </Text>
-            <Text style={{ fontSize: 17, marginTop: 1 }}>
-              <Text style={{ fontFamily: font.extra, color: D.ink }}>
-                {chosenDate.getDate()} {chosenDate.toLocaleDateString([], { month: 'short' })}
-              </Text>
-              <Text style={{ fontFamily: font.medium, color: D.muted }}>
-                {' '}{chosenDate.toLocaleDateString([], { weekday: 'long' })}
-              </Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.muted }}>
-                {' '}▾
-              </Text>
-            </Text>
-          </TouchableOpacity>
+      <View style={{ backgroundColor: D.bg, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#e3e7ee', paddingTop: topPad }}>
+        <View style={{ paddingHorizontal: 20 }}>
+          <InsightsHeader title={weekOffset === 0 ? 'Next week' : 'The week after'} onBack={() => navigation.goBack()} />
         </View>
+        {/* The design's date line, and its ▾ does something: it moves the strip
+            a week on and back. A chevron that opens nothing is the thing this
+            app keeps being caught on. */}
+        <TouchableOpacity
+          onPress={() => setWeekOffset((w) => (w === 0 ? 1 : 0))}
+          accessibilityRole="button"
+          accessibilityLabel={`${chosenDate.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}. Tap to show ${weekOffset === 0 ? 'the week after' : 'next week'}.`}
+          style={{ paddingTop: 8, paddingHorizontal: 20, paddingBottom: 20 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontFamily: font.semibold, fontSize: 22, letterSpacing: -0.4, color: D.ink }}>
+              {chosenDate.toLocaleDateString([], { weekday: 'long' })}, {chosenDate.getDate()} {chosenDate.toLocaleDateString([], { month: 'short' })}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={D.ink} />
+          </View>
+          <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: D.sub, marginTop: 4 }}>
+            {branchName || 'This branch'}{service?.service_name ? ` · ${service.service_name}` : ''}
+          </Text>
+        </TouchableOpacity>
 
         {/* the six-day strip */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: 14 }}>
+        <View style={{ flexDirection: 'row', paddingHorizontal: 12 }}>
           {STRIP_DOWS.map((d) => {
             const on = d === dow;
             const dayCells = grid.filter((c) => c.dow === d);
@@ -251,24 +233,24 @@ export default function WeekPlannerScreen() {
                 style={{ flex: 1, alignItems: 'center', gap: 8 }}
               >
                 <Text style={{
-                  fontFamily: on ? font.extra : font.semibold,
-                  fontSize: 12.5, color: on ? D.ink : D.muted,
+                  fontFamily: on ? font.semibold : font.medium,
+                  fontSize: 12, color: on ? D.ink : '#8a94a6',
                 }}>
                   {date.toLocaleDateString([], { weekday: 'short' })}
                 </Text>
                 <View style={{
-                  width: 40, height: 40, borderRadius: 12,
+                  width: 40, height: 44, borderRadius: 12,
                   alignItems: 'center', justifyContent: 'center',
                   backgroundColor: on ? D.ink : 'transparent',
                 }}>
-                  <Text style={{ fontFamily: font.extra, fontSize: 15, color: on ? '#fff' : D.sub }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 17, color: on ? '#fff' : D.sub }}>
                     {date.getDate()}
                   </Text>
                 </View>
                 {/* The dot is the day's quietest hour on the ramp — the strip's
                     whole job is letting you pick a day without opening it. */}
                 <View style={{
-                  width: 7, height: 7, borderRadius: 4,
+                  width: 6, height: 6, borderRadius: 3,
                   backgroundColor: best === null ? D.line : RAMP[waitLevel(best)],
                 }} />
               </TouchableOpacity>
@@ -277,7 +259,7 @@ export default function WeekPlannerScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 + lift }} showsVerticalScrollIndicator={false}>
         {q.isLoading ? (
           <View style={{ padding: 22 }}><SkeletonRows count={6} /></View>
         ) : q.error ? (
@@ -286,31 +268,6 @@ export default function WeekPlannerScreen() {
               message="This branch's pattern could not be loaded."
               onRetry={() => q.refetch()} />
           </View>
-        ) : !premium ? (
-          <View style={{ padding: 22 }}>
-            <PremiumLock
-              locked
-              radius={20}
-              headline="Plan any day of the week"
-              error={trialError}
-              trialBusy={trialBusy}
-              onStartTrial={PREMIUM_TRIAL_ENABLED ? startTrial : undefined}
-              unavailableNote={PREMIUM_TRIAL_ENABLED ? undefined : 'Premium arrives with the first App Store release.'}
-            >
-              <View>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <View key={i} style={{ flexDirection: 'row', height: ROW_H, borderTopWidth: 1, borderTopColor: D.lineSoft, alignItems: 'flex-start' }}>
-                    <View style={{ width: 58, paddingTop: 8, alignItems: 'center' }}>
-                      <View style={{ width: 18, height: 13, borderRadius: 4, backgroundColor: D.lineSoft }} />
-                    </View>
-                    <View style={{ flex: 1, paddingTop: 10, alignItems: 'flex-end', paddingRight: 18 }}>
-                      <View style={{ width: 34, height: 9, borderRadius: 4, backgroundColor: D.lineSoft }} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </PremiumLock>
-          </View>
         ) : !dayHours.length ? (
           <View style={{ padding: 22 }}>
             <EmptyState icon="clock" title="No pattern for that day"
@@ -318,20 +275,20 @@ export default function WeekPlannerScreen() {
               actionLabel="Back to busy times" onAction={() => navigation.goBack()} />
           </View>
         ) : (
-          <View style={{ position: 'relative', paddingRight: 18, marginTop: 8 }}>
+          <View style={{ position: 'relative', paddingRight: 20, marginTop: 8 }}>
             {dayHours.map((h) => (
               <View key={h.hour} style={{ flexDirection: 'row', height: ROW_H, borderTopWidth: 1, borderTopColor: D.lineSoft }}>
-                <View style={{ width: 58, paddingTop: 8, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 14, color: D.sub }}>
+                <View style={{ width: 56, paddingTop: 8, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 13, color: D.sub }}>
                     {h.hour > 12 ? h.hour - 12 : h.hour}
                   </Text>
-                  <Text style={{ fontFamily: font.bold, fontSize: 9.5, color: D.faint }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 10, color: '#8a94a6' }}>
                     {h.hour >= 12 ? 'PM' : 'AM'}
                   </Text>
                 </View>
-                <View style={{ flex: 1, alignItems: 'flex-end', paddingTop: 8 }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 10.5, color: D.faint }}>
-                    ~{Math.round(h.avg_wait)}m
+                <View style={{ flex: 1, alignItems: 'flex-end', paddingTop: 9 }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 12, color: '#8a94a6' }}>
+                    {Math.round(h.avg_wait)} min
                   </Text>
                 </View>
               </View>
@@ -343,20 +300,15 @@ export default function WeekPlannerScreen() {
                 accessibilityRole="summary"
                 accessibilityLabel={`Peak hours, ${hourText(spans.peak.from)} to ${hourText(spans.peak.to)}, up to ${spans.peak.wait} minutes`}
                 style={{
-                  position: 'absolute', left: 62, right: 58,
+                  position: 'absolute', left: 60, right: 72,
                   top: rowIndexOf(spans.peak.from) * ROW_H + 4,
-                  height: ROW_H * 2 - 8, borderRadius: 18, backgroundColor: D.warmBg,
-                  paddingVertical: 13, paddingHorizontal: 15, justifyContent: 'space-between',
+                  height: ROW_H * 2 - 8, borderRadius: 16, backgroundColor: D.warmBg,
+                  paddingVertical: 12, paddingHorizontal: 14,
                 }}
               >
-                <View>
-                  <Text style={{ fontFamily: font.extra, fontSize: 15, color: D.ink }}>Peak hours</Text>
-                  <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.warmInk, marginTop: 2 }}>
-                    Avoid · up to {spans.peak.wait} min wait
-                  </Text>
-                </View>
-                <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: D.muted }}>
-                  {hourText(spans.peak.from)} – {hourText(spans.peak.to)}
+                <Text style={{ fontFamily: font.semibold, fontSize: 15, color: D.ink }}>Peak hours</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.warmInk, marginTop: 2 }}>
+                  Up to {spans.peak.wait} min · {spanText(spans.peak.from, spans.peak.to)}
                 </Text>
               </View>
             )}
@@ -367,30 +319,19 @@ export default function WeekPlannerScreen() {
                 accessibilityRole="summary"
                 accessibilityLabel={`Quiet window, ${hourText(spans.quiet.from)} to ${hourText(spans.quiet.to)}, about ${spans.quiet.wait} minutes`}
                 style={{
-                  position: 'absolute', left: 62, right: 58,
+                  position: 'absolute', left: 60, right: 72,
                   top: rowIndexOf(spans.quiet.from) * ROW_H + 4,
-                  height: ROW_H * 2 - 8, borderRadius: 18, backgroundColor: D.coolBg,
-                  paddingVertical: 13, paddingHorizontal: 15, justifyContent: 'space-between',
+                  height: ROW_H * 2 - 8, borderRadius: 16, backgroundColor: D.coolBg,
+                  paddingVertical: 12, paddingHorizontal: 14, justifyContent: 'space-between',
                 }}
               >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 15, color: D.ink }}>Quiet window</Text>
-                    <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: D.coolInk, marginTop: 2 }}>
-                      Best of the day · ~{spans.quiet.wait} min
-                    </Text>
-                  </View>
-                  <View style={{
-                    width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: D.accent,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Ionicons name="checkmark" size={14} color={D.accent} />
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontFamily: font.bold, fontSize: 11.5, color: D.sub }}>
-                    {hourText(spans.quiet.from)} – {hourText(spans.quiet.to)}
+                <View>
+                  <Text style={{ fontFamily: font.semibold, fontSize: 15, color: D.ink }}>Quiet window</Text>
+                  <Text style={{ fontFamily: font.medium, fontSize: 13, color: D.coolInk, marginTop: 2 }}>
+                    About {spans.quiet.wait} min · {spanText(spans.quiet.from, spans.quiet.to)}
                   </Text>
+                </View>
+                <View style={{ alignSelf: 'flex-start' }}>
                   <TouchableOpacity
                     onPress={() => navigation.navigate('LineHelper', {
                       businessId, branchId, branchName,
@@ -398,9 +339,9 @@ export default function WeekPlannerScreen() {
                       targetDow: dow, targetHour: spans.quiet!.from,
                     })}
                     accessibilityRole="button"
-                    style={{ backgroundColor: D.accent, borderRadius: 10, paddingVertical: 5, paddingHorizontal: 9 }}
+                    style={{ backgroundColor: D.accent, borderRadius: 10, height: 32, justifyContent: 'center', paddingHorizontal: 12 }}
                   >
-                    <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: '#fff' }}>Hold my place</Text>
+                    <Text style={{ fontFamily: font.semibold, fontSize: 13, color: '#fff' }}>Hold my place</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -410,7 +351,7 @@ export default function WeekPlannerScreen() {
       </ScrollView>
 
       {/* the bottom banner */}
-      {premium && spans.quiet && (
+      {spans.quiet && (
         <TouchableOpacity
           onPress={() => navigation.navigate('LineHelper', {
             businessId, branchId, branchName,
@@ -419,26 +360,29 @@ export default function WeekPlannerScreen() {
           })}
           accessibilityRole="button"
           style={{
-            position: 'absolute', left: 16, right: 16, bottom: 22,
-            backgroundColor: D.ink, borderRadius: 21,
-            paddingVertical: 13, paddingHorizontal: 17,
-            flexDirection: 'row', alignItems: 'center', gap: 12,
-            shadowColor: D.ink, shadowOpacity: 0.5, shadowRadius: 30,
-            shadowOffset: { width: 0, height: 14 }, elevation: 10,
+            position: 'absolute', left: 12, right: 12, bottom: 30 + lift,
+            backgroundColor: D.ink, borderRadius: 20,
+            paddingVertical: 16, paddingLeft: 18, paddingRight: 20,
+            flexDirection: 'row', alignItems: 'center', gap: 18,
+            shadowColor: D.ink, shadowOpacity: 0.5, shadowRadius: 28,
+            shadowOffset: { width: 0, height: 12 }, elevation: 10,
           }}
         >
-          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: D.good }} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 13, color: '#fff' }}>
-              {chosenDate.toLocaleDateString([], { weekday: 'long' })} {hourText(spans.quiet.from)} is your best bet · ~{spans.quiet.wait} min
+          {/* 12pt green dot with the design's soft 4pt halo. */}
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(47,191,113,.18)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: D.good }} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: font.semibold, fontSize: 17, letterSpacing: -0.2, color: '#fff' }}>
+              {chosenDate.toLocaleDateString([], { weekday: 'long' })} at {hourText(spans.quiet.from)}
             </Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 11, color: 'rgba(255,255,255,.55)' }}>
-              {travelMinutes
-                ? `Leave home ${travelMinutes} min before to arrive on time`
-                : 'Tap to have Lyne hold your place'}
+            <Text style={{ fontFamily: font.medium, fontSize: 13, color: 'rgba(255,255,255,.6)', marginTop: 3 }}>
+              About {spans.quiet.wait} min wait · {travelMinutes
+                ? `leave by ${clockText(spans.quiet.from * 60 - travelMinutes)}`
+                : 'tap to hold your place'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={D.onDarkAccent} />
+          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,.6)" />
         </TouchableOpacity>
       )}
     </View>

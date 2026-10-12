@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { markDeviceSignedIn, useReturningDevice } from '../lib/deviceHistory';
 import { colors } from '../lib/theme';
 import OfflineState from '../components/OfflineState';
 import BusyTimesScreen from '../screens/main/BusyTimesScreen';
@@ -14,8 +15,7 @@ import LineHelperScreen from '../screens/main/LineHelperScreen';
 import HelperHoldScreen from '../screens/main/HelperHoldScreen';
 
 // Auth screens
-import LoginScreen    from '../screens/auth/LoginScreen';
-import SignupScreen   from '../screens/auth/SignupScreen';
+import AuthScreen     from '../screens/auth/AuthScreen';
 
 // Main screens
 import HomeScreen       from '../screens/main/HomeScreen';
@@ -28,7 +28,6 @@ import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
 import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
-import PaymentMethodsScreen from '../screens/main/PaymentMethodsScreen';
 import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
 
@@ -44,8 +43,7 @@ import TicketScreen     from '../screens/queue/TicketScreen';
 import KioskScreen      from '../screens/kiosk/KioskScreen';
 
 export type RootStackParamList = {
-  Auth:       undefined;
-  Signup:     undefined;
+  Auth:       { mode?: 'signin' | 'signup' } | undefined;
   Kiosk:      undefined;
   Main:       undefined;
   History:    undefined;
@@ -53,7 +51,6 @@ export type RootStackParamList = {
   Help:       undefined;
   AgencyHelp: { slug: string };
   DocumentCapture: { field: 'national_id' | 'trn' };
-  PaymentMethods: undefined;
   PrivacySecurity: undefined;
   Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
@@ -61,7 +58,7 @@ export type RootStackParamList = {
      than reading a global selection, so a deep link or a back-stack entry lands
      on the same data it was opened with. */
   BusyTimes:  { businessId: string; branchId: string; branchName?: string; serviceId?: string };
-  WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string };
+  WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string; targetDow?: number };
   LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number };
   HelperHold: { helperId?: string } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is
@@ -115,13 +112,19 @@ function MainTabs() {
 function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Auth" component={LoginScreen} />
+      <Stack.Screen name="Auth" component={AuthScreen} />
     </Stack.Navigator>
   );
 }
 
-export default function AppNavigator() {
+export default function AppNavigator({ onReady }: { onReady?: () => void } = {}) {
   const { user, kiosk, loading, unreachable, retrySession } = useAuth();
+  const returning = useReturningDevice();
+  React.useEffect(() => { if (user || kiosk) void markDeviceSignedIn(); }, [user, kiosk]);
+  /* Tells the launch animation it may fade: the session is settled, so what
+     sits underneath is the real first screen, not this spinner. */
+  const settled = !loading && returning !== null;
+  React.useEffect(() => { if (settled) onReady?.(); }, [settled, onReady]);
 
   /* Signed in, but the profile could not be loaded because we could not reach
      the API. The old behaviour fell through to the auth stack, which asks for
@@ -136,7 +139,7 @@ export default function AppNavigator() {
     );
   }
 
-  if (loading) {
+  if (loading || returning === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.accent} />
@@ -157,10 +160,9 @@ export default function AppNavigator() {
           // queue-joining flow. Their whole job is adding walk-ins for others.
           <Stack.Screen name="Kiosk" component={KioskScreen} />
         ) : !user ? (
-          <>
-            <Stack.Screen name="Auth" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-          </>
+          /* Sign in and create account are one screen; a device nobody has
+             signed in on opens it in Create account (lib/deviceHistory.ts). */
+          <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
@@ -169,7 +171,6 @@ export default function AppNavigator() {
             <Stack.Screen name="Help"      component={HelpScreen}      />
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
-            <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
             <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />

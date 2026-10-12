@@ -1,5 +1,10 @@
 # Reviewer notes
 
+> **Superseded for the 1.0 resubmission by [`docs/app-review-notes.md`](../app-review-notes.md)**,
+> which answers App Review's six questions and reflects In-App Purchase, the Live
+> Activity and on-device OCR. The notes below say payments are not enabled, which
+> is no longer true.
+
 What to paste into each console's review-information field, and why it says what
 it says. Both stores ask the same two questions in different words: *how do we
 sign in*, and *what are we looking at*.

@@ -26,6 +26,7 @@ if str(BASE) not in sys.path:
     sys.path.insert(0, str(BASE))
 
 from utils.dbio import connect  # noqa: E402
+from utils.monitoring import init_monitoring, report_handled  # noqa: E402
 
 MODEL_SCRIPTS = [
     "wait_time_model.py",              # wait_eta_grid, service_time, best_time, model_perf
@@ -95,6 +96,13 @@ def run_models(label):
     for script in MODEL_SCRIPTS:
         if not _run(script, ["--write-db"]):
             print(f"[worker] {script} FAILED", flush=True)
+            # Worth reporting precisely because nothing else breaks: the API
+            # keeps serving queues and the insight cards just quietly go stale,
+            # so without this the first sign is somebody noticing old numbers.
+            report_handled(
+                RuntimeError(f"model script failed: {script}"),
+                script=script, run_label=label,
+            )
             ok = False
     print(f"[worker] model run complete ({label}); ok={ok}", flush=True)
     return ok
@@ -118,14 +126,20 @@ def process_manual_triggers():
                 conn.commit()
     except Exception as exc:  # noqa: BLE001
         print(f"[worker] manual-trigger poll error: {exc}", flush=True)
+        report_handled(exc, stage="manual-trigger-poll")
     finally:
         conn.close()
 
 
 def main():
     print("[worker] Lyne live model worker starting", flush=True)
+    # Before anything that can fail. Returns False and does nothing at all when
+    # SENTRY_DSN is unset, which is every developer machine.
+    init_monitoring(service="model-worker")
+
     if not wait_for_db():
         print("[worker] database never became reachable — exiting", flush=True)
+        report_handled(RuntimeError("database never became reachable"), stage="startup")
         sys.exit(1)
 
     ensure_history()
@@ -142,4 +156,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        # sentry_sdk hooks sys.excepthook on init, but only once it is enabled,
+        # and this keeps the behaviour identical either way: report if we can,
+        # then re-raise so the exit code and the container logs are unchanged.
+        import sys as _sys
+        exc = _sys.exc_info()[1]
+        if exc is not None:
+            report_handled(exc, stage="worker-crash")
+        raise

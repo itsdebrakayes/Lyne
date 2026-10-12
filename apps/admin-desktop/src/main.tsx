@@ -5,8 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import App from './App';
+import { initMonitoring } from './lib/monitoring';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 import './index.css';
+
+/* Before React renders, so an error thrown while the tree is first mounting is
+   still reported. No-ops without a DSN and in `npm run dev`. */
+initMonitoring();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,0 +1,7 @@
+{
+  "name": "text-reader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "On-device text recognition for images and PDFs (Apple Vision / Google ML Kit). Nothing leaves the phone.",
+  "main": "src/index.ts"
+}

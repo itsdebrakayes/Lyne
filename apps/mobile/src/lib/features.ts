@@ -56,55 +56,53 @@
 export const SOCIAL_AUTH_ENABLED = false;
 
 /**
- * Lyne Premium — the upsell, the free trial, and the saved-cards screen.
+ * Payments — OFF. Lyne 1.0 is free.
  *
- * Three separate problems, all solved by not showing it in version one:
+ * Busy times, the week planner and Line Helper are open to every signed-in
+ * customer, and nothing is sold: no paywall, no trial, no prices, no "Restore
+ * purchases", and the word "Premium" appears nowhere a customer can see.
  *
- * 1. **It cannot complete.** Payments are stubbed on the server, and the
- *    publishable key is empty. Every path ends in failure.
+ * The purchase code is kept, parked outside the build in src/_parked/payments/
+ * (see its README for how to turn it back on). It is not merely hidden: the
+ * Premium screen is not registered with the navigator, nothing imports the
+ * parked files, and expo-iap is uninstalled so the binary links neither
+ * StoreKit nor Google Play Billing. There is therefore no route, deep link or
+ * gesture that reaches a purchase in a release build.
  *
- * 2. **The destination is a 404.** The upgrade flow sends people to
- *    uselyne.com/account, which does not exist on the live site.
- *
- * 3. **Steering outside the store breaks Guideline 3.1.1.** Sending an iOS
- *    customer to a website to pay for digital content is permitted only on the
- *    US storefront, in the EU, South Korea and Japan. **Jamaica is not covered**,
- *    so the app's primary market is exactly where this is prohibited. It is
- *    worth being clear that Claude and ChatGPT do NOT do this on iOS — they
- *    use Apple's in-app purchase. Copying "the big apps" here means copying
- *    IAP, not copying a web link.
- *
- * TO ENABLE: implement StoreKit in-app purchase for iOS and Google Play
- * Billing for Android, confirm Apple supports developer payouts to a Jamaican
- * bank account, then flip this. A web checkout is NOT the route for the
- * consumer subscription.
- *
- * This does not affect the ORGANISATION subscription. That is a business
- * buying administrator software through an invoice or a web checkout, Apple
- * has no jurisdiction over it, and nothing about it is sold inside this app.
+ * Mirrors PAYMENTS_ENABLED in apps/backend/src/lib/premium.js, which opens
+ * every paid gate on the server while it is false.
  */
-export const PREMIUM_ENABLED = false;
+export const PAYMENTS_ENABLED = false;
 
 /**
- * The 14-day free trial, on its own.
+ * The "Add to Apple Wallet" / "Add to Google Wallet" control on the ticket.
  *
- * Split out of PREMIUM_ENABLED because the two were never the same risk and
- * folding them together hid a feature that works behind one that does not.
+ * The feature is worth having and the reason is offline: at the counter the
+ * phone may have no signal, and a pass in Wallet scans from the lock screen
+ * without the app running at all. None of that is why this is off.
  *
- * Starting a trial is a POST to /auth/start-trial. It sets is_premium and
- * premium_until fourteen days out and returns the updated row. No card, no
- * Stripe, no storefront, no web page — it completes every time, today, and it
- * has been tested end to end against the API. So neither of the rules that
- * gate PREMIUM_ENABLED applies to it: Guideline 2.1 is about controls that
- * cannot finish, and this one finishes; 3.1.1 is about steering a customer
- * outside the app to pay, and nothing is being paid.
+ * It is off because the control cannot work. A signed pass needs an Apple Pass
+ * Type ID certificate, and the Android half needs a Google Wallet issuer
+ * account; neither exists, and both arrive with store enrolment rather than
+ * with a code change. What shipped in the meantime was a button-shaped view
+ * with a caption underneath reading "Wallet passes arrive with the App Store
+ * release" — which is the exact shape of a Guideline 2.1 rejection: a control
+ * that looks finished, does nothing, and explains itself. The explanation is
+ * what makes it worse, not better.
  *
- * With both behind one flag, a free customer got a paywall with no way past it
- * — the one action we could actually honour was switched off alongside the one
- * we could not. That reads as a broken screen, and it costs the trial starts
- * that are the whole point of having a free tier.
+ * One thing it did get right, and which is worth not losing when this is
+ * turned back on: both the label and the caption followed Platform.OS, so an
+ * Android build said "Google Wallet" and "the Play Store release". A control
+ * that offers an Android customer an Apple wallet is the kind of detail that
+ * tells somebody the app was built for a different phone than the one in their
+ * hand. Keep that if the button returns.
  *
- * CONVERSION after the trial is the part that still needs store billing, and
- * that is what PREMIUM_ENABLED above still gates.
+ * Nothing is lost by hiding it. The Code 39 barcode above it is what the
+ * counter actually scans, and it is real.
+ *
+ * TO ENABLE: obtain the Apple Pass Type ID certificate and the Google Wallet
+ * issuer account, add a backend endpoint that signs a .pkpass and a Google
+ * Wallet JWT for a ticket, wire the button to it, and flip this. Until then it
+ * renders nothing — not a disabled button, and not a gap where one was.
  */
-export const PREMIUM_TRIAL_ENABLED = true;
+export const WALLET_PASS_ENABLED = false;

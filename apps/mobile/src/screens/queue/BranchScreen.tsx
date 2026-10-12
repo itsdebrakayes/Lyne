@@ -4,7 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, font, shadow, initials, statusFromWait, statusMeta, branchOpenInfo, hoursFromBranch, remoteJoinInfo } from '../../lib/theme';
-import { useTopPad } from '../../lib/insets';
+import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import api from '../../lib/apiClient';
 import { BranchSummary, SavedBusiness, ServiceSummary } from '../../lib/mobileData';
@@ -56,10 +56,11 @@ function PickerSheet<T extends { id: string }>({
   onSelect: (item: T) => void; onClose: () => void;
   renderRow: (item: T, selected: boolean) => React.ReactNode;
 }) {
+  const lift = useNavBarLift();
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(6,12,20,.55)' }} />
-      <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 10, paddingBottom: 34, maxHeight: '72%' }}>
+      <View style={{ backgroundColor: colors.bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 10, paddingBottom: 34 + lift, maxHeight: '72%' }}>
         <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.chevron, marginBottom: 14 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, marginBottom: 12 }}>
           <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 20, color: colors.ink, letterSpacing: -0.6 }}>{title}</Text>
@@ -95,6 +96,7 @@ export default function BranchScreen() {
   const column = useContentColumn();
   const barColumn = useContentColumnInner();
   const topPad = useTopPad(14);
+  const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const queryClient = useQueryClient();
@@ -200,7 +202,7 @@ export default function BranchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150, ...column }} showsVerticalScrollIndicator={false}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 150 + lift, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
         {/* heading row */}
@@ -351,7 +353,7 @@ export default function BranchScreen() {
 
       <View style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
-        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30,
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 30 + lift,
         backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
       }}>
         <TouchableOpacity
