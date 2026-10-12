@@ -42,8 +42,13 @@ const accountPortalConfigured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
 );
 
+/* Lyne 1.0 is free, so the Premium account portal (plan, price, Stripe
+   checkout) is closed: /account is a plain 404. Mirrors PAYMENTS_ENABLED in
+   apps/backend/src/lib/premium.js and apps/mobile/src/lib/features.ts. */
+const PAYMENTS_ENABLED = false;
+
 function AccountRoute() {
-  if (!accountPortalConfigured) {
+  if (!PAYMENTS_ENABLED || !accountPortalConfigured) {
     return <ResponsivePage desktop={<NotFound />} mobile={<MobileNotFound />} />;
   }
 

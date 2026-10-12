@@ -68,33 +68,25 @@ If you choose to add identity details or scans (TRN, National ID, passport):
 
 You are never required to provide them to use Lyne.
 
-## 6. Premium
+## 6. Lyne is free
 
-Premium unlocks additional features, currently including detailed best-time-to-visit forecasting.
+The Lyne app is free. Nothing in it is for sale: there are no subscriptions,
+in-app purchases or paid features, and using Lyne never buys you priority in
+any queue — agencies control their own order of service.
 
-- Price, billing period and any trial are shown **before** you buy.
-- **Premium, bought inside the mobile app**, is processed by **Apple** or
-  **Google**, never by us. Their terms and refund policies govern it, and you
-  manage or cancel it in your Apple ID or Google Play subscription settings —
-  both stores require it to work that way and neither lets us cancel on your
-  behalf. We never see your card.
 - **An organisation subscription to the administrator application** is a
   separate, invoiced agreement between us and that organisation. It is not sold
   through the app, and sections 19 onward govern it.
 
-There is no third route. If you are asked to enter card details anywhere else
-claiming to be Lyne, it is not us. See the [Refund and Cancellation Policy](/refunds)
-for who issues a refund in each case.
-- Subscriptions **renew automatically** unless cancelled before the period ends.
-- Cancelling stops future renewals; you keep Premium until the paid period ends.
-- We may change pricing with at least **30 days'** notice before it affects you.
-- Premium improves the *information* you get. **It does not buy you priority in any queue**, and it never will — agencies control their own order of service.
+If you are asked to pay or enter card details anywhere claiming to be the Lyne
+app, it is not us. Any service you pay an organisation for is provided by that
+organisation, and a refund for it is between you and them.
 
 ## 7. Availability
 
 We work to keep Lyne available, but we do not guarantee uninterrupted service. We may suspend it for maintenance, updates, or reasons outside our control, including failures at an agency, a network operator or a hosting provider.
 
-We may change, add or withdraw features. For changes that materially reduce what you get from a paid subscription, we'll give notice and, where appropriate, a pro-rata refund.
+We may change, add or withdraw features. Changes to what an organisation receives under its subscription are governed by its agreement (sections 19 onward).
 
 ## 8. Our rights in the service
 
@@ -152,9 +144,9 @@ You agree to indemnify us against claims arising from your misuse of the service
 
 ## 11. Ending it
 
-**You** may stop using Lyne at any time and delete your account in the app (Profile → Delete my account).
+**You** may stop using Lyne at any time and delete your account in the app (Settings → Delete account → type DELETE).
 
-**We** may suspend or end your access for breach of these Terms, for unlawful use, or if we cease operating — in which case we'll give reasonable notice and refund any unused paid period.
+**We** may suspend or end your access for breach of these Terms, for unlawful use, or if we cease operating — in which case we'll give reasonable notice.
 
 Sections that by their nature should survive termination (8, 9, 10, 13) do.
 

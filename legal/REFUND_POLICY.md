@@ -24,7 +24,7 @@ This matters more than it sounds, because **it decides who can issue your refund
 
 | What | Who sells it | Who handles refunds |
 |---|---|---|
-| **Lyne for individuals — paid features** in the mobile app | Apple (App Store) or Google (Google Play) | **Apple or Google.** See section 6 |
+| **Lyne for individuals** — the mobile app | Nobody — it is free, and nothing in it is for sale | Not applicable. See section 6 |
 | **Lyne for organisations** — the administrator application, priced per branch and per service | [REGISTERED COMPANY NAME], directly | **Us.** Sections 3 to 5 apply |
 | **Joining a queue** | Nobody — it is free | Not applicable |
 | **The service you attend the branch for** | The organisation you visited | The organisation. Not us. See section 8 |
@@ -88,15 +88,12 @@ If a paid plan is offered with a trial:
 - Cancelling during the trial costs nothing and is one click.
 - If we fail to send that reminder and you are charged, **the first charge is refunded in full on request.** That is our failure, not yours.
 
-## 6. Purchases made through the App Store or Google Play
+## 6. The mobile app sells nothing
 
-If you bought a paid feature inside the mobile app, **Apple or Google took your money, not us.** We cannot see your card, we cannot process the refund, and we cannot overrule their decision. This is how both stores require it to work; it is not us passing you around.
-
-- **Apple / App Store:** request a refund at `reportaproblem.apple.com`, or through Settings on your device. Apple decides, under its own terms.
-- **Google Play:** request a refund through Google Play's order history or its refund form. Google offers self-service refunds within a short window after purchase and reviews later requests case by case.
-- **Cancelling the subscription itself** is done in your device's subscription settings — Apple and Google both require this, and neither lets us cancel on your behalf.
-
-**What we will do:** if a store refuses a refund and you believe the reason was something we did — the app did not work, a feature was not as described — write to **[SUPPORT EMAIL]**. We will look at it and, where we agree, we will support your case to the store or make it right another way. We will not simply tell you it is Apple's problem.
+The Lyne app is free. There are no subscriptions, in-app purchases or paid
+features in it, so there is nothing to refund and nothing to cancel. If you are
+ever asked to pay for the Lyne app, or to enter card details claiming to be
+Lyne, it is not us — write to **[SUPPORT EMAIL]**.
 
 ## 7. How to ask, and what happens
 

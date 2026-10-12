@@ -12,7 +12,7 @@ Google Play and the App Store both require that you be able to delete your accou
 
 This is the fastest way, and it takes effect immediately.
 
-1. Open Lyne and go to the **Profile** tab.
+1. Open Lyne and tap the person icon at the bottom right to open **Settings**.
 2. Scroll to the bottom and tap **Delete account**.
 3. Type **DELETE** and tap **Delete everything**.
 
@@ -37,7 +37,6 @@ Deleting your account permanently removes:
 - Your queue history, including which branches you visited and which services you joined.
 - Your notification history and any device tokens used to alert you.
 - Your saved agencies and preferences.
-- Any saved payment cards and your premium subscription, if you have one.
 
 Anything still active is closed as part of the same process: if you are holding a place in a line when you delete, that place is released.
 
@@ -47,7 +46,7 @@ Two narrow categories survive deletion, and neither of them identifies you.
 
 **Anonymous queue statistics.** Branches rely on aggregate figures — how long a line took, how many people were served in an hour — to staff their counters. Once your visit is stripped of everything that ties it to you, what remains is a number in an average. It cannot be traced back to you and is not used to build any profile.
 
-**Records the law requires us to keep.** Payment and tax records have a statutory retention period. We keep the minimum the law requires, for only as long as it requires, and we do not use them for anything else.
+**Records the law requires us to keep.** Where a law or a lawful request requires a specific record to be kept, we keep the minimum it requires, for only as long as it requires, and we do not use it for anything else. Lyne sells nothing in the app, so there are no payment records about you.
 
 ## Changing your mind
 
