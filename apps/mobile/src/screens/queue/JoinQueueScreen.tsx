@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +20,7 @@ interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_m
 export default function JoinQueueScreen() {
   const topPad = useTopPad(12);
   const lift = useNavBarLift();
+  const focused = useIsFocused();
   const navigation = useNavigation<any>();
   const route = useRoute<Params>();
   const { branchId, serviceId } = route.params;
@@ -129,6 +131,8 @@ export default function JoinQueueScreen() {
      is the same treatment BranchScreen uses. */
   return (
     <View style={{ flex: 1, backgroundColor: colors.dark }}>
+      {/* Light status bar over the dark screen; leaving hands it back. */}
+      {focused && <StatusBar style="light" />}
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 148 + lift }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentDeep} />}>
         <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"

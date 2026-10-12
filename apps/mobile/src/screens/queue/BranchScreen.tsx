@@ -250,7 +250,7 @@ export default function BranchScreen() {
         </View>
 
         <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4, marginTop: 26, marginBottom: 12 }}>
-          {services.length ? `${services.length} lines open` : 'Lines'}
+          {services.length ? `${services.length} ${services.length === 1 ? 'line' : 'lines'} open` : 'Lines'}
         </Text>
 
         {servicesQuery.isLoading && <SkeletonCard height={120} />}

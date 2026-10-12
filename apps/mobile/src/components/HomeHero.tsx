@@ -119,7 +119,8 @@ export function HomeHero({
   const [beat, setBeat] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [beatHeight, setBeatHeight] = useState(0);
+  /* The tallest beat measured at the card's full width. */
+  const [beatBox, setBeatBox] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
@@ -154,13 +155,24 @@ export function HomeHero({
         {/* Held at the tallest beat seen so far. The beats wrap to different
             heights, and without this the two buttons below moved every few
             seconds — a tap aimed at "Plan for later" landed on empty card. */}
-        <Animated.View
-          style={{ opacity: fade, minHeight: beatHeight }}
-          onLayout={(e) => {
-            const h = Math.ceil(e.nativeEvent.layout.height);
-            if (h > beatHeight) setBeatHeight(h);
-          }}
-        >
+        <Animated.View style={{ opacity: fade, minHeight: beatBox.h }}>
+          {/* Measured on this inner View, never on the one carrying minHeight:
+              measuring the held box fed its own height back in, and a single
+              tall reading taken mid-transition (the card briefly narrower, the
+              text wrapping onto extra lines) grew the card for good and pushed
+              the buttons out of sight. A narrower layout is ignored; a wider
+              one starts the measurement again. */}
+          <View
+            onLayout={(e) => {
+              const w = Math.round(e.nativeEvent.layout.width);
+              const h = Math.ceil(e.nativeEvent.layout.height);
+              setBeatBox(prev => {
+                if (w > prev.w + 1) return { w, h };
+                if (Math.abs(w - prev.w) <= 1 && h > prev.h) return { w: prev.w, h };
+                return prev;
+              });
+            }}
+          >
           <View style={{ paddingRight: 120 }}>
           <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: 'rgba(255,255,255,.62)' }}>
             {b.kicker}
@@ -193,6 +205,7 @@ export function HomeHero({
                 <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13, color: 'rgba(255,255,255,.78)' }}>{p}</Text>
               </View>
             ))}
+          </View>
           </View>
         </Animated.View>
 
