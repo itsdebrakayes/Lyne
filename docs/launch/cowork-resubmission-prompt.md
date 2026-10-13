@@ -133,6 +133,12 @@ c. Add to /srv/lyne/.env (deploy/env.production.example documents them):
      APNS_PRIVATE_KEY   the contents of secrets/apns-6H44RYBAX3.p8 on ONE
                         line, each newline written as \n, inside single quotes
      APNS_ENV=production
+     REVIEW_SIMULATOR=true
+     REVIEW_BUSINESS_ID=biz-review-demo-0001
+     REVIEW_ACCOUNT_EMAIL=appreview@uselyne.com
+   The last three turn on the App Review simulator (review notes section 11).
+   After deploy.sh, `docker logs` for the API must show
+   "[ReviewSimulator] ACTIVE". Set REVIEW_SIMULATOR=false once approved.
    Do NOT add any APPSTORE_* or GOOGLE_PLAY_SERVICE_ACCOUNT billing variable;
    the server does not need them. Copy the .p8 to the droplet over scp only and
    delete any temporary copy afterwards. Never print it.

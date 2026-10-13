@@ -420,6 +420,19 @@ app.listen(PORT, () => {
   helperTick();
   setInterval(helperTick, 60 * 1000);
   console.log('[LineHelper] Active; joining on the minute and yielding called-but-absent places.');
+
+  /* ── App Review simulator ──
+     OFF unless REVIEW_SIMULATOR=true. Plays the counter's part for the
+     fictional review organisation only, so a reviewer sees a line move before
+     any real organisation is live. See jobs/reviewSimulator.js. */
+  const { runReviewSimulatorTick, settings: reviewSimSettings } = require('./jobs/reviewSimulator');
+  if (reviewSimSettings().enabled) {
+    const simTick = () => runReviewSimulatorTick()
+      .catch((err) => console.error('[ReviewSimulator] tick failed:', err.message));
+    simTick();
+    setInterval(simTick, 15 * 1000);
+    console.log(`[ReviewSimulator] ACTIVE for ${reviewSimSettings().businessId} / ${reviewSimSettings().email}.`);
+  }
   console.log(
     `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `
     + `tickets close ${GRACE_MINUTES} min after each branch's closing time.`
