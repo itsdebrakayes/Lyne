@@ -50,7 +50,8 @@ function settings(env = process.env) {
   };
 }
 
-const secondsSince = (t, now) => (t ? (now - new Date(t).getTime()) / 1000 : Infinity);
+/** Seconds from SQL TIMESTAMPDIFF; NULL (never happened) counts as long ago. */
+const age = (secs) => (secs === null || secs === undefined ? Infinity : Number(secs));
 
 /* Late-bound: routes/tickets.js loads the whole router, which this job must
    not pull in at module load (it would form a cycle through index.js). */
@@ -152,9 +153,15 @@ async function moveReviewerTicket(ticketId, newStatus, now) {
 async function moveReviewerLines(businessId, email, now = new Date()) {
   const { broadcast } = ticketsRoute();
   const [tickets] = await pool.query(
-    `SELECT t.id, t.queue_id, t.position, t.status, t.joined_at, t.called_at, t.started_serving_at,
-            (SELECT MAX(x.completed_at) FROM queue_tickets x
-              WHERE x.queue_id = t.queue_id AND x.guest_name = ? AND x.completed_at IS NOT NULL) AS last_step
+    /* Ages are computed by the database against its own NOW(): the stored
+       timestamps are in the database's zone, and comparing them with the
+       Node clock put every ticket "in the future" so nothing ever moved. */
+    `SELECT t.id, t.queue_id, t.position, t.status,
+            TIMESTAMPDIFF(SECOND, t.joined_at, NOW()) AS since_joined,
+            TIMESTAMPDIFF(SECOND, t.called_at, NOW()) AS since_called,
+            TIMESTAMPDIFF(SECOND, t.started_serving_at, NOW()) AS since_serving,
+            TIMESTAMPDIFF(SECOND, (SELECT MAX(x.completed_at) FROM queue_tickets x
+              WHERE x.queue_id = t.queue_id AND x.guest_name = ? AND x.completed_at IS NOT NULL), NOW()) AS since_step
        FROM queue_tickets t
        JOIN users u ON u.id = t.user_id
        JOIN queues q ON q.id = t.queue_id
@@ -166,7 +173,7 @@ async function moveReviewerLines(businessId, email, now = new Date()) {
   let moved = 0;
   for (const t of tickets) {
     if (t.status === 'waiting') {
-      const lastMove = Math.min(secondsSince(t.last_step, now), secondsSince(t.joined_at, now));
+      const lastMove = Math.min(age(t.since_step), age(t.since_joined));
       if (lastMove < STEP_SECONDS) continue;
       const [[ahead]] = await pool.query(
         `SELECT id FROM queue_tickets
@@ -188,10 +195,10 @@ async function moveReviewerLines(businessId, email, now = new Date()) {
         await moveReviewerTicket(t.id, 'called', now);
         moved += 1;
       }
-    } else if (t.status === 'called' && secondsSince(t.called_at, now) >= CALLED_SECONDS) {
+    } else if (t.status === 'called' && age(t.since_called) >= CALLED_SECONDS) {
       await moveReviewerTicket(t.id, 'in_service', now);
       moved += 1;
-    } else if (t.status === 'in_service' && secondsSince(t.started_serving_at, now) >= SERVING_SECONDS) {
+    } else if (t.status === 'in_service' && age(t.since_serving) >= SERVING_SECONDS) {
       await moveReviewerTicket(t.id, 'served', now);
       moved += 1;
     }
