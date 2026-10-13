@@ -219,6 +219,7 @@ and not counted against us here — this is about visible copy.)
 7. **Never claim success before it happened.**
 8. **Check it on a phone before calling it done.**
 
-Related: [QA_UX_Review_2026-08-14](QA_UX_Review_2026-08-14.md) — the admin
-surfaces already enforce most of rules 3–7. The website is the surface that
+The admin surfaces already enforce most of rules 3–7 (an August 2026 QA
+review confirmed it; that review is in git history at tag
+`archive/pre-cleanup-2026-10-13`). The website is the surface that
 does not.

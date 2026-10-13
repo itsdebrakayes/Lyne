@@ -72,7 +72,7 @@ can only reach through the DigitalOcean web console.
 ```bash
 ssh lyne@<droplet-ip>
 git clone <your-repo-url> /srv/lyne && cd /srv/lyne
-git checkout main
+git checkout production
 
 cp deploy/env.production.example .env
 nano .env                       # fill in every REQUIRED
@@ -175,16 +175,19 @@ Two things the cron entry does not do, and you should:
 
 ```bash
 ssh lyne@<droplet-ip> && cd /srv/lyne
-git pull
+git checkout production && git pull --ff-only
 bash deploy/deploy.sh
 ```
+
+The server only ever runs the **`production`** branch. Work is done on
+`staging` and merged into `production` when it is ready (see the root README).
 
 New migrations are **not** applied by `deploy.sh` — that is deliberate, because
 an automatic migration on a database holding real records is how a bad afternoon
 starts. Apply them explicitly, after a backup:
 
 ```bash
-./scripts/backup-database.sh
+BACKUP_DIR=/srv/lyne/backups bash deploy/backup-managed-db.sh   # NOT scripts/backup-database.sh
 mysql --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user=doadmin -p \
       --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne \
       < database/migrations/0NN_the_new_one.sql

@@ -6,9 +6,8 @@ that unblocks the most.
 
 Costs are indicative and were checked in September 2026. Confirm on the vendor's
 own page before paying — they move, and several depend on quotes you have not
-asked for yet. The budget lives in
-[../../research/Lyne_App_Only_Budget_2026-07-31.md](../../research/Lyne_App_Only_Budget_2026-07-31.md);
-this is the blocker list.
+asked for yet. The budget lives in the business research documents (kept
+outside this repository); this is the blocker list.
 
 ---
 
