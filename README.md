@@ -80,7 +80,7 @@ feature work ──► staging ──(merge when tested)──► production   (
 3. Merge `staging` into `production`. Then deploy ([§15](#15-deploying-a-change-to-production)).
 4. Merge `staging` into `demo` when the sales sandbox should get the change.
 
-**Rules**
+**Rules** (also in `CLAUDE.md`, which AI coding agents read before committing)
 
 - Never commit to `production` or `demo` directly. If an emergency fix has to go to `production` first, merge it back into `staging` the same day.
 - `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md` or `apps/backend/scripts/sync-demo-test-accounts.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
