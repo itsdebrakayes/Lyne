@@ -15,7 +15,7 @@ answers, and `apps/mobile/src/lib/legalContent.ts`.
 
 ## Paste into App Store Connect → App Review Information → Notes
 
-3732 characters including spaces and line breaks (limit 4,000; kept under 3,900).
+3848 characters including spaces and line breaks (limit 4,000; kept under 3,900).
 
 ```
 1. WHAT THE APP DOES AND WHO IT IS FOR
@@ -34,7 +34,7 @@ f. Account deletion: Settings (person icon, bottom right) > scroll to the bottom
 
 3. EXTERNAL SERVICES
 - Sign-in: Supabase Auth, email and password, with a 6-digit code emailed to confirm a new account.
-- Our API and database: Lyne's own server on DigitalOcean (API droplet, MySQL on DigitalOcean Managed Databases).
+- Our API and database: Lyne's own server and MySQL database on DigitalOcean.
 - Payments: none. Lyne is free and sells nothing: no in-app purchases, subscriptions or paid features, and no link to buy anything elsewhere.
 - Push notifications: Apple Push Notification service, through Expo's push service; Live Activity updates go directly to APNs.
 - Maps: none embedded. "Get directions" hands the branch address to Apple Maps or another installed maps app.
@@ -43,13 +43,13 @@ f. Account deletion: Settings (person icon, bottom right) > scroll to the bottom
 - Location: optional, used on the device only to estimate travel time for the "time to leave" reminder and to show the user's city. It is never sent to our servers.
 
 4. REGIONAL DIFFERENCES
-None. The app is the same in every storefront and is free everywhere. The organisations listed are in Jamaica, so the content is only useful there.
+None. The app is the same in every storefront and is free everywhere. Its organisations are in Jamaica.
 
 5. REGULATED ACTIVITY
-None. Lyne does not provide financial, medical, legal or government services itself; it shows queue information for organisations that do and lets a person hold a place in their line. It handles no money, gives no medical or financial advice, and does not verify identity on any organisation's behalf. Identity numbers a user chooses to save stay on their own device.
+None. Lyne does not provide financial, medical, legal or government services itself; it shows queue information for organisations that do and lets a person hold a place in their line. It handles no money, gives no medical or financial advice, and does not verify identity on any organisation's behalf.
 
-6. ANYTHING ELSE
-The demonstration organisation is fictional, but its lines are real, live lines on our production server, so you may be first in line. That is the genuine behaviour of a quiet queue, not a limitation of the demo.
+11. DEMO LINE SIMULATOR
+Lyne works live alongside counter staff, who call each person from our desktop app. No organisation is live yet, so nobody is at a counter during review. A server listener therefore watches for the review account at the fictional Blue Harbour branches: when you join a line, it serves the made-up visitors ahead of you every 25 seconds, then calls you with a real notification and completes your visit. Everyone else uses the same app; only the review line speeds up.
 ```
 
 ---

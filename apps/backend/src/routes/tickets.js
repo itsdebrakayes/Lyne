@@ -1524,3 +1524,8 @@ router.post('/:id/rating', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+/* For jobs/reviewSimulator.js, which moves the review account's ticket through
+   the same status changes and notifications staff would cause. */
+module.exports.applyStatusChange = applyStatusChange;
+module.exports.notifyTicketUser = notifyTicketUser;
+module.exports.broadcast = broadcast;
