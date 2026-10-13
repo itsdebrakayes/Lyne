@@ -1,5 +1,11 @@
 # Launch checklist
 
+> **Status, 13 October 2026:** version 1 has launched — Android is live on Google
+> Play, iOS 1.0 is in App Store review, and production is running. Most boxes
+> below were completed without being ticked. Treat this file as the record of
+> what launch required; the current open items are in
+> [../REMAINING_WORK.md](../REMAINING_WORK.md).
+
 Ordered by what blocks what, not by how hard each item is. Everything with a
 name against it needs a person; everything else is in
 [`deploy/`](../../deploy/) or [build-and-submit.md](build-and-submit.md).

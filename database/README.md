@@ -11,7 +11,7 @@ This folder contains the production MySQL schema, migrations, and analytics expo
 | `analytics_exports.sql` | Reference CSV export queries for model development |
 | `README.md` | Database setup notes |
 
-Demo seed data is not stored on production `main`. Use the `demo` branch for demo businesses and synthetic activity.
+Demo seed data is not stored on the `production` branch. Use the `demo` branch for demo businesses and synthetic activity.
 
 ## Fresh Production Setup
 

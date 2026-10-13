@@ -25,7 +25,7 @@ stop rather than guess:
 ```
 You are deploying Lyne to production. The repository is at
 https://github.com/itsdebrakayes/Lyne and is checked out locally at
-~/Developer/Lyne. Work from the `main` branch.
+~/Developer/Lyne. Work from the `production` branch (formerly `main`).
 
 Read deploy/README.md first and follow it. It is accurate and ordered; this
 message tells you what it cannot: which values to use, what to check, and what
@@ -103,7 +103,7 @@ through the DigitalOcean web console.
 
 == STEP 2 — CODE AND SECRETS ONTO THE BOX ==
 
-Clone the repo to /srv/lyne and check out `main`.
+Clone the repo to /srv/lyne and check out `production`.
 
 Build .env from deploy/env.production.example.
 

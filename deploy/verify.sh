@@ -81,7 +81,11 @@ for svc in caddy api model-worker; do
   state="$($COMPOSE ps --format '{{.Service}} {{.State}}' 2>/dev/null | awk -v s="$svc" '$1==s{print $2}')"
   [ "$state" = "running" ] && ok "$svc is running" || no "$svc is ${state:-absent}"
 done
-$COMPOSE ps --format '{{.Publishers}}' 2>/dev/null | grep -q '4000' \
+# `ps --format {{.Publishers}}` also lists ports that are only EXPOSED to the
+# compose network (PublishedPort 0), which made this check fail on a correct
+# box. `docker port` prints only ports actually bound on the host.
+api_ctr="$($COMPOSE ps -q api 2>/dev/null)"
+[ -n "$api_ctr" ] && [ -n "$(docker port "$api_ctr" 2>/dev/null)" ] \
   && no "the API is publishing a host port — it should be reachable only via Caddy" \
   || ok "the API publishes no host port"
 
