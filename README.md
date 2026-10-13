@@ -166,7 +166,7 @@ A Python container that runs six models on boot and every two hours and writes t
 
 ### Website — `apps/website`
 
-The public marketing site: product information, the organisation quote estimator (`src/pages/JoinUs.tsx` and `src/pages/mobile/MobileJoinUs.tsx`), app-store links, and the legal pages. It never touches customer data. Hosted on GoDaddy ([§19](#19-website)).
+The public marketing site: product information, the organisation quote estimator (`src/lib/pricing.ts`), the Get the app page, and the legal pages. It never touches customer data. Hosted on GoDaddy ([§19](#19-website)).
 
 ---
 
@@ -455,7 +455,7 @@ Everything is in `docs/launch/`. In short:
 - `godaddy-build.mjs` builds `apps/website` into `apps/website/dist`.
 - `godaddy-server.mjs` serves that folder (SPA fallback to `index.html`) on `PORT`.
 
-The organisation **quote estimator** is a client-side formula in `apps/website/src/pages/JoinUs.tsx` (desktop) and `apps/website/src/pages/mobile/MobileJoinUs.tsx` (mobile). Both must be changed together. Store links are in `src/lib/mobileRelease.ts`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
+The organisation **quote estimator** reads one price list, `apps/website/src/lib/pricing.ts`, copied from the Lyne Pricing & Positioning Matrix (September 2026): Branch, Operations and Executive by number of locations, and Government / Enterprise as a custom contract. The desktop and mobile pages (`src/pages/JoinUs.tsx`, `src/pages/mobile/MobileJoinUs.tsx`) only display it. Store links are in `src/lib/mobileRelease.ts` (Google Play is live; the App Store link appears once `VITE_IOS_APP_URL` is set) and every download control goes to `/get-the-app`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
 
 ---
 

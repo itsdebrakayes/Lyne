@@ -19,6 +19,7 @@ import Cookies from './pages/Cookies';
 import Refunds from './pages/Refunds';
 import DeleteAccount from './pages/DeleteAccount';
 import Download from './pages/Download';
+import GetApp from './pages/GetApp';
 import NotFound from './pages/NotFound';
 import AuthConfirmed from './pages/AuthConfirmed';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -146,6 +147,13 @@ function App() {
                 title="Download Lyne Admin for Desktop"
                 description="Install the Lyne Admin console on a Windows or Mac computer at your branch. Requires an account issued by Lyne under an active agreement — there is no sign-up.">
                 <ResponsivePage desktop={<Download />} mobile={<MobileDownload />} />
+              </Seo>} />
+            <Route path="/get-the-app" element={
+              <Seo
+                path="/get-the-app"
+                title="Get the Lyne app"
+                description="Lyne is free on Google Play and the App Store. Join a line from your phone, see your live place, and get a notification when it is your turn.">
+                <ResponsivePage desktop={<GetApp />} mobile={<GetApp mobile />} />
               </Seo>} />
             <Route path="/delete-account" element={
               <Seo
