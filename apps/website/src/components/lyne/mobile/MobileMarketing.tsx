@@ -63,7 +63,7 @@ export function MobileMarketingNav() {
               Get a quote
             </Link>
             <a
-              href="/#pricing"
+              href="/get-the-app"
               onClick={() => setOpen(false)}
               className="btn btn-primary mt-3 min-h-12 w-full"
             >
@@ -82,7 +82,7 @@ const footerGroups = [
     links: [
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/#pricing" },
-      { label: "Mobile App", href: "/#pricing" },
+      { label: "Mobile App", href: "/get-the-app" },
       { label: "Desktop App", href: "/download" },
       { label: "For business", href: "/#partners" },
     ],

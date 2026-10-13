@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { LEGAL_ENTITY } from "@/lib/legalEntity";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -125,7 +124,7 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.55 }}
           className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center"
         >
-          <a href="#pricing" className="btn btn-primary btn-lg w-full sm:w-auto">
+          <a href="/get-the-app" className="btn btn-primary btn-lg w-full sm:w-auto">
             Get the app free <ArrowUpRight className="h-5 w-5" />
           </a>
           <a href="#features" className="btn btn-ghost btn-lg w-full sm:w-auto">
@@ -291,7 +290,7 @@ function ForBusiness() {
             build it with. Whether you serve ten people a day or ten thousand,
             here is what you stand to gain when you come on board early.
           </p>
-          <a href={`mailto:${LEGAL_ENTITY.supportEmail}`} className="btn btn-primary min-h-12 w-full sm:w-auto">
+          <a href="/join-us#quote" className="btn btn-primary min-h-12 w-full sm:w-auto">
             Talk to us <ArrowRight className="h-4 w-4" />
           </a>
           <div className="mt-8 flex flex-wrap gap-2">
@@ -325,40 +324,45 @@ function ForBusiness() {
 const plans = [
   {
     name: "Free",
-    price: { m: "Free", y: "Free" },
-    desc: "For anybody checking in and keeping track of their spot.",
-    features: ["Join any Lyne", "Live spot number and wait time", "Scan-to-check-in pass", "Push notifications", "Visit history"],
-    highlighted: false,
+    price: "Free",
+    desc: "The Lyne app, for everybody. Every feature is included.",
+    features: [
+      "Join any Lyne line from your phone",
+      "Live place in line and wait time",
+      "Ticket code and turn notifications",
+      "Busy times and the week planner",
+      "Line Helper holds your place",
+      "Visit history",
+    ],
+    highlighted: true,
     cta: "Download the app for free",
-    href: "#pricing",
+    href: "/get-the-app",
   },
+  /* Lyne 1.0 sells nothing in the app, so the paid individual tier is parked
+     with the payments code (apps/mobile/src/_parked/payments). Restore this
+     card only when PAYMENTS_ENABLED is turned back on.
   {
-    /* "Premium", not "Pro". The mobile app, the Terms, the Refund Policy and
-       the database column all say Premium, and the app is where the purchase
-       actually happens — so Premium is the name Apple and Google display on the
-       receipt. A reviewer compares the listing to the policy; this was the one
-       surface out of step. */
     name: "Premium",
-    price: { m: "$9.99/mo", y: "$95.90/yr" },
+    price: "$9.99/mo",
     desc: "For people who wait often and want more control.",
     features: ["Everything in Free", "Priority alerts when it is nearly your turn", "Favourites with branch wait times", "Your own wait history and trends", "Track more than one line at a time"],
-    highlighted: true,
+    highlighted: false,
     cta: "Start a subscription",
-    href: "#partners",
+    href: "/get-the-app",
   },
+  */
   {
     name: "Business",
-    price: { m: "Custom", y: "Custom" },
-    desc: "For businesses running their own lines, at one place or many.",
-    features: ["Front desk, supervisor & owner screens", "Unlimited stations & locations", "Live numbers and no-show handling", "White-label & API access", "Dedicated onboarding & support"],
+    price: "From US$1,095/mo",
+    desc: "For organisations running their own lines, at one location or many.",
+    features: ["Front desk, manager and executive screens", "Queues, appointments and walk-ins", "Branch and cross-location reporting", "Plans for 1, 5, 15 or more locations", "Implementation and training with our team"],
     highlighted: false,
     cta: "Buy a license",
-    href: "#partners",
+    href: "/join-us#estimate",
   },
 ];
 
 function Pricing() {
-  const [yearly, setYearly] = useState(false);
   return (
     <section id="pricing" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
@@ -368,24 +372,9 @@ function Pricing() {
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
           <p className="mt-4 text-lg text-lyne-lavender/70">
-            Get the app free, upgrade if you want more, or bring Lyne to your
-            business.
+            The app is free for everyone. Organisations license Lyne to run
+            their own lines.
           </p>
-        </div>
-
-        <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
-          <span className={`text-sm ${!yearly ? "text-white" : "text-lyne-lavender/55"}`}>Monthly</span>
-          <button
-            onClick={() => setYearly((v) => !v)}
-            className={`relative flex h-7 w-12 items-center rounded-full p-1 transition-colors after:absolute after:-inset-2 after:content-[''] ${yearly ? "bg-lyne-purple" : "bg-white/15"}`}
-            aria-label="Toggle yearly billing"
-          >
-            <span className={`h-5 w-5 rounded-full bg-white transition-transform ${yearly ? "translate-x-5" : ""}`} />
-          </button>
-          <span className={`text-sm ${yearly ? "text-white" : "text-lyne-lavender/55"}`}>
-            Yearly
-            <span className="ml-2 rounded-full bg-lyne-green/20 px-2 py-0.5 text-xs text-lyne-green">Save 20%</span>
-          </span>
         </div>
 
         <div className="grid items-stretch gap-5 sm:grid-cols-2">
@@ -396,7 +385,7 @@ function Pricing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.08 }}
-              className={`flex flex-col p-6 ${i === 2 ? "sm:col-span-2" : ""} ${
+              className={`flex flex-col p-6 ${
                 plan.highlighted
                   ? "panel-elev shadow-[0_0_70px_-20px_rgba(123,95,255,0.7)] ring-1 ring-lyne-purple/40"
                   : "panel"
@@ -404,11 +393,11 @@ function Pricing() {
             >
               {plan.highlighted && (
                 <span className="chip mb-4 w-fit">
-                  <Sparkles className="h-3 w-3" /> Most popular
+                  <Sparkles className="h-3 w-3" /> Free for everyone
                 </span>
               )}
               <p className="text-sm text-lyne-lavender/65">{plan.name}</p>
-              <p className="mt-1 text-4xl font-bold tracking-tight">{yearly ? plan.price.y : plan.price.m}</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight">{plan.price}</p>
               <p className="mt-3 text-sm text-lyne-lavender/60">{plan.desc}</p>
               <ul className="mt-6 space-y-3">
                 {plan.features.map((f) => (

@@ -1,36 +1,25 @@
 /**
  * Join Us — partner estimation + sales contact.
- * Size your deployment (branches, services, busyness, setup tier),
+ * Size your deployment (locations, services, busyness, plan),
  * get an indicative estimate, and send the configuration to sales.
  */
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LEGAL_ENTITY } from "@/lib/legalEntity";
+import { PLANS, MESSAGING_NOTE, estimate, estimateLines, planFits, usd, type PlanId } from "@/lib/pricing";
 import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 import { Building2, Calculator, Users, Mail, Phone, MapPin, ArrowRight, Check } from "lucide-react";
 
 type Busyness = "light" | "moderate" | "heavy";
-type SetupTier = "essentials" | "professional" | "enterprise";
 
-const BUSYNESS_OPTIONS: Array<{ id: Busyness; label: string; detail: string; multiplier: number }> = [
-  { id: "light", label: "Light", detail: "Short lines, quiet periods", multiplier: 1 },
-  { id: "moderate", label: "Moderate", detail: "Steady lines through the day", multiplier: 1.15 },
-  { id: "heavy", label: "Heavy", detail: "Long lines, peak-hour crowding", multiplier: 1.35 },
+/* Busyness is asked for scoping only; it does not change the price
+   (lib/pricing.ts). */
+const BUSYNESS_OPTIONS: Array<{ id: Busyness; label: string; detail: string }> = [
+  { id: "light", label: "Light", detail: "Short lines, quiet periods" },
+  { id: "moderate", label: "Moderate", detail: "Steady lines through the day" },
+  { id: "heavy", label: "Heavy", detail: "Long lines, peak-hour crowding" },
 ];
-
-const TIER_OPTIONS: Array<{ id: SetupTier; label: string; detail: string; perBranch: number; perService: number }> = [
-  { id: "essentials", label: "Essentials", detail: "Queues, tickets, staff dashboard", perBranch: 120, perService: 10 },
-  { id: "professional", label: "Professional", detail: "Adds manager analytics and heatmaps", perBranch: 200, perService: 15 },
-  { id: "enterprise", label: "Enterprise", detail: "Full predictive analytics and executive insights", perBranch: 320, perService: 20 },
-];
-
-function estimateMonthly(branches: number, services: number, busyness: Busyness, tier: SetupTier) {
-  const tierOption = TIER_OPTIONS.find((option) => option.id === tier)!;
-  const busynessOption = BUSYNESS_OPTIONS.find((option) => option.id === busyness)!;
-  const base = branches * tierOption.perBranch + branches * services * tierOption.perService;
-  return Math.round(base * busynessOption.multiplier);
-}
 
 const inputClass =
   "w-full rounded-xl border border-white/[0.12] bg-white/[0.05] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-lyne-purple";
@@ -40,12 +29,12 @@ const MobileJoinUs = () => {
   const [branches, setBranches] = React.useState(3);
   const [services, setServices] = React.useState(4);
   const [busyness, setBusyness] = React.useState<Busyness>("moderate");
-  const [tier, setTier] = React.useState<SetupTier>("professional");
+  // null = the smallest plan that covers the locations; a click picks a larger one.
+  const [plan, setPlan] = React.useState<PlanId | null>(null);
   const [message, setMessage] = React.useState("");
   const formRef = React.useRef<HTMLDivElement>(null);
 
-  const monthly = estimateMonthly(branches, services, busyness, tier);
-  const tierLabel = TIER_OPTIONS.find((option) => option.id === tier)!.label;
+  const quote = estimate(branches, plan);
   const busynessLabel = BUSYNESS_OPTIONS.find((option) => option.id === busyness)!.label;
 
   const applyEstimateToForm = () => {
@@ -53,11 +42,10 @@ const MobileJoinUs = () => {
       [
         "We would like a formal quote for Lyne.",
         "",
-        `Branches: ${branches}`,
+        `Locations: ${branches}`,
         `Services per branch: ${services}`,
         `Current busyness: ${busynessLabel}`,
-        `Setup: ${tierLabel}`,
-        `Website estimate: ~US$${monthly.toLocaleString()}/month`,
+        ...estimateLines(quote),
         "",
         "Additional details:",
       ].join("\n"),
@@ -110,7 +98,8 @@ const MobileJoinUs = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="panel-elev p-5 sm:p-7"
+            id="estimate"
+            className="scroll-mt-24 panel-elev p-5 sm:p-7"
           >
             <div className="mb-8 flex items-center gap-4">
               <span className="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
@@ -130,7 +119,7 @@ const MobileJoinUs = () => {
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <label htmlFor="branches-range" className="flex items-center gap-2 text-sm font-medium">
-                        <Building2 className="h-4 w-4 text-lyne-purple" /> Branches
+                        <Building2 className="h-4 w-4 text-lyne-purple" /> Locations
                       </label>
                       <span className="text-lg font-bold">{branches}</span>
                     </div>
@@ -189,42 +178,71 @@ const MobileJoinUs = () => {
                 </div>
 
                 <div>
-                  <p className="mb-3 text-sm font-medium">Which setup fits you?</p>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {TIER_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTier(option.id)}
-                        aria-pressed={tier === option.id}
-                        className={`panel panel-hover p-4 text-left transition-colors ${
-                          tier === option.id ? "border-lyne-purple/60 bg-lyne-purple/10" : ""
-                        }`}
-                      >
-                        <div className="font-semibold">{option.label}</div>
-                        <div className="mt-1 text-xs text-lyne-lavender/60">{option.detail}</div>
-                      </button>
-                    ))}
+                  <p className="mb-3 text-sm font-medium">Which plan fits you?</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {PLANS.map((option) => {
+                      const fits = planFits(option, branches);
+                      const selected = quote.plan.id === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => fits && setPlan(option.id)}
+                          disabled={!fits}
+                          aria-pressed={selected}
+                          className={`panel panel-hover p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                            selected ? "border-lyne-purple/60 bg-lyne-purple/10" : ""
+                          }`}
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-semibold">{option.name}</span>
+                            <span className="text-xs text-lyne-lavender/70">
+                              {option.custom ? "Custom" : `${usd(option.monthly!)}/mo`}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-lyne-lavender/60">
+                            {fits ? option.detail : `Covers up to ${option.maxLocations} location${option.maxLocations === 1 ? "" : "s"}`}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
               <div className="panel flex flex-col p-6 ring-1 ring-lyne-purple/30">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-lyne-lavender/60">
-                  Estimated subscription
+                  {quote.plan.custom ? "Custom contract" : "Estimated subscription"}
                 </div>
+                <div className="mt-1 text-sm font-semibold text-white">{quote.plan.name}</div>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold tracking-tight">US${monthly.toLocaleString()}</span>
-                  <span className="text-sm text-lyne-lavender/60">/month</span>
+                  {quote.plan.custom ? (
+                    <>
+                      <span className="text-sm text-lyne-lavender/60">from</span>
+                      <span className="text-4xl font-bold tracking-tight">{usd(quote.annual)}</span>
+                      <span className="text-sm text-lyne-lavender/60">/year</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold tracking-tight">{usd(quote.monthly!)}</span>
+                      <span className="text-sm text-lyne-lavender/60">/month</span>
+                    </>
+                  )}
                 </div>
                 <div className="mt-5 space-y-2.5 text-sm text-lyne-lavender/65">
-                  <div className="flex justify-between"><span>Branches</span><span className="font-medium text-white">{branches}</span></div>
-                  <div className="flex justify-between"><span>Total service lines</span><span className="font-medium text-white">{branches * services}</span></div>
-                  <div className="flex justify-between"><span>Busyness</span><span className="font-medium text-white">{busynessLabel}</span></div>
-                  <div className="flex justify-between"><span>Setup</span><span className="font-medium text-white">{tierLabel}</span></div>
+                  {!quote.plan.custom && (
+                    <div className="flex justify-between gap-3"><span>Billed annually</span><span className="text-right font-medium text-white">{usd(quote.annual)}/year</span></div>
+                  )}
+                  <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "from " : ""}{usd(quote.implementation)}</span></div>
+                  <div className="flex justify-between gap-3"><span>Messaging / SMS</span><span className="text-right font-medium text-white">{MESSAGING_NOTE}</span></div>
+                  <div className="flex justify-between gap-3"><span>Locations</span><span className="font-medium text-white">{branches}{quote.plan.custom ? "" : ` of ${quote.plan.maxLocations}`}</span></div>
+                  <div className="flex justify-between gap-3"><span>Total service lines</span><span className="font-medium text-white">{branches * services}</span></div>
+                  <div className="flex justify-between gap-3"><span>Busyness</span><span className="font-medium text-white">{busynessLabel}</span></div>
                 </div>
                 <p className="mt-4 text-xs text-lyne-lavender/50">
-                  Indicative only. Volume discounts, onboarding, and hardware are finalised with sales.
+                  {quote.plan.custom
+                    ? "Government and enterprise contracts are scoped with you: locations, integrations, security and SLAs."
+                    : "Indicative. Final pricing, messaging and any integrations are confirmed with sales."}
                 </p>
                 <button type="button" onClick={applyEstimateToForm} className="btn btn-primary mt-6 w-full">
                   Contact sales with this estimate <ArrowRight className="h-4 w-4" />
@@ -234,7 +252,7 @@ const MobileJoinUs = () => {
           </motion.div>
 
           {/* Contact */}
-          <div ref={formRef} className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
+          <div ref={formRef} id="quote" className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}

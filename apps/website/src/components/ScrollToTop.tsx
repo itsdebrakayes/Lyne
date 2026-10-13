@@ -26,7 +26,18 @@ export function ScrollToTop() {
   const navigationType = useNavigationType();
 
   useEffect(() => {
-    if (hash) return;
+    if (hash) {
+      /* A hash on another page ("/join-us#estimate") names a section the
+         browser cannot find on load, because the page renders after it looks.
+         Wait the same two frames, then go there. */
+      const id = decodeURIComponent(hash.slice(1));
+      const frame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          document.getElementById(id)?.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+        });
+      });
+      return () => cancelAnimationFrame(frame);
+    }
     if (navigationType === "POP") return;
 
     /* Deferred past paint, deliberately.
