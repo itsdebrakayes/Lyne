@@ -115,6 +115,12 @@ services:
       TICKET_EXPIRY_ENABLED:         ${TICKET_EXPIRY_ENABLED:-true}
       TICKET_EXPIRY_GRACE_MINUTES:   ${TICKET_EXPIRY_GRACE_MINUTES:-30}
       RETENTION_ENABLED:             ${RETENTION_ENABLED:-true}
+
+      # App Review simulator - OFF unless REVIEW_SIMULATOR=true in .env.
+      # See apps/backend/src/jobs/reviewSimulator.js.
+      REVIEW_SIMULATOR:         ${REVIEW_SIMULATOR:-false}
+      REVIEW_BUSINESS_ID:       ${REVIEW_BUSINESS_ID:-}
+      REVIEW_ACCOUNT_EMAIL:     ${REVIEW_ACCOUNT_EMAIL:-}
       # Deliberately absent: ALLOW_DEMO_DATA_REFRESH. It is double-gated and it
       # must never be set on this box.
     volumes:

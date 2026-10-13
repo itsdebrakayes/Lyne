@@ -91,10 +91,10 @@ apps/mobile/android/
 # 40MB of third-party clips themselves do not belong in git history.
 Web design and App Videos/
 
-# outputs/ is BUILT from research/*.md by the scripts below — 74MB of PDF, DOCX
-# and page renders. The builders are source and are kept; their output is not.
-outputs/*
-!outputs/*.py
+# Business research and generated documents (kept outside the repo).
+research/
+outputs/
+_local/
 
 # Office lock files
 ~$*

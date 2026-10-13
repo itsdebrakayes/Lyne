@@ -10,11 +10,15 @@
 # human to read a migration guide, and burying a react-router v6 -> v7 inside a
 # batch of patches is how it gets merged without one.
 
+# Updates open against `staging`, never `production`: every change is tested
+# there first and promoted with the rest of the release.
+
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /apps/backend
     schedule: { interval: weekly }
+    target-branch: staging
     open-pull-requests-limit: 5
     groups:
       backend-patch-and-minor:
@@ -24,6 +28,7 @@ updates:
   - package-ecosystem: npm
     directory: /apps/website
     schedule: { interval: weekly }
+    target-branch: staging
     open-pull-requests-limit: 5
     groups:
       website-patch-and-minor:
@@ -33,6 +38,7 @@ updates:
   - package-ecosystem: npm
     directory: /apps/admin-desktop
     schedule: { interval: weekly }
+    target-branch: staging
     open-pull-requests-limit: 5
     groups:
       admin-patch-and-minor:
@@ -46,6 +52,7 @@ updates:
   - package-ecosystem: npm
     directory: /apps/mobile
     schedule: { interval: weekly }
+    target-branch: staging
     open-pull-requests-limit: 3
     groups:
       mobile-security:
@@ -55,3 +62,4 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    target-branch: staging

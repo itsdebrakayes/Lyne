@@ -76,7 +76,12 @@ SELECT CONCAT('q-rvh-', SUBSTRING(MD5(CONCAT(b.id, s.id, d.n)), 1, 30)),
   FROM d
   JOIN branches b ON b.business_id = 'biz-review-demo-0001'
   JOIN services s ON s.business_id = 'biz-review-demo-0001'
- WHERE WEEKDAY(CURDATE() - INTERVAL d.n DAY) < 5;
+ WHERE WEEKDAY(CURDATE() - INTERVAL d.n DAY) < 5
+   -- The application opens a real queue for every open day once the tenant
+   -- exists; those days already have their own row (uk_queue_day), so skip them.
+   AND NOT EXISTS (SELECT 1 FROM queues x
+                    WHERE x.branch_id = b.id AND x.service_id = s.id
+                      AND x.queue_date = CURDATE() - INTERVAL d.n DAY);
 
 
 -- ── Served tickets: two per opening hour (8 am – 4 pm) per queue ───────────

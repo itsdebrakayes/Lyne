@@ -178,7 +178,7 @@ Payments are not enabled in this version.
 
 ## ⚠ The demo account problem — read this before you submit
 
-**Production starts empty.** That is by design (`main` ships a sellable, empty
+**Production starts empty.** That is by design (`production` ships a sellable, empty
 build), and it is also a rejection waiting to happen: a reviewer signs in, sees
 no agencies, cannot join a queue, and files Guideline 2.1 or 4.2 — *we were
 unable to review the app's core functionality*. It is one of the most common

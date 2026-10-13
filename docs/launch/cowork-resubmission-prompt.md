@@ -50,9 +50,9 @@ for how it was set up.
 
   cd ~/Developer/Lyne
   git fetch origin
-  git merge-base --is-ancestor origin/main ux-and-security-hardening && echo FF-OK
-  git push origin ux-and-security-hardening
-  git push origin ux-and-security-hardening:main      # fast-forward only
+  git merge-base --is-ancestor origin/production staging && echo FF-OK
+  git push origin staging
+  git push origin staging:production      # fast-forward only
 
 If FF-OK does not print, STOP: main has moved and needs a real merge.
 

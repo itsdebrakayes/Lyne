@@ -3,7 +3,7 @@
 This branch is for demos and end-to-end testing only. It keeps the production
 app code, plus demo seed SQL for sample businesses and queue activity.
 
-Production deployments should use `main`.
+Production deployments use the `production` branch, which carries none of these seeds.
 
 ## Two databases
 
@@ -55,4 +55,4 @@ docker volume rm lyne_mysql_demo_data
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 ```
 
-Do not merge demo seed data into production `main`.
+Do not merge demo seed data into `production`.

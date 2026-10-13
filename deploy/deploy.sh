@@ -196,6 +196,6 @@ cat <<EOF
   Worth doing now, not later:
     bash deploy/verify.sh          # the hardening checklist, checked
     bash deploy/deploy.sh rollback # if this release turns out bad — code only, never the database
-    ./scripts/backup-database.sh   # and then restore it once, before real data exists
+    BACKUP_DIR=/srv/lyne/backups bash deploy/backup-managed-db.sh   # production backup (scripts/backup-database.sh is for local Docker only)
 
 EOF
