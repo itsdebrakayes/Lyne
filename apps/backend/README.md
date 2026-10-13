@@ -53,7 +53,7 @@ cp .env.example .env
 Use the root `docker-compose.yml` for local startup, or apply `database/schema.sql`
 and all files in `database/migrations/` manually.
 
-Production `main` does not include demo seed data. Demo data belongs on the `demo` branch.
+The `production` branch does not include demo seed data. Demo data belongs on the `demo` branch.
 
 ### 4. Start the server
 

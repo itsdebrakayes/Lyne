@@ -4,7 +4,7 @@ Every login that works against the seeded demo database, what each one is for,
 and the one gotcha that will otherwise cost you twenty minutes.
 
 **These credentials are for the demo database only.** They exist on the `demo`
-branch's seeded data. `main` starts empty and has none of them — see
+branch's seeded data. `production` starts empty and has none of them — see
 [the branch table in the README](../README.md#branches--read-this-first).
 
 **Password for every account below: `test1234`**

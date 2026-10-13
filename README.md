@@ -1,304 +1,543 @@
-# LYNE
+# Lyne
 
-**Intelligent, trust-first queue management and predictive analytics for multi-branch government agencies and businesses — starting in Jamaica.**
+**Digital queue management and predictive analytics for multi-branch organisations, starting in Jamaica.**
 
-Lyne lets people skip the physical line: you join a queue at an agency or business from your phone, watch your live position, and arrive when it's actually your turn — instead of standing in line for hours. For the organizations, it's a complete queue-management and analytics system their staff run day to day, and a predictive layer that tells them *why* their lines form and *what to change*.
+Customers join a line from their phone, watch their place move, and arrive when it is nearly their turn. Organisations run their counters from a desktop app, and a predictive layer tells them when lines will form, why, and how many counters to open.
 
-First market is Jamaica (TAJ, PICA, NHT and similar). Because that market has deep, justified distrust of digital systems, **trust and safety are treated as the product, not a feature** — every design and security decision follows from that.
+This README is the handbook for anyone working on the system. It explains what every part is, where it runs, how changes reach production, and where the deeper documents are. If something here disagrees with the code, the code wins: fix this file in the same change.
 
 ---
 
 ## Contents
-- [Branches — read this first](#branches--read-this-first)
-- [The five surfaces](#the-five-surfaces)
-- [Feature inventory](#feature-inventory)
-- [Roles](#roles)
-- [Architecture & stack](#architecture--stack)
-- [Security model](#security-model)
-- [Machine learning & analytics](#machine-learning--analytics)
-- [Data & database strategy](#data--database-strategy)
-- [Payments](#payments)
-- [Deployment & hosting](#deployment--hosting)
-- [Testing](#testing)
-- [Onboarding a new agency](#onboarding-a-new-agency)
-- [Quick start](#quick-start)
-- [Project tracking](#project-tracking)
+
+1. [Status at a glance](#1-status-at-a-glance)
+2. [Branches and how work flows](#2-branches-and-how-work-flows)
+3. [Repository map](#3-repository-map)
+4. [The surfaces](#4-the-surfaces)
+5. [Architecture](#5-architecture)
+6. [Production environment](#6-production-environment)
+7. [Configuration (environment variables)](#7-configuration-environment-variables)
+8. [Database](#8-database)
+9. [Background jobs](#9-background-jobs)
+10. [Notifications](#10-notifications)
+11. [Security model](#11-security-model)
+12. [Analytics and machine learning](#12-analytics-and-machine-learning)
+13. [Local development](#13-local-development)
+14. [Testing and CI](#14-testing-and-ci)
+15. [Deploying a change to production](#15-deploying-a-change-to-production)
+16. [Backups and restore](#16-backups-and-restore)
+17. [Mobile releases (App Store and Google Play)](#17-mobile-releases-app-store-and-google-play)
+18. [Desktop admin releases](#18-desktop-admin-releases)
+19. [Website](#19-website)
+20. [Monitoring](#20-monitoring)
+21. [Product decisions and feature flags](#21-product-decisions-and-feature-flags)
+22. [Onboarding a new organisation](#22-onboarding-a-new-organisation)
+23. [Where the other documents are](#23-where-the-other-documents-are)
+24. [What is still open](#24-what-is-still-open)
 
 ---
 
-## Branches — read this first
+## 1. Status at a glance
 
-The branches are split by *what data is in them*, not by what code is in them. **`main` and `demo` carry the same application code.** If you clone and read whichever branch you happened to land on, you may be looking at an older tree — check the table.
+As of October 2026:
 
-| Branch | What is on it | Pull this to… |
+| Part | Where | State |
 |---|---|---|
-| **`demo`** | The whole system **plus** the seeded sandbox: three agencies, staff logins for every role, and a day of live queue activity. | **See it running.** This is the one to start with — bring up Docker, log in, watch a line move. |
-| **`main`** | The same system with **the demo data removed** — empty tables, no seed files, no demo tooling, no demo compose overlay. This is what gets hosted for a real agency on day one, so it must start empty. | Read or deploy the production tree. |
-| **`ux-and-security-hardening`** | Where fixes are made. Once a fix is confirmed, it is merged into `main` (without demo data) and into `demo` (with it). | See work in flight before it is promoted. |
-| **`features`** | Where new features were explored before being folded in. Behind the three above. | History only. |
-| **`sector-foundations`**, **`testing`** | Older exploration branches. Behind. | History only. |
+| API | `https://api.uselyne.com` | Live on a DigitalOcean droplet |
+| Web admin | `https://admin.uselyne.com` | Live, served by the same droplet |
+| Database | DigitalOcean managed MySQL (private VPC host) | Live; nightly verified backups with an off-site copy |
+| Auth | Supabase project **Lyne** | Live; email + password; auth email sent through Resend SMTP |
+| Android app | Google Play, `com.lyne.mobile` | Live in production |
+| iOS app | App Store, `com.lyne.mobile` | Version 1.0 submitted, in review |
+| Website | `https://uselyne.com` (GoDaddy) | Live |
+| Desktop admin | macOS / Windows / Linux installers | Builds; Windows signing certificate not yet bought |
 
-So: `demo` = `main` + sample data. Nothing is fixed on `demo` that is missing from `main`. Don't take that on trust — the diff is ten files, all additions, all of them seeds or the tooling that loads them:
+Version 1 is **free for everyone**. Payments, subscriptions and in-app purchases are switched off (see [§21](#21-product-decisions-and-feature-flags)).
 
-```bash
-git fetch --all
-git diff --stat main demo     # 10 files, insertions only, zero code differences
-git checkout demo             # to run it with data
-git checkout main             # to read or deploy the empty production tree
+No real organisation is live yet. Production holds exactly one tenant: **Blue Harbour Civic Centre (Demonstration)**, a fictional organisation that exists so App Review can use the app (see [§17](#17-mobile-releases-app-store-and-google-play)).
+
+---
+
+## 2. Branches and how work flows
+
+There are three long-lived branches. They hold the **same application code**; they differ in what data and tooling they carry.
+
+| Branch | What it is | Deployed to |
+|---|---|---|
+| **`production`** | The shipped system with **no demo data and no demo tooling**. Starts empty for a new organisation. This is the GitHub default branch. | `api.uselyne.com`, `admin.uselyne.com` |
+| **`staging`** | Where all work happens. Carries the demo seeds too, so changes can be tested against realistic data. | Developer machines |
+| **`demo`** | `staging` plus the sales sandbox: three seeded agencies, staff logins for every role, a live day of queue activity. | `demo-api.uselyne.com` (sales demos) |
+
+### The flow
+
+```
+feature work ──► staging ──(merge when tested)──► production   (no demo files)
+                    └──────(merge when tested)──► demo         (keeps demo files)
 ```
 
-The ten: `database/demo_active_seed.sql`, `demo_credit_union_seed.sql`, `demo_sector_seed.sql`, `demo_data.sql`, `seed.sql`, `docker-compose.demo.yml`, `apps/backend/scripts/refresh-demo-data.js`, `sync-demo-test-accounts.js`, the two npm scripts that call them in `apps/backend/package.json`, and `README.demo.md`.
+1. Branch from `staging` (or commit straight to it for small fixes).
+2. Test against local Docker, and on a phone for anything mobile.
+3. Merge `staging` into `production`. Then deploy ([§15](#15-deploying-a-change-to-production)).
+4. Merge `staging` into `demo` when the sales sandbox should get the change.
 
-**If you are reviewing this code:** read [docs/COMPLETED_WORK.md](docs/COMPLETED_WORK.md) before filing anything. A number of things that look like obvious bugs have already been found and fixed — the position allocator, the day-boundary on queues, the database's own privileges, the admin liveness pill, verification codes leaking into staff responses. That document says what was wrong and what the fix was, newest first.
+**Rules**
 
----
-
-## The five surfaces
-
-| Surface | Path | What it is |
-|---|---|---|
-| **Consumer mobile** | `apps/mobile` | Expo (React Native) app for the public — join queues, track position, plan visits, keep documents. ~20 screens. |
-| **Admin desktop** | `apps/admin-desktop` | Electron + React dashboards for the four staff roles (line staff, supervisor, manager, executive). Packaged for **macOS, Windows and Linux** — staff do not choose their hardware. |
-| **Backend API** | `apps/backend` | Node/Express API over MySQL, with Supabase for auth verification. 21 route modules, real-time SSE, immutable payment ledger. |
-| **Model worker** | `apps/model` | Python analytics worker: trains/scores six models against the live DB and writes insights back for the dashboards and the customer ETA. |
-| **Marketing website** | `apps/website` | Public marketing site only — product info, quote/contact, app-store links. Never touches customer data. |
-
-The separation is strict and deliberate: **no admin screen ever enters the consumer mobile app**, and the marketing site is data-free.
+- Never commit to `production` or `demo` directly. If an emergency fix has to go to `production` first, merge it back into `staging` the same day.
+- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md` or `apps/backend/scripts/sync-demo-test-accounts.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
+- Do not create real-agency data anywhere public. The demo agencies are named after real Jamaican government bodies (TAJ, PICA, NHT) with whom there is no agreement. They live only on the private demo server and must never reach production or a store reviewer (App Store 5.2.1, Play impersonation policy).
+- Old branches are not deleted outright. They are kept as tags named `archive/<branch>`. The tree as it was before the October 2026 clean-up is tagged `archive/pre-cleanup-2026-10-13`.
 
 ---
 
-## Feature inventory
+## 3. Repository map
 
-### Consumer mobile (`apps/mobile`)
-- **Join a queue remotely** — search agencies/branches/services, see live wait before you go, take a numbered ticket, watch your live position, get called-up and wait-changed notifications.
-- **Honest open/closed model** — per-branch Open / Opening-soon / Closed by the clock; joining is gated to real opening hours, and the first 5 minutes after opening are reserved for walk-ins already at the branch (enforced server-side).
-- **Counter-aware ETA** — the wait you see is `people ahead ÷ open counters × per-person time`, the same number on the branch screen, the join screen, and the live ticket, and it shrinks as the line moves.
-- **Plan Your Visit** (premium) — model-driven "best time to go", with a free/premium trial flow.
-- **Document wallet** — store TRN / national ID / phone for faster verification at the counter (private, shown only to the serving agency).
-- **Leave-queue confirmation, saved agencies, history, profile, payment methods** (payment entry stubbed pending a Jamaica processor).
+```
+apps/
+  mobile/          Expo (React Native) customer app — iOS and Android
+  admin-desktop/   React + Electron staff app; the same build is the web admin and the kiosk
+  backend/         Node/Express API over MySQL; background jobs live in src/jobs
+  model/           Python analytics worker (six models) — runs in its own container
+  website/         Marketing site (uselyne.com), built by godaddy-build.mjs
+database/
+  schema.sql       Base schema
+  migrations/      Numbered, append-only migrations (001…037)
+  security/        harden_database.sql — least-privilege grants for the app login
+  checks/          Read-only health checks (review_readiness.sql)
+  review_tenant_seed.sql / review_tenant_history.sql   The ONLY seeds allowed on production
+  docker-init.sh   Local Docker bootstrap (schema → migrations → optional demo seeds)
+deploy/            Everything for the droplet: compose file, Caddyfile, deploy/verify/backup scripts, env example
+supabase/          Supabase config, edge functions, email templates, Supabase-side migrations
+docs/              Design, operations and launch documents (index in §23)
+legal/             Privacy policy, terms, account deletion, cookie and refund policy (source text)
+e2e/               Playwright end-to-end tests
+store-assets/      App Store / Play screenshots and graphics
+scripts/           Local helpers (backup-database.sh is for LOCAL Docker only)
+design-specs/      Specs for shipped UI pieces (desktop chrome, queue notifications)
+godaddy-build.mjs / godaddy-server.mjs   Build and serve the website on GoDaddy
+docker-compose.yml Local development stack
+```
 
-### Admin desktop (`apps/admin-desktop`) — four role dashboards
-- **Line staff** — run today's line: call, verify by code, serve, skip/no-show, reorder; auto-dismissing status messages.
-- **Supervisor** — a section-scoped view of the manager dashboard (reassign staff between counters in their section) without the strategy panels.
-- **Manager** — branch operations, open/close queues, assign staff to counters, branch analytics, targets, action plans, "who's needed where".
-- **Executive** — company-wide analytics across branches, exec-settable targets, a Trends tab with day/week/month(sliding)/90-day report, interactive hover-any-point charts, gauge-ring scores, demand heatmap, Reports tab with a document preview + Word export, Help & Support.
-- Shared: a custom SVG chart kit (not recharts), a real freshness bar ("recalculates every 2 hours" — and it genuinely does), role/tenant isolation, contextual search.
-
-### Backend (`apps/backend`)
-- Full queue engine: **join → call → serve → notify**, with SSE real-time updates and a public live-status stream.
-- 21 route modules: auth, businesses, branches, services, queues, tickets, staff, staff-invite, assignments, counters, analytics, targets, predictions, pipeline, notifications, history, saved, payments, ocr, audit, sse.
-- Multi-tenant with per-`business_id`/branch/queue/ticket access checks, Supabase JWT verification, rate + session limiting, zod validation, tenant-scoped audit log, immutable (event-sourced) payment ledger.
-
-### Model worker (`apps/model`)
-- Six models (see [Machine learning & analytics](#machine-learning--analytics)) run by the **live worker** (`scripts/live_worker.py`) inside its own container — on boot and every 2h — each writing to `predictive_results`. On a fresh volume it first generates the realistic history (`generate_sample_data.py`).
+Never committed: `.env` files, `secrets/`, `*.p8`, `*.p12`, keystores, `backups/`, build output. See `.gitignore`.
 
 ---
 
-## Roles
+## 4. The surfaces
+
+### Customer mobile app — `apps/mobile`
+
+Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL scheme `lyne`. These are permanent once published.
+
+- Browse participating organisations, branches and services; see the live wait before going.
+- Join a line remotely, get a numbered ticket, watch position and estimated wait, get notified when called.
+- **Lyne Helper**: recommends good times to visit, can join a line on the customer's behalf, or watch a recommended window and join automatically. "Let people pass if I'm late" gives the place to whoever is behind, up to three turns.
+- Plan your visit, busy-times heatmap, week planner (driven by the model worker).
+- Live Activities on iOS (lock screen and Dynamic Island).
+- Account deletion in Settings (type `DELETE` to confirm). Required by both stores.
+- Free in version 1; the premium screens exist but `PAYMENTS_ENABLED` is false and everyone has every feature.
+
+Builds are made with EAS ([§17](#17-mobile-releases-app-store-and-google-play)).
+
+### Staff admin — `apps/admin-desktop`
+
+React + Vite, wrapped in Electron for the installed desktop app. The same build is served as the **web admin** at `admin.uselyne.com`, and `kiosk.html` is the walk-in intake screen.
+
+Role dashboards:
 
 | Role | Scope |
 |---|---|
-| `line_staff` | Assigned queue/counter/service operations only |
-| `supervisor` | A section within a branch — reassign staff between counters; no branch strategy |
-| `manager` | Own branch operations, assignments, branch analytics, and **branch-level targets** (refine the company target for their branch) |
-| `executive` | Own business across branches, analytics, targets, manual pipeline triggers |
-| `platform_admin` | Lyne internal onboarding/support only (super-admin across tenants) |
-| `kiosk_clerk` | Branch-scoped intake account: logs in on a phone/iPad and adds **walk-in** customers to the line on their behalf. Sees a single-purpose console (no customer tabs, no queue-joining), picks a service offered at its branch, enters the customer's name, and issues a ticket number. Tickets are `channel='kiosk'` guests (no app account) so the walk-in-vs-online analytics can tell them apart. |
+| `line_staff` | Their counter: call, verify by code, serve, skip / no-show |
+| `supervisor` | A section of a branch; reassign staff between counters |
+| `manager` | One branch: open/close queues, assign counters, branch analytics and targets |
+| `executive` | The whole organisation: analytics, targets, trends, reports |
+| `kiosk_clerk` | Walk-in intake only; issues `channel='kiosk'` tickets for people without the app |
+| `platform_admin` | Lyne staff only; can create organisations (no UI yet; done via API/SQL) |
+
+A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
+
+### API — `apps/backend`
+
+Node / Express over MySQL. Supabase is used **only** to verify who is signed in; all application data lives in MySQL.
+
+Route modules (`src/routes`): auth, businesses, branches, services, queues, tickets, staff, staff-invite, assignments, counters, sessions, line-helper, analytics, predictions, pipeline, targets, notifications, history, saved, settings, payments, iap, ocr, audit. Real-time updates are pushed to clients over Server-Sent Events.
+
+### Model worker — `apps/model`
+
+A Python container that runs six models on boot and every two hours and writes the results to `predictive_results`, which the dashboards and the customer wait estimate read. Details in [§12](#12-analytics-and-machine-learning).
+
+### Website — `apps/website`
+
+The public marketing site: product information, the organisation quote estimator (`src/pages/JoinUs.tsx` and `src/pages/mobile/MobileJoinUs.tsx`), app-store links, and the legal pages. It never touches customer data. Hosted on GoDaddy ([§19](#19-website)).
 
 ---
 
-## Architecture & stack
+## 5. Architecture
 
 ```text
-Public marketing website (data-free)
+                 uselyne.com (GoDaddy, static, no data)
 
-Consumer mobile  +  Admin desktop (Electron: macOS / Windows / Linux)
-        |
-        |  Supabase Auth JWT in Authorization header
-        v
-Express API  ── tenant-scoped reads/writes ──►  MySQL (operational data)
-        |                                             |
-        |  live queue counts read directly            |  scheduled train/score
-        v                                             v
-predictive_results  ◄──  Python model worker (GBM / Erlang-C / z-score)
-        |
-        └──►  dashboard APIs + live customer ETA (with freshness metadata)
+ Customer app (iOS/Android)        Staff admin (desktop / web / kiosk)
+            │   Supabase JWT in the Authorization header   │
+            └───────────────────────┬──────────────────────┘
+                                    ▼
+                 Caddy (TLS) on the droplet ── admin.uselyne.com static files
+                                    ▼
+                 Express API (container lyne_api) ── background jobs
+                    │          │             │
+        verify JWT  │          │ SQL (TLS)   │ push
+                    ▼          ▼             ▼
+               Supabase   Managed MySQL   Expo push service / APNs
+                 Auth      (private VPC)
+                               ▲
+                               │ reads history, writes predictive_results
+                 Model worker (container lyne_model_worker)
 ```
 
-- **Frontend:** React + TypeScript + Vite; admin wrapped in Electron; mobile in Expo/React Native. React Query for data + cache invalidation.
-- **Backend:** Node/Express, MySQL 8 (Docker), Supabase Auth.
-- **Model layer:** Python 3.12, scikit-learn, pandas; a containerized live worker (`scripts/live_worker.py`) that runs the six model scripts on a schedule.
-- **Auth split:** Supabase handles authentication only; all queue/staff/analytics/business data lives in MySQL.
+- **Auth split.** Supabase handles sign-up, sign-in, password reset and email confirmation. The API verifies the Supabase JWT on every protected request, then looks up the matching MySQL user or staff record and its role.
+- **Tenancy.** Every organisation is a `businesses` row. Each staff route checks business, branch, queue and ticket ownership (`middleware/tenantAccess.js`). A large organisation can also be given its own deployment and database; the tenant checks are a second line of defence, not the only one.
+- **One wait formula.** The wait a customer sees is `people ahead ÷ open counters × minutes per person` (`utils/etaMath.js`), refined by the wait model where there is history. The same number appears on every screen.
 
 ---
 
-## Security model
+## 6. Production environment
 
-Trust is the product, so security is layered, not bolted on. Every protected request passes through, in order:
+| Thing | Detail |
+|---|---|
+| Droplet | DigitalOcean, Ubuntu 24.04, 2 vCPU / 4 GB, timezone `America/Jamaica`. SSH as `lyne` with keys only; root login and passwords are off. Full root is the DigitalOcean web console. |
+| Code on the server | `/srv/lyne`, on the **`production`** branch |
+| Containers | `lyne_caddy` (TLS + admin static files), `lyne_api`, `lyne_model_worker` — defined in `deploy/docker-compose.prod.yml` |
+| Database | DigitalOcean managed MySQL, same region and VPC. The API uses the **private** host over verified TLS (`secrets/mysql-ca.crt`). Logins: `lyne` (app, DML only), `lyne_backup` (read-only for dumps), `doadmin` (admin, for migrations only). |
+| DNS | `uselyne.com` at GoDaddy. `api.` and `admin.` are A records to the droplet. |
+| TLS | Let's Encrypt via Caddy, renewed automatically |
+| Off-site backups | DigitalOcean Spaces bucket `lyne-backups` |
+| Auth | Supabase project **Lyne** (`edavcmrruwxnmzktvwoz`, us-east-2), paid plan |
+| Email | Supabase auth email through Resend SMTP; support mailbox `customersupport@uselyne.com` |
+| Error tracking | Sentry (mobile app; API when `SENTRY_DSN` is set; uptime monitor on `/health`) |
+| Demo sandbox | `demo-api.uselyne.com`, deployed from the `demo` branch. Separate from production. |
 
-1. **`helmet`** security headers + **`compression`** + request logging (`morgan`).
-2. **CORS allowlist** — browser origins are allowlisted; native mobile (no browser `Origin`) is allowed through without weakening browser rules.
-3. **Rate limiting** (`rateLimiter.js`) — five separate limiters: general, auth (login/sync), queue-join (stricter, join only — staff serve ops are not throttled by it), OCR uploads, and a higher-ceiling public-queue polling limiter.
-4. **Supabase JWT verification** (`auth.js`) — every protected route verifies the JWT with Supabase and attaches the matching MySQL actor (user or staff + role). JWT verification uses the **publishable/anon** key; service-role keys are never used for verification.
-5. **Session limiting** (`sessionLimiter.js`) — concurrent-session / token-security controls (migration 003).
-6. **Tenant access** (`tenantAccess.js`) — enforces `business_id`, branch, queue, and ticket ownership on staff/admin routes, as an isolation layer independent of auth.
-7. **Input validation** (`validate.js`, zod) — request bodies are schema-validated before they reach the DB.
-8. **Tenant-scoped audit log** (`auditLog.js`, migrations 004/005) — sensitive actions recorded with tenant context.
-
-Additional guarantees:
-- **Immutable payment ledger** — payments are event-sourced (append-only), never mutated in place.
-- **Least-exposure responses** — ticket verification codes are stripped from queue-list and public-stream responses; public prediction APIs expose only public-safe insight types.
-- **Per-company deployment/database** — each contracted agency runs on its own deployment and DB; the tenant checks are a second line of defence, not the only one.
-- **No secrets in the repo** — no checked-in `.env`; Supabase service-role keys live only in a local `.env` when running the pipeline.
-- **PII stance** — the app stores `national_id` and `trn`. Before any signed contract we owe a **privacy policy, a retention/erasure policy, and encryption-at-rest confirmation** (tracked in remaining work). A government CIO will ask — the honest answer is that isolation, TLS, and access controls are in place and the formal DPA is a pre-contract deliverable.
-
-### The database itself
-
-The eight layers above defend the API. They do nothing if the attacker reaches MySQL directly or arrives holding the app's own credentials, which is the ransom scenario — destroy the data and wait for the call. Three separate changes address it:
-
-- **Least privilege** (`database/security/harden_database.sql`) — the app's login held `ALL PRIVILEGES`, which includes `DROP` and `ALTER`, in a 20-connection pool open for the life of the process. It now holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` and nothing else, and `root`@`%` is dropped. This does not prevent a break-in; it decides what one is worth. Without DDL the worst outcome is modified rows — serious, and recoverable. With DDL there is nothing to restore *to*. Written GRANT → REVOKE → GRANT so it is idempotent and cannot leave the app on `USAGE` if re-run.
-- **Loopback binding** (`docker-compose.yml`) — MySQL published on `3307:3306`, i.e. every interface the host has, defended by a password recoverable from git history. Now `127.0.0.1:3307:3306`. The API reaches it over the compose network; nothing outside the machine ever needed to.
-- **Verified backups** (`scripts/backup-database.sh`) — there were none. Least privilege still leaves `DELETE`, and it does nothing about a bad migration or a lost volume. Each run checks the dump gunzips cleanly, carries MySQL's completion marker, and contains the tables the product cannot run without — a dump never read back is a file, not a backup. `--restore FILE` restores with confirmation; retention defaults to 14 days.
+Secrets live in `/srv/lyne/.env` and `/srv/lyne/secrets/` on the droplet (mode 600) and in the developer's local `secrets/` folder. They are never committed and never printed in logs or chat. `secrets/deploy-values.txt` holds the **admin** database login and must not be copied into `.env`.
 
 ---
 
-## Machine learning & analytics
+## 7. Configuration (environment variables)
 
-Six models feed the dashboards and the live customer ETA. Four are learned (scikit-learn **gradient boosting**); two are deliberately *not* ML because a classical method is the correct tool. Honest, plain answer to "what did we use and why":
+Production values go in `/srv/lyne/.env`, created from `deploy/env.production.example`. That file explains each variable. The API container only receives the variables listed under `api.environment` in `deploy/docker-compose.prod.yml`: **adding a variable to `.env` is not enough; it must also be listed there.**
 
-| Model | File | Method | Why this method | Planned change |
-|---|---|---|---|---|
-| **Wait-time** | `wait_time_model.py` | GradientBoostingRegressor | Strong on mixed calendar+operational tabular features; validated with a **temporal** holdout (not a random split), so the reported error is honest. Powers `wait_eta_grid`, the lookup behind the live customer ETA. | Retrain on real pilot traffic; keep the temporal split. |
-| **Demand forecast** | `forecast_demand.py` | GradientBoostingRegressor vs seasonal-naive baseline | Captures nonlinear day/hour effects. | **Weakest link** — on the current near-uniform demo data the seasonal-naive baseline wins. Add lag/seasonality features + `TimeSeriesSplit`, or pick the per-series winner. |
-| **Staffing** | `recommend_staffing.py` | **Erlang-C / M/M/c queueing** (not ML) | The textbook-correct model for "how many counters to open" — the same math call centres use, and it explains itself ("to hold wait under 15 min you need 3 windows"). | None — keep. |
-| **No-show risk** | `predict_no_show.py` | GradientBoostingClassifier | Captures interaction effects (lead time × first-visit × predicted wait) that logistic regression would miss. | Add **SHAP** for per-ticket "why this customer is high risk" (in progress). |
-| **Target attainment** | `forecast_targets.py` | Trend projection (not ML) | A simple, labelled "are we on track to the target" line. | Could become a proper forecast; low priority. |
-| **Operational anomalies** | `detect_operational_anomalies.py` | z-score (threshold 2σ, not ML) | Simple and self-explaining ("2.3σ above your normal Tuesday"). | Upgrade to a robust (median/MAD) or seasonal-residual z-score — the plain z-score's baseline is poisoned by the outliers it hunts. |
-
-**The counter-aware ETA.** The customer-facing wait everywhere in the app is one shared formula (`apps/backend/src/utils/etaMath.js`): `round(people ahead ÷ open counters × per-person minutes)`. The wait model's grid refines it where there's real history; the formula is the honest fallback. This replaced an older single-file-line estimate that read as high as 245 minutes.
-
-**Explainability (the "why", a pilot differentiator).** Today the models expose scikit-learn `feature_importances_` (global). We are adding **SHAP** (`shap.TreeExplainer`, which plugs straight into these sklearn tree models) for *local, per-prediction* reasons, plus demand-vs-capacity explanations of *why a specific line exists*. Neither SHAP nor LIME was in the original build.
-
-**Training & honesty.** Models retrain on each pipeline run; there is no persisted artifact or drift monitoring yet, and the forecast horizon is short (7 days). The **demo history is synthetic and near-uniform**, which is why metrics look modest here — the architecture is sound and real accuracy needs a pilot's real operational history. Regenerating a realistic, worst-case-aware seed is in progress.
-
-Full pipeline: the containerized **live worker** (`scripts/live_worker.py`) runs each model with `--write-db` on boot and every 2h (and services the admin "Update now" trigger); every model upserts to `predictive_results` with freshness metadata the dashboards display. On a fresh volume the worker first generates the realistic history so the models have signal.
-
----
-
-## Data & database strategy
-
-- **`main` is production-oriented and starts empty** for a new company. Demo businesses, demo accounts, and synthetic history live **only on `demo`**.
-- **Two-database demo overlay:** `db` (port 3307, clean production schema) and `demo-db` (port 3308, seeded). The demo overlay repoints the API at the seeded DB so end-to-end testing never touches production data.
-- **A line belongs to the day it was formed.** There is no advance joining, so nothing may survive the night. At closing time the sweep (`apps/backend/src/jobs/expireStaleTickets.js`) closes every ticket still open — `waiting`, `called`, *and* `in_service` — stamps a `closed_reason`, and writes each person into `wait_time_records` and `visit_history` with their wait measured to the closing bell and no service time. They leave the queue but they do not leave the record: "people the branch could not serve today" is a number the manager should have to look at. Tomorrow's line starts at position 1.
-- **Closing time is required, not hoped for.** The sweep used to skip any branch whose `closing_time` was NULL, so that branch's queue would never empty. Migration 032 makes `businesses.default_opening_time` / `default_closing_time` `NOT NULL`, and the sweep resolves `COALESCE(branch.closing_time, business.default_closing_time)` — so every branch is covered whether it sets its own hours or inherits the company's.
-- **Position allocation counts today's line only.** A new arrival is numbered above every ticket from today plus anything still live, which stops a new arrival being placed ahead of people already waiting (the bug that started this work) without letting a stale row from last week inflate the count.
-- **34 migrations** cover indexes, security + OCR, sessions/token security, pipeline + tenant hardening, audit tenant scope, roles + demo-auth hardening, admin dashboard functionality, executive/employee KPIs, business targets, user premium, branch hours, payments, public holidays, ML data collection, `wait_time_records.channel` (walk-in vs online), the supervisor role, and the daily queue expiry + required hours above. Migration 032 also adds `idx_qt_status_joined` and drops four duplicate indexes, so the sweep and the allocator both read an index instead of scanning.
-
----
-
-## Payments
-
-The pilot is free / agency-paid, so live card capture is stubbed pending a Jamaica processor decision. Design is event-sourced and ready to wire.
-
-**Processor options for Jamaica** (Stripe is unavailable here):
-- **WiPay** — the common local gateway.
-- **Amber Pay eLink** — used by Jamaican services (e.g. Carib 5 cinema); a hosted card link. *Candidate to evaluate.*
-- **PayPal (card entry)** — accepts a typed card without a PayPal account; a low-friction fallback. *Candidate to evaluate.*
-
----
-
-## Deployment & hosting
-
-- **Local/demo:** `docker compose` (two MySQL + API); the demo overlay adds the seeded DB. This is the current state.
-- **Pilot target:** a single hardened DigitalOcean droplet — the admin served over HTTPS at a real URL, and the mobile app on real devices via TestFlight/Expo. Public App Store / Play Store listings come right after (review lead times).
-- **The admin is an installed desktop application** — downloaded, run through a setup wizard, and launched from the dock or Start menu like any other business software. It ships as a signed installer for **macOS, Windows and Linux**, because an agency issues whatever hardware it issues and staff do not get to choose. Code-signing certificates are therefore required, not optional: see [docs/PROVIDER_SETUP.md](docs/PROVIDER_SETUP.md).
-- **Rough pilot cost:** ~US$44/month — a 2 vCPU / 4 GB droplet ($24), managed MySQL ($15) and Spaces for off-box backups ($5) — plus Apple Developer ($99/yr) and Google Play ($25 once). Sized for one agency with a dozen branches, deliberately not for a national rollout.
-- **D-U-N-S approved 2026-08-31**, which unblocks the Apple Developer Program enrolment and therefore Sign in with Apple, Sign in with Google (they must ship together under Guideline 4.8) and Windows code signing.
-
-**Two documents carry the detail, and they are the place to start if you are setting any of this up:**
-
-- **[docs/PROVIDER_SETUP.md](docs/PROVIDER_SETUP.md)** — every account, credential and profile: the Apple Developer Program, Sign in with Apple (App ID vs Services ID vs key — the step everyone gets wrong), Google's three OAuth clients, the Supabase provider config, code signing for iOS/macOS/Windows, and the full environment-variable contract. Contains no secrets and must never contain any.
-- **[docs/HOSTING.md](docs/HOSTING.md)** — what to provision, the hardening checklist that must be true before anything is public, backups and restore rehearsal, how to deploy, and the evidence-based triggers for growing.
-- **[docs/TEST_ACCOUNTS.md](docs/TEST_ACCOUNTS.md)** — every login that works against the seeded demo, what each role is for, the Supabase-UID gotcha that blocks staff sign-in, and how to serve a ticket without a second device in your hand.
-
-**Two known blockers** live in `apps/mobile/app.json` and are called out in PROVIDER_SETUP: there is no `scheme` (so OAuth has no way to redirect back into the app) and `expo.extra.eas.projectId` is empty (so no signed builds). Both are small; both change the app's identity, so they are deliberately left for a decision rather than assumed.
-
----
-
-## Testing
-
-Four layers, because they catch different things. All four are green as of the latest commit.
-
-| Layer | What it is | Run it |
+| Group | Variables | Notes |
 |---|---|---|
-| **Unit / route-wiring** | **220 tests** across 18 files — security middleware chains, tenant scoping, eta-math, join-window, the payment ledger's forward-only projection, the daily expiry contract. | `cd apps/backend && npm test` |
-| **Data invariants** | **18 invariants** the data is never allowed to break, asserted against the *live* database rather than a fixture — duplicate positions, live tickets predating today, verification-code reuse, a called ticket with no no-show expiry, a ticket served before it was joined. | `node apps/backend/scripts/check-integrity.mjs` |
-| **Property checks** | **3 properties** of the position allocator (a new arrival is never placed ahead of someone already waiting, including the mid-service-at-rollover case) and **10 assertions** on the end-of-day lifecycle (an unserved person is dequeued, reaches history with a reason, and their wait stops at closing time). | `check-position-allocator.mjs`, `check-end-of-day.mjs` |
-| **End-to-end (Playwright)** | 4 specs against the real admin and mobile builds: the line-staff call/serve loop, visual-feedback and disabled-state behaviour on both surfaces, and an API-leak check that no response carries a verification code it shouldn't. | `npm run test:e2e` |
+| Hosts and TLS | `API_DOMAIN`, `ADMIN_DOMAIN`, `TLS_EMAIL`, `APP_TZ` | |
+| Database | `MYSQL_HOST` (private host), `MYSQL_PORT`, `MYSQL_USER=lyne`, `MYSQL_PASSWORD`, `MYSQL_DATABASE=lyne`, `MYSQL_SSL` | Never the `doadmin` login |
+| Supabase | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_KEY` | The service key must never appear in any client bundle |
+| Web | `FRONTEND_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`, `PORTAL_HANDOFF_SECRET` | Generate the handoff secret with `openssl rand -base64 48` |
+| Queue lifecycle | `TICKET_EXPIRY_ENABLED`, `TICKET_EXPIRY_GRACE_MINUTES`, `RETENTION_ENABLED`, `RETENTION_MEASUREMENTS_MONTHS` | |
+| Model worker | `PIPELINE_EMAIL`, `PIPELINE_PASSWORD`, `PIPELINE_BUSINESS_ID`, `PIPELINE_TIMEZONE` | |
+| Errors | `SENTRY_DSN` | Empty = off |
+| iOS Live Activities | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` on one line, `\n` for newlines), `APNS_ENV` | Use key `6H44RYBAX3`, the push key. `549M7577B2` is the Sign in with Apple key and cannot send pushes. |
+| In-app purchases | `APPSTORE_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT`, `PLAY_PACKAGE_NAME` | Unused in version 1 |
+| App Review simulator | `REVIEW_SIMULATOR`, `REVIEW_BUSINESS_ID`, `REVIEW_ACCOUNT_EMAIL` | See [§17](#17-mobile-releases-app-store-and-google-play) |
 
-Plus 9 ML helper tests and GitHub Actions CI (backend + admin typecheck + model tests on push).
+Never set in production: `NODE_ENV` (the compose file sets it; in `.env` it breaks the admin build), `ALLOW_DEMO_DATA_REFRESH`, `STAFF_TEST_VERIFICATION_CODE`.
 
-The invariant and property scripts need the database's connection details in the environment — they connect as the *application* user on purpose, so they also prove the hardened grants are sufficient for real work:
-
-```bash
-MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 MYSQL_USER=lyne MYSQL_PASSWORD=… MYSQL_DATABASE=lyne \
-  node apps/backend/scripts/check-integrity.mjs      # 3307 for production, 3308 for demo
-```
-
-**Still open:** route-level integration coverage for the full queue engine (join → call → serve → notify) is partial, and the manual business-persona walkthrough has not been executed end to end.
-
----
-
-## Onboarding a new agency
-
-To bring a new agency live on its own deployment, confirm end-to-end:
-1. Business appears in the mobile app (Search + Top agencies) with correct name + logo.
-2. Every branch shows the correct location and **correct open/closed state by the clock**.
-3. Every service shows a sane wait estimate and the right ticket prefix.
-4. A test customer can join, see position, get called, and be served.
-5. Each staff role logs into the desktop app and sees only their scope.
-6. Manager can open/close queues and assign staff to counters.
-7. Executive sees company-wide analytics and can set targets.
-8. Notifications fire (called-up, wait-changed) to the customer.
-9. Help centre shows the agency's hours, documents and rules correctly.
-10. Branding/authorization confirmed in writing.
+Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXPO_PUBLIC_DEMO_BUILD`, `EXPO_PUBLIC_SENTRY_DSN`) are set per build profile in `apps/mobile/eas.json`. The admin app reads `VITE_API_URL`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at build time.
 
 ---
 
-## Quick start
+## 8. Database
 
-```bash
-cp .env.example .env          # MySQL creds, Supabase URL + publishable key, allowed origins
-docker compose up -d          # MySQL + backend API  ·  health: http://localhost:4000/health
-```
+**Schema.** `database/schema.sql` plus every file in `database/migrations/`, in order. Migrations are append-only: never edit one that has been applied anywhere; write a new one.
 
-On `demo`, Docker loads seed data for TAJ, PICA and NHT on first volume creation. To refresh the living sandbox without resetting the DB:
+**Applying migrations is always manual.** `deploy.sh` never runs them. To apply one: take a backup, apply it as `doadmin`, then confirm the result ([§15](#15-deploying-a-change-to-production)).
 
-```bash
-cd apps/backend && npm run refresh:demo-data
-```
+**Production differences to remember** (managed MySQL):
 
-Run each surface in dev:
+- `sql_require_primary_key` is ON. A new table without a primary key fails in production only.
+- Global SQL mode must **not** include `ANSI_QUOTES`, `PIPES_AS_CONCAT` or `IGNORE_SPACE`. DigitalOcean enables some of these by default, and they break 21 SQL files.
+- The app login holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` only (`database/security/harden_database.sql`). If a feature needs DDL, it belongs in a migration.
 
-```bash
-cd apps/website        && npm install && npm run dev
-cd apps/admin-desktop  && npm install && npm run dev
-cd apps/mobile         && npm install && npx expo start
-```
+**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1.
 
-Run the analytics worker only after `PIPELINE_EMAIL`, `PIPELINE_PASSWORD`, `PIPELINE_BUSINESS_ID` are set:
+**What is allowed in the production database:** schema, migrations, reference data created by migrations (e.g. `subscription_tiers` via 020), and the review tenant (`review_tenant_seed.sql`, `review_tenant_history.sql`). Nothing else is seeded. Re-run the history file every few weeks to move its 90-day window forward; it is idempotent.
 
-```bash
-docker compose --profile analytics up -d analytics-worker
-```
+**Health check.** `database/checks/review_readiness.sql` is read-only and prints one OK/NOT READY row per requirement for App Review. Run it as the `lyne_backup` login.
+
+**Queue lifecycle rules** (enforced in code and covered by tests):
+
+- A line belongs to the day it was formed. At each branch's closing time the sweep closes every ticket still open and writes the unserved people into history with a reason. Tomorrow starts at position 1.
+- Every branch has a closing time, either its own or the organisation default (`NOT NULL` since migration 032).
+- A new arrival is always numbered after everyone already waiting.
+
+**Supabase side.** Supabase holds the auth users. Its `public` tables (`organizations`, `subscription_tiers`, profile tables) are legacy and used only by edge functions with the service key; the mobile and admin apps never read them directly. Supabase-side migrations are in `supabase/migrations/`.
 
 ---
 
-## Project tracking
+## 9. Background jobs
 
-Work status lives in exactly two documents, kept in agreement with the task tracker:
+All run inside the API process (`apps/backend/src/jobs`) unless noted. Each logs a line at boot; check them with `docker logs lyne_api | grep -E "LineHelper|ReviewSimulator|TicketExpiry"`.
 
-- **[docs/REMAINING_WORK.md](docs/REMAINING_WORK.md)** — everything still to do before "done", grouped by area, with blockers flagged.
-- **[docs/COMPLETED_WORK.md](docs/COMPLETED_WORK.md)** — everything shipped and ticked off.
+| Job | Schedule | What it does |
+|---|---|---|
+| `expireStaleTickets` | Continuous, per branch closing time | End-of-day sweep (see §8). `TICKET_EXPIRY_ENABLED=false` turns it off. |
+| `lineHelper` | Every minute | Joins scheduled Line Helper requests, and yields places for called-but-absent customers. Boot log: `[LineHelper] Active`. |
+| `retention` | Daily at 03:00 | Deletes data past the retention periods published in the privacy policy (`RETENTION_MEASUREMENTS_MONTHS`, default 12). |
+| `refreshAnalytics` | Every 2 hours, on the even hour | Refreshes the analytics summaries the dashboards read. |
+| `reviewSimulator` | Every 15 s, **only when `REVIEW_SIMULATOR=true`** | For the review organisation only: keeps made-up visitors in each line, serves the ones ahead of the review account every 25 s, then calls the reviewer with a notification and serves them. Boot log: `[ReviewSimulator] ACTIVE for …`. |
+| Model worker | Boot + every 2 h (own container) | Runs the six models, writes `predictive_results`. |
+| Backups | 02:15 nightly (cron on the droplet) | Dump, verify, copy to Spaces ([§16](#16-backups-and-restore)) |
 
-Priority (2026-07-22): build the system right for what it needs to achieve; a fixed demo date is a nice-to-have, not a quality gate.
+---
+
+## 10. Notifications
+
+- **Push notifications** (called, wait changed, Line Helper joined) go through the **Expo push service** (`utils/pushSender.js`). Devices register their Expo push token with the API (`device_push_tokens`). Tokens Expo reports as dead are deactivated. Apple's APNs credential for these is managed by EAS. Android uses the FCM credential uploaded to EAS.
+- **iOS Live Activities** are updated by the API directly through APNs (`utils/apnsSender.js`, `utils/liveUpdates.js`), using the `APNS_*` variables and the `live_activity_tokens` table (migration 036). Without those variables, Live Activities still update while the app is open, just not when it is closed.
+- **Auth email** (confirm sign-up, reset password) is sent by Supabase through Resend SMTP. The template is in `supabase/templates/`.
+
+---
+
+## 11. Security model
+
+Trust is the product, so security is layered. Every protected API request passes, in order, through:
+
+1. `helmet` headers, compression, request logging
+2. a CORS allowlist (`ALLOWED_ORIGINS`); native apps send no Origin and are allowed through
+3. rate limiting (`middleware/rateLimiter.js`): general, auth, queue join, OCR, and public polling limits
+4. Supabase JWT verification (`middleware/auth.js`), using the publishable key
+5. session limiting (`middleware/sessionLimiter.js`)
+6. tenant access checks (`middleware/tenantAccess.js`)
+7. input validation with zod (`middleware/validate.js`)
+8. a tenant-scoped audit log (`middleware/auditLog.js`)
+
+Also:
+
+- Ticket verification codes are stripped from staff lists and the live stream; an e2e test fails if any response leaks one.
+- Payments, when switched on, are an append-only event ledger.
+- The database is protected by least privilege, private networking with verified TLS, and verified backups with a rehearsed restore.
+- The Supabase service key is used only by the API and edge functions, and a deploy check confirms it is absent from the admin bundle.
+- The firewall allows only 22, 80 and 443; fail2ban and unattended security upgrades are on.
+- PII: national ID and TRN are kept on the customer's phone, not by Lyne. A formal data-retention policy and encryption-at-rest confirmation are owed before a paid contract.
+
+`deploy/verify.sh` checks most of this on the live box; run it after every deploy. `docs/pre-launch-security-checklist.md` is the full checklist.
+
+---
+
+## 12. Analytics and machine learning
+
+The model worker (`apps/model/scripts/live_worker.py`) runs these on boot and every two hours:
+
+| Model | Script | Method |
+|---|---|---|
+| Wait time | `wait_time_model.py` | Gradient boosting, validated on a time-ordered holdout; powers the wait grid behind the customer estimate |
+| Demand forecast | `forecast_demand.py` | Gradient boosting with lag features; beats the seasonal-naive baseline on backtest |
+| Staffing | `recommend_staffing.py` | Erlang-C queueing (not ML): how many counters keep the wait under a target |
+| No-show risk | `predict_no_show.py` | Gradient boosting classifier, with SHAP reasons per prediction |
+| Target attainment | `forecast_targets.py` | Trend projection |
+| Anomalies | `detect_operational_anomalies.py` | z-score against the normal for that day and hour |
+
+Each writes to `predictive_results` with freshness metadata the dashboards show. The admin "Update now" button triggers a run. Predictions can be switched off platform-wide, per organisation and per user (migration 030). No persisted model artifacts or drift monitoring yet; real accuracy needs real organisations' history.
+
+---
+
+## 13. Local development
+
+Requirements: Docker, Node 20, npm, Python 3.12 (model work only), Expo Go or a simulator.
+
+```bash
+git clone https://github.com/itsdebrakayes/lyne && cd lyne
+git checkout staging
+cp .env.example .env              # MySQL, Supabase URL + publishable key, allowed origins
+docker compose up -d              # MySQL (127.0.0.1:3307) + API (http://localhost:4000/health)
+```
+
+To run against the demo agencies instead (on `staging` or `demo`), add the demo overlay. It starts a second, seeded database on `127.0.0.1:3308` and points the API at it, so the clean database is never touched:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+```
+
+`README.demo.md` and `docs/TEST_ACCOUNTS.md` list the demo logins.
+
+Each surface in development:
+
+```bash
+cd apps/admin-desktop && npm install && npm run dev      # web admin on Vite; Electron via the build scripts
+cd apps/mobile        && npm install && npx expo start
+cd apps/website       && npm install && npm run dev
+docker compose --profile analytics up -d analytics-worker  # model worker; needs PIPELINE_* set
+docker compose --profile tools up -d adminer               # optional database browser
+```
+
+`apps/admin-desktop/.env` must point `VITE_API_URL` at `http://localhost:4000/api` for development **and must not be present when building a production installer** (see `docs/launch/desktop-admin-production.md`).
+
+---
+
+## 14. Testing and CI
+
+| Layer | What | Run |
+|---|---|---|
+| Unit / route wiring | Backend middleware chains, tenant scoping, wait maths, join window, payment ledger, end-of-day contract | `cd apps/backend && npm test` |
+| Data invariants | 18 rules checked against a live database (duplicate positions, stale tickets, code reuse…) | `node apps/backend/scripts/check-integrity.mjs` |
+| Properties | Position allocator and end-of-day lifecycle | `check-position-allocator.mjs`, `check-end-of-day.mjs` |
+| End to end | Playwright against the real admin and mobile web builds, including the verification-code leak check | `npm run test:e2e` (from the repo root, against the demo stack) |
+| Model | ML helper tests | `cd apps/model && python -m unittest discover -s tests -v` |
+
+The invariant and property scripts take `MYSQL_*` from the environment and connect as the application user on purpose, which also proves the hardened grants are enough.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs backend tests, the admin typecheck and model tests on every push. Dependabot opens weekly update pull requests against `staging`.
+
+Not yet covered: an automated end-to-end test of join → call → serve → notify through the real routes.
+
+---
+
+## 15. Deploying a change to production
+
+The full first-time setup is `deploy/README.md`. For a routine release:
+
+1. **Merge.** On your machine: `git checkout production && git pull --ff-only && git merge --no-edit staging && git push`, then `git checkout staging`.
+2. **Pull on the server.** `ssh lyne@<droplet>`, then `cd /srv/lyne && git checkout production && git pull --ff-only`.
+3. **Migrations, only if the release adds any.** First back up: `BACKUP_DIR=/srv/lyne/backups bash deploy/backup-managed-db.sh` (it must print `verified`). Then apply each new file as `doadmin`:
+   ```bash
+   mysql --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user=doadmin -p \
+     --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne < database/migrations/0NN_name.sql
+   ```
+4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good.
+5. **Verify.** Run `bash deploy/verify.sh`; it should report no failures. The firewall and SSH checks need root and show as "to look at". Check the job lines in `docker logs lyne_api`, and look at the app on a phone.
+
+**Rolling back code:** `bash deploy/deploy.sh rollback` returns to the last good commit. A schema change does not roll back with the code; restore the backup taken in step 3 if a migration was the problem.
+
+**Never** run `scripts/backup-database.sh` on the server (it is for local Docker), apply `database/demo_*.sql` or `seed.sql` to production, or let `deploy.sh` apply migrations.
+
+---
+
+## 16. Backups and restore
+
+- **Nightly** at 02:15 Jamaica time, cron on the droplet runs `deploy/backup-managed-db.sh` as `lyne_backup`. It dumps, gunzips the result to verify it, checks that the key tables are present, keeps 14 days, then copies the file to the Spaces bucket `lyne-backups`. Log: `/srv/lyne/backups/backup.log`.
+- **Before any manual write** (migration, seed, data fix), take a backup by hand with the same script and note the file name.
+- **Restore rehearsal** (into a scratch schema, so production is never touched):
+  ```bash
+  ADMIN_USER=doadmin ADMIN_PASSWORD='…' bash deploy/backup-managed-db.sh \
+    --restore /srv/lyne/backups/<file>.sql.gz --into lyne_restore_test
+  ```
+  It compares tables, triggers, views and key row counts with production. Drop `lyne_restore_test` afterwards. A full rehearsal passed on 3 October 2026.
+- Supabase auth users are backed up by Supabase itself (paid plan).
+
+---
+
+## 17. Mobile releases (App Store and Google Play)
+
+Everything is in `docs/launch/`. In short:
+
+- **Build profiles** (`apps/mobile/eas.json`): `development` (simulator, localhost API), `preview` (internal, production API), `demo` (internal, demo API), `production` (store builds, production API, build number auto-increments).
+- **Build:** `cd apps/mobile && eas build --platform all --profile production`.
+- **Submit:** `eas submit --platform ios --profile production` and `--platform android`. The Android submit profile currently targets Play's **internal** track. Promote the release to Production in Play Console, or change `submit.production.android.track` to `production`.
+- **Store accounts:** Apple Developer Program and Google Play Console, both enrolled as the organisation (D-U-N-S). App Store payouts are set up; no paid features are sold.
+- **Listings:** `docs/launch/app-store-listing.md`, `play-store-listing.md`, `screenshots.md`. Store screenshots are in `store-assets/`.
+- **App Review** needs a working account and something to queue for:
+  - Review login: `appreview@uselyne.com`. The password is in App Store Connect and Play Console, not in this repo.
+  - Review organisation: Blue Harbour Civic Centre (Demonstration), `biz-review-demo-0001`, four branches, 90 days of history.
+  - **Review simulator.** Because no real counter staff are working during review, set `REVIEW_SIMULATOR=true` (with `REVIEW_BUSINESS_ID` and `REVIEW_ACCOUNT_EMAIL`) while a build is in review, so the reviewer's line actually moves. Turn it off (`false`, then `bash deploy/deploy.sh`) once the review is approved. It touches only the review organisation and the review account's tickets.
+  - Reviewer notes: `docs/app-review-notes.md` and `docs/launch/reviewer-notes.md`. Apple requires a screen recording from a physical device showing launch, sign-up, sign-in, the main flow and account deletion, attached in App Review Information.
+- **Things that cannot change once published:** bundle id / package `com.lyne.mobile`, and the Android upload key. Never generate a new keystore; the signing credentials live in EAS (`eas credentials`).
+
+---
+
+## 18. Desktop admin releases
+
+- Build installers from `apps/admin-desktop`: `npm run package:mac`, `npm run package:win`, or `npm run package:all`. Make sure `apps/admin-desktop/.env` is absent so the build points at `https://api.uselyne.com/api`.
+- The packaged app loads from its own `app://lyne-admin` origin. That origin must be in the server's `ALLOWED_ORIGINS`, otherwise every request is refused.
+- **Signing:** macOS needs the Apple Developer ID certificate and notarisation, or Gatekeeper refuses the app on first open. Windows needs an OV/EV code-signing certificate through a cloud HSM (SSL.com eSigner or DigiCert KeyLocker); this is not bought yet. Until then, `npm run build:win:unsigned` produces a working but unsigned installer. Details: `docs/launch/desktop-signing.md`.
+- Release links shown on the website come from `apps/website/src/lib/desktopRelease.ts`.
+
+---
+
+## 19. Website
+
+`apps/website` is a Vite + React site. GoDaddy runs this repository as a Node application:
+
+- `godaddy-build.mjs` builds `apps/website` into `apps/website/dist`.
+- `godaddy-server.mjs` serves that folder (SPA fallback to `index.html`) on `PORT`.
+
+The organisation **quote estimator** is a client-side formula in `apps/website/src/pages/JoinUs.tsx` (desktop) and `apps/website/src/pages/mobile/MobileJoinUs.tsx` (mobile). Both must be changed together. Store links are in `src/lib/mobileRelease.ts`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
+
+---
+
+## 20. Monitoring
+
+- **Uptime:** Sentry uptime monitor on `https://api.uselyne.com/health` since 5 October 2026. A single failed check is recorded; three in a row count as downtime.
+- **Crashes and errors:** Sentry for the mobile app (`EXPO_PUBLIC_SENTRY_DSN`, set in the build profiles). For the API and model worker, set `SENTRY_DSN` in `.env`; it is passed through by the compose file.
+- **On the box:** `bash deploy/verify.sh`, `docker ps`, `docker logs lyne_api`, `docker logs lyne_model_worker`, `/srv/lyne/backups/backup.log`.
+- **Supabase:** Dashboard → Advisors (security and performance) after any Supabase-side change.
+
+---
+
+## 21. Product decisions and feature flags
+
+| Decision | Where | Current |
+|---|---|---|
+| Version 1 is free; premium features are on for everyone | `apps/backend/src/lib/premium.js` (`PAYMENTS_ENABLED`), `apps/mobile/src/lib/features.ts` | Payments off |
+| In-app purchase tables | migration 037 | Not applied |
+| Google / Apple sign-in | `SOCIAL_AUTH_ENABLED` in `apps/mobile/src/lib/features.ts` | Off. They must launch together (App Store Guideline 4.8), and only after both providers are configured in Supabase and tested on devices (`docs/PROVIDER_SETUP.md`). |
+| Wallet passes | `WALLET_PASS_ENABLED` | Off |
+| Line Helper | `branches.line_helper_enabled` | On by default; managers can switch it off per branch |
+| Predictions | platform setting + per organisation + per user (migration 030) | On |
+| Payments provider for Jamaica | not chosen | Candidates: WiPay, Amber Pay eLink, PayPal card entry (Stripe is unavailable in Jamaica) |
+
+---
+
+## 22. Onboarding a new organisation
+
+`docs/CLIENT_ONBOARDING.md` is the full process. Before calling an organisation live, confirm:
+
+1. It appears in the app (search and home) with the correct name and logo.
+2. Every branch has the right location, hours and open/closed state.
+3. Every service shows a sensible wait and the right ticket prefix.
+4. A test customer can join, see their position, be called and be served.
+5. Each staff role signs in to the admin app and sees only its own scope.
+6. A manager can open and close queues and assign staff to counters.
+7. An executive sees organisation-wide analytics and can set targets.
+8. Notifications reach the customer.
+9. The organisation has confirmed in writing that Lyne may use its name and branding.
+
+Organisations are created by a `platform_admin` through the API; there is no admin console for this yet.
+
+---
+
+## 23. Where the other documents are
+
+| Document | For |
+|---|---|
+| `deploy/README.md` | Setting up the droplet and database from scratch, and the routine deploy |
+| `docs/HOSTING.md` | Why production is shaped the way it is; hardening; growth triggers |
+| `docs/SCALING.md` | What to change as load grows |
+| `docs/PROVIDER_SETUP.md` | Apple, Google and Supabase accounts, keys and sign-in providers |
+| `docs/launch/` | Store builds, listings, screenshots, reviewer notes, desktop signing, accounts |
+| `docs/app-review-notes.md` | The notes given to App Review |
+| `docs/CLIENT_ONBOARDING.md` | Bringing a new organisation live |
+| `docs/KIOSK_HARDWARE.md` | Kiosk devices and ticket printing |
+| `docs/LAUNCH_PROCUREMENT.md` | Accounts and purchases, with lead times |
+| `docs/TEST_ACCOUNTS.md` | Demo logins (staging / demo only) |
+| `docs/pre-launch-security-checklist.md` | The security checklist |
+| `docs/SDK_PRIVACY_AUDIT.md` | What each third-party SDK collects (feeds the store privacy answers) |
+| `docs/WEB_AND_APP_UX_PRINCIPLES.md` | UX rules for every surface |
+| `docs/PRODUCT_VISION.md` | Where the product is going |
+| `docs/COMPLETED_WORK.md` | What was fixed and why — read before filing a "bug" that may already be settled |
+| `docs/REMAINING_WORK.md` | What is still open |
+| `database/README.md`, `database/migrations/README.md` | Database specifics |
+| `apps/model/README.md` | The model worker |
+| `legal/` | Policy source text |
+| `PROVENANCE.md` | Authorship record |
+
+---
+
+## 24. What is still open
+
+The live list is `docs/REMAINING_WORK.md`. The main items:
+
+- **API outage signs users out without explanation.** A server error during session refresh drops people to Sign in.
+- The "leave now" reminder is scheduled once and not recalculated as the line moves.
+- Google and Apple sign-in (they ship together).
+- An automated end-to-end test of join → call → serve → notify; alerting when the model worker stops refreshing.
+- **Before onboarding an organisation:** a platform-admin console, a first-run setup wizard, a Windows signing certificate, SMS sender registration, and one kiosk device to prove printing.
+- **Before a paid contract:** a payments provider, a data-retention policy, and encryption-at-rest confirmation.
+
+---
+
+Maintained by DKS Technologies. Questions: `customersupport@uselyne.com`.
