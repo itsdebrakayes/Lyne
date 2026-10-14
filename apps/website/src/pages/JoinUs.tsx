@@ -217,11 +217,7 @@ const JoinUs = () => {
                 <div className="mt-1 text-sm font-semibold text-white">{quote.plan.name}</div>
                 <div className="mt-3 flex items-baseline gap-1">
                   {quote.plan.custom ? (
-                    <>
-                      <span className="text-sm text-lyne-lavender/60">from</span>
-                      <span className="text-4xl font-bold tracking-tight">{usd(quote.annual)}</span>
-                      <span className="text-sm text-lyne-lavender/60">/year</span>
-                    </>
+                    <span className="text-4xl font-bold tracking-tight">Custom</span>
                   ) : (
                     <>
                       <span className="text-4xl font-bold tracking-tight">{usd(quote.monthly!)}</span>
@@ -231,9 +227,9 @@ const JoinUs = () => {
                 </div>
                 <div className="mt-5 space-y-2.5 text-sm text-lyne-lavender/65">
                   {!quote.plan.custom && (
-                    <div className="flex justify-between gap-3"><span>Billed annually</span><span className="text-right font-medium text-white">{usd(quote.annual)}/year</span></div>
+                    <div className="flex justify-between gap-3"><span>Billed annually</span><span className="text-right font-medium text-white">{usd(quote.annual!)}/year</span></div>
                   )}
-                  <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "from " : ""}{usd(quote.implementation)}</span></div>
+                  <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "Scoped with you" : usd(quote.implementation!)}</span></div>
                   <div className="flex justify-between gap-3"><span>Messaging / SMS</span><span className="text-right font-medium text-white">{MESSAGING_NOTE}</span></div>
                   <div className="flex justify-between gap-3"><span>Locations</span><span className="font-medium text-white">{branches}{quote.plan.custom ? "" : ` of ${quote.plan.maxLocations}`}</span></div>
                   <div className="flex justify-between gap-3"><span>Total service lines</span><span className="font-medium text-white">{branches * services}</span></div>
@@ -241,11 +237,11 @@ const JoinUs = () => {
                 </div>
                 <p className="mt-4 text-xs text-lyne-lavender/50">
                   {quote.plan.custom
-                    ? "Government and enterprise contracts are scoped with you: locations, integrations, security and SLAs."
+                    ? "Government and enterprise contracts are priced for you: locations, integrations, security and SLAs. Contact us and we will get started."
                     : "Indicative. Final pricing, messaging and any integrations are confirmed with sales."}
                 </p>
                 <button type="button" onClick={applyEstimateToForm} className="btn btn-primary mt-6 w-full">
-                  Contact sales with this estimate <ArrowRight className="h-4 w-4" />
+                  {quote.plan.custom ? "Contact us to get started" : "Contact sales with this estimate"} <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
