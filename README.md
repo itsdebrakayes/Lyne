@@ -454,8 +454,9 @@ Everything is in `docs/launch/`. In short:
 
 - `godaddy-build.mjs` builds `apps/website` into `apps/website/dist`.
 - `godaddy-server.mjs` serves that folder (SPA fallback to `index.html`) on `PORT`.
+- GoDaddy builds each new `production` commit as a **preview** automatically. It only goes live when someone clicks **Publish to Live** on the app's page in the GoDaddy Node.js hosting panel.
 
-The organisation **quote estimator** reads one price list, `apps/website/src/lib/pricing.ts`, copied from the Lyne Pricing & Positioning Matrix (September 2026): Branch, Operations and Executive by number of locations, and Government / Enterprise as a custom contract. The desktop and mobile pages (`src/pages/JoinUs.tsx`, `src/pages/mobile/MobileJoinUs.tsx`) only display it. Store links are in `src/lib/mobileRelease.ts` (Google Play is live; the App Store link appears once `VITE_IOS_APP_URL` is set) and every download control goes to `/get-the-app`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
+The organisation **quote estimator** reads one price list, `apps/website/src/lib/pricing.ts`, copied from the Lyne Pricing & Positioning Matrix (September 2026): Branch, Operations and Executive by number of locations, and Government / Enterprise as a custom contract. Government / Enterprise shows only "Custom" and "Contact us to get started": its internal starting figures are kept out of the code on purpose, because everything in `pricing.ts` ships to visitors' browsers. The desktop and mobile pages (`src/pages/JoinUs.tsx`, `src/pages/mobile/MobileJoinUs.tsx`) only display it. Store links are in `src/lib/mobileRelease.ts` (Google Play is live; the App Store link appears once `VITE_IOS_APP_URL` is set) and every download control goes to `/get-the-app`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
 
 ---
 
