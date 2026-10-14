@@ -33,6 +33,8 @@ import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
 import MessageComposer from '../../components/MessageComposer';
 import { fmtN } from '../insights';
 import { replayTour } from '../../hooks/useTour';
+import { buildBranchReport } from '../reportDoc';
+import { ReportDownloadButtons, ReportPreview } from './ReportExport';
 
 /* ══════════════════════ window cover ══════════════════════
    A branch with no windows configured is NOT a branch where every window is
@@ -681,6 +683,8 @@ export function MgrReportsTab() {
   const [on, setOn] = useState<string[]>(() => MGR_SECTIONS.map((s) => s.key));
   const pages = MGR_SECTIONS.filter((s) => on.includes(s.key)).reduce((t, s) => t + s.pages, 0);
   const periodLabel = ({ '7': 'Last 7 Days', '30': 'Last 30 Days', '90': 'Last 90 Days' } as Record<string, string>)[period] || '';
+  const html = useMemo(() => buildBranchReport(d, { sections: on, periodLabel }), [d, on, periodLabel]);
+  const filename = `Branch Report - ${d.branchName} - ${d.generatedOn}`;
 
   return (
     <div className="qx-grid">
@@ -708,49 +712,13 @@ export function MgrReportsTab() {
               );
             })}
           </div>
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="button" className="qx-btn"><Download size={14} />Download As Word</button>
-            <button type="button" className="qx-btn ghost"><FileText size={14} />Download As PDF</button>
-            <span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 700, marginLeft: 'auto' }}>{pages} pages</span>
-          </div>
+          <ReportDownloadButtons html={html} filename={filename}
+            trailing={<span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 700, marginLeft: 'auto' }}>about {pages} pages</span>} />
         </div>
       </Card>
 
-      <Card span={6} title="Preview" cap="Cover page, as it will be delivered">
-        <div style={{ maxWidth: 460, width: '100%', margin: '0 auto' }}>
-          <div className="qx-paper">
-            <div className="qx-papercover">
-              <div className="qx-papertop">
-                <span className="qx-av" style={avatarStyle(d.org)}>{initials(d.org)}</span>
-                <span><b>{d.org}</b><small>{d.branchName}</small></span>
-              </div>
-              <h5>Branch Report</h5>
-              <div className="meta">
-                {periodLabel} · {d.branchName}<br />
-                Prepared by {d.managerName} · {d.generatedOn} · {pages} pages
-              </div>
-            </div>
-            <div className="qx-paperbody">
-              <span className="qx-paperh7">What this covers</span>
-              <p>
-                Performance at {d.branchName} over {periodLabel.toLowerCase()}: how the branch
-                performed against the targets it is held to, where the lines built, how counters
-                were covered through the day, and what to change in the coming period.
-              </p>
-              <div className="qx-paperkpis">
-                <div><b>{d.services.reduce((t, s) => t + s.waiting, 0)}</b><small>Waiting</small></div>
-                <div><b>{d.services.length}</b><small>Services</small></div>
-                <div><b>{d.staff.filter((s) => s.state !== 'off').length}</b><small>On Floor</small></div>
-                <div><b>{d.targets.length}</b><small>Targets</small></div>
-              </div>
-              <p style={{ color: '#7C8CA5' }}>
-                Figures are counted from tickets issued at this branch. Nothing about other
-                branches appears in this document.
-              </p>
-            </div>
-            <div className="qx-paperfoot"><span>{d.branchName} · Confidential</span><span>Page 1 of {pages}</span></div>
-          </div>
-        </div>
+      <Card span={6} title="Preview" cap="The whole document, exactly as it downloads">
+        <ReportPreview html={html} title="Branch report preview" />
       </Card>
     </div>
   );
