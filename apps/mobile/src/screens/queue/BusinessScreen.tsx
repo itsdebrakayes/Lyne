@@ -58,6 +58,7 @@ const SECTOR_LABEL: Record<string, string> = {
   microfinance: 'Microfinance',
   university: 'University',
   diagnostics: 'Health service',
+  healthcare: 'Health system',
 };
 
 /** "08:30:00" → "8:30 am". A seconds field on a signboard helps nobody. */

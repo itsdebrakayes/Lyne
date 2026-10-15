@@ -14,6 +14,7 @@ import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
 import { useDevicePlace, distanceKm } from '../../lib/deviceLocation';
 import { useNearby } from '../../lib/nearby';
+import { UrgentNotice } from '../../components/TriageQuestions';
 import { useContentColumn, useWide } from '../../lib/stage';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
@@ -326,6 +327,7 @@ export default function HomeScreen() {
   const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
 
   const ahead = ticket ? Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1) : 0;
+  const urgent = !!ticket && (ticket as { triage_flag?: string }).triage_flag === 'possibly_urgent' && ticket.status !== 'in_service';
 
   return (
     <View style={t.root}>
@@ -384,8 +386,9 @@ export default function HomeScreen() {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14, borderWidth: 1, borderColor: colors.borderSoft }}
+            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, marginTop: 14, borderWidth: 1, borderColor: urgent ? 'rgba(220,38,38,.45)' : colors.borderSoft }}
           >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="clock" size={23} color={colors.accent} />
             </View>
@@ -406,6 +409,11 @@ export default function HomeScreen() {
                 <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 4 }}>left to wait</Text>
               </View>
             )}
+          </View>
+          {/* The triage answers flagged this visit: the same advice as the
+              ticket, here too, because Home is where people look while they
+              wait. Gone once they are being seen. */}
+          {urgent && <View style={{ marginTop: 12 }}><UrgentNotice compact /></View>}
           </TouchableOpacity>
         )}
 

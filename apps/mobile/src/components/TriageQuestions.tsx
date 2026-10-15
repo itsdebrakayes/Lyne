@@ -79,21 +79,32 @@ export function TriageQuestions({ questions, answers, onChange, large = false, o
   );
 }
 
-/** Shown when any red-flag answer is yes. */
-export function UrgentNotice({ large = false }: { large?: boolean }) {
+/** Shown when any red-flag answer is yes: on the join screen, the ticket,
+ *  Home's in-line card (compact) and the kiosk (atHospital). */
+export function UrgentNotice({ large = false, compact = false, atHospital = false }: {
+  large?: boolean;
+  /** One short paragraph, for Home. */
+  compact?: boolean;
+  /** Checked in at the hospital already, so no "when you arrive". */
+  atHospital?: boolean;
+}) {
+  const body = compact
+    ? 'Your place is being kept, but please tell a member of staff your symptoms right away. Life-threatening emergency? Call 911.'
+    : atHospital
+      ? 'You have joined the line and your place is being kept. Because of what you told us, please do not wait: tell a member of staff your symptoms right away. If this is a life-threatening emergency, tell the nearest member of staff now.'
+      : 'You have joined the line and your place is being kept. Because of what you told us, please do not simply wait: tell a member of staff your symptoms right away. When you arrive, go straight to the desk rather than the waiting room. If this is a life-threatening emergency and you are not at the hospital yet, call 911.';
   return (
     <View accessibilityRole="alert" style={{
-      flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderRadius: 18, padding: large ? 20 : 14,
+      flexDirection: 'row', gap: compact ? 10 : 12, alignItems: 'flex-start', borderRadius: compact ? 14 : 18, padding: large ? 20 : compact ? 11 : 14,
       backgroundColor: 'rgba(220,38,38,.10)', borderWidth: 1, borderColor: 'rgba(220,38,38,.45)',
     }}>
-      <Ionicons name="alert-circle" size={large ? 30 : 22} color={colors.danger} />
+      <Ionicons name="alert-circle" size={large ? 30 : compact ? 18 : 22} color={colors.danger} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: font.extra, fontSize: large ? 22 : 16, color: colors.danger }}>
-          Go to the triage desk now
+        <Text style={{ fontFamily: font.extra, fontSize: large ? 22 : compact ? 13.5 : 16, color: colors.danger }}>
+          We recommend you go to the triage desk now
         </Text>
-        <Text style={{ fontFamily: font.semibold, fontSize: large ? 16 : 13.5, color: colors.ink, lineHeight: large ? 23 : 19, marginTop: 4 }}>
-          You are still in the line, but please tell a member of staff straight away rather than waiting.
-          If this is a life-threatening emergency, call 911.
+        <Text style={{ fontFamily: font.semibold, fontSize: large ? 16 : compact ? 12 : 13.5, color: colors.ink, lineHeight: large ? 23 : compact ? 16.5 : 19, marginTop: compact ? 3 : 4 }}>
+          {body}
         </Text>
       </View>
     </View>

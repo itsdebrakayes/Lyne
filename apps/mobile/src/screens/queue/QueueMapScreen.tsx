@@ -215,7 +215,7 @@ export default function QueueMapScreen() {
                   icon="walk"
                   title="No one's waiting"
                   body={joinState.allowed
-                    ? 'The counter is free. Join now and you should be seen as soon as you arrive.'
+                    ? words.freeNow
                     : 'Nobody is in this line at the moment.'}
                 />
               )}

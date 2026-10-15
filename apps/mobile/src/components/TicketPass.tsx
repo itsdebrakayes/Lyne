@@ -179,6 +179,7 @@ function endedWord(status: string): string {
 export function TicketPass({
   branchName, serviceName, ticketNumber, joinedAt, endedAt, remainingMinutes,
   place, ahead, inLine, status, children, nowLabel = 'at the counter',
+  locationLabel = 'Branch', serviceLabel = 'Service',
 }: {
   branchName: string;
   serviceName: string;
@@ -193,6 +194,9 @@ export function TicketPass({
   status: string;
   /** Under "Now" once called: "at the counter", "being seen". */
   nowLabel?: string;
+  /** "Branch" / "Service"; a hospital says "Hospital" / "Department". */
+  locationLabel?: string;
+  serviceLabel?: string;
   /** The stub below the perforation — code, barcode, wallet. */
   children?: React.ReactNode;
 }) {
@@ -223,13 +227,13 @@ export function TicketPass({
         {/* Where you are going, and what for — the two city names. */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,.45)', letterSpacing: 1 }}>BRANCH</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,.45)', letterSpacing: 1 }}>{locationLabel.toUpperCase()}</Text>
             <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 16, lineHeight: 20, color: '#fff', marginTop: 4, letterSpacing: -0.3 }}>
               {branchName}
             </Text>
           </View>
           <View style={{ flex: 1, minWidth: 0, alignItems: 'flex-end' }}>
-            <Text style={{ fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,.45)', letterSpacing: 1 }}>SERVICE</Text>
+            <Text style={{ fontFamily: font.bold, fontSize: 10, color: 'rgba(255,255,255,.45)', letterSpacing: 1 }}>{serviceLabel.toUpperCase()}</Text>
             <Text numberOfLines={2} style={{ fontFamily: font.extra, fontSize: 16, lineHeight: 20, color: '#fff', marginTop: 4, textAlign: 'right', letterSpacing: -0.3 }}>
               {serviceName}
             </Text>

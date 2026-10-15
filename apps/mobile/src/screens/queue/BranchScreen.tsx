@@ -13,6 +13,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
+import { usePlaceWords } from '../../lib/placeWords';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -101,6 +102,7 @@ export default function BranchScreen() {
   const route = useRoute<Params>();
   const queryClient = useQueryClient();
   const { businessId, branchName } = route.params;
+  const words = usePlaceWords(businessId);
 
   // Branch is now local state, not a fixed route param, so it can be swapped
   // in place without unwinding the stack.
@@ -316,7 +318,7 @@ export default function BranchScreen() {
                     </View>
                     <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 5 }}>
                       {Number(s.waiting_count || 0)} in line
-                      {s.active_counters != null ? ` · ${Number(s.active_counters)} ${Number(s.active_counters) === 1 ? 'counter' : 'counters'} open` : ''}
+                      {s.active_counters != null ? ` · ${words.desksOpenCount(Number(s.active_counters))}` : ''}
                     </Text>
                   </View>
 

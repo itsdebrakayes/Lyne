@@ -208,7 +208,7 @@ export default function TicketScreen() {
       ]);
       setConfirmIncomplete(false);
     } catch (err: any) {
-      setError(err?.message || 'Could not update this visit. Try again, or tell the staff at the counter.');
+      setError(err?.message || `Could not update this visit. Try again, or tell the staff at ${words.desk}.`);
     } finally {
       setClosing(false);
     }
@@ -309,9 +309,9 @@ export default function TicketScreen() {
      nothing left to be told. */
   const queued = called || ticket.status === 'waiting';
   const statusLabel = called
-    ? "It's your turn. Head to the counter"
+    ? words.calledStatus
     : inService
-      ? 'You are being served now'
+      ? words.servedStatus
       : ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '));
   const spot = ticket.waiting_position ?? ticket.position;
 
@@ -360,6 +360,8 @@ export default function TicketScreen() {
           serviceName={ticket.service_name || 'Your service'}
           ticketNumber={ticket.ticket_number}
           nowLabel={words.nowLabel}
+          locationLabel={words.locationLabel}
+          serviceLabel={words.serviceLabel}
           joinedAt={ticket.joined_at}
           endedAt={ticket.completed_at || ticket.called_at}
           remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
@@ -483,7 +485,7 @@ export default function TicketScreen() {
               disabled={closing}
               activeOpacity={0.9}
               accessibilityRole="button"
-              accessibilityHint="For when you reached the counter but could not finish"
+              accessibilityHint={words.incompleteHint}
               style={{ minHeight: 58, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}
             >
               {closing ? <ActivityIndicator color="#fff" /> : (
@@ -600,7 +602,7 @@ export default function TicketScreen() {
       <ConfirmSheet
         visible={confirmIncomplete}
         title="Mark this visit incomplete?"
-        message="Use this if you reached the counter but could not finish. The branch will see the visit as incomplete, and you can join the line again whenever you are ready."
+        message={words.incompleteBody}
         confirmLabel="Mark incomplete"
         cancelLabel="Keep the visit open"
         icon="alert-circle-outline"

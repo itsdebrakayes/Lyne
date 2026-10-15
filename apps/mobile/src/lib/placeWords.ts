@@ -25,6 +25,20 @@ export interface PlaceWords {
   servedBody: string;
   /** Under "Now" on the ticket. */
   nowLabel: string;
+  /** Ticket field labels, upper-cased by the ticket. */
+  locationLabel: string;
+  serviceLabel: string;
+  /** "3 counters open" on the branch page. */
+  desksOpenCount: (n: number) => string;
+  /** The line is empty. */
+  freeNow: string;
+  /** Status line once called. */
+  calledStatus: string;
+  /** Status line while being served. */
+  servedStatus: string;
+  /** "Could not finish" explanation. */
+  incompleteHint: string;
+  incompleteBody: string;
 }
 
 const DEFAULT: PlaceWords = {
@@ -34,6 +48,14 @@ const DEFAULT: PlaceWords = {
   servedTitle: "You're at the counter",
   servedBody: 'you are being served now.',
   nowLabel: 'at the counter',
+  locationLabel: 'Branch',
+  serviceLabel: 'Service',
+  desksOpenCount: (n) => `${n} ${n === 1 ? 'counter' : 'counters'} open`,
+  freeNow: 'The counter is free. Join now and you should be seen as soon as you arrive.',
+  calledStatus: "It's your turn. Head to the counter",
+  servedStatus: 'You are being served now',
+  incompleteHint: 'For when you reached the counter but could not finish',
+  incompleteBody: 'Use this if you reached the counter but could not finish. The branch will see the visit as incomplete, and you can join the line again whenever you are ready.',
 };
 
 const BY_SECTOR: Record<string, PlaceWords> = {
@@ -44,6 +66,14 @@ const BY_SECTOR: Record<string, PlaceWords> = {
     servedTitle: "You're being seen",
     servedBody: 'you are with the care team now.',
     nowLabel: 'being seen',
+    locationLabel: 'Hospital',
+    serviceLabel: 'Department',
+    desksOpenCount: (n) => `${n} ${n === 1 ? 'room' : 'rooms'} open`,
+    freeNow: 'No one is waiting. Join now and you should be seen soon after you arrive.',
+    calledStatus: "It's your turn. Head to the front desk",
+    servedStatus: 'You are being seen now',
+    incompleteHint: 'For when you were seen but could not finish your visit',
+    incompleteBody: 'Use this if you were seen but could not finish, for example because you still need a test or an order. The hospital will see the visit as incomplete, and you can join the line again whenever you are ready.',
   },
 };
 

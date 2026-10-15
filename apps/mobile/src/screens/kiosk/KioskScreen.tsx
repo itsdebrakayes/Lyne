@@ -710,7 +710,7 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
         </View>
 
         <View style={{ flex: kx.wide ? kx.s(1) : undefined, justifyContent: 'center', gap: 16 }}>
-          {ticket.triage_flag === 'possibly_urgent' && <UrgentNotice large={kx.wide} />}
+          {ticket.triage_flag === 'possibly_urgent' && <UrgentNotice large={kx.wide} atHospital />}
           <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(32) : 24, color: colors.ink, letterSpacing: -0.6 }}>
             Keep This Number
           </Text>

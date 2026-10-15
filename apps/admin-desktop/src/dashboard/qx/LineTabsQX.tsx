@@ -15,6 +15,7 @@
  *   My Stats — my own numbers, with the section average for context only
  *   Support  — answers for someone on a window, phrased plainly
  */
+import { sectorExamples } from '../../hooks/sectorExamples';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
@@ -781,8 +782,8 @@ export function LineOverviewQX() {
                 <label htmlFor="readiness-note">What was missing or not prepared?</label>
                 <textarea id="readiness-note" maxLength={255} value={readinessNote}
                   onChange={(e) => { setReadinessNote(e.target.value); setReadinessError(null); }}
-                  placeholder="e.g. Proof of address was older than three months" />
-                <small>{readinessNote.length}/255 · Do not enter account balances or sensitive financial details.</small>
+                  placeholder={sectorExamples(terms.sector).missingPlaceholder} />
+                <small>{readinessNote.length}/255 · {sectorExamples(terms.sector).sensitiveWarning}</small>
               </div>
             ) : null}
             {readinessError ? <div className="ql-verifymsg bad">{readinessError}</div> : null}
