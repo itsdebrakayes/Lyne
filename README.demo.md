@@ -42,6 +42,21 @@ ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 \
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 npm run refresh:demo-data
 ```
 
+## Hospital demo (Wrenfield Health)
+
+The fictional US health system — three hospitals, eleven departments with
+triage questions, 900 patients and 90 days of visits — is not in the SQL
+seeds. Load it, or refresh today's lines on the morning of a demo, with:
+
+```bash
+docker exec -e ALLOW_DEMO_HEALTHCARE_SEED=true lyne_api node scripts/seed-demo-healthcare.js
+```
+
+It runs inside the API container because that is where the database settings
+live. It removes earlier Wrenfield data first, and keeps staff already linked
+to Supabase. Run it before `sync:demo-test-accounts`, which links the
+`*-hospital@test.com` logins.
+
 `database/demo_data.sql` is retained as an older prototype fixture, but it is
 not auto-loaded because the production schema has moved on. Keep the maintained
 demo data in `database/seed.sql`.
