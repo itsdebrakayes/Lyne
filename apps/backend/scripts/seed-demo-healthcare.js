@@ -289,6 +289,9 @@ async function main() {
            parish = VALUES(parish), latitude = VALUES(latitude), longitude = VALUES(longitude), is_active = TRUE`,
         [h.id, BIZ, h.name, h.address, h.city, h.state, h.phone, h.lat, h.lng, h.main]);
     }
+    // A US system: without this the app treats the hospitals as Jamaican
+    // (migration 039's default) and never lists them as near a US patient.
+    await conn.query(`UPDATE branches SET country_code = 'US' WHERE business_id = ?`, [BIZ]);
 
     for (const [key, d] of Object.entries(DEPTS)) {
       await conn.query(

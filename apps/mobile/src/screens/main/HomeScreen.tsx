@@ -12,7 +12,8 @@ import { Sheen } from '../../components/Glass';
 import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
-import { useDevicePlace } from '../../lib/deviceLocation';
+import { useDevicePlace, distanceKm } from '../../lib/deviceLocation';
+import { useNearby } from '../../lib/nearby';
 import { useContentColumn, useWide } from '../../lib/stage';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
@@ -135,11 +136,14 @@ export default function HomeScreen() {
   const ticket = useActiveTicket();
   const { prefs } = usePreferences();
 
-  const { data: branches = [], isLoading, error, refetch } = useQuery({
+  const { data: allBranches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
+  /* Home recommends only what is within reach: the same country and about
+     three hours away (lib/nearby.ts). Search still finds anything by name. */
+  const { list: branches, reach, coords } = useNearby(allBranches);
   /* These two used to be destructured for their data alone, so a failure in
      either was completely silent: the agency names quietly went missing from
      the cards, and the bell showed "0 unread" whether there were none or the
@@ -210,14 +214,22 @@ export default function HomeScreen() {
 
   // Branches that are actually OPEN now (by their own hours) rank first — a
   // closed branch's stale low wait must never beat a live line.
+  /* Distance in whole 10-mile bands, so places a few minutes apart still
+     sort by wait, and a hospital an hour closer comes first. */
+  const milesOff = useCallback((b: BranchSummary) => {
+    const lat = Number(b.latitude); const lng = Number(b.longitude);
+    if (!coords || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return 0;
+    return Math.floor(distanceKm(coords, { lat, lng }) / 16);
+  }, [coords]);
+
   const sorted = useMemo(() => {
     const now = new Date();
     const openRank = (b: BranchSummary) => (branchOpenInfo(now, hoursFromBranch(b)).state === 'open' ? 1 : 0);
     return [...branches]
       .filter(b => !sector || sectorOf.get(b.business_id) === sector)
       .filter(b => !openOnly || branchOpenInfo(now, hoursFromBranch(b)).state === 'open')
-      .sort((a, b) => (openRank(b) - openRank(a)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
-  }, [branches, sector, sectorOf, openOnly]);
+      .sort((a, b) => (openRank(b) - openRank(a)) || (milesOff(a) - milesOff(b)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
+  }, [branches, sector, sectorOf, openOnly, milesOff]);
 
   // One row per agency, carrying that agency's best branch — the marketplace
   // browses agencies, and five rows of the same agency's branches is a list
@@ -559,7 +571,11 @@ export default function HomeScreen() {
             screens do not teach two different reading habits. */}
         {agencyRows.length > 0 && (
           <View style={{ marginTop: 30 }}>
-            <RailHead title="Agencies near you" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            <RailHead
+              title={reach === 'near' ? 'Agencies near you' : reach === 'country' ? 'Nothing within 200 miles yet' : 'Nothing in your country yet'}
+              actionLabel="See all"
+              onAction={() => navigation.navigate('Search')}
+            />
             <View style={{ gap: 10 }}>
               {agencyRows.map(({ best, count }, i) => {
                 const wait = Math.round(Number(best.avg_wait_minutes || 0));

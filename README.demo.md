@@ -54,8 +54,30 @@ docker exec -e ALLOW_DEMO_HEALTHCARE_SEED=true lyne_api node scripts/seed-demo-h
 
 It runs inside the API container because that is where the database settings
 live. It removes earlier Wrenfield data first, and keeps staff already linked
-to Supabase. Run it before `sync:demo-test-accounts`, which links the
-`*-hospital@test.com` logins.
+to Supabase. It needs migrations 038 and 039. Then link the logins (from
+`apps/backend`, on the host; the API image does not contain this script):
+
+```bash
+ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node scripts/sync-demo-test-accounts.js
+```
+
+The demo overlay sets `LISTED_SECTORS=healthcare`, so the phone lists only the
+hospitals. Nothing else is deleted: other organisations still sign in to the
+admin app. Set `LISTED_SECTORS=` (empty) in `.env` to list everything again.
+
+| Login | Who | Simulator location |
+|---|---|---|
+| `patient-ellery@test.com` | Maya Ellison, nearest Wrenfield Medical Center | `39.512,-117.185` |
+| `patient-twinfords@test.com` | Jordan Pike, nearest Wrenfield Valley Hospital | `39.512,-116.705` |
+| `patient-brannock@test.com` | Rosa Delgado, nearest Wrenfield Regional Hospital | `39.512,-116.215` |
+| `kiosk-hospital@test.com` | Front-desk iPad, Wrenfield Medical Center | |
+| `staff-hospital@test.com` | Renee Abbott, Emergency Department | |
+| `supervisor-hospital@test.com` | Tasha Coleman, RN (charge nurse) | |
+| `manager-hospital@test.com` | Gregory Dalton | |
+| `executive-hospital@test.com` | Dr. Helena Marsh | |
+
+A patient's location is the phone's, not the account's. Move a simulator with
+`xcrun simctl location <device> set <lat>,<lng>`.
 
 `database/demo_data.sql` is retained as an older prototype fixture, but it is
 not auto-loaded because the production schema has moved on. Keep the maintained

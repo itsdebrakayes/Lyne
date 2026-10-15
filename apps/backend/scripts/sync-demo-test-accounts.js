@@ -290,6 +290,18 @@ const accounts = [
      flagship hospital, so each login arrives with 90 days of history. Run that
      seed first. The kiosk login is the front-desk iPad. */
   {
+    // Three patients, one for each hospital. Where they "live" is the
+    // phone's location, not the account: set the simulator next to the
+    // hospital (README.demo.md lists the coordinates).
+    email: 'patient-ellery@test.com', kind: 'user', id: 'wf-usr-test-ellery', fullName: 'Maya Ellison', savedBusinessId: null,
+  },
+  {
+    email: 'patient-twinfords@test.com', kind: 'user', id: 'wf-usr-test-twinfords', fullName: 'Jordan Pike', savedBusinessId: null,
+  },
+  {
+    email: 'patient-brannock@test.com', kind: 'user', id: 'wf-usr-test-brannock', fullName: 'Rosa Delgado', savedBusinessId: null,
+  },
+  {
     email: 'kiosk-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-kiosk', fullName: 'Wrenfield Medical Center Front Desk',
     staffCode: 'WF-ELLERY-KIOSK', roleId: 'role-kiosk-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
   },
@@ -438,15 +450,19 @@ async function syncMobileUser(connection, account, supabaseUser) {
      a credit union, on the day the point being made was about TAJ. Saving one
      agency is also what a real person's account looks like; four is what a
      seed script looks like. */
-  await connection.query(
-    `INSERT INTO saved_businesses (user_id, business_id)
-     VALUES (?, 'biz-taj-001')
-     ON DUPLICATE KEY UPDATE saved_at = saved_at`,
-    [userId]
-  );
+  const saved = account.savedBusinessId === undefined ? 'biz-taj-001' : account.savedBusinessId;
+  if (saved) {
+    await connection.query(
+      `INSERT INTO saved_businesses (user_id, business_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE saved_at = saved_at`,
+      [userId, saved]
+    );
+  }
+  // The hospital patients save nothing, so Home leads with what is near.
   await connection.query(
     'DELETE FROM saved_businesses WHERE user_id = ? AND business_id <> ?',
-    [userId, 'biz-taj-001']
+    [userId, saved || '']
   );
 }
 

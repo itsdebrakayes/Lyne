@@ -41,6 +41,7 @@
  *    optimistically.
  */
 const router = require('express').Router();
+const { listedSectorClause } = require('../utils/listing');
 const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -342,6 +343,11 @@ router.get('/public', async (req, res) => {
     const params = [...PUBLIC_STATUSES];
     if (business_id) { where.push('ss.business_id = ?'); params.push(business_id); }
     if (branch_id)   { where.push('ss.branch_id = ?');   params.push(branch_id); }
+    // The all-sessions list follows LISTED_SECTORS; one business's never does.
+    if (!business_id && !branch_id) {
+      const listed = listedSectorClause('b');
+      if (listed.sql) { where.push(listed.sql.replace(/^ AND /, '')); params.push(...listed.params); }
+    }
 
     const [rows] = await pool.query(
       `SELECT ${SESSION_SELECT}, ${SECTOR_COLUMNS} ${SESSION_FROM}

@@ -10,6 +10,8 @@ export interface BranchSummary {
   phone?: string | null;
   city?: string;
   parish?: string;
+  /** ISO 3166-1 alpha-2 (migration 039). Absent on an API that predates it. */
+  country_code?: string | null;
   latitude?: number;
   longitude?: number;
   opening_time?: string | null;

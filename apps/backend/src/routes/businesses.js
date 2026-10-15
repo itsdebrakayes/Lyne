@@ -10,6 +10,7 @@
 const router = require('express').Router();
 
 const { toPublicBusiness } = require('../utils/publicShapes');
+const { listedSectorClause } = require('../utils/listing');
 
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
@@ -21,6 +22,7 @@ const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms
 // List all active businesses — public
 router.get('/', async (_req, res) => {
   try {
+    const listed = listedSectorClause('b');
     const [rows] = await pool.query(
       `SELECT b.*, t.name AS tier_name, t.label AS tier_label,
               t.can_view_analytics, t.can_view_predictions,
@@ -29,8 +31,9 @@ router.get('/', async (_req, res) => {
        FROM businesses b
        JOIN subscription_tiers t ON b.subscription_tier_id = t.id
        ${SECTOR_JOIN}
-       WHERE b.is_active = TRUE
-       ORDER BY b.name`
+       WHERE b.is_active = TRUE${listed.sql}
+       ORDER BY b.name`,
+      listed.params
     );
     res.json(rows.map(withTerms).map(toPublicBusiness));
   } catch (err) {

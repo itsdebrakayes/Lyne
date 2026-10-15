@@ -16,6 +16,7 @@ declare module 'expo-location' {
     subregion?: string | null;
     region?: string | null;
     country?: string | null;
+    isoCountryCode?: string | null;
   };
 
   export function requestForegroundPermissionsAsync(): Promise<{ status: string }>;

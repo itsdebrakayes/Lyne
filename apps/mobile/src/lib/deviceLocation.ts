@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 
-export type DevicePlace = { city: string; country: string } | null;
+export type DevicePlace = { city: string; country: string; countryCode: string } | null;
 
 export function useDevicePlace(): DevicePlace {
   const [place, setPlace] = useState<DevicePlace>(null);
@@ -42,7 +42,7 @@ export function useDevicePlace(): DevicePlace {
 
         const city = hit.city || hit.subregion || hit.region;
         if (!city) return;
-        setPlace({ city, country: hit.country || '' });
+        setPlace({ city, country: hit.country || '', countryCode: (hit.isoCountryCode || '').toUpperCase() });
       } catch {
         /* No location, no geocoder, no network. The caller falls back. */
       }

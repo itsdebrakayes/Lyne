@@ -20,6 +20,7 @@ import { MatchRank, rankMatch } from '../../lib/fuzzy';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { useDeviceCoords, distanceKm, formatDistance } from '../../lib/deviceLocation';
+import { useNearby } from '../../lib/nearby';
 import { BranchSummary } from '../../lib/mobileData';
 import { useContentColumn } from '../../lib/stage';
 import { TabBar } from '../../components/TabBar';
@@ -144,6 +145,11 @@ export default function SearchScreen() {
     refetchInterval: 30_000,
   });
 
+  /* Browsing (nothing typed) shows what is within reach, like Home. A typed
+     name searches everywhere: somebody planning a trip can still find a
+     place three states away. */
+  const { list: nearbyList } = useNearby(branches);
+
   useEffect(() => { loadRecents().then(setRecents); }, []);
 
   const onRefresh = useCallback(async () => {
@@ -154,17 +160,17 @@ export default function SearchScreen() {
 
   const businesses = useMemo(() => {
     const seen = new Map<string, string>();
-    branches.forEach(b => {
+    nearbyList.forEach(b => {
       if (!seen.has(b.business_id)) seen.set(b.business_id, orgLabel(b.business_name, b.business_slug));
     });
     return Array.from(seen.entries()).map(([id, tag]) => ({ id, tag }));
-  }, [branches]);
+  }, [nearbyList]);
 
   const term = search.trim().toLowerCase();
   const searching = term.length > 0;
 
   const results = useMemo(() => {
-    let list = branches;
+    let list = term ? branches : nearbyList;
     /* Forgiving match, ranked. The old test was `.includes(term)` on four
        fields, which meant "halfway tree" found nothing (the branch is recorded
        as "Half Way Tree") and one mistyped letter in "Passport" found nothing
@@ -205,7 +211,7 @@ export default function SearchScreen() {
         ? Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
         : (a.name || '').localeCompare(b.name || '');
     });
-  }, [branches, term, bizFilter, openOnly, sort, distanceTo]);
+  }, [branches, nearbyList, term, bizFilter, openOnly, sort, distanceTo]);
 
   /* The single closest branch, badged in the list whatever the sort. */
   const nearestId = useMemo(() => {

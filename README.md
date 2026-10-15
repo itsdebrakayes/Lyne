@@ -128,6 +128,7 @@ Never committed: `.env` files, `secrets/`, `*.p8`, `*.p12`, keystores, `backups/
 Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL scheme `lyne`. These are permanent once published.
 
 - Browse participating organisations, branches and services; see the live wait before going.
+- Home and Search (before anything is typed) recommend only places within reach: the phone's country, and within 200 miles (`apps/mobile/src/lib/nearbyRule.ts`). A typed name searches everywhere. With nothing in reach, Home falls back to the whole country, then to everything, and says so in the heading.
 - Join a line remotely, get a numbered ticket, watch position and estimated wait, get notified when called.
 - **Lyne Helper**: recommends good times to visit, can join a line on the customer's behalf, or watch a recommended window and join automatically. "Let people pass if I'm late" gives the place to whoever is behind, up to three turns.
 - Plan your visit, busy-times heatmap, week planner (driven by the model worker).
@@ -234,6 +235,7 @@ Production values go in `/srv/lyne/.env`, created from `deploy/env.production.ex
 | iOS Live Activities | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` on one line, `\n` for newlines), `APNS_ENV` | Use key `6H44RYBAX3`, the push key. `549M7577B2` is the Sign in with Apple key and cannot send pushes. |
 | In-app purchases | `APPSTORE_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT`, `PLAY_PACKAGE_NAME` | Unused in version 1 |
 | App Review simulator | `REVIEW_SIMULATOR`, `REVIEW_BUSINESS_ID`, `REVIEW_ACCOUNT_EMAIL` | See [§17](#17-mobile-releases-app-store-and-google-play) |
+| Public listing | `LISTED_SECTORS` | Empty (production) lists every sector. The demo overlay sets `healthcare` so the demo shows only the hospital system. |
 
 Never set in production: `NODE_ENV` (the compose file sets it; in `.env` it breaks the admin build), `ALLOW_DEMO_DATA_REFRESH`, `STAFF_TEST_VERIFICATION_CODE`.
 
@@ -253,7 +255,7 @@ Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXP
 - Global SQL mode must **not** include `ANSI_QUOTES`, `PIPES_AS_CONCAT` or `IGNORE_SPACE`. DigitalOcean enables some of these by default, and they break 21 SQL files.
 - The app login holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` only (`database/security/harden_database.sql`). If a feature needs DDL, it belongs in a migration.
 
-**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1.
+**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1. **038 (healthcare) and 039 (`branches.country_code`, default `JM`) are not applied yet**; both need a backup and the owner's approval. The code runs without them, but hospital features and country matching need them.
 
 **What is allowed in the production database:** schema, migrations, reference data created by migrations (e.g. `subscription_tiers` via 020), and the review tenant (`review_tenant_seed.sql`, `review_tenant_history.sql`). Nothing else is seeded. Re-run the history file every few weeks to move its 90-day window forward; it is idempotent.
 
