@@ -324,6 +324,8 @@ async function main() {
       const tag = h.id.replace('wf-brn-', '');
       staff.push({ id: `wf-stf-${tag}-mgr`, branch: h.id, role: 'role-mgr-001', name: (s++, staffName()), code: `WF-${tag.toUpperCase()}-MGR` });
       staff.push({ id: `wf-stf-${tag}-sup`, branch: h.id, role: 'role-supervisor-001', name: (s++, staffName()), code: `WF-${tag.toUpperCase()}-SUP` });
+      // The front-desk iPad at each hospital signs in as this kiosk account.
+      staff.push({ id: `wf-stf-${tag}-kiosk`, branch: h.id, role: 'role-kiosk-001', name: `${h.name} Front Desk`, code: `WF-${tag.toUpperCase()}-KIOSK` });
       const desks = Math.max(4, Math.round(8 * h.scale));
       for (let i = 1; i <= desks; i++) {
         staff.push({ id: `wf-stf-${tag}-${i}`, branch: h.id, role: 'role-staff-001', name: (s++, staffName()), code: `WF-${tag.toUpperCase()}-${pad2(i)}` });

@@ -284,6 +284,31 @@ const accounts = [
     branchId: null,
     assignedServiceId: null,
   },
+
+  /* ── Wrenfield Health (fictional US hospital demo) ──────────────────────
+     Adopt the staff rows scripts/seed-demo-healthcare.js creates at the
+     flagship hospital, so each login arrives with 90 days of history. Run that
+     seed first. The kiosk login is the front-desk iPad. */
+  {
+    email: 'kiosk-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-kiosk', fullName: 'Wrenfield Medical Center Front Desk',
+    staffCode: 'WF-ELLERY-KIOSK', roleId: 'role-kiosk-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'staff-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-1', fullName: 'Renee Abbott',
+    staffCode: 'WF-ELLERY-01', roleId: 'role-staff-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: 'wf-svc-ed',
+  },
+  {
+    email: 'supervisor-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-sup', fullName: 'Tasha Coleman, RN',
+    staffCode: 'WF-ELLERY-SUP', roleId: 'role-supervisor-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'manager-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-mgr', fullName: 'Gregory Dalton',
+    staffCode: 'WF-ELLERY-MGR', roleId: 'role-mgr-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'executive-hospital@test.com', kind: 'staff', id: 'wf-stf-exec', fullName: 'Dr. Helena Marsh',
+    staffCode: 'WF-EXEC-1', roleId: 'role-exec-001', businessId: 'wf-biz-0001', branchId: null, assignedServiceId: null,
+  },
 ];
 
 const demoQueues = [
