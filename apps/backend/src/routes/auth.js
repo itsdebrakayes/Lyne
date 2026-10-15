@@ -390,7 +390,7 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
       await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
-        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL WHERE user_id = ?',
+        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL WHERE user_id = ?',
         [userId]
       );
       await conn.query(

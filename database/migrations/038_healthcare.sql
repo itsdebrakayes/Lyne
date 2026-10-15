@@ -46,9 +46,14 @@ CREATE TABLE IF NOT EXISTS service_triage_questions (
 
 -- The answers as given, with the question text copied in, so the record still
 -- reads correctly after a question is reworded or removed.
+-- visit_reason and guest_dob are what a hospital front desk takes from a
+-- walk-in: why they came, and a date of birth to tell two people of the same
+-- name apart. Both are optional and erased with the account.
 ALTER TABLE queue_tickets
   ADD COLUMN triage_answers JSON NULL AFTER readiness_note,
-  ADD COLUMN triage_flag ENUM('none','possibly_urgent') NOT NULL DEFAULT 'none' AFTER triage_answers;
+  ADD COLUMN triage_flag ENUM('none','possibly_urgent') NOT NULL DEFAULT 'none' AFTER triage_answers,
+  ADD COLUMN visit_reason VARCHAR(160) NULL AFTER triage_flag,
+  ADD COLUMN guest_dob DATE NULL AFTER guest_phone;
 
 CREATE TABLE IF NOT EXISTS patient_flags (
     id                   CHAR(36)     NOT NULL,

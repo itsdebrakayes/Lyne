@@ -86,6 +86,7 @@ const joinQueueSchema = z.object({
     question_id: z.string().min(1).max(64),
     answer: z.boolean(),
   })).max(20).optional(),
+  visit_reason: z.string().trim().max(160).optional(),
 });
 
 // A kiosk clerk adds a walk-in (someone at the branch without the app). They
@@ -95,6 +96,12 @@ const walkInSchema = z.object({
   service_id:  z.string().min(1).max(64),
   guest_name:  z.string().trim().min(1, 'A name is required to add a walk-in.').max(120),
   guest_phone: z.string().trim().max(30).optional(),
+  /* Healthcare front desk: date of birth, why they came, and the department's
+     triage questions asked aloud. All optional unless the department has
+     triage questions, which must then be answered like in the app. */
+  guest_dob:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be YYYY-MM-DD.').optional(),
+  visit_reason:   z.string().trim().max(160).optional(),
+  triage_answers: z.array(z.object({ question_id: z.string().min(1).max(64), answer: z.boolean() })).max(20).optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -207,7 +214,7 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const { queue_id, form_data, readiness_acknowledged, triage_answers } = parsed.data;
+    const { queue_id, form_data, readiness_acknowledged, triage_answers, visit_reason } = parsed.data;
 
     const [queues] = await conn.query(
       'SELECT * FROM queues WHERE id = ? AND is_active = TRUE FOR UPDATE',
@@ -309,12 +316,12 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
       // customer app, and the walk-in buffer above depends on that distinction.
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status,
-          estimated_wait_minutes, channel, readiness_shown_at, triage_answers, triage_flag)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app', ?, ?, ?)`,
+          estimated_wait_minutes, channel, readiness_shown_at, triage_answers, triage_flag, visit_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app', ?, ?, ?, ?)`,
       [
         ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber,
         verificationCode, position, estimatedWait, hasReadinessChecklist ? new Date() : null,
-        triage.answers ? JSON.stringify(triage.answers) : null, triage.flag,
+        triage.answers ? JSON.stringify(triage.answers) : null, triage.flag, visit_reason || null,
       ]
     );
 
@@ -356,7 +363,7 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
   if (!branchId) {
     return res.status(403).json({ error: 'This kiosk account is not assigned to a branch.' });
   }
-  const { service_id, guest_name, guest_phone } = parsed.data;
+  const { service_id, guest_name, guest_phone, guest_dob, visit_reason, triage_answers } = parsed.data;
 
   const conn = await pool.getConnection();
   try {
@@ -410,6 +417,11 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
     // Identical arithmetic to the app join — same daily reset, same counter-aware
     // ETA — so a walk-in's estimate agrees with what the app would show for the
     // same spot in line.
+    const triage = evaluateTriage(await triageQuestionsFor(conn, service_id), triage_answers);
+    if (!triage.ok) {
+      await conn.rollback();
+      return res.status(400).json({ error: triage.error });
+    }
     const { position, ticketNumber, estimatedWait, verificationCode } = await issueTicketSlot(conn, {
       queueId: queue.id,
       branchId,
@@ -422,9 +434,11 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
     const ticketId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, guest_name, guest_phone, ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk')`,
-      [ticketId, queue.id, guest_name, guest_phone || null, ticketNumber, verificationCode, position, estimatedWait]
+         (id, queue_id, user_id, guest_name, guest_phone, guest_dob, ticket_number, verification_code, position, status,
+          estimated_wait_minutes, channel, visit_reason, triage_answers, triage_flag)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk', ?, ?, ?)`,
+      [ticketId, queue.id, guest_name, guest_phone || null, guest_dob || null, ticketNumber, verificationCode, position,
+        estimatedWait, visit_reason || null, triage.answers ? JSON.stringify(triage.answers) : null, triage.flag]
     );
     await conn.query(
       `INSERT INTO queue_events (id, ticket_id, previous_status, new_status)
@@ -470,7 +484,8 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
                  put on the patient, and how often they have been in lately —
                  the things the person watching the line needs to decide who
                  to bring forward. Visit counts are ended visits only. */
-              t.triage_flag, t.triage_answers,
+              t.triage_flag, t.triage_answers, t.visit_reason,
+              COALESCE(t.guest_dob, u.date_of_birth) AS guest_dob,
               (SELECT GROUP_CONCAT(DISTINCT pf.flag ORDER BY pf.flag)
                  FROM patient_flags pf
                  JOIN branches pb ON pb.business_id = pf.business_id
