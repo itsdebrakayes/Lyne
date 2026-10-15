@@ -851,10 +851,13 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
 const INCOMPLETE_REASONS = new Set([
   'day_ended', 'wrong_documents', 'wrong_service', 'referred_elsewhere',
   'customer_left', 'system_issue',
-  /* Healthcare. A visit can end without the thing the patient came for for
-     clinical reasons a tax office never has: they need a test or imaging
-     first, they were admitted or transferred, or the appointment had to move. */
-  'needs_test_first', 'admitted', 'transferred', 'rescheduled', 'left_before_seen',
+  /* Healthcare. A visit can end without the thing the patient came for, for
+     reasons a tax office never has: they need a test or imaging first, the
+     appointment had to move, or they left before a clinician saw them.
+     Admission and transfer are NOT here: they are normal clinical outcomes of
+     a completed visit, and counting them as incomplete would make every
+     admitted patient look like a failure in Cases. */
+  'needs_test_first', 'rescheduled', 'left_before_seen',
 ]);
 
 /** Frequent-visitor thresholds shown in the line and in Cases. */

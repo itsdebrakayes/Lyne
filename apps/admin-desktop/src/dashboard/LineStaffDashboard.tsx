@@ -243,6 +243,16 @@ export default function LineStaffDashboard() {
     }),
     onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
     onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
+    /* Reordering and tagging. Both are recorded on the server with who did it;
+       the list is refetched so every screen shows the same order. */
+    onMove: async (id: string, to: 'top' | 'bottom' | number) => {
+      await api.put(`/tickets/${id}/move-to`, { to });
+      await refetchDesk();
+    },
+    onSetTriageFlag: async (id: string, flag: 'none' | 'possibly_urgent') => {
+      await api.put(`/tickets/${id}/triage-flag`, { flag });
+      await refetchDesk();
+    },
   }), [deskStatus]);
 
   const liveData = useMemo(() => buildLineData({

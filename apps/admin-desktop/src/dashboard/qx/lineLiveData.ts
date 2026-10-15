@@ -59,6 +59,17 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       joinedAt: t.joined_at || null,
       channel: t.channel || null,
       callCount: num(t.call_count),
+      position: num(t.position),
+      triageFlag: t.triage_flag === 'possibly_urgent' ? 'possibly_urgent' : 'none',
+      triageAnswers: Array.isArray(t.triage_answers) ? t.triage_answers : [],
+      patientFlags: Array.isArray(t.patient_flags) ? t.patient_flags : [],
+      flagNote: t.patient_flag_note || null,
+      frequentVisitor: Boolean(t.frequent_visitor),
+      repeatUnresolved: Boolean(t.repeat_unresolved),
+      visits7d: num(t.visits_7d),
+      unresolved30d: num(t.unresolved_30d),
+      visitReason: t.visit_reason || null,
+      dateOfBirth: t.guest_dob || null,
     }));
 
   const history: LineDone[] = i.history.map((t) => ({

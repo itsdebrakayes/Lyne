@@ -25,7 +25,7 @@ to `production` and `staging` on 13 October 2026. Old branches are kept only as
 3. **Only promote what has been tested** on `staging` (tests pass; mobile changes checked on a device).
 4. **Demo-only files never enter `production`:** `database/demo_*.sql`, `database/seed.sql`,
    `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md`,
-   `apps/backend/scripts/sync-demo-test-accounts.js`. They live on `staging` and `demo`.
+   `apps/backend/scripts/sync-demo-test-accounts.js`, `apps/backend/scripts/seed-demo-healthcare.js`. They live on `staging` and `demo`.
    If a merge into `production` brings one in (for example as a modify/delete
    conflict), delete it in the merge commit.
 5. **Never commit secrets:** `.env*` (except `.env.example`), `secrets/`, `*.p8`, `*.p12`,

@@ -27,6 +27,7 @@ import {
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import { replayTour } from '../../hooks/useTour';
+import { PatientLine, PatientTags } from './PatientLine';
 
 /* Counter labels are written as "Window 17 - TRN Registration", so pairing one
    with its own service produced "TRN Registration · TRN Registration". Say the
@@ -58,6 +59,19 @@ export type LineTicket = {
   channel?: string | null;
   /** How many times they have been called. Two is a different situation. */
   callCount?: number;
+  /* Healthcare. Server order (position) is the call order; these are what
+     staff weigh when changing it. */
+  position?: number;
+  triageFlag?: 'none' | 'possibly_urgent';
+  triageAnswers?: Array<{ question_id: string; question: string; red_flag: boolean; answer: boolean }>;
+  patientFlags?: Array<'priority' | 'watch'>;
+  flagNote?: string | null;
+  frequentVisitor?: boolean;
+  repeatUnresolved?: boolean;
+  visits7d?: number;
+  unresolved30d?: number;
+  visitReason?: string | null;
+  dateOfBirth?: string | null;
 };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
@@ -109,6 +123,10 @@ export type LineTabData = {
   onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => Promise<void> | void;
   onNoShow?: (ticketId: string) => Promise<void> | void;
   onCallAgain?: (ticketId: string) => Promise<void> | void;
+  /** Put a waiting patient anywhere in the line ('top', 'bottom' or a place). */
+  onMove?: (ticketId: string, to: 'top' | 'bottom' | number) => Promise<void> | void;
+  /** Set or clear the possibly-urgent tag (e.g. for a walk-in). */
+  onSetTriageFlag?: (ticketId: string, flag: 'none' | 'possibly_urgent') => Promise<void> | void;
   /** How many times the person at the window has been called. */
   callCount?: number;
 };
@@ -117,8 +135,11 @@ export type LineTabData = {
 const FX_QUEUE: LineTicket[] = [
   { id: 't1', no: 'TRN-014', name: 'Kemar Lewis', waited: 6, state: 'called' },
   { id: 't2', no: 'TRN-015', name: 'Marcia Grant', waited: 12, state: 'waiting' },
-  { id: 't3', no: 'TRN-016', name: 'Andre Blake', waited: 18, state: 'waiting' },
-  { id: 't4', no: 'TRN-017', name: 'Simone Clarke', waited: 24, state: 'waiting' },
+  { id: 't3', no: 'TRN-016', name: 'Andre Blake', waited: 18, state: 'waiting', triageFlag: 'possibly_urgent',
+    triageAnswers: [{ question_id: 'x1', question: 'Have you hit your head in the last 24 hours?', red_flag: true, answer: true },
+      { question_id: 'x2', question: 'Did you pass out or lose consciousness?', red_flag: true, answer: false }] },
+  { id: 't4', no: 'TRN-017', name: 'Simone Clarke', waited: 24, state: 'waiting', patientFlags: ['priority'],
+    flagNote: 'Sickle cell disease. See promptly for pain crises per care plan.', frequentVisitor: true, visits7d: 3 },
   { id: 't5', no: 'TRN-018', name: 'Devon Hall', waited: 29, state: 'waiting' },
   { id: 't6', no: 'TRN-012', name: 'Patricia Reid', waited: 41, state: 'noresponse' },
 ];
@@ -211,6 +232,19 @@ const INCOMPLETE_REASONS: { value: string; label: string }[] = [
   { value: 'system_issue', label: 'System or payment problem' },
 ];
 
+/* A hospital's reasons a visit ends without the thing the patient came for.
+   Admission and transfer are deliberately absent: they are completed visits. */
+const HEALTHCARE_INCOMPLETE_REASONS: { value: string; label: string }[] = [
+  { value: 'needs_test_first', label: 'Needs a test or imaging first' },
+  { value: 'wrong_documents', label: 'Missing order, referral or paperwork' },
+  { value: 'referred_elsewhere', label: 'Referred to another department or provider' },
+  { value: 'wrong_service', label: 'Needed a different department' },
+  { value: 'rescheduled', label: 'Visit rescheduled' },
+  { value: 'left_before_seen', label: 'Left before seeing a clinician' },
+  { value: 'day_ended', label: 'Department closed for the day' },
+  { value: 'system_issue', label: 'System problem' },
+];
+
 const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy' | 'soon' | 'closed' }> = {
   served: { label: 'Served', kind: 'open' },
   incomplete: { label: 'Incomplete', kind: 'soon' },
@@ -228,6 +262,9 @@ const REASON_LABEL: Record<string, string> = {
   referred_elsewhere: 'referred elsewhere',
   customer_left: 'left part-way',
   system_issue: 'system problem',
+  needs_test_first: 'needs a test first',
+  rescheduled: 'rescheduled',
+  left_before_seen: 'left before seen',
 };
 
 /* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
@@ -390,7 +427,10 @@ export function LineOverviewQX() {
   const waiting = d.queue.filter((t) => t.state === 'waiting' && t.id !== activeId);
   const noAnswer = d.queue.filter((t) => t.state === 'noresponse');
   const active = activeTicket;
-  const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
+  /* The top of the line, in the order the server holds it. This used to be
+     whoever had waited longest, which ignored any reordering: a patient staff
+     had moved to the top would still not be called next. */
+  const next = waiting[0] || null;
   const calls = d.callCount ?? 1;
 
   /**
@@ -910,7 +950,7 @@ export function LineOverviewQX() {
                 <select id="incomplete-reason" value={incompleteReason}
                   onChange={(e) => setIncompleteReason(e.target.value)}>
                   <option value="">Choose a reason…</option>
-                  {INCOMPLETE_REASONS.map((r) => (
+                  {(terms.sector === 'healthcare' ? HEALTHCARE_INCOMPLETE_REASONS : INCOMPLETE_REASONS).map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
@@ -944,15 +984,21 @@ export function LineOverviewQX() {
         title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Line'}<span className="qx-count">{list.length}</span></>}
         cap={view === 'noanswer'
           ? 'They can be called back without taking a new ticket'
-          : 'Longest wait first — the order they will be called in'}
+          : 'The order they will be called in. Drag to move someone; tap for details'}
         tools={<>
           <Seg value={view} onChange={setView}
             options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
+        {view === 'line' && !q ? (
+          <PatientLine items={list} canAct={stage === 'idle'} busy={busy}
+            onCall={(id) => run(() => d.onCall?.(id))}
+            onMove={d.onMove ? (id, to) => run(() => d.onMove?.(id, to)) : undefined}
+            onSetTriageFlag={d.onSetTriageFlag ? (id, f) => run(() => d.onSetTriageFlag?.(id, f)) : undefined} />
+        ) : (
         <div>
           <Table grid={LQ_GRID} columns={['Ticket', 'Joined', 'Channel', 'Waited', '']}
-            items={[...list].sort((a, b) => b.waited - a.waited)}
+            items={view === 'noanswer' ? [...list].sort((a, b) => b.waited - a.waited) : list}
             empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
             renderRow={(t) => (
               <Row key={t.id} grid={LQ_GRID}>
@@ -987,6 +1033,7 @@ export function LineOverviewQX() {
               </Row>
             )} />
         </div>
+        )}
       </Card>
     </div>
   );
@@ -1034,20 +1081,20 @@ export function LineTicketsTab() {
         title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Active Tickets'}<span className="qx-count">{list.length}</span></>}
         cap={view === 'noanswer'
           ? 'They kept their place — calling them back does not need a new ticket'
-          : 'Longest wait first, which is the order they will be called in'}
+          : 'In the order they will be called'}
         tools={<>
           <Seg value={view} onChange={setView}
             options={[['line', `In Line (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
         <Table grid={LTK_GRID} columns={['Ticket', 'Waiting', 'Status', 'Joined']}
-          items={[...list].sort((a, b) => b.waited - a.waited)}
+          items={view === 'noanswer' ? [...list].sort((a, b) => b.waited - a.waited) : list}
           empty={q ? `Nothing matches “${q}”.` : view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
           renderRow={(t) => (
             <Row key={t.id} grid={LTK_GRID}>
               <div className="qx-cellmain">
                 <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
-                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small><PatientTags t={t} /></div>
               </div>
               <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
                 {t.waited}<u> min</u>

@@ -292,7 +292,7 @@ export default function ManagerDashboard() {
     <QxShell
       brand="Lyne"
       brandSub={org}
-      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      nav={NAV.map((n) => ({ key: n.key, label: n.key === 'cases' ? `${terms.visitor.one} Cases` : n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
       notifications={notify.unread}

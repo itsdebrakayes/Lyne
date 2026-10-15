@@ -83,7 +83,7 @@ feature work ──► staging ──(merge when tested)──► production   (
 **Rules** (also in `CLAUDE.md`, which AI coding agents read before committing)
 
 - Never commit to `production` or `demo` directly. If an emergency fix has to go to `production` first, merge it back into `staging` the same day.
-- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md` or `apps/backend/scripts/sync-demo-test-accounts.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
+- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md`, `apps/backend/scripts/sync-demo-test-accounts.js` or `apps/backend/scripts/seed-demo-healthcare.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
 - Do not create real-agency data anywhere public. The demo agencies are named after real Jamaican government bodies (TAJ, PICA, NHT) with whom there is no agreement. They live only on the private demo server and must never reach production or a store reviewer (App Store 5.2.1, Play impersonation policy).
 - Old branches are not deleted outright. They are kept as tags named `archive/<branch>`. The tree as it was before the October 2026 clean-up is tagged `archive/pre-cleanup-2026-10-13`.
 
