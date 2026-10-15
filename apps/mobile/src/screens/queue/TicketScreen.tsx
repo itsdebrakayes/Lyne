@@ -24,6 +24,7 @@ import { TicketPrinter } from '../../components/TicketPrinter';
 import Icon from '../../components/Icon';
 import { Ionicons } from '@expo/vector-icons';
 import TicketPass from '../../components/TicketPass';
+import { UrgentNotice } from '../../components/TriageQuestions';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
@@ -335,6 +336,12 @@ export default function TicketScreen() {
       <TicketPrinter printKey={active ? ticketId : undefined}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32 + lift, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+
+        {/* A red-flag triage answer: they are in the line, but should go to
+            the triage desk now rather than wait. Stays up until they are seen. */}
+        {(ticket as { triage_flag?: string }).triage_flag === 'possibly_urgent' && !inService ? (
+          <View style={{ marginBottom: 14, borderRadius: 18, backgroundColor: '#fff' }}><UrgentNotice /></View>
+        ) : null}
 
         {/* status banner — the one thing that must never be missed */}
         {(called || inService) && (

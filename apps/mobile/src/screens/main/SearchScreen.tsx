@@ -19,6 +19,7 @@ import { colors, font, t, initials, inputReset, waitShort, branchOpenInfo, hours
 import { MatchRank, rankMatch } from '../../lib/fuzzy';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
+import { useDeviceCoords, distanceKm, formatDistance } from '../../lib/deviceLocation';
 import { BranchSummary } from '../../lib/mobileData';
 import { useContentColumn } from '../../lib/stage';
 import { TabBar } from '../../components/TabBar';
@@ -123,7 +124,18 @@ export default function SearchScreen() {
   const [recents, setRecents] = useState<string[]>([]);
   const [bizFilter, setBizFilter] = useState<string | null>(route.params?.businessId ?? null);
   const [openOnly, setOpenOnly] = useState(Boolean(route.params?.openNow));
-  const [nearestFirst, setNearestFirst] = useState(true);
+  /* Nearest first when the phone already shares its location; otherwise
+     shortest wait. Tapping cycles through what is available. */
+  const coords = useDeviceCoords();
+  const [sortBy, setSortBy] = useState<'nearest' | 'wait' | 'az' | null>(null);
+  const sort = sortBy ?? (coords ? 'nearest' : 'wait');
+  const sortCycle: Array<'nearest' | 'wait' | 'az'> = coords ? ['nearest', 'wait', 'az'] : ['wait', 'az'];
+  const SORT_LABEL = { nearest: 'Nearest', wait: 'Shortest wait', az: 'A–Z' } as const;
+  const distanceTo = useCallback((b: BranchSummary) => {
+    const lat = Number(b.latitude); const lng = Number(b.longitude);
+    if (!coords || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
+    return distanceKm(coords, { lat, lng });
+  }, [coords]);
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: branches = [], isLoading, error, refetch } = useQuery({
@@ -188,11 +200,22 @@ export default function SearchScreen() {
         const byRank = (ranked.get(a.id) ?? MatchRank.None) - (ranked.get(b.id) ?? MatchRank.None);
         if (byRank !== 0) return byRank;
       }
-      return nearestFirst
+      if (sort === 'nearest') return (distanceTo(a) ?? Infinity) - (distanceTo(b) ?? Infinity);
+      return sort === 'wait'
         ? Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes)
         : (a.name || '').localeCompare(b.name || '');
     });
-  }, [branches, term, bizFilter, openOnly, nearestFirst]);
+  }, [branches, term, bizFilter, openOnly, sort, distanceTo]);
+
+  /* The single closest branch, badged in the list whatever the sort. */
+  const nearestId = useMemo(() => {
+    let best: { id: string; d: number } | null = null;
+    for (const b of results) {
+      const d = distanceTo(b);
+      if (d !== null && (!best || d < best.d)) best = { id: b.id, d };
+    }
+    return best?.id ?? null;
+  }, [results, distanceTo]);
 
   const openBranch = (b: BranchSummary) => {
     pushRecent(search).then(() => loadRecents().then(setRecents));
@@ -304,9 +327,9 @@ export default function SearchScreen() {
             <Text style={{ fontFamily: font.semibold, fontSize: 17, color: colors.ink }}>
               {filtersActive ? `${results.length} branch${results.length === 1 ? '' : 'es'} found` : 'Every agency on Lyne'}
             </Text>
-            <TouchableOpacity onPress={() => setNearestFirst(v => !v)} accessibilityRole="button" accessibilityLabel={`Sorted by ${nearestFirst ? 'shortest wait' : 'name'}. Tap to change.`}
+            <TouchableOpacity onPress={() => setSortBy(sortCycle[(sortCycle.indexOf(sort) + 1) % sortCycle.length])} accessibilityRole="button" accessibilityLabel={`Sorted by ${SORT_LABEL[sort]}. Tap to change.`}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontFamily: font.semibold, fontSize: 14, color: colors.sub }}>{nearestFirst ? 'Shortest wait' : 'A–Z'}</Text>
+              <Text style={{ fontFamily: font.semibold, fontSize: 14, color: colors.sub }}>{SORT_LABEL[sort]}</Text>
               <Icon name="chevronDown" size={12} color={colors.sub} />
             </TouchableOpacity>
           </View>
@@ -331,8 +354,13 @@ export default function SearchScreen() {
                   <View style={[{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingRight: 16 }, i < results.length - 1 ? sep : null]}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 15, color: colors.ink }}>{b.name}</Text>
+                      {b.id === nearestId && (
+                        <View style={{ alignSelf: 'flex-start', marginTop: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: colors.accent }}>
+                          <Text style={{ fontFamily: font.bold, fontSize: 11, color: colors.accentInk }}>Nearest to you</Text>
+                        </View>
+                      )}
                       <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 2 }}>
-                        {agency} · {isOpen ? info.detail : `Opens ${openTimeLabel(hours)}`}
+                        {distanceTo(b) !== null ? `${formatDistance(distanceTo(b)!)} · ` : ''}{agency} · {isOpen ? info.detail : `Opens ${openTimeLabel(hours)}`}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
