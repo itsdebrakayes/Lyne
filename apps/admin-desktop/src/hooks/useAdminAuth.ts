@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import { API_URL, supabase } from '@/lib/apiClient';
@@ -8,6 +8,17 @@ import type { SectorTerms } from './useSectorTerms';
 import { identifyForMonitoring } from '../lib/monitoring';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
+
+/** The roles this app has a dashboard for. Anything else is refused at sign-in. */
+export const ADMIN_ROLES: readonly string[] = ['line_staff', 'supervisor', 'manager', 'executive'];
+
+/* Valid Lyne logins that belong somewhere else. Accepting them used to land on
+   a route with no dashboard, which redirected to itself forever: a black
+   window that survived a restart, because the session was kept. */
+const ELSEWHERE: Record<string, string> = {
+  kiosk_clerk: 'This is a kiosk login. Sign in to the kiosk on the iPad instead; the admin app is for staff, supervisors, managers and executives.',
+  platform_admin: 'This is a Lyne platform account. It does not have a dashboard in the admin app.',
+};
 
 export interface StaffRecord {
   id: string;
@@ -57,6 +68,9 @@ function timeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
   ]);
 }
 
+/** A real login that is not allowed in this app. The session is signed out. */
+class AccessRefused extends Error {}
+
 async function fetchAdmin(accessToken: string): Promise<AdminData> {
   const response = await fetch(`${API_URL}/auth/me`, {
     headers: {
@@ -72,7 +86,10 @@ async function fetchAdmin(accessToken: string): Promise<AdminData> {
 
   const me = await response.json() as { type: string; record: StaffRecord };
   if (me.type !== 'staff') {
-    throw new Error('This account does not have admin access.');
+    throw new AccessRefused('This is a customer account. Customers use the Lyne app on their phone; the admin app is for staff.');
+  }
+  if (!ADMIN_ROLES.includes(me.record.role_name)) {
+    throw new AccessRefused(ELSEWHERE[me.record.role_name] || 'This account does not have admin access.');
   }
 
   return {
@@ -86,6 +103,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* Survives the sign-out that a refusal triggers, which would otherwise clear
+     the message before the login screen could show it. */
+  const refusedMessage = useRef<string | null>(null);
 
   const applySession = useCallback(async (accessToken: string | null | undefined) => {
     if (!accessToken) {
@@ -93,11 +113,23 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       /* Clear the error-reporting identity on the way out, or the next person
          to sign in on a shared branch terminal inherits the last one's id. */
       identifyForMonitoring(null, null);
-      setError(null);
+      setError(refusedMessage.current);
+      refusedMessage.current = null;
       return;
     }
 
-    const nextAdmin = await fetchAdmin(accessToken);
+    let nextAdmin: AdminData;
+    try {
+      nextAdmin = await fetchAdmin(accessToken);
+    } catch (err) {
+      /* Signed in to Supabase but not allowed here: end that session now, so
+         the next launch opens on a clean login instead of retrying it. */
+      if (err instanceof AccessRefused) {
+        refusedMessage.current = err.message;
+        await supabase.auth.signOut().catch(() => {});
+      }
+      throw err;
+    }
     setAdmin(nextAdmin);
     /* Two opaque ids only — never the email or name that sit beside them on
        this same object. See lib/monitoring.ts. */
