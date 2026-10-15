@@ -268,7 +268,9 @@ async function main() {
     await conn.query(`DELETE FROM branch_targets WHERE business_id = ?`, [BIZ]);
     await conn.query(`DELETE FROM business_targets WHERE business_id = ?`, [BIZ]);
     await conn.query(`DELETE FROM staff WHERE id LIKE 'wf-%' AND supabase_uid IS NULL`);
-    await conn.query(`DELETE FROM users WHERE id LIKE 'wf-usr-%'`);
+    // Seeded patients only: never a login (the patient-*@test.com accounts
+    // share the wf-usr- prefix and are linked to Supabase).
+    await conn.query(`DELETE FROM users WHERE id LIKE 'wf-usr-%' AND supabase_uid IS NULL`);
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
     console.log('Organisation, hospitals and departments…');
