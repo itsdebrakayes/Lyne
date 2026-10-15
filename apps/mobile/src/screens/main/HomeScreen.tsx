@@ -143,7 +143,7 @@ export default function HomeScreen() {
   });
   /* Home recommends only what is within reach: the same country and about
      three hours away (lib/nearby.ts). Search still finds anything by name. */
-  const { list: branches, reach, coords } = useNearby(allBranches);
+  const { list: branches, reach, coords, reachKm } = useNearby(allBranches);
   /* These two used to be destructured for their data alone, so a failure in
      either was completely silent: the agency names quietly went missing from
      the cards, and the bell showed "0 unread" whether there were none or the
@@ -214,12 +214,13 @@ export default function HomeScreen() {
 
   // Branches that are actually OPEN now (by their own hours) rank first — a
   // closed branch's stale low wait must never beat a live line.
-  /* Distance in whole 10-mile bands, so places a few minutes apart still
-     sort by wait, and a hospital an hour closer comes first. */
+  /* Nearest first, in 3-mile bands: two branches a few minutes apart still
+     sort by wait, but a branch an hour away never beats the one down the road
+     because its line is shorter. */
   const milesOff = useCallback((b: BranchSummary) => {
     const lat = Number(b.latitude); const lng = Number(b.longitude);
     if (!coords || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return 0;
-    return Math.floor(distanceKm(coords, { lat, lng }) / 16);
+    return Math.floor(distanceKm(coords, { lat, lng }) / 5);
   }, [coords]);
 
   const sorted = useMemo(() => {
@@ -572,7 +573,7 @@ export default function HomeScreen() {
         {agencyRows.length > 0 && (
           <View style={{ marginTop: 30 }}>
             <RailHead
-              title={reach === 'near' ? 'Agencies near you' : reach === 'country' ? 'Nothing within 200 miles yet' : 'Nothing in your country yet'}
+              title={reach === 'near' ? 'Agencies near you' : reach === 'country' ? `Nothing within ${Math.round(reachKm * 0.621371)} miles yet` : 'Nothing in your country yet'}
               actionLabel="See all"
               onAction={() => navigation.navigate('Search')}
             />

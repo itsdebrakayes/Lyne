@@ -19,15 +19,20 @@ const losAngeles = at('los-angeles', 34.052, -118.244, 'US');
 const all = [kingston, negril, santiagoDeCuba, austin, sanAntonio, losAngeles];
 const ids = (r: { list: BranchSummary[] }) => r.list.map(b => b.id).sort();
 
-test('Montego Bay sees all of Jamaica and nothing in Cuba', () => {
-  const r = nearbyBranches(all, { lat: 18.47, lng: -77.92 }, 'JM');
+const morantBay = at('morant-bay', 17.88, -76.41, 'JM');
+const montegoBay = at('montego-bay', 18.47, -77.92, 'JM');
+
+test('Jamaica reaches about 50 miles: Morant Bay sees Kingston, not Montego Bay or Cuba', () => {
+  const r = nearbyBranches([...all, morantBay, montegoBay], { lat: 17.9, lng: -76.4 }, 'JM');
   assert.equal(r.reach, 'near');
-  assert.deepEqual(ids(r), ['kingston', 'negril']);
+  assert.deepEqual(r.list.map(b => b.id), ['morant-bay', 'kingston']);
+  // The rest of Jamaica is still there for Search, nearest first, and Cuba is not.
+  assert.deepEqual(r.inCountry.map(b => b.id), ['morant-bay', 'kingston', 'montego-bay', 'negril']);
 });
 
 test('Austin sees San Antonio, not Los Angeles or Jamaica', () => {
   const r = nearbyBranches(all, { lat: 30.27, lng: -97.74 }, 'US');
-  assert.deepEqual(ids(r), ['austin', 'san-antonio']);
+  assert.deepEqual(r.list.map(b => b.id), ['austin', 'san-antonio']);
 });
 
 test('nothing within 200 miles falls back to the country, then to everything', () => {

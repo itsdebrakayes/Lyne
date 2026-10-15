@@ -7,7 +7,7 @@ import { BranchSummary } from './mobileData';
 import { useDeviceCoords, useDevicePlace } from './deviceLocation';
 import { nearbyBranches } from './nearbyRule';
 
-export { NEARBY_KM, type Reach } from './nearbyRule';
+export { NEARBY_KM, reachKmFor, type Reach } from './nearbyRule';
 
 function regionFromLocale(): string {
   try {

@@ -178,7 +178,7 @@ function endedWord(status: string): string {
 
 export function TicketPass({
   branchName, serviceName, ticketNumber, joinedAt, endedAt, remainingMinutes,
-  place, ahead, inLine, status, children,
+  place, ahead, inLine, status, children, nowLabel = 'at the counter',
 }: {
   branchName: string;
   serviceName: string;
@@ -191,6 +191,8 @@ export function TicketPass({
   ahead: number;
   inLine: number | null;
   status: string;
+  /** Under "Now" once called: "at the counter", "being seen". */
+  nowLabel?: string;
   /** The stub below the perforation — code, barcode, wallet. */
   children?: React.ReactNode;
 }) {
@@ -247,7 +249,7 @@ export function TicketPass({
               {called ? 'Now' : active ? progress.dueLabel : clockOf(endedAt)}
             </Text>
             <Text style={{ fontFamily: font.semibold, fontSize: 11.5, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
-              {called ? 'at the counter' : active ? 'seen at about' : endedWord(status)}
+              {called ? nowLabel : active ? 'seen at about' : endedWord(status)}
             </Text>
           </View>
         </View>

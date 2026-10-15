@@ -145,10 +145,10 @@ export default function SearchScreen() {
     refetchInterval: 30_000,
   });
 
-  /* Browsing (nothing typed) shows what is within reach, like Home. A typed
-     name searches everywhere: somebody planning a trip can still find a
-     place three states away. */
-  const { list: nearbyList } = useNearby(branches);
+  /* Browsing (nothing typed) shows the whole country, nearest first: the
+     drive from St Thomas to Montego Bay is there if you want it, just not
+     first. A typed name searches everywhere, any country. */
+  const { inCountry: nearbyList } = useNearby(branches);
 
   useEffect(() => { loadRecents().then(setRecents); }, []);
 

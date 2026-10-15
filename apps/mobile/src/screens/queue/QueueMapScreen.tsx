@@ -33,6 +33,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 import EmptyState from '../../components/EmptyState';
+import { usePlaceWords } from '../../lib/placeWords';
 
 type Params = RouteProp<RootStackParamList, 'QueueMap'>;
 
@@ -116,6 +117,7 @@ export default function QueueMapScreen() {
   const { refreshing, onRefresh } = useRefresh(branchQuery.refetch, servicesQuery.refetch);
 
   const branch = branchQuery.data;
+  const words = usePlaceWords(businessId);
   const service = (servicesQuery.data || []).find(s => s.id === serviceId);
 
   const waiting = Math.max(0, Number(service?.waiting_count || 0));
@@ -191,7 +193,7 @@ export default function QueueMapScreen() {
                 {([
                   ['YOUR SPOT', joinState.allowed ? ordinal(waiting + 1) : '—'],
                   ['AHEAD OF YOU', joinState.allowed ? String(waiting) : '—'],
-                  ['COUNTERS OPEN', counters > 0 ? String(counters) : 'None'],
+                  [words.desksOpen, counters > 0 ? String(counters) : 'None'],
                 ] as const).map(([label, value]) => (
                   <View key={label} style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 9.5, color: 'rgba(255,255,255,.5)', letterSpacing: 0.8 }}>{label}</Text>
@@ -274,7 +276,7 @@ export default function QueueMapScreen() {
                       circles — the absence of a person — which is the one thing
                       a queue drawing does not need explained. */}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderSoft }}>
-                    <Legend swatch={colors.accent} label="At the counter" />
+                    <Legend swatch={colors.accent} label={words.beingServed} />
                     <Legend swatch="#101D2E" label="Waiting" />
                     <Legend swatch="#B7C0CE" border="#5F6C7E" label="You'd be here" />
                   </View>

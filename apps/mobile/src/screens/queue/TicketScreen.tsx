@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TicketPass from '../../components/TicketPass';
 import { UrgentNotice } from '../../components/TriageQuestions';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { usePlaceWords } from '../../lib/placeWords';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
@@ -98,6 +99,7 @@ export default function TicketScreen() {
     refetchInterval: 5_000,
   });
   const ticket = ticketQuery.data;
+  const words = usePlaceWords(ticket?.business_id);
   const { refreshing, onRefresh } = useRefresh(activeTicketQuery.refetch, ticketQuery.refetch);
   const queryClient = useQueryClient();
 
@@ -115,12 +117,12 @@ export default function TicketScreen() {
       const where = ticket.branch_name || 'Your branch';
       const incomplete = ticket.readiness_outcome === 'incomplete';
       const banner: Record<string, [string, string] | undefined> = {
-        called: ["You're being called", `${where}: head to the counter and show your code.`],
-        in_service: ["You're at the counter", `${where}: you are being served now.`],
+        called: ["You're being called", `${where}: head to ${words.desk} and show your code.`],
+        in_service: [words.servedTitle, `${where}: ${words.servedBody}`],
         served: incomplete
           ? ['Visit marked incomplete', `${where}: join the line again whenever you are ready.`]
           : ['Visit complete', `${where}: thanks for using Lyne.`],
-        no_show: ['You lost your place in line', `${where}: you were called and did not reach the counter.`],
+        no_show: ['You lost your place in line', `${where}: you were called and did not reach ${words.desk}.`],
         waiting: ['Back in line', `${where}: you are waiting again.`],
       };
       const note = banner[ticket.status];
@@ -357,6 +359,7 @@ export default function TicketScreen() {
           branchName={ticket.branch_name || 'Your branch'}
           serviceName={ticket.service_name || 'Your service'}
           ticketNumber={ticket.ticket_number}
+          nowLabel={words.nowLabel}
           joinedAt={ticket.joined_at}
           endedAt={ticket.completed_at || ticket.called_at}
           remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
@@ -376,7 +379,7 @@ export default function TicketScreen() {
             </View>
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 12, textAlign: 'center', lineHeight: 17 }}>
               {active
-                ? 'Show this code at the counter when your number is called.'
+                ? `Show this code at ${words.desk} when your number is called.`
                 : 'This is the code that was on the ticket. It is kept for your records.'}
             </Text>
 

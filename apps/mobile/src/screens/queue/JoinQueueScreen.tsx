@@ -13,6 +13,7 @@ import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { usePlaceWords } from '../../lib/placeWords';
 import {
   TriageQuestions, UrgentNotice, triageComplete, triagePayload, triageRedFlag, type TriageAnswers, type TriageQuestion,
 } from '../../components/TriageQuestions';
@@ -37,6 +38,7 @@ export default function JoinQueueScreen() {
   const serviceQuery = useQuery({ queryKey: ['service', serviceId], queryFn: () => api.get<ServiceSummary>(`/services/${serviceId}`, false) });
   const queueQuery = useQuery({ queryKey: ['live-queue', branchId, serviceId], queryFn: () => api.get<LiveQueue>(`/queues/live?branch_id=${branchId}&service_id=${serviceId}`, false), refetchInterval: 15_000 });
   const branch = branchQuery.data;
+  const words = usePlaceWords(branch?.business_id);
   const service = serviceQuery.data;
   const liveQueue = queueQuery.data;
   const readiness = service?.readiness || [];
@@ -291,7 +293,7 @@ export default function JoinQueueScreen() {
                 {[
                   { icon: 'ticket-outline', text: 'You get a ticket number and a six-character code straight away.' },
                   { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
-                  { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
+                  { icon: 'shield-checkmark-outline', text: `Show the code at ${words.desk}. It is how staff confirm it is you.` },
                 ].map(step => (
                   <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
                     <Ionicons name={step.icon as any} size={17} color="#143a6e" style={{ marginTop: 1 }} />
