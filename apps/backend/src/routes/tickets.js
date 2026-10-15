@@ -22,6 +22,7 @@
  *   in_service tickets are being served and must NOT be included in the
  *   visible queue count shown to users.
  */
+const { triageQuestionsFor, evaluateTriage } = require('../utils/triage');
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -79,6 +80,12 @@ const joinQueueSchema = z.object({
   queue_id:               z.string().min(1).max(64),
   form_data:              z.record(z.unknown()).optional(),
   readiness_acknowledged: z.boolean().optional(),
+  /* Healthcare triage answers. Required when the department has questions;
+     they add a 'possibly urgent' tag but never change the place in line. */
+  triage_answers: z.array(z.object({
+    question_id: z.string().min(1).max(64),
+    answer: z.boolean(),
+  })).max(20).optional(),
 });
 
 // A kiosk clerk adds a walk-in (someone at the branch without the app). They
@@ -200,7 +207,7 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const { queue_id, form_data, readiness_acknowledged } = parsed.data;
+    const { queue_id, form_data, readiness_acknowledged, triage_answers } = parsed.data;
 
     const [queues] = await conn.query(
       'SELECT * FROM queues WHERE id = ? AND is_active = TRUE FOR UPDATE',
@@ -273,6 +280,11 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
         error: 'Review and confirm the service checklist before joining this queue.',
       });
     }
+    const triage = evaluateTriage(await triageQuestionsFor(conn, queue.service_id), triage_answers);
+    if (!triage.ok) {
+      await conn.rollback();
+      return res.status(400).json({ error: triage.error });
+    }
     const { position, ticketNumber, estimatedWait, verificationCode } = await issueTicketSlot(conn, {
       queueId: queue_id,
       branchId: queue.branch_id,
@@ -297,11 +309,12 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
       // customer app, and the walk-in buffer above depends on that distinction.
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, intake_form_id, ticket_number, verification_code, position, status,
-          estimated_wait_minutes, channel, readiness_shown_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app', ?)`,
+          estimated_wait_minutes, channel, readiness_shown_at, triage_answers, triage_flag)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'app', ?, ?, ?)`,
       [
         ticketId, queue_id, req.dbUser?.id || null, intakeFormId, ticketNumber,
         verificationCode, position, estimatedWait, hasReadinessChecklist ? new Date() : null,
+        triage.answers ? JSON.stringify(triage.answers) : null, triage.flag,
       ]
     );
 
@@ -452,7 +465,36 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
               (SELECT COUNT(*) FROM service_readiness sr
                 WHERE sr.service_id = q.service_id AND sr.is_active = TRUE) AS readiness_item_count,
               u.full_name AS user_name, u.phone AS user_phone,
-              c.label AS counter_label, c.counter_number
+              c.label AS counter_label, c.counter_number,
+              /* Healthcare. The triage tag and answers, any flag staff have
+                 put on the patient, and how often they have been in lately —
+                 the things the person watching the line needs to decide who
+                 to bring forward. Visit counts are ended visits only. */
+              t.triage_flag, t.triage_answers,
+              (SELECT GROUP_CONCAT(DISTINCT pf.flag ORDER BY pf.flag)
+                 FROM patient_flags pf
+                 JOIN branches pb ON pb.business_id = pf.business_id
+                WHERE pf.user_id = t.user_id AND pb.id = q.branch_id AND pf.cleared_at IS NULL) AS patient_flags,
+              (SELECT pf.note FROM patient_flags pf
+                 JOIN branches pb ON pb.business_id = pf.business_id
+                WHERE pf.user_id = t.user_id AND pb.id = q.branch_id AND pf.cleared_at IS NULL
+                ORDER BY pf.created_at DESC LIMIT 1) AS patient_flag_note,
+              (SELECT COUNT(*) FROM queue_tickets v
+                 JOIN queues vq ON vq.id = v.queue_id
+                 JOIN branches vb ON vb.id = vq.branch_id
+                 JOIN branches qb ON qb.id = q.branch_id
+                WHERE t.user_id IS NOT NULL AND v.user_id = t.user_id AND v.id <> t.id
+                  AND vb.business_id = qb.business_id
+                  AND v.status IN ('served','left','cancelled','no_show')
+                  AND v.joined_at >= NOW() - INTERVAL 7 DAY) AS visits_7d,
+              (SELECT COUNT(*) FROM queue_tickets v
+                 JOIN queues vq ON vq.id = v.queue_id
+                 JOIN branches vb ON vb.id = vq.branch_id
+                 JOIN branches qb ON qb.id = q.branch_id
+                WHERE t.user_id IS NOT NULL AND v.user_id = t.user_id AND v.id <> t.id
+                  AND vb.business_id = qb.business_id
+                  AND (v.status IN ('left','cancelled','no_show') OR (v.status = 'served' AND v.closed_reason IS NOT NULL))
+                  AND v.joined_at >= NOW() - INTERVAL 30 DAY) AS unresolved_30d
        FROM queue_tickets t
        JOIN queues q ON q.id = t.queue_id
        LEFT JOIN users u ON t.user_id = u.id
@@ -461,7 +503,13 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
        ORDER BY t.position`,
       [req.params.queue_id]
     );
-    res.json(tickets);
+    res.json(tickets.map((t) => ({
+      ...t,
+      triage_answers: typeof t.triage_answers === 'string' ? JSON.parse(t.triage_answers) : t.triage_answers,
+      patient_flags: t.patient_flags ? String(t.patient_flags).split(',') : [],
+      frequent_visitor: Number(t.visits_7d) >= FREQUENT_VISITS_7D,
+      repeat_unresolved: Number(t.unresolved_30d) >= REPEAT_UNRESOLVED_30D,
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch tickets.' });
@@ -803,7 +851,15 @@ router.get('/:id', requireAuth, requireTicketAccess, async (req, res) => {
 const INCOMPLETE_REASONS = new Set([
   'day_ended', 'wrong_documents', 'wrong_service', 'referred_elsewhere',
   'customer_left', 'system_issue',
+  /* Healthcare. A visit can end without the thing the patient came for for
+     clinical reasons a tax office never has: they need a test or imaging
+     first, they were admitted or transferred, or the appointment had to move. */
+  'needs_test_first', 'admitted', 'transferred', 'rescheduled', 'left_before_seen',
 ]);
+
+/** Frequent-visitor thresholds shown in the line and in Cases. */
+const FREQUENT_VISITS_7D = 3;
+const REPEAT_UNRESOLVED_30D = 2;
 
 const LEAVE_REASONS = new Set([
   'wait_too_long', 'no_longer_needed', 'wrong_line', 'came_back_later', 'served_elsewhere', 'other',
@@ -1302,6 +1358,88 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     res.status(500).json({ error: 'Failed to update ticket status.' });
   } finally {
     conn.release();
+  }
+});
+
+// PUT /api/tickets/:id/move-to — put a waiting ticket at any place in the line
+//
+// body: { to: 'top' | 'bottom' | <1-based place among those waiting>, reason? }
+//
+// Healthcare staff bring a patient forward after reviewing a "possibly urgent"
+// tag. Every move is recorded (who, from where, to where, why) in queue_events,
+// because "who moved this patient and why" is a question a hospital will ask.
+router.put('/:id/move-to', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
+  const { to, reason } = req.body || {};
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[ticket]] = await conn.query(
+      "SELECT * FROM queue_tickets WHERE id = ? AND status = 'waiting' FOR UPDATE", [req.params.id]);
+    if (!ticket) { await conn.rollback(); return res.status(404).json({ error: 'Waiting ticket not found.' }); }
+
+    const [waiting] = await conn.query(
+      "SELECT id, position FROM queue_tickets WHERE queue_id = ? AND status = 'waiting' ORDER BY position ASC FOR UPDATE",
+      [ticket.queue_id]);
+    const order = waiting.map((w) => w.id).filter((id) => id !== ticket.id);
+    const from = waiting.findIndex((w) => w.id === ticket.id) + 1;
+    let index;
+    if (to === 'top') index = 0;
+    else if (to === 'bottom') index = order.length;
+    else if (Number.isInteger(to) && to >= 1) index = Math.min(to - 1, order.length);
+    else { await conn.rollback(); return res.status(400).json({ error: "to must be 'top', 'bottom' or a place number." }); }
+    order.splice(index, 0, ticket.id);
+
+    // Reuse the line's existing position numbers, in order, so nobody outside
+    // the waiting set (called, in service) is disturbed.
+    const slots = waiting.map((w) => w.position).sort((a, b) => a - b);
+    for (let i = 0; i < order.length; i++) {
+      await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [slots[i], order[i]]);
+    }
+    const note = `Moved from place ${from} to place ${index + 1}${reason ? `: ${String(reason).slice(0, 200)}` : ''}`;
+    await conn.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
+       VALUES (?, ?, 'waiting', 'waiting', ?, ?)`,
+      [uuidv4(), ticket.id, req.dbStaff?.id || null, note]);
+    await conn.commit();
+
+    const [[updated]] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
+    const { verification_code: _code, ...staffSafe } = updated;
+    broadcast(ticket.queue_id, staffSafe);
+    res.json(updated);
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to move the ticket.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// PUT /api/tickets/:id/triage-flag — staff set or clear "possibly urgent"
+//
+// For a walk-in who answered nothing in the app, or a tag a clinician has
+// reviewed and wants to clear. Recorded like a move.
+router.put('/:id/triage-flag', requireAuth, requireStaffRole('line_staff', 'manager', 'executive'), requireTicketAccess, async (req, res) => {
+  const flag = req.body?.flag;
+  if (!['none', 'possibly_urgent'].includes(flag)) {
+    return res.status(400).json({ error: "flag must be 'none' or 'possibly_urgent'." });
+  }
+  try {
+    const [r] = await pool.query(
+      "UPDATE queue_tickets SET triage_flag = ? WHERE id = ? AND status IN ('waiting','called','in_service')",
+      [flag, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Live ticket not found.' });
+    await pool.query(
+      `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes)
+       SELECT ?, id, status, status, ?, ? FROM queue_tickets WHERE id = ?`,
+      [uuidv4(), req.dbStaff?.id || null, flag === 'none' ? 'Possibly urgent tag cleared' : 'Tagged possibly urgent by staff', req.params.id]);
+    const [[updated]] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [req.params.id]);
+    const { verification_code: _code, ...staffSafe } = updated;
+    broadcast(updated.queue_id, staffSafe);
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update the tag.' });
   }
 });
 

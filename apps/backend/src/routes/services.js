@@ -7,6 +7,7 @@
  * PUT  /api/services/:id           — update (manager/executive)
  */
 
+const { triageQuestionsFor } = require('../utils/triage');
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -176,6 +177,8 @@ router.get('/:id', async (req, res) => {
       is_mandatory: Boolean(item.is_mandatory),
     }));
     svc.readiness_count = svc.readiness.length;
+    // Healthcare: the department's triage questions, asked when joining.
+    svc.triage_questions = await triageQuestionsFor(pool, req.params.id);
     res.json(svc);
   } catch (err) {
     console.error(err);

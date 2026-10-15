@@ -1231,6 +1231,9 @@ function safeWindowDays(value, fallback = 30) {
   return Number.isFinite(n) && n >= 1 && n <= 365 ? n : fallback;
 }
 
+/** Ended visits in the last seven days that make someone a frequent visitor. */
+const FREQUENT_WEEK = 3;
+
 /** How many unresolved visits before somebody is a case. */
 function safeMinVisits(value, fallback = 3) {
   const n = Math.round(Number(value));
@@ -1266,18 +1269,26 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
               MAX(q.queue_date)                               AS last_visit,
               GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR '|')            AS service_names,
               GROUP_CONCAT(DISTINCT COALESCE(t.closed_reason, t.status)
-                           ORDER BY 1 SEPARATOR '|')                                AS outcomes
+                           ORDER BY 1 SEPARATOR '|')                                AS outcomes,
+              /* Frequent visitors: someone in several times in a week is a
+                 case whether or not each visit was resolved. In a hospital
+                 that is the patient whose condition is not being managed, as
+                 often as it is a process failure. */
+              SUM(q.queue_date >= CURDATE() - INTERVAL 7 DAY)                       AS visits_7d,
+              (SELECT GROUP_CONCAT(DISTINCT pf.flag ORDER BY pf.flag)
+                 FROM patient_flags pf
+                WHERE pf.user_id = u.id AND pf.business_id = b.business_id AND pf.cleared_at IS NULL) AS flags
          FROM queue_tickets t
          JOIN queues   q ON q.id = t.queue_id
          JOIN branches b ON b.id = q.branch_id
          JOIN services s ON s.id = q.service_id
          JOIN users    u ON u.id = t.user_id
         WHERE ${conditions.join(' AND ')}
-        GROUP BY u.id, u.full_name, u.email, u.phone
-       HAVING unresolved >= ?
-        ORDER BY unresolved DESC, last_visit DESC
+        GROUP BY u.id, u.full_name, u.email, u.phone, b.business_id
+       HAVING unresolved >= ? OR visits_7d >= ? OR flags IS NOT NULL
+        ORDER BY (flags IS NOT NULL) DESC, unresolved DESC, visits_7d DESC, last_visit DESC
         LIMIT 100`,
-      [...params, minVisits]
+      [...params, minVisits, FREQUENT_WEEK]
     );
 
     res.json({
@@ -1302,6 +1313,13 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
              process that is failing that person; four different services is a
              person with a lot to do. They need different conversations. */
           pattern: Number(r.services_tried) === 1 ? 'same_service' : 'multiple_services',
+          visits_7d: Number(r.visits_7d || 0),
+          /* Why this person is on the list. More than one can apply. */
+          reasons: [
+            ...(Number(r.unresolved) >= minVisits ? ['repeat_unresolved'] : []),
+            ...(Number(r.visits_7d) >= FREQUENT_WEEK ? ['frequent_this_week'] : []),
+          ],
+          flags: r.flags ? String(r.flags).split(',') : [],
           outcomes: String(r.outcomes || '').split('|').filter(Boolean),
           first_visit: r.first_visit,
           last_visit: r.last_visit,
@@ -1311,6 +1329,79 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
   } catch (error) {
     console.error('customer-cases error:', error);
     res.status(500).json({ error: 'Failed to load customer cases.' });
+  }
+});
+
+/* ── Patient flags ───────────────────────────────────────────────────────
+ *
+ * A flag a member of staff puts on a person, at this organisation only:
+ *   priority — their condition means they should be seen sooner; shown on
+ *              their row in every line they join here.
+ *   watch    — the team wants to notice when they arrive.
+ * Setting and clearing are both recorded with who did it. Flags are never set
+ * by the software itself.
+ */
+const PATIENT_FLAGS = new Set(['priority', 'watch']);
+
+router.get('/customers/:user_id/flags', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const [rows] = await pool.query(
+      `SELECT pf.id, pf.flag, pf.note, pf.created_at, pf.cleared_at,
+              sb.full_name AS set_by, cb.full_name AS cleared_by
+         FROM patient_flags pf
+         LEFT JOIN staff sb ON sb.id = pf.set_by_staff_id
+         LEFT JOIN staff cb ON cb.id = pf.cleared_by_staff_id
+        WHERE pf.user_id = ? AND pf.business_id = ?
+        ORDER BY pf.cleared_at IS NULL DESC, pf.created_at DESC
+        LIMIT 50`,
+      [req.params.user_id, businessId]);
+    res.json({ flags: rows });
+  } catch (error) {
+    console.error('patient flags error:', error);
+    res.status(500).json({ error: 'Failed to load flags.' });
+  }
+});
+
+router.post('/customers/:user_id/flags', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess('body'), async (req, res) => {
+  try {
+    const { flag, note } = req.body || {};
+    const businessId = scopedBusinessId(req, req.body?.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    if (!PATIENT_FLAGS.has(flag)) return res.status(400).json({ error: "flag must be 'priority' or 'watch'." });
+    const [[seen]] = await pool.query(
+      `SELECT 1 AS ok FROM queue_tickets t JOIN queues q ON q.id = t.queue_id JOIN branches b ON b.id = q.branch_id
+        WHERE t.user_id = ? AND b.business_id = ? LIMIT 1`, [req.params.user_id, businessId]);
+    if (!seen) return res.status(404).json({ error: 'This person has no visits here.' });
+    await pool.query(
+      `UPDATE patient_flags SET cleared_at = NOW(), cleared_by_staff_id = ?
+        WHERE user_id = ? AND business_id = ? AND flag = ? AND cleared_at IS NULL`,
+      [req.dbStaff?.id || null, req.params.user_id, businessId, flag]);
+    const id = require('crypto').randomUUID();
+    await pool.query(
+      `INSERT INTO patient_flags (id, business_id, user_id, flag, note, set_by_staff_id) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, businessId, req.params.user_id, flag, note ? String(note).slice(0, 255) : null, req.dbStaff?.id || null]);
+    res.status(201).json({ id, flag });
+  } catch (error) {
+    console.error('set patient flag error:', error);
+    res.status(500).json({ error: 'Failed to set the flag.' });
+  }
+});
+
+router.delete('/customers/:user_id/flags/:flag_id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const [r] = await pool.query(
+      `UPDATE patient_flags SET cleared_at = NOW(), cleared_by_staff_id = ?
+        WHERE id = ? AND user_id = ? AND business_id = ? AND cleared_at IS NULL`,
+      [req.dbStaff?.id || null, req.params.flag_id, req.params.user_id, businessId]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Flag not found.' });
+    res.json({ cleared: true });
+  } catch (error) {
+    console.error('clear patient flag error:', error);
+    res.status(500).json({ error: 'Failed to clear the flag.' });
   }
 });
 

@@ -335,7 +335,8 @@ router.post('/logout', requireAuth, async (req, res) => {
 //                          extracted_passport, extracted_dob, raw_text.
 //                          The most sensitive data in the system. Hard-deleted.
 //   • intake_forms       — free-form submitted data. Hard-deleted.
-//   • queue_tickets      — guest_name / guest_phone survive. Scrubbed, then the
+//   • queue_tickets      — guest_name / guest_phone and triage answers (health
+//                          information) survive. Scrubbed, then the
 //                          row is allowed to anonymise: the agency keeps its
 //                          operational record of "a person was served at 10:04",
 //                          with nothing left tying it to a human.
@@ -389,7 +390,7 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
       await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
-        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL WHERE user_id = ?',
+        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL WHERE user_id = ?',
         [userId]
       );
       await conn.query(
