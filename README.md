@@ -128,7 +128,7 @@ Never committed: `.env` files, `secrets/`, `*.p8`, `*.p12`, keystores, `backups/
 Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL scheme `lyne`. These are permanent once published.
 
 - Browse participating organisations, branches and services; see the live wait before going.
-- Home and Search (before anything is typed) recommend only places within reach: the phone's country, and within 200 miles (`apps/mobile/src/lib/nearbyRule.ts`). A typed name searches everywhere. With nothing in reach, Home falls back to the whole country, then to everything, and says so in the heading.
+- Home and Search (before anything is typed) recommend only places within reach, nearest first: the phone's country, and a distance sized to it (about 50 miles in Jamaica, 200 miles by default; `apps/mobile/src/lib/nearbyRule.ts`). Search before typing lists the whole country, nearest first; a typed name searches everywhere. With nothing in reach, Home falls back to the whole country, then to everything, and says so in the heading. A line or ticket uses its organisation's words (`lib/placeWords.ts`): a hospital patient is "being seen", not "at the counter".
 - Join a line remotely, get a numbered ticket, watch position and estimated wait, get notified when called.
 - **Lyne Helper**: recommends good times to visit, can join a line on the customer's behalf, or watch a recommended window and join automatically. "Let people pass if I'm late" gives the place to whoever is behind, up to three turns.
 - Plan your visit, busy-times heatmap, week planner (driven by the model worker).
