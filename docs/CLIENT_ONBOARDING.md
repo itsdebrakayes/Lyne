@@ -14,7 +14,7 @@ Legend: **[R]** required to go live · [O] optional/nice-to-have · ⚠️ = sys
 
 ### A. Company & brand (→ `businesses`)
 - **[R] Legal/display name** — how it appears in the app (e.g. "Tax Administration Jamaica")
-- **[R] Short name / abbreviation** — the 3–4 letter tag shown in badges (e.g. "TAJ")
+- **[R] Short name / abbreviation** — the 3–5 letter tag shown on the app's tiles (e.g. "TAJ"); stored as `businesses.short_name`
 - **[R] Slug** — url-safe id (e.g. `taj`); we set this, confirm with them
 - **[R] Logo assets** ⚠️ — square icon **and** horizontal lockup; SVG preferred, or PNG with transparent background, min 512×512; light + dark versions if they have them
 - [O] Brand color(s) — hex codes ⚠️ (app currently uses QMe cyan; per-client color is a white-label feature we don't store yet)
@@ -128,7 +128,7 @@ TARGETS (optional, exec goals)
 6. **Create counters** per branch and map services to them.
 7. **Provision staff logins** — for each staff member: create a Supabase Auth user (their email), then create the `staff` row linked by `supabase_uid`, role, branch, assigned service. (See the `setup-test-users` Supabase function pattern.)
 8. **Set targets** — either you seed defaults or the client's executive sets them in the dashboard.
-9. **Add the agency to the Help centre** — hours, per-service documents, JP rules (`apps/mobile/src/lib/helpContent.ts`).
+9. **Add the agency to the Help centre** — hours, per-service documents, JP rules, as `help_guide` on the business (`PUT /api/businesses/:id`; shape in migration 040). No app release needed.
 10. **Smoke-test** the whole flow (Part 4) before handing over credentials.
 11. **Hand over** — send the executive/manager their desktop app + credentials; brief them.
 
@@ -184,4 +184,4 @@ TARGETS (optional, exec goals)
 2. **Logo/asset upload** ⚠️ — `logo_url` exists but there's no upload flow; wire Supabase storage + an admin upload.
 3. **Self-serve org onboarding** — provisioning is manual (SQL/scripts). A "platform_admin" onboarding screen in the desktop app would make this repeatable and less error-prone.
 4. **White-label branding** — app uses fixed QMe cyan; no per-business color/theme stored. Decide if clients get their own themed app or just their logo inside QMe's app.
-5. **Help-centre content per client** — currently hardcoded in `helpContent.ts`; consider moving to the DB so onboarding a client's FAQ doesn't need a code change.
+5. ~~**Help-centre content per client**~~ — done: `businesses.help_guide` and `businesses.short_name` (migration 040). Nothing about a client is built into the app any more.

@@ -501,6 +501,8 @@ The organisation **quote estimator** reads one price list, `apps/website/src/lib
 
 Organisations are created by a `platform_admin` through the API; there is no admin console for this yet.
 
+Nothing about an organisation is built into the mobile app, so onboarding never needs a store release. Its tile acronym is `businesses.short_name` and its Help-centre guide (hours, documents, JP rules) is `businesses.help_guide`, both set through `POST`/`PUT /api/businesses` (migration 040). Without a short name the app shows the name's initials; without a guide the organisation is not listed in Help.
+
 ---
 
 ## 23. Where the other documents are

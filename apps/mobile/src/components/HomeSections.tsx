@@ -191,11 +191,11 @@ export function BranchCard({
                 numberOfLines={1}
                 style={{
                   fontFamily: font.extra,
-                  fontSize: orgAcronym(branch.business_id, branch.business_name).length >= 5 ? 11 : 13,
+                  fontSize: orgAcronym(branch.business_short_name, branch.business_name).length >= 5 ? 11 : 13,
                   color: colors.accent,
                 }}
               >
-                {orgAcronym(branch.business_id, branch.business_name)}
+                {orgAcronym(branch.business_short_name, branch.business_name)}
               </Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>

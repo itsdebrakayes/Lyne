@@ -43,6 +43,7 @@ interface BusinessDetail {
   id: string;
   name: string;
   slug?: string;
+  short_name?: string | null;
   sector?: string | null;
   description?: string | null;
   phone?: string | null;
@@ -184,7 +185,7 @@ export default function BusinessScreen() {
     : null;
 
   const name = business?.name || businessName;
-  const acronym = orgAcronym(businessId, name);
+  const acronym = orgAcronym(business?.short_name, name);
   const sector = business?.sector ? (SECTOR_LABEL[business.sector] || 'Service') : null;
   const hours = hourFacts(business?.default_opening_time, business?.default_closing_time);
 

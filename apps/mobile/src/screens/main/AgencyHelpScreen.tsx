@@ -3,14 +3,17 @@
  * with the documents to bring and whether a Justice of the Peace stamp is
  * needed, plus a "good to know" note. Content buckets, no chatbot.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LayoutAnimation, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow, t } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import Icon from '../../components/Icon';
-import { agencyGuide, AgencyService } from '../../lib/helpContent';
+import { AgencyService, GuideSource, guideFromBusiness } from '../../lib/helpContent';
+import { orgAcronym } from '../../lib/mobileData';
+import api from '../../lib/apiClient';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -65,7 +68,18 @@ export default function AgencyHelpScreen() {
   const topPad = useTopPad(14);
   const lift = useNavBarLift();
   const route = useRoute<RouteProp<RootStackParamList, 'AgencyHelp'>>();
-  const guide = agencyGuide(route.params?.slug);
+  /* The guide is the organisation's help_guide in the database (migration 040),
+     from the same request Help and Home already made. */
+  const { data: businesses, isLoading } = useQuery({
+    queryKey: ['mobile-businesses'],
+    queryFn: () => api.get<GuideSource[]>('/businesses', false),
+  });
+  const guide = useMemo(() => {
+    const b = (businesses || []).find(x => x.slug === route.params?.slug);
+    return b ? guideFromBusiness(b, orgAcronym(b.short_name, b.name)) : null;
+  }, [businesses, route.params?.slug]);
+
+  if (isLoading) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   if (!guide) {
     return (
@@ -112,8 +126,12 @@ export default function AgencyHelpScreen() {
         {guide.services.map(s => <ServiceBucket key={s.name} service={s} />)}
 
         {/* good to know */}
-        <Text style={SECTION}>Good to know</Text>
-        <FaqBucket q="Tips for this agency" defaultOpen><FaqAnswer>{guide.general}</FaqAnswer></FaqBucket>
+        {!!guide.general && (
+          <>
+            <Text style={SECTION}>Good to know</Text>
+            <FaqBucket q="Tips for this agency" defaultOpen><FaqAnswer>{guide.general}</FaqAnswer></FaqBucket>
+          </>
+        )}
 
         <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.faint, lineHeight: 18, marginTop: 16, textAlign: 'center' }}>
           Requirements are a guide and can change. Confirm the latest with {guide.short} before you travel.

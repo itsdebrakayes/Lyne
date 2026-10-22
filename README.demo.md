@@ -32,6 +32,7 @@ The demo overlay loads into `demo-db`:
 - `database/seed.sql` (legacy TAJ, NHT, and PICA fixtures)
 - `database/demo_active_seed.sql` (live queues and tickets)
 - `database/demo_credit_union_seed.sql` (fictional Community First pilot, approved-style readiness lists, and incomplete-visit outcomes)
+- `database/demo_help_guides.sql` (short names and Help-centre guides for the demo agencies; updates only, safe to re-run on an existing demo database after migration 040)
 
 Then link the Supabase test accounts and refresh the queue dates to today:
 

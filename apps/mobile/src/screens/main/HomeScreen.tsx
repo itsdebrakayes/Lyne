@@ -276,7 +276,7 @@ export default function HomeScreen() {
           seen.set(b.business_id, {
             id: b.business_id,
             label: b.business_name,
-            acronym: orgAcronym(b.business_id, b.business_name),
+            acronym: orgAcronym(b.business_short_name, b.business_name),
             open,
           });
         } else if (open) {
@@ -599,8 +599,8 @@ export default function HomeScreen() {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderRadius: 20, padding: 14, ...shadow.card }}
                     >
                       <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_id, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
-                          {orgAcronym(best.business_id, best.business_name)}
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_short_name, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
+                          {orgAcronym(best.business_short_name, best.business_name)}
                         </Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>

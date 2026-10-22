@@ -5,6 +5,9 @@
  * GET  /api/businesses/:slug     — get one business by slug (public)
  * POST /api/businesses           — create (executive only)
  * PUT  /api/businesses/:id       — update (executive only)
+ *
+ * short_name and help_guide (migration 040) are what the app shows on tiles and
+ * in the Help centre, so a new organisation needs no app release.
  */
 
 const router = require('express').Router();
@@ -67,15 +70,16 @@ router.get('/:slug', async (req, res) => {
 // Create business — executive only
 router.post('/', requireAuth, requireStaffRole('platform_admin'), validate(schemas.createBusiness), async (req, res) => {
   try {
-    const { name, slug, description, logo_url, website_url, phone, email, subscription_tier_id } = req.body;
+    const { name, slug, short_name, description, help_guide, logo_url, website_url, phone, email, subscription_tier_id } = req.body;
     if (!name || !slug || !subscription_tier_id) {
       return res.status(400).json({ error: 'name, slug, and subscription_tier_id are required.' });
     }
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO businesses (id, name, slug, description, logo_url, website_url, phone, email, subscription_tier_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, name, slug, description || null, logo_url || null, website_url || null, phone || null, email || null, subscription_tier_id]
+      `INSERT INTO businesses (id, name, slug, short_name, description, help_guide, logo_url, website_url, phone, email, subscription_tier_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, name, slug, short_name || null, description || null, help_guide ? JSON.stringify(help_guide) : null,
+       logo_url || null, website_url || null, phone || null, email || null, subscription_tier_id]
     );
     const [created] = await pool.query('SELECT * FROM businesses WHERE id = ?', [id]);
     res.status(201).json(created[0]);
@@ -88,14 +92,16 @@ router.post('/', requireAuth, requireStaffRole('platform_admin'), validate(schem
 // Update business — executive only
 router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'), validate(schemas.updateBusiness), async (req, res) => {
   try {
-    const { name, description, logo_url, website_url, phone, email, subscription_tier_id, is_active } = req.body;
+    const { name, short_name, description, help_guide, logo_url, website_url, phone, email, subscription_tier_id, is_active } = req.body;
     if (!assertBusinessAccess(req, req.params.id)) {
       return res.status(403).json({ error: 'You do not have access to this business.' });
     }
     await pool.query(
       `UPDATE businesses SET
          name                 = COALESCE(?, name),
+         short_name           = COALESCE(?, short_name),
          description          = COALESCE(?, description),
+         help_guide           = COALESCE(?, help_guide),
          logo_url             = COALESCE(?, logo_url),
          website_url          = COALESCE(?, website_url),
          phone                = COALESCE(?, phone),
@@ -104,7 +110,8 @@ router.put('/:id', requireAuth, requireStaffRole('executive', 'platform_admin'),
          is_active            = COALESCE(?, is_active),
          updated_at           = NOW()
        WHERE id = ?`,
-      [name, description, logo_url, website_url, phone, email, subscription_tier_id, is_active, req.params.id]
+      [name, short_name, description, help_guide ? JSON.stringify(help_guide) : null,
+       logo_url, website_url, phone, email, subscription_tier_id, is_active, req.params.id]
     );
     const [updated] = await pool.query('SELECT * FROM businesses WHERE id = ?', [req.params.id]);
     res.json(updated[0]);

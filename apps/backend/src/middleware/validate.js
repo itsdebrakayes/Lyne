@@ -27,6 +27,21 @@ function validate(schema) {
 }
 
 // ── Shared schemas ────────────────────────────────────────────
+/* A Help-centre guide (migration 040), in the shape AgencyHelpScreen reads.
+   Bounded so a mistake in an admin tool cannot put a megabyte of JSON on a row
+   every anonymous caller downloads. */
+const helpGuideSchema = z.object({
+  hours:     z.string().max(200),
+  hoursNote: z.string().max(400).optional(),
+  general:   z.string().max(2000).optional(),
+  services:  z.array(z.object({
+    name:       z.string().min(1).max(200),
+    documents:  z.array(z.string().max(300)).max(20),
+    jp:         z.string().max(600),
+    jpRequired: z.boolean(),
+  })).max(30),
+});
+
 const schemas = {
   // Auth
   /* No national_id or trn: identification is kept in the device keychain by the
@@ -51,7 +66,9 @@ const schemas = {
   createBusiness: z.object({
     name:                 z.string().min(1).max(255),
     slug:                 z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, 'slug must be lowercase alphanumeric with hyphens'),
+    short_name:           z.string().min(1).max(12).optional(),
     description:          z.string().max(1000).optional(),
+    help_guide:           helpGuideSchema.optional(),
     logo_url:             z.string().url().optional(),
     website_url:          z.string().url().optional(),
     phone:                z.string().max(50).optional(),
@@ -228,7 +245,9 @@ const schemas = {
 
   updateBusiness: z.object({
     name:                 z.string().min(1).max(255).optional(),
+    short_name:           z.string().min(1).max(12).optional(),
     description:          z.string().max(1000).optional(),
+    help_guide:           helpGuideSchema.optional(),
     logo_url:             z.string().url().optional(),
     website_url:          z.string().url().optional(),
     phone:                z.string().max(50).optional(),
