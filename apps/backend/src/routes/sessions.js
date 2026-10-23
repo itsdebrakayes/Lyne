@@ -621,7 +621,12 @@ async function checkIn(req, res, channel) {
     if (registration.status === 'checked_in' && registration.queue_ticket_id) {
       const [[ticket]] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [registration.queue_ticket_id]);
       await conn.commit();
-      return res.status(200).json({ already_checked_in: true, registration_id: registration.id, ticket });
+      // The ticket only carries appointment_at when the slot was honoured, so
+      // the second press shows the same "Appointment at" as the first.
+      const appointment = ticket?.appointment_at && registration.appointment_time
+        ? { time: slotLabel(registration.appointment_time), timing: 'on_time', message: null }
+        : null;
+      return res.status(200).json({ already_checked_in: true, registration_id: registration.id, ticket, appointment });
     }
 
     // Check-in is a same-day act by definition: it puts you in TODAY's line.

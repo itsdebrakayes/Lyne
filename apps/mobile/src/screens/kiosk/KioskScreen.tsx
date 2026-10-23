@@ -691,7 +691,11 @@ function Booking({ code, setCode, busy, error, onBack, onDone, kx }: {
     >
       <TextInput
         value={code}
-        onChangeText={(t) => setCode(t.toUpperCase().slice(0, 12))}
+        /* Not upper-cased here. Rewriting the value on every keystroke fights
+           the iOS keyboard and drops or repeats letters ("PBKK173" for
+           PBK-1730). The keyboard is already in capitals, the text is shown in
+           capitals below, and the server ignores case. */
+        onChangeText={(t) => setCode(t.slice(0, 12))}
         placeholder="Touch to type"
         placeholderTextColor={colors.muted}
         autoCapitalize="characters"
@@ -703,6 +707,7 @@ function Booking({ code, setCode, busy, error, onBack, onDone, kx }: {
           minHeight: 84, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
           backgroundColor: colors.surface, paddingHorizontal: 22,
           fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 26, color: colors.ink, letterSpacing: 4,
+          textTransform: 'uppercase',
         }}
       />
       {!!error && (
@@ -742,9 +747,9 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
             <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 16, color: '#fff' }}>You're In The Line</Text>
           </View>
 
-          <Text style={{
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{
             fontFamily: font.extra, fontSize: kx.wide ? kx.s(90) : 60, color: '#fff',
-            letterSpacing: -2.6, marginTop: 18,
+            letterSpacing: -2.6, marginTop: 18, alignSelf: 'stretch', textAlign: 'center',
           }}>
             {ticket.ticket_number}
           </Text>

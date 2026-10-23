@@ -348,7 +348,7 @@ export default function SessionScreen() {
             <Text style={{ fontFamily: font.medium, fontSize: 12.5, lineHeight: 19, color: colors.muted }}>
               If you were booked by phone or at the desk, type the code you were given to check yourself in.
             </Text>
-            <Field label="Check-in code" value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="e.g. PBK-1030" autoCapitalize="characters" />
+            <Field label="Check-in code" value={code} onChange={setCode} placeholder="e.g. PBK-1030" autoCapitalize="characters" />
             {checkInError ? <Problem text={checkInError} /> : null}
             <Press role="button" haptic label="Check in" disabled={!code.trim() || busy === 'checkin'}
               onPress={() => checkIn(code)}
