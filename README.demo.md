@@ -63,7 +63,8 @@ exist in two places, and the difference matters:
   ```
 
   officer/officer2/officer3 are line staff seated at a desk, supervisor and
-  supervisor2 are branch supervisors, then the manager and the executive. Seats
+  supervisor2 are branch supervisors, then the manager and the executive. The kiosk iPad's login (`kiosk-hospital@test.com`) moves with them, to that
+  organisation's front desk. Seats
   are per day, so run it again on the morning of a demo.
 
 To show the demo server in an installed app, use **Lyne Admin Demo** (built with
@@ -80,7 +81,10 @@ A fictional Jamaican commercial bank for the bank demos (`database/demo_bank_see
 loaded by the installer and the daily refresh after migrations 040 and 041). Three
 branches with real banking hours, six services with what-to-bring lists, live lines,
 incomplete visits, and two Saturday sessions (Saturday Banking, and a loan clinic
-gated by an approved list). The wording is the `banking` sector's: Clients, Banking
+gated by an approved list). It also carries four weeks of history from 30 fictional clients, so Client
+Cases has seven real stories in it (documents, a held pension, a card dispute,
+a loan applicant, a returnee, a busy business owner, remittance outages) and
+every teller and officer has visits to show. The wording is the `banking` sector's: Clients, Banking
 Officers, Departments. The full brief is `docs/demo/SCOTIABANK_DEMO_BRIEF.md`.
 
 **Appointments** (migration 042). The weekday session *Personal Banking Appointments, Half Way Tree* holds 14 bookings, one every half hour from 09:00 to 15:30, each with check-in code `PBK-HHMM` (`PBK-1030` is the 10:30). Check in the slot nearest the clock, either from the session's check-in box in the admin app or on the phone (Lignum Bank → Book & check in → the appointments session → Already have a code?): it goes to the front of Account Opening, ahead of the walk-ins, and the phone opens the live ticket. A code checked in more than 15 minutes early is refused with the time check-in opens; more than 10 minutes late joins in the usual order. The Saturday loan clinic's approved list also carries times (10:00 to 12:45).

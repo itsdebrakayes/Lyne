@@ -54,6 +54,10 @@ const PERSONAS = [
   { key: 'supervisor2', id: 'stf-review-demo-sp2', email: 'demo.supervisor2@uselyne.com',  code: 'DEMO-SUP-002',   role: 'role-supervisor-001' },
   { key: 'manager',     id: 'stf-review-demo-mgr', email: 'demo.manager@uselyne.com',      code: 'DEMO-MGR-001',   role: 'role-mgr-001' },
   { key: 'executive',   id: 'stf-review-demo-exe', email: 'demo.executive@uselyne.com',    code: 'DEMO-EXEC-001',  role: 'role-exec-001' },
+  /* The front-desk kiosk (the iPad). Its own row, so the hospital seed's
+     kiosk rows are never repurposed; the login is the one the kiosk iPad is
+     already signed in with. */
+  { key: 'kiosk',       id: 'stf-demo-kiosk',      email: 'kiosk-hospital@test.com',       code: 'DEMO-KIOSK-001', role: 'role-kiosk-001' },
 ];
 
 /* Per organisation: where each persona sits, what they serve, and a name that
@@ -69,6 +73,7 @@ const PROFILES = {
     supervisor2: { name: 'Damion Richards',   branch: 'br-lgb-nkg', service: 'svc-lgb-teller' },
     manager:     { name: 'Andrea Henry',      branch: 'br-lgb-hwt', service: null },
     executive:   { name: 'Michelle Tomlinson', branch: null,        service: null },
+    kiosk:       { name: 'Half Way Tree Front Desk', branch: 'br-lgb-hwt', service: null },
   },
   creditunion: {
     label: 'Community First Credit Union',
@@ -80,6 +85,7 @@ const PROFILES = {
     supervisor2: { name: 'Damion Reid',       branch: 'br-cfcu-por', service: 'svc-cfcu-loan' },
     manager:     { name: 'Suzette Clarke',    branch: 'br-cfcu-hwt', service: null },
     executive:   { name: 'Michael Aarons',    branch: null,          service: null },
+    kiosk:       { name: 'Member Centre Front Desk', branch: 'br-cfcu-hwt', service: null },
   },
   court: {
     label: 'Traffic Court',
@@ -91,6 +97,7 @@ const PROFILES = {
     supervisor2: { name: 'Owen Campbell',      branch: 'br-court-melb', service: 'svc-court-pay' },
     manager:     { name: 'Everton Brissett',   branch: 'br-court-camp', service: null },
     executive:   { name: 'Carlton Bailey',     branch: null,            service: null },
+    kiosk:       { name: 'Camp Road Front Desk', branch: 'br-court-camp', service: null },
   },
   hospital: {
     label: 'Wrenfield Health (hospital demos)',
@@ -102,6 +109,7 @@ const PROFILES = {
     supervisor2: { name: 'Dana Whitfield',    branch: 'wf-brn-brannock', service: 'wf-svc-ed' },
     manager:     { name: 'Gregory Dalton',    branch: 'wf-brn-ellery',   service: null },
     executive:   { name: 'Dr. Helena Marsh',  branch: null,              service: null },
+    kiosk:       { name: 'Medical Center Front Desk', branch: 'wf-brn-ellery', service: null },
   },
   /* Exactly production. */
   blueharbour: {
@@ -114,6 +122,7 @@ const PROFILES = {
     supervisor2: { name: 'Supervisor Two (Collections and Payments)', branch: 'brn-review-demo-0001', service: 'svc-review-demo-doc' },
     manager:     { name: 'Branch Manager',             branch: 'brn-review-demo-0001', service: null },
     executive:   { name: 'Executive',                  branch: null,                   service: null },
+    kiosk:       { name: 'Main Office Front Desk', branch: 'brn-review-demo-0001', service: null },
   },
 };
 

@@ -465,3 +465,198 @@ FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNI
 INSERT INTO saved_businesses (user_id, business_id)
 SELECT id, 'biz-lgb-001' FROM users WHERE id LIKE 'usr-demo-%' OR id = 'usr-test-mobile'
 ON DUPLICATE KEY UPDATE saved_at = saved_at;
+
+-- =============================================================
+-- History: four weeks of finished visits by registered clients
+--
+-- So Client Cases and the Customers directory have people in them, and every
+-- teller and officer (the demo.*@uselyne.com personas included) has a served
+-- history. Seven clients carry the stories a bank recognises: sent home three
+-- times for documents, a pensioner whose payment is held, a card dispute
+-- bounced between desks, a loan applicant, a returnee re-verifying identity, a
+-- busy business owner who is fine, and repeated remittance outages.
+--
+-- Generated (deterministic) by a script; dates are relative to the day the
+-- seed runs. Visits attach to whatever line exists for that branch, service and
+-- day, so a line the server opened on its own that day is reused, not clashed.
+-- Fictional people; emails use the reserved example domain.
+-- =============================================================
+
+-- The three demo officer personas served some of this history. On a fresh
+-- demo database they do not exist until scripts/demo-switch.sh runs, so create
+-- them here as Lignum staff if missing; demo-switch takes over from there.
+INSERT IGNORE INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, assigned_service_id, availability_status, is_active) VALUES
+  ('stf-review-demo-ln1', 'biz-lgb-001', 'br-lgb-hwt', 'role-staff-001', 'DEMO-STAFF-001', 'Shanelle Grant', 'demo.officer@uselyne.com',  'svc-lgb-teller', 'active', TRUE),
+  ('stf-review-demo-ln2', 'biz-lgb-001', 'br-lgb-hwt', 'role-staff-001', 'DEMO-STAFF-002', 'Marcus Walters', 'demo.officer2@uselyne.com', 'svc-lgb-acct',   'active', TRUE),
+  ('stf-review-demo-ln3', 'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001', 'DEMO-STAFF-003', 'Alicia Bryan',   'demo.officer3@uselyne.com', 'svc-lgb-teller', 'active', TRUE);
+
+INSERT INTO users (id, email, full_name, phone) VALUES
+  ('usr-lgb-c01', 'kerry-ann.thompson@client.lignum.example', 'Kerry-Ann Thompson', '876-555-4001'),
+  ('usr-lgb-c02', 'beverley.walters@client.lignum.example', 'Beverley Walters', '876-555-4002'),
+  ('usr-lgb-c03', 'oneil.bryan@client.lignum.example', 'Oneil Bryan', '876-555-4003'),
+  ('usr-lgb-c04', 'tamara.lewis@client.lignum.example', 'Tamara Lewis', '876-555-4004'),
+  ('usr-lgb-c05', 'winston.clarke@client.lignum.example', 'Winston Clarke', '876-555-4005'),
+  ('usr-lgb-c06', 'shernette.palmer@client.lignum.example', 'Shernette Palmer', '876-555-4006'),
+  ('usr-lgb-c07', 'desmond.reid@client.lignum.example', 'Desmond Reid', '876-555-4007'),
+  ('usr-lgb-c08', 'andre.gayle@client.lignum.example', 'Andre Gayle', '876-555-4008'),
+  ('usr-lgb-c09', 'nadia.blake@client.lignum.example', 'Nadia Blake', '876-555-4009'),
+  ('usr-lgb-c10', 'kemar.wisdom@client.lignum.example', 'Kemar Wisdom', '876-555-4010'),
+  ('usr-lgb-c11', 'simone.case@client.lignum.example', 'Simone Case', '876-555-4011'),
+  ('usr-lgb-c12', 'racquel.dixon@client.lignum.example', 'Racquel Dixon', '876-555-4012'),
+  ('usr-lgb-c13', 'garfield.mckenzie@client.lignum.example', 'Garfield McKenzie', '876-555-4013'),
+  ('usr-lgb-c14', 'sherika.morgan@client.lignum.example', 'Sherika Morgan', '876-555-4014'),
+  ('usr-lgb-c15', 'dale.robinson@client.lignum.example', 'Dale Robinson', '876-555-4015'),
+  ('usr-lgb-c16', 'marsha.stewart@client.lignum.example', 'Marsha Stewart', '876-555-4016'),
+  ('usr-lgb-c17', 'kevin.williams@client.lignum.example', 'Kevin Williams', '876-555-4017'),
+  ('usr-lgb-c18', 'tanya.brown@client.lignum.example', 'Tanya Brown', '876-555-4018'),
+  ('usr-lgb-c19', 'patrice.hall@client.lignum.example', 'Patrice Hall', '876-555-4019'),
+  ('usr-lgb-c20', 'leroy.smith@client.lignum.example', 'Leroy Smith', '876-555-4020'),
+  ('usr-lgb-c21', 'nicola.barrett@client.lignum.example', 'Nicola Barrett', '876-555-4021'),
+  ('usr-lgb-c22', 'courtney.daley@client.lignum.example', 'Courtney Daley', '876-555-4022'),
+  ('usr-lgb-c23', 'yvonne.ennis@client.lignum.example', 'Yvonne Ennis', '876-555-4023'),
+  ('usr-lgb-c24', 'errol.bailey@client.lignum.example', 'Errol Bailey', '876-555-4024'),
+  ('usr-lgb-c25', 'donna.wright@client.lignum.example', 'Donna Wright', '876-555-4025'),
+  ('usr-lgb-c26', 'kirk.allen@client.lignum.example', 'Kirk Allen', '876-555-4026'),
+  ('usr-lgb-c27', 'wayne.henry@client.lignum.example', 'Wayne Henry', '876-555-4027'),
+  ('usr-lgb-c28', 'janelle.grant@client.lignum.example', 'Janelle Grant', '876-555-4028'),
+  ('usr-lgb-c29', 'ricardo.spence@client.lignum.example', 'Ricardo Spence', '876-555-4029'),
+  ('usr-lgb-c30', 'monique.francis@client.lignum.example', 'Monique Francis', '876-555-4030')
+ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), phone = VALUES(phone);
+
+DROP TEMPORARY TABLE IF EXISTS _lgb_hist;
+CREATE TEMPORARY TABLE _lgb_hist (
+  tid VARCHAR(36), user_id VARCHAR(36), branch_id VARCHAR(36), service_id VARCHAR(36), prefix VARCHAR(5),
+  d INT, hh TIME, wait_min INT, svc_min INT, status VARCHAR(20), closed_reason VARCHAR(40), note VARCHAR(255),
+  staff_id VARCHAR(36), counter_id VARCHAR(36), channel VARCHAR(10), code VARCHAR(6), pos INT);
+INSERT INTO _lgb_hist VALUES
+  ('t-lgbh-0001', 'usr-lgb-c18', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 26, '11:05:00', 10, 3, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1', 'app', 'KWMKH3', 201),
+  ('t-lgbh-0002', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 26, '11:25:00', 17, 21, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'walk_in', 'FGWQN6', 202),
+  ('t-lgbh-0003', 'usr-lgb-c20', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 26, '14:05:00', 32, 43, 'served', NULL, NULL, 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'walk_in', 'UP9H77', 203),
+  ('t-lgbh-0004', 'usr-lgb-c08', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 25, '09:25:00', 26, 8, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'app', 'QN3YGE', 204),
+  ('t-lgbh-0005', 'usr-lgb-c30', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 24, '12:25:00', 6, 10, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-tel-2', 'app', 'RQVFJF', 205),
+  ('t-lgbh-0006', 'usr-lgb-c04', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 24, '13:15:00', 10, 40, 'served', 'wrong_documents', 'Only two of the three payslips.', 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'app', 'DWAP6U', 206),
+  ('t-lgbh-0007', 'usr-lgb-c11', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 24, '13:15:00', 14, 6, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'walk_in', 'MRTRW6', 207),
+  ('t-lgbh-0008', 'usr-lgb-c29', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 23, '11:50:00', 47, 7, 'no_show', NULL, NULL, NULL, NULL, 'app', '6JYHWT', 208),
+  ('t-lgbh-0009', 'usr-lgb-c09', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 23, '14:40:00', 22, 3, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'kiosk', '7CU4MW', 209),
+  ('t-lgbh-0010', 'usr-lgb-c12', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 22, '10:05:00', 42, 10, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'walk_in', 'WFXGJX', 210),
+  ('t-lgbh-0011', 'usr-lgb-c30', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 22, '12:15:00', 12, 9, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1', 'kiosk', 'EATNP4', 211),
+  ('t-lgbh-0012', 'usr-lgb-c14', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 22, '14:05:00', 32, 20, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'walk_in', 'KM7UPE', 212),
+  ('t-lgbh-0013', 'usr-lgb-c05', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 22, '14:50:00', 31, 14, 'served', 'wrong_documents', 'Overseas address not accepted as proof of address.', 'stf-review-demo-ln2', 'ctr-lgb-hwt-enq', 'kiosk', 'KYUMFF', 213),
+  ('t-lgbh-0014', 'usr-lgb-c29', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 21, '11:05:00', 20, 2, 'served', NULL, NULL, 'stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3', 'app', 'NAK7NE', 214),
+  ('t-lgbh-0015', 'usr-lgb-c10', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 20, '09:15:00', 33, 10, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'walk_in', 'V3Y9NY', 215),
+  ('t-lgbh-0016', 'usr-lgb-c27', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 20, '10:25:00', 18, 30, 'no_show', NULL, NULL, NULL, NULL, 'kiosk', '76TAX9', 216),
+  ('t-lgbh-0017', 'usr-lgb-c01', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 20, '11:05:00', 8, 29, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'app', 'UWY4F9', 217),
+  ('t-lgbh-0018', 'usr-lgb-c14', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 20, '11:50:00', 17, 17, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-biz', 'app', 'GNTRAK', 218),
+  ('t-lgbh-0019', 'usr-lgb-c24', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 20, '12:50:00', 28, 42, 'served', NULL, NULL, 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'app', 'XEUHXA', 219),
+  ('t-lgbh-0020', 'usr-lgb-c20', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 19, '14:25:00', 29, 33, 'no_show', NULL, NULL, NULL, NULL, 'walk_in', 'JRCW7T', 220),
+  ('t-lgbh-0021', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 19, '14:50:00', 7, 17, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'walk_in', 'PC7E76', 221),
+  ('t-lgbh-0022', 'usr-lgb-c03', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 18, '10:50:00', 22, 10, 'served', 'referred_elsewhere', 'Sent to Account Enquiries to raise the dispute.', 'stf-review-demo-ln1', 'ctr-lgb-hwt-card', 'app', 'YTYTMV', 222),
+  ('t-lgbh-0023', 'usr-lgb-c21', 'br-lgb-nkg', 'svc-lgb-acct', 'ACC', 17, '10:15:00', 39, 31, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-acct', 'walk_in', 'ERRV4V', 223),
+  ('t-lgbh-0024', 'usr-lgb-c12', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 17, '12:05:00', 11, 30, 'no_show', NULL, NULL, NULL, NULL, 'app', '9UD4RX', 224),
+  ('t-lgbh-0025', 'usr-lgb-c04', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 17, '12:40:00', 40, 44, 'served', 'wrong_documents', 'Job letter was older than 30 days.', 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'app', 'MAE4JD', 225),
+  ('t-lgbh-0026', 'usr-lgb-c19', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 17, '13:50:00', 40, 7, 'served', NULL, NULL, 'stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3', 'walk_in', 'AYKEFV', 226),
+  ('t-lgbh-0027', 'usr-lgb-c26', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 17, '14:50:00', 33, 14, 'served', NULL, NULL, 'stf-review-demo-ln1', 'ctr-lgb-hwt-card', 'kiosk', 'FDYYG7', 227),
+  ('t-lgbh-0028', 'usr-lgb-c24', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 16, '12:50:00', 20, 34, 'served', NULL, NULL, 'stf-review-demo-ln2', 'ctr-lgb-hwt-acct', 'app', 'Q4RKWN', 228),
+  ('t-lgbh-0029', 'usr-lgb-c16', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 16, '13:25:00', 25, 29, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-review-demo-ln2', 'ctr-lgb-hwt-acct', 'kiosk', '6CVPG9', 229),
+  ('t-lgbh-0030', 'usr-lgb-c28', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 16, '14:50:00', 15, 44, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'walk_in', 'TQHUNW', 230),
+  ('t-lgbh-0031', 'usr-lgb-c05', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 15, '09:40:00', 16, 16, 'served', 'referred_elsewhere', 'Sent to Personal Banking to re-verify identity.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-enq', 'app', 'JEWQVX', 231),
+  ('t-lgbh-0032', 'usr-lgb-c30', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 15, '10:15:00', 42, 44, 'served', NULL, NULL, 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'app', 'JH49A9', 232),
+  ('t-lgbh-0033', 'usr-lgb-c12', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 15, '11:05:00', 21, 35, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-review-demo-ln2', 'ctr-lgb-hwt-acct', 'walk_in', '9KN76D', 233),
+  ('t-lgbh-0034', 'usr-lgb-c19', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 15, '11:05:00', 18, 5, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'app', 'MTFK6F', 234),
+  ('t-lgbh-0035', 'usr-lgb-c16', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 15, '11:25:00', 26, 36, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'app', 'DPC4P6', 235),
+  ('t-lgbh-0036', 'usr-lgb-c03', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 15, '12:25:00', 9, 12, 'served', 'wrong_service', 'Disputes are handled at Card Services.', 'stf-review-demo-ln2', 'ctr-lgb-hwt-enq', 'app', 'TCEKP3', 236),
+  ('t-lgbh-0037', 'usr-lgb-c13', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 14, '12:05:00', 34, 42, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'app', 'FRDE6V', 237),
+  ('t-lgbh-0038', 'usr-lgb-c11', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 13, '10:25:00', 15, 4, 'served', NULL, NULL, 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-2', 'app', 'PJNQCT', 238),
+  ('t-lgbh-0039', 'usr-lgb-c01', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 13, '12:25:00', 37, 29, 'served', 'wrong_documents', 'Client did not have a TRN card or copy.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'kiosk', 'FNXNMN', 239),
+  ('t-lgbh-0040', 'usr-lgb-c09', 'br-lgb-nkg', 'svc-lgb-acct', 'ACC', 13, '14:05:00', 40, 31, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-acct', 'walk_in', 'RTUCH7', 240),
+  ('t-lgbh-0041', 'usr-lgb-c16', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 12, '10:15:00', 37, 6, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'app', 'RC3XG9', 241),
+  ('t-lgbh-0042', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 12, '10:25:00', 15, 36, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'app', 'XMJY9U', 242),
+  ('t-lgbh-0043', 'usr-lgb-c12', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 12, '13:15:00', 48, 4, 'served', NULL, NULL, 'stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3', 'app', 'YFQYTP', 243),
+  ('t-lgbh-0044', 'usr-lgb-c03', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 11, '11:50:00', 44, 12, 'served', 'system_issue', 'Dispute system unavailable.', 'stf-review-demo-ln1', 'ctr-lgb-hwt-card', 'kiosk', 'HW6GRX', 244),
+  ('t-lgbh-0045', 'usr-lgb-c28', 'br-lgb-nkg', 'svc-lgb-acct', 'ACC', 10, '10:15:00', 38, 35, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-acct', 'app', '7M933M', 245),
+  ('t-lgbh-0046', 'usr-lgb-c07', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 10, '12:15:00', 42, 6, 'served', 'system_issue', 'Wire transfer system unavailable.', 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1', 'app', 'HNXHNP', 246),
+  ('t-lgbh-0047', 'usr-lgb-c08', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 10, '13:25:00', 24, 37, 'served', NULL, NULL, 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'walk_in', 'M9HFTP', 247),
+  ('t-lgbh-0048', 'usr-lgb-c17', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 10, '14:15:00', 11, 17, 'served', NULL, NULL, 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-card', 'kiosk', 'RVXNYY', 248),
+  ('t-lgbh-0049', 'usr-lgb-c29', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 9, '10:15:00', 26, 2, 'served', NULL, NULL, 'stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3', 'kiosk', 'NRQ6QW', 249),
+  ('t-lgbh-0050', 'usr-lgb-c26', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 9, '10:40:00', 27, 32, 'served', 'wrong_documents', 'Proof of address was older than three months.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'app', 'RPKCXQ', 250),
+  ('t-lgbh-0051', 'usr-lgb-c07', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 9, '10:50:00', 20, 6, 'served', 'system_issue', 'Wire transfer system unavailable.', 'stf-review-demo-ln3', 'ctr-lgb-nkg-tel-2', 'app', '3UVQC6', 251),
+  ('t-lgbh-0052', 'usr-lgb-c04', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 9, '12:05:00', 38, 37, 'left', 'customer_left', NULL, 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'app', 'QFYJM3', 252),
+  ('t-lgbh-0053', 'usr-lgb-c23', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 9, '13:15:00', 33, 35, 'no_show', NULL, NULL, NULL, NULL, 'walk_in', 'HHFY3J', 253),
+  ('t-lgbh-0054', 'usr-lgb-c18', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 9, '13:40:00', 6, 30, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-acct', 'walk_in', '4D3JPE', 254),
+  ('t-lgbh-0055', 'usr-lgb-c05', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 8, '12:05:00', 16, 29, 'served', 'wrong_documents', 'Passport expired; needs a current photo ID.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'app', 'JYCJJW', 255),
+  ('t-lgbh-0056', 'usr-lgb-c03', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 8, '12:25:00', 27, 12, 'served', 'referred_elsewhere', 'Escalated to the card disputes team.', 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-card', 'app', '7PEUWT', 256),
+  ('t-lgbh-0057', 'usr-lgb-c09', 'br-lgb-nkg', 'svc-lgb-acct', 'ACC', 8, '13:40:00', 37, 31, 'no_show', NULL, NULL, NULL, NULL, 'kiosk', 'C4C9WU', 257),
+  ('t-lgbh-0058', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 7, '10:40:00', 23, 6, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1', 'kiosk', 'HQDTME', 258),
+  ('t-lgbh-0059', 'usr-lgb-c25', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 7, '13:40:00', 36, 35, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-acct', 'walk_in', 'MVNNKX', 259),
+  ('t-lgbh-0060', 'usr-lgb-c25', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 6, '09:15:00', 35, 5, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'app', 'JN3DXW', 260),
+  ('t-lgbh-0061', 'usr-lgb-c02', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 6, '09:50:00', 39, 10, 'served', 'system_issue', 'Pension payment not yet credited to the account.', 'stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3', 'app', 'GXFFXM', 261),
+  ('t-lgbh-0062', 'usr-lgb-c01', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 6, '10:05:00', 20, 35, 'served', 'wrong_documents', 'Job letter was not on company letterhead.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'app', 'XKM3PT', 262),
+  ('t-lgbh-0063', 'usr-lgb-c08', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 6, '10:40:00', 41, 19, 'served', NULL, NULL, 'stf-review-demo-ln2', 'ctr-lgb-hwt-enq', 'walk_in', '4FFECJ', 263),
+  ('t-lgbh-0064', 'usr-lgb-c13', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 6, '10:50:00', 38, 6, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'app', 'WEKV6F', 264),
+  ('t-lgbh-0065', 'usr-lgb-c28', 'br-lgb-mob', 'svc-lgb-teller', 'TEL', 6, '14:05:00', 24, 4, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', 'walk_in', '4HRYMC', 265),
+  ('t-lgbh-0066', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 5, '09:15:00', 29, 15, 'served', 'wrong_documents', 'Board resolution for the new signatory was not signed.', 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'app', 'AMQ6HD', 266),
+  ('t-lgbh-0067', 'usr-lgb-c11', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 5, '09:40:00', 12, 8, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'kiosk', 'NN6W6U', 267),
+  ('t-lgbh-0068', 'usr-lgb-c05', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 5, '12:50:00', 15, 35, 'served', 'wrong_documents', 'Asked to bring certified copies of documents already uploaded online.', 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct', 'walk_in', 'YPCQAA', 268),
+  ('t-lgbh-0069', 'usr-lgb-c21', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 5, '13:40:00', 7, 23, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'walk_in', 'HF3QKN', 269),
+  ('t-lgbh-0070', 'usr-lgb-c02', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 4, '10:15:00', 43, 3, 'served', 'referred_elsewhere', 'Referred to the Accountant General about the held payment.', 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-2', 'app', 'DX7QNP', 270),
+  ('t-lgbh-0071', 'usr-lgb-c20', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 4, '10:50:00', 33, 16, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'walk_in', 'GUW7R4', 271),
+  ('t-lgbh-0072', 'usr-lgb-c04', 'br-lgb-hwt', 'svc-lgb-loan', 'LON', 4, '11:05:00', 12, 41, 'served', 'wrong_documents', 'Proof of address was in her spouse’s name.', 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan', 'kiosk', 'VPXCV7', 272),
+  ('t-lgbh-0073', 'usr-lgb-c22', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 4, '14:15:00', 20, 15, 'served', NULL, NULL, 'stf-review-demo-ln2', 'ctr-lgb-hwt-enq', 'app', 'HNJUWE', 273),
+  ('t-lgbh-0074', 'usr-lgb-c21', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 4, '14:40:00', 32, 5, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'walk_in', 'JJHQPE', 274),
+  ('t-lgbh-0075', 'usr-lgb-c25', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 3, '09:50:00', 6, 30, 'served', NULL, NULL, 'stf-review-demo-ln2', 'ctr-lgb-hwt-acct', 'app', 'UJYTQ9', 275),
+  ('t-lgbh-0076', 'usr-lgb-c24', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 3, '11:25:00', 31, 24, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-biz', 'kiosk', 'JVM67C', 276),
+  ('t-lgbh-0077', 'usr-lgb-c03', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 3, '13:25:00', 33, 16, 'served', NULL, NULL, 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-card', 'kiosk', 'M66U9J', 277),
+  ('t-lgbh-0078', 'usr-lgb-c07', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 3, '14:40:00', 44, 8, 'served', 'system_issue', 'Remittance could not be released; system down.', 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1', 'kiosk', 'AKNCRV', 278),
+  ('t-lgbh-0079', 'usr-lgb-c01', 'br-lgb-hwt', 'svc-lgb-acct', 'ACC', 2, '09:15:00', 23, 30, 'served', NULL, NULL, 'stf-review-demo-ln2', 'ctr-lgb-hwt-acct', 'walk_in', 'FACVP4', 279),
+  ('t-lgbh-0080', 'usr-lgb-c29', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 2, '10:15:00', 12, 8, 'served', NULL, NULL, 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-2', 'kiosk', 'XAJY9Y', 280),
+  ('t-lgbh-0081', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 2, '11:25:00', 45, 6, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-tel-2', 'app', 'XMDC6D', 281),
+  ('t-lgbh-0082', 'usr-lgb-c23', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 2, '11:50:00', 38, 32, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-acct', 'walk_in', 'J3CVRU', 282),
+  ('t-lgbh-0083', 'usr-lgb-c02', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 2, '12:40:00', 19, 5, 'served', 'system_issue', 'Payment still showing as pending.', 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'app', '3HRM74', 283),
+  ('t-lgbh-0084', 'usr-lgb-c27', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 2, '12:40:00', 44, 44, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'kiosk', 'AXFURP', 284),
+  ('t-lgbh-0085', 'usr-lgb-c09', 'br-lgb-hwt', 'svc-lgb-card', 'CRD', 1, '09:05:00', 40, 14, 'no_show', NULL, NULL, NULL, NULL, 'walk_in', 'PYYTYU', 285),
+  ('t-lgbh-0086', 'usr-lgb-c15', 'br-lgb-hwt', 'svc-lgb-enq', 'ENQ', 1, '10:40:00', 14, 11, 'served', NULL, NULL, 'stf-lgb-hwt-pbo', 'ctr-lgb-hwt-enq', 'app', '9ETXQW', 286),
+  ('t-lgbh-0087', 'usr-lgb-c27', 'br-lgb-mob', 'svc-lgb-acct', 'ACC', 1, '10:40:00', 11, 37, 'served', NULL, NULL, 'stf-lgb-mob-tel1', 'ctr-lgb-mob-acct', 'kiosk', 'WJ4GKD', 287),
+  ('t-lgbh-0088', 'usr-lgb-c06', 'br-lgb-nkg', 'svc-lgb-biz', 'BIZ', 1, '11:50:00', 27, 16, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-biz', 'app', 'DFEEQ7', 288),
+  ('t-lgbh-0089', 'usr-lgb-c20', 'br-lgb-hwt', 'svc-lgb-teller', 'TEL', 1, '12:40:00', 35, 4, 'served', NULL, NULL, 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1', 'app', '7CT69T', 289),
+  ('t-lgbh-0090', 'usr-lgb-c07', 'br-lgb-nkg', 'svc-lgb-teller', 'TEL', 1, '13:15:00', 47, 7, 'served', NULL, NULL, 'stf-review-demo-ln3', 'ctr-lgb-nkg-tel-2', 'kiosk', '9UFGAY', 290),
+  ('t-lgbh-0091', 'usr-lgb-c15', 'br-lgb-nkg', 'svc-lgb-loan', 'LON', 1, '14:05:00', 45, 37, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan', 'app', 'RPGG9H', 291),
+  ('t-lgbh-0092', 'usr-lgb-c23', 'br-lgb-nkg', 'svc-lgb-acct', 'ACC', 1, '14:15:00', 36, 36, 'served', NULL, NULL, 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-acct', 'kiosk', 'HWDHYN', 292);
+
+-- Start clean: this section's own tickets, then its own lines. Line ids are
+-- named by days-ago, so tomorrow's run must not find yesterday's ids taken.
+DELETE FROM queue_tickets WHERE id LIKE 't-lgbh-%';
+DELETE FROM queues WHERE id LIKE 'q-lgbh-%'
+  AND NOT EXISTS (SELECT 1 FROM queue_tickets x WHERE x.queue_id = queues.id);
+
+-- Lines for those days (reused when one already exists).
+INSERT IGNORE INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
+SELECT DISTINCT CONCAT('q-lgbh-', SUBSTRING(h.branch_id, 8), '-', SUBSTRING(h.service_id, 9), '-', h.d),
+       h.branch_id, h.service_id, DATE_SUB(CURDATE(), INTERVAL h.d DAY), 80, FALSE
+  FROM _lgb_hist h;
+
+INSERT INTO queue_tickets
+  (id, queue_id, user_id, ticket_number, verification_code, position, status, estimated_wait_minutes, channel,
+   joined_at, called_at, started_serving_at, completed_at, served_by_staff_id, served_at_counter_id,
+   closed_reason, readiness_shown_at, readiness_outcome, readiness_note)
+SELECT h.tid, qq.id, h.user_id, CONCAT(h.prefix, '-H', LPAD(h.pos, 3, '0')), h.code, h.pos, h.status, h.wait_min, h.channel,
+       TIMESTAMP(qq.queue_date, h.hh),
+       TIMESTAMP(qq.queue_date, h.hh) + INTERVAL h.wait_min MINUTE,
+       IF(h.status IN ('served','left'), TIMESTAMP(qq.queue_date, h.hh) + INTERVAL h.wait_min + 1 MINUTE, NULL),
+       TIMESTAMP(qq.queue_date, h.hh) + INTERVAL h.wait_min + h.svc_min MINUTE,
+       h.staff_id, h.counter_id,
+       h.closed_reason,
+       IF(h.service_id IN ('svc-lgb-acct','svc-lgb-loan'), TIMESTAMP(qq.queue_date, h.hh), NULL),
+       IF(h.service_id IN ('svc-lgb-acct','svc-lgb-loan'),
+          IF(h.closed_reason = 'wrong_documents', 'incomplete', 'ready'), 'not_checked'),
+       h.note
+  FROM _lgb_hist h
+  JOIN queues qq ON qq.branch_id = h.branch_id AND qq.service_id = h.service_id
+                AND qq.queue_date = DATE_SUB(CURDATE(), INTERVAL h.d DAY);
+DROP TEMPORARY TABLE IF EXISTS _lgb_hist;
+
+-- Two staff flags, so the case list shows what flagging looks like.
+DELETE FROM patient_flags WHERE id LIKE 'pf-lgb-%';
+INSERT INTO patient_flags (id, business_id, user_id, flag, note, set_by_staff_id, created_at) VALUES
+  ('pf-lgb-01', 'biz-lgb-001', 'usr-lgb-c02', 'priority', 'Pensioner, 78. Pension payment held; Client Service lead is following up.', 'stf-lgb-hwt-mgr', NOW() - INTERVAL 2 DAY),
+  ('pf-lgb-02', 'biz-lgb-001', 'usr-lgb-c03', 'watch', 'Disputed card charges; Card Services lead to call back.', 'stf-lgb-hwt-sup', NOW() - INTERVAL 3 DAY);
+
