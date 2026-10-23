@@ -355,34 +355,35 @@ ON DUPLICATE KEY UPDATE
 -- The approved list for the loan clinic: the bank's own pre-approval
 -- references. Only these people can take a place.
 DELETE FROM session_cause_list WHERE session_id = 'ses-lgb-sat-loans';
-INSERT INTO session_cause_list (id, session_id, reference, reference_key, party_surname, division)
+INSERT INTO session_cause_list (id, session_id, reference, reference_key, party_surname, division, appointment_time)
 VALUES
-  ('cl-lgb-01', 'ses-lgb-sat-loans', 'PA-26-1041', 'PA261041', 'Campbell',  'Lending Desk'),
-  ('cl-lgb-02', 'ses-lgb-sat-loans', 'PA-26-1042', 'PA261042', 'Williams',  'Lending Desk'),
-  ('cl-lgb-03', 'ses-lgb-sat-loans', 'PA-26-1043', 'PA261043', 'Brown',     'Lending Desk'),
-  ('cl-lgb-04', 'ses-lgb-sat-loans', 'PA-26-1044', 'PA261044', 'McKenzie',  'Lending Desk'),
-  ('cl-lgb-05', 'ses-lgb-sat-loans', 'PA-26-1045', 'PA261045', 'Thompson',  'Lending Desk'),
-  ('cl-lgb-06', 'ses-lgb-sat-loans', 'PA-26-1046', 'PA261046', 'Robinson',  'Lending Desk'),
-  ('cl-lgb-07', 'ses-lgb-sat-loans', 'PA-26-1047', 'PA261047', 'Clarke',    'Lending Desk'),
-  ('cl-lgb-08', 'ses-lgb-sat-loans', 'PA-26-1048', 'PA261048', 'Johnson',   'Lending Desk'),
-  ('cl-lgb-09', 'ses-lgb-sat-loans', 'PA-26-1049', 'PA261049', 'Reid',      'Lending Desk'),
-  ('cl-lgb-10', 'ses-lgb-sat-loans', 'PA-26-1050', 'PA261050', 'Stewart',   'Lending Desk'),
-  ('cl-lgb-11', 'ses-lgb-sat-loans', 'PA-26-1051', 'PA261051', 'Morgan',    'Lending Desk'),
-  ('cl-lgb-12', 'ses-lgb-sat-loans', 'PA-26-1052', 'PA261052', 'Gordon',    'Lending Desk');
+  ('cl-lgb-01', 'ses-lgb-sat-loans', 'PA-26-1041', 'PA261041', 'Campbell',  'Lending Desk', '10:00:00'),
+  ('cl-lgb-02', 'ses-lgb-sat-loans', 'PA-26-1042', 'PA261042', 'Williams',  'Lending Desk', '10:15:00'),
+  ('cl-lgb-03', 'ses-lgb-sat-loans', 'PA-26-1043', 'PA261043', 'Brown',     'Lending Desk', '10:30:00'),
+  ('cl-lgb-04', 'ses-lgb-sat-loans', 'PA-26-1044', 'PA261044', 'McKenzie',  'Lending Desk', '10:45:00'),
+  ('cl-lgb-05', 'ses-lgb-sat-loans', 'PA-26-1045', 'PA261045', 'Thompson',  'Lending Desk', '11:00:00'),
+  ('cl-lgb-06', 'ses-lgb-sat-loans', 'PA-26-1046', 'PA261046', 'Robinson',  'Lending Desk', '11:15:00'),
+  ('cl-lgb-07', 'ses-lgb-sat-loans', 'PA-26-1047', 'PA261047', 'Clarke',    'Lending Desk', '11:30:00'),
+  ('cl-lgb-08', 'ses-lgb-sat-loans', 'PA-26-1048', 'PA261048', 'Johnson',   'Lending Desk', '11:45:00'),
+  ('cl-lgb-09', 'ses-lgb-sat-loans', 'PA-26-1049', 'PA261049', 'Reid',      'Lending Desk', '12:00:00'),
+  ('cl-lgb-10', 'ses-lgb-sat-loans', 'PA-26-1050', 'PA261050', 'Stewart',   'Lending Desk', '12:15:00'),
+  ('cl-lgb-11', 'ses-lgb-sat-loans', 'PA-26-1051', 'PA261051', 'Morgan',    'Lending Desk', '12:30:00'),
+  ('cl-lgb-12', 'ses-lgb-sat-loans', 'PA-26-1052', 'PA261052', 'Gordon',    'Lending Desk', '12:45:00');
 
 -- Seven of the twelve have reserved; five places left on the list, so the demo
--- can register one more live with PA-26-1052 / Gordon.
+-- can register one more live with PA-26-1052 / Gordon (12:45 appointment).
+-- Each list entry carries the client's appointment time (migration 042).
 DELETE FROM session_registrations WHERE id LIKE 'reg-lgb-%';
 INSERT INTO session_registrations
-  (id, session_id, user_id, guest_name, guest_phone, reference, verified, registration_code, registered_at, status)
+  (id, session_id, user_id, guest_name, guest_phone, reference, appointment_time, verified, registration_code, registered_at, status)
 VALUES
-  ('reg-lgb-loan-01', 'ses-lgb-sat-loans', NULL, 'Andrea Campbell',  '876-555-1041', 'PA-26-1041', 1, 'LGBK4M', DATE_SUB(NOW(), INTERVAL 5 DAY), 'registered'),
-  ('reg-lgb-loan-02', 'ses-lgb-sat-loans', NULL, 'Kevin Williams',   '876-555-1042', 'PA-26-1042', 1, 'LGBQ7D', DATE_SUB(NOW(), INTERVAL 4 DAY), 'registered'),
-  ('reg-lgb-loan-03', 'ses-lgb-sat-loans', NULL, 'Tanya Brown',      '876-555-1043', 'PA-26-1043', 1, 'LGBN3R', DATE_SUB(NOW(), INTERVAL 4 DAY), 'registered'),
-  ('reg-lgb-loan-04', 'ses-lgb-sat-loans', NULL, 'Garfield McKenzie','876-555-1044', 'PA-26-1044', 1, 'LGBC9F', DATE_SUB(NOW(), INTERVAL 3 DAY), 'registered'),
-  ('reg-lgb-loan-05', 'ses-lgb-sat-loans', NULL, 'Sherika Thompson', '876-555-1045', 'PA-26-1045', 1, 'LGBM4K', DATE_SUB(NOW(), INTERVAL 2 DAY), 'registered'),
-  ('reg-lgb-loan-06', 'ses-lgb-sat-loans', NULL, 'Dale Robinson',    '876-555-1046', 'PA-26-1046', 1, 'LGBD7Q', DATE_SUB(NOW(), INTERVAL 1 DAY), 'registered'),
-  ('reg-lgb-loan-07', 'ses-lgb-sat-loans', NULL, 'Marsha Clarke',    '876-555-1047', 'PA-26-1047', 1, 'LGBR3N', DATE_SUB(NOW(), INTERVAL 1 DAY), 'registered');
+  ('reg-lgb-loan-01', 'ses-lgb-sat-loans', NULL, 'Andrea Campbell',  '876-555-1041', 'PA-26-1041', '10:00:00', 1, 'LGBK4M', DATE_SUB(NOW(), INTERVAL 5 DAY), 'registered'),
+  ('reg-lgb-loan-02', 'ses-lgb-sat-loans', NULL, 'Kevin Williams',   '876-555-1042', 'PA-26-1042', '10:15:00', 1, 'LGBQ7D', DATE_SUB(NOW(), INTERVAL 4 DAY), 'registered'),
+  ('reg-lgb-loan-03', 'ses-lgb-sat-loans', NULL, 'Tanya Brown',      '876-555-1043', 'PA-26-1043', '10:30:00', 1, 'LGBN3R', DATE_SUB(NOW(), INTERVAL 4 DAY), 'registered'),
+  ('reg-lgb-loan-04', 'ses-lgb-sat-loans', NULL, 'Garfield McKenzie','876-555-1044', 'PA-26-1044', '10:45:00', 1, 'LGBC9F', DATE_SUB(NOW(), INTERVAL 3 DAY), 'registered'),
+  ('reg-lgb-loan-05', 'ses-lgb-sat-loans', NULL, 'Sherika Thompson', '876-555-1045', 'PA-26-1045', '11:00:00', 1, 'LGBM4K', DATE_SUB(NOW(), INTERVAL 2 DAY), 'registered'),
+  ('reg-lgb-loan-06', 'ses-lgb-sat-loans', NULL, 'Dale Robinson',    '876-555-1046', 'PA-26-1046', '11:15:00', 1, 'LGBD7Q', DATE_SUB(NOW(), INTERVAL 1 DAY), 'registered'),
+  ('reg-lgb-loan-07', 'ses-lgb-sat-loans', NULL, 'Marsha Clarke',    '876-555-1047', 'PA-26-1047', '11:30:00', 1, 'LGBR3N', DATE_SUB(NOW(), INTERVAL 1 DAY), 'registered');
 
 INSERT INTO session_registrations
   (id, session_id, user_id, guest_name, guest_phone, reference, registration_code, registered_at, status)
@@ -405,6 +406,61 @@ FROM (SELECT (a.d + b.d * 10) + 1 AS n FROM
          UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b
       ) seq
 WHERE seq.n <= 62;
+
+-- =============================================================
+-- Personal Banking appointments, every weekday (migration 042)
+--
+-- Today's account-opening bookings at Half Way Tree, one every half hour from
+-- 09:00 to 15:30, as the bank's booking tool would export them. Check-in opens
+-- 15 minutes before a slot and holds it 10 minutes after, so at almost any
+-- time of the day one of these is checkable-in on time. Codes are PBK-HHMM
+-- (e.g. PBK-1030 for the 10:30) so the demo can type one from memory.
+-- =============================================================
+INSERT INTO scheduled_sessions
+  (id, business_id, branch_id, service_id, name, description,
+   venue_name, venue_address, session_date, starts_at, ends_at,
+   capacity, requires_eligibility, second_factor,
+   registration_opens_at, registration_closes_at,
+   arrive_minutes_before, appointment_early_minutes, appointment_late_minutes, status)
+VALUES
+  ('ses-lgb-appts', 'biz-lgb-001', 'br-lgb-hwt', 'svc-lgb-acct',
+   'Personal Banking Appointments — Half Way Tree',
+   'Booked account-opening appointments. Check in when you arrive and you will be called at your time, ahead of walk-ins.',
+   NULL, NULL, CURDATE(), '09:00:00', '16:00:00', 14, 1, 'surname',
+   DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 8 HOUR), 10, 15, 10, 'open')
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name), description = VALUES(description), session_date = VALUES(session_date),
+  starts_at = VALUES(starts_at), ends_at = VALUES(ends_at), capacity = VALUES(capacity),
+  requires_eligibility = VALUES(requires_eligibility), second_factor = VALUES(second_factor),
+  registration_opens_at = VALUES(registration_opens_at), registration_closes_at = VALUES(registration_closes_at),
+  appointment_early_minutes = VALUES(appointment_early_minutes),
+  appointment_late_minutes = VALUES(appointment_late_minutes), status = VALUES(status);
+
+DELETE FROM session_cause_list WHERE session_id = 'ses-lgb-appts';
+DELETE FROM session_registrations WHERE session_id = 'ses-lgb-appts';
+INSERT INTO session_cause_list (id, session_id, reference, reference_key, party_surname, division, appointment_time)
+SELECT CONCAT('cl-lgb-appt-', LPAD(seq.n, 2, '0')), 'ses-lgb-appts',
+       CONCAT('BK-26-', 2000 + seq.n), CONCAT('BK26', 2000 + seq.n),
+       ELT(seq.n, 'Allen','Bailey','Barrett','Daley','Dixon','Ennis','Gayle','Hall','Lewis','Miller','Palmer','Smith','Spence','Wright'),
+       'Personal Banking',
+       SEC_TO_TIME((540 + (seq.n - 1) * 30) * 60)
+FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7
+      UNION SELECT 8 UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14) seq;
+
+INSERT INTO session_registrations
+  (id, session_id, user_id, guest_name, guest_phone, reference, appointment_time, verified, registration_code, registered_at, status)
+SELECT CONCAT('reg-lgb-appt-', LPAD(seq.n, 2, '0')), 'ses-lgb-appts', NULL,
+       CONCAT(ELT(seq.n, 'Marcia','Errol','Nicola','Courtney','Yvonne','Simone','Patrice','Wayne','Tanisha','Gary','Joan','Leroy','Kerry-Ann','Donna'), ' ',
+              ELT(seq.n, 'Allen','Bailey','Barrett','Daley','Dixon','Ennis','Gayle','Hall','Lewis','Miller','Palmer','Smith','Spence','Wright')),
+       CONCAT('876-555-', 2000 + seq.n),
+       CONCAT('BK-26-', 2000 + seq.n),
+       SEC_TO_TIME((540 + (seq.n - 1) * 30) * 60),
+       1,
+       CONCAT('PBK-', DATE_FORMAT(SEC_TO_TIME((540 + (seq.n - 1) * 30) * 60), '%H%i')),
+       DATE_SUB(NOW(), INTERVAL 2 DAY),
+       'registered'
+FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7
+      UNION SELECT 8 UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14) seq;
 
 INSERT INTO saved_businesses (user_id, business_id)
 SELECT id, 'biz-lgb-001' FROM users WHERE id LIKE 'usr-demo-%' OR id = 'usr-test-mobile'

@@ -77,26 +77,32 @@ show Scotiabank's name, logo or branches inside the product.
 | Their wording | Sector wording: Clients, Banking Officers, Departments; no account number is ever asked for | Everywhere |
 | New branch without an app update | Organisations, branches and services come from the server | "Adding a branch live" |
 
-## 4. The gap: timed appointments
+## 4. Timed appointments (built 22 October, migration 042)
 
 Scotiabank already lets people book appointments online and in its app
 ([help centre](https://help.scotiabank.com/article/how-do-i-book-an-appointment-with-scotiabank);
-that page is Canadian, and the Jamaican flow is not confirmed). Lyne does
-**not** have timed appointments: migration 027 deliberately gives people a day
-and a place in the order, not a 10:15.
+that page is Canadian, and the Jamaican flow is not confirmed). Lyne does not
+replace that. It takes the bookings as they are (the approved list import
+carries a time per client) and runs the day: check-in, and calling a 10:30
+client at 10:30 instead of after the walk-ins who arrived first.
 
-The building blocks exist: an approved list (029), check-in on arrival that
-becomes an ordinary ticket (027). What is missing is a time per person, a
-check-in window around it, and the rule for where an on-time appointment joins
-the line. Two honest ways to handle it on 18 November:
+- Check-in opens 15 minutes before the slot and the slot is held 10 minutes
+  after (both adjustable per session).
+- On time: ahead of every walk-in, behind earlier appointments. The teller's
+  screen says "Appointment at 10:30 · checked in", so they can explain the order
+  to the room, and the client's ticket says the same.
+- Early: refused with the time check-in opens. Late: served in the usual
+  order, and told why.
+- Clients cannot choose their own time; it comes from the bank.
 
-- **If it is built by then:** show it. An approved client with a 10:30 slot
-  checks in at 10:20 and is next in the Personal Banking line at 10:30.
-- **If not:** say so plainly, show the Saturday Loan Clinic (approved list and
-  check-in work today), and offer appointments as part of the pilot, fed by
-  their existing booking tool rather than replacing it.
+In the demo: the weekday session *Personal Banking Appointments, Half Way Tree*
+has 14 bookings, `PBK-0900` to `PBK-1530`. Check in the slot nearest the clock
+from the admin app and show it jump to the front of Account Opening.
 
-Do not claim Lyne replaces their booking system. Ask which tool they use.
+Still missing, and worth saying plainly if asked: a public web page or phone
+screen where the client registers or checks in themselves. Today staff do it at
+the door or desk. A live feed from their booking tool (instead of a pasted or
+uploaded list) would be a pilot item.
 
 ## 5. Demo setup on the day
 

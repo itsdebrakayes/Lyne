@@ -58,6 +58,7 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       readinessNote: t.readiness_note || null,
       joinedAt: t.joined_at || null,
       channel: t.channel || null,
+      appointmentAt: t.appointment_at || null,
       callCount: num(t.call_count),
       position: num(t.position),
       triageFlag: t.triage_flag === 'possibly_urgent' ? 'possibly_urgent' : 'none',

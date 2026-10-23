@@ -58,6 +58,8 @@ export interface ServiceReadinessItem {
 }
 
 export interface TicketRecord {
+  /** Set when an appointment slot was honoured at check-in (migration 042). */
+  appointment_at?: string | null;
   id: string;
   queue_id: string;
   ticket_number: string;

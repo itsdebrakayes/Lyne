@@ -55,6 +55,10 @@ const { auditLog } = require('../middleware/auditLog');
 const { planSession, sittingHours } = require('../utils/sessionPlan');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 const { issueTicketSlot } = require('../utils/ticketSlot');
+const { projectedWaitMinutes } = require('../utils/etaMath');
+const {
+  appointmentWindow, appointmentTiming, appointmentInsertIndex, appointmentMessage, slotLabel,
+} = require('../utils/appointments');
 
 /** Statuses a member of the public is allowed to see at all. */
 const PUBLIC_STATUSES = ['open', 'closed', 'in_progress'];
@@ -122,7 +126,7 @@ const SESSION_SELECT = `
   ss.starts_at, ss.ends_at, ss.capacity,
   ss.requires_eligibility, ss.second_factor,
   ss.registration_opens_at, ss.registration_closes_at,
-  ss.arrive_minutes_before, ss.status,
+  ss.arrive_minutes_before, ss.appointment_early_minutes, ss.appointment_late_minutes, ss.status,
   b.name AS business_name, b.sector,
   br.name AS branch_name, br.address AS branch_address,
   sv.name AS service_name,
@@ -161,6 +165,9 @@ function shapeSession(row) {
     // fields to read.
     location_name: row.venue_name || row.branch_name || null,
     location_address: row.venue_address || row.branch_address || null,
+    // Only meaningful for people holding an appointment time (migration 042),
+    // but always present so the admin can show and edit it.
+    appointment_window: appointmentWindow(row),
   });
 }
 
@@ -196,7 +203,7 @@ function registrationWindow(session, now = new Date()) {
  */
 async function evaluateEligibility(conn, session, { reference, surname }) {
   if (!session.requires_eligibility) {
-    return { eligible: true, verified: false, gate: 'none', division: null };
+    return { eligible: true, verified: false, gate: 'none', division: null, appointment_time: null };
   }
 
   const [[counts]] = await conn.query(
@@ -206,14 +213,14 @@ async function evaluateEligibility(conn, session, { reference, surname }) {
   // Rule 1: degrade, do not block. No list means we cannot check, which is not
   // the same as the person being ineligible.
   if (!Number(counts.cnt)) {
-    return { eligible: true, verified: false, gate: 'no_list', division: null };
+    return { eligible: true, verified: false, gate: 'no_list', division: null, appointment_time: null };
   }
 
   const key = referenceKey(reference);
   if (!key) return { eligible: false, verified: false, gate: 'listed', division: null };
 
   const [rows] = await conn.query(
-    'SELECT reference, party_surname, division FROM session_cause_list WHERE session_id = ? AND reference_key = ? LIMIT 1',
+    'SELECT reference, party_surname, division, appointment_time FROM session_cause_list WHERE session_id = ? AND reference_key = ? LIMIT 1',
     [session.id, key]
   );
   if (!rows.length) {
@@ -232,7 +239,11 @@ async function evaluateEligibility(conn, session, { reference, surname }) {
     }
   }
 
-  return { eligible: true, verified: true, gate: 'listed', division: entry.division || null };
+  return {
+    eligible: true, verified: true, gate: 'listed', division: entry.division || null,
+    // The organisation's own booking, carried with the list (migration 042).
+    appointment_time: entry.appointment_time || null,
+  };
 }
 
 /**
@@ -251,16 +262,19 @@ async function resolveQueue(conn, session) {
   }
   if (!session.branch_id || !session.service_id) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  /* CURDATE(), not new Date().toISOString(): the ISO string is the UTC date,
+     which in Jamaica is already tomorrow from 7 p.m., so an evening check-in
+     joined a line dated tomorrow that nobody was calling. The check-in's own
+     "is it the day of the session" test already uses the database's date. */
   await conn.query(
     `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity)
-     VALUES (?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, CURDATE(), ?)
      ON DUPLICATE KEY UPDATE is_active = TRUE`,
-    [uuidv4(), session.branch_id, session.service_id, today, Math.max(50, Number(session.capacity) || 50)]
+    [uuidv4(), session.branch_id, session.service_id, Math.max(50, Number(session.capacity) || 50)]
   );
   const [rows] = await conn.query(
-    'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = ? FOR UPDATE',
-    [session.branch_id, session.service_id, today]
+    'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = CURDATE() FOR UPDATE',
+    [session.branch_id, session.service_id]
   );
   return rows[0] || null;
 }
@@ -292,6 +306,14 @@ const registerSchema = eligibilitySchema.extend({
   email: z.string().trim().email('Enter a valid email address.').max(160).optional(),
 });
 
+/* Only staff may set a time. A member of the public choosing their own slot
+   would let anyone jump the line by typing 09:00; the time has to come from the
+   organisation, through the list or the desk. */
+const HHMM = /^\d{2}:\d{2}(:\d{2})?$/;
+const staffRegisterSchema = registerSchema.extend({
+  appointment_time: z.string().regex(HHMM, 'appointment_time must be HH:MM.').nullish(),
+});
+
 const checkInSchema = z.object({
   code: z.string().trim().min(4, 'Enter your access code.').max(12),
 });
@@ -314,6 +336,8 @@ const createSessionSchema = z.object({
   registration_opens_at:  z.string().max(40).nullish(),
   registration_closes_at: z.string().max(40).nullish(),
   arrive_minutes_before:  z.number().int().min(0).max(600).nullish(),
+  appointment_early_minutes: z.number().int().min(0).max(240).nullish(),
+  appointment_late_minutes:  z.number().int().min(0).max(240).nullish(),
   status: z.enum(['draft', 'open', 'closed', 'in_progress', 'completed', 'cancelled']).optional(),
 });
 
@@ -323,6 +347,8 @@ const causeListSchema = z.object({
     reference: z.string().trim().min(1).max(60),
     surname:   z.string().trim().max(120).nullish(),
     division:  z.string().trim().max(80).nullish(),
+    // The client's appointment, from the organisation's booking tool.
+    time:      z.string().regex(HHMM, 'time must be HH:MM.').nullish(),
   })).min(1, 'The list is empty.').max(20000),
 });
 
@@ -463,7 +489,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
     // earned two places, and must not be told their first code is invalid.
     const key = referenceKey(reference);
     const [existing] = await conn.query(
-      `SELECT id, registration_code, status, verified
+      `SELECT id, registration_code, status, verified, appointment_time
          FROM session_registrations
         WHERE session_id = ? AND UPPER(REGEXP_REPLACE(COALESCE(reference,''), '[^A-Za-z0-9]', '')) = ?
           AND status IN ('registered','checked_in')
@@ -478,6 +504,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
         registration_code: existing[0].registration_code,
         status: existing[0].status,
         verified: Boolean(existing[0].verified),
+        appointment_time: slotLabel(existing[0].appointment_time),
         session: shapeSession(session),
       });
     }
@@ -499,12 +526,13 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
     const code = createRegistrationCode();
     await conn.query(
       `INSERT INTO session_registrations
-         (id, session_id, user_id, guest_name, guest_phone, guest_email, reference, verified, registration_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, session_id, user_id, guest_name, guest_phone, guest_email, reference,
+          appointment_time, verified, registration_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         registrationId, session.id, req.dbUser?.id || null,
         name || null, phone || null, email || null,
-        reference, eligibility.verified ? 1 : 0, code,
+        reference, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code,
       ]
     );
 
@@ -515,6 +543,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
       verified: eligibility.verified,
       checked_against_list: eligibility.gate === 'listed',
       division: eligibility.division,
+      appointment_time: slotLabel(eligibility.appointment_time),
       places_remaining: Math.max(0, Number(session.capacity) - Number(held.cnt) - 1),
       session: shapeSession(session),
     });
@@ -609,6 +638,30 @@ async function checkIn(req, res, channel) {
       return res.status(409).json({ error: 'This session has already taken place.' });
     }
 
+    /* An appointment (migration 042). Measured in the database's clock, the same
+       one CURDATE() above used, so the slot and "now" can never disagree about
+       which timezone the branch is in. */
+    const apptWindow = appointmentWindow(session);
+    let appointment = null;
+    if (registration.appointment_time) {
+      const [[slot]] = await conn.query(
+        `SELECT TIMESTAMP(?, ?) AS slot_at,
+                TIMESTAMPDIFF(SECOND, TIMESTAMP(?, ?), NOW()) / 60 AS minutes_from_slot`,
+        [session.session_date, registration.appointment_time, session.session_date, registration.appointment_time]
+      );
+      const timing = appointmentTiming(slot.minutes_from_slot, apptWindow);
+      appointment = {
+        time: slotLabel(registration.appointment_time),
+        slot_at: slot.slot_at,
+        timing,
+        message: appointmentMessage(timing, registration.appointment_time, apptWindow),
+      };
+      if (timing === 'early') {
+        await conn.rollback();
+        return res.status(409).json({ error: appointment.message, appointment });
+      }
+    }
+
     const queue = await resolveQueue(conn, session);
     if (!queue) {
       await conn.rollback();
@@ -642,16 +695,19 @@ async function checkIn(req, res, channel) {
     // stopping anyone else reading it (migration 023).
     const guestToken = registration.user_id ? null : crypto.randomBytes(32).toString('base64url');
 
+    const honoured = appointment?.timing === 'on_time';
     const ticketId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, guest_name, guest_phone, guest_access_token,
-          ticket_number, verification_code, position, status, estimated_wait_minutes, channel)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?)`,
+          ticket_number, verification_code, position, status, estimated_wait_minutes, channel,
+          appointment_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?)`,
       [
         ticketId, queue.id, registration.user_id || null,
         registration.guest_name || null, registration.guest_phone || null, guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
+        honoured ? appointment.slot_at : null,
       ]
     );
     await conn.query(
@@ -659,6 +715,40 @@ async function checkIn(req, res, channel) {
        VALUES (?, ?, NULL, 'waiting')`,
       [uuidv4(), ticketId]
     );
+
+    /* An honoured appointment goes ahead of the walk-ins, behind any earlier
+       slot. Same technique as PUT /tickets/:id/move-to: reuse the line's own
+       position numbers in the new order, so nobody called or in service moves. */
+    if (honoured) {
+      const [line] = await conn.query(
+        `SELECT id, position, appointment_at FROM queue_tickets
+          WHERE queue_id = ? AND status = 'waiting' ORDER BY position ASC FOR UPDATE`,
+        [queue.id]
+      );
+      const others = line.filter((w) => w.id !== ticketId);
+      const index = appointmentInsertIndex(others, appointment.slot_at);
+      const order = others.map((w) => w.id);
+      order.splice(index, 0, ticketId);
+      const slots = line.map((w) => w.position).sort((a, b) => a - b);
+      for (let i = 0; i < order.length; i += 1) {
+        await conn.query('UPDATE queue_tickets SET position = ? WHERE id = ?', [slots[i], order[i]]);
+      }
+      const [[counters]] = await conn.query(
+        'SELECT COUNT(*) AS cnt FROM counters WHERE branch_id = ? AND service_id = ? AND is_active = TRUE',
+        [queue.branch_id, queue.service_id]
+      );
+      const wait = projectedWaitMinutes({
+        ahead: index,
+        perServiceMinutes: svc?.base_avg_time_minutes || 15,
+        counters: counters.cnt,
+      });
+      await conn.query('UPDATE queue_tickets SET estimated_wait_minutes = ? WHERE id = ?', [wait, ticketId]);
+      await conn.query(
+        `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, notes)
+         VALUES (?, ?, 'waiting', 'waiting', ?)`,
+        [uuidv4(), ticketId, `Appointment ${appointment.time}: placed at ${index + 1} of ${order.length}, ahead of walk-ins`]
+      );
+    }
 
     await conn.query(
       `UPDATE session_registrations
@@ -682,6 +772,7 @@ async function checkIn(req, res, channel) {
       reference: registration.reference,
       verified: Boolean(registration.verified),
       ticket,
+      appointment,
       // Returned once, at creation. It is not readable from any later response.
       guest_access_token: guestToken,
     });
@@ -703,7 +794,7 @@ router.get('/mine', requireAuth, async (req, res) => {
   try {
     if (!req.dbUser) return res.json([]);
     const [rows] = await pool.query(
-      `SELECT r.id AS registration_id, r.registration_code, r.reference, r.verified,
+      `SELECT r.id AS registration_id, r.registration_code, r.reference, r.verified, r.appointment_time,
               r.status AS registration_status, r.registered_at, r.checked_in_at, r.queue_ticket_id,
               ${SESSION_SELECT}, ${SECTOR_COLUMNS}
          FROM session_registrations r
@@ -721,6 +812,7 @@ router.get('/mine', requireAuth, async (req, res) => {
       registration_code: row.registration_code,
       reference: row.reference,
       verified: Boolean(row.verified),
+      appointment_time: slotLabel(row.appointment_time),
       registration_status: row.registration_status,
       registered_at: row.registered_at,
       checked_in_at: row.checked_in_at,
@@ -832,8 +924,9 @@ router.post('/', requireAuth, requireStaffRole(...STAFF_EDIT), requireBranchAcce
            (id, business_id, branch_id, service_id, queue_id, name, description,
             venue_name, venue_address, session_date, starts_at, ends_at, capacity,
             requires_eligibility, second_factor,
-            registration_opens_at, registration_closes_at, arrive_minutes_before, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            registration_opens_at, registration_closes_at, arrive_minutes_before,
+            appointment_early_minutes, appointment_late_minutes, status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           id, businessId, branchId, data.service_id || null, data.queue_id || null,
           data.name, data.description || null,
@@ -841,7 +934,9 @@ router.post('/', requireAuth, requireStaffRole(...STAFF_EDIT), requireBranchAcce
           data.session_date, data.starts_at, data.ends_at || null, data.capacity,
           data.requires_eligibility ? 1 : 0, data.second_factor || 'none',
           data.registration_opens_at || null, data.registration_closes_at || null,
-          data.arrive_minutes_before ?? null, data.status || 'draft',
+          data.arrive_minutes_before ?? null,
+          data.appointment_early_minutes ?? null, data.appointment_late_minutes ?? null,
+          data.status || 'draft',
         ]
       );
 
@@ -1016,6 +1111,7 @@ router.put('/:id', requireAuth, requireStaffRole(...STAFF_EDIT),
         'branch_id', 'service_id', 'queue_id', 'name', 'description', 'venue_name', 'venue_address',
         'session_date', 'starts_at', 'ends_at', 'capacity', 'second_factor',
         'registration_opens_at', 'registration_closes_at', 'arrive_minutes_before', 'status',
+        'appointment_early_minutes', 'appointment_late_minutes',
       ];
       const sets = [];
       const params = [];
@@ -1069,16 +1165,18 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
     }
 
     const [rows] = await pool.query(
-      `SELECT r.id, r.registration_code, r.reference, r.verified, r.status,
+      `SELECT r.id, r.registration_code, r.reference, r.appointment_time, r.verified, r.status,
               r.guest_name, r.guest_phone, r.guest_email,
               r.registered_at, r.checked_in_at, r.queue_ticket_id,
               u.full_name AS user_name,
-              t.ticket_number, t.status AS ticket_status, t.position
+              t.ticket_number, t.status AS ticket_status, t.position, t.appointment_at
          FROM session_registrations r
          LEFT JOIN users u ON u.id = r.user_id
          LEFT JOIN queue_tickets t ON t.id = r.queue_ticket_id
         WHERE ${where.join(' AND ')}
-        ORDER BY r.checked_in_at IS NULL, r.checked_in_at, r.registered_at
+        -- Appointments in slot order first, then everybody else as before.
+        ORDER BY r.appointment_time IS NULL, r.appointment_time,
+                 r.checked_in_at IS NULL, r.checked_in_at, r.registered_at
         LIMIT 1000`,
       params
     );
@@ -1116,7 +1214,11 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
       // True when the list below is not the whole session — so the screen can
       // say so rather than letting a 1000-row cap read as "that is everybody".
       truncated: rows.length >= 1000,
-      registrations: rows.map((r) => ({ ...r, verified: Boolean(r.verified) })),
+      registrations: rows.map((r) => ({
+        ...r,
+        verified: Boolean(r.verified),
+        appointment_time: slotLabel(r.appointment_time),
+      })),
     });
   } catch (err) {
     console.error('sessions registrations:', err);
@@ -1132,7 +1234,7 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
 router.post('/:id/registrations', requireAuth,
   requireStaffRole(...STAFF_VIEW, 'kiosk_clerk'),
   auditLog('session_register_on_behalf', 'session_registration'), async (req, res) => {
-    const parsed = registerSchema.safeParse(req.body);
+    const parsed = staffRegisterSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: validationMessage(parsed.error) });
 
     const conn = await pool.getConnection();
@@ -1164,22 +1266,26 @@ router.post('/:id/registrations', requireAuth,
         return res.status(409).json({ error: 'This session is full. No further places are available.' });
       }
 
+      // A time typed at the desk wins over the list's: the clerk is looking at
+      // the booking.
+      const appointmentTime = parsed.data.appointment_time || eligibility.appointment_time || null;
       const registrationId = uuidv4();
       const code = createRegistrationCode();
       await conn.query(
         `INSERT INTO session_registrations
-           (id, session_id, guest_name, guest_phone, guest_email, reference, verified, registration_code)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, session_id, guest_name, guest_phone, guest_email, reference, appointment_time, verified, registration_code)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           registrationId, session.id,
           parsed.data.name || null, parsed.data.phone || null, parsed.data.email || null,
-          parsed.data.reference, eligibility.verified && !overridden ? 1 : 0, code,
+          parsed.data.reference, appointmentTime, eligibility.verified && !overridden ? 1 : 0, code,
         ]
       );
       await conn.commit();
       res.status(201).json({
         registration_id: registrationId,
         registration_code: code,
+        appointment_time: slotLabel(appointmentTime),
         verified: eligibility.verified && !overridden,
         eligibility_overridden: overridden,
       });
@@ -1230,7 +1336,7 @@ router.post('/:id/cause-list', requireAuth, requireStaffRole(...STAFF_EDIT),
         seen.add(key);
         values.push([
           uuidv4(), session.id, entry.reference.trim(), key,
-          entry.surname || null, entry.division || null, req.dbStaff?.id || null,
+          entry.surname || null, entry.division || null, entry.time || null, req.dbStaff?.id || null,
         ]);
       }
 
@@ -1240,12 +1346,13 @@ router.post('/:id/cause-list', requireAuth, requireStaffRole(...STAFF_EDIT),
         for (let i = 0; i < values.length; i += 500) {
           await conn.query(
             `INSERT INTO session_cause_list
-               (id, session_id, reference, reference_key, party_surname, division, imported_by)
+               (id, session_id, reference, reference_key, party_surname, division, appointment_time, imported_by)
              VALUES ?
              ON DUPLICATE KEY UPDATE
                reference = VALUES(reference),
                party_surname = VALUES(party_surname),
                division = VALUES(division),
+               appointment_time = VALUES(appointment_time),
                imported_at = CURRENT_TIMESTAMP,
                imported_by = VALUES(imported_by)`,
             [values.slice(i, i + 500)]

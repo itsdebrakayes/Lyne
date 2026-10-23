@@ -58,6 +58,8 @@ export type LineTicket = {
   joinedAt?: string | null;
   /** How they got into the line: from the app, a kiosk, or walking up. */
   channel?: string | null;
+  /** Set when an appointment's slot was honoured at check-in (migration 042). */
+  appointmentAt?: string | null;
   /** How many times they have been called. Two is a different situation. */
   callCount?: number;
   /* Healthcare. Server order (position) is the call order; these are what
@@ -202,7 +204,20 @@ const useLine = () => useContext(LineCtx);
    column. A clerk glancing up should know how this person reached them without
    reading a table: somebody who joined from home has been travelling, somebody
    a clerk typed in is standing there already. */
-function joinedPill(t: { channel?: string | null }) {
+/** "10:30" from the slot the API stored. */
+function appointmentClock(at?: string | null) {
+  if (!at) return null;
+  /* The API sends an instant (UTC on the wire); the branch's clock is the
+     desk's own, so format it locally rather than slicing the text. */
+  const d = new Date(at);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function joinedPill(t: { channel?: string | null; appointmentAt?: string | null }) {
+  /* Why this person is ahead of people who arrived earlier. Without it, a clerk
+     sees a ticket that jumped the line and has no answer for the room. */
+  const slot = appointmentClock(t.appointmentAt);
+  if (slot) return `Appointment at ${slot} · checked in`;
   const c = String(t.channel || '');
   if (c === 'app') return 'Joined from the Lyne app';
   if (c === 'kiosk') return 'Added at the kiosk';
@@ -1012,6 +1027,7 @@ export function LineOverviewQX() {
                       {/* A second call is a different situation from a first,
                           and the row is where a clerk decides who to try. */}
                       {(t.callCount || 0) > 1 ? ` · called ${t.callCount}×` : ''}
+                      {appointmentClock(t.appointmentAt) ? ` · appointment ${appointmentClock(t.appointmentAt)}` : ''}
                     </small>
                   </div>
                 </div>

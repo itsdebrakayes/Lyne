@@ -155,6 +155,8 @@ Role dashboards:
 
 A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
 
+**Sessions** (Sessions tab, managers and executives) are announced, capped windows people register for and check in to; checking in creates an ordinary ticket. A session can require an approved list (migration 029). People on it can also hold an **appointment time** (migration 042), carried in the list import or typed by staff at the door; members of the public cannot set their own. Check-in opens 15 minutes before the time and the slot is held 10 minutes after (both per session). An on-time check-in goes ahead of walk-ins and behind earlier appointments; an early one is told when check-in opens; a late one joins in the usual order. The rule is `apps/backend/src/utils/appointments.js`. Registration and check-in are done by staff in the admin app: there is no public sessions page or mobile screen yet, though the client's ticket shows the appointment once they are checked in.
+
 ### API — `apps/backend`
 
 Node / Express over MySQL. Supabase is used **only** to verify who is signed in; all application data lives in MySQL.

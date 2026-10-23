@@ -53,6 +53,8 @@ export type AdminSession = {
   requires_eligibility: boolean;
   second_factor: 'none' | 'surname';
   arrive_minutes_before?: number | null;
+  /** When an appointment's check-in opens and how long its slot is held (migration 042). */
+  appointment_window?: { early: number; late: number };
   status: 'draft' | 'open' | 'closed' | 'in_progress' | 'completed' | 'cancelled';
   registered_count: number;
   checked_in_count: number;
@@ -68,6 +70,8 @@ type Registration = {
   id: string;
   registration_code: string;
   reference?: string | null;
+  /** "10:30" when the organisation booked this person a time. */
+  appointment_time?: string | null;
   verified: boolean;
   status: 'registered' | 'checked_in' | 'no_show' | 'cancelled';
   guest_name?: string | null;
@@ -316,7 +320,7 @@ function SessionPlanPanel({ session }: { session: AdminSession }) {
 function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => void }) {
   const [code, setCode] = useState('');
   const [result, setResult] = useState<
-    | { kind: 'ok'; ticket: string; name: string | null; verified: boolean; repeat: boolean }
+    | { kind: 'ok'; ticket: string; name: string | null; verified: boolean; repeat: boolean; appointment: string | null }
     | { kind: 'err'; message: string }
     | null
   >(null);
@@ -327,6 +331,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
       verified?: boolean;
       reference?: string | null;
       ticket: { ticket_number: string; guest_name?: string | null };
+      appointment?: { time: string; timing: string; message: string | null } | null;
     }>(`/sessions/${sessionId}/check-in`, { code: value }),
     onSuccess: (data) => {
       setResult({
@@ -335,6 +340,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
         name: data.ticket?.guest_name || null,
         verified: Boolean(data.verified),
         repeat: Boolean(data.already_checked_in),
+        appointment: data.appointment?.message || null,
       });
       setCode('');
       onDone();
@@ -378,6 +384,9 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
               ? 'Confirmed against today’s list.'
               : 'Not checked against a list — confirm their paperwork at the counter.'}
           </p>
+          {/* On time: called ahead of walk-ins. Late: in the usual order. The
+              clerk reads this out, so it is the API's own sentence. */}
+          {result.appointment ? <p>{result.appointment}</p> : null}
         </div>
       ) : null}
 
@@ -402,7 +411,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
 function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone: () => void }) {
   const terms = useSectorTerms();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ reference: '', surname: '', name: '', phone: '' });
+  const [form, setForm] = useState({ reference: '', surname: '', name: '', phone: '', time: '' });
   const [issued, setIssued] = useState<{ code: string; overridden: boolean } | null>(null);
 
   const register = useMutation({
@@ -413,11 +422,12 @@ function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone:
         surname: form.surname.trim() || undefined,
         name: form.name.trim() || undefined,
         phone: form.phone.trim() || undefined,
+        appointment_time: form.time || undefined,
       },
     ),
     onSuccess: (data) => {
       setIssued({ code: data.registration_code, overridden: Boolean(data.eligibility_overridden) });
-      setForm({ reference: '', surname: '', name: '', phone: '' });
+      setForm({ reference: '', surname: '', name: '', phone: '', time: '' });
       onDone();
     },
   });
@@ -456,6 +466,10 @@ function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone:
         <label>
           <span>Phone <small>Optional</small></span>
           <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </label>
+        <label>
+          <span>Appointment Time <small>Optional</small></span>
+          <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
         </label>
       </div>
 
@@ -513,7 +527,11 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
     .filter(Boolean)
     .map((line) => {
       const parts = line.split(/\t|,|;|\s{2,}/).map((p) => p.trim()).filter(Boolean);
-      return { reference: parts[0], surname: parts[1] || undefined, division: parts[2] || undefined };
+      /* A column that reads as a time is the appointment (migration 042), from
+         wherever it sits, so a booking export can be pasted as it comes. */
+      const timeAt = parts.findIndex((p, i) => i > 0 && /^\d{1,2}:\d{2}$/.test(p));
+      const time = timeAt > 0 ? parts.splice(timeAt, 1)[0].padStart(5, '0') : undefined;
+      return { reference: parts[0], surname: parts[1] || undefined, division: parts[2] || undefined, time };
     })
     .filter((e) => e.reference), [raw]);
 
@@ -536,7 +554,7 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
   return (
     <Card
       title="Load The List"
-      cap={`One ${lower(terms.visitor.one).replace(/s$/, '')} per line: reference, surname, ${lower(terms.section.one)}`}
+      cap={`One ${lower(terms.visitor.one).replace(/s$/, '')} per line: reference, surname, ${lower(terms.section.one)}, and a time such as 10:30 if they have an appointment`}
       tools={<button type="button" className="qx-btn ghost" onClick={() => setOpen(false)}><X size={14} />Close</button>}
     >
       <textarea
@@ -553,7 +571,7 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
           discover afterwards that a stray header row cost them three. */}
       <p className="qx-hint">
         {entries.length
-          ? `Read ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}. Separate columns with a comma, a tab, or two spaces.`
+          ? `Read ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${entries.some((e) => e.time) ? `, ${entries.filter((e) => e.time).length} with an appointment time. Check-in opens ${session.appointment_window?.early ?? 15} minutes before each time and the slot is held ${session.appointment_window?.late ?? 10} minutes after` : ''}. Separate columns with a comma, a tab, or two spaces.`
           : 'Paste or type the list above. Commas, tabs and two-space columns all work.'}
       </p>
 
@@ -820,7 +838,10 @@ function SessionRegistrations({ terms, rows, q, onSearch }: {
         empty={q ? `Nobody matches “${q}”.` : 'Nobody has registered for this session yet.'}
         renderRow={(r) => (
           <Row key={r.id} grid={REG_GRID}>
-            <span className="qx-strong">{r.user_name || r.guest_name || '—'}</span>
+            <span className="qx-strong">
+              {r.user_name || r.guest_name || '—'}
+              {r.appointment_time ? <small className="qx-mono" style={{ display: 'block', fontWeight: 500 }}>Appointment {r.appointment_time}</small> : null}
+            </span>
             <span className="qx-ref">
               {r.reference || '—'}
               {/* The whole point of the flag. A tick means the organisation's own

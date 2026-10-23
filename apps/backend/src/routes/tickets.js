@@ -392,16 +392,17 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
 
     // Ensure today's queue exists for this branch+service, then lock it. Mirrors
     // the queue-ensure in queues.js so a walk-in can open the day's first line.
-    const today = new Date().toISOString().slice(0, 10);
+    // CURDATE(), not the UTC date from toISOString(), which in Jamaica is
+    // tomorrow from 7 p.m. and put evening walk-ins in a line nobody calls.
     await conn.query(
       `INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity)
-       VALUES (?, ?, ?, ?, 50)
+       VALUES (?, ?, ?, CURDATE(), 50)
        ON DUPLICATE KEY UPDATE is_active = TRUE`,
-      [uuidv4(), branchId, service_id, today]
+      [uuidv4(), branchId, service_id]
     );
     const [queues] = await conn.query(
-      'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = ? FOR UPDATE',
-      [branchId, service_id, today]
+      'SELECT * FROM queues WHERE branch_id = ? AND service_id = ? AND queue_date = CURDATE() FOR UPDATE',
+      [branchId, service_id]
     );
     const queue = queues[0];
 
@@ -474,6 +475,9 @@ router.get('/queue/:queue_id', requireAuth, requireStaffRole('line_staff', 'mana
                  the person walked up to a kiosk or joined from a bus, and a
                  clerk could not tell a first call from a third. */
               t.channel, t.guest_name,
+              /* The honoured appointment slot (migration 042): why this ticket
+                 sits ahead of people who arrived before it. */
+              t.appointment_at,
               (SELECT COUNT(*) FROM queue_events e
                 WHERE e.ticket_id = t.id AND e.new_status = 'called') AS call_count,
               (SELECT COUNT(*) FROM service_readiness sr

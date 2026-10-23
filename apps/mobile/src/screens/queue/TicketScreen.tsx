@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Platform, RefreshControl, ScrollView
 import { RouteProp, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { colors, font, t, type, initials } from '../../lib/theme';
+import { colors, font, shadow, t, type, initials } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
@@ -352,6 +352,19 @@ export default function TicketScreen() {
             <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{statusLabel}</Text>
           </View>
         )}
+
+        {/* An honoured appointment (migration 042). Says why their place is
+            ahead of people who were here first, so the client is not surprised
+            and can say so if anyone asks. */}
+        {active && ticket.appointment_at ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14, ...shadow.card }}>
+            <Ionicons name="calendar-outline" size={20} color={colors.accent} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>
+              {/* An instant on the wire, so read it in the phone's own clock. */}
+              {`Appointment at ${new Date(ticket.appointment_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. You'll be called ahead of walk-ins.`}
+            </Text>
+          </View>
+        ) : null}
 
         {/* The pass, on the boarding-pass model: the journey on a dark panel,
             a perforation, and the scannable half below it. */}
