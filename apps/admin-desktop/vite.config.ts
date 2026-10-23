@@ -25,9 +25,19 @@ const isLocal = (value?: string) =>
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, 'VITE_');
-  const apiUrl = mode === 'production' && isLocal(env.VITE_API_URL) ? PRODUCTION_API_URL : env.VITE_API_URL;
+  /* The one deliberate exception: `npm run package:mac:demo` builds "Lyne Admin
+     Demo", a second app that talks to the demo server on this Mac
+     (http://localhost:4000/api) so the demo logins and demo organisations can
+     be shown in an installed app. It is opted into by name, never by an .env
+     left lying around, and installs beside the real app rather than over it. */
+  const demoBuild = process.env.LYNE_DEMO_BUILD === '1';
+  const apiUrl = demoBuild
+    ? (env.VITE_API_URL || 'http://localhost:4000/api')
+    : mode === 'production' && isLocal(env.VITE_API_URL) ? PRODUCTION_API_URL : env.VITE_API_URL;
 
-  if (mode === 'production' && isLocal(env.VITE_API_URL)) {
+  if (demoBuild) {
+    console.log(`\n  ℹ  DEMO BUILD — building against ${apiUrl}\n`);
+  } else if (mode === 'production' && isLocal(env.VITE_API_URL)) {
     console.log(`\n  ℹ  VITE_API_URL was ${env.VITE_API_URL ? `local (${env.VITE_API_URL})` : 'unset'} — building against ${PRODUCTION_API_URL}\n`);
   }
 

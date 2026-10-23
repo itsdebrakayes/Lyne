@@ -43,6 +43,37 @@ ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 \
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 npm run refresh:demo-data
 ```
 
+## The demo logins and the Lyne Admin Demo app
+
+The seven `demo.*@uselyne.com` logins (passwords in `secrets/staff-logins.txt`)
+exist in two places, and the difference matters:
+
+- **Production** (the installed **Lyne Admin** app, `api.uselyne.com`): they
+  belong to Blue Harbour Civic Centre, the fictional review organisation, and
+  stay there. Production may not hold the demo organisations.
+- **The demo server on this Mac** (Docker, port 4000): they are personas you
+  point at whichever organisation the next demo is about:
+
+  ```bash
+  bash scripts/demo-switch.sh bank          # Lignum Bank
+  bash scripts/demo-switch.sh creditunion   # Community First Credit Union
+  bash scripts/demo-switch.sh court         # Traffic Court
+  bash scripts/demo-switch.sh hospital      # Wrenfield Health
+  bash scripts/demo-switch.sh blueharbour   # exactly what production has
+  ```
+
+  officer/officer2/officer3 are line staff seated at a desk, supervisor and
+  supervisor2 are branch supervisors, then the manager and the executive. Seats
+  are per day, so run it again on the morning of a demo.
+
+To show the demo server in an installed app, use **Lyne Admin Demo** (built with
+`npm run package:mac:demo` in `apps/admin-desktop`, then copied to
+/Applications). It talks only to `http://localhost:4000/api`, keeps its own
+sign-in separate from Lyne Admin, and needs Docker running with the demo stack
+up. "No MySQL record found for this account" means the login reached a server
+where that account is not linked: run the switch, or check which app you
+opened.
+
 ## Bank demo (Lignum Bank)
 
 A fictional Jamaican commercial bank for the bank demos (`database/demo_bank_seed.sql`,
