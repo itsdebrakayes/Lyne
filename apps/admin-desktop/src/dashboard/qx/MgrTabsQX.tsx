@@ -20,6 +20,7 @@
  * retrofitted after something black-screens.
  */
 import { createContext, useContext, useMemo, useState } from 'react';
+import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, Clock, Coffee, Download,
   FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp, UserX, Users, Waypoints, Zap, PlayCircle,
@@ -740,6 +741,7 @@ export function MgrReportsTab() {
  * would just be a prettier version of the same lie.
  */
 export function MgrSettingsTab() {
+  const terms = useSectorTerms();
   const d = useMgr();
   const saving = d.settingsSaveState === 'saving';
   const overflowOn = !!d.settings?.branch.allow_overflow;
@@ -784,9 +786,9 @@ export function MgrSettingsTab() {
               person they tell can act on it. */}
           <div className="qx-setrow">
             <div>
-              <b>Let Lyne Hold A Place For Customers</b>
+              <b>Let Lyne Hold A Place For {terms.visitor.many}</b>
               <small>
-                Line Helper joins the line for a customer at a time they agree, and tells them
+                Line Helper joins the line for a {lower(terms.visitor.one)} at a time they agree, and tells them
                 when to leave home. If they are called before they arrive, their place passes to
                 the next person — up to three turns, then the ticket ends. Switch this off and
                 this branch stops offering it.
@@ -801,7 +803,7 @@ export function MgrSettingsTab() {
               integration and the kiosk has no printer driver. */}
           <div className="qx-setrow">
             <div>
-              <b>Text Customers When Called</b>
+              <b>Text {terms.visitor.many} When Called</b>
               <small>Needs an SMS provider connected. Until then everyone is notified in the app.</small>
             </div>
             <Toggle on={false} label="Text when called" disabled

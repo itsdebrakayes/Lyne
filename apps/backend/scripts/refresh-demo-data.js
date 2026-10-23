@@ -77,6 +77,10 @@ const SEED_PATH = process.env.DEMO_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_active_seed.sql');
 const CREDIT_UNION_SEED_PATH = process.env.DEMO_CREDIT_UNION_SEED_PATH
   || path.resolve(__dirname, '../../../database/demo_credit_union_seed.sql');
+/* Lignum Bank, the fictional commercial bank for the bank demos. Before the
+   sector seed, whose closing sweep must run after every line is opened. */
+const BANK_SEED_PATH = process.env.DEMO_BANK_SEED_PATH
+  || path.resolve(__dirname, '../../../database/demo_bank_seed.sql');
 /* The sector accounts — Traffic Court, UWI, UTech, First Heritage. These were
    seeded once and then left out of the daily roll-over, so their queues kept
    the date they were first written and every service under them read "not open
@@ -205,7 +209,7 @@ async function absorbRuntimeQueues(connection) {
 }
 
 async function refreshDemoData(connection = pool) {
-  const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, SECTOR_SEED_PATH]
+  const seedPaths = [SEED_PATH, CREDIT_UNION_SEED_PATH, BANK_SEED_PATH, SECTOR_SEED_PATH]
     .filter(seedPath => fs.existsSync(seedPath));
   const stranded = await closeOutStrandedTickets(connection);
   if (stranded) console.log(`Closed out ${stranded} ticket(s) stranded from a previous day.`);

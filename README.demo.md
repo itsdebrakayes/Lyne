@@ -43,6 +43,25 @@ ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 \
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 npm run refresh:demo-data
 ```
 
+## Bank demo (Lignum Bank)
+
+A fictional Jamaican commercial bank for the bank demos (`database/demo_bank_seed.sql`,
+loaded by the installer and the daily refresh after migrations 040 and 041). Three
+branches with real banking hours, six services with what-to-bring lists, live lines,
+incomplete visits, and two Saturday sessions (Saturday Banking, and a loan clinic
+gated by an approved list). The wording is the `banking` sector's: Clients, Banking
+Officers, Departments. The full brief is `docs/demo/SCOTIABANK_DEMO_BRIEF.md`.
+
+To list only the bank on phones, set `LISTED_SECTORS=banking` in `.env` and restart
+the API. Logins (create them in Supabase Auth, then run `sync-demo-test-accounts`):
+
+| Login | Who |
+|---|---|
+| `staff-bank@test.com` | Shauna Edwards, Teller 1, Half Way Tree |
+| `supervisor-bank@test.com` | Kimberley Hylton, Half Way Tree |
+| `manager-bank@test.com` | Dwayne Pottinger, Half Way Tree |
+| `executive-bank@test.com` | Lorraine Gordon, bank-wide |
+
 ## Hospital demo (Wrenfield Health)
 
 The fictional US health system — three hospitals, eleven departments with

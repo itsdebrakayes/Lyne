@@ -18,6 +18,7 @@
  * Title Case for every title, label and control. Sentence case only for prose.
  */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useSectorTerms } from '@/hooks/useSectorTerms';
 import { replayTour } from '../../hooks/useTour';
 import SupportAsk from '../../components/SupportAsk';
 import { buildCompanyReport } from '../reportDoc';
@@ -166,6 +167,7 @@ const FX_TRAJECTORY = [
 const TRAJ_GRID = 'minmax(0,2.4fr) 110px 92px 92px 96px';
 
 export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
+  const servedLabel = `${useSectorTerms().visitor.many} Served`;
   const d = useExecData();
   const [metric, setMetric] = useState<Metric>('served');
   const [showA, setShowA] = useState(true);
@@ -195,7 +197,7 @@ export function ExecTrends({ onNav }: { onNav: (k: string) => void }) {
         cap={`${d.rangeA} measured against ${d.rangeB} — the same number of days immediately before, so it is like for like`}
         tools={<>
           <Seg value={metric} onChange={setMetric} options={[
-            ['served', 'Customers Served'], ['wait', 'Average Wait'], ['done', 'Completed'], ['noshow', 'No-Shows'],
+            ['served', servedLabel], ['wait', 'Average Wait'], ['done', 'Completed'], ['noshow', 'No-Shows'],
           ]} />
           <LegendToggle series="a" on={showA} onClick={() => setShowA((v) => !v)}>{d.rangeA}</LegendToggle>
           <LegendToggle series="b" on={showB} onClick={() => setShowB((v) => !v)}>{d.rangeB}</LegendToggle>
@@ -370,6 +372,7 @@ const FX_BRANCHES: Branch[] = [
 const BR_GRID = 'minmax(0,2.2fr) minmax(0,1.3fr) 80px 92px 88px';
 
 export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
+  const servedLabel = `${useSectorTerms().visitor.many} Served`;
   const d = useExecData();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState('och');
@@ -457,7 +460,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
         </Card>
 
         <Card title="Compare Branches" cap="Same measure, side by side"
-          tools={<Seg value={view} onChange={setView} options={[['wait', 'Average Wait'], ['served', 'Customers Served']]} />}>
+          tools={<Seg value={view} onChange={setView} options={[['wait', 'Average Wait'], ['served', servedLabel]]} />}>
           <Bars unit={view === 'wait' ? ' min' : ''} invert={view === 'wait'}
             items={[...d.branches]
               .sort((x, y) => (view === 'wait' ? y.wait - x.wait : y.served - x.served))

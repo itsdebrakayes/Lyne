@@ -46,7 +46,7 @@ done
 # customer's first database empty and sellable (see the branch invariants).
 if [ "${LYNE_LOAD_DEMO_SEEDS:-false}" = "true" ]; then
   echo "[lyne-init] demo seeds"
-  for name in seed.sql demo_active_seed.sql demo_credit_union_seed.sql demo_sector_seed.sql demo_help_guides.sql; do
+  for name in seed.sql demo_active_seed.sql demo_credit_union_seed.sql demo_bank_seed.sql demo_sector_seed.sql demo_help_guides.sql; do
     [ -f "$SQL_DIR/$name" ] && run "$SQL_DIR/$name"
   done
 fi

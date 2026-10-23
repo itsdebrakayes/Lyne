@@ -952,7 +952,7 @@ export function LineOverviewQX() {
                   onChange={(e) => setIncompleteReason(e.target.value)}>
                   <option value="">Choose a reason…</option>
                   {(terms.sector === 'healthcare' ? HEALTHCARE_INCOMPLETE_REASONS : INCOMPLETE_REASONS).map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
+                    <option key={r.value} value={r.value}>{r.label.replace('Customer', terms.visitor.one)}</option>
                   ))}
                 </select>
                 <ChevronDown />

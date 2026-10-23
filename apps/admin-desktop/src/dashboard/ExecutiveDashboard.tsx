@@ -19,6 +19,7 @@ import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
 import { ExecDataProvider, execTab, EXEC_TAB_HEAD } from './qx/ExecTabsQX';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { buildExecData } from './qx/execLiveData';
+import { useSectorTerms } from '../hooks/useSectorTerms';
 
 /* Kept verbatim from the Help & Support tab this replaced — these answers were
    written against how the system actually behaves and should not be re-guessed. */
@@ -266,14 +267,15 @@ export default function ExecutiveDashboard() {
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
   const prevRows = useMemo(() => rowsIn(summary, prevWin), [summary, prevWin]);
 
+  const terms = useSectorTerms();
   const liveTabData = useMemo(() => buildExecData({
     summary, windowRows, prevRows,
     rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
     target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
-    channels: d.channels, preds, heat, org, adminName: d.admin?.name,
+    channels: d.channels, preds, heat, org, adminName: d.admin?.name, visitorPlural: terms.visitor.many,
     faq: EXEC_FAQ,
   }), [summary, windowRows, prevRows, d.summary, week, served, completed, noShows, avgWait, target, managers,
-       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
+       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin, terms.visitor.many]);
 
   const qcExec = useQueryClient();
   /* The Save Targets button used to just clear its own dirty flag. */

@@ -220,6 +220,56 @@ const accounts = [
     assignedServiceId: null,
   },
 
+  /* ── Lignum Bank (fictional commercial bank) — every admin level ────────
+     For the bank demos. Like the court logins these adopt the staff rows
+     database/demo_bank_seed.sql creates, so each arrives with today's lines
+     and history. The teller is seated at Teller 1, where the live line is. */
+  {
+    email: 'staff-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-tel1',
+    fullName: 'Shauna Edwards',
+    staffCode: 'LGB-T01',
+    roleId: 'role-staff-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: 'svc-lgb-teller',
+    counterId: 'ctr-lgb-hwt-tel-1',
+  },
+  {
+    email: 'supervisor-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-sup',
+    fullName: 'Kimberley Hylton',
+    staffCode: 'LGB-SV1',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'manager-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-mgr',
+    fullName: 'Dwayne Pottinger',
+    staffCode: 'LGB-BM1',
+    roleId: 'role-mgr-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'executive-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-exec',
+    fullName: 'Lorraine Gordon',
+    staffCode: 'LGB-EX1',
+    roleId: 'role-exec-001',
+    businessId: 'biz-lgb-001',
+    branchId: null,
+    assignedServiceId: null,
+  },
+
   /* ── Traffic Court — every admin level ─────────────────────────────────
      The court is the only tenant that owns a scheduled session, so until these
      existed the entire Sessions feature — the cause list, the registration

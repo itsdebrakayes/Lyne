@@ -56,6 +56,7 @@ const SECTOR_LABEL: Record<string, string> = {
   government_revenue: 'Government agency',
   judiciary: 'Court service',
   financial_services: 'Financial institution',
+  banking: 'Bank',
   microfinance: 'Microfinance',
   university: 'University',
   diagnostics: 'Health service',

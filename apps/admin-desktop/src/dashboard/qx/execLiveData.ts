@@ -53,6 +53,8 @@ export type ExecLiveInput = {
   preds: any[];
   heat: { cols: number; colLabels: string[]; rows: { label: string; levels: number[] }[] };
   org: string;
+  /** The tenant's word for the people it serves, plural (useSectorTerms). */
+  visitorPlural?: string;
   adminName?: string;
   faq: Array<{ q: string; a: string }>;
 };
@@ -272,7 +274,7 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
     projection,
     metrics: {
       served: {
-        label: 'Customers Served', unit: 'served', goodWhen: 'up',
+        label: `${i.visitorPlural || 'Customers'} Served`, unit: 'served', goodWhen: 'up',
         now: i.served.toLocaleString(),
         was: b.length ? b.reduce((t, r) => t + num(r.total_visitors), 0).toLocaleString() : '—',
         a: series(a, 'total_visitors'), b: series(b, 'total_visitors'),

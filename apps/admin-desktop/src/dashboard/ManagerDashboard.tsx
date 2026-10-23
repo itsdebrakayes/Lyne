@@ -405,6 +405,7 @@ export function SvcRow({ nm, mini, chg, chgDir, w }: { nm: string; mini?: number
    Days" whichever pill was lit. `summary` is still accepted as a fallback so
    the component renders something if a caller has not been updated. */
 export function ServedChart({ summary, windowRows }: { summary: any[]; windowRows?: any[] }) {
+  const terms = useSectorTerms();
   const rows = windowRows?.length ? windowRows : summary.slice(-7);
   if (!rows.length) return <Empty msg="No daily data yet." />;
   const vals = rows.map((s) => num(s.completed_count));
@@ -422,7 +423,7 @@ export function ServedChart({ summary, windowRows }: { summary: any[]; windowRow
   return (
     <>
       <div className="qa-legend" style={{ marginBottom: 6 }}>
-        <span style={{ color: 'var(--qa-accent)' }}><span className="ln" /><span style={{ color: 'var(--qa-dim)' }}>Customers Served</span></span>
+        <span style={{ color: 'var(--qa-accent)' }}><span className="ln" /><span style={{ color: 'var(--qa-dim)' }}>{terms.visitor.many} Served</span></span>
         <span><span className="dash" /><span style={{ color: 'var(--qa-dim)' }}>Daily Average · {avg}</span></span>
       </div>
       <div className="qa-chartwrap">
