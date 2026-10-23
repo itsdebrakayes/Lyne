@@ -1,13 +1,13 @@
-# QMe Now — Product Vision & Audit Rubric
+# Lyne — Product Vision & Audit Rubric
 
 The single source of truth for *what we are building* and *what "done, working, and safe"
 means. The system audit checks reality against this document.
 
 ---
 
-## 1. What QMe Now is
+## 1. What Lyne is
 
-**QMe Now lets people skip the physical line.** You join a queue at a government
+**Lyne lets people skip the physical line.** You join a queue at a government
 agency or business from your phone, watch your live position, and arrive exactly
 when it's your turn — instead of standing in line for hours. For the organizations,
 it's a complete queue-management and analytics system their staff run day to day.
@@ -22,9 +22,9 @@ core promise and primary selling point.**
 ## 2. Who it serves (four roles)
 
 1. **End users / customers** — the public. Join queues, track position, plan visits, keep documents.
-2. **Client organizations** — agencies/businesses that pay to run their queues on QMe.
+2. **Client organizations** — agencies/businesses that pay to run their queues on Lyne.
 3. **Their staff** — Line Staff (operate a counter), Managers (run a branch), Executives (run the company).
-4. **QMe (platform operator)** — us. Onboard clients, support, bill, operate the platform.
+4. **Lyne (platform operator)** — us. Onboard clients, support, bill, operate the platform.
 
 ---
 

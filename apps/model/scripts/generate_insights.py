@@ -41,7 +41,7 @@ BUSINESS_HOURS = list(range(8, 18))
 
 
 # Same connection policy as every other script in here — see utils.dbio. This
-# one also carried the pre-rename defaults (qmenow / qme_now), which point at a
+# one also carried the pre-rename database defaults, which point at a
 # database that has not existed under that name for some time.
 #
 # The sys.path line is what every sibling script does: this file is run as
