@@ -84,6 +84,14 @@ async function getStaffProfile(staffId) {
   const profile = { ...rows[0] };
   for (const field of NEVER_EXPOSE) delete profile[field];
 
+  /* The supervisor's section (migration 043), named so the dashboard can say
+     "Half Way Tree · Teller Services". Only looked up when there is one, so a
+     database without 043 is never asked about tables it does not have. */
+  if (profile.section_id) {
+    const [[section]] = await pool.query('SELECT name FROM branch_sections WHERE id = ?', [profile.section_id]);
+    profile.section_name = section?.name || null;
+  }
+
   // Staff learn their organisation's vocabulary at sign-in, so every admin
   // screen can be worded correctly on first paint rather than saying "Customer"
   // and then correcting itself once a business lookup returns.

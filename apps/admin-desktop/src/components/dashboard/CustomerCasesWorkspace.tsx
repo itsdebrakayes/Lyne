@@ -65,6 +65,8 @@ interface Visit {
   ticket_number: string;
   status: string;
   closed_reason: string | null;
+  /** What the desk wrote about this visit, when anything. */
+  note?: string | null;
   channel: string;
   waited_minutes: number | null;
   served_by: string | null;
@@ -320,6 +322,9 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
                   <span className="qc-visit-what">
                     <b>{v.service_name}</b>
                     <small>{v.branch_name} · {v.ticket_number} · joined by {v.channel.replace('_', ' ')}</small>
+                    {v.note ? (
+                      <small style={{ display: 'block', marginTop: 4, fontStyle: 'italic', opacity: 0.9 }}>“{v.note}”</small>
+                    ) : null}
                   </span>
                   <span className="qc-visit-out">
                     <span className={`qc-tag ${resolved ? 'qc-tag--ok' : live ? '' : 'qc-tag--hot'}`}>

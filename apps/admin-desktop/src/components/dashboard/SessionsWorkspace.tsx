@@ -399,6 +399,65 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
   );
 }
 
+/* ══════════════════════ registration ══════════════════════ */
+
+/**
+ * The supervisor's and manager's control: is this session still taking places?
+ * Closing stops new registrations anywhere (app, web, door) and leaves everyone
+ * already registered untouched. Checking people in is the desk's job, so it is
+ * not offered here.
+ */
+function RegistrationPanel({ session, onDone }: { session: AdminSession; onDone: () => void }) {
+  const terms = useSectorTerms();
+  const toggle = useMutation({
+    mutationFn: (open: boolean) => api.post<AdminSession>(`/sessions/${session.id}/registration`, { open }),
+    onSuccess: () => onDone(),
+  });
+  const open = session.status === 'open';
+  const closed = session.status === 'closed' || session.status === 'draft';
+  const full = session.places_remaining <= 0;
+
+  return (
+    <Card title="Registration" cap={open ? 'Taking places now' : closed ? 'Not taking places' : STATUS_WORD[session.status]}>
+      {open || closed ? (
+        <>
+          <Note
+            icon={open ? Users : ShieldCheck}
+            title={open
+              ? (full ? 'Open, But Full' : `Open · ${session.places_remaining} Places Left`)
+              : 'Closed To New Registrations'}
+            body={open
+              ? `${terms.visitor.many} can still take a place in the app, on the web or at the door. Close it when the day is full enough or the deadline has passed.`
+              : `Nobody new can register. The ${session.registered_count} already booked keep their places and check in on the day as normal.`}
+          />
+          <button
+            type="button"
+            className={open ? 'qx-btn' : 'qx-btn ghost'}
+            style={{ marginTop: 12 }}
+            disabled={toggle.isPending}
+            onClick={() => toggle.mutate(!open)}
+          >
+            {toggle.isPending ? 'Saving…' : open ? 'Close Registration' : 'Reopen Registration'}
+          </button>
+          {toggle.error ? (
+            <div style={{ marginTop: 10 }}>
+              <Note icon={AlertTriangle} tone="bad" title="Not Changed" body={humanError((toggle.error as Error).message)} />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <Note
+          icon={Clock}
+          title={session.status === 'in_progress' ? 'Running Now' : session.status === 'completed' ? 'This Session Has Finished' : 'Cancelled'}
+          body={session.status === 'in_progress'
+            ? `Check-in has started, so registration is closed. The desks are checking ${lower(terms.visitor.many)} in as they arrive.`
+            : 'The record below is what happened.'}
+        />
+      )}
+    </Card>
+  );
+}
+
 /* ══════════════════════ register at the door ══════════════════════ */
 
 /**
@@ -739,8 +798,14 @@ export type SessionsData = {
   sessions: AdminSession[];
   detail: RegistrationsPayload | null;
   loading: boolean;
-  /** Supervisors watch and check people in; they do not create or close a day. */
+  /** Managers and executives create sessions and load lists. */
   canEdit: boolean;
+  /* Who is looking, which decides the panel beside the list:
+     'desk'    — line staff: check people in as they arrive.
+     'oversee' — supervisors, managers, executives: open and close registration.
+     Check-in belongs with whoever is at the door; running the day belongs
+     with whoever is responsible for it. */
+  mode?: 'desk' | 'oversee';
   active: string;
   onSelect: (id: string) => void;
   onRefresh: () => void;
@@ -799,6 +864,7 @@ export const SESSIONS_FIXTURES: SessionsData = {
   },
   loading: false,
   canEdit: true,
+  mode: 'oversee',
   active: 'ses-court-sat',
   onSelect: () => undefined,
   onRefresh: () => undefined,
@@ -816,11 +882,17 @@ const useSessions = () => useContext(SessionsCtx);
 /* ══════════════════════ the screen ══════════════════════ */
 
 const REG_GRID = 'minmax(0,1.5fr) minmax(0,1.2fr) 108px minmax(0,1fr) 118px';
+/* Without a list there is no reference to show, so the column goes rather
+   than standing empty on every row. */
+const REG_GRID_NOREF = 'minmax(0,1.8fr) 118px minmax(0,1fr) 118px';
 
 /** Extracted only so the grid above reads as a grid rather than 40 lines of table. */
-function SessionRegistrations({ terms, rows, q, onSearch }: {
+function SessionRegistrations({ terms, rows, q, onSearch, showReference }: {
   terms: ReturnType<typeof useSectorTerms>;
   rows: Registration[];
+  /** True for a session checked against a list: the reference is the person's
+   *  booking or approval number on that list (PA-26-1041, a ticket number). */
+  showReference: boolean;
   q: string;
   onSearch: (v: string) => void;
 }) {
@@ -832,16 +904,19 @@ function SessionRegistrations({ terms, rows, q, onSearch }: {
       tools={<InlineSearch value={q} onChange={onSearch} placeholder="Search name, reference or code…" />}
     >
       <Table
-        grid={REG_GRID}
-        columns={[terms.visitor.one, terms.identifier?.label || 'Reference', 'Code', 'Status', 'Ticket']}
+        grid={showReference ? REG_GRID : REG_GRID_NOREF}
+        columns={showReference
+          ? [terms.visitor.one, terms.identifier?.label || 'Booking Reference', 'Check-In Code', 'Status', 'Ticket']
+          : [terms.visitor.one, 'Check-In Code', 'Status', 'Ticket']}
         items={rows}
         empty={q ? `Nobody matches “${q}”.` : 'Nobody has registered for this session yet.'}
         renderRow={(r) => (
-          <Row key={r.id} grid={REG_GRID}>
+          <Row key={r.id} grid={showReference ? REG_GRID : REG_GRID_NOREF}>
             <span className="qx-strong">
               {r.user_name || r.guest_name || '—'}
               {r.appointment_time ? <small className="qx-mono" style={{ display: 'block', fontWeight: 500 }}>Appointment {r.appointment_time}</small> : null}
             </span>
+{showReference ? (
             <span className="qx-ref">
               {r.reference || '—'}
               {/* The whole point of the flag. A tick means the organisation's own
@@ -850,6 +925,7 @@ function SessionRegistrations({ terms, rows, q, onSearch }: {
                 ? <ShieldCheck size={13} className="qx-ok" aria-label="Confirmed against the list" />
                 : <ShieldQuestion size={13} className="qx-unk" aria-label="Not checked against a list" />}
             </span>
+            ) : null}
             <span className="qx-mono">{r.registration_code}</span>
             <span>
               {r.status === 'checked_in' ? <Status kind="open">Arrived</Status>
@@ -1035,7 +1111,9 @@ export function SessionsScreen() {
               list. Everything supporting sits in a three-up row below, which is
               also what stops the grid leaving a hole beside a short table. */}
           <div className="qx-stack s5">
-            {isToday && session.status !== 'completed' && session.status !== 'cancelled'
+            {d.mode !== 'desk'
+              ? <RegistrationPanel session={session} onDone={refresh} />
+              : isToday && session.status !== 'completed' && session.status !== 'cancelled'
               ? <CheckInPanel sessionId={session.id} onDone={refresh} />
               : (
                 <Card title="Check-In Opens On The Day" cap={dayLabel(session.session_date)}>
@@ -1082,7 +1160,7 @@ export function SessionsScreen() {
           </div>
 
           {/* ── who is expected ───────────────────────────── */}
-          <SessionRegistrations terms={terms} rows={shown} q={q} onSearch={setQ} />
+          <SessionRegistrations terms={terms} rows={shown} q={q} onSearch={setQ} showReference={Boolean(session.requires_eligibility || shown.some((r) => r.reference))} />
 
           {canEdit ? (
             <div className={`qx-stack ${bottomSpan}`}>
@@ -1141,11 +1219,12 @@ export function SessionsScreen() {
  * Owns the queries and the selection, and hands the screen a plain data object.
  * Everything below this line is the only part that knows an API exists.
  */
-export function SessionsWorkspace({ businessId, branchId, canEdit = true }: {
+export function SessionsWorkspace({ businessId, branchId, canEdit = true, mode = 'oversee' }: {
   /** Undefined while the account is still resolving — every query is gated on it. */
   businessId?: string;
   branchId?: string | null;
   canEdit?: boolean;
+  mode?: 'desk' | 'oversee';
 }) {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string>('');
@@ -1185,6 +1264,7 @@ export function SessionsWorkspace({ businessId, branchId, canEdit = true }: {
     detail: detail.data ?? null,
     loading: sessions.isLoading,
     canEdit,
+    mode,
     active,
     businessId,
     branchId,

@@ -17,6 +17,7 @@ const {
   requireStaffRole,
   requireBranchAccess,
   requireQueueAccess,
+  pushSectionScope,
 } = require('../middleware/tenantAccess');
 
 
@@ -68,6 +69,8 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'm
       conditions.push('q.branch_id = ?');
       params.push(req.dbStaff.branch_id);
     }
+    // A supervisor with a section runs only that section's lines (migration 043).
+    pushSectionScope(req, conditions, params, 'q.service_id');
     if (role === 'line_staff') {
       conditions.push('q.branch_id = ?');
       params.push(req.dbStaff.branch_id);

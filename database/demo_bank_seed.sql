@@ -22,7 +22,8 @@ SET NAMES utf8mb4;
 --   • a Saturday loan clinic gated by an approved list: only pre-approved
 --     applicants may register, and they check in on the day.
 --
--- Needs migrations 040 (short_name, help_guide) and 041 (banking sector).
+-- Needs migrations 040 (short_name, help_guide), 041 (banking sector),
+-- 042 (appointments) and 043 (branch sections).
 -- Load order matters: this file runs BEFORE demo_sector_seed.sql, whose
 -- closing sweep deactivates every branch line on a day the branch is shut.
 -- Safe to rerun: every row has a deterministic id.
@@ -172,6 +173,23 @@ VALUES
   ('ctr-lgb-mob-acct',  'br-lgb-mob', 'svc-lgb-acct',   2, 'Personal Banking 1', TRUE)
 ON DUPLICATE KEY UPDATE service_id = VALUES(service_id), label = VALUES(label), is_active = TRUE;
 
+-- Sections of each branch (migration 043): what a supervisor runs. The
+-- manager sees the whole branch; each supervisor sees only their section.
+INSERT INTO branch_sections (id, branch_id, name) VALUES
+  ('sec-lgb-hwt-teller',   'br-lgb-hwt', 'Teller Services'),
+  ('sec-lgb-hwt-personal', 'br-lgb-hwt', 'Personal Banking'),
+  ('sec-lgb-nkg-teller',   'br-lgb-nkg', 'Teller Services'),
+  ('sec-lgb-nkg-business', 'br-lgb-nkg', 'Business & Personal Banking'),
+  ('sec-lgb-mob-all',      'br-lgb-mob', 'Branch Services')
+ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+INSERT IGNORE INTO branch_section_services (section_id, service_id) VALUES
+  ('sec-lgb-hwt-teller',   'svc-lgb-teller'), ('sec-lgb-hwt-teller',   'svc-lgb-card'),
+  ('sec-lgb-hwt-personal', 'svc-lgb-acct'),   ('sec-lgb-hwt-personal', 'svc-lgb-loan'), ('sec-lgb-hwt-personal', 'svc-lgb-enq'),
+  ('sec-lgb-nkg-teller',   'svc-lgb-teller'),
+  ('sec-lgb-nkg-business', 'svc-lgb-acct'),   ('sec-lgb-nkg-business', 'svc-lgb-loan'), ('sec-lgb-nkg-business', 'svc-lgb-biz'),
+  ('sec-lgb-mob-all',      'svc-lgb-teller'), ('sec-lgb-mob-all',      'svc-lgb-acct');
+
 -- The role ladder. The executive has no branch_id, which is what makes them
 -- bank-wide. The four demo logins (sync-demo-test-accounts.js) adopt the first
 -- teller, the HWT supervisor and manager, and the executive.
@@ -193,6 +211,9 @@ ON DUPLICATE KEY UPDATE
   business_id = VALUES(business_id), branch_id = VALUES(branch_id), role_id = VALUES(role_id),
   full_name = VALUES(full_name), assigned_service_id = VALUES(assigned_service_id),
   is_active = TRUE, availability_status = VALUES(availability_status);
+
+-- The Half Way Tree supervisor runs Teller Services.
+UPDATE staff SET section_id = 'sec-lgb-hwt-teller' WHERE id = 'stf-lgb-hwt-sup';
 
 INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
 VALUES
@@ -653,6 +674,11 @@ SELECT h.tid, qq.id, h.user_id, CONCAT(h.prefix, '-H', LPAD(h.pos, 3, '0')), h.c
   JOIN queues qq ON qq.branch_id = h.branch_id AND qq.service_id = h.service_id
                 AND qq.queue_date = DATE_SUB(CURDATE(), INTERVAL h.d DAY);
 DROP TEMPORARY TABLE IF EXISTS _lgb_hist;
+
+-- Two of them are in today's lines, so their flags show on their names at the
+-- desk: Beverley in the Half Way Tree teller line, Oneil at Card Services.
+UPDATE queue_tickets SET user_id = 'usr-lgb-c02', guest_name = NULL WHERE id = 't-lgb-hwt-tel-05';
+UPDATE queue_tickets SET user_id = 'usr-lgb-c03', guest_name = NULL WHERE id = 't-lgb-hwt-crd-02';
 
 -- Two staff flags, so the case list shows what flagging looks like.
 DELETE FROM patient_flags WHERE id LIKE 'pf-lgb-%';

@@ -57,7 +57,7 @@ interface WalkInTicket {
   triage_flag?: 'none' | 'possibly_urgent';
 }
 
-type Step = 'welcome' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket';
+type Step = 'welcome' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
 type Notify = 'sms' | 'screen';
 
 const STEPS: Array<{ key: Step; label: string }> = [
@@ -284,8 +284,8 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
 
 /* ─────────────────────────── screens ─────────────────────────── */
 
-function Welcome({ org, branch, onStart, kx }: {
-  org: string; branch: string; onStart: () => void; kx: KioskScale;
+function Welcome({ org, branch, onStart, onBooking, kx }: {
+  org: string; branch: string; onStart: () => void; onBooking: () => void; kx: KioskScale;
 }) {
   return (
     <TouchableOpacity
@@ -319,6 +319,26 @@ function Welcome({ org, branch, onStart, kx }: {
         </Text>
         <Ionicons name="arrow-forward" size={kx.wide ? kx.s(26) : 20} color={colors.accentInk} />
       </View>
+
+      {/* Somebody who booked a place or an appointment already has a code; they
+          check in here instead of joining as a walk-in. Its own touch target, so
+          it is not swallowed by "touch anywhere". */}
+      <TouchableOpacity
+        onPress={onBooking}
+        accessibilityRole="button"
+        accessibilityLabel="I have a booking or appointment. Check in with my code."
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: kx.wide ? kx.s(20) : 14,
+          borderWidth: 1.5, borderColor: colors.accent, borderRadius: 999,
+          paddingVertical: kx.wide ? kx.s(16) : 12, paddingHorizontal: kx.wide ? kx.s(32) : 22,
+          backgroundColor: colors.surface,
+        }}
+      >
+        <Ionicons name="calendar-outline" size={kx.wide ? kx.s(22) : 18} color={colors.accent} />
+        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 15, color: colors.accent }}>
+          Have A Booking? Check In With Your Code
+        </Text>
+      </TouchableOpacity>
 
       <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
         {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
@@ -653,6 +673,47 @@ function Details({
   );
 }
 
+/* Checking in with a code from a booking or an appointment. One field, typed
+   however the person reads it; the server finds which of today's sessions at
+   this branch the code belongs to. */
+function Booking({ code, setCode, busy, error, onBack, onDone, kx }: {
+  code: string; setCode: (v: string) => void; busy: boolean; error: string;
+  onBack: () => void; onDone: () => void; kx: KioskScale;
+}) {
+  return (
+    <Frame
+      kx={kx}
+      eyebrow="Booked Already"
+      title="Type Your Check-In Code"
+      sub="It is on your booking message or in the Lyne app, for example PBK-1030. Spaces and dashes do not matter."
+      onBack={onBack}
+      primary={{ label: 'Check In', onPress: onDone, disabled: code.trim().length < 4, busy }}
+    >
+      <TextInput
+        value={code}
+        onChangeText={(t) => setCode(t.toUpperCase().slice(0, 12))}
+        placeholder="Touch to type"
+        placeholderTextColor={colors.muted}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        returnKeyType="done"
+        onSubmitEditing={onDone}
+        accessibilityLabel="Your check-in code"
+        style={{
+          minHeight: 84, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
+          backgroundColor: colors.surface, paddingHorizontal: 22,
+          fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 26, color: colors.ink, letterSpacing: 4,
+        }}
+      />
+      {!!error && (
+        <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(16) : 14, color: colors.danger, marginTop: 14, lineHeight: 21 }}>
+          {error}
+        </Text>
+      )}
+    </Frame>
+  );
+}
+
 function Ticket({ ticket, serviceName, notify, onDone, kx }: {
   ticket: WalkInTicket; serviceName: string; notify: Notify | null;
   onDone: () => void; kx: KioskScale;
@@ -785,6 +846,7 @@ export default function KioskScreen() {
   const [issued, setIssued] = useState<{ ticket: WalkInTicket; serviceName: string } | null>(null);
   const [error, setError] = useState('');
   const [dob, setDob] = useState('');
+  const [bookingCode, setBookingCode] = useState('');
   const [reason, setReason] = useState('');
   const [answers, setAnswers] = useState<TriageAnswers>({});
   const healthcare = actor?.terms?.sector === 'healthcare';
@@ -815,8 +877,27 @@ export default function KioskScreen() {
   const reset = useCallback(() => {
     setStep('welcome'); setServiceId(null); setName(''); setPhone('');
     setNotify('screen'); setIssued(null); setError('');
-    setDob(''); setReason(''); setAnswers({});
+    setDob(''); setReason(''); setAnswers({}); setBookingCode('');
   }, []);
+
+  const checkIn = useMutation({
+    mutationFn: () => api.post<{ ticket: WalkInTicket; appointment?: { time?: string; timing?: string; message?: string | null } | null }>(
+      '/sessions/check-in-by-code', { code: bookingCode.trim() },
+    ),
+    onSuccess: (res) => {
+      haptics.success();
+      const appt = res.appointment;
+      setIssued({
+        ticket: res.ticket,
+        serviceName: appt?.time && appt.timing === 'on_time' ? `Appointment at ${appt.time}` : 'Your booking',
+      });
+      setStep('ticket');
+    },
+    onError: (caught: unknown) => {
+      haptics.error();
+      setError(caught instanceof Error ? caught.message : 'Could not check you in. Ask a member of staff.');
+    },
+  });
 
   const issue = useMutation({
     mutationFn: () => api.post<WalkInTicket>('/tickets/walk-in', {
@@ -858,7 +939,7 @@ export default function KioskScreen() {
       <Chrome step={step} org={org} branch={branch} onHome={reset} withTriage={hasTriage} />
 
       {step === 'welcome' && (
-        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('service')} />
+        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('service')} onBooking={() => { setError(''); setStep('booking'); }} />
       )}
 
       {step === 'service' && (
@@ -912,6 +993,15 @@ export default function KioskScreen() {
           eyebrow={hasTriage ? 'Step 4 of 4' : 'Step 3 of 3'}
           onBack={() => { setError(''); setStep(hasTriage ? 'triage' : 'confirm'); }}
           onDone={() => { setError(''); issue.mutate(); }}
+        />
+      )}
+
+      {step === 'booking' && (
+        <Booking
+          code={bookingCode} setCode={setBookingCode}
+          busy={checkIn.isPending} error={error} kx={kx}
+          onBack={reset}
+          onDone={() => { setError(''); if (bookingCode.trim().length >= 4) checkIn.mutate(); }}
         />
       )}
 

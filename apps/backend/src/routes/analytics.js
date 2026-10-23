@@ -28,6 +28,8 @@ const {
   requireBranchAccess,
   scopedBusinessId,
   scopedBranchId,
+  pushSectionScope,
+  sectionServiceIds,
 } = require('../middleware/tenantAccess');
 
 function periodRange(period, month) {
@@ -109,6 +111,7 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
       const params = [scopedBusinessId(req, business_id), serviceId];
       const scopedBranch = scopedBranchId(req, branch_id);
       if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
       if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
       if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
       // Only fall back to the 30-day window when NEITHER bound was given.
@@ -162,6 +165,7 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'a.service_id');
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
     // Only fall back to the 30-day window when NEITHER bound was given.
@@ -427,6 +431,7 @@ router.get('/heatmap', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const heatmapService = safeServiceId(req.query.service_id);
     if (heatmapService) { conditions.push('w.service_id = ?'); params.push(heatmapService); }
 
@@ -460,6 +465,7 @@ router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
     // Date window so per-service totals can be scoped to the same period the
@@ -504,6 +510,7 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
 
@@ -540,6 +547,7 @@ router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manag
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
 
@@ -577,6 +585,7 @@ router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id), days];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const where = conditions.join(' AND ');
 
     // A ticket can only be created two ways in this product: the customer app
@@ -659,8 +668,10 @@ router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervi
 
     const scopedBiz = scopedBusinessId(req, business_id);
     const scopedBranch = scopedBranchId(req, branch_id);
-    const branchClause = scopedBranch ? 'AND c.branch_id = ?' : '';
-    const branchParam = scopedBranch ? [scopedBranch] : [];
+    // A supervisor with a section sees only that section's counters.
+    const sectionIds = sectionServiceIds(req);
+    const branchClause = (scopedBranch ? 'AND c.branch_id = ?' : '') + (sectionIds ? ' AND c.service_id IN (?)' : '');
+    const branchParam = [...(scopedBranch ? [scopedBranch] : []), ...(sectionIds ? [sectionIds] : [])];
 
     // (A) Slowdowns — a counter serving well above the service's typical time.
     const [slowRows] = await pool.query(
@@ -748,6 +759,7 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('st.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     const staffServiceFilter = safeServiceId(req.query.service_id);
     if (staffServiceFilter) { conditions.push('q.service_id = ?'); params.push(staffServiceFilter); }
 
@@ -805,6 +817,7 @@ router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manage
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const trendServiceFilter = safeServiceId(req.query.service_id);
     if (trendServiceFilter) { conditions.push('w.service_id = ?'); params.push(trendServiceFilter); }
     const [rows] = await pool.query(
@@ -913,6 +926,7 @@ router.get('/balking', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('q.service_id = ?'); params.push(serviceFilter); }
 
@@ -1011,6 +1025,7 @@ router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('c.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'c.service_id');
 
     const [rows] = await pool.query(
       `SELECT c.id            AS counter_id,
@@ -1100,6 +1115,7 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
     ];
     const params = [businessId, ...range.params];
     if (branchId) { conditions.push('q.branch_id = ?'); params.push(branchId); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     if (serviceId) { conditions.push('q.service_id = ?'); params.push(serviceId); }
     const where = conditions.join(' AND ');
 
@@ -1255,6 +1271,7 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
     const params = [scopedBusinessId(req, business_id), days];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
 
     const [rows] = await pool.query(
       `SELECT u.id                                            AS user_id,
@@ -1430,6 +1447,7 @@ router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 
     const params = [scopedBusinessId(req, business_id), days];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
 
     /* Parameterised LIKE with the wildcards in the VALUE, never in the SQL, and
        the operand escaped so a customer searching for "100%" does not match
@@ -1508,6 +1526,9 @@ router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'm
     const [visits] = await pool.query(
       `SELECT t.id, q.queue_date, b.name AS branch_name, s.name AS service_name,
               t.ticket_number, t.status, t.closed_reason, t.channel,
+              /* What the desk wrote: "proof of address older than three
+                 months". The reason says the visit failed; this says why. */
+              t.readiness_note AS note,
               t.estimated_wait_minutes, t.joined_at, t.called_at, t.completed_at,
               TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.called_at, t.completed_at)) AS waited_minutes,
               st.full_name AS served_by

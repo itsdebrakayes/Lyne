@@ -132,6 +132,7 @@ async function requireQueueAccess(req, res, next) {
     if (!rows.length) return res.status(404).json({ error: 'Queue not found.' });
     if (!assertBusinessAccess(req, rows[0].business_id)
       || !assertBranchAccess(req, rows[0].branch_id)
+      || !assertSectionAccess(req, rows[0].service_id)
       || !await assertLineStaffQueueAccess(req, rows[0])) {
       return res.status(403).json({ error: 'You do not have access to this queue.' });
     }
@@ -181,16 +182,43 @@ function scopedBusinessId(req, requestedBusinessId) {
   return req.dbStaff?.business_id || requestedBusinessId;
 }
 
+/**
+ * The services a supervisor's section covers (migration 043), or null for
+ * anyone who is not limited to a section: managers, executives, and a
+ * supervisor with no section yet, who keeps seeing the whole branch.
+ */
+function sectionServiceIds(req) {
+  if (roleName(req) !== 'supervisor') return null;
+  const ids = req.dbStaff?.section_service_ids;
+  return Array.isArray(ids) && ids.length ? ids : null;
+}
+
+/** Add "and only this section's services" to a query being built. */
+function pushSectionScope(req, conditions, params, column) {
+  const ids = sectionServiceIds(req);
+  if (ids) { conditions.push(`${column} IN (?)`); params.push(ids); }
+}
+
+/** False when a supervisor reaches for a line outside their section. */
+function assertSectionAccess(req, serviceId) {
+  const ids = sectionServiceIds(req);
+  return !ids || !serviceId || ids.includes(serviceId);
+}
+
 function scopedBranchId(req, requestedBranchId) {
   if (isPlatformAdmin(req)) return requestedBranchId;
   const role = roleName(req);
-  if (role === 'line_staff') return req.dbStaff?.branch_id || requestedBranchId;
+  // Desk and kiosk roles work at one branch; they never choose another.
+  if (role === 'line_staff' || role === 'kiosk_clerk') return req.dbStaff?.branch_id || requestedBranchId;
   // Managers and supervisors are locked to their own branch.
   if ((role === 'manager' || role === 'supervisor') && req.dbStaff?.branch_id) return req.dbStaff.branch_id;
   return requestedBranchId;
 }
 
 module.exports = {
+  sectionServiceIds,
+  pushSectionScope,
+  assertSectionAccess,
   requireUser,
   requireStaffRole,
   requireBusinessAccess,

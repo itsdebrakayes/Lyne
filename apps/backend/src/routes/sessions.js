@@ -49,7 +49,7 @@ const pool = require('../db/pool');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const {
   requireStaffRole, requireBranchAccess, assertBusinessAccess,
-  scopedBusinessId, scopedBranchId, roleName,
+  scopedBusinessId, scopedBranchId, roleName, sectionServiceIds,
 } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { planSession, sittingHours } = require('../utils/sessionPlan');
@@ -873,7 +873,10 @@ async function loadOwnedSession(req, res) {
 }
 
 // GET /api/sessions?from=&to= — the admin list
-router.get('/', requireAuth, requireStaffRole(...STAFF_VIEW), async (req, res) => {
+//
+// Desk roles (line staff, the kiosk) read it too, for their own branch only:
+// they are the people checking registrations in, and need to see the day.
+router.get('/', requireAuth, requireStaffRole(...STAFF_VIEW, 'line_staff', 'kiosk_clerk'), async (req, res) => {
   try {
     const businessId = scopedBusinessId(req, req.query.business_id);
     if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
@@ -891,6 +894,10 @@ router.get('/', requireAuth, requireStaffRole(...STAFF_VIEW), async (req, res) =
       where.push('(ss.branch_id = ? OR ss.branch_id IS NULL)');
       params.push(branchScope);
     }
+    // A supervisor with a section sees that section's sessions, plus any that
+    // cover the whole day (no single service).
+    const sectionIds = sectionServiceIds(req);
+    if (sectionIds) { where.push('(ss.service_id IN (?) OR ss.service_id IS NULL)'); params.push(sectionIds); }
     if (req.query.from) { where.push('ss.session_date >= ?'); params.push(req.query.from); }
     if (req.query.to)   { where.push('ss.session_date <= ?'); params.push(req.query.to); }
     if (req.query.status) { where.push('ss.status = ?'); params.push(req.query.status); }
@@ -1306,6 +1313,73 @@ router.post('/:id/registrations', requireAuth,
       res.status(500).json({ error: 'Failed to register this person.' });
     } finally {
       conn.release();
+    }
+  });
+
+// POST /api/sessions/:id/registration — open or close registration
+//
+// body: { open: boolean }. Closing stops new places being taken (the portal,
+// the app and the door all refuse) without touching anyone already
+// registered; they still check in on the day. Supervisors may do this too:
+// they are the ones on the floor who see a sitting fill up. Reopening is only
+// for a session that is still upcoming or running, never a finished one.
+router.post('/:id/registration', requireAuth, requireStaffRole(...STAFF_VIEW),
+  auditLog('session_registration_toggle', 'scheduled_session'), async (req, res) => {
+    const open = req.body?.open;
+    if (typeof open !== 'boolean') return res.status(400).json({ error: 'open must be true or false.' });
+    try {
+      const session = await loadOwnedSession(req, res);
+      if (!session) return;
+      if (!['open', 'closed', 'draft'].includes(session.status)) {
+        return res.status(409).json({
+          error: session.status === 'in_progress'
+            ? 'This session is already running. Registration closed when check-in began.'
+            : 'This session has finished.',
+        });
+      }
+      await pool.query('UPDATE scheduled_sessions SET status = ? WHERE id = ?', [open ? 'open' : 'closed', session.id]);
+      const [rows] = await pool.query(
+        `SELECT ${SESSION_SELECT}, ${SECTOR_COLUMNS} ${SESSION_FROM} WHERE ss.id = ?`, [session.id]
+      );
+      res.json(shapeSession(rows[0]));
+    } catch (err) {
+      console.error('sessions registration toggle:', err);
+      res.status(500).json({ error: 'Failed to change registration.' });
+    }
+  });
+
+// POST /api/sessions/check-in-by-code — the desk or kiosk, code only
+//
+// body: { code }. A person at the door holds a code, not a session id. This
+// finds which of TODAY's sessions at the caller's branch it belongs to, then
+// runs the same check-in as everywhere else. Desk and kiosk roles only see
+// their own branch, so a code from another branch reads as not recognised.
+router.post('/check-in-by-code', requireAuth,
+  requireStaffRole(...STAFF_VIEW, 'line_staff', 'kiosk_clerk'), async (req, res) => {
+    const parsed = checkInSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: validationMessage(parsed.error) });
+    try {
+      const compact = parsed.data.code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const branchId = scopedBranchId(req, req.body.branch_id);
+      const businessId = req.dbStaff?.business_id;
+      const [rows] = await pool.query(
+        `SELECT ss.id FROM session_registrations r
+           JOIN scheduled_sessions ss ON ss.id = r.session_id
+          WHERE UPPER(REPLACE(r.registration_code, '-', '')) = ?
+            AND ss.session_date = CURDATE()
+            AND ss.business_id = ?
+            ${branchId ? 'AND ss.branch_id = ?' : ''}
+          LIMIT 1`,
+        branchId ? [compact, businessId, branchId] : [compact, businessId]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'That code is not booked for a session here today. Check the code, or ask a member of staff.' });
+      }
+      req.params.id = rows[0].id;
+      return checkIn(req, res, 'kiosk');
+    } catch (err) {
+      console.error('sessions check-in-by-code:', err);
+      res.status(500).json({ error: 'Failed to check in.' });
     }
   });
 

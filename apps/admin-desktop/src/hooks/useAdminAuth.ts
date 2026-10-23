@@ -28,6 +28,8 @@ export interface StaffRecord {
   role_name: AppRole;
   role_label: string;
   business_id: string;
+  /** A supervisor's section of the branch (migration 043), when they run one. */
+  section_name?: string | null;
   business_name?: string;
   branch_id?: string;
   branch_name?: string;

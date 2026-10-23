@@ -81,7 +81,10 @@ A fictional Jamaican commercial bank for the bank demos (`database/demo_bank_see
 loaded by the installer and the daily refresh after migrations 040 and 041). Three
 branches with real banking hours, six services with what-to-bring lists, live lines,
 incomplete visits, and two Saturday sessions (Saturday Banking, and a loan clinic
-gated by an approved list). It also carries four weeks of history from 30 fictional clients, so Client
+gated by an approved list). For the pattern screens (busy times, through the day, branch comparison, forecasts), load 90 days of ordinary traffic once after the seed:
+`ALLOW_DEMO_BANK_HISTORY=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node apps/backend/scripts/seed-demo-bank-history.js`
+(about 30,000 visits, shaped by hour, weekday, payday and month-end). Half Way Tree has two sections, Teller Services and Personal Banking; `demo.supervisor@` runs the first and `demo.supervisor2@` the second.
+It also carries four weeks of history from 30 fictional clients, so Client
 Cases has seven real stories in it (documents, a held pension, a card dispute,
 a loan applicant, a returnee, a busy business owner, remittance outages) and
 every teller and officer has visits to show. The wording is the `banking` sector's: Clients, Banking

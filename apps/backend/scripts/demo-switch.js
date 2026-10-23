@@ -69,8 +69,9 @@ const PROFILES = {
     officer1:    { name: 'Shanelle Grant',    branch: 'br-lgb-hwt', service: 'svc-lgb-teller' },
     officer2:    { name: 'Marcus Walters',    branch: 'br-lgb-hwt', service: 'svc-lgb-acct' },
     officer3:    { name: 'Alicia Bryan',      branch: 'br-lgb-nkg', service: 'svc-lgb-teller' },
-    supervisor1: { name: 'Kimberly Facey',    branch: 'br-lgb-hwt', service: 'svc-lgb-teller' },
-    supervisor2: { name: 'Damion Richards',   branch: 'br-lgb-nkg', service: 'svc-lgb-teller' },
+    // Two supervisors at one branch, each running a different section.
+    supervisor1: { name: 'Kimberly Facey',    branch: 'br-lgb-hwt', service: 'svc-lgb-teller', section: 'sec-lgb-hwt-teller' },
+    supervisor2: { name: 'Damion Richards',   branch: 'br-lgb-hwt', service: 'svc-lgb-acct',   section: 'sec-lgb-hwt-personal' },
     manager:     { name: 'Andrea Henry',      branch: 'br-lgb-hwt', service: null },
     executive:   { name: 'Michelle Tomlinson', branch: null,        service: null },
     kiosk:       { name: 'Half Way Tree Front Desk', branch: 'br-lgb-hwt', service: null },
@@ -181,15 +182,16 @@ async function main() {
       const seat = profile[persona.key];
       await conn.query(
         `INSERT INTO staff
-           (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email,
+           (id, business_id, branch_id, section_id, role_id, supabase_uid, staff_code, full_name, email,
             phone, assigned_service_id, availability_status, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, '+1-876-000-0000', ?, 'active', TRUE)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '+1-876-000-0000', ?, 'active', TRUE)
          ON DUPLICATE KEY UPDATE
-           business_id = VALUES(business_id), branch_id = VALUES(branch_id),
+           business_id = VALUES(business_id), branch_id = VALUES(branch_id), section_id = VALUES(section_id),
            role_id = VALUES(role_id), supabase_uid = VALUES(supabase_uid),
            full_name = VALUES(full_name), assigned_service_id = VALUES(assigned_service_id),
            availability_status = 'active', is_active = TRUE`,
-        [persona.id, profile.business, seat.branch, persona.role, uidFor.get(persona.email),
+        // A section only for a supervisor whose profile names one (migration 043).
+        [persona.id, profile.business, seat.branch, seat.section || null, persona.role, uidFor.get(persona.email),
          persona.code, seat.name, persona.email, seat.service]
       );
     }
