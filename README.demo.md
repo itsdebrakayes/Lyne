@@ -52,7 +52,7 @@ incomplete visits, and two Saturday sessions (Saturday Banking, and a loan clini
 gated by an approved list). The wording is the `banking` sector's: Clients, Banking
 Officers, Departments. The full brief is `docs/demo/SCOTIABANK_DEMO_BRIEF.md`.
 
-**Appointments** (migration 042). The weekday session *Personal Banking Appointments, Half Way Tree* holds 14 bookings, one every half hour from 09:00 to 15:30, each with check-in code `PBK-HHMM` (`PBK-1030` is the 10:30). Check in the slot nearest the clock from the session's check-in box in the admin app: it goes to the front of Account Opening, ahead of the walk-ins. A code checked in more than 15 minutes early is refused with the time check-in opens; more than 10 minutes late joins in the usual order. The Saturday loan clinic's approved list also carries times (10:00 to 12:45).
+**Appointments** (migration 042). The weekday session *Personal Banking Appointments, Half Way Tree* holds 14 bookings, one every half hour from 09:00 to 15:30, each with check-in code `PBK-HHMM` (`PBK-1030` is the 10:30). Check in the slot nearest the clock, either from the session's check-in box in the admin app or on the phone (Lignum Bank → Book & check in → the appointments session → Already have a code?): it goes to the front of Account Opening, ahead of the walk-ins, and the phone opens the live ticket. A code checked in more than 15 minutes early is refused with the time check-in opens; more than 10 minutes late joins in the usual order. The Saturday loan clinic's approved list also carries times (10:00 to 12:45).
 
 To list only the bank on phones, set `LISTED_SECTORS=banking` in `.env` and restart
 the API. Logins (create them in Supabase Auth, then run `sync-demo-test-accounts`):

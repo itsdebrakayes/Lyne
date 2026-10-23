@@ -99,10 +99,14 @@ In the demo: the weekday session *Personal Banking Appointments, Half Way Tree*
 has 14 bookings, `PBK-0900` to `PBK-1530`. Check in the slot nearest the clock
 from the admin app and show it jump to the front of Account Opening.
 
-Still missing, and worth saying plainly if asked: a public web page or phone
-screen where the client registers or checks in themselves. Today staff do it at
-the door or desk. A live feed from their booking tool (instead of a pasted or
-uploaded list) would be a pilot item.
+Clients can also do it themselves on the phone: Lignum Bank's page shows **Book
+& check in**; a client holds a place with their approval reference, sees their
+code and time, and taps "I'm here" on the day. Someone booked by the bank types
+the code they were given (`PBK-1030`) and gets their live ticket.
+
+Still missing, worth saying plainly if asked: a public web page for people
+without the app, and a live feed from their booking tool (instead of a pasted
+or uploaded list). Both are pilot items.
 
 ## 5. Demo setup on the day
 

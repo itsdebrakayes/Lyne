@@ -73,7 +73,7 @@ const HOLDS_A_PLACE = ['registered', 'checked_in'];
  * told the difference in person; an anonymous HTTP client cannot.
  */
 const ELIGIBILITY_DENIED =
-  'We could not find a matter listed for today against those details. Check them against your ticket, or contact the office directly.';
+  'We could not find you on the list for this session with those details. Check them against your booking, letter or ticket, or contact the organisation directly.';
 
 // ── Codes ────────────────────────────────────────────────────
 
@@ -690,10 +690,21 @@ async function checkIn(req, res, channel) {
       waitingAhead: Number(waiting.cnt),
     });
 
+    /* Somebody registered at the desk (no account on the registration) who then
+       checks in from their own signed-in phone: the code is the credential, so
+       the person holding it owns the ticket. Without this the app could not open
+       the ticket it had just been handed. Only on the public door, never at the
+       staff desk, where the signed-in person is the clerk. */
+    const ownerId = registration.user_id
+      || (channel === 'web' && req.dbUser?.id ? req.dbUser.id : null);
+    if (!registration.user_id && ownerId) {
+      await conn.query('UPDATE session_registrations SET user_id = ? WHERE id = ?', [ownerId, registration.id]);
+    }
+
     // A guest checking in from the portal has no account, so the token is the
     // only way they can come back to their own ticket — and the only thing
     // stopping anyone else reading it (migration 023).
-    const guestToken = registration.user_id ? null : crypto.randomBytes(32).toString('base64url');
+    const guestToken = ownerId ? null : crypto.randomBytes(32).toString('base64url');
 
     const honoured = appointment?.timing === 'on_time';
     const ticketId = uuidv4();
@@ -704,7 +715,7 @@ async function checkIn(req, res, channel) {
           appointment_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?)`,
       [
-        ticketId, queue.id, registration.user_id || null,
+        ticketId, queue.id, ownerId,
         registration.guest_name || null, registration.guest_phone || null, guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
         honoured ? appointment.slot_at : null,

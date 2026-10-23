@@ -131,7 +131,8 @@ test('a surname is only demanded when the session asks for one', async () => {
 test('every eligibility failure returns ONE message', () => {
   // "No such ticket" vs "wrong surname" would hand an attacker free confirmation
   // that a ticket exists. The clerk can be told the difference in person.
-  assert.match(ELIGIBILITY_DENIED, /could not find a matter listed for today/i);
+  // Sector-neutral since the bank demos: a client was told about a "matter".
+  assert.match(ELIGIBILITY_DENIED, /could not find you on the list for this session/i);
   assert.doesNotMatch(ELIGIBILITY_DENIED, /surname|not on the list|does not exist/i);
 });
 

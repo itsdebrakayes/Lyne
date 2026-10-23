@@ -35,6 +35,7 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { useContentColumn, useContentColumnInner } from '../../lib/stage';
 import { ErrorCard } from '../../components/Feedback';
+import { PublicSession, clockLabel, sessionDayLabel } from '../main/SessionScreen';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Params = RouteProp<RootStackParamList, 'Business'>;
@@ -166,6 +167,16 @@ export default function BusinessScreen() {
     branchesQuery.refetch, businessQuery.refetch, servicesQuery.refetch,
   );
 
+  /* Sessions this organisation has coming up: Saturday banking, an approved-list
+     clinic, a day of appointments. Shown only when there is one, so the page
+     never offers a door that leads nowhere; a failure is equally silent. */
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['public-sessions', businessId],
+    queryFn: () => api.get<PublicSession[]>(`/sessions/public?business_id=${businessId}`, false),
+    staleTime: 2 * 60_000,
+    retry: 0,
+  });
+
   const { data: saved = [] } = useQuery({
     queryKey: ['saved-businesses'],
     queryFn: () => api.get<SavedBusiness[]>('/saved'),
@@ -270,6 +281,43 @@ export default function BusinessScreen() {
                 message="Live branch and wait information is unavailable right now."
                 onRetry={() => branchesQuery.refetch()}
               />
+            </View>
+          )}
+
+          {sessions.length > 0 && (
+            <View style={{ marginTop: 26 }}>
+              <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4 }}>
+                Book &amp; check in
+              </Text>
+              <View style={{ gap: 10, marginTop: 12 }}>
+                {sessions.map((sn) => (
+                  <TouchableOpacity
+                    key={sn.id}
+                    activeOpacity={0.85}
+                    onPress={() => nav.navigate('Session', { sessionId: sn.id })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${sn.name}, ${sessionDayLabel(sn.session_date)}`}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 12,
+                      backgroundColor: colors.surface, borderRadius: 20, padding: 14, ...shadow.card,
+                    }}
+                  >
+                    <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="calendar-outline" size={19} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>
+                        {sn.name}
+                      </Text>
+                      <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 3 }}>
+                        {sessionDayLabel(sn.session_date)} · {clockLabel(sn.starts_at)}
+                        {sn.requires_eligibility ? ' · by booking' : ` · ${sn.places_remaining} places left`}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.chevron} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
