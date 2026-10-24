@@ -362,6 +362,8 @@ type Branch = {
   id: string; code: string; name: string; parish: string; mgr: string;
   waiting: number; wait: number; score: number; served: number; done: number; noshow: number;
   windows: number; open: number; state: 'open' | 'busy'; spark: number[]; problem?: string;
+  /** what somebody joining now would wait at the branch's busiest line */
+  etaNow?: number;
 };
 const FX_BRANCHES: Branch[] = [
   { id: 'och', code: 'OCH', name: 'Ocho Rios', parish: 'St. Ann', mgr: 'Kemar Lewis', waiting: 22, wait: 39, score: 58, served: 402, done: 79, noshow: 11.4, windows: 6, open: 4, state: 'busy', spark: [72, 70, 67, 64, 61, 59, 58], problem: 'Service time has drifted to 39 minutes a customer against a usual 21. This is a pace problem at the counter, not a volume problem — Ocho Rios sees fewer people than Portmore.' },
@@ -376,7 +378,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
   const servedLabel = `${useSectorTerms().visitor.many} Served`;
   const d = useExecData();
   const [q, setQ] = useState('');
-  const [sel, setSel] = useState('och');
+  const [sel, setSel] = useState('');
   const [view, setView] = useState<'wait' | 'served'>('wait');
   const [picked, setPicked] = useState<string[]>([]);
 
@@ -384,8 +386,15 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
     const n = q.trim().toLowerCase();
     const list = n ? d.branches.filter((b) => `${b.name} ${b.parish} ${b.mgr}`.toLowerCase().includes(n)) : d.branches;
     return [...list].sort((a, b) => a.score - b.score);
-  }, [q]);
-  const b = d.branches.find((x) => x.id === sel) || d.branches[0];
+  }, [q, d.branches]);
+  const b = d.branches.find((x) => x.id === sel) || rows[0] || d.branches[0];
+
+  const byScore = [...d.branches].sort((x, y) => y.score - x.score);
+  const best = byScore[0];
+  const worst = byScore[byScore.length - 1];
+  const targetWait = Math.round(d.targets.find((t) => t.key === 'wait')?.target || 20);
+  const served = d.branches.reduce((t, x) => t + x.served, 0);
+  const coWait = served ? Math.round(d.branches.reduce((t, x) => t + x.wait * x.served, 0) / served) : 0;
 
   if (!d.branches.length) {
     return <EmptyTab title="No Branch Data Yet"
@@ -394,14 +403,19 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
 
   return (
     <div className="qx-grid">
+      {/* These four were sample text (Mandeville, Ocho Rios, 26 minutes) shown
+          to every organisation. Now they are read off the same rows as the table. */}
       <Stat span={3} icon={Building2} label="Branches Reporting" value={d.branches.length}
-        foot="Across five parishes" />
-      <Stat span={3} icon={Award} tone="good" label="Best Performing" value="Mandeville"
-        chip={{ dir: 'good', text: '87' }} foot="14 min average wait, 94% completed" />
-      <Stat span={3} icon={AlertTriangle} tone="bad" label="Needs Support" value="Ocho Rios"
-        chip={{ dir: 'bad', text: '58' }} foot="Slowest counters in the company" />
-      <Stat span={3} icon={Clock} tone="bad" label="Company Average Wait" value={26} unit="min"
-        chip={{ dir: 'bad', text: '6 Over' }} foot="Target is 20 minutes" />
+        foot={`${d.branches.reduce((t, x) => t + x.waiting, 0)} people waiting across them right now`} />
+      <Stat span={3} icon={Award} tone="good" label="Best Performing" value={best.name.replace('Kingston — ', '')}
+        chip={{ dir: 'good', text: String(best.score) }} foot={`${best.wait} min average wait, ${best.done}% completed`} />
+      <Stat span={3} icon={AlertTriangle} tone={worst.score < 75 ? 'bad' : 'warn'} label={worst.score < 75 ? 'Needs Support' : 'Lowest Score'}
+        value={worst.name.replace('Kingston — ', '')}
+        chip={{ dir: worst.score < 75 ? 'bad' : 'flat', text: String(worst.score) }}
+        foot={`${worst.wait} min average wait against a ${targetWait}-minute target`} />
+      <Stat span={3} icon={Clock} tone={coWait > targetWait ? 'bad' : 'good'} label="Company Average Wait" value={coWait} unit="min"
+        chip={{ dir: coWait > targetWait ? 'bad' : 'good', text: coWait > targetWait ? `${coWait - targetWait} Over` : 'On Target' }}
+        foot={`Target is ${targetWait} minutes`} />
 
       <Card span={7} title={<>All Branches<span className="qx-count">{rows.length}</span></>}
         cap="Worst first. Select a branch to see what is actually wrong with it."
@@ -429,7 +443,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
                 <div style={{ minWidth: 0 }}><b>{r.mgr}</b><small>{r.parish}</small></div>
               </div>
               <div className="qx-num">{r.waiting}</div>
-              <div className="qx-num">{r.wait}<u> min</u></div>
+              <div className="qx-num" title={`Average wait this period: ${r.wait} min`}>{r.etaNow ?? r.wait}<u> min</u></div>
               <div className="qx-end"><Chip dir={r.score >= 75 ? 'good' : 'bad'}>{r.score}</Chip></div>
             </Row>
           )} />
@@ -443,7 +457,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
               <h4>{b.name}</h4>
               <small>{b.parish} · {b.mgr} · {b.open} of {b.windows} windows open</small>
             </div>
-            <Ring value={b.score} max={100} size={64} warn={b.score < 75} />
+            <Ring value={b.score} max={100} size={84} warn={b.score < 75} />
           </div>
           <div className="qx-kv">
             <div><b>{b.served.toLocaleString()}</b><small>Served</small></div>
@@ -454,7 +468,7 @@ export function ExecBranches({ onNav }: { onNav: (k: string) => void }) {
           {b.problem
             ? <div style={{ marginTop: 13 }}><Note icon={AlertTriangle} tone="bad" title="What Is Going Wrong" body={b.problem} /></div>
             : <div style={{ marginTop: 13 }}><Note icon={CheckCircle2} title="Nothing Needs Your Attention Here"
-                body={`${b.name} is inside every company target and has improved for six straight weeks.`} /></div>}
+                body={`${b.name} is inside the company targets: ${b.wait} minutes average wait, ${b.done}% of visits completed.`} /></div>}
           <div style={{ marginTop: 13 }}>
             <button type="button" className="qx-btn" onClick={() => onNav('managers')}>Open Manager Review</button>
           </div>
@@ -573,10 +587,10 @@ export function ExecManagers() {
                 borderBottom: '1px solid var(--c-line)', background: r.id === sel ? 'var(--c-primary-soft)' : 'transparent',
                 borderRadius: 10, textAlign: 'left', color: 'var(--c-text)',
               }}>
-              <Ring value={r.score} max={100} size={54} warn={r.score < 75} />
+              <Ring value={r.score} max={100} size={68} warn={r.score < 75} />
               <span style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{r.name}</b>
-                <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 11.5 }}>{r.branch} · {r.tenure}</small>
+                <b style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>{r.name}</b>
+                <small style={{ display: 'block', color: 'var(--c-faint)', fontSize: 12.5, marginTop: 2 }}>{r.branch} · {r.tenure}</small>
               </span>
               <Chip dir={r.score >= r.was ? 'good' : 'bad'} arrow={r.score >= r.was ? 'up' : 'down'}>
                 {r.score > r.was ? '+' : ''}{r.score - r.was}
@@ -594,7 +608,7 @@ export function ExecManagers() {
               <h4>{m.name}</h4>
               <small>{m.branch} · Manager for {m.tenure}</small>
             </div>
-            <Ring value={m.score} max={100} size={64} warn={m.score < 75} />
+            <Ring value={m.score} max={100} size={84} warn={m.score < 75} />
           </div>
           <div className="qx-sbreak">
             {PART_LABEL.map(([k, label]) => {
@@ -694,6 +708,13 @@ export function ExecServices() {
   const [view, setView] = useState<'demand' | 'time'>('demand');
   const totalJoined = d.lines.reduce((t, l) => t + l.joined, 0);
   const totalWindows = d.lines.reduce((t, l) => t + l.windows, 0);
+  const targetWait = Math.round(d.targets.find((t) => t.key === 'wait')?.target || 20);
+  const slowest = [...d.lines].sort((a, b) => b.wait - a.wait)[0];
+  /* The line furthest short of its share of counters, for the note under the
+     chart. It was a fixed paragraph about TRN shown to every organisation. */
+  const gap = (l: Line) => l.share - (totalWindows ? Math.round((l.windows / totalWindows) * 100) : 0);
+  const mostShort = [...d.lines].sort((a, b) => gap(b) - gap(a))[0];
+  const mix = d.channelMix || { app: 0, kiosk: 0, walkIn: 0 };
 
   if (!d.lines.length) {
     return <EmptyTab title="No Service Data Yet"
@@ -704,16 +725,25 @@ export function ExecServices() {
     <div className="qx-grid">
       <Stat span={3} icon={Waypoints} label="Service Lines" value={d.lines.length} foot="Offered across all branches" />
       <Stat span={3} icon={Users} label="Tickets This Period" value={totalJoined.toLocaleString()}
-        chip={{ dir: 'good', text: '12.4%' }} foot="Across every branch and channel" />
-      <Stat span={3} icon={Clock} tone="bad" label="Slowest Line" value="TRN" unit="41 min wait"
-        chip={{ dir: 'bad', text: '2× Target' }} foot="Also the single busiest service" />
+        chip={d.servedChangePct != null ? { dir: d.servedChangePct >= 0 ? 'good' : 'bad', text: `${d.servedChangePct > 0 ? '+' : ''}${d.servedChangePct}%` } : undefined}
+        foot={d.servedChangePct != null ? 'Against the period before' : 'Across every branch and channel'} />
+      <Stat span={3} icon={Clock} tone={slowest.wait > targetWait ? 'bad' : 'good'} label="Slowest Line" value={slowest.code} unit={`${slowest.wait} min wait`}
+        chip={slowest.wait > targetWait ? { dir: 'bad', text: `${Math.round((slowest.wait / targetWait) * 10) / 10}× Target` } : { dir: 'good', text: 'On Target' }}
+        foot={slowest.name} />
       <Stat span={3} icon={Activity} label="Counters Assigned" value={totalWindows}
-        foot="Company-wide, across all five branches" />
+        foot={`Company-wide, across ${d.branches.length || 'all'} branches`} />
 
       <Card span={7} title="Demand Against Capacity"
         cap="A service line is mis-staffed when its share of the queue is far from its share of the counters."
         tools={<Seg value={view} onChange={setView} options={[['demand', 'Share Of Demand'], ['time', 'Counter Minutes']]} />}>
         {view === 'demand' ? (
+          <>
+          {/* The key: two bars per line were unexplained. */}
+          <div className="qx-legend" aria-label="Legend">
+            <span><i className="qx-legend-sw a" />Share of everyone queuing</span>
+            <span><i className="qx-legend-sw b" />Share of the counters open for it</span>
+            <span><i className="qx-legend-sw bad" />Queue share well above counter share: under-staffed</span>
+          </div>
           <div className="qx-bars">
             {d.lines.map((l) => {
               const capShare = Math.round((l.windows / totalWindows) * 100);
@@ -731,20 +761,27 @@ export function ExecServices() {
               );
             })}
           </div>
+          </>
         ) : (
           <Bars unit=" hrs" invert
             items={d.lines.map((l) => ({ name: l.name, value: Math.round((l.joined * l.svcMin) / 60) }))} />
         )}
-        <Note icon={AlertTriangle} tone="warn" title="TRN Is The One Genuinely Mis-Staffed Line"
-          body="It generates 39% of the queue on 33% of the counters, and each visit takes more than twice as long as a payment. Every extra TRN window buys back more waiting time than one anywhere else." />
+        {mostShort && gap(mostShort) >= 6 ? (
+          <Note icon={AlertTriangle} tone="warn" title={`${mostShort.name} Is Short Of Counters`}
+            body={`It carries ${mostShort.share}% of the queue on ${totalWindows ? Math.round((mostShort.windows / totalWindows) * 100) : 0}% of the counters, and each visit takes about ${mostShort.svcMin} minutes at the counter. An extra window here buys back more waiting time than one anywhere else.`} />
+        ) : (
+          <Note icon={CheckCircle2} title="Counters Are In Proportion"
+            body="No service line's share of the queue is far ahead of its share of the counters this period." />
+        )}
       </Card>
 
       <div className="qx-stack s5">
-        <Card title="How People Join" cap="The only two ways a ticket gets created">
+        <Card title="How People Join" cap="Where each ticket this period came from">
           <Split note="Every app join is one less person a clerk has to key in at the counter."
             segments={[
-              { label: 'Lyne App', value: 2529, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
-              { label: 'Branch Kiosk', value: 318, color: 'var(--c-second)', sub: 'Added at the branch' },
+              { label: 'Lyne App', value: mix.app, color: 'var(--c-primary)', sub: 'Joined remotely from the phone' },
+              { label: 'Branch Kiosk', value: mix.kiosk, color: 'var(--c-second)', sub: 'Joined on the iPad at the door' },
+              ...(mix.walkIn ? [{ label: 'At The Counter', value: mix.walkIn, color: 'color-mix(in oklab, var(--c-second) 45%, var(--c-surface-3))', sub: 'Added by staff' }] : []),
             ]} />
         </Card>
         <Card title="Longest Visits" cap="Average minutes at the counter, once called">
@@ -771,7 +808,7 @@ export function ExecServices() {
               <div className="qx-num">{l.windows}</div>
               <div className="qx-num">{l.wait}<u> min</u></div>
               <div className="qx-num">{l.svcMin}<u> min</u></div>
-              <div><Status kind={l.wait > 20 ? 'busy' : 'open'}>{l.wait > 20 ? `${l.wait - 20} Over Target` : 'On Target'}</Status></div>
+              <div><Status kind={l.wait > targetWait ? 'busy' : 'open'}>{l.wait > targetWait ? `${l.wait - targetWait} Over Target` : 'On Target'}</Status></div>
             </Row>
           )} />
       </Card>
@@ -863,7 +900,8 @@ export function ExecBusy() {
       <Card span={12} title="When The Pressure Lands"
         cap="Visits per day of the week. Staff the darkest cells; the pale ones are safe for breaks and training."
         tools={<Seg value={view} onChange={setView} options={[['branch', 'By Branch'], ['service', 'By Service']]} />}>
-        <Heatmap rowLabels={rows} colLabels={days} data={heatData(data)} display={data} unit="" />
+        <Heatmap rowLabels={rows} colLabels={days} data={heatData(data)} display={data} unit=""
+          closedCols={perDay.map((v, i) => (v > 0 ? -1 : i)).filter((i) => i >= 0)} />
       </Card>
 
       <Card span={8} title="Company Load Through The Week" cap="Everyone who joins a line, by day">
@@ -873,16 +911,20 @@ export function ExecBusy() {
       </Card>
 
       <div className="qx-stack s4">
-        <Focus eyebrow="Do This Next" title="Move Two Clerks Onto The 11am – 1pm Block At Half Way Tree"
-          body="The 11am cell is the single darkest in the country. The 1pm dip immediately after it is where the same two clerks can take their break without costing anything."
-          stats={[{ label: 'Peak Wait', value: '−9 min', dir: 'good' }, { label: 'Cost', value: 'No New Hires', dir: 'good' }]}
-          action={{ label: 'View Staffing Plan', onClick: () => undefined }} />
+        {/* Derived from this grid. It was a fixed sentence about Half Way Tree
+            at 11am shown to every organisation, on a grid with no hours in it. */}
+        {busiestRow ? (
+          <Focus eyebrow="Do This Next"
+            title={`Put Your Floaters On ${busiestRow.name} On ${days[peakIdx]}s`}
+            body={`${days[peakIdx]} is the company's busiest day and ${busiestRow.name} carries the most of it. ${days[quietIdx]} is the quietest open day: move training and leave there, and the same people are free when the pressure lands.`}
+            stats={[{ label: 'Busiest Day', value: days[peakIdx], dir: 'bad' }, { label: 'Quietest', value: days[quietIdx], dir: 'good' }]} />
+        ) : null}
         <Card title="Reading This Grid" cap="What the colours mean in practice">
-          <Note icon={AlertTriangle} tone="bad" title="Darkest Cells Are Where People Give Up"
-            body="Balking is four times more likely in a cell above 70 than one below 30." />
+          <Note icon={AlertTriangle} tone="bad" title="Darkest Cells Need Every Window Open"
+            body="These are the days people are most likely to give up and leave. Keep leave, training and meetings out of them." />
           <div style={{ height: 10 }} />
           <Note icon={CheckCircle2} title="Pale Cells Are Free Capacity"
-            body="Training, breaks and back-office work belong in the 8am and 4pm columns." />
+            body={`The palest open day is ${days[quietIdx]}: the right day for training, back-office work and catching up.`} />
         </Card>
       </div>
     </div>
@@ -1467,6 +1509,10 @@ export type ExecTabData = {
   faq: Array<{ q: string; a: string }>;
   /** printed on the report cover and in Settings */
   org: string; preparedBy: string; generatedOn: string;
+  /** how people joined this period */
+  channelMix?: { app: number; kiosk: number; walkIn: number };
+  /** this period's served against the one before, in percent */
+  servedChangePct?: number | null;
 
   /* Saving used to be `setDirty(false)` — the button cleared its own dirty flag
      and wrote nothing at all. These make it real. */

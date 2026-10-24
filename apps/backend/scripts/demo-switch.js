@@ -246,6 +246,19 @@ async function main() {
       report.push([persona.email, seat.name, counter ? counter.label : 'no counter for that service']);
     }
 
+    // The demo manager IS the manager of their branch for the demo: any other
+    // active manager there stands down, so the executive's Branches tab names
+    // one person per branch. Reloading the organisation's seed restores them.
+    const mgrSeat = profile.manager;
+    if (mgrSeat?.branch) {
+      await conn.query(
+        `UPDATE staff s JOIN roles r ON r.id = s.role_id AND r.name = 'manager'
+            SET s.is_active = FALSE
+          WHERE s.branch_id = ? AND s.id <> 'stf-review-demo-mgr'`,
+        [mgrSeat.branch]
+      );
+    }
+
     await conn.commit();
 
     const [rows] = await pool.query(

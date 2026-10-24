@@ -14,7 +14,7 @@ const pool = require('../db/pool');
 // One branch-level (service_id = NULL) row per (business, branch, date). Column
 // names must match the analytics_summaries schema exactly — avg_wait_time_minutes
 // / avg_service_time_minutes, NOT avg_wait_minutes.
-const INSERT_SQL = `
+const insertSql = (bizClause) => `
   INSERT INTO analytics_summaries
     (id, business_id, branch_id, service_id, summary_date,
      total_visitors, completed_count, cancelled_count, no_show_count, left_count,
@@ -43,7 +43,7 @@ const INSERT_SQL = `
     NOW()
   FROM wait_time_records w
   WHERE w.visit_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-    AND w.visit_date <  CURDATE()
+    AND w.visit_date <  CURDATE()${bizClause}
   GROUP BY w.business_id, w.branch_id, w.visit_date
 `;
 
@@ -52,20 +52,25 @@ const INSERT_SQL = `
  * Delete-then-insert the window so a re-run is idempotent (no reliance on a
  * fragile ON DUPLICATE KEY / partial unique index).
  * @param {number} lookbackDays — how many days back to recalculate (default 7)
+ * @param {{ businessId?: string }} [scope] — one organisation only. The nightly
+ *   job passes nothing; a demo history loader passes its own organisation so a
+ *   long backfill never touches anybody else's rows.
  */
-async function refreshAnalyticsSummaries(lookbackDays = 7) {
+async function refreshAnalyticsSummaries(lookbackDays = 7, { businessId } = {}) {
   const start = Date.now();
   console.log(`[Analytics] Refreshing summaries (last ${lookbackDays} days) …`);
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    const bizClause = businessId ? ' AND business_id = ?' : '';
     await conn.query(
       `DELETE FROM analytics_summaries
-       WHERE summary_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND summary_date < CURDATE()`,
-      [lookbackDays]
+       WHERE summary_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND summary_date < CURDATE()${bizClause}`,
+      businessId ? [lookbackDays, businessId] : [lookbackDays]
     );
-    const [result] = await conn.query(INSERT_SQL, [lookbackDays]);
+    const [result] = await conn.query(insertSql(businessId ? ' AND w.business_id = ?' : ''),
+      businessId ? [lookbackDays, businessId] : [lookbackDays]);
     await conn.commit();
     const elapsed = Date.now() - start;
     console.log(`[Analytics] Done — ${result.affectedRows} rows rebuilt in ${elapsed}ms`);

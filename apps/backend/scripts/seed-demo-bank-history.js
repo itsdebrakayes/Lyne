@@ -40,6 +40,7 @@ if (process.env.ALLOW_DEMO_BANK_HISTORY !== 'true') {
 }
 
 const pool = require('../src/db/pool');
+const { refreshAnalyticsSummaries } = require('../src/jobs/refreshAnalytics');
 
 const DAYS = 90;
 const BIZ = 'biz-lgb-001';
@@ -181,6 +182,12 @@ async function main() {
        'queue_length_at_time', 'active_counters_at_time'], waits);
     await conn.commit();
     console.log(`Lignum Bank: ${tickets.length} visits over the last ${DAYS} days (${queues.length} new lines).`);
+    /* The daily rollup the executive charts read. The 01:00 job only rebuilds
+       the last week, so without this the 90 days above existed in the visit
+       records but the Customers Served chart had one week and no week before it
+       to compare, and Trends had nothing. Lignum's rows only. */
+    const rolled = await refreshAnalyticsSummaries(DAYS + 1, { businessId: BIZ });
+    console.log(`Lignum Bank: ${rolled} daily summary rows rebuilt.`);
   } catch (err) {
     await conn.rollback().catch(() => {});
     console.error('Nothing was changed:', err.message);

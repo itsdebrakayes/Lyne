@@ -57,7 +57,7 @@ interface WalkInTicket {
   triage_flag?: 'none' | 'possibly_urgent';
 }
 
-type Step = 'welcome' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
+type Step = 'welcome' | 'choose' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
 type Notify = 'sms' | 'screen';
 
 const STEPS: Array<{ key: Step; label: string }> = [
@@ -284,8 +284,85 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
 
 /* ─────────────────────────── screens ─────────────────────────── */
 
-function Welcome({ org, branch, onStart, onBooking, kx }: {
-  org: string; branch: string; onStart: () => void; onBooking: () => void; kx: KioskScale;
+/* The first question at the door. Somebody who booked already has a place and a
+   time; sending them through "pick a service" as a walk-in loses both. So the
+   booking is the first card, as large as joining a line, not a small link under
+   the start button. */
+function Choose({ onBooking, onJoin, onBack, kx }: {
+  onBooking: () => void; onJoin: () => void; onBack: () => void; kx: KioskScale;
+}) {
+  const card = (opts: {
+    icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress: () => void; primary?: boolean; label: string;
+  }) => (
+    <TouchableOpacity
+      key={opts.title}
+      activeOpacity={0.88}
+      onPress={opts.onPress}
+      accessibilityRole="button"
+      accessibilityLabel={opts.label}
+      style={{
+        flex: kx.wide ? 1 : undefined, borderRadius: 28, padding: kx.wide ? kx.s(38) : 24,
+        backgroundColor: opts.primary ? colors.accent : colors.surface,
+        borderWidth: opts.primary ? 0 : 1.5, borderColor: colors.border,
+        minHeight: kx.wide ? kx.s(300) : 180, justifyContent: 'space-between', ...shadow.hero,
+      }}
+    >
+      <View style={{
+        width: kx.wide ? kx.s(72) : 52, height: kx.wide ? kx.s(72) : 52, borderRadius: 20,
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: opts.primary ? 'rgba(255,255,255,.16)' : colors.surfaceAlt,
+      }}>
+        <Ionicons name={opts.icon} size={kx.wide ? kx.s(36) : 26} color={opts.primary ? colors.accentInk : colors.accent} />
+      </View>
+      <View style={{ marginTop: 22 }}>
+        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 24, letterSpacing: -0.8,
+          color: opts.primary ? colors.accentInk : colors.ink }}>
+          {opts.title}
+        </Text>
+        <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(18) : 14.5, lineHeight: kx.wide ? kx.s(26) : 21, marginTop: 10,
+          color: opts.primary ? 'rgba(255,255,255,.82)' : colors.muted }}>
+          {opts.body}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 15, color: opts.primary ? colors.accentInk : colors.accent }}>
+            {opts.primary ? 'Check In' : 'Choose A Service'}
+          </Text>
+          <Ionicons name="arrow-forward" size={kx.wide ? kx.s(20) : 16} color={opts.primary ? colors.accentInk : colors.accent} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <Frame
+      kx={kx}
+      eyebrow="Welcome"
+      title="What Brings You In Today?"
+      sub="Touch one. You can go back at any time."
+      onBack={onBack}
+    >
+      <View style={{ flexDirection: kx.wide ? 'row' : 'column', gap: kx.wide ? kx.s(24) : 16, marginTop: 8 }}>
+        {card({
+          icon: 'calendar-outline', primary: true,
+          title: 'I Have An Appointment Or Booking',
+          body: 'Type the code from your booking message or the Lyne app. You go into the line at your booked time.',
+          onPress: onBooking,
+          label: 'I have an appointment or booking. Check in with my code.',
+        })}
+        {card({
+          icon: 'people-outline',
+          title: 'Join A Line',
+          body: 'No booking? Pick what you came for and take a place. We can text you when you are nearly up.',
+          onPress: onJoin,
+          label: 'Join a line without a booking.',
+        })}
+      </View>
+    </Frame>
+  );
+}
+
+function Welcome({ org, branch, onStart, kx }: {
+  org: string; branch: string; onStart: () => void; kx: KioskScale;
 }) {
   return (
     <TouchableOpacity
@@ -320,25 +397,6 @@ function Welcome({ org, branch, onStart, onBooking, kx }: {
         <Ionicons name="arrow-forward" size={kx.wide ? kx.s(26) : 20} color={colors.accentInk} />
       </View>
 
-      {/* Somebody who booked a place or an appointment already has a code; they
-          check in here instead of joining as a walk-in. Its own touch target, so
-          it is not swallowed by "touch anywhere". */}
-      <TouchableOpacity
-        onPress={onBooking}
-        accessibilityRole="button"
-        accessibilityLabel="I have a booking or appointment. Check in with my code."
-        style={{
-          flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: kx.wide ? kx.s(20) : 14,
-          borderWidth: 1.5, borderColor: colors.accent, borderRadius: 999,
-          paddingVertical: kx.wide ? kx.s(16) : 12, paddingHorizontal: kx.wide ? kx.s(32) : 22,
-          backgroundColor: colors.surface,
-        }}
-      >
-        <Ionicons name="calendar-outline" size={kx.wide ? kx.s(22) : 18} color={colors.accent} />
-        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 15, color: colors.accent }}>
-          Have A Booking? Check In With Your Code
-        </Text>
-      </TouchableOpacity>
 
       <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
         {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
@@ -944,7 +1002,13 @@ export default function KioskScreen() {
       <Chrome step={step} org={org} branch={branch} onHome={reset} withTriage={hasTriage} />
 
       {step === 'welcome' && (
-        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('service')} onBooking={() => { setError(''); setStep('booking'); }} />
+        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('choose')} />
+      )}
+
+      {step === 'choose' && (
+        <Choose kx={kx} onBack={reset}
+          onBooking={() => { setError(''); setStep('booking'); }}
+          onJoin={() => setStep('service')} />
       )}
 
       {step === 'service' && (
@@ -963,7 +1027,7 @@ export default function KioskScreen() {
             total={healthcare ? 4 : 3}
             services={services}
             kx={kx}
-            onBack={reset}
+            onBack={() => setStep('choose')}
             onPick={(id) => { setServiceId(id); setStep('confirm'); }}
           />
         )
@@ -1005,7 +1069,7 @@ export default function KioskScreen() {
         <Booking
           code={bookingCode} setCode={setBookingCode}
           busy={checkIn.isPending} error={error} kx={kx}
-          onBack={reset}
+          onBack={() => { setError(''); setBookingCode(''); setStep('choose'); }}
           onDone={() => { setError(''); if (bookingCode.trim().length >= 4) checkIn.mutate(); }}
         />
       )}

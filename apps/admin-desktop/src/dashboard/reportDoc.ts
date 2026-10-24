@@ -1,15 +1,28 @@
 /**
  * reportDoc.ts — the branch and company reports, built from the live data.
  *
+ * A report here is a document somebody takes into a meeting, not a printout of
+ * the dashboard. It is written the way a study is written up:
+ *
+ *   Introduction       what was looked at and why
+ *   Methodology        where the numbers come from, how much data, definitions
+ *   Results            one numbered figure per finding, a caption, then a short
+ *                      plain-English paragraph saying exactly what it shows,
+ *                      and an analysis of what that means
+ *   Observations       general trends, a performance metrics summary, and
+ *                      detailed observations branch by branch (or line by line)
+ *   Final Analysis     the inference drawn from all of it, and what to do,
+ *                      each recommendation with the reason behind it
+ *   Limitations        what this data cannot tell you
+ *   Appendices         the full tables and the definitions
+ *
  * One function per report returns a complete HTML document. The same document
  * is shown in the Reports tab's preview, saved as Word, and printed to PDF, so
- * what someone reads on screen is exactly what they send.
+ * what someone reads on screen is exactly what they send. Charts are drawn as
+ * table cells with a fill, because Word drops SVG and canvas.
  *
- * Every figure comes from the dashboard data passed in. Nothing here is
- * fixture text: the earlier preview carried a sample organisation's name,
- * totals and staff, and would have gone out under every customer's letterhead.
- * Where a measure has no data yet, the section says so rather than inventing a
- * number.
+ * Every figure and every sentence comes from the data passed in. Where a
+ * measure has no data, the section says so rather than inventing a number.
  */
 import type { MgrTabData } from './qx/MgrTabsQX';
 import type { ExecTabData } from './qx/ExecTabsQX';
@@ -22,29 +35,60 @@ const num = (n: number | null | undefined, digits = 0) =>
     ? '—'
     : Number(n).toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 
+const toNum = (v: unknown) => {
+  const n = Number(String(v ?? '').replace(/[^0-9.\-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+const sum = (xs: number[]) => xs.reduce((t, x) => t + (Number(x) || 0), 0);
+const pct = (part: number, whole: number) => (whole ? Math.round((part / whole) * 1000) / 10 : 0);
+/** "up 12.4%" / "down 3%" / "unchanged" — the change from b to a. */
+const change = (a: number, b: number) => {
+  if (!b) return null;
+  const c = Math.round(((a - b) / b) * 1000) / 10;
+  return { c, text: c === 0 ? 'unchanged' : `${c > 0 ? 'up' : 'down'} ${num(Math.abs(c), 1)}%` };
+};
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
 /** Plain styling that Word, Electron's PDF printer and the on-screen preview all honour. */
 export const REPORT_CSS = `
-  body{font-family:Calibri,Arial,Helvetica,sans-serif;color:#1F3442;font-size:11pt;line-height:1.5;margin:0}
+  body{font-family:Calibri,Arial,Helvetica,sans-serif;color:#1F3442;font-size:11pt;line-height:1.55;margin:0}
   .doc{max-width:720px;margin:0 auto;padding:28px 34px}
-  .cover{border-bottom:2px solid #1B4B8F;padding-bottom:14px;margin-bottom:18px}
-  .org{font-size:10pt;font-weight:bold;color:#1B4B8F;letter-spacing:.02em;text-transform:uppercase}
-  h1{font-size:22pt;margin:6pt 0 4pt;color:#0F2240}
-  h2{font-size:14pt;margin:20pt 0 6pt;border-bottom:1px solid #D9E4EA;padding-bottom:4pt;color:#0F2240}
-  .muted{color:#5A6E7D;font-size:10pt;margin:0 0 4pt}
+  .cover{padding:40pt 0 26pt;border-bottom:2px solid #1B4B8F;margin-bottom:18pt}
+  .org{font-size:10pt;font-weight:bold;color:#1B4B8F;letter-spacing:.06em;text-transform:uppercase}
+  h1{font-size:26pt;margin:10pt 0 6pt;color:#0F2240;line-height:1.15}
+  .sub{font-size:13pt;color:#3B5468;margin:0 0 14pt}
+  h2{font-size:15pt;margin:24pt 0 6pt;border-bottom:1px solid #D9E4EA;padding-bottom:4pt;color:#0F2240}
+  h3{font-size:12pt;margin:16pt 0 4pt;color:#1B4B8F}
+  .muted{color:#5A6E7D;font-size:10pt;margin:0 0 3pt}
   p{margin:0 0 8pt}
-  table{border-collapse:collapse;width:100%;margin:6pt 0 12pt}
+  ul{margin:0 0 9pt 18pt;padding:0} li{margin:0 0 4pt}
+  table{border-collapse:collapse;width:100%;margin:6pt 0 10pt}
   th,td{border:1px solid #D9E4EA;padding:5pt 7pt;font-size:9.5pt;text-align:left;vertical-align:top}
   th{background:#EEF3F7;font-weight:bold}
   td.r,th.r{text-align:right}
   .kpis{width:100%;border-collapse:collapse;margin:8pt 0 14pt}
-  .kpis td{text-align:center;border:1px solid #D9E4EA;padding:8pt}
-  .kpis .v{font-size:16pt;font-weight:bold;color:#0F2240}
+  .kpis td{text-align:center;border:1px solid #D9E4EA;padding:9pt}
+  .kpis .v{font-size:17pt;font-weight:bold;color:#0F2240}
   .kpis .l{font-size:8.5pt;color:#5A6E7D}
   .good{color:#1E7F4F;font-weight:bold}
   .bad{color:#B42318;font-weight:bold}
   .note{color:#5A6E7D;font-size:9.5pt;font-style:italic}
-  .foot{margin-top:24pt;border-top:1px solid #D9E4EA;padding-top:6pt;color:#7C8CA5;font-size:8.5pt}
-  h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}
+  .toc td{border:0;border-bottom:1px dotted #C9D6DF;padding:4pt 2pt;font-size:10.5pt}
+  .fig{margin:10pt 0 4pt}
+  .fig table.bars td{border:0;padding:3pt 4pt;font-size:9pt;vertical-align:middle}
+  .fig .lab{width:30%;color:#1F3442}
+  .fig .val{width:16%;text-align:right;font-weight:bold;color:#0F2240;white-space:nowrap}
+  .fig .track{background:#EEF3F7;padding:0;height:12pt}
+  .cap{font-size:9pt;color:#3B5468;margin:2pt 0 6pt}
+  .cap b{color:#0F2240}
+  .shows{background:#F5F8FB;border-left:3px solid #1B4B8F;padding:7pt 10pt;margin:4pt 0 10pt;font-size:10pt}
+  .analysis{margin:4pt 0 12pt}
+  .analysis b.k{color:#1B4B8F}
+  .rec{border:1px solid #D9E4EA;padding:8pt 10pt;margin:0 0 8pt}
+  .rec .t{font-weight:bold;color:#0F2240}
+  .foot{margin-top:26pt;border-top:1px solid #D9E4EA;padding-top:6pt;color:#7C8CA5;font-size:8.5pt}
+  h2{page-break-after:avoid} h3{page-break-after:avoid} .fig{page-break-inside:avoid} tr{page-break-inside:avoid}
+  .pb{page-break-before:always}
 `;
 
 const wrap = (title: string, body: string) =>
@@ -70,13 +114,98 @@ const verdict = (now: number, target: number | null, goodWhen: 'up' | 'down') =>
 
 const unitText = (v: number, unit: string) => `${num(v, 1)}${unit === '%' ? '%' : unit ? ` ${esc(unit)}` : ''}`;
 
-/** Busiest hour and weekday from a pattern, for the plain-English line. */
+/** Busiest label from a pattern. */
 function peak(labels: string[], values: number[]) {
   if (!labels.length || !values.length) return null;
   let best = 0;
   values.forEach((v, i) => { if (v > values[best]) best = i; });
   return values[best] > 0 ? labels[best] : null;
 }
+function trough(labels: string[], values: number[]) {
+  const open = values.map((v, i) => [v, i] as const).filter(([v]) => v > 0);
+  if (!open.length) return null;
+  return labels[open.reduce((m, x) => (x[0] < m[0] ? x : m))[1]];
+}
+
+/* ── the document's furniture ── */
+
+class Doc {
+  private parts: string[] = [];
+  private fig = 0;
+  private tab = 0;
+  private toc: Array<[string, string]> = [];
+  private sec = 0;
+  private sub = 0;
+  push(html: string) { this.parts.push(html); }
+  h2(title: string) {
+    this.sec += 1; this.sub = 0;
+    const id = `s${this.sec}`;
+    this.toc.push([`${this.sec}.`, title]);
+    this.parts.push(`<h2 id="${id}">${this.sec}. ${esc(title)}</h2>`);
+  }
+  h3(title: string) {
+    this.sub += 1;
+    this.toc.push([`${this.sec}.${this.sub}`, title]);
+    this.parts.push(`<h3>${this.sec}.${this.sub} ${esc(title)}</h3>`);
+  }
+  p(html: string) { if (html.trim()) this.parts.push(`<p>${html}</p>`); }
+  ul(items: string[]) { if (items.length) this.parts.push(`<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`); }
+  /** A numbered figure: horizontal bars, an optional second series and a target mark in the caption. */
+  bars(caption: string, rows: Array<{ label: string; value: number; compare?: number; bad?: boolean; text?: string }>, opts: { unit?: string; compareLabel?: string; valueLabel?: string } = {}) {
+    if (!rows.length || rows.every((r) => !r.value && !r.compare)) {
+      this.parts.push('<p class="note">Not enough data in this period to draw this figure.</p>');
+      return 0;
+    }
+    this.fig += 1;
+    const max = Math.max(1, ...rows.map((r) => Math.max(r.value || 0, r.compare || 0)));
+    const bar = (v: number, color: string) => {
+      const w = Math.max(0.5, Math.round(((v || 0) / max) * 100));
+      return `<table style="width:100%;border-collapse:collapse;margin:1pt 0"><tr>`
+        + `<td style="width:${w}%;background:${color};height:9pt;padding:0;border:0"></td>`
+        + `<td style="width:${100 - w}%;padding:0;border:0"></td></tr></table>`;
+    };
+    const u = opts.unit || '';
+    this.parts.push(`<div class="fig"><table class="bars">${rows.map((r) =>
+      `<tr><td class="lab">${esc(r.label)}</td>`
+      + `<td class="track" style="background:transparent">${bar(r.value, r.bad ? '#B42318' : '#1B4B8F')}${r.compare !== undefined ? bar(r.compare, '#A9BFD8') : ''}</td>`
+      + `<td class="val">${r.text ?? `${num(r.value, 1)}${u}`}${r.compare !== undefined ? `<br><span style="font-weight:normal;color:#7C8CA5">${num(r.compare, 1)}${u}</span>` : ''}</td></tr>`).join('')}</table></div>`);
+    const key = opts.compareLabel ? ` Dark bars: ${esc(opts.valueLabel || 'this period')}; light bars: ${esc(opts.compareLabel)}.` : '';
+    this.parts.push(`<p class="cap"><b>Figure ${this.fig}.</b> ${caption}${key}</p>`);
+    return this.fig;
+  }
+  table(caption: string, head: string[], rows: string[][], rightFrom = 1) {
+    if (!rows.length) { this.parts.push('<p class="note">No data recorded for this period yet.</p>'); return 0; }
+    this.tab += 1;
+    this.parts.push(table(head, rows, rightFrom));
+    this.parts.push(`<p class="cap"><b>Table ${this.tab}.</b> ${caption}</p>`);
+    return this.tab;
+  }
+  /** "What this shows": the facts, as they are, in a sentence or three. */
+  shows(html: string) { if (html.trim()) this.parts.push(`<div class="shows"><b>What this shows.</b> ${html}</div>`); }
+  analysis(html: string) { if (html.trim()) this.parts.push(`<p class="analysis"><b class="k">Analysis.</b> ${html}</p>`); }
+  rec(title: string, why: string, expect: string) {
+    this.parts.push(`<div class="rec"><div class="t">${esc(title)}</div><p style="margin:3pt 0 2pt"><b>Why:</b> ${why}</p><p style="margin:0"><b>What it should change:</b> ${expect}</p></div>`);
+  }
+  html(cover: string, foot: string, title: string) {
+    const toc = `<h2 style="border:0">Contents</h2><table class="toc">${this.toc.map(([n, t]) =>
+      `<tr><td style="width:44pt">${esc(n)}</td><td>${esc(t)}</td></tr>`).join('')}</table>`;
+    return wrap(title, `${cover}${toc}<div class="pb"></div>${this.parts.join('\n')}<div class="foot">${foot}</div>`);
+  }
+}
+
+const coverHtml = (org: string, title: string, subtitle: string, lines: string[]) =>
+  `<div class="cover"><div class="org">${esc(org)}</div><h1>${esc(title)}</h1><p class="sub">${esc(subtitle)}</p>`
+  + lines.map((l) => `<p class="muted">${esc(l)}</p>`).join('') + '</div>';
+
+const DEFINITIONS: string[][] = [
+  ['Wait', 'Minutes from joining a line (app, kiosk or counter) to being called to a counter.'],
+  ['Time at the counter', 'Minutes from the start of service to its end, for visits that were served.'],
+  ['Served / completed', 'A visit that reached a counter and was finished. Completion rate is served visits as a share of everyone who joined.'],
+  ['No-show', 'Somebody called who did not come to the counter within the time allowed.'],
+  ['Left the line', 'Somebody who took a place and gave it up before being called.'],
+  ['Target', 'The figure the organisation set in Lyne for each measure. A branch target, where set, takes precedence over the company target.'],
+  ['Health score', 'A 0–100 score blending wait, completion and no-shows against target, equally weighted. 75 and above is inside target overall.'],
+];
 
 /* ═══════════════════════ BRANCH REPORT (manager) ═══════════════════════ */
 
@@ -85,97 +214,198 @@ export type MgrSectionKey = 'cover' | 'summary' | 'targets' | 'services' | 'staf
 export function buildBranchReport(d: MgrTabData, opts: { sections: string[]; periodLabel: string }) {
   const has = (k: string) => opts.sections.includes(k);
   const period = d.periodLabel || opts.periodLabel;
-  const parts: string[] = [];
+  const doc = new Doc();
 
-  parts.push(`<div class="cover"><div class="org">${esc(d.org)}</div><h1>Branch Report</h1>`
-    + `<p class="muted">${esc(d.branchName)} · ${esc(period)}</p>`
-    + `<p class="muted">Prepared by ${esc(d.managerName)} · ${esc(d.generatedOn)}</p></div>`);
+  const f = d.funnel || { joined: 0, called: 0, served: 0, left: 0, typicalLeaveMin: null };
+  const served = f.served ?? d.servedToday ?? 0;
+  const joined = f.joined || 0;
+  const eff = (t: MgrTabData['targets'][number]) => t.branch ?? t.company;
+  const missed = d.targets.filter((t) => eff(t) !== null && (t.goodWhen === 'down' ? t.now > eff(t) : t.now < eff(t)));
+  const met = d.targets.length - missed.length;
+  const waitT = d.targets.find((t) => t.key === 'wait');
+  const svcByWait = [...d.services].sort((a, b) => b.wait - a.wait);
+  const worstLine = svcByWait[0];
+  const shortLines = d.services.filter((s) => s.open < s.counters && s.wait > (waitT ? eff(waitT) : 15));
+  const busyDay = peak(d.dow.labels, d.dow.values);
+  const quietDay = trough(d.dow.labels, d.dow.values);
+  const flagged = d.staff.filter((s) => s.state === 'idle' || s.state === 'slow');
+  const working = d.staff.filter((s) => s.seen > 0);
 
-  const served = d.funnel?.served ?? d.servedToday ?? 0;
-  const missed = d.targets.filter((t) => {
-    const target = t.branch ?? t.company;
-    return target !== null && (t.goodWhen === 'down' ? t.now > target : t.now < target);
-  });
+  /* 1. Introduction */
+  doc.h2('Introduction');
+  doc.p(`This report sets out how <b>${esc(d.branchName)}</b> of ${esc(d.org)} served its customers over ${esc(period.toLowerCase())}. `
+    + 'It is written for the branch manager and the people they report to: it presents the figures exactly as Lyne recorded them, explains what each one shows, and ends with what the figures suggest should change and why.');
+  doc.p('The questions it answers are the ones a branch is judged on: how long people waited, how many were served, how many gave up or did not come back when called, whether the counters open matched the people waiting, and when in the week the pressure arrives.');
 
+  /* 2. Methodology */
+  doc.h2('Methodology');
+  doc.p(`Every figure in this report is counted from Lyne's own record of each visit at ${esc(d.branchName)}. When somebody joins a line, by the Lyne app, at the branch kiosk or at the counter, Lyne records the time. It records again when they are called, when service starts and when it ends, and how the visit closed: served, no-show, or left before being called.`);
+  doc.p(`In this period that is <b>${num(joined)}</b> people who joined a line across <b>${num(d.services.length)}</b> service lines, served by <b>${num(working.length)}</b> members of staff. Results are compared with the branch's own targets where the branch has set them and with the company target where it has not. Hours of operation for the period were ${esc(d.openFrom)} to ${esc(d.openTo)}.`);
+  doc.p('Definitions of every measure are given in the appendix. No figure in this report is estimated or modelled unless it says so.');
+
+  /* 3. Results */
+  doc.h2('Results');
   if (has('summary')) {
-    const busiestDay = peak(d.dow.labels, d.dow.values);
-    const busiestLine = [...d.services].sort((a, b) => b.wait - a.wait)[0];
-    parts.push('<h2>Branch Summary</h2>');
-    parts.push(kpis([
-      [num(served), 'Served'],
-      [num(d.funnel?.joined), 'Joined'],
-      [num(d.funnel?.left), 'Left the line'],
-      [d.targets.length ? `${d.targets.length - missed.length} of ${d.targets.length}` : '—', 'Targets met'],
+    doc.h3('The Period At A Glance');
+    doc.push(kpis([
+      [num(served), 'Served'], [num(joined), 'Joined a line'], [num(f.left), 'Left before being called'],
+      [d.targets.length ? `${met} of ${d.targets.length}` : '—', 'Targets met'],
     ]));
-    const lines: string[] = [];
-    lines.push(`${esc(d.branchName)} served <b>${num(served)}</b> customers in this period.`);
-    if (d.targets.length) {
-      lines.push(missed.length
-        ? `It missed ${missed.length} of its ${d.targets.length} targets: ${missed.map((t) => esc(t.label.toLowerCase())).join(', ')}.`
-        : 'It met every target it is held to.');
-    }
-    if (busiestLine) lines.push(`The longest wait was on <b>${esc(busiestLine.name)}</b>, at about ${num(busiestLine.wait)} minutes.`);
-    if (busiestDay) lines.push(`${esc(busiestDay)} was the busiest day of the week.`);
-    parts.push(`<p>${lines.join(' ')}</p>`);
+    doc.bars('Where the people who joined a line ended up.', [
+      { label: 'Joined a line', value: joined },
+      { label: 'Called to a counter', value: f.called || 0 },
+      { label: 'Served', value: served },
+      { label: 'Left before being called', value: f.left || 0, bad: true },
+    ], { unit: '' });
+    doc.shows(`Of the ${num(joined)} people who joined a line, ${num(f.called)} were called to a counter and ${num(served)} were served (${num(pct(served, joined), 1)}%). `
+      + `${num(f.left)} people (${num(pct(f.left || 0, joined), 1)}%) gave up their place before being called`
+      + `${f.typicalLeaveMin != null ? `, typically after waiting about ${num(f.typicalLeaveMin)} minutes` : ''}.`);
+    doc.analysis(f.left && pct(f.left, joined) >= 5
+      ? `Roughly one person in ${Math.max(2, Math.round(joined / Math.max(1, f.left)))} left without being seen. Each of them is a customer who will come back another day or go somewhere else, and is the clearest single sign that the wait at some point in the day was longer than people were prepared to accept.`
+      : 'Very few people gave up their place. People who join a line at this branch are, in the main, staying to be served, which suggests the waits are within what customers will tolerate.');
   }
 
   if (has('targets')) {
-    parts.push('<h2>Against Targets</h2>');
-    parts.push(table(['Measure', 'Now', 'Branch target', 'Company target', 'Result'],
-      d.targets.map((t) => [esc(t.label), unitText(t.now, t.unit),
-        t.branch === null ? '—' : unitText(t.branch, t.unit), unitText(t.company, t.unit),
-        verdict(t.now, t.branch ?? t.company, t.goodWhen)])));
+    doc.h3('Performance Against Targets');
+    doc.table('Each measure this period against the branch target and the company target.',
+      ['Measure', 'This period', 'Branch target', 'Company target', 'Result'],
+      d.targets.map((t) => [esc(t.label), unitText(t.now, t.unit), t.branch === null ? '—' : unitText(t.branch, t.unit), unitText(t.company, t.unit), verdict(t.now, eff(t), t.goodWhen)]));
+    doc.shows(d.targets.length
+      ? `${esc(d.branchName)} met ${met} of its ${d.targets.length} targets.${missed.length ? ` It missed ${list(missed.map((t) => `${esc(t.label.toLowerCase())} (${unitText(t.now, t.unit)} against ${unitText(eff(t) as number, t.unit)})`))}.` : ''}`
+      : 'No targets were set for this branch in this period.');
+    if (missed.length) {
+      const w = missed.find((t) => t.key === 'wait');
+      doc.analysis(w
+        ? `The wait target is the one customers feel directly. At ${unitText(w.now, w.unit)} against ${unitText(eff(w) as number, w.unit)}, the average customer waited ${num(Math.max(0, w.now - (eff(w) as number)), 1)} minutes longer than the branch has committed to. The other results below show where that time is being lost.`
+        : `The misses are in ${list(missed.map((t) => esc(t.label.toLowerCase())))}, not in waiting time, so the problem is less about how long people queue and more about what happens once they are called.`);
+    } else if (d.targets.length) {
+      doc.analysis('Every target was met. The useful question for the next period is whether the targets are still ambitious enough, and the change history in Lyne shows when each was last moved and why.');
+    }
   }
 
   if (has('services')) {
-    parts.push('<h2>Service Lines</h2>');
-    parts.push(table(['Line', 'Waiting', 'Avg wait (min)', 'Longest (min)', 'Counters open'],
-      d.services.map((s) => [esc(s.name), num(s.waiting), num(s.wait), num(s.longest), `${num(s.open)} of ${num(s.counters)}`])));
+    doc.h3('Service Lines');
+    doc.bars('Average wait by service line, longest first. Red bars are above the branch wait target.',
+      svcByWait.map((s) => ({ label: s.name, value: s.wait, bad: waitT ? s.wait > (eff(waitT) as number) : false })), { unit: ' min' });
+    doc.table('Each service line: people waiting now, average and longest wait, and counters open.',
+      ['Line', 'Waiting', 'Avg wait (min)', 'Longest (min)', 'Counters open'],
+      d.services.map((s) => [esc(s.name), num(s.waiting), num(s.wait), num(s.longest), `${num(s.open)} of ${num(s.counters)}`]));
+    if (worstLine) {
+      doc.shows(`The longest average wait was on <b>${esc(worstLine.name)}</b>, about ${num(worstLine.wait)} minutes, with ${num(worstLine.open)} of its ${num(worstLine.counters)} counters open. `
+        + (svcByWait.length > 1 ? `The shortest was on ${esc(svcByWait[svcByWait.length - 1].name)}, about ${num(svcByWait[svcByWait.length - 1].wait)} minutes.` : ''));
+      doc.analysis(shortLines.length
+        ? `${list(shortLines.map((s) => `<b>${esc(s.name)}</b>`))} ${shortLines.length === 1 ? 'is' : 'are'} running over target with counters unopened. That combination is the cheapest kind of delay to fix: the counter and the system are already there, and what is missing is a person at it during the busy hours.`
+        : 'Where waits are long, the counters for that line are already open, so the delay comes from demand rather than from unstaffed desks. The remedy there is moving people at the peak, or reducing what each visit takes, not opening idle counters.');
+    }
   }
 
   if (has('staff')) {
-    parts.push('<h2>Staff And Counters</h2>');
-    parts.push(table(['Name', 'Counter', 'Service', 'Seen', 'Avg (min)'],
-      d.staff.map((s) => [esc(s.name), esc(s.counter), esc(s.svc), num(s.seen), s.avg ? num(s.avg) : '—']), 3));
+    doc.h3('Staff And Counters');
+    const bySeen = [...working].sort((a, b) => b.seen - a.seen);
+    doc.bars('Customers seen by each member of staff in the period.', bySeen.map((s) => ({ label: s.name, value: s.seen })), { unit: '' });
+    doc.table('Each member of staff: counter, service, customers seen and average time per customer.',
+      ['Name', 'Counter', 'Service', 'Seen', 'Avg (min)'],
+      d.staff.map((s) => [esc(s.name), esc(s.counter), esc(s.svc), num(s.seen), s.avg ? num(s.avg) : '—']), 3);
+    const totalSeen = sum(working.map((s) => s.seen));
+    const top = bySeen[0];
+    doc.shows(top
+      ? `${num(working.length)} members of staff served ${num(totalSeen)} customers between them. ${esc(top.name)} saw the most, ${num(top.seen)}${top.avg ? ` at about ${num(top.avg)} minutes each` : ''}.`
+      : 'No member of staff has a completed visit recorded in this period.');
+    doc.analysis(flagged.length
+      ? `${list(flagged.map((s) => esc(s.name)))} ${flagged.length === 1 ? 'was' : 'were'} flagged during the period, either idle while people waited or taking well over their usual time per customer. These flags are prompts to ask a question, not judgements: a long visit is often a difficult case, and an idle counter is often a person covering somewhere else.`
+      : 'Nobody was flagged as idle while people waited or as running unusually slowly. Differences in the number seen mostly reflect the service each person was on: a teller sees many quick visits, an account officer a few long ones.');
   }
 
   if (has('busy')) {
-    parts.push('<h2>Busy Times</h2>');
-    const day = peak(d.dow.labels, d.dow.values);
-    parts.push(day ? `<p>Busiest day: <b>${esc(day)}</b>.</p>` : '<p class="note">Not enough visits yet to show a weekly pattern.</p>');
-    if (d.dow.labels.length) {
-      parts.push(table(['Day', ...d.dow.labels], [['Visits', ...d.dow.values.map((v) => num(v))]]));
-    }
+    doc.h3('When The Pressure Arrives');
+    doc.bars('Average visits on each day of the week.', d.dow.labels.map((l, i) => ({ label: l, value: d.dow.values[i] || 0, bad: l === busyDay })), { unit: '' });
     if (d.hours.length && d.svcHeat.length) {
-      parts.push(table(['Line', ...d.hours],
-        d.services.map((s, i) => [esc(s.name), ...(d.svcHeat[i] || []).map((v) => num(v))])));
+      doc.table('Visits by hour of the day for each service line (the busy-times grid).',
+        ['Line', ...d.hours], d.services.map((s, i) => [esc(s.name), ...(d.svcHeat[i] || []).map((v) => num(v))]));
+    }
+    doc.shows(busyDay
+      ? `${esc(busyDay)} is the busiest day of the week at this branch${quietDay && quietDay !== busyDay ? ` and ${esc(quietDay)} the quietest day it is open` : ''}.`
+      : 'There are not yet enough visits to show a weekly pattern.');
+    if (busyDay) {
+      doc.analysis(`Demand is not spread evenly, so neither should staff be. Leave, training and meetings placed on ${esc(quietDay || 'the quieter days')} cost the branch almost nothing in waiting time; the same absence on ${esc(busyDay)} is felt by every customer in the line.`);
     }
   }
 
+  /* 4. Observations */
+  doc.h2('Observations');
+  doc.h3('General Observation Trends');
+  const trends: string[] = [];
+  trends.push(`${num(pct(served, joined), 1)}% of the people who joined a line were served.`);
+  if (worstLine) trends.push(`The longest wait sits on ${esc(worstLine.name)}; the pressure is concentrated in one line rather than spread across the branch.`);
+  if (busyDay) trends.push(`Demand peaks on ${esc(busyDay)}.`);
+  if (shortLines.length) trends.push(`${shortLines.length} line${shortLines.length === 1 ? ' runs' : 's run'} over target with counters unopened.`);
+  if (f.left) trends.push(`${num(f.left)} people left before being called.`);
+  doc.ul(trends);
+  doc.h3('Performance Metrics Summary');
+  doc.table('The measures this branch is held to, in one place.',
+    ['Measure', 'Result', 'Target', 'Status'],
+    d.targets.map((t) => [esc(t.label), unitText(t.now, t.unit), unitText(eff(t) as number, t.unit), verdict(t.now, eff(t), t.goodWhen)]));
+  doc.h3('Detailed Observations By Service Line');
+  d.services.forEach((s) => {
+    doc.p(`<b>${esc(s.name)}.</b> ${num(s.waiting)} waiting at the time of the report; average wait about ${num(s.wait)} minutes and the longest ${num(s.longest)} minutes; ${num(s.open)} of ${num(s.counters)} counters open.`
+      + (waitT && s.wait > (eff(waitT) as number) ? ' This line is over the wait target.' : ' This line is inside the wait target.'));
+  });
+
+  /* 5. Final analysis */
+  doc.h2('Final Analysis');
+  const story: string[] = [];
+  story.push(missed.length
+    ? `${esc(d.branchName)} missed ${missed.length} of its ${d.targets.length} targets in this period.`
+    : `${esc(d.branchName)} met its targets in this period.`);
+  if (worstLine && waitT && worstLine.wait > (eff(waitT) as number)) {
+    story.push(`The evidence points to ${esc(worstLine.name)} as the source of most of the waiting: it carries the longest wait${worstLine.open < worstLine.counters ? ' while some of its counters stand empty' : ' even with all its counters open'}.`);
+  }
+  if (busyDay) story.push(`Because demand peaks on ${esc(busyDay)}, the same staff deployed differently across the week would reduce waiting without adding headcount.`);
+  doc.p(story.join(' '));
   if (has('actions')) {
-    parts.push('<h2>What To Change</h2>');
-    const recs: string[] = [];
-    const short = d.services.filter((s) => s.open < s.counters && s.wait > 15);
-    short.forEach((s) => recs.push(`Open more of the ${num(s.counters)} counters on <b>${esc(s.name)}</b>: ${num(s.open)} are open and the wait is about ${num(s.wait)} minutes.`));
-    d.staff.filter((s) => s.state === 'idle' || s.state === 'slow').forEach((s) => {
-      if (s.note) recs.push(`${esc(s.name)} (${esc(s.counter)}): ${esc(s.note)}.`);
-    });
-    missed.forEach((t) => recs.push(`Bring <b>${esc(t.label.toLowerCase())}</b> back inside target (now ${unitText(t.now, t.unit)}).`));
-    parts.push(recs.length ? `<ul>${recs.map((r) => `<li>${r}</li>`).join('')}</ul>` : '<p>No changes are indicated: the branch is inside its targets and its lines are staffed for demand.</p>');
+    doc.h3('Recommendations');
+    let n = 0;
+    shortLines.forEach((s) => { n += 1; doc.rec(`Open more of the ${s.name} counters at the peak`,
+      `${num(s.open)} of ${num(s.counters)} counters were open while the average wait was about ${num(s.wait)} minutes.`,
+      'Each extra counter at the peak takes a share of the line immediately; this is the fastest lever the branch has.'); });
+    if (busyDay && quietDay && busyDay !== quietDay) { n += 1; doc.rec(`Plan leave and training around ${busyDay}`,
+      `${busyDay} carries the most visits and ${quietDay} the fewest of the days the branch is open.`,
+      `Full counters on ${busyDay}, with time away from the floor taken on ${quietDay}, at no extra cost.`); }
+    flagged.forEach((s) => { n += 1; doc.rec(`Talk to ${s.name}`, esc(s.note || 'Flagged during the period.'),
+      'Either a fix (a stuck case, a training gap) or a better explanation for the record.'); });
+    missed.filter((t) => t.key !== 'wait').forEach((t) => { n += 1; doc.rec(`Bring ${t.label.toLowerCase()} back to target`,
+      `${unitText(t.now, t.unit)} against a target of ${unitText(eff(t) as number, t.unit)}.`,
+      t.key === 'noshow' ? 'Fewer wasted calls, and a shorter line for the people who did come.'
+        : 'More of the visits that start ending with the customer’s business done, so fewer come back a second time.'); });
+    if (!n) doc.p('The figures do not indicate a change. The branch is inside its targets and its counters are staffed for its demand.');
   }
 
+  /* 6. Limitations */
+  doc.h2('Limitations');
+  doc.ul([
+    `This report covers ${esc(period.toLowerCase())} only. A short period can be pulled up or down by one unusual day (a payday, a system outage, bad weather), and none of those is recorded in Lyne.`,
+    'Lyne records what happens once somebody joins a line. People who looked at the line and decided not to join are not counted, so demand is if anything understated.',
+    'Time at the counter measures how long a visit took, not whether it was handled well. A long visit can be a careful one.',
+    'Staff figures depend on staff being signed in at the right counter. A person covering a colleague’s desk without switching counter is credited to the wrong line.',
+  ]);
+
+  /* 7. Appendices */
   if (has('appendix')) {
-    parts.push('<h2>Appendix — Daily Figures</h2>');
-    parts.push(table(['Measure', 'Value'], [
-      ['Joined', num(d.funnel?.joined)], ['Called', num(d.funnel?.called)],
-      ['Served', num(d.funnel?.served)], ['Left the line', num(d.funnel?.left)],
-      ['Typical time before leaving (min)', d.funnel?.typicalLeaveMin === null ? '—' : num(d.funnel?.typicalLeaveMin)],
+    doc.h2('Appendices');
+    doc.h3('Daily Figures');
+    doc.table('The counts behind the figures above.', ['Measure', 'Value'], [
+      ['Joined', num(f.joined)], ['Called', num(f.called)], ['Served', num(f.served)], ['Left the line', num(f.left)],
+      ['Typical time before leaving (min)', f.typicalLeaveMin == null ? '—' : num(f.typicalLeaveMin)],
       ['Open hours', `${esc(d.openFrom)} – ${esc(d.openTo)}`],
-    ]));
+    ]);
+    doc.h3('Definitions');
+    doc.table('What each measure means.', ['Term', 'Definition'], DEFINITIONS.map(([a, b]) => [esc(a), esc(b)]), 9);
   }
 
-  parts.push(`<div class="foot">${esc(d.org)} · ${esc(d.branchName)} · Generated by Lyne on ${esc(d.generatedOn)}. For internal management use.</div>`);
-  return wrap(`Branch Report — ${d.branchName}`, parts.join('\n'));
+  const cover = coverHtml(d.org, 'Branch Performance Report', `${d.branchName} · ${period}`,
+    [`Prepared by ${d.managerName}`, `Generated by Lyne on ${d.generatedOn}`, 'For internal management use']);
+  return doc.html(cover, `${esc(d.org)} · ${esc(d.branchName)} · Generated by Lyne on ${esc(d.generatedOn)}. For internal management use.`,
+    `Branch Report — ${d.branchName}`);
 }
 
 /* ═══════════════════════ COMPANY REPORT (executive) ═══════════════════════ */
@@ -185,110 +415,221 @@ export function buildCompanyReport(d: ExecTabData, opts: {
 }) {
   const has = (k: string) => opts.sections.includes(k);
   const included = opts.branchIds === 'all' ? d.branches : d.branches.filter((b) => (opts.branchIds as string[]).includes(b.id));
-  const lineIds = new Set(included.map((b) => b.name));
-  const parts: string[] = [];
+  const names = new Set(included.map((b) => b.name));
   const m = d.metrics;
+  const doc = new Doc();
+  const scope = included.length === d.branches.length ? 'all branches' : `${included.length} of ${d.branches.length} branches`;
 
-  parts.push(`<div class="cover"><div class="org">${esc(d.org)}</div><h1>${esc(opts.typeLabel)}</h1>`
-    + `<p class="muted">${esc(opts.periodLabel)} · ${included.length === d.branches.length ? 'All branches' : `${included.length} of ${d.branches.length} branches`}</p>`
-    + `<p class="muted">Prepared by ${esc(d.preparedBy)} · ${esc(d.generatedOn)}</p></div>`);
-
+  const servedNow = sum(m.served.a);
+  const servedWas = sum(m.served.b);
+  const servedChg = change(servedNow, servedWas);
+  const waitT = d.targets.find((t) => t.key === 'wait');
+  const targetWait = waitT?.target ?? 20;
   const missed = d.targets.filter((t) => (t.goodWhen === 'down' ? t.now > t.target : t.now < t.target));
+  const byScore = [...included].sort((a, b) => b.score - a.score);
+  const best = byScore[0];
+  const worst = byScore[byScore.length - 1];
+  const overWait = included.filter((b) => b.wait > targetWait);
+  const totalWindows = sum(d.lines.map((l) => l.windows));
+  const gap = (l: ExecTabData['lines'][number]) => l.share - (totalWindows ? Math.round((l.windows / totalWindows) * 100) : 0);
+  const starved = [...d.lines].filter((l) => gap(l) >= 6).sort((a, b) => gap(b) - gap(a));
+  const busyDay = peak(d.dow.labels, d.dow.values);
+  const quietDay = trough(d.dow.labels, d.dow.values);
+  const mix = d.channelMix || { app: 0, kiosk: 0, walkIn: 0 };
+  const mixTotal = mix.app + mix.kiosk + mix.walkIn;
+  const days = m.served.a.filter((v) => v > 0).length;
 
+  /* 1. Introduction */
+  doc.h2('Introduction');
+  doc.p(`This report reviews how ${esc(d.org)} served its customers across ${scope} over ${esc(opts.periodLabel.toLowerCase())}. `
+    + 'It is written to be read in a management meeting and kept on file: it presents what Lyne recorded, explains what each finding shows, draws the conclusions the evidence supports, and recommends what to do next, with the reasoning behind each recommendation.');
+  doc.p('It answers five questions. How many people did the organisation serve, and is that rising or falling? How long did they wait against the targets set? Which branches and which services carry the pressure? When in the week does it arrive? And what would most improve the experience for the least cost?');
+
+  /* 2. Methodology */
+  doc.h2('Methodology');
+  doc.p('Every figure is counted from Lyne\'s own record of each visit. When a person joins a line, through the Lyne app, at a branch kiosk, or added by staff at the counter, Lyne records the time; it records again when they are called, when service starts and ends, and how the visit closed. Nothing is sampled, surveyed or estimated unless it says so.');
+  doc.p(`The period covers <b>${num(days)}</b> trading days and <b>${num(servedNow)}</b> recorded visits across <b>${num(included.length)}</b> branches and <b>${num(d.lines.length)}</b> service lines. Where a comparison is made, it is with the period of equal length immediately before (${esc(d.rangeB)}), which recorded ${num(servedWas)} visits.`);
+  doc.p('Results are measured against the targets the organisation set in Lyne. The change history of those targets, including who set them and why, is kept in Lyne. Definitions of every measure are in the appendix.');
+
+  /* 3. Results */
+  doc.h2('Results');
   if (has('summary')) {
-    parts.push('<h2>Executive Summary</h2>');
-    parts.push(kpis([[m.served.now, 'Served'], [m.wait.now, 'Average wait'], [m.done.now, 'Completed'], [m.noshow.now, 'No-shows']]));
-    const s: string[] = [];
-    s.push(`${esc(d.org)} served <b>${esc(m.served.now)}</b> customers in this period${m.served.was && m.served.was !== '—' ? `, against ${esc(m.served.was)} in the period before` : ''}.`);
-    if (m.wait.now !== '—') s.push(`The average wait was <b>${esc(m.wait.now)}</b>${m.wait.was && m.wait.was !== '—' ? ` (previously ${esc(m.wait.was)})` : ''}.`);
-    if (d.targets.length) {
-      s.push(missed.length
-        ? `${missed.length} of ${d.targets.length} company targets were missed: ${missed.map((t) => esc(t.label.toLowerCase())).join(', ')}.`
-        : 'Every company target was met.');
-    }
-    const worst = [...included].sort((a, b) => b.wait - a.wait)[0];
-    if (worst && worst.wait > 0) s.push(`The longest average wait was at <b>${esc(worst.name)}</b>, about ${num(worst.wait)} minutes.`);
-    parts.push(`<p>${s.join(' ')}</p>`);
+    doc.h3('Volume: Customers Served');
+    doc.push(kpis([[m.served.now, 'Served'], [m.wait.now, 'Average wait'], [m.done.now, 'Completed'], [m.noshow.now, 'No-shows']]));
+    doc.bars(`Visits recorded each day of ${esc(d.rangeA)}, against the same day of the period before.`,
+      d.days.map((day, i) => ({ label: day, value: m.served.a[i] || 0, compare: m.served.b[i] })).filter((r) => r.value || r.compare),
+      { unit: '', valueLabel: d.rangeA, compareLabel: d.rangeB });
+    doc.shows(`${esc(d.org)} recorded ${num(servedNow)} visits this period${servedChg ? `, ${servedChg.text} on the ${num(servedWas)} of the period before` : ''}. The average day saw ${num(days ? servedNow / days : 0)} visits.`);
+    doc.analysis(servedChg && Math.abs(servedChg.c) >= 5
+      ? `A movement of ${num(Math.abs(servedChg.c), 1)}% is large enough to matter for staffing. ${servedChg.c > 0 ? 'More people are coming through the doors, and the counters that coped last period will be stretched by the same rota this period.' : 'Fewer people came through the doors; if the rota did not change, some counters were idle and could be redeployed.'}`
+      : 'Volume is broadly steady between the two periods, so changes in waiting time below are not explained by more people simply turning up; they come from how the demand was met.');
   }
 
   if (has('targets')) {
-    parts.push('<h2>Performance Against Targets</h2>');
-    parts.push(table(['Measure', 'Now', 'Target', 'Result'],
-      d.targets.map((t) => [esc(t.label), unitText(t.now, t.unit), unitText(t.target, t.unit), verdict(t.now, t.target, t.goodWhen)])));
+    doc.h3('Performance Against Targets');
+    doc.table('Each company measure this period against its target.', ['Measure', 'This period', 'Target', 'Result'],
+      d.targets.map((t) => [esc(t.label), unitText(t.now, t.unit), unitText(t.target, t.unit), verdict(t.now, t.target, t.goodWhen)]));
+    doc.shows(missed.length
+      ? `${d.targets.length - missed.length} of ${d.targets.length} company targets were met. The organisation missed ${list(missed.map((t) => `${esc(t.label.toLowerCase())} (${unitText(t.now, t.unit)} against ${unitText(t.target, t.unit)})`))}.`
+      : `All ${d.targets.length} company targets were met.`);
+    doc.analysis(missed.some((t) => t.key === 'wait')
+      ? `Waiting time is the measure customers feel and talk about. The company average hides the spread between branches, which the next section breaks down: ${overWait.length} of ${included.length} branches were over the wait target.`
+      : 'With the wait target met on average, attention moves to the branches and lines below average, which the following sections identify.');
   }
 
   if (has('branches')) {
-    parts.push('<h2>Branch By Branch</h2>');
-    parts.push(table(['Branch', 'Manager', 'Served', 'Avg wait (min)', 'Completed %', 'No-show %', 'Score'],
-      [...included].sort((a, b) => b.score - a.score).map((b) => [esc(b.name), esc(b.mgr), num(b.served), num(b.wait),
-        num(b.done), num(b.noshow, 1), num(b.score)]), 2));
-    included.filter((b) => b.problem).forEach((b) => parts.push(`<p><b>${esc(b.name)}.</b> ${esc(b.problem)}</p>`));
+    doc.h3('Branch By Branch');
+    doc.bars(`Average wait by branch. Red bars are over the ${num(targetWait)}-minute company target.`,
+      [...included].sort((a, b) => b.wait - a.wait).map((b) => ({ label: b.name, value: b.wait, bad: b.wait > targetWait })), { unit: ' min' });
+    doc.bars('Health score by branch (0–100; 75 and above is inside target overall).',
+      byScore.map((b) => ({ label: b.name, value: b.score, bad: b.score < 75 })), { unit: '' });
+    doc.table('Each branch: its manager, volume, wait, completion, no-shows and health score.',
+      ['Branch', 'Manager', 'Served', 'Avg wait (min)', 'Completed %', 'No-show %', 'Score'],
+      byScore.map((b) => [esc(b.name), esc(b.mgr), num(b.served), num(b.wait), num(b.done), num(b.noshow, 1), num(b.score)]), 2);
+    if (best && worst) {
+      doc.shows(`${esc(best.name)} scored highest (${num(best.score)}), with an average wait of ${num(best.wait)} minutes. ${best === worst ? '' : `${esc(worst.name)} scored lowest (${num(worst.score)}), averaging ${num(worst.wait)} minutes.`} ${overWait.length ? `${list(overWait.map((b) => esc(b.name)))} ${overWait.length === 1 ? 'was' : 'were'} over the wait target.` : 'Every branch was inside the wait target.'}`);
+      doc.analysis(best !== worst && worst.wait > best.wait
+        ? `The gap between ${esc(best.name)} and ${esc(worst.name)} is ${num(worst.wait - best.wait)} minutes per customer on the same service catalogue and the same system. That points to something local (staffing at the peak, how many counters are opened, or how much of each visit is spent on missing documents) rather than to anything company-wide, and it means the better-performing branch is a working example the other can copy.`
+        : 'Branches are performing close to one another, so improvements are more likely to come from company-wide changes (readiness lists, appointment use) than from fixing one site.');
+    }
   }
 
   if (has('services')) {
-    parts.push('<h2>Service Line Analysis</h2>');
-    parts.push(table(['Line', 'Joined', 'Avg wait (min)', 'At counter (min)', 'Windows', 'Share %'],
-      d.lines.map((l) => [esc(l.name), num(l.joined), num(l.wait), num(l.svcMin), num(l.windows), num(l.share)])));
+    doc.h3('Service Lines: Demand Against Capacity');
+    doc.bars('Each service line\'s share of everyone queuing (dark) against its share of the counters (light). A dark bar well past its light bar is under-staffed.',
+      d.lines.map((l) => ({ label: l.name, value: l.share, compare: totalWindows ? Math.round((l.windows / totalWindows) * 100) : 0, bad: gap(l) >= 6, text: `${num(l.share)}%` })),
+      { unit: '%', valueLabel: 'share of queue', compareLabel: 'share of counters' });
+    doc.table('Each service line: visits, wait, time at the counter, windows and share of the queue.',
+      ['Line', 'Joined', 'Avg wait (min)', 'At counter (min)', 'Windows', 'Share %'],
+      d.lines.map((l) => [esc(l.name), num(l.joined), num(l.wait), num(l.svcMin), num(l.windows), num(l.share)]));
+    const longest = [...d.lines].sort((a, b) => b.svcMin - a.svcMin)[0];
+    doc.shows(starved.length
+      ? `${list(starved.map((l) => `${esc(l.name)} (${num(l.share)}% of the queue on ${num(totalWindows ? Math.round((l.windows / totalWindows) * 100) : 0)}% of the counters)`))} ${starved.length === 1 ? 'carries' : 'carry'} more of the queue than ${starved.length === 1 ? 'its' : 'their'} share of counters.`
+      : 'No service line\'s share of the queue is far ahead of its share of the counters.')
+      ;
+    doc.analysis(longest
+      ? `${esc(longest.name)} takes the longest at the counter, about ${num(longest.svcMin)} minutes a visit. Long visits are where preparation pays: every customer who arrives with the right documents shortens the visit for themselves and the wait for everyone behind them. ${starved.length ? `For ${esc(starved[0].name)}, the arithmetic is simpler: an extra window there buys back more waiting time than one anywhere else.` : ''}`
+      : '');
   }
 
   if (has('busy')) {
-    parts.push('<h2>Demand Patterns</h2>');
-    const day = peak(d.dow.labels, d.dow.values);
-    parts.push(day ? `<p>Busiest day across the company: <b>${esc(day)}</b>.</p>` : '<p class="note">Not enough visits yet to show a weekly pattern.</p>');
-    if (d.dow.labels.length) parts.push(table(['Day', ...d.dow.labels], [['Visits', ...d.dow.values.map((v) => num(v))]]));
+    doc.h3('Demand Through The Week');
+    doc.bars('Average visits on each day of the week, company-wide.', d.dow.labels.map((l, i) => ({ label: l, value: d.dow.values[i] || 0, bad: l === busyDay })), { unit: '' });
     if (d.hours.length && d.branchHeat.length) {
-      parts.push(table(['Branch', ...d.hours],
+      doc.table('Visits by day of the week at each branch.', ['Branch', ...d.hours],
         d.branchHeatRows.map((name, i) => ({ name, row: d.branchHeat[i] || [] }))
-          .filter((r) => opts.branchIds === 'all' || lineIds.has(r.name))
-          .map((r) => [esc(r.name), ...r.row.map((v) => num(v))])));
+          .filter((r) => opts.branchIds === 'all' || names.has(r.name))
+          .map((r) => [esc(r.name), ...r.row.map((v) => (v ? num(v) : 'Closed'))]));
     }
-  }
-
-  if (has('managers')) {
-    parts.push('<h2>Manager Performance</h2>');
-    parts.push(table(['Manager', 'Branch', 'Score', 'Previous', 'Wait', 'Completed', 'No-show', 'Staffing'],
-      d.managers.map((g) => [esc(g.name), esc(g.branch), num(g.score), num(g.was), num(g.parts.wait), num(g.parts.done),
-        num(g.parts.noshow), num(g.parts.staffing)]), 2));
+    doc.shows(busyDay ? `${esc(busyDay)} is the busiest day of the week${quietDay && quietDay !== busyDay ? ` and ${esc(quietDay)} the quietest open day` : ''}.` : 'Not enough visits yet to show a weekly pattern.');
+    if (busyDay && quietDay) {
+      const hi = d.dow.values[d.dow.labels.indexOf(busyDay)] || 0;
+      const lo = d.dow.values[d.dow.labels.indexOf(quietDay)] || 0;
+      doc.analysis(lo ? `${esc(busyDay)} brings about ${num(hi / lo, 1)} times the visits of ${esc(quietDay)}. A rota that is the same every day is therefore over-staffed on one and under-staffed on the other; matching the rota to this shape is the cheapest improvement available, because it needs no new people.` : '');
+    }
   }
 
   if (has('channels')) {
-    parts.push('<h2>How People Join</h2>');
-    parts.push('<p class="note">Join channels (app, kiosk, counter) are recorded per visit and appear here once enough visits have been counted.</p>');
-  }
-
-  if (has('anomalies')) {
-    parts.push('<h2>Incidents And Anomalies</h2>');
-    const flagged = included.filter((b) => b.problem);
-    parts.push(flagged.length
-      ? `<ul>${flagged.map((b) => `<li><b>${esc(b.name)}:</b> ${esc(b.problem)}</li>`).join('')}</ul>`
-      : '<p>Nothing was flagged as outside its normal range in this period.</p>');
-  }
-
-  if (has('actions')) {
-    parts.push('<h2>Recommendations</h2>');
-    const recs: string[] = [];
-    [...included].filter((b) => b.open < b.windows && b.wait > 20)
-      .forEach((b) => recs.push(`<b>${esc(b.name)}</b>: ${num(b.open)} of ${num(b.windows)} windows were open while the average wait was ${num(b.wait)} minutes. Open more windows at the peak.`));
-    missed.forEach((t) => recs.push(`Bring <b>${esc(t.label.toLowerCase())}</b> back to target (${unitText(t.now, t.unit)} against ${unitText(t.target, t.unit)}).`));
-    parts.push(recs.length ? `<ul>${recs.map((r) => `<li>${r}</li>`).join('')}</ul>` : '<p>No changes are indicated by this period\'s figures.</p>');
-  }
-
-  if (has('method')) {
-    parts.push('<h2>Methodology And Data Notes</h2>');
-    parts.push('<p>Every figure is counted from Lyne\'s own records of each visit: when a person joined a line, when they were called, when service started and ended, and how the visit closed. Waits run from joining to being called. A no-show is a person called who did not come to the counter. Branch scores combine wait, completion, no-shows and staffing against the company\'s targets.</p>');
-  }
-
-  if (has('appendix')) {
-    parts.push('<h2>Appendix — Full Data Tables</h2>');
-    const metricRows = (Object.keys(m) as Array<keyof typeof m>).map((k) => [esc(m[k].label), esc(m[k].now), esc(m[k].was)]);
-    parts.push(table(['Measure', 'This period', 'Previous period'], metricRows));
-    if (d.days.length && m.served.a.length) {
-      parts.push(table(['Day', 'Served'], d.days.map((day, i) => [esc(day), num(m.served.a[i])]).filter((r) => r[1] !== '—')));
+    doc.h3('How People Join');
+    if (mixTotal) {
+      doc.bars('Where each ticket this period came from.', [
+        { label: 'Lyne app', value: mix.app, text: `${num(pct(mix.app, mixTotal), 1)}%` },
+        { label: 'Branch kiosk', value: mix.kiosk, text: `${num(pct(mix.kiosk, mixTotal), 1)}%` },
+        { label: 'Added at the counter', value: mix.walkIn, text: `${num(pct(mix.walkIn, mixTotal), 1)}%` },
+      ]);
+      doc.shows(`${num(pct(mix.app, mixTotal), 1)}% of tickets were taken in the Lyne app before the customer arrived, ${num(pct(mix.kiosk, mixTotal), 1)}% at a branch kiosk and ${num(pct(mix.walkIn, mixTotal), 1)}% were added by staff at the counter.`);
+      doc.analysis('Every app join is a person who waited somewhere other than the banking hall and a clerk who did not have to key them in. The share joining by app is the measure to watch for whether the organisation is actually moving its queue out of the building.');
+    } else {
+      doc.p('<span class="note">Join channels have not been recorded for enough visits in this period.</span>');
     }
   }
 
-  parts.push(`<div class="foot">${esc(d.org)} · ${esc(opts.typeLabel)} · Generated by Lyne on ${esc(d.generatedOn)}. Contains named staff and branch data; for internal management use.</div>`);
-  return wrap(`${opts.typeLabel} — ${d.org}`, parts.join('\n'));
+  if (has('managers') && d.managers.length) {
+    doc.h3('Manager Performance');
+    doc.table('Each branch manager\'s score and the measures behind it.',
+      ['Manager', 'Branch', 'Score', 'Previous', 'Wait', 'Completed', 'No-show', 'Staffing'],
+      d.managers.map((g) => [esc(g.name), esc(g.branch), num(g.score), num(g.was), num(g.parts.wait), num(g.parts.done), num(g.parts.noshow), num(g.parts.staffing)]), 2);
+  }
+
+  /* 4. Observations */
+  doc.h2('Observations');
+  doc.h3('General Observation Trends');
+  const trends: string[] = [];
+  if (servedChg) trends.push(`Volume is ${servedChg.text} on the period before.`);
+  if (overWait.length) trends.push(`Waiting time is concentrated: ${list(overWait.map((b) => esc(b.name)))} ${overWait.length === 1 ? 'is' : 'are'} over target while the rest are inside it.`);
+  if (starved.length) trends.push(`${list(starved.map((l) => esc(l.name)))} ${starved.length === 1 ? 'is' : 'are'} short of counters for the share of the queue ${starved.length === 1 ? 'it carries' : 'they carry'}.`);
+  if (busyDay) trends.push(`Demand peaks on ${esc(busyDay)}.`);
+  if (mixTotal) trends.push(`${num(pct(mix.app, mixTotal), 1)}% of customers now join from the app.`);
+  doc.ul(trends.length ? trends : ['No marked trend in this period.']);
+  doc.h3('Performance Metrics Summary');
+  doc.table('Headline measures this period and the period before.', ['Measure', 'This period', 'Previous period', 'Target', 'Status'],
+    (Object.keys(m) as Array<keyof typeof m>).map((k) => {
+      const t = d.targets.find((x) => x.key === (k === 'noshow' ? 'noshow' : k === 'done' ? 'done' : k));
+      return [esc(m[k].label), esc(m[k].now), esc(m[k].was), t ? unitText(t.target, t.unit) : '—', t ? verdict(t.now, t.target, t.goodWhen) : '—'];
+    }));
+  doc.h3('Detailed Observations By Branch');
+  byScore.forEach((b) => {
+    doc.p(`<b>${esc(b.name)}</b>${b.mgr && b.mgr !== '—' ? ` (manager: ${esc(b.mgr)})` : ''}. Served ${num(b.served)} with an average wait of ${num(b.wait)} minutes; ${num(b.done)}% of visits completed and ${num(b.noshow, 1)}% no-shows; health score ${num(b.score)}. `
+      + (b.problem ? esc(b.problem) : b.wait <= targetWait ? 'Inside the wait target.' : ''));
+  });
+
+  /* 5. Final analysis */
+  doc.h2('Final Analysis');
+  const story: string[] = [];
+  story.push(missed.length
+    ? `${esc(d.org)} missed ${missed.length} of its ${d.targets.length} targets this period, but the shortfall is not evenly spread.`
+    : `${esc(d.org)} met its targets this period.`);
+  if (overWait.length && overWait.length < included.length) story.push(`It is concentrated in ${list(overWait.map((b) => esc(b.name)))}, which means the cause is local and can be fixed locally.`);
+  if (starved.length) story.push(`Within the service lines, ${esc(starved[0].name)} is the clearest case of demand outrunning the counters given to it.`);
+  if (busyDay) story.push(`Because demand peaks on ${esc(busyDay)}, the first improvement is in when people work, not how many are employed.`);
+  doc.p(story.join(' '));
+  if (has('actions')) {
+    doc.h3('Recommendations');
+    let n = 0;
+    included.filter((b) => b.open < b.windows && b.wait > targetWait).forEach((b) => { n += 1; doc.rec(`Open more windows at ${b.name} at the peak`,
+      `${num(b.open)} of ${num(b.windows)} windows were open while the average wait was ${num(b.wait)} minutes against a ${num(targetWait)}-minute target.`,
+      'The counters already exist; staffing them during the busiest hours is the fastest route back inside target.'); });
+    if (starved[0]) { n += 1; doc.rec(`Give ${starved[0].name} its share of counters`,
+      `It carries ${num(starved[0].share)}% of the queue on ${num(totalWindows ? Math.round((starved[0].windows / totalWindows) * 100) : 0)}% of the counters.`,
+      'An extra window here buys back more waiting time than one anywhere else in the organisation.'); }
+    if (busyDay && quietDay && busyDay !== quietDay) { n += 1; doc.rec(`Shape the rota to the week`,
+      `${busyDay} is the busiest day and ${quietDay} the quietest.`,
+      `Leave and training moved to ${quietDay} free the same people for ${busyDay}, with no new hires.`); }
+    if (worst && best && worst !== best && worst.score < 75) { n += 1; doc.rec(`Pair ${worst.name} with ${best.name}`,
+      `${best.name} scores ${num(best.score)} on the same system and services; ${worst.name} scores ${num(worst.score)}.`,
+      'Practices that already work in the organisation, adopted where they are missing.'); }
+    if (mixTotal && pct(mix.app, mixTotal) < 40) { n += 1; doc.rec('Promote joining from the app',
+      `Only ${num(pct(mix.app, mixTotal), 1)}% of customers joined before arriving.`,
+      'A smaller crowd in the banking hall, and customers who arrive when they are nearly up.'); }
+    if (!n) doc.p('The figures do not indicate a change this period.');
+  }
+
+  /* 6. Limitations */
+  doc.h2('Limitations');
+  doc.ul([
+    `This report covers ${esc(opts.periodLabel.toLowerCase())} (${num(days)} trading days). A short period can be moved by one unusual day, such as a payday, a holiday weekend or an outage, none of which Lyne records as such.`,
+    'Lyne counts people who joined a line. Anyone who saw the crowd and left without joining is not counted, so demand at the busiest times is, if anything, understated.',
+    'Branch health scores weigh wait, completion and no-shows equally. An organisation that values one far above the others should read the underlying measures, not only the score.',
+    'Staff and counter figures depend on staff signing in at the counter they are actually working. Cover arrangements that are not recorded credit work to the wrong line.',
+    'Comparisons are with the immediately preceding period. Seasonal effects (month-end, school terms, holidays) can make two adjacent periods differ for reasons unrelated to performance.',
+  ]);
+
+  /* 7. Appendices */
+  if (has('appendix') || has('method')) {
+    doc.h2('Appendices');
+    if (has('appendix')) {
+      doc.h3('Daily Figures');
+      doc.table('Visits per day in the period and the period before.', ['Day', 'This period', 'Previous period'],
+        d.days.map((day, i) => [esc(day), num(m.served.a[i]), num(m.served.b[i])]).filter((r) => r[1] !== '0' || r[2] !== '0'));
+    }
+    doc.h3('Definitions');
+    doc.table('What each measure means.', ['Term', 'Definition'], DEFINITIONS.map(([a, b]) => [esc(a), esc(b)]), 9);
+  }
+
+  const cover = coverHtml(d.org, opts.typeLabel, `${opts.periodLabel} · ${included.length === d.branches.length ? 'All branches' : `${included.length} of ${d.branches.length} branches`}`,
+    [`Prepared by ${d.preparedBy}`, `Generated by Lyne on ${d.generatedOn}`, 'Contains named staff and branch data · for internal management use']);
+  return doc.html(cover, `${esc(d.org)} · ${esc(opts.typeLabel)} · Generated by Lyne on ${esc(d.generatedOn)}. Contains named staff and branch data; for internal management use.`,
+    `${opts.typeLabel} — ${d.org}`);
 }
 
 /* ═══════════════════════ saving ═══════════════════════ */

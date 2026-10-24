@@ -208,6 +208,12 @@ export function useDashboardData(serviceId = '') {
     },
     enabled: Boolean(branchScoped && analyticsQuery), refetchInterval: LIVE_INTERVAL,
   });
+  /* Who runs each branch, for the executive's Branches tab. */
+  const branchManagers = useQuery({
+    queryKey: ['exec-branch-managers', businessId],
+    queryFn: () => api.get<any[]>(`/analytics/managers?business_id=${businessId}&period=this_week`),
+    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: analyticsEvery,
+  });
   const targets = useQuery({
     queryKey: ['ops-targets', businessId],
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
@@ -309,6 +315,7 @@ export function useDashboardData(serviceId = '') {
     heatmap: heatmap.data || [],
     demandHourly: demandHourly.data || [],
     servedByHour: servedByHour.data || { today: [], yesterday: [] },
+    branchManagers: branchManagers.data || [],
     demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
     branchTargets: branchTargets.data || null,

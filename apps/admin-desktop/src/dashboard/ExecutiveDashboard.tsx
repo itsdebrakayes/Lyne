@@ -274,8 +274,10 @@ export default function ExecutiveDashboard() {
     target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
     channels: d.channels, preds, heat, org, adminName: d.admin?.name, visitorPlural: terms.visitor.many,
     faq: EXEC_FAQ,
+    queues: d.queues as any[], branchManagers: d.branchManagers as any[],
   }), [summary, windowRows, prevRows, d.summary, week, served, completed, noShows, avgWait, target, managers,
-       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin, terms.visitor.many]);
+       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin, terms.visitor.many,
+       d.queues, d.branchManagers]);
 
   const qcExec = useQueryClient();
   /* The Save Targets button used to just clear its own dirty flag. */

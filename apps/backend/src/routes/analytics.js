@@ -372,7 +372,7 @@ router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusin
          COALESCE(assignments.assigned_staff, 0) AS assigned_staff,
          COALESCE(counters.counter_count, 0) AS counter_count
        FROM staff mgr
-       JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager'
+       JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager' AND mgr.is_active = TRUE
        LEFT JOIN branches br ON br.id = mgr.branch_id
        LEFT JOIN wait_time_records w ON w.branch_id = br.id AND w.business_id = mgr.business_id AND ${range.visitSql}
        LEFT JOIN (

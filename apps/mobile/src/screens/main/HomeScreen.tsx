@@ -128,6 +128,27 @@ export default function HomeScreen() {
   });
   const activeHelper = helperQuery.data?.helper ?? null;
 
+  /* Bookings this person holds and has not used yet: a Saturday banking place,
+     an appointment, a clinic. Check-in used to be three taps deep (an
+     organisation, its sessions, the session), so on the day somebody standing
+     at the door could not find it. Shown first on Home instead, with the
+     button on the day itself. */
+  const bookingsQuery = useQuery({
+    queryKey: ['my-sessions'],
+    queryFn: () => api.get<Array<{
+      registration_id: string; registration_code: string; appointment_time?: string | null;
+      registration_status: string; queue_ticket_id?: string | null;
+      session: { id: string; name: string; session_date: string; starts_at?: string | null; business_name?: string; location_name?: string | null };
+    }>>('/sessions/mine'),
+    enabled: Boolean(user?.id),
+    refetchInterval: 120_000,
+    retry: false,
+  });
+  const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  const bookings = (bookingsQuery.data || [])
+    .filter((b) => b.registration_status === 'registered' && b.session?.session_date >= todayIso)
+    .slice(0, 2);
+
   const [openOnly, setOpenOnly] = useState(true);
   const devicePlace = useDevicePlace();
   const column = useContentColumn();
@@ -382,6 +403,45 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* your bookings — check in from here on the day */}
+        {bookings.map((b) => {
+          const isToday = b.session.session_date === todayIso;
+          const [yy, mm, dd] = b.session.session_date.split('-').map(Number);
+          const when = isToday ? 'Today' : new Date(yy, mm - 1, dd).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+          const time = b.appointment_time ? `Appointment at ${b.appointment_time}` : (b.session.starts_at ? `From ${String(b.session.starts_at).slice(0, 5)}` : '');
+          return (
+            <TouchableOpacity
+              key={b.registration_id}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('Session', { sessionId: b.session.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`${isToday ? 'Check in for' : 'Your booking:'} ${b.session.name}, ${when}`}
+              style={{ backgroundColor: isToday ? colors.accent : colors.surface, borderRadius: 22, padding: 16, marginTop: 14,
+                borderWidth: isToday ? 0 : 1, borderColor: colors.borderSoft, ...(isToday ? shadow.depth : {}) }}
+            >
+              {isToday && <Sheen radius={22} />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: isToday ? 'rgba(255,255,255,.16)' : colors.infoSoft }}>
+                  <Icon name="ticketOutline" size={23} color={isToday ? '#fff' : colors.accent} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, letterSpacing: -0.3, color: isToday ? '#fff' : colors.ink }}>
+                    {b.session.name}
+                  </Text>
+                  <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, marginTop: 3, color: isToday ? 'rgba(255,255,255,.8)' : colors.muted }}>
+                    {[b.session.business_name, when, time].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <View style={{ borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
+                  backgroundColor: isToday ? '#fff' : colors.surfaceAlt }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent }}>{isToday ? 'Check In' : 'View'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
 
         {/* live ticket — the reminder tile from the reference, doing real work */}
         {!!ticket && (
