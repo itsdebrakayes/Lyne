@@ -160,7 +160,9 @@ async function main() {
             codes.add(code);
             const id = `lgbv-${ymd(day).replace(/-/g, '')}-${n}`;
             tickets.push([id, queueId, null, `${desk.prefix}-${String(back === 0 ? 500 + pos : pos).padStart(3, '0')}`,
-              code, 3000 + pos, status, wait, dt(joined), dt(called), started ? dt(started) : null, dt(done), channel,
+              // Today's are over and out of the line: position 0 keeps them out of
+              // the next ticket number (MAX(position) + 1 in utils/ticketSlot.js).
+              code, back === 0 ? 0 : 3000 + pos, status, wait, dt(joined), dt(called), started ? dt(started) : null, dt(done), channel,
               status === 'no_show' ? null : staff, status === 'no_show' ? null : counter,
               status === 'left' ? 'customer_left' : null]);
             waits.push([id, id, BIZ, desk.branch, desk.service, ymd(day), dow, hour, day.getMonth() + 1,

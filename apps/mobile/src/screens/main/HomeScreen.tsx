@@ -219,9 +219,10 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.allSettled([refetch(), refetchNotifications()]);
+    // Bookings too: one made on the web or by staff should appear on a pull.
+    await Promise.allSettled([refetch(), refetchNotifications(), bookingsQuery.refetch()]);
     setRefreshing(false);
-  }, [refetch, refetchNotifications]);
+  }, [refetch, refetchNotifications, bookingsQuery]);
 
   const sectorOf = useMemo(() => {
     const map = new Map<string, string>();
@@ -427,11 +428,13 @@ export default function HomeScreen() {
                   <Icon name="ticketOutline" size={23} color={isToday ? '#fff' : colors.accent} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
+                  {/* When first: the time is what someone glancing at Home needs,
+                      and it was the part being cut off. */}
                   <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, letterSpacing: -0.3, color: isToday ? '#fff' : colors.ink }}>
-                    {b.session.name}
+                    {[when, time].filter(Boolean).join(' · ')}
                   </Text>
-                  <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12.5, marginTop: 3, color: isToday ? 'rgba(255,255,255,.8)' : colors.muted }}>
-                    {[b.session.business_name, when, time].filter(Boolean).join(' · ')}
+                  <Text numberOfLines={2} style={{ fontFamily: font.medium, fontSize: 12.5, marginTop: 3, color: isToday ? 'rgba(255,255,255,.8)' : colors.muted }}>
+                    {[b.session.business_name, b.session.name.split(' — ')[0]].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
                 <View style={{ borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
