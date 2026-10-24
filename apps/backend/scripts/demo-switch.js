@@ -130,6 +130,10 @@ const PROFILES = {
 
 async function main() {
   const profileName = String(process.argv[2] || '').toLowerCase();
+  /* Optional: the customer account the demo phone is signed in as, by email.
+     `--customer=someone@example.com` or DEMO_CUSTOMER_EMAIL. */
+  const customerArg = process.argv.find((a) => a.startsWith('--customer='));
+  const customerEmail = String(customerArg ? customerArg.slice('--customer='.length) : (process.env.DEMO_CUSTOMER_EMAIL || '')).trim().toLowerCase();
   const profile = PROFILES[profileName];
   if (!profile) {
     console.error(`Usage: demo-switch <${Object.keys(PROFILES).join('|')}>`);
@@ -259,6 +263,49 @@ async function main() {
       );
     }
 
+    /* The demo customer. A session demo shows two things: registering for one
+       session and checking in to another. So the customer leaves this switch
+       holding the next appointment today at this organisation (its check-in
+       window opens close to now) and NO place in any other upcoming session,
+       so Saturday Banking can be registered for live. */
+    let customerReport = null;
+    if (customerEmail) {
+      const [[cust]] = await conn.query('SELECT id, full_name FROM users WHERE LOWER(email) = ? LIMIT 1', [customerEmail]);
+      if (!cust) {
+        customerReport = 'No customer account with that email in this database; bookings left as they were.';
+      } else {
+        // Their places in other sessions here go, so they can register again.
+        await conn.query(
+          `DELETE r FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+            WHERE r.user_id = ? AND ss.business_id = ? AND r.appointment_time IS NULL AND r.status = 'registered'`,
+          [cust.id, profile.business]
+        );
+        // Any appointment they held here goes back to being an anonymous booking.
+        await conn.query(
+          `UPDATE session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+              SET r.user_id = NULL
+            WHERE r.user_id = ? AND ss.business_id = ? AND r.appointment_time IS NOT NULL AND r.status = 'registered'`,
+          [cust.id, profile.business]
+        );
+        // The first appointment today whose slot is still ahead.
+        const [[slot]] = await conn.query(
+          `SELECT r.id, r.registration_code, r.appointment_time, ss.name
+             FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+            WHERE ss.business_id = ? AND ss.session_date = CURDATE() AND r.appointment_time IS NOT NULL
+              AND r.status = 'registered' AND r.user_id IS NULL AND r.appointment_time >= CURTIME()
+            ORDER BY r.appointment_time LIMIT 1`,
+          [profile.business]
+        );
+        if (slot) {
+          await conn.query('UPDATE session_registrations SET user_id = ?, guest_name = ? WHERE id = ?',
+            [cust.id, cust.full_name, slot.id]);
+          customerReport = `${cust.full_name}: ${slot.name}, ${String(slot.appointment_time).slice(0, 5)} (${slot.registration_code}); no other bookings, so they can register live.`;
+        } else {
+          customerReport = `${cust.full_name}: no appointment slot left today; no other bookings.`;
+        }
+      }
+    }
+
     await conn.commit();
 
     const [rows] = await pool.query(
@@ -274,6 +321,7 @@ async function main() {
       const seat = report.find((x) => x[0] === r.email);
       console.log(`  ${r.email.padEnd(30)} ${String(r.role).padEnd(11)} ${String(r.full_name).padEnd(20)} ${r.branch || 'whole organisation'}${r.service ? ` · ${r.service}` : ''}${seat ? ` · seated at ${seat[2]}` : ''}`);
     }
+    if (customerReport) console.log(`\nDemo customer: ${customerReport}`);
     console.log('\nSign in with the passwords in secrets/staff-logins.txt. Seats are for today; run again on the demo morning.');
   } catch (err) {
     await conn.rollback().catch(() => {});

@@ -67,6 +67,12 @@ exist in two places, and the difference matters:
   organisation's front desk. Seats
   are per day, so run it again on the morning of a demo.
 
+  For a session demo, add `--customer=<email>` with the customer account the
+  demo phone is signed in as: it gets the next appointment slot today (to show
+  checking in) and loses any other booking (so Saturday Banking can be
+  registered for live). Saturday sessions stay open for registration until
+  5 p.m. the evening before.
+
 To show the demo server in an installed app, use **Lyne Admin Demo** (built with
 `npm run package:mac:demo` in `apps/admin-desktop`, then copied to
 /Applications). It talks only to `http://localhost:4000/api`, keeps its own

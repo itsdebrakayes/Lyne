@@ -420,14 +420,18 @@ VALUES
    NULL, NULL,
    DATE_ADD(CURDATE(), INTERVAL ((7 - WEEKDAY(CURDATE()) + 5) % 7) DAY),
    '09:00:00', '12:00:00', 150, 0, 'none',
-   DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_ADD(NOW(), INTERVAL 1 DAY), 10, 'open'),
+   -- Closes at 5 p.m. the evening before, wherever in the week the seed was
+   -- loaded: closing a day after loading shut it before a midweek demo.
+   DATE_SUB(NOW(), INTERVAL 4 DAY),
+   TIMESTAMP(DATE_SUB(DATE_ADD(CURDATE(), INTERVAL ((7 - WEEKDAY(CURDATE()) + 5) % 7) DAY), INTERVAL 1 DAY), '17:00:00'), 10, 'open'),
   ('ses-lgb-sat-loans', 'biz-lgb-001', 'br-lgb-nkg', 'svc-lgb-loan',
    'Saturday Loan & Mortgage Clinic — New Kingston',
    'For pre-approved applicants only. Meet a lending officer to finalise your loan. Bring the documents on your approval letter.',
    NULL, NULL,
    DATE_ADD(CURDATE(), INTERVAL ((7 - WEEKDAY(CURDATE()) + 5) % 7) DAY),
    '10:00:00', '13:00:00', 24, 1, 'surname',
-   DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_ADD(NOW(), INTERVAL 1 DAY), 15, 'open')
+   DATE_SUB(NOW(), INTERVAL 6 DAY),
+   TIMESTAMP(DATE_SUB(DATE_ADD(CURDATE(), INTERVAL ((7 - WEEKDAY(CURDATE()) + 5) % 7) DAY), INTERVAL 1 DAY), '17:00:00'), 15, 'open')
 ON DUPLICATE KEY UPDATE
   name = VALUES(name), description = VALUES(description), service_id = VALUES(service_id),
   branch_id = VALUES(branch_id), requires_eligibility = VALUES(requires_eligibility),
