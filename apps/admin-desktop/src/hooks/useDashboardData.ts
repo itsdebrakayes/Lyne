@@ -193,6 +193,21 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
     enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
+  /* Customers served by hour, today and yesterday, for the manager overview's
+     hourly line. Local dates: a day here means the branch's day, not UTC's. */
+  const localDay = (back: number) => {
+    const d = new Date(Date.now() - back * 864e5);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const servedByHour = useQuery({
+    queryKey: ['ops-served-by-hour', analyticsQuery, localDay(0)],
+    queryFn: async () => {
+      const [today, yesterday] = await Promise.all([0, 1].map((back) =>
+        api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=branch&by=hour&day=${localDay(back)}`)));
+      return { today, yesterday };
+    },
+    enabled: Boolean(branchScoped && analyticsQuery), refetchInterval: LIVE_INTERVAL,
+  });
   const targets = useQuery({
     queryKey: ['ops-targets', businessId],
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
@@ -293,6 +308,7 @@ export function useDashboardData(serviceId = '') {
     branchTrends: branchTrends.data || [],
     heatmap: heatmap.data || [],
     demandHourly: demandHourly.data || [],
+    servedByHour: servedByHour.data || { today: [], yesterday: [] },
     demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
     branchTargets: branchTargets.data || null,

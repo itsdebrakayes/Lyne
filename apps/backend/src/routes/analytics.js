@@ -97,89 +97,95 @@ function utilizationScore(utilization) {
   return Math.max(0, Math.min(100, 100 - Math.abs(value - 0.8) * 140));
 }
 
+/* Live per-day rows straight from wait_time_records, shaped like an
+   analytics_summaries row. Two callers need it:
+   - a service or a section view, because the rollup has no service dimension
+     (its rows are branch-level, service_id NULL), and
+   - TODAY, because the rollup is built by the 01:00 job. A manager opening
+     "Today" at 11 a.m. was reading a row that would not exist until tomorrow,
+     so every today card sat empty however busy the branch was. Visits are
+     written to wait_time_records as they finish (tickets.js), so this is live. */
+async function liveSummaryRows({ businessId, branchId, serviceIds, from, to }) {
+  const conditions = ['w.business_id = ?'];
+  const params = [businessId];
+  if (branchId) { conditions.push('w.branch_id = ?'); params.push(branchId); }
+  if (serviceIds) { conditions.push('w.service_id IN (?)'); params.push(serviceIds); }
+  if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
+  if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
+  // Only fall back to the 30-day window when NEITHER bound was given.
+  if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+
+  const [rows] = await pool.query(
+    `SELECT w.visit_date AS summary_date,
+            w.branch_id,
+            b.name AS branch_name,
+            COUNT(*)                              AS total_visitors,
+            SUM(w.status = 'served')              AS completed_count,
+            SUM(w.status = 'cancelled')           AS cancelled_count,
+            SUM(w.status = 'no_show')             AS no_show_count,
+            SUM(w.status = 'left')                AS left_count,
+            ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
+            ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
+            ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
+            /* Served WITHIN target, as distinct from served at all. The average
+               hides the tail: a branch averaging 19 minutes against a 20-minute
+               target can still have a fifth of its visitors waiting over 40.
+               Branch target, then business target, then 20 — the order the
+               dashboards resolve targets in. */
+            ROUND(
+              SUM(w.status = 'served'
+                  AND w.wait_time_minutes IS NOT NULL
+                  AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+              / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
+            ) AS served_within_target_pct,
+            COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
+     FROM wait_time_records w
+     LEFT JOIN branches b ON w.branch_id = b.id
+     LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
+     LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
+     ORDER BY w.visit_date DESC`,
+    params
+  );
+  return rows;
+}
+
+const ymdOf = (v) => (v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+  : String(v).slice(0, 10));
+
 // Daily summary
 router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
+    const businessId = scopedBusinessId(req, business_id);
+    const branchId = scopedBranchId(req, branch_id);
     const serviceId = safeServiceId(req.query.service_id);
-    if (serviceId) {
-      // analytics_summaries has no service dimension, so service-scoped
-      // summaries are computed live from wait_time_records.
-      const conditions = ['w.business_id = ?', 'w.service_id = ?'];
-      const params = [scopedBusinessId(req, business_id), serviceId];
-      const scopedBranch = scopedBranchId(req, branch_id);
-      if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
-    pushSectionScope(req, conditions, params, 'w.service_id');
-      if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
-      if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
-      // Only fall back to the 30-day window when NEITHER bound was given.
-      // (Previously this `else` hung off `if (to)`, so passing `from` alone was
-      // silently overridden by the 30-day floor.)
-      if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
-
-      const [rows] = await pool.query(
-        `SELECT w.visit_date AS summary_date,
-                w.branch_id,
-                b.name AS branch_name,
-                COUNT(*)                              AS total_visitors,
-                SUM(w.status = 'served')              AS completed_count,
-                SUM(w.status = 'no_show')             AS no_show_count,
-                SUM(w.status = 'cancelled')           AS left_count,
-                ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
-                ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
-                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
-                /* Served WITHIN target — the pilot's own success measure, and a
-                   different question from completion_rate.
-                   completion_rate asks whether somebody was seen. This asks
-                   whether they were seen in time, which is what a taxpayer
-                   actually experiences and what TAJ has proposed to judge the
-                   pilot on. The average hides the tail: a branch averaging 19
-                   minutes against a 20-minute target can still have a fifth of
-                   its visitors waiting over 40, and the average will not say so.
-                   Branch target where one is set, otherwise the business
-                   target, otherwise 20 — the same order the dashboards resolve
-                   targets in, so the number on this card and the notch on the
-                   chart mean the same thing. */
-                ROUND(
-                  SUM(w.status = 'served'
-                      AND w.wait_time_minutes IS NOT NULL
-                      AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
-                  / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
-                ) AS served_within_target_pct,
-                COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
-         FROM wait_time_records w
-         LEFT JOIN branches b ON w.branch_id = b.id
-         LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
-         LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
-         WHERE ${conditions.join(' AND ')}
-         GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
-         ORDER BY w.visit_date DESC`,
-        params
-      );
-      return res.json(rows);
+    const section = sectionServiceIds(req);
+    // A supervisor with a section only ever sees its services; a service filter
+    // from them is honoured only inside that section.
+    const serviceIds = section
+      ? (serviceId ? section.filter((id) => id === serviceId) : section)
+      : (serviceId ? [serviceId] : null);
+    if (serviceIds) {
+      if (!serviceIds.length) return res.json([]);
+      return res.json(await liveSummaryRows({ businessId, branchId, serviceIds, from, to }));
     }
 
-    const conditions = ['a.business_id = ?'];
-    const params = [scopedBusinessId(req, business_id)];
-    const scopedBranch = scopedBranchId(req, branch_id);
-    if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
-    pushSectionScope(req, conditions, params, 'a.service_id');
+    const conditions = ['a.business_id = ?', 'a.service_id IS NULL'];
+    const params = [businessId];
+    if (branchId) { conditions.push('a.branch_id = ?'); params.push(branchId); }
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
-    // Only fall back to the 30-day window when NEITHER bound was given.
     if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
-      /* served_within_target_pct is computed here rather than stored on
-         analytics_summaries. The rollup has no such column, and adding one means
-         a migration plus a backfill of every historical row — where this reads
-         the same wait_time_records the rollup was built from and needs neither.
-         The cost is a correlated subquery per summary row; the periods these
-         screens ask for are days and weeks, not years, so it stays cheap.
-         Target resolution matches the service-scoped branch above: branch, then
-         business, then 20. */
+      /* served_within_target_pct is computed here rather than stored in
+         analytics_summaries: adding it there means a migration plus a backfill,
+         where this reads the same wait_time_records the rollup was built from. */
       `SELECT a.*, b.name AS branch_name,
               COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes,
               (SELECT ROUND(
@@ -198,7 +204,15 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
        ORDER BY a.summary_date DESC`,
       params
     );
-    res.json(rows);
+
+    // Today from the live records, replacing whatever the rollup has (nothing,
+    // before the 01:00 job; a stale partial day if someone refreshed it by hand).
+    const [[{ today }]] = await pool.query('SELECT CURDATE() AS today');
+    const todayKey = ymdOf(today);
+    const wantsToday = (!from || ymdOf(from) <= todayKey) && (!to || ymdOf(to) >= todayKey);
+    if (!wantsToday) return res.json(rows);
+    const live = await liveSummaryRows({ businessId, branchId, serviceIds: null, from: todayKey, to: todayKey });
+    res.json([...live, ...rows.filter((r) => ymdOf(r.summary_date) !== todayKey)]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch analytics summary.' });
@@ -506,8 +520,14 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
     const rowsBy = req.query.rows === 'branch' ? 'branch' : 'service';
     const bucket = req.query.by === 'dow' ? 'w.day_of_week' : 'w.hour_of_day';
 
-    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
-    const params = [scopedBusinessId(req, business_id)];
+    /* ?day=YYYY-MM-DD narrows it to one day's SERVED visits — "Customers Served
+       Today, by hour, against yesterday" on the manager overview. Without it,
+       the 90-day demand pattern that drives Busy Times. */
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || '')) ? String(req.query.day) : null;
+    const conditions = day
+      ? ['w.business_id = ?', 'w.visit_date = ?', "w.status = 'served'"]
+      : ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = day ? [scopedBusinessId(req, business_id), day] : [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'w.service_id');

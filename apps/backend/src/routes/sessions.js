@@ -1480,7 +1480,9 @@ router.post('/:id/cause-list', requireAuth, requireStaffRole(...STAFF_EDIT),
 // The no-show number is the one a court actually cares about: a capped place
 // that somebody else could have travelled for. It only becomes true once the
 // day is declared over, which is why this is an explicit act and not a job.
-router.post('/:id/close', requireAuth, requireStaffRole(...STAFF_EDIT),
+// Ending the day belongs to whoever is running it on the floor (a supervisor
+// or the branch manager) as much as to an executive.
+router.post('/:id/close', requireAuth, requireStaffRole(...STAFF_VIEW),
   auditLog('session_close', 'scheduled_session'), async (req, res) => {
     try {
       const session = await loadOwnedSession(req, res);

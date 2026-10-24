@@ -255,7 +255,7 @@ export default function SupervisorDashboard() {
       {tour.running ? <Spotlight steps={TOURS.supervisor} onDone={tour.finish} /> : null}
       <SupDataProvider value={liveData}>
         {tab === 'overview' ? <SupOverviewQX onNav={setTab} />
-          : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} />
+          : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} canDoor canClose />
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
             : supTab(tab, setTab)}

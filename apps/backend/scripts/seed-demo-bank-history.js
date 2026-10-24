@@ -19,7 +19,10 @@
  * open to 4. Walk-ins are guests (no account), as most are.
  *
  * Deterministic for a given day. Re-running replaces everything it wrote (every
- * id starts with "lgbv-"). Today is left alone: today's lines are the SQL seed's.
+ * id starts with "lgbv-"). Today gets the visits that would already have
+ * finished by now, so the Today cards (served by hour, where the queue leaks,
+ * staff seen) have a morning behind them. They join the SQL seed's lines for
+ * today and are numbered from 500 so they never collide with its tickets.
  */
 const path = require('path');
 const dotenv = require('dotenv');
@@ -52,17 +55,17 @@ function mulberry32(seed) {
 
 /* Daily arrivals on an ordinary weekday, per desk, and who serves there. */
 const DESKS = [
-  { branch: 'br-lgb-hwt', service: 'svc-lgb-teller', prefix: 'TEL', daily: 140, mins: 5,  staff: [['stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-1'], ['stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-2'], ['stf-review-demo-ln1', 'ctr-lgb-hwt-tel-3']] },
+  { branch: 'br-lgb-hwt', service: 'svc-lgb-teller', prefix: 'TEL', daily: 140, mins: 5,  staff: [['stf-review-demo-ln1', 'ctr-lgb-hwt-tel-1'], ['stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-2'], ['stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-3']] },
   { branch: 'br-lgb-hwt', service: 'svc-lgb-acct',   prefix: 'ACC', daily: 18,  mins: 32, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct'], ['stf-review-demo-ln2', 'ctr-lgb-hwt-acct']] },
-  { branch: 'br-lgb-hwt', service: 'svc-lgb-card',   prefix: 'CRD', daily: 22,  mins: 12, staff: [['stf-lgb-hwt-tel2', 'ctr-lgb-hwt-card']] },
+  { branch: 'br-lgb-hwt', service: 'svc-lgb-card',   prefix: 'CRD', daily: 22,  mins: 12, staff: [['stf-lgb-hwt-card', 'ctr-lgb-hwt-card']] },
   { branch: 'br-lgb-hwt', service: 'svc-lgb-loan',   prefix: 'LON', daily: 8,   mins: 38, staff: [['stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan']] },
-  { branch: 'br-lgb-hwt', service: 'svc-lgb-enq',    prefix: 'ENQ', daily: 25,  mins: 14, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-enq'], ['stf-review-demo-ln2', 'ctr-lgb-hwt-enq']] },
-  { branch: 'br-lgb-nkg', service: 'svc-lgb-teller', prefix: 'TEL', daily: 95,  mins: 5,  staff: [['stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-1'], ['stf-review-demo-ln3', 'ctr-lgb-nkg-tel-2']] },
-  { branch: 'br-lgb-nkg', service: 'svc-lgb-acct',   prefix: 'ACC', daily: 10,  mins: 32, staff: [['stf-lgb-nkg-tel1', 'ctr-lgb-nkg-acct']] },
-  { branch: 'br-lgb-nkg', service: 'svc-lgb-loan',   prefix: 'LON', daily: 5,   mins: 38, staff: [['stf-lgb-nkg-tel1', 'ctr-lgb-nkg-loan']] },
-  { branch: 'br-lgb-nkg', service: 'svc-lgb-biz',    prefix: 'BIZ', daily: 20,  mins: 18, staff: [['stf-lgb-nkg-tel1', 'ctr-lgb-nkg-biz'], ['stf-review-demo-ln3', 'ctr-lgb-nkg-biz']] },
+  { branch: 'br-lgb-hwt', service: 'svc-lgb-enq',    prefix: 'ENQ', daily: 25,  mins: 14, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-enq']] },
+  { branch: 'br-lgb-nkg', service: 'svc-lgb-teller', prefix: 'TEL', daily: 95,  mins: 5,  staff: [['stf-review-demo-ln3', 'ctr-lgb-nkg-tel-1'], ['stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-2']] },
+  { branch: 'br-lgb-nkg', service: 'svc-lgb-acct',   prefix: 'ACC', daily: 10,  mins: 32, staff: [['stf-lgb-nkg-pbo', 'ctr-lgb-nkg-acct']] },
+  { branch: 'br-lgb-nkg', service: 'svc-lgb-loan',   prefix: 'LON', daily: 5,   mins: 38, staff: [['stf-lgb-nkg-lend', 'ctr-lgb-nkg-loan']] },
+  { branch: 'br-lgb-nkg', service: 'svc-lgb-biz',    prefix: 'BIZ', daily: 20,  mins: 18, staff: [['stf-lgb-nkg-biz', 'ctr-lgb-nkg-biz']] },
   { branch: 'br-lgb-mob', service: 'svc-lgb-teller', prefix: 'TEL', daily: 45,  mins: 5,  staff: [['stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1']] },
-  { branch: 'br-lgb-mob', service: 'svc-lgb-acct',   prefix: 'ACC', daily: 6,   mins: 32, staff: [['stf-lgb-mob-tel1', 'ctr-lgb-mob-acct']] },
+  { branch: 'br-lgb-mob', service: 'svc-lgb-acct',   prefix: 'ACC', daily: 6,   mins: 32, staff: [['stf-lgb-mob-pbo', 'ctr-lgb-mob-acct']] },
 ];
 
 /* Share of the day's arrivals by opening hour. Lunch is the peak. */
@@ -106,7 +109,8 @@ async function main() {
 
     const queues = []; const tickets = []; const waits = [];
     let n = 0;
-    for (let back = DAYS; back >= 1; back -= 1) {
+    const now = new Date();
+    for (let back = DAYS; back >= 0; back -= 1) {
       const day = new Date(today); day.setDate(day.getDate() - back);
       const dow = day.getDay();
       if (dow === 0 || dow === 6) continue;
@@ -146,13 +150,15 @@ async function main() {
             const called = new Date(joined.getTime() + wait * 60000);
             const started = status === 'no_show' ? null : new Date(called.getTime() + 60000);
             const done = new Date(called.getTime() + (status === 'served' ? svcMin + 1 : status === 'left' ? 3 : 5) * 60000);
+            // Today: only what would already be over. The rest is the live line.
+            if (back === 0 && done > now) continue;
             const c = rand();
             const channel = c < 0.35 ? 'app' : c < 0.8 ? 'walk_in' : 'kiosk';
             let code;
             do { code = Array.from({ length: 6 }, () => ALPH[Math.floor(rand() * ALPH.length)]).join(''); } while (codes.has(code));
             codes.add(code);
             const id = `lgbv-${ymd(day).replace(/-/g, '')}-${n}`;
-            tickets.push([id, queueId, null, `${desk.prefix}-${String(pos).padStart(3, '0')}`,
+            tickets.push([id, queueId, null, `${desk.prefix}-${String(back === 0 ? 500 + pos : pos).padStart(3, '0')}`,
               code, 3000 + pos, status, wait, dt(joined), dt(called), started ? dt(started) : null, dt(done), channel,
               status === 'no_show' ? null : staff, status === 'no_show' ? null : counter,
               status === 'left' ? 'customer_left' : null]);

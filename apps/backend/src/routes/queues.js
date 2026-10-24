@@ -71,21 +71,39 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'm
     }
     // A supervisor with a section runs only that section's lines (migration 043).
     pushSectionScope(req, conditions, params, 'q.service_id');
-    if (role === 'line_staff') {
-      conditions.push('q.branch_id = ?');
-      params.push(req.dbStaff.branch_id);
-      conditions.push(`(
+    /* A clerk's own line(s): their service, or a desk they are seated at today.
+       With the branch's "Allow Overflow Onto Any Window" on, every other line
+       at their branch comes back too, marked is_mine = 0, so the desk can offer
+       "help another line" when theirs is empty. Calling from one is enforced by
+       assertLineStaffQueueAccess, which reads the same setting. */
+    const mineSql = `(
         q.service_id = ? OR EXISTS (
           SELECT 1 FROM staff_assignments sa
           JOIN counters c ON c.id = sa.counter_id
           WHERE sa.staff_id = ? AND sa.assignment_date = CURDATE()
             AND c.branch_id = q.branch_id AND c.service_id = q.service_id AND c.is_active = TRUE
         )
-      )`);
-      params.push(req.dbStaff.assigned_service_id || '', req.dbStaff.id);
+      )`;
+    let mineSelect = '1';
+    const mineParams = [];
+    if (role === 'line_staff') {
+      conditions.push('q.branch_id = ?');
+      params.push(req.dbStaff.branch_id);
+      const [[settings]] = await pool.query(
+        'SELECT allow_overflow FROM branch_settings WHERE branch_id = ? LIMIT 1', [req.dbStaff.branch_id]
+      );
+      const own = [req.dbStaff.assigned_service_id || '', req.dbStaff.id];
+      if (settings?.allow_overflow) {
+        mineSelect = mineSql;
+        mineParams.push(...own);
+      } else {
+        conditions.push(mineSql);
+        params.push(...own);
+      }
     }
     const [rows] = await pool.query(
       `SELECT q.*, b.name AS branch_name, s.name AS service_name,
+              ${mineSelect} AS is_mine,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS waiting_count,
               (SELECT COUNT(*) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'in_service') AS serving_count,
               (SELECT AVG(t.estimated_wait_minutes) FROM queue_tickets t WHERE t.queue_id = q.id AND t.status = 'waiting') AS avg_wait_minutes,
@@ -135,8 +153,8 @@ router.get('/mine', requireAuth, requireStaffRole('line_staff', 'supervisor', 'm
        JOIN branches b ON b.id = q.branch_id
        JOIN services s ON s.id = q.service_id
        WHERE ${conditions.join(' AND ')}
-       ORDER BY b.name, s.name`,
-      params
+       ORDER BY is_mine DESC, b.name, s.name`,
+      [...mineParams, ...params]
     );
     // The live, counter-aware projection — the one number the floor board and
     // the customer's phone must agree on. Same helper and same inputs as

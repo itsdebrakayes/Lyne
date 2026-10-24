@@ -281,7 +281,7 @@ export default function ExecutiveDashboard() {
   /* The Save Targets button used to just clear its own dirty flag. */
   const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [tgtError, setTgtError] = useState<string | null>(null);
-  const saveCompanyTargets = useCallback(async (vals: Record<string, number>) => {
+  const saveCompanyTargets = useCallback(async (vals: Record<string, number>, reason?: string) => {
     setTgtState('saving'); setTgtError(null);
     try {
       await api.put('/targets', {
@@ -289,8 +289,10 @@ export default function ExecutiveDashboard() {
         target_wait_minutes: Math.round(vals.wait),
         target_completion_rate: Math.round(vals.done),
         target_no_show_rate: Math.round(vals.noshow),
+        ...(reason ? { note: reason } : {}),
       });
       await qcExec.invalidateQueries({ queryKey: ['targets'] });
+      qcExec.invalidateQueries({ queryKey: ['target-history'] });
       setTgtState('saved');
     } catch (err) {
       setTgtState('error');
@@ -367,7 +369,7 @@ export default function ExecutiveDashboard() {
               hold a session away from a branch (a hired venue is a company
               commitment, and 027 declines to invent a branch row for one). */}
           {tab === 'sessions'
-            ? <SessionsWorkspace businessId={d.businessId} />
+            ? <SessionsWorkspace businessId={d.businessId} canDoor={false} />
             : execTab(tab, setTab)}
         </ExecDataProvider>
       )}

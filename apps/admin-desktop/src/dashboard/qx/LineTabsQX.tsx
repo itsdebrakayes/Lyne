@@ -20,6 +20,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
   PhoneOff, SkipForward, Timer, Users, PlayCircle,
+  ArrowLeftRight, DoorOpen, FileWarning, Shuffle, WifiOff,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Note, Chip, Ring,
@@ -121,6 +122,13 @@ export type LineTabData = {
      check always passed. Each of these writes the ticket status through
      PUT /tickets/:id/status. */
   onCall?: (ticketId: string) => Promise<void> | void;
+  /** Other lines at this branch with people waiting, offered when the clerk's
+   *  own line is empty and the branch allows overflow. */
+  overflowLines?: Array<{ id: string; name: string; waiting: number }>;
+  /** The line the clerk is helping, or null when they are on their own. */
+  helpingLine?: string | null;
+  onHelpLine?: (queueId: string) => void;
+  onBackToMyLine?: () => void;
   /** Starts the service. The code goes to the SERVER, which is what checks it. */
   onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
   onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => Promise<void> | void;
@@ -247,6 +255,21 @@ const INCOMPLETE_REASONS: { value: string; label: string }[] = [
   { value: 'customer_left', label: 'Customer left part-way through' },
   { value: 'system_issue', label: 'System or payment problem' },
 ];
+
+/* What each reason looks like on the desk: an icon to find it by and one line
+   saying when it applies, so a clerk picks the right card at a glance instead
+   of reading a dropdown. Keyed by value, so both lists share them. */
+const REASON_LOOK: Record<string, { icon: typeof Clock; hint: string }> = {
+  day_ended:          { icon: Clock,          hint: 'Closing time came before it could be finished' },
+  wrong_documents:    { icon: FileWarning,    hint: 'Missing ID, proof of address, a form or a letter' },
+  wrong_service:      { icon: Shuffle,        hint: 'They were in the wrong line for what they need' },
+  referred_elsewhere: { icon: ArrowLeftRight, hint: 'Sent on to somewhere better placed to help' },
+  customer_left:      { icon: DoorOpen,       hint: 'Walked away before the visit was finished' },
+  left_before_seen:   { icon: DoorOpen,       hint: 'Walked away before the visit was finished' },
+  system_issue:       { icon: WifiOff,        hint: 'Our system, a payment or the network failed' },
+  needs_test_first:   { icon: FileWarning,    hint: 'A test or scan has to happen before this visit' },
+  rescheduled:        { icon: Clock,          hint: 'Booked to come back another time' },
+};
 
 /* A hospital's reasons a visit ends without the thing the patient came for.
    Admission and transfer are deliberately absent: they are completed visits. */
@@ -872,6 +895,27 @@ export function LineOverviewQX() {
           </div>
         ) : null}
 
+        {d.helpingLine ? (
+          <div className="ql-overflow helping" role="status">
+            <div><b>Helping {d.helpingLine}</b><small>You are calling from this line because yours was empty.</small></div>
+            <button type="button" className="ql-btn" onClick={() => d.onBackToMyLine?.()} disabled={stage !== 'idle'}
+              title={stage !== 'idle' ? 'Finish the person at your window first' : undefined}>
+              Back To My Line
+            </button>
+          </div>
+        ) : stage === 'idle' && !next && d.overflowLines?.length ? (
+          <div className="ql-overflow" role="region" aria-label="Help another line">
+            <div><b>Your Line Is Empty</b><small>Your branch lets free windows call from any line. These have people waiting:</small></div>
+            <div className="ql-overflow-lines">
+              {d.overflowLines.map((l) => (
+                <button key={l.id} type="button" className="ql-btn" onClick={() => d.onHelpLine?.(l.id)}>
+                  <Users size={16} />{l.name}<span className="ql-overflow-n">{l.waiting} waiting</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="ql-acts">
           {stage === 'idle' ? (
             <>
@@ -959,31 +1003,51 @@ export function LineOverviewQX() {
             Complete would invite a clerk to fill it in on visits that finished
             perfectly well. */}
         {stage === 'serving' && endingIncomplete ? (
-          <div className="ql-readiness" role="group" aria-label="Mark this visit as incomplete">
-            <label htmlFor="incomplete-reason">Why is this visit incomplete?</label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-              <span className="qx-select">
-                <select id="incomplete-reason" value={incompleteReason}
-                  onChange={(e) => setIncompleteReason(e.target.value)}>
-                  <option value="">Choose a reason…</option>
-                  {(terms.sector === 'healthcare' ? HEALTHCARE_INCOMPLETE_REASONS : INCOMPLETE_REASONS).map((r) => (
-                    <option key={r.value} value={r.value}>{r.label.replace('Customer', terms.visitor.one)}</option>
-                  ))}
-                </select>
-                <ChevronDown />
-              </span>
-              <button type="button" className="ql-btn danger" onClick={endIncomplete}
+          <div className="ql-incomplete">
+            <div className="ql-incomplete-head">
+              <span className="ql-incomplete-badge"><AlertTriangle size={16} /></span>
+              <div>
+                <b id="incomplete-title">Why couldn’t this visit be finished?</b>
+                <small>Pick the closest reason. It goes to your manager’s report, never to the {lower(terms.visitor.one)}.</small>
+              </div>
+            </div>
+            <div className="ql-reasons" role="radiogroup" aria-labelledby="incomplete-title">
+              {(terms.sector === 'healthcare' ? HEALTHCARE_INCOMPLETE_REASONS : INCOMPLETE_REASONS).map((r) => {
+                const look = REASON_LOOK[r.value] || { icon: AlertTriangle, hint: '' };
+                const ReasonIcon = look.icon;
+                const on = incompleteReason === r.value;
+                /* The organisation's own words: a bank's client was referred to
+                   another branch, not "customer" and "office". */
+                const label = r.label
+                  .replace('Customer', terms.visitor.one)
+                  .replace('another office', `another ${lower(terms.location.one)}`);
+                return (
+                  <button key={r.value} type="button" role="radio" aria-checked={on}
+                    className={on ? 'on' : ''} disabled={busy}
+                    onClick={() => setIncompleteReason(r.value)}>
+                    <span className="ic"><ReasonIcon size={17} /></span>
+                    <span className="tx">
+                      <b>{label}</b>
+                      {look.hint ? <small>{look.hint}</small> : null}
+                    </span>
+                    <span className="tick">{on ? <Check size={14} /> : null}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ql-incomplete-acts">
+              <button type="button" className="ql-btn danger strong" onClick={endIncomplete}
                 disabled={!incompleteReason || busy}>
-                {busy ? 'Saving…' : 'Mark Visit As Incomplete'}
+                {busy ? 'Saving…' : 'End Visit As Incomplete'}
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { setEndingIncomplete(false); setIncompleteReason(''); }}>
-                Cancel
+                Keep Serving
               </button>
             </div>
-            <small>
-              The visit still counts as time spent at your desk. It is recorded as
-              not having achieved what the person came for.
+            <small className="ql-incomplete-foot">
+              The time at your desk still counts. The visit is recorded as not having
+              done what the {lower(terms.visitor.one)} came for, so it can be fixed for next time.
             </small>
           </div>
         ) : null}

@@ -27,6 +27,7 @@
  * Seating is per day. Run it again on the morning of the demo (or after
  * refresh-demo-data), so the officers are at their desks.
  */
+const crypto = require('crypto');
 const path = require('path');
 const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
@@ -229,6 +230,17 @@ async function main() {
           `INSERT INTO staff_assignments (id, staff_id, counter_id, assignment_date, shift_start, shift_end)
            VALUES (?, ?, ?, CURDATE(), '08:00:00', '17:00:00')`,
           [`asgn-${persona.id}`, persona.id, counter.id]
+        );
+        // On shift at that desk since this morning, so the manager's board
+        // reads them as working rather than "Not On Today".
+        await conn.query(
+          'UPDATE staff_shifts SET clocked_out_at = NOW(), on_break_since = NULL WHERE staff_id = ? AND clocked_out_at IS NULL',
+          [persona.id]
+        );
+        await conn.query(
+          `INSERT INTO staff_shifts (id, staff_id, branch_id, counter_id, clocked_in_at)
+           VALUES (?, ?, ?, ?, TIMESTAMP(CURDATE(), '08:10:00'))`,
+          [crypto.randomUUID(), persona.id, seat.branch, counter.id]
         );
       }
       report.push([persona.email, seat.name, counter ? counter.label : 'no counter for that service']);

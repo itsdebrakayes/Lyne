@@ -23,6 +23,7 @@ import { replayTour } from '../../hooks/useTour';
 import SupportAsk from '../../components/SupportAsk';
 import { buildCompanyReport } from '../reportDoc';
 import { ReportDownloadButtons, ReportPreview } from './ReportExport';
+import { TargetHistory } from './TargetHistory';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Download, FileText, Headphones, Mail, MessageSquare, Plus, TrendingUp,
@@ -918,6 +919,7 @@ export function ExecTargets() {
   const [vals, setVals] = useState<Record<string, number>>(
     () => Object.fromEntries(d.targets.map((t) => [t.key, t.target]))
   );
+  const [reason, setReason] = useState('');
   const [dirty, setDirty] = useState(false);
   const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
 
@@ -962,10 +964,20 @@ export function ExecTargets() {
             );
           })}
         </div>
+        {dirty ? (
+          <div className="qx-fieldrow" style={{ marginTop: 16 }}>
+            <label>
+              <span>Reason For The Change<small>Required · kept in the change history</small></span>
+              <input value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Readiness lists are live, so fewer visits should end incomplete" />
+            </label>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
           <button type="button" className="qx-btn"
-            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveTargets}
-            onClick={async () => { await d.onSaveTargets?.(vals); setDirty(false); }}>
+            disabled={!dirty || !reason.trim() || d.targetsSaveState === 'saving' || !d.onSaveTargets}
+            title={dirty && !reason.trim() ? 'Say why the target is changing first' : undefined}
+            onClick={async () => { await d.onSaveTargets?.(vals, reason.trim()); setDirty(false); setReason(''); }}>
             <Check size={14} />{d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Targets'}
           </button>
           <button type="button" className="qx-btn ghost" onClick={() => {
@@ -1019,36 +1031,12 @@ export function ExecTargets() {
         </Card>
       </div>
 
-      {/* A government client will be asked "who changed that, and when". Targets
-          drive every score in the system, so the change record belongs on the
-          same screen as the controls that change them. */}
-      <Card span={12} title="Change History" cap="Every change to a target is recorded. Scores are recalculated from the date of the change, not backdated.">
-        {/* Only what the server actually records: who last set the targets, and
-            when. The rows that used to be here were sample text shown to every
-            organisation. */}
-        <Table grid={HIST_GRID} columns={['When', 'Target', 'Changed From', 'Changed To', 'By', 'Reason']}
-          items={d.targetsSetAt || d.targetsSetBy ? [{
-            at: d.targetsSetAt ? new Date(d.targetsSetAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-            what: 'Company targets', from: '—', to: 'Current values', by: d.targetsSetBy || '—', why: '—',
-          }] : []}
-          renderRow={(h) => (
-            <Row key={`${h.at}-${h.what}`} grid={HIST_GRID}>
-              <div style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600 }}>{h.at}</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700 }}>{h.what}</div>
-              <div className="qx-num" style={{ color: 'var(--c-faint)' }}>{h.from}</div>
-              <div className="qx-num">{h.to}</div>
-              <div className="qx-cellmain">
-                <span className="qx-av" style={avatarStyle(h.by)}>{initials(h.by)}</span>
-                <div style={{ minWidth: 0 }}><b>{h.by}</b></div>
-              </div>
-              <div style={{ fontSize: 11.5, color: 'var(--c-dim)', fontWeight: 600 }}>{h.why}</div>
-            </Row>
-          )} />
-      </Card>
+      {/* A client will be asked "who changed that, from what, and why".
+          Targets drive every score, so the record sits beside the controls. */}
+      <TargetHistory />
     </div>
   );
 }
-const HIST_GRID = '104px minmax(0,1.1fr) 104px 104px minmax(0,1.1fr) minmax(0,1.8fr)';
 
 /* ══════════════════════ 7 · REPORTS ══════════════════════ */
 /**
@@ -1482,7 +1470,7 @@ export type ExecTabData = {
 
   /* Saving used to be `setDirty(false)` — the button cleared its own dirty flag
      and wrote nothing at all. These make it real. */
-  onSaveTargets?: (values: Record<string, number>) => Promise<void> | void;
+  onSaveTargets?: (values: Record<string, number>, reason: string) => Promise<void> | void;
   targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
   targetsSaveError?: string | null;
   /** Who last changed them and when. Was hardcoded to a name and a date. */

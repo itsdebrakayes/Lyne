@@ -800,6 +800,10 @@ export type SessionsData = {
   loading: boolean;
   /** Managers and executives create sessions and load lists. */
   canEdit: boolean;
+  /** Register a walk-up at the door: the people in the branch (supervisor, manager). */
+  canDoor: boolean;
+  /** End the day: supervisor, manager and executive. */
+  canClose: boolean;
   /* Who is looking, which decides the panel beside the list:
      'desk'    — line staff: check people in as they arrive.
      'oversee' — supervisors, managers, executives: open and close registration.
@@ -864,6 +868,8 @@ export const SESSIONS_FIXTURES: SessionsData = {
   },
   loading: false,
   canEdit: true,
+  canDoor: true,
+  canClose: true,
   mode: 'oversee',
   active: 'ses-court-sat',
   onSelect: () => undefined,
@@ -973,7 +979,7 @@ export function SessionsScreen() {
      hole on the right. A supervisor, who may not edit, gets a single full-width
      column instead of a third of a row floating in space. "No dead space" is a
      rule of this design system, not a preference. */
-  const bottomSpan = d.canEdit ? 's6' : 's12';
+  const bottomSpan = d.canEdit || d.canDoor || d.canClose ? 's6' : 's12';
 
   const shown = useMemo(() => {
     const rows = d.detail?.registrations || [];
@@ -1162,20 +1168,25 @@ export function SessionsScreen() {
           {/* ── who is expected ───────────────────────────── */}
           <SessionRegistrations terms={terms} rows={shown} q={q} onSearch={setQ} showReference={Boolean(session.requires_eligibility || shown.some((r) => r.reference))} />
 
-          {canEdit ? (
+          {canEdit || d.canDoor || d.canClose ? (
             <div className={`qx-stack ${bottomSpan}`}>
-              <Card title="Running The Day" cap="The two things a clerk does before the doors open">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <CauseListPanel session={session} onDone={refresh} />
-                  <DoorRegisterPanel session={session} onDone={refresh} />
-                </div>
-              </Card>
+              {/* The list is office work (managers, executives); registering
+                  somebody who walks up is floor work (supervisors, managers).
+                  An executive is not standing at the door. */}
+              {canEdit || d.canDoor ? (
+                <Card title="Running The Day" cap={canEdit && d.canDoor ? 'The two things done before the doors open' : canEdit ? 'Who is allowed to register' : 'Somebody who arrives without registering'}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {canEdit ? <CauseListPanel session={session} onDone={refresh} /> : null}
+                    {d.canDoor ? <DoorRegisterPanel session={session} onDone={refresh} /> : null}
+                  </div>
+                </Card>
+              ) : null}
 
               {/* Set apart, and last. Ending the day writes a no-show against
                   every person who did not arrive — a permanent mark on somebody
                   who may have been stuck in traffic. It does not belong in a
                   stack of ordinary buttons where it can be hit by accident. */}
-              {isToday && session.status !== 'completed' && session.status !== 'cancelled' ? (
+              {d.canClose && isToday && session.status !== 'completed' && session.status !== 'cancelled' ? (
                 <Card title="Close The Session" cap="Do this once the last person has been seen">
                   <Note icon={AlertTriangle} tone="warn" title="This Cannot Be Undone"
                     body={`The ${summary?.registered ?? 0} who never arrived will be recorded as no-shows, and nobody else will be able to check in.`} />
@@ -1219,11 +1230,13 @@ export function SessionsScreen() {
  * Owns the queries and the selection, and hands the screen a plain data object.
  * Everything below this line is the only part that knows an API exists.
  */
-export function SessionsWorkspace({ businessId, branchId, canEdit = true, mode = 'oversee' }: {
+export function SessionsWorkspace({ businessId, branchId, canEdit = true, canDoor = canEdit, canClose = canEdit, mode = 'oversee' }: {
   /** Undefined while the account is still resolving — every query is gated on it. */
   businessId?: string;
   branchId?: string | null;
   canEdit?: boolean;
+  canDoor?: boolean;
+  canClose?: boolean;
   mode?: 'desk' | 'oversee';
 }) {
   const qc = useQueryClient();
@@ -1264,6 +1277,8 @@ export function SessionsWorkspace({ businessId, branchId, canEdit = true, mode =
     detail: detail.data ?? null,
     loading: sessions.isLoading,
     canEdit,
+    canDoor,
+    canClose,
     mode,
     active,
     businessId,

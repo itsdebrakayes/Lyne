@@ -27,7 +27,7 @@ import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { StaffReadinessWorkspace } from '../components/dashboard/ReadinessWorkspace';
 
-type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string };
+type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string; is_mine?: number | string };
 type TicketRow = {
   id: string; ticket_number: string; user_name?: string; status: string; position: number;
   call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string;
@@ -85,10 +85,21 @@ export default function LineStaffDashboard() {
   useNow();
 
   const queues = useQuery({ queryKey: ['ls-queues'], queryFn: () => api.get<QueueRow[]>('/queues/mine'), enabled: !!admin, refetchInterval: 10_000 });
-  const activeQueue = (queues.data || [])[0];
+  /* The clerk's own line first. With the branch's overflow setting on, the
+     route also returns the branch's other lines (is_mine = 0): when their own
+     line is empty the desk offers those, and picking one points this whole
+     screen at it until they go back. */
+  const allLines = queues.data || [];
+  const myQueue = allLines.find((q) => Number(q.is_mine ?? 1) !== 0);
+  const [helpingId, setHelpingId] = useState<string | null>(null);
+  const helping = helpingId ? allLines.find((q) => q.id === helpingId) || null : null;
+  const activeQueue = helping || myQueue;
+  const overflowLines = allLines
+    .filter((q) => Number(q.is_mine ?? 1) === 0 && Number(q.waiting_count || 0) > 0)
+    .map((q) => ({ id: q.id, name: q.service_name || 'Another line', waiting: Number(q.waiting_count || 0) }));
   const ticketsQuery = useQuery({ queryKey: ['ls-tickets', activeQueue?.id], queryFn: () => api.get<TicketRow[]>(`/tickets/queue/${activeQueue!.id}`), enabled: !!activeQueue?.id, refetchInterval: 4_000 });
   const analytics = useQuery({ queryKey: ['ls-analytics', period], queryFn: () => api.get<Analytics>(`/analytics/line-staff?period=${period}`), enabled: !!admin, refetchInterval: 30_000 });
-  const history = useQuery({ queryKey: ['ls-history', period, activeQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${activeQueue?.service_id ? `&service_id=${activeQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
+  const history = useQuery({ queryKey: ['ls-history', period, myQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${myQueue?.service_id ? `&service_id=${myQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
 
   /* Freshness for the header pill. This screen has its own queries rather than
      useDashboardData, so the same derivation is repeated here: the OLDEST panel
@@ -282,7 +293,11 @@ export default function LineStaffDashboard() {
     onBreakStart: () => attendance('break'),
     onResume: () => attendance('resume'),
     onClockOut: () => attendance('clock-out'),
-  }), [liveData, deskActions, shift.data, deskForecast.data, attendance]);
+    overflowLines: helping ? [] : overflowLines,
+    helpingLine: helping ? (helping.service_name || 'Another line') : null,
+    onHelpLine: (id: string) => setHelpingId(id),
+    onBackToMyLine: () => setHelpingId(null),
+  }), [liveData, deskActions, shift.data, deskForecast.data, attendance, helping, overflowLines]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';

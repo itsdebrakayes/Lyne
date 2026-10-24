@@ -23,7 +23,7 @@ SET NAMES utf8mb4;
 --     applicants may register, and they check in on the day.
 --
 -- Needs migrations 040 (short_name, help_guide), 041 (banking sector),
--- 042 (appointments) and 043 (branch sections).
+-- 042 (appointments), 043 (branch sections) and 044 (target change history).
 -- Load order matters: this file runs BEFORE demo_sector_seed.sql, whose
 -- closing sweep deactivates every branch line on a day the branch is shut.
 -- Safe to rerun: every row has a deterministic id.
@@ -92,7 +92,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO services
   (id, business_id, name, description, ticket_prefix, base_avg_time_minutes, is_active)
 VALUES
-  ('svc-lgb-teller', 'biz-lgb-001', 'Teller: Deposits & Withdrawals',
+  ('svc-lgb-teller', 'biz-lgb-001', 'Deposits & Withdrawals',
    'Cash deposits and withdrawals, cheques and bill payments at the counter.', 'TEL', 5, TRUE),
   ('svc-lgb-acct', 'biz-lgb-001', 'Account Opening',
    'Open a savings or chequing account with a personal banking officer.', 'ACC', 35, TRUE),
@@ -206,7 +206,15 @@ VALUES
   ('stf-lgb-nkg-mgr',   'biz-lgb-001', 'br-lgb-nkg', 'role-mgr-001',        'LGB-BM2', 'Paulette Grant',   'paulette@lignumbank.demo', NULL, TRUE, 'active'),
   ('stf-lgb-nkg-tel1',  'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001',      'LGB-T11', 'Javon Thompson',   'javon@lignumbank.demo',    'svc-lgb-teller', TRUE, 'active'),
   ('stf-lgb-mob-mgr',   'biz-lgb-001', 'br-lgb-mob', 'role-mgr-001',        'LGB-BM3', 'Andrea Walters',   'andrea@lignumbank.demo',   NULL, TRUE, 'active'),
-  ('stf-lgb-mob-tel1',  'biz-lgb-001', 'br-lgb-mob', 'role-staff-001',      'LGB-T21', 'Ricardo Henry',    'ricardo@lignumbank.demo',  'svc-lgb-teller', TRUE, 'active')
+  ('stf-lgb-mob-tel1',  'biz-lgb-001', 'br-lgb-mob', 'role-staff-001',      'LGB-T21', 'Ricardo Henry',    'ricardo@lignumbank.demo',  'svc-lgb-teller', TRUE, 'active'),
+  -- Enough officers that every desk is covered: a demo where every branch
+  -- reads red only shows a bank that is short-staffed, not what Lyne does.
+  ('stf-lgb-hwt-card',  'biz-lgb-001', 'br-lgb-hwt', 'role-staff-001',      'LGB-C01', 'Tamika Reid',      'tamika@lignumbank.demo',   'svc-lgb-card',   TRUE, 'active'),
+  ('stf-lgb-nkg-tel2',  'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001',      'LGB-T12', 'Kerry-Ann Campbell','kerryann@lignumbank.demo','svc-lgb-teller', TRUE, 'active'),
+  ('stf-lgb-nkg-pbo',   'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001',      'LGB-P11', 'Sheldon Morgan',   'sheldon@lignumbank.demo',  'svc-lgb-acct',   TRUE, 'active'),
+  ('stf-lgb-nkg-biz',   'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001',      'LGB-B11', 'Renee Clarke',     'renee@lignumbank.demo',    'svc-lgb-biz',    TRUE, 'active'),
+  ('stf-lgb-nkg-lend',  'biz-lgb-001', 'br-lgb-nkg', 'role-staff-001',      'LGB-L11', 'Garfield Bailey',  'garfield@lignumbank.demo', 'svc-lgb-loan',   TRUE, 'active'),
+  ('stf-lgb-mob-pbo',   'biz-lgb-001', 'br-lgb-mob', 'role-staff-001',      'LGB-P21', 'Simone Barrett',   'simone@lignumbank.demo',   'svc-lgb-acct',   TRUE, 'active')
 ON DUPLICATE KEY UPDATE
   business_id = VALUES(business_id), branch_id = VALUES(branch_id), role_id = VALUES(role_id),
   full_name = VALUES(full_name), assigned_service_id = VALUES(assigned_service_id),
@@ -214,6 +222,51 @@ ON DUPLICATE KEY UPDATE
 
 -- The Half Way Tree supervisor runs Teller Services.
 UPDATE staff SET section_id = 'sec-lgb-hwt-teller' WHERE id = 'stf-lgb-hwt-sup';
+
+-- Who is on which desk today, and who has actually turned up (migration 033).
+-- Without a shift record the manager's board reads everybody as "Not On Today"
+-- however many visits they have served. The demo logins (stf-review-demo-*)
+-- are seated by demo-switch.js, which takes the first free desk of their
+-- service, so the bank's own staff leave Teller 1 and Personal Banking 1 at
+-- Half Way Tree, and Teller 1 at New Kingston, for them.
+DELETE sa FROM staff_assignments sa JOIN counters c ON c.id = sa.counter_id
+ WHERE c.branch_id LIKE 'br-lgb-%' AND sa.assignment_date = CURDATE()
+   AND sa.staff_id NOT LIKE 'stf-review-demo-%';
+DELETE FROM staff_assignments WHERE staff_id LIKE 'stf-lgb-%' AND assignment_date = CURDATE();
+INSERT INTO staff_assignments (id, staff_id, counter_id, assignment_date, shift_start, shift_end) VALUES
+  ('asgn-lgb-hwt-tel1', 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-2', CURDATE(), '08:00:00', '16:30:00'),
+  ('asgn-lgb-hwt-tel2', 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-3', CURDATE(), '08:00:00', '16:30:00'),
+  ('asgn-lgb-hwt-card', 'stf-lgb-hwt-card', 'ctr-lgb-hwt-card',  CURDATE(), '08:00:00', '16:30:00'),
+  ('asgn-lgb-hwt-pbo',  'stf-lgb-hwt-pbo',  'ctr-lgb-hwt-enq',   CURDATE(), '08:00:00', '16:30:00'),
+  ('asgn-lgb-hwt-lend', 'stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan',  CURDATE(), '08:00:00', '16:30:00'),
+  ('asgn-lgb-nkg-tel1', 'stf-lgb-nkg-tel1', 'ctr-lgb-nkg-tel-2', CURDATE(), '08:00:00', '15:00:00'),
+  ('asgn-lgb-nkg-pbo',  'stf-lgb-nkg-pbo',  'ctr-lgb-nkg-acct',  CURDATE(), '08:00:00', '15:00:00'),
+  ('asgn-lgb-nkg-biz',  'stf-lgb-nkg-biz',  'ctr-lgb-nkg-biz',   CURDATE(), '08:00:00', '15:00:00'),
+  ('asgn-lgb-nkg-lend', 'stf-lgb-nkg-lend', 'ctr-lgb-nkg-loan',  CURDATE(), '08:00:00', '15:00:00'),
+  ('asgn-lgb-mob-tel1', 'stf-lgb-mob-tel1', 'ctr-lgb-mob-tel-1', CURDATE(), '08:00:00', '15:00:00'),
+  ('asgn-lgb-mob-pbo',  'stf-lgb-mob-pbo',  'ctr-lgb-mob-acct',  CURDATE(), '08:00:00', '15:00:00');
+
+-- Clocked in this morning, a few minutes apart. Kerry-Ann Campbell is on the
+-- roster but not seated: the floater a supervisor can move onto a long line.
+UPDATE staff_shifts SET clocked_out_at = NOW(), on_break_since = NULL
+ WHERE clocked_out_at IS NULL AND staff_id LIKE 'stf-lgb-%';
+INSERT INTO staff_shifts (id, staff_id, branch_id, counter_id, clocked_in_at)
+SELECT CONCAT('shf-', sa.staff_id, '-', DATE_FORMAT(CURDATE(), '%Y%m%d')), sa.staff_id, c.branch_id, sa.counter_id,
+       TIMESTAMP(CURDATE(), SEC_TO_TIME(8 * 3600 + 5 * 60 + (CRC32(sa.staff_id) % 20) * 60))
+  FROM staff_assignments sa JOIN counters c ON c.id = sa.counter_id
+ WHERE sa.staff_id LIKE 'stf-lgb-%' AND sa.assignment_date = CURDATE()
+ON DUPLICATE KEY UPDATE clocked_in_at = VALUES(clocked_in_at), clocked_out_at = NULL, on_break_since = NULL;
+INSERT INTO staff_shifts (id, staff_id, branch_id, counter_id, clocked_in_at)
+VALUES (CONCAT('shf-stf-lgb-nkg-tel2-', DATE_FORMAT(CURDATE(), '%Y%m%d')), 'stf-lgb-nkg-tel2', 'br-lgb-nkg', NULL,
+        TIMESTAMP(CURDATE(), '08:20:00'))
+ON DUPLICATE KEY UPDATE clocked_in_at = VALUES(clocked_in_at), clocked_out_at = NULL, on_break_since = NULL;
+
+-- Half Way Tree lets a free window call from any line, so the demo can show a
+-- clerk whose own line is empty picking up the busiest one. The other two
+-- branches keep the default, so the setting visibly belongs to a branch.
+INSERT INTO branch_settings (branch_id, allow_overflow, updated_by)
+VALUES ('br-lgb-hwt', 1, 'stf-lgb-hwt-mgr')
+ON DUPLICATE KEY UPDATE allow_overflow = 1, updated_by = VALUES(updated_by);
 
 INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
 VALUES
@@ -335,6 +388,17 @@ VALUES
 ON DUPLICATE KEY UPDATE
   target_wait_minutes = VALUES(target_wait_minutes), target_completion_rate = VALUES(target_completion_rate),
   target_no_show_rate = VALUES(target_no_show_rate), note = VALUES(note), set_by_staff_id = VALUES(set_by_staff_id);
+
+-- How the targets got here (migration 044): the history a board would ask for.
+-- Dated in the past so the change log reads as a story, newest first.
+DELETE FROM target_changes WHERE id LIKE 'tc-lgb-%';
+INSERT INTO target_changes (id, business_id, branch_id, metric, old_value, new_value, reason, changed_by, changed_at) VALUES
+  ('tc-lgb-01', 'biz-lgb-001', NULL,         'target_wait_minutes',    20, 15, 'Pilot target: every client at the counter within 15 minutes, payday included.', 'stf-lgb-exec',    DATE_SUB(NOW(), INTERVAL 62 DAY)),
+  ('tc-lgb-02', 'biz-lgb-001', NULL,         'target_completion_rate', 85, 90, 'Readiness lists went live; fewer visits should end incomplete.',               'stf-lgb-exec',    DATE_SUB(NOW(), INTERVAL 62 DAY)),
+  ('tc-lgb-03', 'biz-lgb-001', 'br-lgb-hwt', 'target_wait_minutes',    15, 20, 'Flagship carries the payday crowd with three tellers; 15 is not yet realistic here.', 'stf-lgb-hwt-mgr', DATE_SUB(NOW(), INTERVAL 41 DAY)),
+  ('tc-lgb-04', 'biz-lgb-001', 'br-lgb-hwt', 'target_completion_rate', 90, 88, 'Account opening still sees missing job letters; review after the next quarter.', 'stf-lgb-hwt-mgr', DATE_SUB(NOW(), INTERVAL 41 DAY)),
+  ('tc-lgb-05', 'biz-lgb-001', 'br-lgb-mob', 'target_wait_minutes',    15, 12, 'Montego Bay has beaten 15 minutes for eight straight weeks.',                  'stf-lgb-mob-mgr', DATE_SUB(NOW(), INTERVAL 18 DAY)),
+  ('tc-lgb-06', 'biz-lgb-001', 'br-lgb-hwt', 'target_no_show_rate',     7,  8, 'Payday no-shows run high when people join from work and cannot leave.',        'stf-lgb-hwt-mgr', DATE_SUB(NOW(), INTERVAL 9 DAY));
 
 -- =============================================================
 -- Sessions: Saturday banking, and a loan clinic for an approved list

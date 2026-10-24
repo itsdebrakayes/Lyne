@@ -19,6 +19,7 @@
  * one. Every list is guarded for empty — designed alongside the full state, not
  * retrofitted after something black-screens.
  */
+import { TargetHistory } from './TargetHistory';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import {
@@ -87,6 +88,7 @@ export type MgrTabData = {
   servedToday: number;
   todayByHour: number[];
   yesterdayByHour: number[];
+  servedHourLabels?: string[];
   /* Counts are TODAY's. `typicalLeaveMin` deliberately is not — there is no
      per-day average-abandonment figure, and one day rarely has enough
      abandonments to average honestly, so it is a 90-day typical and is
@@ -102,7 +104,7 @@ export type MgrTabData = {
   /* A branch manager sets THIS BRANCH's targets; an executive sets the company
      ones. The tab used to be read-only and told managers to "speak to your
      executive", which is not how this is supposed to work. */
-  onSaveBranchTargets?: (values: Record<string, number>) => Promise<void> | void;
+  onSaveBranchTargets?: (values: Record<string, number>, reason: string) => Promise<void> | void;
   targetsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
   targetsSaveError?: string | null;
   targetsSetBy?: string | null;
@@ -543,6 +545,7 @@ export function MgrTargetsTab() {
   const [vals, setVals] = useState<Record<string, number>>(
     () => Object.fromEntries(d.targets.map((t) => [t.key, t.branch ?? t.company]))
   );
+  const [reason, setReason] = useState('');
   const [dirty, setDirty] = useState(false);
   const set = (k: string, v: number) => { setVals((p) => ({ ...p, [k]: v })); setDirty(true); };
 
@@ -600,10 +603,20 @@ export function MgrTargetsTab() {
             );
           })}
         </div>
+        {dirty ? (
+          <div className="qx-fieldrow" style={{ marginTop: 16 }}>
+            <label>
+              <span>Reason For The Change<small>Required · your executive sees it in the change history</small></span>
+              <input value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Payday crowds with three tellers; 15 minutes is not realistic yet" />
+            </label>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           <button type="button" className="qx-btn"
-            disabled={!dirty || d.targetsSaveState === 'saving' || !d.onSaveBranchTargets}
-            onClick={async () => { await d.onSaveBranchTargets?.(vals); setDirty(false); }}>
+            disabled={!dirty || !reason.trim() || d.targetsSaveState === 'saving' || !d.onSaveBranchTargets}
+            title={dirty && !reason.trim() ? 'Say why the target is changing first' : undefined}
+            onClick={async () => { await d.onSaveBranchTargets?.(vals, reason.trim()); setDirty(false); setReason(''); }}>
             {d.targetsSaveState === 'saving' ? 'Saving…' : 'Save Branch Targets'}
           </button>
           <button type="button" className="qx-btn ghost" onClick={() => {
@@ -657,6 +670,7 @@ export function MgrTargetsTab() {
             ? 'This branch is inside every number it is held to.'
             : 'Wait time is the usual cause, and the usual fix is cover at the peak hour rather than more staff overall.'} />
       </div>
+      <TargetHistory />
     </div>
   );
 }
@@ -1153,7 +1167,7 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
           <div className="qx-chartfill">
             <Chart values={d.todayByHour}
               compare={d.yesterdayByHour.length === d.todayByHour.length ? d.yesterdayByHour : null}
-              labels={d.hours} label="Today" compareLabel="Yesterday"
+              labels={d.servedHourLabels?.length === d.todayByHour.length ? d.servedHourLabels : d.hours} label="Today" compareLabel="Yesterday"
               showA={showA} showB={showB} unit="served" h={236} />
           </div>
         ) : <div className="qx-empty">Not enough of today has happened yet to draw an hourly line.</div>}

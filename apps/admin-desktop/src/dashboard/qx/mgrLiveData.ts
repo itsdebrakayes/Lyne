@@ -55,6 +55,7 @@ export type MgrLiveInput = {
   /** today's arrivals by hour, and the same hours yesterday */
   todayByHour: number[];
   yesterdayByHour: number[];
+  servedHourLabels: string[];
   /** balking insight — how many gave up before being called */
   balking: any;
   /** today's own funnel counts, from today's analytics summary row */
@@ -217,6 +218,7 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     /* Forwarded so the stat labels can name the window they are summing. */
     periodLabel: i.periodLabel,
     todayByHour: i.todayByHour,
+    servedHourLabels: i.servedHourLabels,
     yesterdayByHour: i.yesterdayByHour,
     /* The card is captioned "Today", so every COUNT in it is today's, straight
        off today's summary row. `left` used to come from /analytics/balking,
