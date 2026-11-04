@@ -19,6 +19,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Text, View } from 'react-native';
 import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius } from '../lib/theme';
 import { Press } from './Press';
 
@@ -41,6 +42,14 @@ export function useBackGoesHome(active: boolean) {
   }, [active, focused, goHome]);
 }
 
+/** Room to leave at the bottom of a scroll view that has a DoneBar pinned over it. */
+export const DONE_BAR_SPACE = 190;
+
+/**
+ * Pinned to the bottom of the screen: the screen above it scrolls, the way out
+ * does not. Put it after the ScrollView, and give the scroll content
+ * DONE_BAR_SPACE of bottom padding while it shows.
+ */
 export default function DoneBar({ seconds = 30, editLabel, onEdit, note }: {
   /** How long before it goes Home on its own. */
   seconds?: number;
@@ -52,6 +61,7 @@ export default function DoneBar({ seconds = 30, editLabel, onEdit, note }: {
 }) {
   const goHome = useGoHome();
   const focused = useIsFocused();
+  const insets = useSafeAreaInsets();
   const [left, setLeft] = useState(seconds);
   const [stopped, setStopped] = useState(false);
 
@@ -66,7 +76,11 @@ export default function DoneBar({ seconds = 30, editLabel, onEdit, note }: {
   }, [left, stopped, goHome]);
 
   return (
-    <View style={{ gap: 10, marginTop: 4 }}>
+    <View style={{
+      position: 'absolute', left: 0, right: 0, bottom: 0, gap: 10,
+      paddingHorizontal: 20, paddingTop: 14, paddingBottom: Math.max(insets.bottom, 12) + 4,
+      backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.borderSoft,
+    }}>
       {note ? (
         <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, textAlign: 'center', lineHeight: 18 }}>{note}</Text>
       ) : null}

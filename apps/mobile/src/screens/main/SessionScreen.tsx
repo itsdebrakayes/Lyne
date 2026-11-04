@@ -36,7 +36,7 @@ import api from '../../lib/apiClient';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
-import DoneBar, { useBackGoesHome, useGoHome } from '../../components/DoneBar';
+import DoneBar, { DONE_BAR_SPACE, useBackGoesHome, useGoHome } from '../../components/DoneBar';
 import { useAuth } from '../../hooks/useAuth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -170,6 +170,9 @@ export default function SessionScreen() {
         ticketId: held.queue_ticket_id || null,
       }
       : null;
+
+  // Just booked, and not yet checked in: show Done and Change Or Cancel.
+  const justBooked = Boolean(justIssued) && holding?.status === 'registered';
 
   const register = async () => {
     if (!canRegister || busy) return;
@@ -341,14 +344,6 @@ export default function SessionScreen() {
           </View>
         ) : null}
 
-        {/* Just booked: the way out, and the way to change it. */}
-        {justIssued && holding?.status === 'registered' ? (
-          <DoneBar
-            note="Your booking is on Home whenever you need the code."
-            editLabel={cancelling ? 'Giving it back…' : 'Change Or Cancel'}
-            onEdit={changeOrCancel}
-          />
-        ) : null}
 
         {/* Room left, and holding a place. */}
         {!holding && open ? (
@@ -426,7 +421,7 @@ export default function SessionScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: sp.screen, paddingTop: topPad, paddingBottom: 48 }}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: sp.screen, paddingTop: topPad, paddingBottom: justBooked ? DONE_BAR_SPACE : 48 }}
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: sp.l }}>
           <TouchableOpacity onPress={() => (justIssued ? goHome() : navigation.goBack())} accessibilityRole="button" accessibilityLabel={justIssued ? 'Done, back to Home' : 'Back'}
@@ -439,6 +434,15 @@ export default function SessionScreen() {
         </View>
         {body()}
       </ScrollView>
+      {/* Just booked: the way out, and the way to change it, pinned so they
+          are always in reach however long the page is. */}
+      {justBooked ? (
+        <DoneBar
+          note="Your booking is on Home whenever you need the code."
+          editLabel={cancelling ? 'Giving it back…' : 'Change Or Cancel'}
+          onEdit={changeOrCancel}
+        />
+      ) : null}
     </View>
   );
 }

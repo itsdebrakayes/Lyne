@@ -26,7 +26,7 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
-import DoneBar, { useBackGoesHome, useGoHome } from '../../components/DoneBar';
+import DoneBar, { DONE_BAR_SPACE, useBackGoesHome, useGoHome } from '../../components/DoneBar';
 
 interface Helper {
   id: string;
@@ -263,7 +263,7 @@ export default function HelperHoldScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40 + lift }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: justScheduled ? DONE_BAR_SPACE : 40 + lift }} showsVerticalScrollIndicator={false}>
         {/* The design says "Today" because its mock is a same-day helper. A
             helper can be scheduled for any day, and a checklist headed "Today"
             over tomorrow's times is simply wrong — it is the kind of thing that
@@ -304,18 +304,6 @@ export default function HelperHoldScreen() {
             );
           })}
         </View>
-
-        {/* Just scheduled: the way out, and the way to change the time while
-            the helper has not yet joined. */}
-        {justScheduled && (
-          <View style={{ marginTop: 18 }}>
-            <DoneBar
-              note="Your helper is on Home. We will tell you when to leave."
-              editLabel={!joined && route.params?.editFrom ? 'Change Time' : undefined}
-              onEdit={() => navigation.replace('LineHelper', { ...route.params.editFrom, replaceHelperId: helper.id })}
-            />
-          </View>
-        )}
 
         {/* How many yields are left, when any have been used. Silent otherwise —
             a counter at 0 of 3 is noise, and the number only becomes meaningful
@@ -379,6 +367,15 @@ export default function HelperHoldScreen() {
 
         {act.isPending && <ActivityIndicator style={{ marginTop: 12 }} color={D.accent} />}
       </ScrollView>
+      {/* Just scheduled: the way out, and the way to change the time while the
+          helper has not yet joined. Pinned, so it is in reach without scrolling. */}
+      {justScheduled && (
+        <DoneBar
+          note="Your helper is on Home. We will tell you when to leave."
+          editLabel={!joined && route.params?.editFrom ? 'Change Time' : undefined}
+          onEdit={() => navigation.replace('LineHelper', { ...route.params.editFrom, replaceHelperId: helper.id })}
+        />
+      )}
     </View>
   );
 }

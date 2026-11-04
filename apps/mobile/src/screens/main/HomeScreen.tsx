@@ -416,7 +416,7 @@ export default function HomeScreen() {
             if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
             return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
           };
-          const time = b.appointment_time ? `Appointment at ${twelve(b.appointment_time)}` : (b.session.starts_at ? `From ${twelve(b.session.starts_at)}` : '');
+          const time = b.appointment_time ? twelve(b.appointment_time) : (b.session.starts_at ? `From ${twelve(b.session.starts_at)}` : '');
           return (
             <TouchableOpacity
               key={b.registration_id}
@@ -440,7 +440,7 @@ export default function HomeScreen() {
                     {[when, time].filter(Boolean).join(' · ')}
                   </Text>
                   <Text numberOfLines={2} style={{ fontFamily: font.medium, fontSize: 12.5, marginTop: 3, color: isToday ? 'rgba(255,255,255,.8)' : colors.muted }}>
-                    {[b.session.business_name, b.session.name.split(' — ')[0]].filter(Boolean).join(' · ')}
+                    {[b.appointment_time ? 'Appointment' : null, b.session.business_name, b.session.name.split(' — ')[0]].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
                 <View style={{ borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
