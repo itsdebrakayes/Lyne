@@ -25,7 +25,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,6 +36,8 @@ import api from '../../lib/apiClient';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
+import DoneBar, { useBackGoesHome, useGoHome } from '../../components/DoneBar';
+import { useAuth } from '../../hooks/useAuth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 export type PublicSession = {
@@ -138,10 +140,22 @@ export default function SessionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [checkInError, setCheckInError] = useState<string | null>(null);
   const [justIssued, setJustIssued] = useState<{ code: string; appointment: string | null } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  /* Once a place has just been booked, every way out goes Home: walking Back
+     through the organisation and its sessions felt like undoing the booking. */
+  const goHome = useGoHome();
+  useBackGoesHome(Boolean(justIssued));
 
   const words = referenceWords(s);
   const needsSurname = s?.second_factor === 'surname';
-  const canRegister = reference.trim().length > 0 && (!needsSurname || surname.trim().length > 0);
+  /* A list session needs the person's reference to find them on it. A session
+     open to anyone needs nothing: a signed-in customer holds a place on their
+     account, a guest by name. Asking for a reference nobody has blocked it. */
+  const { user } = useAuth();
+  const askReference = Boolean(s?.requires_eligibility);
+  const canRegister = askReference
+    ? reference.trim().length > 0 && (!needsSurname || surname.trim().length > 0)
+    : Boolean(user?.id) || name.trim().length > 0;
   const isToday = s ? String(s.session_date).slice(0, 10) === todayISO() : false;
   const early = s?.appointment_window?.early ?? 15;
   const late = s?.appointment_window?.late ?? 10;
@@ -161,7 +175,8 @@ export default function SessionScreen() {
     if (!canRegister || busy) return;
     setBusy('register'); setError(null);
     try {
-      const body: Record<string, string> = { reference: reference.trim() };
+      const body: Record<string, string> = {};
+      if (askReference) body.reference = reference.trim();
       if (needsSurname) body.surname = surname.trim();
       if (name.trim()) body.name = name.trim();
       if (phone.trim()) body.phone = phone.trim();
@@ -180,6 +195,41 @@ export default function SessionScreen() {
     } finally {
       setBusy(null);
     }
+  };
+
+  /* Change Or Cancel: the place goes back (someone else can have it) and the
+     form returns, still filled in, so changing a detail is one more tap. An
+     appointment's time is set by the organisation, so giving it back does not
+     offer another time; the message says so before anything happens. */
+  const changeOrCancel = () => {
+    const what = holding?.appointment ? `your appointment at ${clockLabel(holding.appointment)}` : 'your place';
+    Alert.alert(
+      'Change or cancel this booking?',
+      holding?.appointment
+        ? `This gives back ${what}. You can book again if places remain, but the time is set by ${s?.business_name || 'the organisation'}.`
+        : `This gives back ${what}, and the form opens again so you can book with new details.`,
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Give it back', style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await api.post(`/sessions/public/${sessionId}/cancel`, {});
+              haptics.success();
+              setJustIssued(null);
+              await queryClient.invalidateQueries({ queryKey: ['my-sessions'] });
+              queryClient.invalidateQueries({ queryKey: ['public-session', sessionId] });
+            } catch (caught: unknown) {
+              haptics.error();
+              setError(caught instanceof Error ? caught.message : 'Could not give the place back. Try again.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const checkIn = async (value: string) => {
@@ -291,6 +341,15 @@ export default function SessionScreen() {
           </View>
         ) : null}
 
+        {/* Just booked: the way out, and the way to change it. */}
+        {justIssued && holding?.status === 'registered' ? (
+          <DoneBar
+            note="Your booking is on Home whenever you need the code."
+            editLabel={cancelling ? 'Giving it back…' : 'Change Or Cancel'}
+            onEdit={changeOrCancel}
+          />
+        ) : null}
+
         {/* Room left, and holding a place. */}
         {!holding && open ? (
           <View style={[c.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
@@ -318,15 +377,17 @@ export default function SessionScreen() {
                 ? `Only people on ${s.business_name || 'the organisation'}'s list for this session can register. If you have an appointment, its time comes with you.`
                 : 'Hold a place now and check in when you arrive.'}
             </Text>
-            <Field label={words.label} value={reference} onChange={setReference} placeholder={words.hint} autoCapitalize="characters" />
+            {askReference ? (
+              <Field label={words.label} value={reference} onChange={setReference} placeholder={words.hint} autoCapitalize="characters" />
+            ) : null}
             {needsSurname ? (
               <Field label="Surname" value={surname} onChange={setSurname} placeholder="As it appears on your booking" autoCapitalize="words" />
             ) : null}
-            <Field label="Your name (optional)" value={name} onChange={setName} placeholder="So staff can greet you" autoCapitalize="words" />
+            <Field label={!askReference && !user?.id ? 'Your name' : 'Your name (optional)'} value={name} onChange={setName} placeholder="So staff can greet you" autoCapitalize="words" />
             <Field label="Phone (optional)" value={phone} onChange={setPhone} placeholder="876-000-0000" keyboardType="phone-pad" />
             {error ? <Problem text={error} /> : null}
             <Press role="button" haptic
-              label={canRegister ? 'Hold my place' : `Enter your ${words.label.toLowerCase()} first`}
+              label={canRegister ? 'Hold my place' : askReference ? `Enter your ${words.label.toLowerCase()} first` : 'Enter your name first'}
               disabled={!canRegister || busy === 'register'}
               onPress={register}
               style={[c.button, { marginTop: 4, backgroundColor: canRegister ? colors.dark : colors.fieldBg }]}>
@@ -368,7 +429,7 @@ export default function SessionScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: sp.screen, paddingTop: topPad, paddingBottom: 48 }}
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: sp.l }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back"
+          <TouchableOpacity onPress={() => (justIssued ? goHome() : navigation.goBack())} accessibilityRole="button" accessibilityLabel={justIssued ? 'Done, back to Home' : 'Back'}
             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card }}>
             <Icon name="back" size={19} color={colors.ink} />
           </TouchableOpacity>

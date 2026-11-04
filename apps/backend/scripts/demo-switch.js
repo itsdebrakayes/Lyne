@@ -230,6 +230,8 @@ async function main() {
           'DELETE FROM staff_assignments WHERE counter_id = ? AND assignment_date = CURDATE()',
           [counter.id]
         );
+        // The id is fixed per person, so an earlier day's row would collide.
+        await conn.query('DELETE FROM staff_assignments WHERE id = ?', [`asgn-${persona.id}`]);
         await conn.query(
           `INSERT INTO staff_assignments (id, staff_id, counter_id, assignment_date, shift_start, shift_end)
            VALUES (?, ?, ?, CURDATE(), '08:00:00', '17:00:00')`,

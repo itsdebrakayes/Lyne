@@ -16,7 +16,7 @@
  */
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import EmptyState from '../../components/EmptyState';
+import DoneBar, { useBackGoesHome, useGoHome } from '../../components/DoneBar';
 
 interface Helper {
   id: string;
@@ -77,6 +78,13 @@ export default function HelperHoldScreen() {
   const lift = useNavBarLift();
   const navigation = useNavigation<any>();
   const focused = useIsFocused();
+  /* Straight from scheduling: every way out goes Home, because Back walked
+     through the planner and the busy-times screens the person had just used. */
+  const route = useRoute<any>();
+  const justScheduled = Boolean(route.params?.justScheduled);
+  const goHome = useGoHome();
+  useBackGoesHome(justScheduled);
+  const back = () => (justScheduled ? goHome() : navigation.goBack());
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -148,7 +156,7 @@ export default function HelperHoldScreen() {
         { text: 'Keep it', style: 'cancel' },
         {
           text: 'Release', style: 'destructive',
-          onPress: () => act.mutate('release', { onSuccess: () => navigation.goBack() }),
+          onPress: () => act.mutate('release', { onSuccess: back }),
         },
       ],
     );
@@ -204,7 +212,7 @@ export default function HelperHoldScreen() {
       <View style={{ backgroundColor: D.ink, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, paddingTop: topPad }}>
         {android ? (
           <View style={{ height: 64, flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 16 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
+            <TouchableOpacity onPress={back} accessibilityRole="button" accessibilityLabel={justScheduled ? 'Done, back to Home' : 'Go back'}
               style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
@@ -215,7 +223,7 @@ export default function HelperHoldScreen() {
           </View>
         ) : (
           <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back"
+            <TouchableOpacity onPress={back} accessibilityRole="button" accessibilityLabel={justScheduled ? 'Done, back to Home' : 'Go back'}
               style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,.08)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="chevron-back" size={20} color="#fff" />
             </TouchableOpacity>
@@ -296,6 +304,18 @@ export default function HelperHoldScreen() {
             );
           })}
         </View>
+
+        {/* Just scheduled: the way out, and the way to change the time while
+            the helper has not yet joined. */}
+        {justScheduled && (
+          <View style={{ marginTop: 18 }}>
+            <DoneBar
+              note="Your helper is on Home. We will tell you when to leave."
+              editLabel={!joined && route.params?.editFrom ? 'Change Time' : undefined}
+              onEdit={() => navigation.replace('LineHelper', { ...route.params.editFrom, replaceHelperId: helper.id })}
+            />
+          </View>
+        )}
 
         {/* How many yields are left, when any have been used. Silent otherwise —
             a counter at 0 of 3 is noise, and the number only becomes meaningful

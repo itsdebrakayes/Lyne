@@ -233,6 +233,9 @@ DELETE sa FROM staff_assignments sa JOIN counters c ON c.id = sa.counter_id
  WHERE c.branch_id LIKE 'br-lgb-%' AND sa.assignment_date = CURDATE()
    AND sa.staff_id NOT LIKE 'stf-review-demo-%';
 DELETE FROM staff_assignments WHERE staff_id LIKE 'stf-lgb-%' AND assignment_date = CURDATE();
+-- The ids below are fixed, so yesterday's rows with the same id go too, or a
+-- reload on any later day fails on a duplicate key.
+DELETE FROM staff_assignments WHERE id LIKE 'asgn-lgb-%';
 INSERT INTO staff_assignments (id, staff_id, counter_id, assignment_date, shift_start, shift_end) VALUES
   ('asgn-lgb-hwt-tel1', 'stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-2', CURDATE(), '08:00:00', '16:30:00'),
   ('asgn-lgb-hwt-tel2', 'stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-3', CURDATE(), '08:00:00', '16:30:00'),
@@ -267,6 +270,12 @@ ON DUPLICATE KEY UPDATE clocked_in_at = VALUES(clocked_in_at), clocked_out_at = 
 INSERT INTO branch_settings (branch_id, allow_overflow, updated_by)
 VALUES ('br-lgb-hwt', 1, 'stf-lgb-hwt-mgr')
 ON DUPLICATE KEY UPDATE allow_overflow = 1, updated_by = VALUES(updated_by);
+
+-- Today's lines are this file's. Any other line already opened today at a
+-- Lignum branch (the API opens the day on first use; the history generator
+-- opens one when the seed has not run yet) would collide on one-line-per-
+-- service-per-day, so it goes, with its tickets (ON DELETE CASCADE).
+DELETE FROM queues WHERE branch_id LIKE 'br-lgb-%' AND queue_date = CURDATE() AND id NOT LIKE 'q-lgb-%';
 
 INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
 VALUES

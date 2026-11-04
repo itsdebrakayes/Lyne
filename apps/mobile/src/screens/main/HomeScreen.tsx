@@ -410,7 +410,13 @@ export default function HomeScreen() {
           const isToday = b.session.session_date === todayIso;
           const [yy, mm, dd] = b.session.session_date.split('-').map(Number);
           const when = isToday ? 'Today' : new Date(yy, mm - 1, dd).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-          const time = b.appointment_time ? `Appointment at ${b.appointment_time}` : (b.session.starts_at ? `From ${String(b.session.starts_at).slice(0, 5)}` : '');
+          // "14:00" from the API, "2:00 PM" on screen like everywhere else.
+          const twelve = (hhmm?: string | null) => {
+            const [h, m] = String(hhmm || '').split(':').map(Number);
+            if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+            return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+          };
+          const time = b.appointment_time ? `Appointment at ${twelve(b.appointment_time)}` : (b.session.starts_at ? `From ${twelve(b.session.starts_at)}` : '');
           return (
             <TouchableOpacity
               key={b.registration_id}

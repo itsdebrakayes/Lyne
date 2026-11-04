@@ -306,6 +306,14 @@ const registerSchema = eligibilitySchema.extend({
   email: z.string().trim().email('Enter a valid email address.').max(160).optional(),
 });
 
+/* The public form. The reference is only REQUIRED where the session checks a
+   list: a court case number, a loan approval. A session open to anyone
+   (Saturday banking) has no reference to give, so a signed-in customer holds a
+   place on their account alone, and a guest by name. */
+const publicRegisterSchema = registerSchema.extend({
+  reference: z.string().trim().max(60).optional(),
+});
+
 /* Only staff may set a time. A member of the public choosing their own slot
    would let anyone jump the line by typing 09:00; the time has to come from the
    organisation, through the list or the desk. */
@@ -452,9 +460,10 @@ router.post('/public/:id/eligibility', async (req, res) => {
 // account so it shows up under "my registrations", while the same endpoint
 // serves an anonymous browser with no account at all.
 router.post('/public/:id/register', optionalAuth, async (req, res) => {
-  const parsed = registerSchema.safeParse(req.body);
+  const parsed = publicRegisterSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: validationMessage(parsed.error) });
-  const { reference, surname, name, phone, email } = parsed.data;
+  const { surname, name, phone, email } = parsed.data;
+  const reference = parsed.data.reference || '';
 
   const conn = await pool.getConnection();
   try {
@@ -478,6 +487,15 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
       return res.status(409).json({ error: window.reason });
     }
 
+    if (session.requires_eligibility && !reference) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Enter your reference number.' });
+    }
+    if (!reference && !req.dbUser?.id && !name) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Sign in, or enter your name, to hold a place.' });
+    }
+
     const eligibility = await evaluateEligibility(conn, session, { reference, surname });
     if (!eligibility.eligible) {
       await conn.rollback();
@@ -487,15 +505,25 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
     // Registering twice with the same reference returns the FIRST code rather
     // than issuing a second. Somebody who closes the tab and comes back has not
     // earned two places, and must not be told their first code is invalid.
-    const key = referenceKey(reference);
-    const [existing] = await conn.query(
-      `SELECT id, registration_code, status, verified, appointment_time
-         FROM session_registrations
-        WHERE session_id = ? AND UPPER(REGEXP_REPLACE(COALESCE(reference,''), '[^A-Za-z0-9]', '')) = ?
-          AND status IN ('registered','checked_in')
-        LIMIT 1`,
-      [session.id, key]
-    );
+    // Without a reference, the signed-in account is who they are.
+    const [existing] = reference
+      ? await conn.query(
+        `SELECT id, registration_code, status, verified, appointment_time
+           FROM session_registrations
+          WHERE session_id = ? AND UPPER(REGEXP_REPLACE(COALESCE(reference,''), '[^A-Za-z0-9]', '')) = ?
+            AND status IN ('registered','checked_in')
+          LIMIT 1`,
+        [session.id, referenceKey(reference)]
+      )
+      : req.dbUser?.id
+        ? await conn.query(
+          `SELECT id, registration_code, status, verified, appointment_time
+             FROM session_registrations
+            WHERE session_id = ? AND user_id = ? AND status IN ('registered','checked_in')
+            LIMIT 1`,
+          [session.id, req.dbUser.id]
+        )
+        : [[]];
     if (existing.length) {
       await conn.commit();
       return res.status(200).json({
@@ -532,7 +560,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
       [
         registrationId, session.id, req.dbUser?.id || null,
         name || null, phone || null, email || null,
-        reference, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code,
+        reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code,
       ]
     );
 
@@ -562,6 +590,32 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
 // it is the ordinary queue, and nothing downstream needs to know a session was
 // involved.
 router.post('/public/:id/check-in', optionalAuth, (req, res) => checkIn(req, res, 'web'));
+
+// POST /api/sessions/public/:id/cancel — give my place back.
+//
+// The signed-in person's own place only, and only before they have checked in
+// (after that it is a ticket in the line, left from the ticket screen). The
+// place frees up for someone else straight away, and because cancelled rows do
+// not count as holding a reference, the same person can book again with new
+// details. This is what "Change Or Cancel" on the phone does.
+router.post('/public/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    if (!req.dbUser?.id) return res.status(403).json({ error: 'Sign in to change a booking.' });
+    const [result] = await pool.query(
+      `UPDATE session_registrations
+          SET status = 'cancelled'
+        WHERE session_id = ? AND user_id = ? AND status = 'registered'`,
+      [req.params.id, req.dbUser.id]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: 'You do not hold a place in this session that can be given back.' });
+    }
+    res.json({ cancelled: true });
+  } catch (err) {
+    console.error('sessions public cancel:', err);
+    res.status(500).json({ error: 'Could not give the place back. Try again.' });
+  }
+});
 
 // ═════════════════════════════════════════════════════════════
 // SHARED — check-in, used by both the portal and the clerk's desk

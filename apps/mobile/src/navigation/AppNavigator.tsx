@@ -60,8 +60,11 @@ export type RootStackParamList = {
      on the same data it was opened with. */
   BusyTimes:  { businessId: string; branchId: string; branchName?: string; serviceId?: string };
   WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string; targetDow?: number };
-  LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number };
-  HelperHold: { helperId?: string } | undefined;
+  LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number;
+    /** Editing: the helper this one replaces, released only once the new one is confirmed. */
+    replaceHelperId?: string };
+  /** justScheduled: arrived straight from booking, so show Done and Change Time. */
+  HelperHold: { helperId?: string; justScheduled?: boolean; editFrom?: RootStackParamList['LineHelper'] } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is
      actually open, so the app never shows a door that leads nowhere. */
   Session:    { sessionId: string };
