@@ -425,13 +425,16 @@ app.listen(PORT, () => {
      OFF unless REVIEW_SIMULATOR=true. Plays the counter's part for the
      fictional review organisation only, so a reviewer sees a line move before
      any real organisation is live. See jobs/reviewSimulator.js. */
-  const { runReviewSimulatorTick, settings: reviewSimSettings } = require('./jobs/reviewSimulator');
-  if (reviewSimSettings().enabled) {
+  // Also runs for the showcase organisations alone (REVIEW_SHOWCASE_IDS), so
+  // turning App Review mode off after approval leaves the examples moving.
+  const { runReviewSimulatorTick, settings: reviewSimSettings, organisations: simOrganisations } = require('./jobs/reviewSimulator');
+  if (simOrganisations(reviewSimSettings()).length) {
     const simTick = () => runReviewSimulatorTick()
       .catch((err) => console.error('[ReviewSimulator] tick failed:', err.message));
     simTick();
     setInterval(simTick, 15 * 1000);
-    console.log(`[ReviewSimulator] ACTIVE for ${reviewSimSettings().businessId} / ${reviewSimSettings().email}.`);
+    const sim = reviewSimSettings();
+    console.log(`[ReviewSimulator] ACTIVE for ${simOrganisations(sim).join(', ')}${sim.enabled ? ` (review account ${sim.email})` : ' (showcase only)'}.`);
   }
   console.log(
     `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `

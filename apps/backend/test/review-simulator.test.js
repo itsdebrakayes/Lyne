@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { settings, runReviewSimulatorTick } = require('../src/jobs/reviewSimulator');
+const { settings, organisations, runReviewSimulatorTick } = require('../src/jobs/reviewSimulator');
 
 const src = fs.readFileSync(path.join(__dirname, '../src/jobs/reviewSimulator.js'), 'utf8');
 
@@ -32,4 +32,13 @@ test('every query that changes tickets is scoped to the review business or a dem
   }
   // Only made-up visitors are served on the reviewer's behalf.
   assert.match(src, /WHERE id = \? AND guest_name = \? AND status = 'waiting'/);
+});
+
+test('showcase organisations have their own switch', () => {
+  const both = settings({ REVIEW_SIMULATOR: 'true', REVIEW_SHOWCASE_IDS: 'biz-lgb-001, wf-biz-0001,biz-review-demo-0001,' });
+  assert.deepEqual(organisations(both), ['biz-review-demo-0001', 'biz-lgb-001', 'wf-biz-0001']);
+  // App Review mode off after approval: the showcase keeps going on its own.
+  assert.deepEqual(organisations(settings({ REVIEW_SHOWCASE_IDS: 'biz-lgb-001' })), ['biz-lgb-001']);
+  assert.deepEqual(organisations(settings({ REVIEW_SIMULATOR: 'true' })), ['biz-review-demo-0001']);
+  assert.deepEqual(organisations(settings({})), []);
 });
