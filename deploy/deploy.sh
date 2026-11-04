@@ -136,6 +136,10 @@ fi
 # Caddy serves apps/admin-desktop/dist. `npm run build` there also runs
 # electron-builder, which wants a desktop toolchain this droplet does not have,
 # so the web build is invoked directly.
+# Node is installed under ~/.local/node on the droplet, which a plain
+# `ssh host 'bash deploy/deploy.sh'` does not put on PATH ("npm: command not
+# found" on 4 Nov 2026). Add it here so the deploy never depends on the shell.
+[ -d "$HOME/.local/node/bin" ] && export PATH="$HOME/.local/node/bin:$PATH"
 log "Building the admin app"
 ( cd apps/admin-desktop && npm ci --silent && npx vite build )
 [ -f apps/admin-desktop/dist/index.html ] || die "the admin build produced no index.html"

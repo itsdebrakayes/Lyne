@@ -11,7 +11,13 @@
  *     Civic Centre seeded by database/review_tenant_seed.sql), and
  *   - tickets belonging to the review account (REVIEW_ACCOUNT_EMAIL).
  *
- * Nothing outside that organisation is read or written. It is OFF unless the
+ * Showcase organisations (REVIEW_SHOWCASE_IDS, comma-separated: the fictional
+ * Lignum Bank and Wrenfield Health from database/showcase/) get the same
+ * treatment, so every example organisation in the live app has open lines
+ * with people in them, and a reviewer who joins one is served like at Blue
+ * Harbour.
+ *
+ * Nothing outside those organisations is read or written. It is OFF unless the
  * server sets REVIEW_SIMULATOR=true, and turning that off stops it at once,
  * with no app release. The app runs exactly the same code for the reviewer as
  * for anyone else; only the speed of the line differs.
@@ -47,7 +53,17 @@ function settings(env = process.env) {
     enabled: String(env.REVIEW_SIMULATOR || '').toLowerCase() === 'true',
     businessId: env.REVIEW_BUSINESS_ID || 'biz-review-demo-0001',
     email: (env.REVIEW_ACCOUNT_EMAIL || 'appreview@uselyne.com').toLowerCase(),
+    /** Showcase organisations have their own switch (the list itself), so App
+        Review mode can be turned off after approval while the example
+        organisations keep moving. */
+    showcaseIds: String(env.REVIEW_SHOWCASE_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
   };
+}
+
+/** Every organisation a tick looks after, the review one first, no repeats. */
+function organisations(s) {
+  return [...(s.enabled ? [s.businessId] : []), ...s.showcaseIds]
+    .filter((id, i, all) => all.indexOf(id) === i);
 }
 
 /** Seconds from SQL TIMESTAMPDIFF; NULL (never happened) counts as long ago. */
@@ -150,7 +166,7 @@ async function moveReviewerTicket(ticketId, newStatus, now) {
 }
 
 /** 3 — the reviewer's line moves. */
-async function moveReviewerLines(businessId, email, now = new Date()) {
+async function moveReviewerLines(businessId, email, now = new Date(), { anyone = false } = {}) {
   const { broadcast } = ticketsRoute();
   const [tickets] = await pool.query(
     /* Ages are computed by the database against its own NOW(): the stored
@@ -163,12 +179,16 @@ async function moveReviewerLines(businessId, email, now = new Date()) {
             TIMESTAMPDIFF(SECOND, (SELECT MAX(x.completed_at) FROM queue_tickets x
               WHERE x.queue_id = t.queue_id AND x.guest_name = ? AND x.completed_at IS NOT NULL), NOW()) AS since_step
        FROM queue_tickets t
-       JOIN users u ON u.id = t.user_id
+       LEFT JOIN users u ON u.id = t.user_id
        JOIN queues q ON q.id = t.queue_id
        JOIN branches b ON b.id = q.branch_id
-      WHERE b.business_id = ? AND LOWER(u.email) = ?
-        AND t.status IN ('waiting','called','in_service')`,
-    [DEMO_VISITOR, businessId, email]);
+      WHERE b.business_id = ?
+        AND t.status IN ('waiting','called','in_service')
+        /* In a showcase organisation anyone who joins is served, so the
+           example works for whoever tries it; elsewhere only the reviewer.
+           Made-up visitors are never moved as if they were a person. */
+        AND ${anyone ? "(t.guest_name IS NULL OR t.guest_name <> ?)" : 'LOWER(u.email) = ?'}`,
+    [DEMO_VISITOR, businessId, anyone ? DEMO_VISITOR : email]);
 
   let moved = 0;
   for (const t of tickets) {
@@ -217,15 +237,19 @@ async function clearOldVisitors(businessId) {
 
 async function runReviewSimulatorTick(env = process.env) {
   const s = settings(env);
-  if (!s.enabled) return { enabled: false };
-  await clearOldVisitors(s.businessId);
-  await keepLinesBusy(s.businessId);
-  await hurryReviewerHelper(s.businessId, s.email);
-  const moved = await moveReviewerLines(s.businessId, s.email);
+  if (!organisations(s).length) return { enabled: false };
+  let moved = 0;
+  for (const id of organisations(s)) {
+    const showcase = id !== s.businessId || !s.enabled;
+    await clearOldVisitors(id);
+    await keepLinesBusy(id);
+    if (s.enabled) await hurryReviewerHelper(id, s.email);
+    moved += Number(await moveReviewerLines(id, s.email, new Date(), { anyone: showcase })) || 0;
+  }
   return { enabled: true, moved };
 }
 
 module.exports = {
-  runReviewSimulatorTick, settings, DEMO_VISITOR,
+  runReviewSimulatorTick, settings, organisations, DEMO_VISITOR,
   STEP_SECONDS, CALLED_SECONDS, SERVING_SECONDS,
 };
