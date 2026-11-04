@@ -53,8 +53,14 @@ export type ExecLiveInput = {
   preds: any[];
   heat: { cols: number; colLabels: string[]; rows: { label: string; levels: number[] }[] };
   org: string;
+  /** The tenant's word for the people it serves, plural (useSectorTerms). */
+  visitorPlural?: string;
   adminName?: string;
   faq: Array<{ q: string; a: string }>;
+  /** /queues/mine — today's lines in every branch, for live waiting and windows */
+  queues?: any[];
+  /** /analytics/managers — the active manager of each branch */
+  branchManagers?: any[];
 };
 
 export function buildExecData(i: ExecLiveInput): ExecTabData {
@@ -106,8 +112,28 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
     byBranch.set(id, cur);
   }
 
+  /* Right now, per branch, from today's lines: how many are waiting, how long
+     someone joining now would wait (the busiest line's projection, which is the
+     one people complain about), and how many windows are open of how many. */
+  const live = new Map<string, { waiting: number; eta: number; windows: number; open: number }>();
+  for (const q of i.queues || []) {
+    const id = String(q.branch_id || '');
+    if (!id) continue;
+    const cur = live.get(id) || { waiting: 0, eta: 0, windows: 0, open: 0 };
+    cur.waiting += num(q.waiting_count);
+    cur.eta = Math.max(cur.eta, Math.round(num(q.projected_wait_minutes)));
+    cur.windows += num(q.counters_total);
+    cur.open += num(q.counters_open);
+    live.set(id, cur);
+  }
+  const mgrOf = new Map<string, string>();
+  for (const m of i.branchManagers || []) {
+    if (m.branch_id && m.manager_name && !mgrOf.has(String(m.branch_id))) mgrOf.set(String(m.branch_id), titleCase(m.manager_name));
+  }
+
   const branches = [...byBranch.entries()].map(([id, v]) => {
     const w = i.branchWeek(id);
+    const now = live.get(id);
     const name = titleCase(v.name) || 'Branch';
     const wait = Math.round(v.n ? v.waitSum / v.n : 0);
     const done = v.visits ? Math.round((v.done / v.visits) * 100) : 0;
@@ -122,14 +148,14 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
     return {
       id, code: CODE(v.name), name,
       parish: '—',
-      // branch-trends carries no manager column; the Managers tab is the place
-      // that names people, and it is empty for the reason below.
-      mgr: '—',
-      waiting: 0,
+      mgr: mgrOf.get(id) || '—',
+      waiting: now?.waiting ?? 0,
+      /** what somebody joining now would wait at the busiest line */
+      etaNow: now?.eta ?? 0,
       wait, score,
       served: w.served || v.visits,
       done, noshow,
-      windows: 0, open: 0,
+      windows: now?.windows ?? 0, open: now?.open ?? 0,
       state: (wait > targetWait ? 'busy' : 'open') as 'open' | 'busy',
       spark,
       problem: score < 75
@@ -268,11 +294,19 @@ export function buildExecData(i: ExecLiveInput): ExecTabData {
     return { gap, rate: perWeek, horizon: `${weeks} week${weeks === 1 ? '' : 's'}`, enough: true };
   })();
 
+  /* How people joined, for the Services tab: the app, the branch kiosk, or
+     added by staff at the counter. */
+  const chRows: any[] = Array.isArray(i.channels?.channels) ? i.channels.channels : [];
+  const chGet = (k: string) => num(chRows.find((r) => r.channel === k)?.count);
+  const bTotal = b.reduce((t, r) => t + num(r.total_visitors), 0);
+
   return {
     projection,
+    channelMix: { app: chGet('app'), kiosk: chGet('kiosk'), walkIn: chGet('walk_in') },
+    servedChangePct: bTotal ? Math.round(((i.served - bTotal) / bTotal) * 1000) / 10 : null,
     metrics: {
       served: {
-        label: 'Customers Served', unit: 'served', goodWhen: 'up',
+        label: `${i.visitorPlural || 'Customers'} Served`, unit: 'served', goodWhen: 'up',
         now: i.served.toLocaleString(),
         was: b.length ? b.reduce((t, r) => t + num(r.total_visitors), 0).toLocaleString() : '—',
         a: series(a, 'total_visitors'), b: series(b, 'total_visitors'),

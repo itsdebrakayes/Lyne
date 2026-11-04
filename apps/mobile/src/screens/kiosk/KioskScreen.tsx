@@ -44,6 +44,9 @@ import { ServiceSummary } from '../../lib/mobileData';
 import { useKioskScale, type KioskScale } from '../../lib/stage';
 import { ErrorCard, SkeletonRows } from '../../components/Feedback';
 import { useAuth, KioskActor } from '../../hooks/useAuth';
+import {
+  TriageQuestions, UrgentNotice, triageComplete, triagePayload, type TriageAnswers, type TriageQuestion,
+} from '../../components/TriageQuestions';
 
 interface WalkInTicket {
   id: string;
@@ -51,16 +54,28 @@ interface WalkInTicket {
   position: number;
   estimated_wait_minutes: number | string | null;
   guest_name: string | null;
+  triage_flag?: 'none' | 'possibly_urgent';
 }
 
-type Step = 'welcome' | 'service' | 'confirm' | 'details' | 'ticket';
+type Step = 'welcome' | 'choose' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
 type Notify = 'sms' | 'screen';
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: 'service', label: 'Service' },
   { key: 'confirm', label: 'Wait Time' },
+  { key: 'triage', label: 'Questions' },
   { key: 'details', label: 'Your Name' },
 ];
+
+/** MM/DD/YYYY as typed at a US front desk → YYYY-MM-DD, or null if not a date. */
+function usDateToIso(input: string): string | null {
+  const m = input.trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (!m) return null;
+  const [, mm, dd, yyyy] = m;
+  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  if (d.getMonth() !== Number(mm) - 1 || d.getDate() !== Number(dd) || d > new Date() || Number(yyyy) < 1900) return null;
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
 
 /** How long the finished ticket stays up before the terminal resets itself. */
 const RESET_SECONDS = 25;
@@ -78,15 +93,18 @@ const waitFor = (s: ServiceSummary) =>
 
 /* ─────────────────────────── chrome ─────────────────────────── */
 
-function Chrome({ step, org, branch, onHome }: {
+function Chrome({ step, org, branch, onHome, withTriage = false }: {
   step: Step; org: string; branch: string; onHome: () => void;
+  /** Hospitals ask triage questions, which adds a step to the tracker. */
+  withTriage?: boolean;
 }) {
+  const steps = withTriage ? STEPS : STEPS.filter((s) => s.key !== 'triage');
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-  const idx = STEPS.findIndex(s => s.key === step);
+  const idx = steps.findIndex(s => s.key === step);
 
   return (
     <View style={{
@@ -112,7 +130,7 @@ function Chrome({ step, org, branch, onHome }: {
       {/* Progress. Present only inside the three steps that form the journey —
           the welcome screen and the finished ticket are not stops on it. */}
       <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
-        {idx >= 0 && STEPS.map((s, i) => {
+        {idx >= 0 && steps.map((s, i) => {
           const done = i < idx, on = i === idx;
           return (
             <View key={s.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -266,6 +284,83 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
 
 /* ─────────────────────────── screens ─────────────────────────── */
 
+/* The first question at the door. Somebody who booked already has a place and a
+   time; sending them through "pick a service" as a walk-in loses both. So the
+   booking is the first card, as large as joining a line, not a small link under
+   the start button. */
+function Choose({ onBooking, onJoin, onBack, kx }: {
+  onBooking: () => void; onJoin: () => void; onBack: () => void; kx: KioskScale;
+}) {
+  const card = (opts: {
+    icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress: () => void; primary?: boolean; label: string;
+  }) => (
+    <TouchableOpacity
+      key={opts.title}
+      activeOpacity={0.88}
+      onPress={opts.onPress}
+      accessibilityRole="button"
+      accessibilityLabel={opts.label}
+      style={{
+        flex: kx.wide ? 1 : undefined, borderRadius: 28, padding: kx.wide ? kx.s(38) : 24,
+        backgroundColor: opts.primary ? colors.accent : colors.surface,
+        borderWidth: opts.primary ? 0 : 1.5, borderColor: colors.border,
+        minHeight: kx.wide ? kx.s(300) : 180, justifyContent: 'space-between', ...shadow.hero,
+      }}
+    >
+      <View style={{
+        width: kx.wide ? kx.s(72) : 52, height: kx.wide ? kx.s(72) : 52, borderRadius: 20,
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: opts.primary ? 'rgba(255,255,255,.16)' : colors.surfaceAlt,
+      }}>
+        <Ionicons name={opts.icon} size={kx.wide ? kx.s(36) : 26} color={opts.primary ? colors.accentInk : colors.accent} />
+      </View>
+      <View style={{ marginTop: 22 }}>
+        <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 24, letterSpacing: -0.8,
+          color: opts.primary ? colors.accentInk : colors.ink }}>
+          {opts.title}
+        </Text>
+        <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(18) : 14.5, lineHeight: kx.wide ? kx.s(26) : 21, marginTop: 10,
+          color: opts.primary ? 'rgba(255,255,255,.82)' : colors.muted }}>
+          {opts.body}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
+          <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 15, color: opts.primary ? colors.accentInk : colors.accent }}>
+            {opts.primary ? 'Check In' : 'Choose A Service'}
+          </Text>
+          <Ionicons name="arrow-forward" size={kx.wide ? kx.s(20) : 16} color={opts.primary ? colors.accentInk : colors.accent} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <Frame
+      kx={kx}
+      eyebrow="Welcome"
+      title="What Brings You In Today?"
+      sub="Touch one. You can go back at any time."
+      onBack={onBack}
+    >
+      <View style={{ flexDirection: kx.wide ? 'row' : 'column', gap: kx.wide ? kx.s(24) : 16, marginTop: 8 }}>
+        {card({
+          icon: 'calendar-outline', primary: true,
+          title: 'I Have An Appointment Or Booking',
+          body: 'Type the code from your booking message or the Lyne app. You go into the line at your booked time.',
+          onPress: onBooking,
+          label: 'I have an appointment or booking. Check in with my code.',
+        })}
+        {card({
+          icon: 'people-outline',
+          title: 'Join A Line',
+          body: 'No booking? Pick what you came for and take a place. We can text you when you are nearly up.',
+          onPress: onJoin,
+          label: 'Join a line without a booking.',
+        })}
+      </View>
+    </Frame>
+  );
+}
+
 function Welcome({ org, branch, onStart, kx }: {
   org: string; branch: string; onStart: () => void; kx: KioskScale;
 }) {
@@ -301,6 +396,7 @@ function Welcome({ org, branch, onStart, kx }: {
         </Text>
         <Ionicons name="arrow-forward" size={kx.wide ? kx.s(26) : 20} color={colors.accentInk} />
       </View>
+
 
       <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
         {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
@@ -350,13 +446,13 @@ function Welcome({ org, branch, onStart, kx }: {
   );
 }
 
-function ChooseService({ services, onPick, onBack, kx }: {
-  services: ServiceSummary[]; onPick: (id: string) => void; onBack: () => void; kx: KioskScale;
+function ChooseService({ services, onPick, onBack, kx, total = 3 }: {
+  services: ServiceSummary[]; onPick: (id: string) => void; onBack: () => void; kx: KioskScale; total?: number;
 }) {
   return (
     <Frame
       kx={kx}
-      eyebrow="Step 1 of 3"
+      eyebrow={`Step 1 of ${total}`}
       title="What Are You Here For?"
       sub="Choose the service you need. The wait shown is live."
       onBack={onBack}
@@ -420,8 +516,8 @@ function ChooseService({ services, onPick, onBack, kx }: {
   );
 }
 
-function Confirm({ svc, onBack, onNext, kx }: {
-  svc: ServiceSummary; onBack: () => void; onNext: () => void; kx: KioskScale;
+function Confirm({ svc, onBack, onNext, kx, total = 3 }: {
+  svc: ServiceSummary; onBack: () => void; onNext: () => void; kx: KioskScale; total?: number;
 }) {
   const wait = waitFor(svc);
   const waiting = num(svc.waiting_count);
@@ -440,7 +536,7 @@ function Confirm({ svc, onBack, onNext, kx }: {
   return (
     <Frame
       kx={kx}
-      eyebrow="Step 2 of 3"
+      eyebrow={`Step 2 of ${total}`}
       title={svc.name}
       sub="Here's what the line looks like right now."
       onBack={onBack}
@@ -491,13 +587,19 @@ function Confirm({ svc, onBack, onNext, kx }: {
 
 function Details({
   name, setName, phone, setPhone, notify, setNotify, onBack, onDone, busy, error, kx,
+  healthcare, dob, setDob, reason, setReason, eyebrow,
 }: {
   name: string; setName: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
   notify: Notify; setNotify: (v: Notify) => void;
   onBack: () => void; onDone: () => void; busy: boolean; error: string; kx: KioskScale;
+  /* Hospital front desk: date of birth tells two patients of the same name
+     apart; the reason for the visit is what the triage nurse reads first. */
+  healthcare: boolean; dob: string; setDob: (v: string) => void; reason: string; setReason: (v: string) => void;
+  eyebrow: string;
 }) {
-  const ready = name.trim().length > 1
+  const dobOk = !healthcare || !dob.trim() || usDateToIso(dob) !== null;
+  const ready = name.trim().length > 1 && dobOk
     && (notify === 'screen' || (notify === 'sms' && phone.replace(/\D/g, '').length >= 7));
 
   const field = {
@@ -508,7 +610,7 @@ function Details({
   return (
     <Frame
       kx={kx}
-      eyebrow="Step 3 of 3"
+      eyebrow={eyebrow}
       title="Who Should We Call?"
       sub="Your name is called out and shown on the screen when it's your turn."
       onBack={onBack}
@@ -536,6 +638,39 @@ function Details({
             style={[field, { fontFamily: font.extra, fontSize: kx.wide ? kx.s(24) : 19, color: colors.ink }]}
           />
         </View>
+
+        {healthcare && (
+          <View style={{ flexDirection: kx.wide ? 'row' : 'column', gap: 12 }}>
+            <View style={{ flex: kx.wide ? 0.45 : undefined }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1.2, marginBottom: 8 }}>
+                DATE OF BIRTH
+              </Text>
+              <TextInput
+                value={dob}
+                onChangeText={t => setDob(t.replace(/[^0-9/]/g, '').slice(0, 10))}
+                placeholder="MM/DD/YYYY"
+                placeholderTextColor={colors.muted}
+                keyboardType="numbers-and-punctuation"
+                accessibilityLabel="Date of birth, month day year"
+                style={[field, { fontFamily: font.extra, fontSize: kx.wide ? kx.s(22) : 18, color: colors.ink },
+                  !dobOk && { borderColor: colors.danger }]}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1.2, marginBottom: 8 }}>
+                REASON FOR YOUR VISIT
+              </Text>
+              <TextInput
+                value={reason}
+                onChangeText={t => setReason(t.slice(0, 160))}
+                placeholder="For example: cough and fever for 3 days"
+                placeholderTextColor={colors.muted}
+                accessibilityLabel="Reason for your visit"
+                style={[field, { fontFamily: font.semibold, fontSize: kx.wide ? kx.s(19) : 16, color: colors.ink }]}
+              />
+            </View>
+          </View>
+        )}
 
         <View>
           <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1.2, marginBottom: 8 }}>
@@ -579,7 +714,7 @@ function Details({
             <TextInput
               value={phone}
               onChangeText={t => setPhone(t.slice(0, 14))}
-              placeholder="876-000-0000"
+              placeholder={healthcare ? '(555) 000-0000' : '876-000-0000'}
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
               accessibilityLabel="Mobile number"
@@ -592,6 +727,52 @@ function Details({
           <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.danger }}>{error}</Text>
         )}
       </View>
+    </Frame>
+  );
+}
+
+/* Checking in with a code from a booking or an appointment. One field, typed
+   however the person reads it; the server finds which of today's sessions at
+   this branch the code belongs to. */
+function Booking({ code, setCode, busy, error, onBack, onDone, kx }: {
+  code: string; setCode: (v: string) => void; busy: boolean; error: string;
+  onBack: () => void; onDone: () => void; kx: KioskScale;
+}) {
+  return (
+    <Frame
+      kx={kx}
+      eyebrow="Booked Already"
+      title="Type Your Check-In Code"
+      sub="It is on your booking message or in the Lyne app, for example PBK-1030. Spaces and dashes do not matter."
+      onBack={onBack}
+      primary={{ label: 'Check In', onPress: onDone, disabled: code.trim().length < 4, busy }}
+    >
+      <TextInput
+        value={code}
+        /* Not upper-cased here. Rewriting the value on every keystroke fights
+           the iOS keyboard and drops or repeats letters ("PBKK173" for
+           PBK-1730). The keyboard is already in capitals, the text is shown in
+           capitals below, and the server ignores case. */
+        onChangeText={(t) => setCode(t.slice(0, 12))}
+        placeholder="Touch to type"
+        placeholderTextColor={colors.muted}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        returnKeyType="done"
+        onSubmitEditing={onDone}
+        accessibilityLabel="Your check-in code"
+        style={{
+          minHeight: 84, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
+          backgroundColor: colors.surface, paddingHorizontal: 22,
+          fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 26, color: colors.ink, letterSpacing: 4,
+          textTransform: 'uppercase',
+        }}
+      />
+      {!!error && (
+        <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(16) : 14, color: colors.danger, marginTop: 14, lineHeight: 21 }}>
+          {error}
+        </Text>
+      )}
     </Frame>
   );
 }
@@ -624,9 +805,9 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
             <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(19) : 16, color: '#fff' }}>You're In The Line</Text>
           </View>
 
-          <Text style={{
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{
             fontFamily: font.extra, fontSize: kx.wide ? kx.s(90) : 60, color: '#fff',
-            letterSpacing: -2.6, marginTop: 18,
+            letterSpacing: -2.6, marginTop: 18, alignSelf: 'stretch', textAlign: 'center',
           }}>
             {ticket.ticket_number}
           </Text>
@@ -653,6 +834,7 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
         </View>
 
         <View style={{ flex: kx.wide ? kx.s(1) : undefined, justifyContent: 'center', gap: 16 }}>
+          {ticket.triage_flag === 'possibly_urgent' && <UrgentNotice large={kx.wide} atHospital />}
           <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(32) : 24, color: colors.ink, letterSpacing: -0.6 }}>
             Keep This Number
           </Text>
@@ -726,6 +908,22 @@ export default function KioskScreen() {
   const [notify, setNotify] = useState<Notify>('screen');
   const [issued, setIssued] = useState<{ ticket: WalkInTicket; serviceName: string } | null>(null);
   const [error, setError] = useState('');
+  const [dob, setDob] = useState('');
+  const [bookingCode, setBookingCode] = useState('');
+  const [reason, setReason] = useState('');
+  const [answers, setAnswers] = useState<TriageAnswers>({});
+  const healthcare = actor?.terms?.sector === 'healthcare';
+
+  /* The chosen department's triage questions. Only hospitals have any; a
+     department without them skips straight from the wait to the name. */
+  const detailQuery = useQuery({
+    queryKey: ['kiosk-service-detail', serviceId],
+    queryFn: () => api.get<{ triage_questions?: TriageQuestion[] }>(`/services/${serviceId}`, false),
+    enabled: Boolean(serviceId),
+    staleTime: 60_000,
+  });
+  const questions: TriageQuestion[] = detailQuery.data?.triage_questions || [];
+  const hasTriage = questions.length > 0;
 
   const servicesQuery = useQuery({
     queryKey: ['kiosk-services', actor?.branchId],
@@ -742,13 +940,36 @@ export default function KioskScreen() {
   const reset = useCallback(() => {
     setStep('welcome'); setServiceId(null); setName(''); setPhone('');
     setNotify('screen'); setIssued(null); setError('');
+    setDob(''); setReason(''); setAnswers({}); setBookingCode('');
   }, []);
+
+  const checkIn = useMutation({
+    mutationFn: () => api.post<{ ticket: WalkInTicket; appointment?: { time?: string; timing?: string; message?: string | null } | null }>(
+      '/sessions/check-in-by-code', { code: bookingCode.trim() },
+    ),
+    onSuccess: (res) => {
+      haptics.success();
+      const appt = res.appointment;
+      setIssued({
+        ticket: res.ticket,
+        serviceName: appt?.time && appt.timing === 'on_time' ? `Appointment at ${appt.time}` : 'Your booking',
+      });
+      setStep('ticket');
+    },
+    onError: (caught: unknown) => {
+      haptics.error();
+      setError(caught instanceof Error ? caught.message : 'Could not check you in. Ask a member of staff.');
+    },
+  });
 
   const issue = useMutation({
     mutationFn: () => api.post<WalkInTicket>('/tickets/walk-in', {
       service_id: serviceId,
       guest_name: name.trim(),
       guest_phone: notify === 'sms' ? phone.trim() || undefined : undefined,
+      guest_dob: healthcare && dob.trim() ? usDateToIso(dob) || undefined : undefined,
+      visit_reason: healthcare && reason.trim() ? reason.trim() : undefined,
+      triage_answers: hasTriage ? triagePayload(questions, answers) : undefined,
     }),
     onSuccess: (ticket) => {
       haptics.success();
@@ -778,10 +999,16 @@ export default function KioskScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPad }}
     >
-      <Chrome step={step} org={org} branch={branch} onHome={reset} />
+      <Chrome step={step} org={org} branch={branch} onHome={reset} withTriage={hasTriage} />
 
       {step === 'welcome' && (
-        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('service')} />
+        <Welcome org={org} branch={branch} kx={kx} onStart={() => setStep('choose')} />
+      )}
+
+      {step === 'choose' && (
+        <Choose kx={kx} onBack={reset}
+          onBooking={() => { setError(''); setStep('booking'); }}
+          onJoin={() => setStep('service')} />
       )}
 
       {step === 'service' && (
@@ -797,16 +1024,32 @@ export default function KioskScreen() {
           </View>
         ) : (
           <ChooseService
+            total={healthcare ? 4 : 3}
             services={services}
             kx={kx}
-            onBack={reset}
+            onBack={() => setStep('choose')}
             onPick={(id) => { setServiceId(id); setStep('confirm'); }}
           />
         )
       )}
 
       {step === 'confirm' && selected && (
-        <Confirm svc={selected} kx={kx} onBack={() => setStep('service')} onNext={() => setStep('details')} />
+        <Confirm svc={selected} kx={kx} total={hasTriage ? 4 : 3} onBack={() => setStep('service')}
+          onNext={() => setStep(hasTriage ? 'triage' : 'details')} />
+      )}
+
+      {step === 'triage' && (
+        <Frame
+          kx={kx}
+          eyebrow="Step 3 of 4"
+          title="A Few Quick Questions"
+          sub="So the team knows who may need to be seen sooner. You will still join the same line."
+          onBack={() => setStep('confirm')}
+          primary={{ label: 'Continue', onPress: () => setStep('details'), disabled: !triageComplete(questions, answers) }}
+          footNote={!triageComplete(questions, answers) ? 'Answer each question with Yes or No' : undefined}
+        >
+          <TriageQuestions questions={questions} answers={answers} onChange={setAnswers} large={kx.wide} />
+        </Frame>
       )}
 
       {step === 'details' && (
@@ -815,8 +1058,19 @@ export default function KioskScreen() {
           phone={phone} setPhone={setPhone}
           notify={notify} setNotify={setNotify}
           busy={issue.isPending} error={error} kx={kx}
-          onBack={() => { setError(''); setStep('confirm'); }}
+          healthcare={healthcare} dob={dob} setDob={setDob} reason={reason} setReason={setReason}
+          eyebrow={hasTriage ? 'Step 4 of 4' : 'Step 3 of 3'}
+          onBack={() => { setError(''); setStep(hasTriage ? 'triage' : 'confirm'); }}
           onDone={() => { setError(''); issue.mutate(); }}
+        />
+      )}
+
+      {step === 'booking' && (
+        <Booking
+          code={bookingCode} setCode={setBookingCode}
+          busy={checkIn.isPending} error={error} kx={kx}
+          onBack={() => { setError(''); setBookingCode(''); setStep('choose'); }}
+          onDone={() => { setError(''); if (bookingCode.trim().length >= 4) checkIn.mutate(); }}
         />
       )}
 

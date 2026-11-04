@@ -732,8 +732,10 @@ export function Ring({ value, max = 100, size, warn = false, label }: {
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${ids.g})`} strokeWidth={sw} strokeLinecap="round"
         strokeDasharray={c.toFixed(1)} strokeDashoffset={(c * (1 - frac)).toFixed(1)}
         transform={`rotate(-90 ${cx} ${cy})`} />
-      <text x={cx} y={cy + (large ? 3 : S * 0.105)} textAnchor="middle" fill="var(--c-text)"
-        fontSize={large ? 28 : S * 0.3} fontWeight="700" letterSpacing="-0.5">{Math.round(value)}</text>
+      {/* Three digits at the two-digit size ran into the ring ("100" squeezed
+          between the strokes), so a small ring sizes its number by its width. */}
+      <text x={cx} y={cy + (large ? 3 : S * (String(Math.round(value)).length >= 3 ? 0.085 : 0.105))} textAnchor="middle" fill="var(--c-text)"
+        fontSize={large ? 28 : S * (String(Math.round(value)).length >= 3 ? 0.235 : 0.3)} fontWeight="700" letterSpacing="-0.5">{Math.round(value)}</text>
       {large ? (
         <text x={cx} y={cy + 20} textAnchor="middle" fill="var(--c-faint)" fontSize="10.5" fontWeight="600">
           {label || `of ${max}`}
@@ -919,8 +921,11 @@ export function Note({ icon: Icon, tone, title, body }: { icon: ElementType; ton
  * eyeballed. `data` is 0..1 intensity; `display` optionally supplies what to
  * print (e.g. actual visit counts) instead of the percentage.
  */
-export function Heatmap({ colLabels, rowLabels, data, display, unit = '%' }: {
+export function Heatmap({ colLabels, rowLabels, data, display, unit = '%', closedCols = [] }: {
   colLabels: string[];
+  /** Columns that are shut (a day nobody is open). Drawn as one "Closed" band
+   *  down the column instead of a row of pale zeros that read as "quiet". */
+  closedCols?: number[];
   rowLabels: string[];
   /** rows × cols, each 0..1 */
   data: number[][];
@@ -947,6 +952,13 @@ export function Heatmap({ colLabels, rowLabels, data, display, unit = '%' }: {
               <tr key={r}>
                 <td className="rl">{r}</td>
                 {colLabels.map((c, j) => {
+                  if (closedCols.includes(j)) {
+                    return i === 0 ? (
+                      <td key={c} rowSpan={rowLabels.length} className="qx-hclosed-td">
+                        <div className="qx-hclosed" title={`${c}: closed`}>Closed</div>
+                      </td>
+                    ) : null;
+                  }
                   const v = Math.max(0, Math.min(1, data[i]?.[j] ?? 0));
                   const shown = display?.[i]?.[j] ?? `${Math.round(v * 100)}`;
                   return (

@@ -13,6 +13,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
+import { usePlaceWords } from '../../lib/placeWords';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -101,12 +102,14 @@ export default function BranchScreen() {
   const route = useRoute<Params>();
   const queryClient = useQueryClient();
   const { businessId, branchName } = route.params;
+  const words = usePlaceWords(businessId);
 
   // Branch is now local state, not a fixed route param, so it can be swapped
   // in place without unwinding the stack.
   const [branchId, setBranchId] = useState(route.params.branchId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [branchPicker, setBranchPicker] = useState(false);
+  const [bookPicker, setBookPicker] = useState(false);
   const [servicePicker, setServicePicker] = useState(false);
 
   const branchQuery = useQuery({ queryKey: ['branch', branchId], queryFn: () => api.get<BranchSummary>(`/branches/${branchId}`, false), refetchInterval: 30_000 });
@@ -124,6 +127,23 @@ export default function BranchScreen() {
   const branch = branchQuery.data;
   const branches = branchesQuery.data || [];
   const services = servicesQuery.data || [];
+
+  /* What can be booked at this branch: appointments, Saturday banking, a
+     clinic. It is the third answer to "when are you coming?" beside Now and
+     Later, so it sits with them rather than only on the organisation page. */
+  type Bookable = { id: string; name: string; session_date: string; starts_at?: string | null; branch_id?: string | null; places_remaining?: number; requires_eligibility?: boolean };
+  const sessionsQuery = useQuery({
+    queryKey: ['public-sessions', businessId],
+    queryFn: () => api.get<Bookable[]>(`/sessions/public?business_id=${businessId}`, false),
+    enabled: Boolean(businessId),
+    staleTime: 2 * 60_000,
+    retry: 0,
+  });
+  const bookable = (sessionsQuery.data || []).filter((x) => !x.branch_id || x.branch_id === branchId);
+  const openBooking = () => {
+    if (bookable.length === 1) navigation.navigate('Session', { sessionId: bookable[0].id });
+    else setBookPicker(true);
+  };
   const { refreshing, onRefresh } = useRefresh(branchQuery.refetch, servicesQuery.refetch);
 
   /* Until the person picks, show the service they can be seen for soonest.
@@ -247,6 +267,17 @@ export default function BranchScreen() {
             <Icon name="clock" size={16} color={colors.muted} />
             <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.muted }}>Later</Text>
           </TouchableOpacity>
+          {bookable.length ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={openBooking}
+              accessibilityRole="button" accessibilityLabel="Book an appointment or session"
+              style={{ borderWidth: 1.5, borderColor: colors.accent, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface }}
+            >
+              <Icon name="ticketOutline" size={16} color={colors.accent} />
+              <Text style={{ fontFamily: font.bold, fontSize: 13.5, color: colors.accent }}>Book</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4, marginTop: 26, marginBottom: 12 }}>
@@ -316,7 +347,7 @@ export default function BranchScreen() {
                     </View>
                     <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 5 }}>
                       {Number(s.waiting_count || 0)} in line
-                      {s.active_counters != null ? ` · ${Number(s.active_counters)} ${Number(s.active_counters) === 1 ? 'counter' : 'counters'} open` : ''}
+                      {s.active_counters != null ? ` · ${words.desksOpenCount(Number(s.active_counters))}` : ''}
                     </Text>
                   </View>
 
@@ -442,6 +473,32 @@ export default function BranchScreen() {
             </View>
           </>
         )}
+      />
+
+      <PickerSheet
+        open={bookPicker}
+        title="Book ahead"
+        items={bookable}
+        onClose={() => setBookPicker(false)}
+        onSelect={(x) => navigation.navigate('Session', { sessionId: x.id })}
+        renderRow={(x) => {
+          const [y, m, d] = String(x.session_date).slice(0, 10).split('-').map(Number);
+          const day = new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+          return (
+            <>
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="ticketOutline" size={18} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink, letterSpacing: -0.3 }}>{x.name.split(' — ')[0]}</Text>
+                <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 3 }}>
+                  {[day, x.requires_eligibility ? 'By booking' : typeof x.places_remaining === 'number' ? `${x.places_remaining} places left` : null].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <Icon name="chevronRight" size={16} color={colors.muted} />
+            </>
+          );
+        }}
       />
 
       <PickerSheet

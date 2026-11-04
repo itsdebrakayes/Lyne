@@ -18,7 +18,8 @@ const LINE_FAQ = [
   { q: 'Can I Take A Break Mid-Queue?', a: 'Finish whoever is in front of you, then set yourself to break. Your window stops taking new calls and your supervisor sees it straight away, so cover can be moved.' },
   { q: 'What Do My Numbers Get Used For?', a: 'They show your supervisor how the section is running so cover can be moved where it is needed. They are not a ranking, and nobody else on the floor sees your individual figures.' },
 ];
-import { BarChart3, ClipboardCheck, Clock3, ListChecks, Monitor } from 'lucide-react';
+import { BarChart3, CalendarClock, ClipboardCheck, Clock3, ListChecks, Monitor } from 'lucide-react';
+import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import api from '@/lib/apiClient';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
@@ -26,7 +27,7 @@ import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { StaffReadinessWorkspace } from '../components/dashboard/ReadinessWorkspace';
 
-type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string };
+type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string; is_mine?: number | string };
 type TicketRow = {
   id: string; ticket_number: string; user_name?: string; status: string; position: number;
   call_expires_at?: string; started_serving_at?: string; completed_at?: string; called_at?: string;
@@ -47,6 +48,7 @@ const NAV = [
   { key: 'live', label: 'Live line', icon: Monitor },
   { key: 'tickets', label: 'Tickets', icon: ListChecks },
   { key: 'readiness', label: 'Service checklist', icon: ClipboardCheck },
+  { key: 'sessions', label: 'Bookings & Check-In', icon: CalendarClock },
   { key: 'history', label: 'History', icon: Clock3 },
   { key: 'stats', label: 'My stats', icon: BarChart3 },
 ];
@@ -83,10 +85,21 @@ export default function LineStaffDashboard() {
   useNow();
 
   const queues = useQuery({ queryKey: ['ls-queues'], queryFn: () => api.get<QueueRow[]>('/queues/mine'), enabled: !!admin, refetchInterval: 10_000 });
-  const activeQueue = (queues.data || [])[0];
+  /* The clerk's own line first. With the branch's overflow setting on, the
+     route also returns the branch's other lines (is_mine = 0): when their own
+     line is empty the desk offers those, and picking one points this whole
+     screen at it until they go back. */
+  const allLines = queues.data || [];
+  const myQueue = allLines.find((q) => Number(q.is_mine ?? 1) !== 0);
+  const [helpingId, setHelpingId] = useState<string | null>(null);
+  const helping = helpingId ? allLines.find((q) => q.id === helpingId) || null : null;
+  const activeQueue = helping || myQueue;
+  const overflowLines = allLines
+    .filter((q) => Number(q.is_mine ?? 1) === 0 && Number(q.waiting_count || 0) > 0)
+    .map((q) => ({ id: q.id, name: q.service_name || 'Another line', waiting: Number(q.waiting_count || 0) }));
   const ticketsQuery = useQuery({ queryKey: ['ls-tickets', activeQueue?.id], queryFn: () => api.get<TicketRow[]>(`/tickets/queue/${activeQueue!.id}`), enabled: !!activeQueue?.id, refetchInterval: 4_000 });
   const analytics = useQuery({ queryKey: ['ls-analytics', period], queryFn: () => api.get<Analytics>(`/analytics/line-staff?period=${period}`), enabled: !!admin, refetchInterval: 30_000 });
-  const history = useQuery({ queryKey: ['ls-history', period, activeQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${activeQueue?.service_id ? `&service_id=${activeQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
+  const history = useQuery({ queryKey: ['ls-history', period, myQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${myQueue?.service_id ? `&service_id=${myQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
 
   /* Freshness for the header pill. This screen has its own queries rather than
      useDashboardData, so the same derivation is repeated here: the OLDEST panel
@@ -243,6 +256,16 @@ export default function LineStaffDashboard() {
     }),
     onNoShow: (id: string) => deskStatus(id, { new_status: 'no_show' }),
     onCallAgain: (id: string) => deskStatus(id, { new_status: 'called', notes: 'Called again' }),
+    /* Reordering and tagging. Both are recorded on the server with who did it;
+       the list is refetched so every screen shows the same order. */
+    onMove: async (id: string, to: 'top' | 'bottom' | number) => {
+      await api.put(`/tickets/${id}/move-to`, { to });
+      await refetchDesk();
+    },
+    onSetTriageFlag: async (id: string, flag: 'none' | 'possibly_urgent') => {
+      await api.put(`/tickets/${id}/triage-flag`, { flag });
+      await refetchDesk();
+    },
   }), [deskStatus]);
 
   const liveData = useMemo(() => buildLineData({
@@ -270,7 +293,11 @@ export default function LineStaffDashboard() {
     onBreakStart: () => attendance('break'),
     onResume: () => attendance('resume'),
     onClockOut: () => attendance('clock-out'),
-  }), [liveData, deskActions, shift.data, deskForecast.data, attendance]);
+    overflowLines: helping ? [] : overflowLines,
+    helpingLine: helping ? (helping.service_name || 'Another line') : null,
+    onHelpLine: (id: string) => setHelpingId(id),
+    onBackToMyLine: () => setHelpingId(null),
+  }), [liveData, deskActions, shift.data, deskForecast.data, attendance, helping, overflowLines]);
   const nowTicket = serving?.ticket_number || called?.ticket_number || 'Empty';
   const nowWho = serving ? `${serving.service_name || service || ''} · ${serving.user_name || 'Customer'}`
     : called ? 'Called — confirm the customer code' : 'No active ticket';
@@ -279,6 +306,7 @@ export default function LineStaffDashboard() {
     live: ["Run today’s line", `${branch} · ${waiting.length} ${waiting.length === 1 ? 'person' : 'people'} waiting right now.`],
     tickets: ['Tickets', 'Everyone currently in your queue.'],
     readiness: ['Service checklist', `Keep the ${lower(terms.visitor.one)}-facing list for your assigned service clear and current.`],
+    sessions: ['Bookings & Check-In', 'Check in people who booked a place or an appointment, by their code.'],
     history: ['History', 'Your served and no-show record.'],
     stats: ['My stats', 'How your counter is performing.'],
   };
@@ -330,6 +358,7 @@ export default function LineStaffDashboard() {
       {tour.running ? <Spotlight steps={TOURS.line_staff} onDone={tour.finish} /> : null}
       <LineDataProvider value={withShift}>
         {tab === 'live' ? <LineOverviewQX />
+          : tab === 'sessions' ? <SessionsWorkspace businessId={admin?.staffRecord?.business_id} branchId={admin?.staffRecord?.branch_id} canEdit={false} mode="desk" />
           : tab === 'readiness' ? <StaffReadinessWorkspace service={readinessServiceId ? { id: readinessServiceId, name: service || 'Assigned service' } : null} />
             : lineTab(tab, (k) => setTab(k))}
       </LineDataProvider>

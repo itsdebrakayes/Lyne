@@ -6,7 +6,9 @@ import '../styles/admin-kit.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAdminAuth();
+  /* authError carries a refusal from a saved session (a kiosk or customer
+     login found at launch), which never went through this form. */
+  const { login, error: authError } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -63,8 +65,8 @@ export default function LoginPage() {
             <span><small>Secure Admin Access</small><h2>Sign In</h2></span>
           </div>
 
-          {error ? (
-            <div className="qa-login-error"><AlertCircle size={16} /><span>{error}</span></div>
+          {error || authError ? (
+            <div className="qa-login-error"><AlertCircle size={16} /><span>{error || authError}</span></div>
           ) : null}
 
           <form onSubmit={handleSubmit} className="qa-login-form">

@@ -12,7 +12,9 @@ import { Sheen } from '../../components/Glass';
 import { ErrorCard, Section, SkeletonRows } from '../../components/Feedback';
 import { Press } from '../../components/Press';
 import { homeLocationLabel, usePreferences } from '../../lib/preferences';
-import { useDevicePlace } from '../../lib/deviceLocation';
+import { useDevicePlace, distanceKm } from '../../lib/deviceLocation';
+import { useNearby } from '../../lib/nearby';
+import { UrgentNotice } from '../../components/TriageQuestions';
 import { useContentColumn, useWide } from '../../lib/stage';
 import Icon, { IconName } from '../../components/Icon';
 import Appear from '../../components/Appear';
@@ -38,6 +40,7 @@ const SECTOR_ICON: Record<string, IconName> = {
   government_revenue: 'government',
   judiciary: 'government',
   financial_services: 'financial',
+  banking: 'financial',
   microfinance: 'financial',
   university: 'education',
   diagnostics: 'health',
@@ -47,6 +50,7 @@ const SECTOR_LABEL: Record<string, string> = {
   government_revenue: 'Government',
   judiciary: 'Courts',
   financial_services: 'Financial',
+  banking: 'Banking',
   microfinance: 'Microfinance',
   university: 'Education',
   diagnostics: 'Health',
@@ -124,6 +128,27 @@ export default function HomeScreen() {
   });
   const activeHelper = helperQuery.data?.helper ?? null;
 
+  /* Bookings this person holds and has not used yet: a Saturday banking place,
+     an appointment, a clinic. Check-in used to be three taps deep (an
+     organisation, its sessions, the session), so on the day somebody standing
+     at the door could not find it. Shown first on Home instead, with the
+     button on the day itself. */
+  const bookingsQuery = useQuery({
+    queryKey: ['my-sessions'],
+    queryFn: () => api.get<Array<{
+      registration_id: string; registration_code: string; appointment_time?: string | null;
+      registration_status: string; queue_ticket_id?: string | null;
+      session: { id: string; name: string; session_date: string; starts_at?: string | null; business_name?: string; location_name?: string | null };
+    }>>('/sessions/mine'),
+    enabled: Boolean(user?.id),
+    refetchInterval: 120_000,
+    retry: false,
+  });
+  const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  const bookings = (bookingsQuery.data || [])
+    .filter((b) => b.registration_status === 'registered' && b.session?.session_date >= todayIso)
+    .slice(0, 2);
+
   const [openOnly, setOpenOnly] = useState(true);
   const devicePlace = useDevicePlace();
   const column = useContentColumn();
@@ -135,11 +160,14 @@ export default function HomeScreen() {
   const ticket = useActiveTicket();
   const { prefs } = usePreferences();
 
-  const { data: branches = [], isLoading, error, refetch } = useQuery({
+  const { data: allBranches = [], isLoading, error, refetch } = useQuery({
     queryKey: ['mobile-branches'],
     queryFn: () => api.get<BranchSummary[]>('/branches', false),
     refetchInterval: 30_000,
   });
+  /* Home recommends only what is within reach: the same country and about
+     three hours away (lib/nearby.ts). Search still finds anything by name. */
+  const { list: branches, reach, coords, reachKm } = useNearby(allBranches);
   /* These two used to be destructured for their data alone, so a failure in
      either was completely silent: the agency names quietly went missing from
      the cards, and the bell showed "0 unread" whether there were none or the
@@ -191,9 +219,10 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.allSettled([refetch(), refetchNotifications()]);
+    // Bookings too: one made on the web or by staff should appear on a pull.
+    await Promise.allSettled([refetch(), refetchNotifications(), bookingsQuery.refetch()]);
     setRefreshing(false);
-  }, [refetch, refetchNotifications]);
+  }, [refetch, refetchNotifications, bookingsQuery]);
 
   const sectorOf = useMemo(() => {
     const map = new Map<string, string>();
@@ -210,14 +239,23 @@ export default function HomeScreen() {
 
   // Branches that are actually OPEN now (by their own hours) rank first — a
   // closed branch's stale low wait must never beat a live line.
+  /* Nearest first, in 3-mile bands: two branches a few minutes apart still
+     sort by wait, but a branch an hour away never beats the one down the road
+     because its line is shorter. */
+  const milesOff = useCallback((b: BranchSummary) => {
+    const lat = Number(b.latitude); const lng = Number(b.longitude);
+    if (!coords || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return 0;
+    return Math.floor(distanceKm(coords, { lat, lng }) / 5);
+  }, [coords]);
+
   const sorted = useMemo(() => {
     const now = new Date();
     const openRank = (b: BranchSummary) => (branchOpenInfo(now, hoursFromBranch(b)).state === 'open' ? 1 : 0);
     return [...branches]
       .filter(b => !sector || sectorOf.get(b.business_id) === sector)
       .filter(b => !openOnly || branchOpenInfo(now, hoursFromBranch(b)).state === 'open')
-      .sort((a, b) => (openRank(b) - openRank(a)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
-  }, [branches, sector, sectorOf, openOnly]);
+      .sort((a, b) => (openRank(b) - openRank(a)) || (milesOff(a) - milesOff(b)) || Number(a.avg_wait_minutes) - Number(b.avg_wait_minutes));
+  }, [branches, sector, sectorOf, openOnly, milesOff]);
 
   // One row per agency, carrying that agency's best branch — the marketplace
   // browses agencies, and five rows of the same agency's branches is a list
@@ -262,7 +300,7 @@ export default function HomeScreen() {
           seen.set(b.business_id, {
             id: b.business_id,
             label: b.business_name,
-            acronym: orgAcronym(b.business_id, b.business_name),
+            acronym: orgAcronym(b.business_short_name, b.business_name),
             open,
           });
         } else if (open) {
@@ -313,6 +351,7 @@ export default function HomeScreen() {
   const openBranch = (b: BranchSummary) => navigation.navigate('Branch', { businessId: b.business_id, branchId: b.id, branchName: b.name });
 
   const ahead = ticket ? Math.max(0, (ticket.waiting_position ?? ticket.position ?? 1) - 1) : 0;
+  const urgent = !!ticket && (ticket as { triage_flag?: string }).triage_flag === 'possibly_urgent' && ticket.status !== 'in_service';
 
   return (
     <View style={t.root}>
@@ -366,13 +405,61 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* your bookings — check in from here on the day */}
+        {bookings.map((b) => {
+          const isToday = b.session.session_date === todayIso;
+          const [yy, mm, dd] = b.session.session_date.split('-').map(Number);
+          const when = isToday ? 'Today' : new Date(yy, mm - 1, dd).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+          // "14:00" from the API, "2:00 PM" on screen like everywhere else.
+          const twelve = (hhmm?: string | null) => {
+            const [h, m] = String(hhmm || '').split(':').map(Number);
+            if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+            return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+          };
+          const time = b.appointment_time ? twelve(b.appointment_time) : (b.session.starts_at ? `From ${twelve(b.session.starts_at)}` : '');
+          return (
+            <TouchableOpacity
+              key={b.registration_id}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('Session', { sessionId: b.session.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`${isToday ? 'Check in for' : 'Your booking:'} ${b.session.name}, ${when}`}
+              style={{ backgroundColor: isToday ? colors.accent : colors.surface, borderRadius: 22, padding: 16, marginTop: 14,
+                borderWidth: isToday ? 0 : 1, borderColor: colors.borderSoft, ...(isToday ? shadow.depth : {}) }}
+            >
+              {isToday && <Sheen radius={22} />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: isToday ? 'rgba(255,255,255,.16)' : colors.infoSoft }}>
+                  <Icon name="ticketOutline" size={23} color={isToday ? '#fff' : colors.accent} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {/* When first: the time is what someone glancing at Home needs,
+                      and it was the part being cut off. */}
+                  <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 15, letterSpacing: -0.3, color: isToday ? '#fff' : colors.ink }}>
+                    {[when, time].filter(Boolean).join(' · ')}
+                  </Text>
+                  <Text numberOfLines={2} style={{ fontFamily: font.medium, fontSize: 12.5, marginTop: 3, color: isToday ? 'rgba(255,255,255,.8)' : colors.muted }}>
+                    {[b.appointment_time ? 'Appointment' : null, b.session.business_name, b.session.name.split(' — ')[0]].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <View style={{ borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
+                  backgroundColor: isToday ? '#fff' : colors.surfaceAlt }}>
+                  <Text style={{ fontFamily: font.extra, fontSize: 13, color: colors.accent }}>{isToday ? 'Check In' : 'View'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
         {/* live ticket — the reminder tile from the reference, doing real work */}
         {!!ticket && (
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigation.navigate('Ticket', { ticketId: ticket.id })}
-            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14, borderWidth: 1, borderColor: colors.borderSoft }}
+            style={{ backgroundColor: colors.surface, borderRadius: 22, padding: 16, marginTop: 14, borderWidth: 1, borderColor: urgent ? 'rgba(220,38,38,.45)' : colors.borderSoft }}
           >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.infoSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="clock" size={23} color={colors.accent} />
             </View>
@@ -393,6 +480,11 @@ export default function HomeScreen() {
                 <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 4 }}>left to wait</Text>
               </View>
             )}
+          </View>
+          {/* The triage answers flagged this visit: the same advice as the
+              ticket, here too, because Home is where people look while they
+              wait. Gone once they are being seen. */}
+          {urgent && <View style={{ marginTop: 12 }}><UrgentNotice compact /></View>}
           </TouchableOpacity>
         )}
 
@@ -559,7 +651,11 @@ export default function HomeScreen() {
             screens do not teach two different reading habits. */}
         {agencyRows.length > 0 && (
           <View style={{ marginTop: 30 }}>
-            <RailHead title="Agencies near you" actionLabel="See all" onAction={() => navigation.navigate('Search')} />
+            <RailHead
+              title={reach === 'near' ? 'Agencies near you' : reach === 'country' ? `Nothing within ${Math.round(reachKm * 0.621371)} miles yet` : 'Nothing in your country yet'}
+              actionLabel="See all"
+              onAction={() => navigation.navigate('Search')}
+            />
             <View style={{ gap: 10 }}>
               {agencyRows.map(({ best, count }, i) => {
                 const wait = Math.round(Number(best.avg_wait_minutes || 0));
@@ -574,8 +670,8 @@ export default function HomeScreen() {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderRadius: 20, padding: 14, ...shadow.card }}
                     >
                       <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_id, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
-                          {orgAcronym(best.business_id, best.business_name)}
+                        <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: orgAcronym(best.business_short_name, best.business_name).length >= 5 ? 11.5 : 13.5, color: colors.accent }}>
+                          {orgAcronym(best.business_short_name, best.business_name)}
                         </Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>

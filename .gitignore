@@ -29,6 +29,7 @@ secrets/
 # Build and generated output
 build/
 release/
+release-demo/
 coverage/
 
 # Editor directories and files

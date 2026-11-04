@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +13,10 @@ import api from '../../lib/apiClient';
 import { BranchSummary, ServiceSummary, TicketRecord } from '../../lib/mobileData';
 import { registerPushNotifications, scheduleDepartureReminder } from '../../lib/notifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { usePlaceWords } from '../../lib/placeWords';
+import {
+  TriageQuestions, UrgentNotice, triageComplete, triagePayload, triageRedFlag, type TriageAnswers, type TriageQuestion,
+} from '../../components/TriageQuestions';
 
 type Params = RouteProp<RootStackParamList, 'JoinQueue'>;
 interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_minutes: number; }
@@ -34,11 +38,20 @@ export default function JoinQueueScreen() {
   const serviceQuery = useQuery({ queryKey: ['service', serviceId], queryFn: () => api.get<ServiceSummary>(`/services/${serviceId}`, false) });
   const queueQuery = useQuery({ queryKey: ['live-queue', branchId, serviceId], queryFn: () => api.get<LiveQueue>(`/queues/live?branch_id=${branchId}&service_id=${serviceId}`, false), refetchInterval: 15_000 });
   const branch = branchQuery.data;
+  const words = usePlaceWords(branch?.business_id);
   const service = serviceQuery.data;
   const liveQueue = queueQuery.data;
   const readiness = service?.readiness || [];
   const requiredReadiness = readiness.filter(item => item.is_mandatory);
   const readinessConfirmed = requiredReadiness.every(item => checkedReadiness.includes(item.id));
+  /* Hospital departments ask a few yes/no questions. They never change the
+     line; a red-flag yes tags the visit for staff and tells the patient to go
+     to the triage desk now. */
+  const triageQuestionsList: TriageQuestion[] = (service as { triage_questions?: TriageQuestion[] } | undefined)?.triage_questions || [];
+  const [triageAnswers, setTriageAnswers] = useState<TriageAnswers>({});
+  const [visitReason, setVisitReason] = useState('');
+  const triageDone = triageComplete(triageQuestionsList, triageAnswers);
+  const redFlag = triageRedFlag(triageQuestionsList, triageAnswers);
   const { refreshing, onRefresh } = useRefresh(branchQuery.refetch, serviceQuery.refetch, queueQuery.refetch);
 
   useEffect(() => { if (liveQueue?.id) setError(''); }, [liveQueue?.id]);
@@ -53,7 +66,7 @@ export default function JoinQueueScreen() {
 
   const joinState = useMemo(() => remoteJoinInfo(now, hoursFromBranch(branch)), [now, branch]);
   const queueOpen = !!liveQueue?.id;
-  const canJoin = joinState.allowed && queueOpen && readinessConfirmed;
+  const canJoin = joinState.allowed && queueOpen && readinessConfirmed && triageDone;
 
   // Why the button is off, in the order the user would ask it.
   const blockedNotice = !branch ? null
@@ -66,12 +79,14 @@ export default function JoinQueueScreen() {
   const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
   const joinTitle = canJoin ? 'Join this line'
     : joinState.allowed && queueOpen && !readinessConfirmed ? 'Tick required items first'
+    : joinState.allowed && queueOpen && !triageDone ? 'Answer the questions first'
     : joinState.state === 'closed' ? 'Closed right now'
     : joinState.state === 'about_to_open' ? 'Opening soon'
     : joinState.state === 'buffer' ? 'Walk-ins joining first'
     : 'Not available';
   const joinSub = canJoin ? `You'd be ${ordinal(ahead + 1)} · about ${liveQueue?.estimated_wait_minutes ?? 0} min`
     : joinState.allowed && queueOpen && !readinessConfirmed ? `${requiredLeft} required item${requiredLeft === 1 ? '' : 's'} left`
+    : joinState.allowed && queueOpen && !triageDone ? 'A few yes or no questions above'
     : blockedNotice?.detail || '';
 
 
@@ -99,6 +114,8 @@ export default function JoinQueueScreen() {
       const ticket = await api.post<TicketRecord>('/tickets', {
         queue_id: liveQueue.id,
         readiness_acknowledged: readiness.length > 0 ? readinessConfirmed : undefined,
+        triage_answers: triageQuestionsList.length ? triagePayload(triageQuestionsList, triageAnswers) : undefined,
+        visit_reason: visitReason.trim() || undefined,
       });
       /* No haptic here: HoldButton already fired success the moment the hold
          landed, which is the beat the user is actually feeling. A second one
@@ -222,7 +239,7 @@ export default function JoinQueueScreen() {
                             }}
                             accessibilityRole="checkbox"
                             accessibilityState={{ checked }}
-                            accessibilityLabel={`${item.label}. ${item.is_mandatory ? 'Required' : 'Helpful'}${item.detail ? `. ${item.detail}` : ''}`}
+                            accessibilityLabel={`${item.label}. ${item.is_mandatory ? 'Required' : 'Preferred'}${item.detail ? `. ${item.detail}` : ''}`}
                             style={{ flexDirection: 'row', gap: 14, paddingHorizontal: 20 }}
                           >
                             <View style={{ width: 24, height: 24, marginTop: 13, borderRadius: 7, backgroundColor: checked ? '#1b4b8f' : '#fff', borderWidth: 2, borderColor: checked ? '#1b4b8f' : '#c4ccd8', alignItems: 'center', justifyContent: 'center' }}>
@@ -231,7 +248,7 @@ export default function JoinQueueScreen() {
                             <View style={{ flex: 1, paddingVertical: 13, borderBottomWidth: last ? 0 : 1, borderBottomColor: '#eef1f6' }}>
                               <Text style={{ fontFamily: font.semibold, fontSize: 15, lineHeight: 20, color: checked ? '#7a8699' : '#0c1826' }}>{item.label}</Text>
                               <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 18, color: '#7a8699', marginTop: 2 }}>
-                                <Text style={{ fontFamily: font.bold, color: item.is_mandatory ? '#e5484d' : '#7a8699' }}>{item.is_mandatory ? 'Required' : 'Helpful'}</Text>
+                                <Text style={{ fontFamily: font.bold, color: item.is_mandatory ? '#e5484d' : '#7a8699' }}>{item.is_mandatory ? 'Required' : 'Preferred'}</Text>
                                 {item.detail ? ` · ${item.detail}` : ''}
                                 {item.lead_minutes ? ` · ${item.lead_minutes >= 60
                                   ? `${Math.round(item.lead_minutes / 60)} hour${Math.round(item.lead_minutes / 60) === 1 ? '' : 's'} before`
@@ -248,13 +265,35 @@ export default function JoinQueueScreen() {
               </View>
             ) : null}
 
+            {triageQuestionsList.length > 0 ? (
+              <View style={{ marginTop: 14, borderRadius: 24, backgroundColor: '#fff', padding: 20, gap: 12 }}>
+                <Text style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.6, color: '#0c1826' }}>A few quick questions</Text>
+                <Text style={{ fontFamily: font.medium, fontSize: 13, lineHeight: 19, color: '#7a8699' }}>
+                  So the team knows who may need to be seen sooner. You still join the same line.
+                </Text>
+                <TriageQuestions questions={triageQuestionsList} answers={triageAnswers} onChange={setTriageAnswers} />
+                {redFlag ? <UrgentNotice /> : null}
+                <View>
+                  <Text style={{ fontFamily: font.bold, fontSize: 13, color: '#0c1826', marginBottom: 6 }}>Reason for your visit (optional)</Text>
+                  <TextInput
+                    value={visitReason}
+                    onChangeText={(v) => setVisitReason(v.slice(0, 160))}
+                    placeholder="For example: cough and fever for 3 days"
+                    placeholderTextColor="#9aa5b5"
+                    accessibilityLabel="Reason for your visit"
+                    style={{ minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: '#dfe5ee', paddingHorizontal: 14, fontFamily: font.medium, fontSize: 15, color: '#0c1826' }}
+                  />
+                </View>
+              </View>
+            ) : null}
+
             <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: '#fff', padding: 20 }}>
               <Text style={{ fontFamily: font.extra, fontSize: 17, letterSpacing: -0.3, color: '#0c1826' }}>Good to know</Text>
               <View style={{ gap: 12, marginTop: 14 }}>
                 {[
                   { icon: 'ticket-outline', text: 'You get a ticket number and a six-character code straight away.' },
                   { icon: 'notifications-outline', text: 'We tell you when to set off, and again when you are next.' },
-                  { icon: 'shield-checkmark-outline', text: 'Show the code at the counter. It is how staff confirm it is you.' },
+                  { icon: 'shield-checkmark-outline', text: `Show the code at ${words.desk}. It is how staff confirm it is you.` },
                 ].map(step => (
                   <View key={step.text} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
                     <Ionicons name={step.icon as any} size={17} color="#143a6e" style={{ marginTop: 1 }} />

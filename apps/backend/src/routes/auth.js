@@ -84,6 +84,14 @@ async function getStaffProfile(staffId) {
   const profile = { ...rows[0] };
   for (const field of NEVER_EXPOSE) delete profile[field];
 
+  /* The supervisor's section (migration 043), named so the dashboard can say
+     "Half Way Tree · Teller Services". Only looked up when there is one, so a
+     database without 043 is never asked about tables it does not have. */
+  if (profile.section_id) {
+    const [[section]] = await pool.query('SELECT name FROM branch_sections WHERE id = ?', [profile.section_id]);
+    profile.section_name = section?.name || null;
+  }
+
   // Staff learn their organisation's vocabulary at sign-in, so every admin
   // screen can be worded correctly on first paint rather than saying "Customer"
   // and then correcting itself once a business lookup returns.
@@ -335,7 +343,8 @@ router.post('/logout', requireAuth, async (req, res) => {
 //                          extracted_passport, extracted_dob, raw_text.
 //                          The most sensitive data in the system. Hard-deleted.
 //   • intake_forms       — free-form submitted data. Hard-deleted.
-//   • queue_tickets      — guest_name / guest_phone survive. Scrubbed, then the
+//   • queue_tickets      — guest_name / guest_phone and triage answers (health
+//                          information) survive. Scrubbed, then the
 //                          row is allowed to anonymise: the agency keeps its
 //                          operational record of "a person was served at 10:04",
 //                          with nothing left tying it to a human.
@@ -389,7 +398,7 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
       await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
-        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL WHERE user_id = ?',
+        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL WHERE user_id = ?',
         [userId]
       );
       await conn.query(

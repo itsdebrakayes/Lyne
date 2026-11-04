@@ -21,6 +21,10 @@
 const PUBLIC_BUSINESS_FIELDS = [
   'id', 'slug', 'name', 'description', 'logo_url', 'website_url',
   'phone', 'email', 'sector', 'terms',
+  /* What the app shows on the tile ("PICA") and in the Help centre (hours,
+     documents, JP rules). Both are public by nature: they are written for the
+     people standing in the line (migration 040). */
+  'short_name', 'help_guide',
   /* Opening hours are on the front door of every branch — withholding them
      from the app that exists to stop wasted journeys protects nothing and
      costs the one thing somebody checks before setting off. */

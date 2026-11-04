@@ -8,6 +8,7 @@
  */
 
 const router = require('express').Router();
+const { listedSectorClause } = require('../utils/listing');
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -24,10 +25,13 @@ const {
 router.get('/', async (req, res) => {
   try {
     const { business_id } = req.query;
-    const where = business_id ? 'WHERE br.business_id = ? AND br.is_active = TRUE' : 'WHERE br.is_active = TRUE';
-    const params = business_id ? [business_id] : [];
+    // Asking for one business's branches is never narrowed; the public
+    // list of everything follows LISTED_SECTORS (see utils/listing.js).
+    const listed = business_id ? { sql: '', params: [] } : listedSectorClause('b');
+    const where = (business_id ? 'WHERE br.business_id = ? AND br.is_active = TRUE' : 'WHERE br.is_active = TRUE') + listed.sql;
+    const params = business_id ? [business_id] : listed.params;
     const [rows] = await pool.query(
-      `SELECT br.*, b.name AS business_name, b.slug AS business_slug,
+      `SELECT br.*, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name,
               (SELECT COUNT(*)
                FROM queues q JOIN queue_tickets qt ON qt.queue_id = q.id
                WHERE q.branch_id = br.id AND q.is_active = TRUE
@@ -55,7 +59,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT br.*, b.name AS business_name, b.slug AS business_slug,
+      `SELECT br.*, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name,
               (SELECT COUNT(*) FROM queues q
                WHERE q.branch_id = br.id AND q.is_active = TRUE
                  AND q.queue_date = CURDATE()) AS open_queues

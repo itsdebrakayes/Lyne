@@ -1,11 +1,13 @@
 /**
  * helpContent.ts — the Help & Support knowledge base.
  *
- * Static, human-curated content buckets (NOT an AI chatbot): general Lyne
- * FAQs, plus a per-agency guide covering opening hours, what documents to
- * bring for each service, and whether anything needs to be certified by a
- * Justice of the Peace (JP). Content is representative for the demo — the UI
- * shows a "confirm with the agency" note since official requirements change.
+ * Static, human-curated content buckets (NOT an AI chatbot). The general Lyne
+ * FAQs live here because they are about Lyne itself. Each organisation's guide
+ * (opening hours, what documents to bring for each service, and whether a
+ * Justice of the Peace must certify anything) comes from the database, as
+ * businesses.help_guide (migration 040), so a new organisation's guide needs no
+ * app release. The UI shows a "confirm with the agency" note since official
+ * requirements change.
  */
 
 export interface FaqItem { q: string; a: string; }
@@ -33,47 +35,48 @@ export const GENERAL_FAQS: FaqItem[] = [
   { q: 'Who can see my saved documents?', a: 'Details you save to your profile (like your TRN or ID) are only shared with the agency serving you, to speed up verification at the counter. They’re not shown to other users.' },
 ];
 
-// ── Per-agency guides ─────────────────────────────────────
-export const AGENCY_GUIDES: AgencyGuide[] = [
-  {
-    slug: 'taj',
-    short: 'TAJ',
-    name: 'Tax Administration Jamaica',
-    hours: 'Monday – Friday, 8:30 AM – 4:00 PM',
-    hoursNote: 'Some locations stay open to 5:00 PM. Closed weekends and public holidays.',
-    services: [
-      { name: 'TRN registration', documents: ['A valid photo ID: passport, driver’s licence, national ID, or voter’s ID', 'A completed TRN application form', 'For a minor: the child’s birth certificate'], jp: 'If you’re applying on behalf of someone else (or a minor), the application form and ID copies must be certified by a Justice of the Peace.', jpRequired: true },
-      { name: 'Driver’s licence & motor vehicle', documents: ['Your TRN', 'A valid photo ID', 'The relevant vehicle or licence documents (title, fitness, etc.)'], jp: 'No JP certification needed for standard renewals.', jpRequired: false },
-      { name: 'Tax payments', documents: ['Your TRN', 'Your assessment or reference number', 'Payment: cash, card, or manager’s cheque'], jp: 'No JP certification required.', jpRequired: false },
-    ],
-    general: 'Many services, including payments and some registrations, can be done online at jamaicatax.gov.jm. However, TRN cards and certain registrations must be collected in person.',
-  },
-  {
-    slug: 'pica',
-    short: 'PICA',
-    name: 'Passport, Immigration & Citizenship Agency',
-    hours: 'Monday – Friday, 8:00 AM – 4:00 PM',
-    hoursNote: 'Closed weekends and public holidays. Arrive early on Mondays and month-end.',
-    services: [
-      { name: 'New or renewal passport', documents: ['Your birth certificate', 'A valid photo ID', 'Two passport-sized photographs', 'A completed application form', 'For a first passport: proof of Jamaican citizenship'], jp: 'Your photographs and application form must be signed and certified by a Justice of the Peace or other authorized person.', jpRequired: true },
-      { name: 'Citizenship & immigration', documents: ['Supporting civil documents (birth / marriage certificates)', 'A valid photo ID', 'Any relevant status or residency documents'], jp: 'Copies of your supporting documents usually need to be certified by a JP.', jpRequired: true },
-    ],
-    general: 'Where possible, book and pay for passport services online before visiting. Always bring the originals plus one photocopy of each document.',
-  },
-  {
-    slug: 'nht',
-    short: 'NHT',
-    name: 'National Housing Trust',
-    hours: 'Monday – Friday, 8:00 AM – 4:00 PM',
-    hoursNote: 'Closed weekends and public holidays.',
-    services: [
-      { name: 'Contributions refund', documents: ['Your TRN', 'A valid photo ID', 'Your NHT number, if you have it'], jp: 'No JP certification required for a standard refund.', jpRequired: false },
-      { name: 'Mortgage / loan application', documents: ['Your TRN', 'A valid photo ID', 'Proof of income: job letter and recent payslips', 'Proof of your NHT contributions'], jp: 'Some supporting documents, such as a statutory declaration, may need to be signed before a JP.', jpRequired: true },
-    ],
-    general: 'Check your contributions and refund eligibility online before visiting. Refunds are typically claimable after a set number of years of contributions.',
-  },
-];
+// ── Per-organisation guides, from the database ─────────────
 
-export function agencyGuide(slug?: string) {
-  return AGENCY_GUIDES.find(a => a.slug === slug);
+/** The fields of a /businesses row this file needs. */
+export interface GuideSource {
+  id: string;
+  slug?: string | null;
+  name: string;
+  short_name?: string | null;
+  help_guide?: unknown;
+}
+
+const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * A business row's help_guide as an AgencyGuide, or null when it has none or
+ * it is malformed. The column is JSON; the driver normally hands it over parsed,
+ * but a string is accepted too, and anything that is not the expected shape is
+ * dropped rather than allowed to crash the Help centre.
+ */
+export function guideFromBusiness(b: GuideSource, acronym: string): AgencyGuide | null {
+  let raw: any = b.help_guide;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { return null; }
+  }
+  if (!raw || typeof raw !== 'object' || !b.slug) return null;
+  const services: AgencyService[] = (Array.isArray(raw.services) ? raw.services : [])
+    .filter((x: any) => x && str(x.name))
+    .map((x: any) => ({
+      name: str(x.name),
+      documents: Array.isArray(x.documents) ? x.documents.map(str).filter(Boolean) : [],
+      jp: str(x.jp),
+      jpRequired: x.jpRequired === true,
+    }));
+  const hours = str(raw.hours);
+  if (!hours && !services.length) return null;
+  return {
+    slug: b.slug,
+    short: acronym,
+    name: b.name,
+    hours,
+    hoursNote: str(raw.hoursNote) || undefined,
+    services,
+    general: str(raw.general),
+  };
 }

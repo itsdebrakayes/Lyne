@@ -87,12 +87,12 @@ export default function AuthScreen() {
 
   const handleSignUp = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim()) { setError('Add your name, email and phone number to continue.'); return; }
-    if (!dob) { setError('Choose your date of birth.'); return; }
     if (!password) { setError('Create a password to secure your account.'); return; }
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
-    if (!trn.trim()) { setError('Add your TRN. Branches use it to verify you.'); return; }
-    if (!isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
+    /* Date of birth and TRN are optional (App Review guideline 5.1.1(v)): the
+       app works without either. A TRN, if given, must at least be a TRN. */
+    if (trn.trim() && !isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
     setLoading(true); setError(null);
     try {
       /* The TRN is not sent anywhere. It used to ride along as account
@@ -102,10 +102,10 @@ export default function AuthScreen() {
       const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         phone: phone.trim(),
-        date_of_birth: toISODate(dob),
+        ...(dob ? { date_of_birth: toISODate(dob) } : {}),
       });
       if (signupError) throw signupError;
-      await setDocument('trn', formatTrn(trn.trim()));
+      if (trn.trim()) await setDocument('trn', formatTrn(trn.trim()));
       if (needsConfirmation) {
         await rememberPendingSignup(email.trim().toLowerCase());
         setConfirmSent(true);
@@ -163,7 +163,7 @@ export default function AuthScreen() {
               <SignupCodeEntry
                 email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
                 password={confirmSent ? password : undefined}
-                metadata={confirmSent && dob ? { full_name: fullName.trim(), phone: phone.trim(), date_of_birth: toISODate(dob) } : undefined}
+                metadata={confirmSent ? { full_name: fullName.trim(), phone: phone.trim(), ...(dob ? { date_of_birth: toISODate(dob) } : {}) } : undefined}
                 onUseDifferentEmail={async () => { await clearPendingSignup(); setPendingEmail(null); setConfirmSent(false); }}
                 onGoToSignIn={() => { setConfirmSent(false); switchMode('signin'); }}
               />
@@ -194,14 +194,16 @@ export default function AuthScreen() {
                 <Text style={styles.label}>Phone number</Text>
                 <TextInput style={fieldStyle('phone')} {...focusProps('phone')} placeholder="876-000-0000" placeholderTextColor={colors.faint} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
 
-                <Text style={styles.label}>Date of birth</Text>
+                <Text style={styles.label}>Date of birth (optional)</Text>
                 <TouchableOpacity activeOpacity={0.85} onPress={() => setCalendarOpen(true)} style={[styles.input, styles.row, calendarOpen && styles.inputFocused]}>
                   <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: dob ? colors.ink : colors.faint }}>{dob ? formatDob(dob) : 'Select your date of birth'}</Text>
                   <Ionicons name="calendar-outline" size={18} color={colors.muted} />
                 </TouchableOpacity>
+                <Text style={styles.optionalHint}>Helps a branch tell you apart from someone with the same name.</Text>
 
-                <Text style={styles.label}>TRN</Text>
+                <Text style={styles.label}>TRN (optional)</Text>
                 <TextInput style={fieldStyle('trn')} {...focusProps('trn')} placeholder="000-000-000" placeholderTextColor={colors.faint} value={trn} onChangeText={setTrn} keyboardType="number-pad" />
+                <Text style={styles.optionalHint}>Kept only on this phone, never sent to Lyne. You can add it later in your profile.</Text>
                 </Animated.View>
               )}
 
@@ -286,6 +288,7 @@ const makeStyles = () => StyleSheet.create({
   errorText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: colors.danger },
 
   label: { fontFamily: font.bold, fontSize: 13, color: colors.sub, marginBottom: 7, marginLeft: 2 },
+  optionalHint: { fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: -8, marginBottom: 14, marginLeft: 2, lineHeight: 17 },
   input: {
     backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border,
     borderRadius: 16, paddingHorizontal: 17, height: 54,

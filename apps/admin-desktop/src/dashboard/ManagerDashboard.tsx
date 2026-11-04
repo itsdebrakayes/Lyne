@@ -175,6 +175,28 @@ export default function ManagerDashboard() {
     },
   }), [preds, d.productivity, d.branchSettings]);
 
+  /* Served per hour today against the same hours yesterday. Today runs from the
+     first hour anybody was served to the latest; yesterday is cut to those same
+     hours so the two lines compare like with like. */
+  const servedHours = useMemo(() => {
+    const byHour = (cells: any[]) => {
+      const m = new Map<number, number>();
+      for (const c of cells || []) m.set(num(c.bucket), (m.get(num(c.bucket)) || 0) + num(c.visit_count));
+      return m;
+    };
+    const t = byHour(d.servedByHour.today);
+    const y = byHour(d.servedByHour.yesterday);
+    if (!t.size) return { todayByHour: [] as number[], yesterdayByHour: [] as number[], servedHourLabels: [] as string[] };
+    const first = Math.min(...t.keys(), ...(y.size ? y.keys() : []));
+    const last = Math.max(...t.keys());
+    const hrs = Array.from({ length: last - first + 1 }, (_, k) => first + k);
+    return {
+      todayByHour: hrs.map((h) => t.get(h) || 0),
+      yesterdayByHour: hrs.map((h) => y.get(h) || 0),
+      servedHourLabels: hrs.map((h) => `${((h + 11) % 12) + 1}${h < 12 ? 'am' : 'pm'}`),
+    };
+  }, [d.servedByHour]);
+
   /* Everything the ported manager screens read, mapped from the live layer. */
   const liveData = useMemo(() => buildMgrData({
     periodLabel: win.days > 1 ? labelFor(win) : undefined,
@@ -190,13 +212,13 @@ export default function ManagerDashboard() {
     openTo: timeLabel(d.branchSettings?.hours?.closing_time) || '—',
     faq: MGR_FAQ,
     servedToday: completed,
-    todayByHour: [], yesterdayByHour: [],
+    ...servedHours,
     balking: d.balking,
     todayJoined: totalToday, todayCompleted: completed, todayNoShows: noShows,
     todayLeft: num(last.left_count),
   }), [branchName, org, d.admin, d.queues, d.services, d.staff, d.productivity, d.demandHourly,
        d.demandWeekly, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
-       achievedWait, completed, totalToday, noShows, last]);
+       achievedWait, completed, totalToday, noShows, last, servedHours]);
 
   /* The manager asks; the supervisor acts. Sending lands in the bell of every
      active supervisor at this branch. */
@@ -222,7 +244,7 @@ export default function ManagerDashboard() {
   const qc = useQueryClient();
   const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [tgtError, setTgtError] = useState<string | null>(null);
-  const saveBranchTargets = useCallback(async (vals: Record<string, number>) => {
+  const saveBranchTargets = useCallback(async (vals: Record<string, number>, reason?: string) => {
     setTgtState('saving'); setTgtError(null);
     try {
       await api.put('/targets/branch', {
@@ -230,8 +252,10 @@ export default function ManagerDashboard() {
         target_wait_minutes: Math.round(vals.wait),
         target_completion_rate: Math.round(vals.done),
         target_no_show_rate: Math.round(vals.noshow),
+        ...(reason ? { note: reason } : {}),
       });
       await qc.invalidateQueries({ queryKey: ['branch-targets'] });
+      qc.invalidateQueries({ queryKey: ['target-history'] });
       setTgtState('saved');
     } catch (err) {
       setTgtState('error');
@@ -292,7 +316,7 @@ export default function ManagerDashboard() {
     <QxShell
       brand="Lyne"
       brandSub={org}
-      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      nav={NAV.map((n) => ({ key: n.key, label: n.key === 'cases' ? `${terms.visitor.one} Cases` : n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
       notifications={notify.unread}
@@ -405,6 +429,7 @@ export function SvcRow({ nm, mini, chg, chgDir, w }: { nm: string; mini?: number
    Days" whichever pill was lit. `summary` is still accepted as a fallback so
    the component renders something if a caller has not been updated. */
 export function ServedChart({ summary, windowRows }: { summary: any[]; windowRows?: any[] }) {
+  const terms = useSectorTerms();
   const rows = windowRows?.length ? windowRows : summary.slice(-7);
   if (!rows.length) return <Empty msg="No daily data yet." />;
   const vals = rows.map((s) => num(s.completed_count));
@@ -422,7 +447,7 @@ export function ServedChart({ summary, windowRows }: { summary: any[]; windowRow
   return (
     <>
       <div className="qa-legend" style={{ marginBottom: 6 }}>
-        <span style={{ color: 'var(--qa-accent)' }}><span className="ln" /><span style={{ color: 'var(--qa-dim)' }}>Customers Served</span></span>
+        <span style={{ color: 'var(--qa-accent)' }}><span className="ln" /><span style={{ color: 'var(--qa-dim)' }}>{terms.visitor.many} Served</span></span>
         <span><span className="dash" /><span style={{ color: 'var(--qa-dim)' }}>Daily Average · {avg}</span></span>
       </div>
       <div className="qa-chartwrap">

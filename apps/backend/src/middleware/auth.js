@@ -26,7 +26,22 @@ async function lookupActorBySupabaseUid(supabaseUid, db = pool) {
     [supabaseUid]
   );
   if (staffRows.length > 0) {
-    return { dbStaff: staffRows[0] };
+    const staff = staffRows[0];
+    /* A supervisor runs one section of the branch (migration 043). Read only
+       when the row names one, so a database without 043 never touches the new
+       tables and nobody without a section pays for the lookup. */
+    if (staff.role_name === 'supervisor' && staff.section_id) {
+      const [svc] = await db.query(
+        `SELECT bs.name, bss.service_id
+           FROM branch_sections bs
+           LEFT JOIN branch_section_services bss ON bss.section_id = bs.id
+          WHERE bs.id = ?`,
+        [staff.section_id]
+      );
+      staff.section_name = svc[0]?.name || null;
+      staff.section_service_ids = svc.map((r) => r.service_id).filter(Boolean);
+    }
+    return { dbStaff: staff };
   }
 
   const [userRows] = await db.query(

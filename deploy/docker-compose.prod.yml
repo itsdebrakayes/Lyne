@@ -121,6 +121,9 @@ services:
       REVIEW_SIMULATOR:         ${REVIEW_SIMULATOR:-false}
       REVIEW_BUSINESS_ID:       ${REVIEW_BUSINESS_ID:-}
       REVIEW_ACCOUNT_EMAIL:     ${REVIEW_ACCOUNT_EMAIL:-}
+      # Sectors the public app lists. Empty (the default) lists every sector;
+      # the demo overlay narrows it to healthcare. Leave unset in production.
+      LISTED_SECTORS:           ${LISTED_SECTORS:-}
       # Deliberately absent: ALLOW_DEMO_DATA_REFRESH. It is double-gated and it
       # must never be set on this box.
     volumes:

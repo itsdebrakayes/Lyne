@@ -83,7 +83,7 @@ feature work ──► staging ──(merge when tested)──► production   (
 **Rules** (also in `CLAUDE.md`, which AI coding agents read before committing)
 
 - Never commit to `production` or `demo` directly. If an emergency fix has to go to `production` first, merge it back into `staging` the same day.
-- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md` or `apps/backend/scripts/sync-demo-test-accounts.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
+- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md`, `apps/backend/scripts/sync-demo-test-accounts.js` or `apps/backend/scripts/seed-demo-healthcare.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
 - Do not create real-agency data anywhere public. The demo agencies are named after real Jamaican government bodies (TAJ, PICA, NHT) with whom there is no agreement. They live only on the private demo server and must never reach production or a store reviewer (App Store 5.2.1, Play impersonation policy).
 - Old branches are not deleted outright. They are kept as tags named `archive/<branch>`. The tree as it was before the October 2026 clean-up is tagged `archive/pre-cleanup-2026-10-13`.
 
@@ -128,6 +128,7 @@ Never committed: `.env` files, `secrets/`, `*.p8`, `*.p12`, keystores, `backups/
 Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL scheme `lyne`. These are permanent once published.
 
 - Browse participating organisations, branches and services; see the live wait before going.
+- Home and Search (before anything is typed) recommend only places within reach, nearest first: the phone's country, and a distance sized to it (about 50 miles in Jamaica, 200 miles by default; `apps/mobile/src/lib/nearbyRule.ts`). Search before typing lists the whole country, nearest first; a typed name searches everywhere. With nothing in reach, Home falls back to the whole country, then to everything, and says so in the heading. A line or ticket uses its organisation's words (`lib/placeWords.ts`): a hospital patient is "being seen", not "at the counter".
 - Join a line remotely, get a numbered ticket, watch position and estimated wait, get notified when called.
 - **Lyne Helper**: recommends good times to visit, can join a line on the customer's behalf, or watch a recommended window and join automatically. "Let people pass if I'm late" gives the place to whoever is behind, up to three turns.
 - Plan your visit, busy-times heatmap, week planner (driven by the model worker).
@@ -146,13 +147,15 @@ Role dashboards:
 | Role | Scope |
 |---|---|
 | `line_staff` | Their counter: call, verify by code, serve, skip / no-show |
-| `supervisor` | A section of a branch; reassign staff between counters |
+| `supervisor` | A section of a branch (migration 043: `branch_sections`, `staff.section_id`): only that section's lines, staff, counters, clients and patterns. Without a section, the whole branch. Can close and reopen session registration, register walk-ups at the door, and end a session's day |
 | `manager` | One branch: open/close queues, assign counters, branch analytics and targets |
 | `executive` | The whole organisation: analytics, targets, trends, reports |
 | `kiosk_clerk` | Walk-in intake only; issues `channel='kiosk'` tickets for people without the app |
 | `platform_admin` | Lyne staff only; can create organisations (no UI yet; done via API/SQL) |
 
 A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
+
+**Sessions** (Sessions tab, managers and executives) are announced, capped windows people register for and check in to; checking in creates an ordinary ticket. A session can require an approved list (migration 029). People on it can also hold an **appointment time** (migration 042), carried in the list import or typed by staff at the door; members of the public cannot set their own. Check-in opens 15 minutes before the time and the slot is held 10 minutes after (both per session). An on-time check-in goes ahead of walk-ins and behind earlier appointments; an early one is told when check-in opens; a late one joins in the usual order. The rule is `apps/backend/src/utils/appointments.js`. Supervisors, managers and executives open and close registration (Sessions → Registration); line staff check people in from **Bookings & Check-In**, and the kiosk iPad asks first, after Touch To Begin, whether the person has an appointment or booking or wants to join a line, both by code alone (`POST /sessions/check-in-by-code` finds the booking among today's sessions at that branch). Supervisors and managers can also register people at the door (executives cannot: they are not in the branch); supervisors, managers and executives can end the day, which records everyone who never arrived as a no-show. In the mobile app, Home shows the bookings a signed-in person holds, with **Check In** on the day; an organisation's page lists its upcoming sessions (**Book & check in**, shown only when there is one); the session screen (`screens/main/SessionScreen.tsx`) lets a client hold a place (with their list reference where one is required), see their code and appointment time, and check themselves in on the day, including with a code staff gave them. A ticket from a self check-in belongs to the signed-in account. There is still no public web page for this.
 
 ### API — `apps/backend`
 
@@ -234,6 +237,7 @@ Production values go in `/srv/lyne/.env`, created from `deploy/env.production.ex
 | iOS Live Activities | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` on one line, `\n` for newlines), `APNS_ENV` | Use key `6H44RYBAX3`, the push key. `549M7577B2` is the Sign in with Apple key and cannot send pushes. |
 | In-app purchases | `APPSTORE_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT`, `PLAY_PACKAGE_NAME` | Unused in version 1 |
 | App Review simulator | `REVIEW_SIMULATOR`, `REVIEW_BUSINESS_ID`, `REVIEW_ACCOUNT_EMAIL` | See [§17](#17-mobile-releases-app-store-and-google-play) |
+| Public listing | `LISTED_SECTORS` | Empty (production) lists every sector. The demo overlay sets `healthcare` so the demo shows only the hospital system. |
 
 Never set in production: `NODE_ENV` (the compose file sets it; in `.env` it breaks the admin build), `ALLOW_DEMO_DATA_REFRESH`, `STAFF_TEST_VERIFICATION_CODE`.
 
@@ -242,6 +246,12 @@ Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXP
 ---
 
 ## 8. Database
+
+**Targets** are set by the executive for the company and refined by a manager for their branch. Every save needs a reason, and each metric that moved is written to `target_changes` (migration 044) with its old and new value; both Targets tabs show that change history (`GET /targets/history`).
+
+**Reports** (Reports tab, managers and executives; `dashboard/reportDoc.ts`) are written as a study, not a printout: introduction, methodology with sample sizes, numbered figures each with a "what this shows" paragraph and an analysis, observations, a final analysis with reasoned recommendations, limitations and appendices. Every sentence is generated from the period's figures; charts are table cells so Word keeps them.
+
+**Today's numbers are live.** `analytics_summaries` is rolled up at 01:00, so `/analytics/summary` reads today, and any service- or section-scoped view, straight from `wait_time_records`, which is written as each visit finishes. **Overflow:** with a branch's "Allow Overflow Onto Any Window" on, `/queues/mine` also returns the branch's other lines (`is_mine = 0`), and a clerk whose own line is empty is offered them on the desk.
 
 **Schema.** `database/schema.sql` plus every file in `database/migrations/`, in order. Migrations are append-only: never edit one that has been applied anywhere; write a new one.
 
@@ -253,7 +263,7 @@ Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXP
 - Global SQL mode must **not** include `ANSI_QUOTES`, `PIPES_AS_CONCAT` or `IGNORE_SPACE`. DigitalOcean enables some of these by default, and they break 21 SQL files.
 - The app login holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` only (`database/security/harden_database.sql`). If a feature needs DDL, it belongs in a migration.
 
-**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1.
+**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1. **038 (healthcare) and 039 (`branches.country_code`, default `JM`) are not applied yet**; both need a backup and the owner's approval. The code runs without them, but hospital features and country matching need them.
 
 **What is allowed in the production database:** schema, migrations, reference data created by migrations (e.g. `subscription_tiers` via 020), and the review tenant (`review_tenant_seed.sql`, `review_tenant_history.sql`). Nothing else is seeded. Re-run the history file every few weeks to move its 90-day window forward; it is idempotent.
 
@@ -498,6 +508,8 @@ The organisation **quote estimator** reads one price list, `apps/website/src/lib
 9. The organisation has confirmed in writing that Lyne may use its name and branding.
 
 Organisations are created by a `platform_admin` through the API; there is no admin console for this yet.
+
+Nothing about an organisation is built into the mobile app, so onboarding never needs a store release. Its tile acronym is `businesses.short_name` and its Help-centre guide (hours, documents, JP rules) is `businesses.help_guide`, both set through `POST`/`PUT /api/businesses` (migration 040). Without a short name the app shows the name's initials; without a guide the organisation is not listed in Help.
 
 ---
 
