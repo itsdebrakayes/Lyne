@@ -70,7 +70,7 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Branch not found.' });
-    res.json(rows[0]);
+    res.json((await withHolidayClosures(pool, rows))[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch branch.' });

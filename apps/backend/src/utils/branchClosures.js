@@ -10,8 +10,7 @@ const SQL = `
   SELECT c.id, c.kind, c.reason, c.business_id, c.branch_id,
          DATE_FORMAT(c.starts_on, '%Y-%m-%d') AS starts_on,
          DATE_FORMAT(c.ends_on, '%Y-%m-%d') AS ends_on,
-         DATE_FORMAT(c.ends_on + INTERVAL 1 DAY, '%W %e %M') AS reopens_label,
-         br.name AS branch_name
+         br.name AS branch_name, br.open_days, br.country_code
     FROM branches br
     JOIN branch_closures c
       ON c.business_id = br.business_id AND (c.branch_id IS NULL OR c.branch_id = br.id)
@@ -66,11 +65,27 @@ async function holidayClosure(db, branchId) {
 async function activeClosure(db, branchId) {
   if (!branchId) return null;
   const [rows] = await db.query(SQL, [branchId]);
-  return rows?.[0] || holidayClosure(db, branchId);
+  const c = rows?.[0];
+  if (!c) return holidayClosure(db, branchId);
+  return { ...c, reopens_label: await reopensAfter(db, c.ends_on, c.open_days, c.country_code) };
+}
+
+/** The first day after a closure the branch really opens: not simply the next day. */
+async function reopensAfter(db, lastDay, openDays, country) {
+  const [rows] = await db.query(
+    `SELECT DATE_FORMAT(holiday_date, '%Y-%m-%d') AS day FROM public_holidays
+      WHERE country = ? AND holiday_date BETWEEN ? AND ? + INTERVAL 21 DAY`, [country, lastDay, lastDay]);
+  return longLabel(nextOpenDay(lastDay, openDays, new Set((rows || []).map((r) => r.day))));
 }
 
 /** Marks a list of branches with today's holiday, in one pass. */
 async function withHolidayClosures(db, branches) {
+  for (const b of branches) {
+    if (typeof b.closure === 'string') b.closure = JSON.parse(b.closure);
+    if (!b.closure) continue;
+    // eslint-disable-next-line no-await-in-loop
+    b.closure.reopens_label = await reopensAfter(db, b.closure.ends_on, b.open_days, b.country_code);
+  }
   const open = branches.filter((b) => !b.closure && b.sector !== 'healthcare');
   if (!open.length) return branches;
   const [holidays] = await db.query(
@@ -100,8 +115,7 @@ function closureMessage(c) {
 
 /** For a SELECT over branches aliased `br`: any closure in force, as columns. */
 const closureColumns = `
-  (SELECT JSON_OBJECT('kind', c.kind, 'reason', c.reason, 'ends_on', DATE_FORMAT(c.ends_on, '%Y-%m-%d'),
-                      'reopens_label', DATE_FORMAT(c.ends_on + INTERVAL 1 DAY, '%W %e %M'))
+  (SELECT JSON_OBJECT('kind', c.kind, 'reason', c.reason, 'ends_on', DATE_FORMAT(c.ends_on, '%Y-%m-%d'))
      FROM branch_closures c
     WHERE c.business_id = br.business_id AND (c.branch_id IS NULL OR c.branch_id = br.id)
       AND c.lifted_at IS NULL AND CURDATE() BETWEEN c.starts_on AND c.ends_on

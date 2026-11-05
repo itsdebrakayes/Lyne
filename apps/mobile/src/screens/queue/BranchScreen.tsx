@@ -205,6 +205,7 @@ export default function BranchScreen() {
   // customer to a dead end and makes the branch state look decorative.
   const joinState = useMemo(() => remoteJoinInfo(now, hoursFromBranch(branch)), [now, branch]);
   const openInfo = useMemo(() => branchOpenInfo(now, hoursFromBranch(branch)), [now, branch]);
+  const closure = useMemo(() => hoursFromBranch(branch).closure ?? null, [branch]);
 
   // Second tap opens the queue map rather than joining outright. Joining is the
   // commitment; seeing the line you are about to stand in is the step before it,
@@ -248,9 +249,20 @@ export default function BranchScreen() {
         <PickerField
           label="Branch"
           value={branch?.name || branchName || 'Choose a branch'}
-          hint={[branch?.city, openInfo.detail].filter(Boolean).join(' · ')}
+          hint={[branch?.city, closure ? openInfo.label : openInfo.detail].filter(Boolean).join(' · ')}
           onPress={() => setBranchPicker(true)}
         />
+
+        {/* A closure is news, so it gets the whole sentence rather than a cut-off
+            hint: why the branch is shut, and when it is expected back. */}
+        {closure ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.danger, padding: 16, marginTop: 12 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 16, color: colors.dangerInk, letterSpacing: -0.3 }}>
+              {closure.kind === 'outage' ? 'Branch out of service' : 'Branch closed'}
+            </Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.ink, lineHeight: 20, marginTop: 5 }}>{openInfo.detail}</Text>
+          </View>
+        ) : null}
 
         {/* arriving */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
@@ -281,7 +293,7 @@ export default function BranchScreen() {
         </View>
 
         <Text style={{ fontFamily: font.extra, fontSize: 17, color: colors.ink, letterSpacing: -0.4, marginTop: 26, marginBottom: 12 }}>
-          {services.length ? `${services.length} ${services.length === 1 ? 'line' : 'lines'} open` : 'Lines'}
+          {services.length ? `${services.length} ${services.length === 1 ? 'line' : 'lines'}${joinState.allowed ? ' open' : ''}` : 'Lines'}
         </Text>
 
         {servicesQuery.isLoading && <SkeletonCard height={120} />}
@@ -347,7 +359,7 @@ export default function BranchScreen() {
                     </View>
                     <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, marginTop: 5 }}>
                       {Number(s.waiting_count || 0)} in line
-                      {s.active_counters != null ? ` · ${words.desksOpenCount(Number(s.active_counters))}` : ''}
+                      {s.active_counters != null && joinState.allowed ? ` · ${words.desksOpenCount(Number(s.active_counters))}` : ''}
                     </Text>
                   </View>
 
