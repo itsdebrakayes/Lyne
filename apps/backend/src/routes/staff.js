@@ -412,6 +412,34 @@ function shiftView(shift) {
   };
 }
 
+/**
+ * A window has just gone quiet: whoever runs that part of the floor hears at once,
+ * so they can put someone on it if they want to. Best-effort, like the message to
+ * the line: a break must not fail because a notification could not be written.
+ */
+async function tellSupervisorsOfBreak(shift, staff) {
+  try {
+    const [[desk]] = await pool.query(
+      `SELECT c.label, c.service_id,
+              (SELECT COUNT(*) FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
+                WHERE q.service_id = c.service_id AND q.branch_id = c.branch_id AND q.queue_date = CURDATE() AND t.status = 'waiting') AS waiting
+         FROM counters c WHERE c.id = ?`, [shift.counter_id || null]);
+    const [supervisors] = await pool.query(
+      `SELECT s.id FROM staff s JOIN roles r ON r.id = s.role_id
+        WHERE r.name = 'supervisor' AND s.is_active = TRUE AND s.branch_id = ?
+          AND (s.section_id IS NULL OR ? IS NULL OR EXISTS
+               (SELECT 1 FROM branch_section_services x WHERE x.section_id = s.section_id AND x.service_id = ?))`,
+      [staff.branch_id, desk?.service_id || null, desk?.service_id || null]);
+    if (!supervisors.length) return;
+    const where = desk ? ` ${desk.label} is closed until they return or you place someone on it.${Number(desk.waiting) ? ` ${desk.waiting} waiting for that service.` : ''}` : '';
+    await pool.query(
+      `INSERT INTO notifications (id, user_id, staff_id, sent_by_staff_id, ticket_id, notification_type, channel, message, is_read, sent_at) VALUES ?`,
+      [supervisors.map((s) => [uuidv4(), null, s.id, staff.id, null, 'staffing_alert', 'in_app', `${staff.full_name} has gone on a break.${where}`, false, new Date()])]);
+  } catch (err) {
+    console.error('break notice to supervisors failed:', err.message);
+  }
+}
+
 router.get('/me/shift', requireAuth, async (req, res) => {
   if (!req.dbStaff) return res.status(403).json({ error: 'Staff only.' });
   try {
@@ -473,6 +501,7 @@ router.post('/me/break', requireAuth, async (req, res) => {
 
     await pool.query('UPDATE staff_shifts SET on_break_since = NOW() WHERE id = ?', [shift.id]);
     await closeSitting(pool, req.dbStaff.id, 'break');
+    tellSupervisorsOfBreak(shift, req.dbStaff);
     // Not awaited: a break must not fail because a notification could not send.
     notifyLineOfClosedWindow(shift, req.dbStaff, 'break');
     res.json(shiftView(await openShiftFor(req.dbStaff.id)));

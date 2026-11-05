@@ -70,6 +70,7 @@ interface Visit {
   channel: string;
   waited_minutes: number | null;
   served_by: string | null;
+  counter_label?: string | null;
 }
 
 interface Detail {
@@ -268,6 +269,20 @@ export function CustomerCasesWorkspace({ businessId, branchId, window: win }: {
   );
 }
 
+/** "Natalie Brooks served 3 of 20 visits at Personal Banking 1: 5 Oct, 12 Oct." */
+function servedBy(visits: Array<{ served_by: string | null; counter_label?: string | null; queue_date: string }>) {
+  const byName = new Map<string, { name: string; count: number; counters: Set<string>; dates: string[] }>();
+  for (const v of visits) {
+    if (!v.served_by) continue;
+    const row = byName.get(v.served_by) ?? { name: v.served_by, count: 0, counters: new Set<string>(), dates: [] };
+    row.count += 1;
+    if (v.counter_label) row.counters.add(v.counter_label);
+    row.dates.push(fmtDate(v.queue_date));
+    byName.set(v.served_by, row);
+  }
+  return [...byName.values()].sort((a, b) => b.count - a.count).map((p) => ({ ...p, counters: [...p.counters] }));
+}
+
 export function CaseDetail({ businessId, userId, onBack }: { businessId: string; userId: string; onBack: () => void }) {
   const q = useQuery({
     queryKey: ['customer-detail', businessId, userId],
@@ -318,6 +333,16 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
             ))}
           </div>
 
+          <h3 className="qc-h3">Who served them</h3>
+          {servedBy(d.visits).length ? (
+            <ul className="qc-servedby">
+              {servedBy(d.visits).map((p) => (
+                <li key={p.name}><b>{p.name}</b> served {p.count} of {d.visits.length} visits
+                  {p.counters.length ? ` at ${p.counters.join(', ')}` : ''}: {p.dates.join(', ')}</li>
+              ))}
+            </ul>
+          ) : <div className="qc-note">No officer is recorded against these visits.</div>}
+
           <h3 className="qc-h3">Every visit, most recent first</h3>
           <ol className="qc-timeline">
             {d.visits.map((v) => {
@@ -338,7 +363,7 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
                       {live ? 'In the line now' : label(v.closed_reason || v.status)}
                     </span>
                     {v.waited_minutes != null && <small>waited {v.waited_minutes}m</small>}
-                    {v.served_by && <small>seen by {v.served_by}</small>}
+                    {v.served_by && <small>seen by {v.served_by}{v.counter_label ? ` at ${v.counter_label}` : ''}</small>}
                   </span>
                 </li>
               );

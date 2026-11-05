@@ -961,6 +961,26 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
   }
 });
 
+/**
+ * GET /analytics/presence — who is on shift and who is on a break, right now.
+ * Light enough to poll, so a supervisor sees a break within seconds rather than
+ * at the next analytics refresh.
+ */
+router.get('/presence', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const scopedBranch = scopedBranchId(req, req.query.branch_id);
+    const [rows] = await pool.query(
+      `SELECT sh.staff_id, sh.counter_id, sh.on_break_since IS NOT NULL AS on_break
+         FROM staff_shifts sh JOIN staff st ON st.id = sh.staff_id
+        WHERE st.business_id = ? AND sh.clocked_out_at IS NULL ${scopedBranch ? 'AND sh.branch_id = ?' : ''}`,
+      scopedBranch ? [scopedBusinessId(req, req.query.business_id), scopedBranch] : [scopedBusinessId(req, req.query.business_id)]);
+    res.json(rows.map((r) => ({ ...r, on_break: Boolean(Number(r.on_break)) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch who is on shift.' });
+  }
+});
+
 // Branch performance trends — daily aggregates for line charts
 router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
@@ -1695,12 +1715,13 @@ router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'm
               t.readiness_note AS note,
               t.estimated_wait_minutes, t.joined_at, t.called_at, t.completed_at,
               TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.called_at, t.completed_at)) AS waited_minutes,
-              st.full_name AS served_by
+              st.full_name AS served_by, cn.label AS counter_label
          FROM queue_tickets t
          JOIN queues   q  ON q.id = t.queue_id
          JOIN branches b  ON b.id = q.branch_id
          JOIN services s  ON s.id = q.service_id
          LEFT JOIN staff st ON st.id = t.served_by_staff_id
+         LEFT JOIN counters cn ON cn.id = t.served_at_counter_id
         WHERE t.user_id = ? AND b.business_id = ?
           AND q.queue_date >= CURDATE() - INTERVAL ? DAY
         ORDER BY q.queue_date DESC, t.joined_at DESC

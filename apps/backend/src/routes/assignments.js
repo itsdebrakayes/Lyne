@@ -139,7 +139,10 @@ router.delete('/:id', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
     }
     const [[seat]] = await pool.query('SELECT staff_id, assignment_date = CURDATE() AS today FROM staff_assignments WHERE id = ?', [req.params.id]);
     await pool.query('DELETE FROM staff_assignments WHERE id = ?', [req.params.id]);
-    if (Number(seat?.today) === 1) await closeSitting(pool, seat.staff_id, 'unseated');
+    if (Number(seat?.today) === 1) {
+      await closeSitting(pool, seat.staff_id, 'unseated');
+      await pool.query('UPDATE staff_shifts SET counter_id = NULL WHERE staff_id = ? AND clocked_out_at IS NULL', [seat.staff_id]);
+    }
     res.json({ message: 'Assignment removed.' });
   } catch (err) {
     console.error(err);

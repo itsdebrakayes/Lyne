@@ -152,3 +152,27 @@ test('a moved appointment counts as a move, not a cancellation', () => {
   assert.equal(r.appointments.cancelled, 1);
   assert.equal(r.appointments.attendancePct, 100);
 });
+
+test('two people swapping counters at 11 keeps both open all day', () => {
+  const day = '2026-11-02';
+  const r = buildBranchReport({
+    ...base, rows: [visit(day)],
+    counters: [{ id: 'A', label: 'A', service_id: 'teller' }, { id: 'B', label: 'B', service_id: 'teller' }],
+    sittings: [
+      { counter_id: 'A', staff_id: '1', day, from_min: 480, to_min: 660 }, { counter_id: 'B', staff_id: '2', day, from_min: 480, to_min: 661 },
+      // Each is moved in turn, a minute apart.
+      { counter_id: 'B', staff_id: '1', day, from_min: 660, to_min: 960 }, { counter_id: 'A', staff_id: '2', day, from_min: 661, to_min: 960 },
+    ],
+  });
+  assert.equal(r.counters[0].openHours, 8);
+  assert.equal(r.counters[1].openHours, 8);
+});
+
+test('a real gap is still a closure', () => {
+  const day = '2026-11-02';
+  const r = buildBranchReport({
+    ...base, rows: [visit(day)], counters: [{ id: 'A', label: 'A', service_id: 'teller' }],
+    sittings: [{ counter_id: 'A', staff_id: '1', day, from_min: 480, to_min: 720 }, { counter_id: 'A', staff_id: '1', day, from_min: 765, to_min: 960 }],
+  });
+  assert.equal(r.counters[0].openHours, 7.3); // 7h 15m, to one decimal
+});

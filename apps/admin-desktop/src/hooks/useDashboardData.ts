@@ -234,7 +234,14 @@ export function useDashboardData(serviceId = '') {
   const counters = useQuery({
     queryKey: ['ops-counters', businessId, branchId],
     queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: branchScoped ? LIVE_INTERVAL : analyticsEvery,
+  });
+  /* Who is on a break, on the live cadence: the rest of the staff feed refreshes
+     hourly, which is no use for knowing a window has just gone quiet. */
+  const presence = useQuery({
+    queryKey: ['ops-presence', businessId, branchId],
+    queryFn: () => api.get<Array<{ staff_id: string; on_break: boolean }>>(`/analytics/presence?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
+    enabled: Boolean(branchScoped && businessId), refetchInterval: 15_000,
   });
   // Settings tab: branch policy + this person's own alert thresholds + the
   // read-only hours. Not polled — these change when somebody saves them, not on
@@ -289,6 +296,7 @@ export function useDashboardData(serviceId = '') {
 
   return {
     admin, businessId, branchId, analyticsQuery,
+    presence: presence.data ?? [],
     /* The OLDEST panel on screen, not the newest.
        "Updated 14:32" has to be a promise about everything the reader can see.
        Taking the newest would let one 10-second queue poll vouch for an

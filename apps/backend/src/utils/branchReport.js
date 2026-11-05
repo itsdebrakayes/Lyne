@@ -33,6 +33,7 @@ function stdev(xs) {
 /** A number from the database, keeping "not recorded" apart from zero. */
 const minutes = (v) => (v === null || v === undefined ? null : Number(v));
 
+const HANDOVER_MINUTES = 5;
 const OPEN_STATUSES = new Set(['waiting', 'called', 'in_service']);
 
 /** The one outcome a visit ended in. */
@@ -339,13 +340,14 @@ function buildBranchReport(input) {
     const xs = rows.filter((r) => r.counter_id === c.id);
     const seats = seats_.filter((a) => a.counter_id === c.id);
     /* Open time is the union of sittings on each day: when one person leaves and
-       another picks the counter up, it never closed. */
+       another picks the counter up, it never closed. Swapping two people takes a
+       moment, so a gap of a few minutes is the handover, not a closure. */
     const openMinutes = [...groupBy(sittings.filter((x) => x.counter_id === c.id), (x) => x.day).values()].reduce((total, day) => {
       const spans = day.map((x) => [Number(x.from_min), Number(x.to_min)]).sort((a, b) => a[0] - b[0]);
       let end = -1;
       return total + spans.reduce((t, [from, to]) => {
         if (to <= end) return t;
-        const added = to - Math.max(from, end);
+        const added = to - (end >= 0 && from - end <= HANDOVER_MINUTES ? end : Math.max(from, end));
         end = to;
         return t + added;
       }, 0);

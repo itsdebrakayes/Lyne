@@ -372,7 +372,7 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
   /* ── 10 cases ── */
   const c = r.cases;
   const casesCh = `<p class="lead">What ongoing work is the branch carrying? Client Cases are people who need following up, rather than single visits.</p>
-    ${limit('Lyne records flags raised and cleared on a person, not a full case with an owner, a due date or a transfer. Backlog figures below count flags. Reopened cases, transfers, ownership and overdue work are not recorded and are not estimated.')}
+    ${limit('A case here is a person flagged for follow-up. Cases have no due date. Backlog figures count flags raised and cleared.')}
     ${doc.table('Flag backlog movement', table(['Opening', 'Raised', 'Cleared', 'Closing'], [[n(c.opening), n(c.opened), n(c.cleared), n(c.closing)]], 0), shortSpan)}
     <p>The backlog moved from ${n(c.opening)} to ${n(c.closing)}: ${n(c.opened)} flags were raised and ${n(c.cleared)} cleared (${n(c.clearedFromPeriod)} raised in this period, ${n(c.clearedOlder)} older). Median age of open flags is ${has(c.medianAge) ? count(c.medianAge, 'day') : 'unavailable'}. ${has(c.resolutionMedian) ? `Cleared flags took a median of ${count(c.resolutionMedian, 'day')}.` : ''}</p>
     <p>${n(c.repeatUnresolvedPeople)} identifiable people had three or more visits that did not complete. Individual notes and details are left out of this export.</p>`;

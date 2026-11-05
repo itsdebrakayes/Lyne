@@ -39,6 +39,8 @@ export type MgrLiveInput = {
   staff: any[];
   /** /analytics/staff for the selected period: tickets_handled, avg_handle_minutes */
   staffInWindow: any[];
+  /** who is on shift and on a break, live */
+  presence?: Array<{ staff_id: string; on_break: boolean }>;
   /** productivity insight: { slowdowns: [], idle: [] } */
   productivity: any;
   /** /analytics/counters — the desks, and who staff_assignments seats at each */
@@ -183,8 +185,10 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
        between windows looks like. A shift record says which. Only once somebody
        is known to be present do the performance flags (idle, slow) apply; a
        clerk who has gone home is not "idle with people waiting", they are off. */
-    const onBreak = Boolean(s.on_break_since);
-    const onShift = Boolean(s.clocked_in_at);
+    /* The live feed first: the staff list itself refreshes hourly. */
+    const live = (i.presence ?? []).find((p) => String(p.staff_id) === String(s.staff_id));
+    const onBreak = live ? live.on_break : Boolean(s.on_break_since);
+    const onShift = Boolean(live) || Boolean(s.clocked_in_at);
     const state: MgrStaff['state'] = !onShift ? 'off'
       : onBreak ? 'break'
       : idle.has(s.full_name) ? 'idle'

@@ -213,7 +213,7 @@ export default function ManagerDashboard() {
     periodLabel: win.days > 1 ? labelFor(win) : undefined,
     windowLabel: win.to === today() && win.days === 1 ? 'Today' : labelFor(win),
     branchName, org, managerName: d.admin?.name || '',
-    queues: d.queues as any[], services: windowData.services, staff: d.staff as any[],
+    queues: d.queues as any[], services: windowData.services, staff: d.staff as any[], presence: d.presence,
     staffInWindow: windowData.staff,
     productivity: d.productivity, counters: d.counters as any[], demandHourly: windowData.hourly, demandWeekly: windowData.daily,
     target: d.effectiveTarget, companyTarget: d.targets, branchTarget: d.branchTargets,
@@ -229,7 +229,7 @@ export default function ManagerDashboard() {
     balking: d.balking,
     todayJoined: totalToday, todayCompleted: completed, todayNoShows: noShows,
     todayLeft: left,
-  }), [branchName, org, d.admin, d.queues, windowData.services, d.staff, windowData.staff, d.productivity,
+  }), [branchName, org, d.admin, d.queues, d.presence, windowData.services, d.staff, windowData.staff, d.productivity,
        windowData.hourly, windowData.daily, win, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
        achievedWait, completed, totalToday, noShows, avgService, left, servedHours]);
 
