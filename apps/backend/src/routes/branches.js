@@ -7,7 +7,7 @@
  * PUT  /api/branches/:id           — update (manager/executive)
  */
 
-const { closureColumns } = require('../utils/branchClosures');
+const { closureColumns, withHolidayClosures } = require('../utils/branchClosures');
 const router = require('express').Router();
 const { listedSectorClause } = require('../utils/listing');
 const { randomUUID: uuidv4 } = require('crypto');
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
     const where = (business_id ? 'WHERE br.business_id = ? AND br.is_active = TRUE' : 'WHERE br.is_active = TRUE') + listed.sql;
     const params = business_id ? [business_id] : listed.params;
     const [rows] = await pool.query(
-      `SELECT br.*, ${closureColumns}, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name,
+      `SELECT br.*, ${closureColumns}, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name, b.sector,
               (SELECT COUNT(*)
                FROM queues q JOIN queue_tickets qt ON qt.queue_id = q.id
                WHERE q.branch_id = br.id AND q.is_active = TRUE
@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
        ORDER BY br.is_main_branch DESC, br.name`,
       params
     );
-    res.json(rows);
+    res.json(await withHolidayClosures(pool, rows));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch branches.' });
@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT br.*, ${closureColumns}, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name,
+      `SELECT br.*, ${closureColumns}, b.name AS business_name, b.slug AS business_slug, b.short_name AS business_short_name, b.sector,
               (SELECT COUNT(*) FROM queues q
                WHERE q.branch_id = br.id AND q.is_active = TRUE
                  AND q.queue_date = CURDATE()) AS open_queues

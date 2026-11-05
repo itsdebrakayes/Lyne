@@ -281,7 +281,7 @@ export function waitPhrase(minutes?: number | string | null) {
  */
 export type OpenState = 'open' | 'about_to_open' | 'closed';
 export interface OpenInfo { state: OpenState; label: string; detail: string; }
-export interface BranchClosure { kind: 'closure' | 'outage'; reason: string; reopens_label: string }
+export interface BranchClosure { kind: 'closure' | 'outage' | 'holiday'; reason: string; reopens_label: string }
 export interface BranchHours { openMin: number; closeMin: number; days: number[]; closure?: BranchClosure | null }
 
 const OPEN_MIN = 8 * 60 + 30;   // 8:30 AM

@@ -19,6 +19,8 @@ type Closure = {
   starts_on: string; ends_on: string; lifted_at: string | null; in_force: number; created_by_name: string | null;
 };
 
+type Holiday = { day: string; name: string; staying_open: string | null };
+
 const pretty = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 export function ClosuresPanel({ span = 12, branches }: {
@@ -48,6 +50,16 @@ export function ClosuresPanel({ span = 12, branches }: {
   const startsToday = from <= today() && to >= today();
   const ready = reason.trim().length >= 3 && from && to >= from;
   const rows = (list.data ?? []).filter((c) => !c.lifted_at);
+
+  /* National holidays close the branch by themselves; this is the way to stay open. */
+  const holidays = useQuery({ queryKey: ['holidays'], queryFn: () => api.get<Holiday[]>('/closures/holidays') });
+  const scope = branches ? { branch_id: where || null } : {};
+  const stayOpen = useMutation({
+    mutationFn: ({ day, open }: { day: string; open: boolean }) => (open
+      ? api.post(`/closures/holidays/${day}/open`, scope)
+      : api.delete(`/closures/holidays/${day}/open${where ? `?branch_id=${where}` : ''}`)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays'] }),
+  });
 
   return (
     <Card span={span} title="Closures And Outages" cap="Close for a day or a run of days. Staff and booked clients are told.">
@@ -89,6 +101,20 @@ export function ClosuresPanel({ span = 12, branches }: {
           </button>
           {confirming ? <button type="button" className="qx-btn ghost" onClick={() => setConfirming(false)}>Keep Open</button> : null}
         </div>
+
+        {holidays.data?.length ? <div className="qx-navlabel" style={{ padding: 0, marginTop: 6 }}>National Holidays · Closed Automatically</div> : null}
+        {(holidays.data ?? []).map((h) => (
+          <div className="qx-setrow" key={h.day}>
+            <div>
+              <b>{pretty(h.day)} · {h.name}</b>
+              <small>{h.staying_open ? `Staying open: ${h.staying_open}` : `${place} closes automatically`}</small>
+            </div>
+            <button type="button" className="qx-btn ghost" disabled={stayOpen.isPending}
+              onClick={() => stayOpen.mutate({ day: h.day, open: !h.staying_open })}>
+              {h.staying_open ? 'Close For The Holiday' : 'Stay Open'}
+            </button>
+          </div>
+        ))}
 
         {rows.length ? <div className="qx-navlabel" style={{ padding: 0, marginTop: 6 }}>Recorded</div> : null}
         {rows.map((c) => (

@@ -5,6 +5,8 @@
  * POST /api/closures               close a branch (manager, executive), or the
  *                                  whole organisation (executive, no branch_id)
  * POST /api/closures/:id/lift      reopen early
+ * GET  /api/closures/holidays       the coming national holidays
+ * POST /api/closures/holidays/:day/open    stay open on one (DELETE to undo)
  *
  * A closure starting today clears the lines at once, with the reason, so nobody
  * waits for a counter that will not open. Staff are told in their bell, and anyone
@@ -117,6 +119,65 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), auditLog
   } catch (err) {
     console.error('closure create:', err);
     res.status(500).json({ error: 'Could not record the closure.' });
+  }
+});
+
+/* ── National holidays close a branch by themselves; these keep one open. ── */
+router.get('/holidays', requireAuth, requireStaffRole('line_staff', 'supervisor', 'manager', 'executive'), async (req, res) => {
+  try {
+    const me = req.dbStaff;
+    const [[home]] = await pool.query(
+      `SELECT COALESCE(br.country_code, (SELECT MIN(x.country_code) FROM branches x WHERE x.business_id = ?)) AS country
+         FROM (SELECT 1) one LEFT JOIN branches br ON br.id = ?`, [me.business_id, me.branch_id || null]);
+    const [rows] = await pool.query(
+      `SELECT DATE_FORMAT(ph.holiday_date, '%Y-%m-%d') AS day, ph.name,
+              (SELECT GROUP_CONCAT(COALESCE(br.name, 'Every branch') SEPARATOR ', ')
+                 FROM holiday_openings o LEFT JOIN branches br ON br.id = o.branch_id
+                WHERE o.business_id = ? AND o.holiday_date = ph.holiday_date
+                  ${me.branch_id ? 'AND (o.branch_id IS NULL OR o.branch_id = ?)' : ''}) AS staying_open
+         FROM public_holidays ph
+        WHERE ph.country = ? AND ph.is_full_day = 1 AND ph.holiday_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 120 DAY
+        ORDER BY ph.holiday_date`,
+      me.branch_id ? [me.business_id, me.branch_id, home?.country] : [me.business_id, home?.country]);
+    res.json(rows);
+  } catch (err) {
+    console.error('holidays list:', err);
+    res.status(500).json({ error: 'Could not load holidays.' });
+  }
+});
+
+/** Who this request is for: a manager only ever acts for their own branch. */
+const holidayScope = (req) => (req.dbStaff.role_name === 'executive' ? (req.body?.branch_id || req.query.branch_id || null) : req.dbStaff.branch_id);
+
+router.post('/holidays/:day/open', requireAuth, requireStaffRole('manager', 'executive'), auditLog('holiday_stay_open', 'holiday_opening'), async (req, res) => {
+  try {
+    const me = req.dbStaff;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(req.params.day)) return res.status(400).json({ error: 'Choose a date.' });
+    const branchId = holidayScope(req);
+    if (me.role_name !== 'executive' && !branchId) return res.status(403).json({ error: 'You are not assigned to a branch.' });
+    const [existing] = await pool.query(
+      'SELECT id FROM holiday_openings WHERE business_id = ? AND holiday_date = ? AND branch_id <=> ?', [me.business_id, req.params.day, branchId]);
+    if (!existing.length) {
+      await pool.query(
+        'INSERT INTO holiday_openings (id, business_id, branch_id, holiday_date, created_by) VALUES (?, ?, ?, ?, ?)',
+        [uuidv4(), me.business_id, branchId, req.params.day, me.id]);
+    }
+    res.status(201).json({ staying_open: true });
+  } catch (err) {
+    console.error('holiday open:', err);
+    res.status(500).json({ error: 'Could not keep the branch open.' });
+  }
+});
+
+router.delete('/holidays/:day/open', requireAuth, requireStaffRole('manager', 'executive'), auditLog('holiday_close_again', 'holiday_opening'), async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM holiday_openings WHERE business_id = ? AND holiday_date = ? AND branch_id <=> ?',
+      [req.dbStaff.business_id, req.params.day, holidayScope(req)]);
+    res.json({ staying_open: false });
+  } catch (err) {
+    console.error('holiday close:', err);
+    res.status(500).json({ error: 'Could not change this holiday.' });
   }
 });
 

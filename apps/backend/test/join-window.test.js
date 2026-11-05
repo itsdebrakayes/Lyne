@@ -77,9 +77,21 @@ test('a branch with no closing time is not refused', () => {
   assert.equal(branchClosedMessage({ name: 'X', closing_time: null }, at(23, 0)), null);
 });
 
-const { closureMessage } = require('../src/utils/branchClosures');
+const { closureMessage, nextOpenDay } = require('../src/utils/branchClosures');
 
 test('a closure says why, when it should reopen, and that notice can change', () => {
   const text = closureMessage({ kind: 'outage', branch_name: 'Half Way Tree', reason: 'Power outage', reopens_label: 'Friday 6 November' });
   assert.equal(text, 'Half Way Tree is out of service today: Power outage. It is expected to reopen on Friday 6 November, unless a further notice says otherwise.');
+});
+
+test('a holiday says which, and when the branch is back', () => {
+  assert.equal(closureMessage({ kind: 'holiday', branch_name: 'Half Way Tree', reason: "National Heroes' Day", reopens_label: 'Tuesday 20 October' }),
+    "Half Way Tree is closed today for National Heroes' Day. It is expected to reopen on Tuesday 20 October.");
+});
+
+test('reopening skips weekends and the next holiday', () => {
+  // Friday 25 December 2026: Saturday 26 is Boxing Day, then a weekend.
+  assert.equal(nextOpenDay('2026-12-25', '1,2,3,4,5', new Set(['2026-12-26'])), '2026-12-28');
+  // A Saturday-opening branch still skips Boxing Day.
+  assert.equal(nextOpenDay('2026-12-25', '1,2,3,4,5,6', new Set(['2026-12-26'])), '2026-12-28');
 });

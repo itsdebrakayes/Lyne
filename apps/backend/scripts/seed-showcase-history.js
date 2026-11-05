@@ -92,6 +92,8 @@ function dayFactor(d) {
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const dt = (d) => `${ymd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+/* Jamaican holidays as observed: the bank is closed, so no visits. */
+const HOLIDAYS = new Set(['2026-08-06', '2026-10-19', '2026-12-25', '2026-12-26', '2027-01-01', '2027-02-10']);
 const ALPH = 'ACDEFGHJKMNPQRTUVWXY34679';
 const sql = (v) => (v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const out = (s) => process.stdout.write(`${s}\n`);
@@ -112,7 +114,7 @@ function main() {
   for (let back = DAYS; back >= 1; back -= 1) {
     const day = new Date(today); day.setDate(day.getDate() - back);
     const dow = day.getDay();
-    if (dow === 0 || dow === 6) continue;
+    if (dow === 0 || dow === 6 || HOLIDAYS.has(ymd(day))) continue;
     const factor = dayFactor(day);
     const stamp = ymd(day).replace(/-/g, '');
 
