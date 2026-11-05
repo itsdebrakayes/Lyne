@@ -104,11 +104,13 @@ async function main() {
     if (!biz) throw new Error('Lignum Bank is not in this database. Load database/demo_bank_seed.sql first.');
 
     await conn.beginTransaction();
+    await conn.query("DELETE FROM counter_sittings WHERE id LIKE 'lgbv-%'");
+    await conn.query("DELETE FROM staff_shifts WHERE id LIKE 'lgbv-%'");
     await conn.query("DELETE FROM wait_time_records WHERE ticket_id LIKE 'lgbv-%'");
     await conn.query("DELETE FROM queue_tickets WHERE id LIKE 'lgbv-%'");
     await conn.query("DELETE FROM queues WHERE id LIKE 'lgbv-%' AND NOT EXISTS (SELECT 1 FROM queue_tickets x WHERE x.queue_id = queues.id)");
 
-    const queues = []; const tickets = []; const waits = [];
+    const queues = []; const tickets = []; const waits = []; const SHIFTS = []; const SITTINGS = [];
     let n = 0;
     const now = new Date();
     for (let back = DAYS; back >= 0; back -= 1) {
@@ -171,6 +173,25 @@ async function main() {
           }
         }
       }
+      if (back > 0) {
+      /* The day's shifts and who sat where, so a past period has staffed hours and
+       open counters. */
+    const seenToday = new Map();
+    for (const desk of DESKS) {
+      for (const [staff, counter] of desk.staff) {
+        /* Someone on two desks spends the afternoon at the second. */
+        if (seenToday.has(staff)) { SITTINGS[seenToday.get(staff)][1] = counter; continue; }
+        seenToday.set(staff, SITTINGS.length + 1);
+        const closeHour = desk.branch === 'br-lgb-hwt' ? [16, 5] : [14, 35];
+        const at = (h, m) => { const d = new Date(day); d.setHours(h, m + Math.floor(rand() * 6), 0, 0); return dt(d); };
+        const key = `${ymd(day).replace(/-/g, '')}-${staff.slice(4)}`;
+        const [start, breakFrom, breakTo, end] = [at(8, 15), at(12, 0), at(12, 45), at(...closeHour)];
+        SHIFTS.push([`lgbv-s-${key}`, staff, desk.branch, counter, start, end, 2700]);
+        SITTINGS.push([`lgbv-a-${key}`, counter, staff, `lgbv-s-${key}`, start, breakFrom, 'break']);
+        SITTINGS.push([`lgbv-b-${key}`, counter, staff, `lgbv-s-${key}`, breakTo, end, 'clock_out']);
+      }
+    }
+      }
     }
 
     await insertMany(conn, 'queues', ['id', 'branch_id', 'service_id', 'queue_date', 'max_capacity', 'is_active'], queues);
@@ -182,6 +203,8 @@ async function main() {
       ['id', 'ticket_id', 'business_id', 'branch_id', 'service_id', 'visit_date', 'day_of_week', 'hour_of_day',
        'month_of_year', 'wait_time_minutes', 'service_time_minutes', 'status', 'channel', 'staff_count_at_time',
        'queue_length_at_time', 'active_counters_at_time'], waits);
+    await insertMany(conn, 'staff_shifts', ['id', 'staff_id', 'branch_id', 'counter_id', 'clocked_in_at', 'clocked_out_at', 'break_seconds'], SHIFTS);
+    await insertMany(conn, 'counter_sittings', ['id', 'counter_id', 'staff_id', 'shift_id', 'opened_at', 'closed_at', 'end_reason'], SITTINGS);
     await conn.commit();
     console.log(`Lignum Bank: ${tickets.length} visits over the last ${DAYS} days (${queues.length} new lines).`);
     /* The daily rollup the executive charts read. The 01:00 job only rebuilds

@@ -49,6 +49,7 @@ const TERMINAL_META: Record<string, { label: string; tone: string; note: string 
 const CLOSED_REASON_META: Record<string, { label: string; note: string }> = {
   branch_closed_before_called: { label: 'Branch closed', note: 'The branch closed before your number was called, so this ticket has ended. You can join again when it reopens.' },
   branch_closed_after_called: { label: 'Branch closed', note: 'Your number was called, but the branch closed before you reached the counter.' },
+  branch_closure: { label: 'Branch closed', note: 'The branch closed unexpectedly, so this ticket has ended. The branch page says why, and when it expects to reopen.' },
   service_not_finalised: { label: 'Branch closed', note: 'The branch closed before your visit was finished in the system, so this ticket has been closed.' },
 };
 

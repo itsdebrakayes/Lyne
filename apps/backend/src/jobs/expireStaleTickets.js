@@ -69,6 +69,7 @@ const { sendPushToUser } = require('../utils/pushSender');
 const PERSON_MESSAGE = {
   branch_closed_before_called: (r) => `${r.branch_name} closed before ${r.ticket_number} was called, so your ticket has ended. You can join again when the branch reopens.`,
   branch_closed_after_called: (r) => `${r.ticket_number} was called at ${r.branch_name}, but the branch closed before you reached the counter.`,
+  branch_closure: (r) => `${r.branch_name} has closed for the day, so ${r.ticket_number} has ended. You can see why, and when it reopens, on the branch page.`,
   service_not_finalised: (r) => `${r.branch_name} closed before your visit was finished in the system, so ${r.ticket_number} has been closed.`,
 };
 /** Sent as Lyne's other ticket pushes are: the detail stays inside the app. */
@@ -135,6 +136,10 @@ const CANDIDATE_SQL = `
 
 async function closeOut(conn, fromStatus, toStatus, note, reason, pushes) {
   const [rows] = await conn.query(CANDIDATE_SQL, [fromStatus, GRACE_MINUTES]);
+  return closeRows(conn, rows, fromStatus, toStatus, note, reason, pushes);
+}
+
+async function closeRows(conn, rows, fromStatus, toStatus, note, reason, pushes) {
   if (!rows.length) return 0;
 
   let closed = 0;
@@ -231,6 +236,69 @@ async function closeOut(conn, fromStatus, toStatus, note, reason, pushes) {
   return closed;
 }
 
+/**
+ * A branch closing or going out of service part-way through a day: everyone still
+ * waiting or called is told now, rather than waiting on a counter that will not
+ * open. Someone already at a counter is left for the clerk to finish.
+ */
+async function closeBranchLines(branchIds) {
+  const conn = await pool.getConnection();
+  const pushes = [];
+  try {
+    await conn.beginTransaction();
+    const select = CANDIDATE_SQL.split('WHERE t.status = ?')[0];
+    const [rows] = await conn.query(
+      `${select} WHERE q.branch_id IN (?) AND q.queue_date = CURDATE()
+          AND t.status IN ('waiting', 'called')
+          AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')`,
+      [branchIds]);
+    let closed = 0;
+    for (const status of ['waiting', 'called']) {
+      const these = rows.filter((r) => r.status === status).map((r) => ({ ...r, closed_at: new Date() }));
+      // eslint-disable-next-line no-await-in-loop
+      closed += await closeRows(conn, these, status, 'cancelled', 'Branch closed during the day.', 'branch_closure', pushes);
+    }
+    await conn.commit();
+    pushes.forEach((p) => sendPushToUser(p.userId, p).catch(() => {}));
+    return closed;
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Nobody clocked out. A shift left open would run on for days and make every
+ * hours figure meaningless, so it ends at the branch's closing time and is marked
+ * as ended by the system. A shift started after closing (an evening rehearsal, a
+ * late cover) is left alone. Branches open around the clock end a shift at 16 hours.
+ */
+async function closeForgottenShifts() {
+  const [stale] = await pool.query(
+    `SELECT sh.id, sh.staff_id,
+            LEAST(NOW(), GREATEST(sh.clocked_in_at, IF(TIME(b.closing_time) < '23:00:00',
+              TIMESTAMP(DATE(sh.clocked_in_at), b.closing_time), sh.clocked_in_at + INTERVAL 16 HOUR))) AS ended
+       FROM staff_shifts sh JOIN branches b ON b.id = sh.branch_id
+      WHERE sh.clocked_out_at IS NULL
+        AND ((TIME(b.closing_time) < '23:00:00'
+              AND sh.clocked_in_at < TIMESTAMP(DATE(sh.clocked_in_at), b.closing_time)
+              AND TIMESTAMP(DATE(sh.clocked_in_at), b.closing_time) + INTERVAL ? MINUTE < NOW())
+          OR sh.clocked_in_at < NOW() - INTERVAL 16 HOUR)`, [GRACE_MINUTES]);
+  for (const sh of stale || []) {
+    // eslint-disable-next-line no-await-in-loop
+    await pool.query(
+      `UPDATE staff_shifts SET clocked_out_at = ?, on_break_since = NULL, auto_closed = 1 WHERE id = ? AND clocked_out_at IS NULL`,
+      [sh.ended, sh.id]);
+    // eslint-disable-next-line no-await-in-loop
+    await pool.query(
+      `UPDATE counter_sittings SET closed_at = ?, end_reason = 'not_clocked_out' WHERE staff_id = ? AND closed_at IS NULL`,
+      [sh.ended, sh.staff_id]);
+  }
+  return (stale || []).length;
+}
+
 async function runTicketExpiry() {
   if (!ENABLED) return { enabled: false, cancelled: 0, noShow: 0, stuckInService: 0 };
 
@@ -262,6 +330,7 @@ async function runTicketExpiry() {
     await conn.commit();
     // After the commit, so a rollback never reaches anyone's phone.
     pushes.forEach((p) => sendPushToUser(p.userId, p).catch(() => {}));
+    await closeForgottenShifts().catch((err) => console.error('[TicketExpiry] forgotten shifts:', err.message));
     return {
       enabled: true,
       cancelled,
@@ -278,4 +347,4 @@ async function runTicketExpiry() {
   }
 }
 
-module.exports = { runTicketExpiry, GRACE_MINUTES };
+module.exports = { runTicketExpiry, closeBranchLines, closeForgottenShifts, GRACE_MINUTES };

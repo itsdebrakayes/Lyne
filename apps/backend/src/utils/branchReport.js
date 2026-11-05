@@ -192,15 +192,22 @@ function buildBranchReport(input) {
 
   /* ── days ─────────────────────────────────────────────── */
   const byDay = groupBy(rows, (r) => r.day);
-  const seatsByDay = groupBy(input.assignments || [], (a) => a.day);
+  /* A closure names the days it covers, so a closed day has a recorded reason. */
+  const closureOn = (day) => (input.closures || []).find((c) => c.starts_on <= day && c.ends_on >= day && !(c.lifted_on && c.lifted_on <= day)) || null;
+  /* Who sat where comes from clocking in and out; a day's seating plan fills in
+     for days before sittings were recorded. */
+  const sittings = input.sittings || [];
+  const seats_ = [...sittings, ...(input.assignments || [])];
+  const seatsByDay = groupBy(seats_, (a) => a.day);
   const days = eachDay(period.from, period.to).map((day) => {
     const dayRows = byDay.get(day) || [];
     const open = openDays.includes(dowOf(day));
     const holiday = holidays.get(day) || null;
-    const kind = dayRows.length ? (open ? 'operating' : 'special') : holiday ? 'holiday' : open ? 'zero' : 'closed';
+    const closure = closureOn(day);
+    const kind = dayRows.length ? (open ? 'operating' : 'special') : closure ? 'closure' : holiday ? 'holiday' : open ? 'zero' : 'closed';
     const seats = seatsByDay.get(day) || [];
     return {
-      day, dow: dowOf(day), kind, holiday,
+      day, dow: dowOf(day), kind, holiday, closure,
       ...s(dayRows),
       counters: new Set(seats.map((a) => a.counter_id)).size, officers: new Set(seats.map((a) => a.staff_id)).size,
       services: [...groupBy(dayRows, (r) => r.service_id)].map(([id, xs]) => ({ id, name: serviceName.get(id) || id, ...s(xs) }))
@@ -287,7 +294,7 @@ function buildBranchReport(input) {
       }),
       staff: dist(xs.filter((r) => r.served_by), (r) => r.served_by, Object.fromEntries([...staffName].map(([k, v]) => [k, v.full_name]))),
       counters: (input.counters || []).filter((c) => c.service_id === id).length,
-      seatedDays: new Set((input.assignments || []).filter((a) => counterInfo.get(a.counter_id)?.service_id === id).map((a) => a.day)).size,
+      seatedDays: new Set(seats_.filter((a) => counterInfo.get(a.counter_id)?.service_id === id).map((a) => a.day)).size,
     };
   }).sort((a, b) => b.arrivals - a.arrivals);
 
@@ -302,7 +309,7 @@ function buildBranchReport(input) {
     const person = staffName.get(id) || {};
     const served = xs.filter((r) => r.status === 'served');
     const shifts = shiftsByStaff.get(id) || [];
-    const seats = (input.assignments || []).filter((a) => a.staff_id === id);
+    const seats = seats_.filter((a) => a.staff_id === id);
     const staffedHours = shifts.length ? round(shifts.reduce((t, x) => t + Number(x.hours || 0), 0)) : null;
     const counterHours = served.reduce((t, r) => t + (minutes(r.service_min) || 0), 0) / 60;
     return {
@@ -330,16 +337,29 @@ function buildBranchReport(input) {
   /* ── counters ─────────────────────────────────────────── */
   const counters = (input.counters || []).map((c) => {
     const xs = rows.filter((r) => r.counter_id === c.id);
-    const seats = (input.assignments || []).filter((a) => a.counter_id === c.id);
+    const seats = seats_.filter((a) => a.counter_id === c.id);
+    /* Open time is the union of sittings on each day: when one person leaves and
+       another picks the counter up, it never closed. */
+    const openMinutes = [...groupBy(sittings.filter((x) => x.counter_id === c.id), (x) => x.day).values()].reduce((total, day) => {
+      const spans = day.map((x) => [Number(x.from_min), Number(x.to_min)]).sort((a, b) => a[0] - b[0]);
+      let end = -1;
+      return total + spans.reduce((t, [from, to]) => {
+        if (to <= end) return t;
+        const added = to - Math.max(from, end);
+        end = to;
+        return t + added;
+      }, 0);
+    }, 0);
     return {
       id: c.id, label: c.label, service: serviceName.get(c.service_id) || null, active: Boolean(c.is_active),
+      openHours: sittings.some((x) => x.counter_id === c.id) ? round(openMinutes / 60) : null,
       seatedDays: new Set(seats.map((a) => a.day)).size, officers: new Set(seats.map((a) => a.staff_id)).size,
       daysUsed: new Set(xs.map((r) => r.day)).size, served: xs.filter((r) => r.status === 'served').length,
     };
   });
   /* A day people joined a service that no seated counter was recorded for. */
   const uncovered = [];
-  if ((input.assignments || []).length) {
+  if (seats_.length) {
     for (const d of operating) {
       const seated = new Set((seatsByDay.get(d.day) || []).map((a) => counterInfo.get(a.counter_id)?.service_id));
       for (const svc of d.services) if (!seated.has(svc.id)) uncovered.push({ day: d.day, service: svc.name, arrivals: svc.arrivals });
@@ -388,14 +408,17 @@ function buildBranchReport(input) {
   /* ── sessions and appointments ────────────────────────── */
   const sessions = input.sessions || [];
   const appts = input.appointments || [];
-  const liveAppts = appts.filter((a) => a.status !== 'cancelled');
+  const liveAppts = appts.filter((a) => a.status !== 'cancelled' && a.status !== 'rescheduled');
   const attended = appts.filter((a) => a.checked_in_at);
   const lateMin = (a) => minutes(a.late_min);
   const apptTickets = rows.filter((r) => r.is_appointment);
   const apptServices = new Set(apptTickets.map((r) => r.service_id));
   const walkInSame = rows.filter((r) => !r.is_appointment && apptServices.has(r.service_id));
   const appointments = {
-    scheduled: appts.length, cancelled: appts.length - liveAppts.length, attended: attended.length,
+    scheduled: appts.length, attended: attended.length,
+    /* A move counts once, as a move: the replacement is its own appointment. */
+    rescheduled: appts.filter((a) => Number(a.moved) === 1).length,
+    cancelled: appts.length - liveAppts.length - appts.filter((a) => Number(a.moved) === 1).length,
     notAttended: liveAppts.filter((a) => !a.checked_in_at).length,
     attendancePct: rate(attended.length, liveAppts.length),
     late: attended.filter((a) => lateMin(a) !== null && lateMin(a) > Number(a.late_allowed ?? 10)).length,
@@ -427,6 +450,15 @@ function buildBranchReport(input) {
   const spread = stdev(waitsByDay);
   const arrivalsByDow = (dow) => percentile(operating.filter((d) => d.dow === dow).map((d) => d.arrivals), 50);
   const exceptions = [];
+  for (const c of input.closures || []) {
+    exceptions.push({
+      day: c.starts_on, type: c.kind === 'outage' ? 'Recorded outage' : 'Recorded closure', confirmed: true,
+      detail: `${c.reason}. ${c.starts_on === c.ends_on ? 'One day' : `Through ${c.ends_on}`}${c.branch_id ? '' : ', all branches'}. Recorded by ${c.created_by_name || 'staff'}${c.lifted_on ? `; lifted on ${c.lifted_on}` : ''}.`,
+    });
+  }
+  for (const x of sessions) {
+    if (x.end_reason) exceptions.push({ day: x.day, type: 'Session ended early', confirmed: true, detail: `${x.name}: ${x.end_reason}. Ended by ${x.ended_by_name || 'staff'} ${x.ended_early_min} minutes before its planned end.` });
+  }
   for (const d of days) {
     if (d.kind === 'zero') exceptions.push({ day: d.day, type: 'No activity on an operating day', detail: 'No visits are recorded. The branch may have been closed, or the records may be missing; nothing recorded says which.' });
     if (d.closedByBranch) exceptions.push({ day: d.day, type: 'Visits ended by closing time', detail: `${d.closedByBranch} visits were still open when the branch closed and were closed automatically.` });
@@ -469,21 +501,21 @@ function buildBranchReport(input) {
   const servedRows = rows.filter((r) => r.status === 'served');
   const pctOf = (test, xs) => rate(xs.filter(test).length, xs.length);
   const level = (p) => (p === null ? 'Unavailable' : p >= 99 ? 'Complete' : p >= 50 ? 'Partial' : p > 0 ? 'Partial' : 'Unavailable');
-  const seatDays = new Set((input.assignments || []).map((a) => a.day)).size;
+  const seatDays = new Set(seats_.map((a) => a.day).filter((d) => operating.some((o) => o.day === d))).size;
   const coverage = [
     { record: 'Visit outcomes', pct: rows.length ? 100 : null, note: 'One outcome for every visit.' },
     { record: 'Time joined and called', pct: pctOf((r) => minutes(r.wait_min) !== null, rows.filter(reachedCounter)), note: 'Visits that reached a counter.' },
     { record: 'Time at the counter', pct: pctOf((r) => minutes(r.service_min) !== null, servedRows), note: 'Served visits.' },
     { record: 'Staff who served', pct: pctOf((r) => r.served_by, servedRows), note: 'Served visits.' },
     { record: 'Identifiable customers', pct: summary.identifiedPct, note: 'Only visits with an account can be linked. Walk-ins cannot be recognised across visits.' },
-    { record: 'Counter seating', pct: rate(seatDays, operating.length), note: 'Operating days with a seating record.' },
+    { record: 'Counter seating', pct: rate(seatDays, operating.length), note: 'Operating days with a record of who sat where.' },
     { record: 'Staffed hours (clock in and out)', pct: shiftCover, note: 'Operating days with usable shift records. Staffed hours are reported only above 80%.' },
   ].map((c) => ({ ...c, level: level(c.pct) }));
 
   return {
     period, previous, branch: { ...branch, openDays },
     summary, previousSummary: prev,
-    days, operatingDays: operating.length, closedDays: days.filter((d) => d.kind === 'closed' || d.kind === 'holiday').length,
+    days, closures: input.closures || [], operatingDays: operating.length, closedDays: days.filter((d) => ['closed', 'holiday', 'closure'].includes(d.kind)).length,
     zeroDays: days.filter((d) => d.kind === 'zero').length,
     weeks, segments, hourly, weekdays, heat, hours,
     payday: cycle(isPayday), monthEnd: cycle(isMonthEnd),

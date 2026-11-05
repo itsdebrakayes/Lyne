@@ -204,6 +204,22 @@ export default function SessionScreen() {
      form returns, still filled in, so changing a detail is one more tap. An
      appointment's time is set by the organisation, so giving it back does not
      offer another time; the message says so before anything happens. */
+  const giveBack = async (reschedule: boolean) => {
+    setCancelling(true);
+    try {
+      await api.post(`/sessions/public/${sessionId}/cancel`, { reschedule });
+      haptics.success();
+      setJustIssued(null);
+      await queryClient.invalidateQueries({ queryKey: ['my-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-session', sessionId] });
+    } catch (caught: unknown) {
+      haptics.error();
+      setError(caught instanceof Error ? caught.message : 'Could not give the place back. Try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const changeOrCancel = () => {
     const what = holding?.appointment ? `your appointment at ${clockLabel(holding.appointment)}` : 'your place';
     Alert.alert(
@@ -213,24 +229,8 @@ export default function SessionScreen() {
         : `This gives back ${what}, and the form opens again so you can book with new details.`,
       [
         { text: 'Keep it', style: 'cancel' },
-        {
-          text: 'Give it back', style: 'destructive',
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              await api.post(`/sessions/public/${sessionId}/cancel`, {});
-              haptics.success();
-              setJustIssued(null);
-              await queryClient.invalidateQueries({ queryKey: ['my-sessions'] });
-              queryClient.invalidateQueries({ queryKey: ['public-session', sessionId] });
-            } catch (caught: unknown) {
-              haptics.error();
-              setError(caught instanceof Error ? caught.message : 'Could not give the place back. Try again.');
-            } finally {
-              setCancelling(false);
-            }
-          },
-        },
+        { text: 'Reschedule', onPress: () => giveBack(true) },
+        { text: 'Cancel booking', style: 'destructive', onPress: () => giveBack(false) },
       ],
     );
   };

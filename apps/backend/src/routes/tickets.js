@@ -36,6 +36,7 @@ const { isTestVerificationCode } = require('../utils/testVerificationCode');
 
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, branchClosedMessage, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
+const { activeClosure, closureMessage } = require('../utils/branchClosures');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 
@@ -232,7 +233,8 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
       'SELECT name, opening_time, closing_time, open_days FROM branches WHERE id = ?',
       [queue.branch_id]
     );
-    const closedMessage = branchClosedMessage(branchRows[0]);
+    const closure = await activeClosure(conn, queue.branch_id);
+    const closedMessage = closure ? closureMessage(closure) : branchClosedMessage(branchRows[0]);
     if (closedMessage) {
       await conn.rollback();
       return res.status(409).json({ error: closedMessage });
@@ -410,6 +412,12 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
       [branchId, service_id]
     );
     const queue = queues[0];
+
+    const closure = await activeClosure(conn, branchId);
+    if (closure) {
+      await conn.rollback();
+      return res.status(409).json({ error: closureMessage(closure) });
+    }
 
     const [countRows] = await conn.query(
       "SELECT COUNT(*) AS cnt FROM queue_tickets WHERE queue_id = ? AND status = 'waiting'",

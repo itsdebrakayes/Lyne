@@ -616,7 +616,8 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
         WHERE c.branch_id = ? AND sa.assignment_date BETWEEN ? AND ?`, [branchId, range.from, range.to]);
     const [shifts] = await pool.query(
       `SELECT sh.staff_id, DATE_FORMAT(sh.clocked_in_at, '%Y-%m-%d') AS day,
-              (TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) - COALESCE(sh.break_seconds, 0)) / 3600 AS hours
+              (TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) - COALESCE(sh.break_seconds, 0)) / 3600 AS hours,
+              sh.auto_closed
          FROM staff_shifts sh
         WHERE sh.branch_id = ? AND sh.clocked_out_at IS NOT NULL AND DATE(sh.clocked_in_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
     const [holidays] = await pool.query(
@@ -633,13 +634,19 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
     const [sessions] = await pool.query(
       `SELECT ss.id, ss.name, DATE_FORMAT(ss.session_date, '%Y-%m-%d') AS day, ss.capacity, ss.status,
               DATE_FORMAT(ss.starts_at, '%H:%i') AS planned_start, DATE_FORMAT(ss.ends_at, '%H:%i') AS planned_end,
+              DATE_FORMAT(ss.started_at, '%H:%i') AS actual_start, DATE_FORMAT(ss.ended_at, '%H:%i') AS actual_end,
+              TIMESTAMPDIFF(MINUTE, ss.starts_at, ss.started_at) AS start_late_min,
+              TIMESTAMPDIFF(MINUTE, ss.ended_at, ss.ends_at) AS ended_early_min,
+              ss.end_reason, ender.full_name AS ended_by_name,
               COUNT(r.id) AS registered, SUM(r.status = 'cancelled') AS cancelled,
               SUM(r.checked_in_at IS NOT NULL) AS checked_in
          FROM scheduled_sessions ss LEFT JOIN session_registrations r ON r.session_id = ss.id
+         LEFT JOIN staff ender ON ender.id = ss.ended_by
         WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND ss.status <> 'draft'
         GROUP BY ss.id ORDER BY ss.session_date`, [branchId, range.from, range.to]);
     const [appointments] = await pool.query(
       `SELECT r.status, r.checked_in_at, ss.appointment_late_minutes AS late_allowed,
+              EXISTS (SELECT 1 FROM session_registrations n WHERE n.rescheduled_from_id = r.id) AS moved,
               TIMESTAMPDIFF(MINUTE, TIMESTAMP(ss.session_date, r.appointment_time), r.checked_in_at) AS late_min
          FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
         WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND r.appointment_time IS NOT NULL`, [branchId, range.from, range.to]);
@@ -654,8 +661,21 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
       `SELECT COUNT(*) AS n, ROUND(AVG(tr.rating), 1) AS average, ROUND(AVG(tr.wait_ok) * 100, 1) AS wait_ok_pct
          FROM ticket_ratings tr WHERE tr.branch_id = ? AND DATE(tr.created_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
 
+    const [closures] = await pool.query(
+      `SELECT c.kind, c.reason, c.branch_id, DATE_FORMAT(c.starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(c.ends_on, '%Y-%m-%d') AS ends_on,
+              DATE_FORMAT(c.lifted_at, '%Y-%m-%d') AS lifted_on, st.full_name AS created_by_name
+         FROM branch_closures c LEFT JOIN staff st ON st.id = c.created_by
+        WHERE c.business_id = ? AND (c.branch_id IS NULL OR c.branch_id = ?) AND c.starts_on <= ? AND c.ends_on >= ?`,
+      [businessId, branchId, range.to, range.from]);
+    const [sittings] = await pool.query(
+      `SELECT cs.counter_id, cs.staff_id, DATE_FORMAT(cs.opened_at, '%Y-%m-%d') AS day,
+              HOUR(cs.opened_at) * 60 + MINUTE(cs.opened_at) AS from_min,
+              HOUR(cs.closed_at) * 60 + MINUTE(cs.closed_at) AS to_min, cs.end_reason
+         FROM counter_sittings cs JOIN counters c ON c.id = cs.counter_id
+        WHERE c.branch_id = ? AND cs.closed_at IS NOT NULL AND DATE(cs.opened_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+
     const report = buildBranchReport({
-      rows, period: range, previous, branch, services, staff, counters, assignments, shifts,
+      rows, period: range, previous, branch, services, staff, counters, assignments, shifts, closures, sittings,
       holidays, companyTarget, branchTarget, targetChanges, sessions, appointments, flags, ratings,
     });
     res.json({

@@ -229,12 +229,13 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
 
   /* ── 3 scope (written first: others refer to it) ── */
   const closed = r.days.filter((d: Any) => d.kind === 'closed').length;
+  const closureDays = r.days.filter((d: Any) => d.kind === 'closure');
   const holidays = r.days.filter((d: Any) => d.kind === 'holiday');
   const special = r.days.filter((d: Any) => d.kind === 'special');
   const evidence = `<p class="lead">How far can the figures in this report be trusted, and what do they cover? A manager presenting them needs to know before an executive asks.</p>
     <h3>What this report covers</h3>
     <p>This is the ${esc(ed.name)} for ${esc(r.branch.name)}, ${esc(r.org)}, covering ${span} in the ${esc(r.timezone)} timezone. Comparisons are with the preceding period of the same length, ${prevSpan}.${noPrevious ? ' No visits are recorded for that period, so no comparison can be made and none is implied.' : ''}</p>
-    <p>The period holds ${r.days.length} calendar days: ${r.operatingDays} with activity, ${closed} when the branch was closed by its usual schedule${holidays.length ? `, ${holidays.length} public holidays` : ''}${r.zeroDays ? `, and ${r.zeroDays} scheduled days with no activity` : ''}.${special.length ? ` ${special.length} days had activity outside the usual opening days, such as a session.` : ''} Scheduled hours are ${clock(r.branch.opening_time)} to ${clock(r.branch.closing_time)}. Actual opening times are not recorded separately.</p>
+    <p>The period holds ${r.days.length} calendar days: ${r.operatingDays} with activity, ${closed} when the branch was closed by its usual schedule${closureDays.length ? `, ${count(closureDays.length, 'day')} under a recorded closure or outage` : ''}${holidays.length ? `, ${holidays.length} public holidays` : ''}${r.zeroDays ? `, and ${r.zeroDays} scheduled days with no activity` : ''}.${special.length ? ` ${special.length} days had activity outside the usual opening days, such as a session.` : ''} Scheduled hours are ${clock(r.branch.opening_time)} to ${clock(r.branch.closing_time)}. Actual opening times are not recorded separately.</p>
     <p>${r.completeDays ? 'The period ends before today, so it holds only complete days and no partial day.' : 'The period includes today, which is incomplete.'} A visit belongs to the day of the line it joined, so a visit is counted once however late it finished, and no visit crosses the period boundary. Every chapter uses these dates and this branch only, and live queue conditions are not used.</p>
     <h3>How the counts differ</h3>
     <ul>
@@ -334,8 +335,8 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
     ${doc.table('Staff in this period', table(['Staff', 'Main service', 'Active days', 'Completed', 'Incomplete', 'Median at counter', 'Per staffed hour'], staffRows, 2), shortSpan)}
     ${edition === '7' ? '' : r.staff.map(profile).join('')}
     <h3>Counters</h3>
-    ${doc.table('Counter use', table(['Counter', 'Service', 'Days used', 'Served', 'Days seated', 'Officers seated'], r.counters.map((c: Any) => [esc(c.label), esc(c.service || '—'), n(c.daysUsed), n(c.served), n(c.seatedDays), n(c.officers)]), 2), shortSpan)}
-    <p>Opening and closing of individual counters within a day is not recorded, so periods when ${clients} waited with a suitable counter closed cannot be measured.${seatingKnown && r.uncovered.length ? ` On ${count(r.uncovered.length, 'service-day')} ${clients} joined a service with no seating record.` : ''}</p>`;
+    ${doc.table('Counter use', table(['Counter', 'Service', 'Days used', 'Served', 'Days seated', 'Officers seated', 'Open hours'], r.counters.map((c: Any) => [esc(c.label), esc(c.service || '—'), n(c.daysUsed), n(c.served), n(c.seatedDays), n(c.officers), has(c.openHours) ? n(c.openHours, 1) : 'Unavailable']), 2), shortSpan)}
+    <p>A counter is open from the first clock-in on it to the last clock-out, including anyone who picks it up in between, and it closes for a break unless someone else is on it.${seatingKnown && r.uncovered.length ? ` On ${count(r.uncovered.length, 'service-day')} ${clients} joined a service with no seating record.` : ''}</p>`;
 
   /* ── 8 demand ── */
   const peakHour = [...r.hourly].sort((a: Any, b: Any) => b.arrivals - a.arrivals)[0];
@@ -378,18 +379,19 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
 
   /* ── 11, 12 sessions and appointments ── */
   const sessionsCh = `<p class="lead">How did planned sittings run? In Lyne a session is a dated, capped sitting that ${clients} register for and then check in to on arrival, such as Saturday Banking.</p>
-    ${limit('Lyne keeps planned start and end times, but not actual ones, interruptions, or unfinished work at close, so delays and early closures cannot be measured.')}
-    ${doc.table('Sessions in this period', table(['Session', 'Date', 'Planned', 'Capacity', 'Registered', 'Cancelled', 'Checked in'], r.sessions.map((x: Any) => [esc(x.name), shortDay(x.day), `${clock(x.planned_start)} – ${clock(x.planned_end)}`, n(x.capacity), n(x.registered), n(x.cancelled), n(x.checked_in)]), 3), shortSpan)}`;
+    <p>A session starts when the first person checks in and ends when a supervisor or manager ends it. Ending before the planned time needs a reason, which is an interruption.</p>
+    ${doc.table('Sessions in this period', table(['Session', 'Date', 'Planned', 'Actual', 'Capacity', 'Registered', 'Cancelled', 'Checked in'], r.sessions.map((x: Any) => [esc(x.name), shortDay(x.day), `${clock(x.planned_start)} – ${clock(x.planned_end)}`, x.actual_start ? `${clock(x.actual_start)} – ${x.actual_end ? clock(x.actual_end) : 'not ended'}` : 'Not recorded', n(x.capacity), n(x.registered), n(x.cancelled), n(x.checked_in)]), 4), shortSpan)}
+    ${r.sessions.filter((x: Any) => x.end_reason).map((x: Any) => `<p><b>${esc(x.name)}</b> ended ${n(x.ended_early_min)} minutes early: ${esc(x.end_reason)}. Ended by ${esc(x.ended_by_name || 'staff')}.</p>`).join('')}`;
   const a = r.appointments;
   const apptCh = `<p class="lead">Did appointments work as promised, for the ${clients} and for the branch?</p>
-    ${a.scheduled ? `${doc.table('Appointments scheduled in this period', table(['Scheduled', 'Cancelled', 'Attended', 'Did not attend', 'Attendance', 'Late', 'Early'], [[n(a.scheduled), n(a.cancelled), n(a.attended), n(a.notAttended), pc(a.attendancePct), n(a.late), n(a.early)]], 0), shortSpan)}
-    <p>A cancelled appointment is one withdrawn before its day; a non-attendance never checked in. Late means after the session's allowed window. Reschedules are not recorded as such, so a moved booking appears as a cancellation and a new booking.</p>
+    ${a.scheduled ? `${doc.table('Appointments scheduled in this period', table(['Scheduled', 'Rescheduled', 'Cancelled', 'Attended', 'Did not attend', 'Attendance', 'Late', 'Early'], [[n(a.scheduled), n(a.rescheduled), n(a.cancelled), n(a.attended), n(a.notAttended), pc(a.attendancePct), n(a.late), n(a.early)]], 0), shortSpan)}
+    <p>A cancelled appointment is one withdrawn before its day; a non-attendance never checked in. Late means after the session's allowed window. A rescheduled appointment counts once here and its replacement counts as its own appointment on the new date.</p>
     ${doc.table('Appointments against walk-ins in the same services', table(['Measure', 'Appointments', 'Walk-ins'], [['Visits', n(a.ticket.arrivals), n(a.walkIns.arrivals)], ['Average wait', min(a.ticket.waitAvg), min(a.walkIns.waitAvg)], ['Completed', pc(a.ticket.completionPct), pc(a.walkIns.completionPct)], ['At counter', min(a.ticket.counterAvg), min(a.walkIns.counterAvg)]]), shortSpan)}` : '<p>No appointments were scheduled in this period, so there is nothing to report.</p>'}`;
 
   /* ── 13 exceptions ── */
   const exceptionsCh = `<p class="lead">What stood out, and what is known about why? A long queue does not establish its own cause.</p>
-    ${limit('Lyne records no outages, closures or staff shortages as events, so every entry here is an observation from the visit records. None has a confirmed cause, and no explanation, response or follow-up is recorded.')}
-    ${doc.table('Register of observed exceptions', table(['Date', 'Observation', 'Detail'], r.exceptions.map((e: Any) => [shortDay(e.day), esc(e.type), esc(e.detail)]), 9), shortSpan)}`;
+    <p>Closures, outages and sessions ended early carry the reason staff recorded. Everything else here is an observation from the visit records, with no confirmed cause.</p>
+    ${doc.table('Register of exceptions', table(['Date', 'Event', 'Basis', 'Detail'], r.exceptions.map((e: Any) => [shortDay(e.day), esc(e.type), e.confirmed ? 'Recorded by staff' : 'Observed', esc(e.detail)]), 9), shortSpan)}`;
 
   /* ── 14 forecast ── */
   const f = r.forecast;
@@ -420,7 +422,7 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
     return bits.length ? `${bits.join('; ')}.` : `An ordinary ${DOW[d.dow]}: nothing in the records sets it apart.`;
   };
   const dayTable = table(['Date', 'Status', 'Arrivals', 'Completed', 'Left', 'No-show', 'Avg wait', 'P90', 'Over target'], r.days.map((d: Any) => [shortDay(d.day),
-    { operating: 'Operating', special: 'Special opening', closed: 'Closed', holiday: `Holiday: ${esc(d.holiday)}`, zero: 'No activity recorded' }[d.kind as string], n(d.arrivals), n(d.completed), n(d.left), n(d.noShow),
+    { operating: 'Operating', special: 'Special opening', closed: 'Closed', closure: `${d.closure?.kind === 'outage' ? 'Outage' : 'Closure'}: ${esc(d.closure?.reason)}`, holiday: `Holiday: ${esc(d.holiday)}`, zero: 'No activity recorded' }[d.kind as string], n(d.arrivals), n(d.completed), n(d.left), n(d.noShow),
     d.arrivals ? min(d.waitAvg) : '—', d.arrivals ? min(d.waitP90) : '—', d.arrivals ? n(d.breaches) : '—']), 2);
   const dayProfile = (d: Any, cls: string) => `<div class="${cls}"><h3>${esc(longDay(d.day))}</h3>
     ${kpis([[n(d.arrivals), 'Arrivals'], [n(d.completed), 'Completed'], [min(d.waitAvg), 'Average wait'], [min(d.waitP90), 'P90 wait'], [n(d.breaches), 'Over target']])}

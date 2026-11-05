@@ -76,3 +76,10 @@ test('refuses on a day the branch does not open', () => {
 test('a branch with no closing time is not refused', () => {
   assert.equal(branchClosedMessage({ name: 'X', closing_time: null }, at(23, 0)), null);
 });
+
+const { closureMessage } = require('../src/utils/branchClosures');
+
+test('a closure says why, when it should reopen, and that notice can change', () => {
+  const text = closureMessage({ kind: 'outage', branch_name: 'Half Way Tree', reason: 'Power outage', reopens_label: 'Friday 6 November' });
+  assert.equal(text, 'Half Way Tree is out of service today: Power outage. It is expected to reopen on Friday 6 November, unless a further notice says otherwise.');
+});

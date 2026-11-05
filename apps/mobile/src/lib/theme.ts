@@ -281,7 +281,8 @@ export function waitPhrase(minutes?: number | string | null) {
  */
 export type OpenState = 'open' | 'about_to_open' | 'closed';
 export interface OpenInfo { state: OpenState; label: string; detail: string; }
-export interface BranchHours { openMin: number; closeMin: number; days: number[] }
+export interface BranchClosure { kind: 'closure' | 'outage'; reason: string; reopens_label: string }
+export interface BranchHours { openMin: number; closeMin: number; days: number[]; closure?: BranchClosure | null }
 
 const OPEN_MIN = 8 * 60 + 30;   // 8:30 AM
 const CLOSE_MIN = 16 * 60 + 30; // 4:30 PM
@@ -302,7 +303,13 @@ function clockLabel(mins: number) {
 
 // Turn a branch's raw DB hour fields into a BranchHours; falls back to default
 // when a branch hasn't had hours set yet (opening_time/closing_time/open_days).
-export function hoursFromBranch(b?: { opening_time?: string | null; closing_time?: string | null; open_days?: string | null } | null): BranchHours {
+export function hoursFromBranch(b?: { opening_time?: string | null; closing_time?: string | null; open_days?: string | null; closure?: BranchClosure | string | null } | null): BranchHours {
+  const closure = typeof b?.closure === 'string' ? JSON.parse(b.closure) as BranchClosure : b?.closure ?? null;
+  if (closure) return { ...hoursOf(b), closure };
+  return hoursOf(b);
+}
+
+function hoursOf(b?: { opening_time?: string | null; closing_time?: string | null; open_days?: string | null } | null): BranchHours {
   if (!b || !b.opening_time || !b.closing_time || !b.open_days) return DEFAULT_HOURS;
   const toMin = (t: string) => { const [h, m] = t.split(':'); return Number(h) * 60 + Number(m || 0); };
   const days = b.open_days.split(',').map(s => parseInt(s, 10)).filter(n => !Number.isNaN(n));
@@ -387,6 +394,8 @@ export function isBranchOpen(branch: { opening_time?: string | null; closing_tim
 export function branchOpenInfo(now: Date = new Date(), hours: BranchHours = DEFAULT_HOURS): OpenInfo {
   const day = now.getDay();
   const mins = now.getHours() * 60 + now.getMinutes();
+  /* A closure beats the usual hours: the branch said it is not open today. */
+  if (hours.closure) return { state: 'closed', label: hours.closure.kind === 'outage' ? 'Out of service' : 'Closed', detail: `${hours.closure.reason}. Expected back ${hours.closure.reopens_label}, unless a further notice says otherwise.` };
   if (hours.days.includes(day)) {
     if (mins < hours.openMin) {
       if (hours.openMin - mins <= SOON_WINDOW) return { state: 'about_to_open', label: 'About to open', detail: `Opens ${clockLabel(hours.openMin)} · be first in line` };

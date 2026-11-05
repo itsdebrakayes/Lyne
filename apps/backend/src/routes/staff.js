@@ -29,6 +29,8 @@ const {
   assertBranchAccess,
 } = require('../middleware/tenantAccess');
 const { toPublicStaff } = require('../utils/publicShapes');
+const { activeClosure, closureMessage } = require('../utils/branchClosures');
+const { openSitting, closeSitting } = require('../utils/counterSittings');
 
 const STAFF_AVAILABILITY_STATUSES = new Set(['active', 'on_leave', 'inactive']);
 
@@ -381,9 +383,12 @@ async function notifyLineOfClosedWindow(shift, staff, reason) {
 /** The caller's open shift, or null. Also used by the desk to decide its gate. */
 async function openShiftFor(staffId) {
   const [rows] = await pool.query(
-    `SELECT id, staff_id, branch_id, counter_id, clocked_in_at, on_break_since, break_seconds
-       FROM staff_shifts
-      WHERE staff_id = ? AND clocked_out_at IS NULL
+    `SELECT sh.id, sh.staff_id, sh.branch_id, sh.counter_id, sh.clocked_in_at, sh.on_break_since, sh.break_seconds,
+            c.label AS counter_label, svc.name AS service_name
+       FROM staff_shifts sh
+       LEFT JOIN counters c ON c.id = sh.counter_id
+       LEFT JOIN services svc ON svc.id = c.service_id
+      WHERE sh.staff_id = ? AND sh.clocked_out_at IS NULL
       LIMIT 1`,
     [staffId]
   );
@@ -396,6 +401,8 @@ function shiftView(shift) {
     on_shift: true,
     on_break: Boolean(shift.on_break_since),
     shift: {
+      counter_label: shift.counter_label || null,
+      service_name: shift.service_name || null,
       id: shift.id,
       clocked_in_at: shift.clocked_in_at,
       on_break_since: shift.on_break_since,
@@ -422,6 +429,13 @@ router.post('/me/clock-in', requireAuth, async (req, res) => {
     // Idempotent: pressing it twice is the same shift, not an error to explain.
     if (existing) return res.json(shiftView(existing));
 
+    /* Nobody clocks in to a closed branch. Managers and executives can, because
+       a closure is often exactly when they are needed. */
+    if (!['manager', 'executive'].includes(req.dbStaff.role_name)) {
+      const closure = await activeClosure(pool, req.dbStaff.branch_id);
+      if (closure) return res.status(409).json({ error: closureMessage(closure) });
+    }
+
     /* Record the desk they are actually on, from today's roster. Kept on the
        shift even if the roster moves them later, so the record says where they
        were rather than where they ended up. */
@@ -435,7 +449,9 @@ router.post('/me/clock-in', requireAuth, async (req, res) => {
        VALUES (?, ?, ?, ?, NOW())`,
       [uuidv4(), req.dbStaff.id, req.dbStaff.branch_id || null, seat[0]?.counter_id || null]
     );
-    res.status(201).json(shiftView(await openShiftFor(req.dbStaff.id)));
+    const opened = await openShiftFor(req.dbStaff.id);
+    await openSitting(pool, { counterId: opened?.counter_id, staffId: req.dbStaff.id, shiftId: opened?.id });
+    res.status(201).json(shiftView(opened));
   } catch (err) {
     /* uk_one_open_shift. Two presses that raced each other are still one shift,
        so this reads the winner rather than reporting a collision at somebody
@@ -456,6 +472,7 @@ router.post('/me/break', requireAuth, async (req, res) => {
     if (shift.on_break_since) return res.json(shiftView(shift));
 
     await pool.query('UPDATE staff_shifts SET on_break_since = NOW() WHERE id = ?', [shift.id]);
+    await closeSitting(pool, req.dbStaff.id, 'break');
     // Not awaited: a break must not fail because a notification could not send.
     notifyLineOfClosedWindow(shift, req.dbStaff, 'break');
     res.json(shiftView(await openShiftFor(req.dbStaff.id)));
@@ -482,6 +499,7 @@ router.post('/me/resume', requireAuth, async (req, res) => {
         WHERE id = ? AND on_break_since IS NOT NULL`,
       [shift.id]
     );
+    await openSitting(pool, { counterId: shift.counter_id, staffId: req.dbStaff.id, shiftId: shift.id });
     res.json(shiftView(await openShiftFor(req.dbStaff.id)));
   } catch (err) {
     console.error('resume error:', err);
@@ -508,6 +526,7 @@ router.post('/me/clock-out', requireAuth, async (req, res) => {
     /* Only if they were actually available. Clocking out from a break closed
        nothing new — the window was already dark, and saying so twice is how a
        useful alert becomes noise. */
+    await closeSitting(pool, req.dbStaff.id, 'clock_out');
     if (!shift.on_break_since) notifyLineOfClosedWindow(shift, req.dbStaff, 'clock_out');
     res.json({ on_shift: false, on_break: false, shift: null });
   } catch (err) {

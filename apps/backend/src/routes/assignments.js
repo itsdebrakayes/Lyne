@@ -9,6 +9,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { openSitting, closeSitting } = require('../utils/counterSittings');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
@@ -90,6 +91,29 @@ router.post('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executi
       [id, staff_id, counter_id, date, shift_start || null, shift_end || null, req.dbStaff?.id || null]
     );
 
+    /* Moved while on shift: the person's desk changes now, the old counter closes
+       unless somebody else is on it, and they are told, so nobody finds out by
+       noticing the wrong line on their screen. */
+    const [[now]] = await pool.query('SELECT ? = CURDATE() AS today', [date]);
+    if (Number(now?.today) === 1) {
+      const [open] = await pool.query(
+        'SELECT id, counter_id, on_break_since FROM staff_shifts WHERE staff_id = ? AND clocked_out_at IS NULL LIMIT 1', [staff_id]);
+      const shift = open?.[0];
+      if (shift && shift.counter_id !== counter_id) {
+        await closeSitting(pool, staff_id, 'moved');
+        await pool.query('UPDATE staff_shifts SET counter_id = ? WHERE id = ?', [counter_id, shift.id]);
+        if (!shift.on_break_since) await openSitting(pool, { counterId: counter_id, staffId: staff_id, shiftId: shift.id });
+        const [[seat]] = await pool.query(
+          `SELECT c.label, s.name AS service_name FROM counters c JOIN services s ON s.id = c.service_id WHERE c.id = ?`, [counter_id]);
+        if (seat && staff_id !== req.dbStaff?.id) {
+          await pool.query(
+            `INSERT INTO notifications (id, user_id, staff_id, sent_by_staff_id, ticket_id, notification_type, channel, message, is_read, sent_at)
+             VALUES (?, NULL, ?, ?, NULL, 'assignment_request', 'in_app', ?, FALSE, NOW())`,
+            [uuidv4(), staff_id, req.dbStaff?.id || null, `You have been moved to ${seat.label} (${seat.service_name}).`]);
+        }
+      }
+    }
+
     const [created] = await pool.query('SELECT * FROM staff_assignments WHERE staff_id = ? AND assignment_date = ?', [staff_id, date]);
     res.status(201).json(created[0]);
   } catch (err) {
@@ -113,7 +137,9 @@ router.delete('/:id', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
     if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, existing[0].branch_id)) {
       return res.status(403).json({ error: 'You do not have access to this assignment.' });
     }
+    const [[seat]] = await pool.query('SELECT staff_id, assignment_date = CURDATE() AS today FROM staff_assignments WHERE id = ?', [req.params.id]);
     await pool.query('DELETE FROM staff_assignments WHERE id = ?', [req.params.id]);
+    if (Number(seat?.today) === 1) await closeSitting(pool, seat.staff_id, 'unseated');
     res.json({ message: 'Assignment removed.' });
   } catch (err) {
     console.error(err);

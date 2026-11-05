@@ -122,3 +122,33 @@ test('the case backlog reconciles from opening to closing', () => {
   const c = r.cases;
   assert.equal(c.opening + c.opened - c.cleared, c.closing);
 });
+
+test('a recorded closure names the day and goes in the register as confirmed', () => {
+  const r = buildBranchReport({
+    ...base, rows: [],
+    closures: [{ kind: 'outage', reason: 'Power outage', starts_on: '2026-11-03', ends_on: '2026-11-03', branch_id: 'b' }],
+  });
+  assert.equal(r.days.find((d) => d.day === '2026-11-03').kind, 'closure');
+  assert.equal(r.exceptions[0].confirmed, true);
+});
+
+test('a counter handed from one person to another stays open once', () => {
+  const r = buildBranchReport({
+    ...base, rows: [visit('2026-11-02')], counters: [{ id: 'c', label: 'Teller 1', service_id: 'teller' }],
+    sittings: [
+      { counter_id: 'c', staff_id: 'a', day: '2026-11-02', from_min: 480, to_min: 720 },
+      { counter_id: 'c', staff_id: 'b', day: '2026-11-02', from_min: 690, to_min: 780 },
+    ],
+  });
+  assert.equal(r.counters[0].openHours, 5);
+});
+
+test('a moved appointment counts as a move, not a cancellation', () => {
+  const r = buildBranchReport({
+    ...base, rows: [],
+    appointments: [{ status: 'rescheduled', moved: 1 }, { status: 'cancelled', moved: 0 }, { status: 'checked_in', moved: 0, checked_in_at: 'x', late_min: 0 }],
+  });
+  assert.equal(r.appointments.rescheduled, 1);
+  assert.equal(r.appointments.cancelled, 1);
+  assert.equal(r.appointments.attendancePct, 100);
+});
