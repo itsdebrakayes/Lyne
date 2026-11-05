@@ -320,7 +320,8 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
   /* ── 7 staff ── */
   /* With seating this patchy, a day without a seat says nothing about the counter. */
   const seatingKnown = (r.coverage.find((v: Any) => v.record === 'Counter seating')?.pct ?? 0) >= 80;
-  const staffRows = r.staff.map((x: Any) => [esc(x.name), esc(x.mainService || '—'), n(x.activeDays), n(x.completed), n(x.incomplete), min(x.counterMedian), has(x.perStaffedHour) ? n(x.perStaffedHour, 1) : 'Unavailable']);
+  const hrs = (v: unknown) => (has(v) ? n(v, 1) : 'Unavailable');
+  const staffRows = r.staff.map((x: Any) => [esc(x.name), esc(x.mainService || '—'), n(x.activeDays), n(x.completed), n(x.incomplete), min(x.counterMedian), hrs(x.shiftHours), hrs(x.breakHours), hrs(x.staffedHours), hrs(x.perStaffedHour)]);
   const profile = (x: Any) => {
     const peerText = x.peerCount
       ? `Compared with ${x.peerCount} other ${x.peerCount === 1 ? 'officer' : 'officers'} mainly on ${esc(x.mainService)}, median time at the counter was ${min(x.counterMedian)} against ${min(x.peerCounterMedian)}.`
@@ -328,11 +329,11 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
     const trend = x.weeks.length >= 3 ? `Completed visits by week: ${x.weeks.map((w: Any) => n(w.completed)).join(', ')}.` : '';
     return `<h3>${esc(x.name)}</h3>
       <p>${n(x.completed)} completed and ${n(x.incomplete)} incomplete over ${n(x.activeDays)} active days${x.seatedDays ? `, seated on ${n(x.seatedDays)}` : ''}. Service mix: ${esc(list(x.mix.slice(0, 4).map((m: Any) => `${m.label} (${n(m.count)})`)))}. Counters used: ${esc(list(x.counters.slice(0, 4).map((c: Any) => `${c.label} (${n(c.count)})`)))}.</p>
-      <p>${peerText} ${trend} Staffed hours: ${has(x.staffedHours) ? `${n(x.staffedHours, 1)}, or ${n(x.perStaffedHour, 1)} visits per staffed hour` : 'unavailable, because shift records are too incomplete to use as a denominator'}. ${x.reasons.length ? `Unfinished work: ${esc(list(x.reasons.map((a: Any) => `${a.label} (${n(a.count)})`)))}.` : ''}</p>`;
+      <p>${peerText} ${trend} ${has(x.staffedHours) ? `${n(x.shiftHours, 1)} hours on shift, less ${n(x.breakHours, 1)} hours of breaks, leaves ${n(x.staffedHours, 1)} hours available, or ${n(x.perStaffedHour, 1)} visits per available hour.` : 'Hours are unavailable, because shift records are too incomplete to use.'} ${x.reasons.length ? `Unfinished work: ${esc(list(x.reasons.map((a: Any) => `${a.label} (${n(a.count)})`)))}.` : ''}</p>`;
   };
   const staffCh = `<p class="lead">Who carried the work, on which services, and does anyone need support? This is not a ranking: counts and speed depend on the service, and a queue's wait is not the fault of the person who eventually served it.</p>
-    ${limit('Attendance, breaks and idle time are not inferred from gaps between visits. They are stated only where shift records support them.')}
-    ${doc.table('Staff in this period', table(['Staff', 'Main service', 'Active days', 'Completed', 'Incomplete', 'Median at counter', 'Per staffed hour'], staffRows, 2), shortSpan)}
+    ${limit('Hours on shift run from clock-in to clock-out and match attendance. Hours available are the same less breaks, and workload is measured against them, so taking a break never makes someone look slower. Idle time is not inferred from gaps between visits.')}
+    ${doc.table('Staff in this period', table(['Staff', 'Main service', 'Active days', 'Completed', 'Incomplete', 'Median at counter', 'Hours on shift', 'Break hours', 'Hours available', 'Per available hour'], staffRows, 2), shortSpan)}
     ${edition === '7' ? '' : r.staff.map(profile).join('')}
     <h3>Counters</h3>
     ${doc.table('Counter use', table(['Counter', 'Service', 'Days used', 'Served', 'Days seated', 'Officers seated', 'Open hours'], r.counters.map((c: Any) => [esc(c.label), esc(c.service || '—'), n(c.daysUsed), n(c.served), n(c.seatedDays), n(c.officers), has(c.openHours) ? n(c.openHours, 1) : 'Unavailable']), 2), shortSpan)}
@@ -375,6 +376,8 @@ export function buildBranchReportDoc(r: Any, edition: Edition, opts: { managerNa
     ${limit('A case here is a person flagged for follow-up. Cases have no due date. Backlog figures count flags raised and cleared.')}
     ${doc.table('Flag backlog movement', table(['Opening', 'Raised', 'Cleared', 'Closing'], [[n(c.opening), n(c.opened), n(c.cleared), n(c.closing)]], 0), shortSpan)}
     <p>The backlog moved from ${n(c.opening)} to ${n(c.closing)}: ${n(c.opened)} flags were raised and ${n(c.cleared)} cleared (${n(c.clearedFromPeriod)} raised in this period, ${n(c.clearedOlder)} older). Median age of open flags is ${has(c.medianAge) ? count(c.medianAge, 'day') : 'unavailable'}. ${has(c.resolutionMedian) ? `Cleared flags took a median of ${count(c.resolutionMedian, 'day')}.` : ''}</p>
+    <h3>Supervisors watching cases</h3>
+    <p>${count(c.watched, 'case')} ${c.watched === 1 ? 'was' : 'were'} being watched at the end of the period${c.watchedBy.length ? ` (${esc(list(c.watchedBy.map((w: Any) => `${w.label}: ${n(w.count)}`)))})` : ''}. ${n(c.takenUp)} ${c.takenUp === 1 ? 'was' : 'were'} taken on during it and ${count(c.transfers, 'transfer')} took place.</p>
     <p>${n(c.repeatUnresolvedPeople)} identifiable people had three or more visits that did not complete. Individual notes and details are left out of this export.</p>`;
 
   /* ── 11, 12 sessions and appointments ── */

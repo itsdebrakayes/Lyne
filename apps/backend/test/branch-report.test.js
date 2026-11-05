@@ -176,3 +176,29 @@ test('a real gap is still a closure', () => {
   });
   assert.equal(r.counters[0].openHours, 7.3); // 7h 15m, to one decimal
 });
+
+test('hours on shift, breaks and hours available are all reported, and workload uses available', () => {
+  const day = '2026-11-02';
+  const r = buildBranchReport({
+    ...base,
+    rows: Array(8).fill(visit(day, { served_by: 'a' })),
+    staff: [{ id: 'a', full_name: 'Officer A' }],
+    shifts: [{ staff_id: 'a', day, hours: 7, shift_hours: 8, break_hours: 1 }],
+  });
+  const a = r.staff[0];
+  assert.deepEqual([a.shiftHours, a.breakHours, a.staffedHours], [8, 1, 7]);
+  assert.equal(a.perStaffedHour, 1.1);
+});
+
+test('the report counts cases watched at the end of the period and transfers in it', () => {
+  const r = buildBranchReport({
+    ...base, rows: [],
+    watches: [
+      { supervisor_name: 'S1', started_day: '2026-11-02', ended_day: '2026-11-03', end_reason: 'transferred' },
+      { supervisor_name: 'S2', started_day: '2026-11-03', ended_day: null, end_reason: null },
+    ],
+  });
+  assert.equal(r.cases.watched, 1);
+  assert.equal(r.cases.transfers, 1);
+  assert.equal(r.cases.takenUp, 2);
+});

@@ -311,7 +311,11 @@ function buildBranchReport(input) {
     const served = xs.filter((r) => r.status === 'served');
     const shifts = shiftsByStaff.get(id) || [];
     const seats = seats_.filter((a) => a.staff_id === id);
+    /* Two honest answers to "how long": time on shift matches attendance, and time
+       available (the same less breaks) is what workload is measured against. */
     const staffedHours = shifts.length ? round(shifts.reduce((t, x) => t + Number(x.hours || 0), 0)) : null;
+    const shiftHours = shifts.length ? round(shifts.reduce((t, x) => t + Number(x.shift_hours || 0), 0)) : null;
+    const breakHours = shifts.length ? round(shifts.reduce((t, x) => t + Number(x.break_hours || 0), 0)) : null;
     const counterHours = served.reduce((t, r) => t + (minutes(r.service_min) || 0), 0) / 60;
     return {
       id, name: person.full_name || 'Unknown', role: person.role || null, ...s(xs),
@@ -319,7 +323,7 @@ function buildBranchReport(input) {
       mix: dist(xs, (r) => r.service_id, Object.fromEntries(serviceName)),
       counters: dist(xs.filter((r) => r.counter_id), (r) => r.counter_id, Object.fromEntries([...counterInfo].map(([k, v]) => [k, v.label]))),
       seatedDays: new Set(seats.map((a) => a.day)).size,
-      staffedHours, counterHours: round(counterHours),
+      staffedHours, shiftHours, breakHours, counterHours: round(counterHours),
       perStaffedHour: staffedHours ? round(served.length / staffedHours) : null,
       weeks: [...groupBy(xs, (r) => weekOf(r.day))].sort((a, b) => a[0].localeCompare(b[0]))
         .map(([from, w]) => ({ from, ...s(w) })),
@@ -430,6 +434,7 @@ function buildBranchReport(input) {
 
   /* ── cases ────────────────────────────────────────────── */
   const flags = input.flags || [];
+  const watches = input.watches || [];
   const atStart = flags.filter((f) => f.created_day < period.from && (!f.cleared_day || f.cleared_day >= period.from));
   const opened = flags.filter((f) => f.created_day >= period.from && f.created_day <= period.to);
   const cleared = flags.filter((f) => f.cleared_day && f.cleared_day >= period.from && f.cleared_day <= period.to);
@@ -444,6 +449,11 @@ function buildBranchReport(input) {
     medianAge: round(percentile(closing.map((f) => Number(f.age_days)), 50)),
     resolutionMedian: round(percentile(cleared.map((f) => Number(f.resolve_days)).filter((x) => !Number.isNaN(x)), 50)),
     repeatUnresolvedPeople: unresolvedByPerson,
+    /* Supervisors looking after cases. */
+    watched: watches.filter((w) => !w.ended_day || w.ended_day > period.to).filter((w) => w.started_day <= period.to).length,
+    watchedBy: dist(watches.filter((w) => w.started_day <= period.to && (!w.ended_day || w.ended_day > period.to)), (w) => w.supervisor_name),
+    transfers: watches.filter((w) => ['transferred', 'reassigned'].includes(w.end_reason) && w.ended_day >= period.from && w.ended_day <= period.to).length,
+    takenUp: watches.filter((w) => w.started_day >= period.from && w.started_day <= period.to).length,
   };
 
   /* ── exceptions: what the records show, never why ─────── */

@@ -617,7 +617,9 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
     const [shifts] = await pool.query(
       `SELECT sh.staff_id, DATE_FORMAT(sh.clocked_in_at, '%Y-%m-%d') AS day,
               (TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) - COALESCE(sh.break_seconds, 0)) / 3600 AS hours,
-              sh.auto_closed
+              sh.auto_closed,
+              TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) / 3600 AS shift_hours,
+              COALESCE(sh.break_seconds, 0) / 3600 AS break_hours
          FROM staff_shifts sh
         WHERE sh.branch_id = ? AND sh.clocked_out_at IS NOT NULL AND DATE(sh.clocked_in_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
     const [holidays] = await pool.query(
@@ -674,8 +676,14 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
          FROM counter_sittings cs JOIN counters c ON c.id = cs.counter_id
         WHERE c.branch_id = ? AND cs.closed_at IS NOT NULL AND DATE(cs.opened_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
 
+    const [watches] = await pool.query(
+      `SELECT cw.user_id, st.full_name AS supervisor_name, DATE_FORMAT(cw.started_at, '%Y-%m-%d') AS started_day,
+              DATE_FORMAT(cw.ended_at, '%Y-%m-%d') AS ended_day, cw.end_reason
+         FROM case_watches cw JOIN staff st ON st.id = cw.supervisor_id
+        WHERE cw.business_id = ? AND st.branch_id = ?`, [businessId, branchId]);
+
     const report = buildBranchReport({
-      rows, period: range, previous, branch, services, staff, counters, assignments, shifts, closures, sittings,
+      watches, rows, period: range, previous, branch, services, staff, counters, assignments, shifts, closures, sittings,
       holidays, companyTarget, branchTarget, targetChanges, sessions, appointments, flags, ratings,
     });
     res.json({
@@ -1477,7 +1485,9 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
               SUM(q.queue_date >= CURDATE() - INTERVAL 7 DAY)                       AS visits_7d,
               (SELECT GROUP_CONCAT(DISTINCT pf.flag ORDER BY pf.flag)
                  FROM patient_flags pf
-                WHERE pf.user_id = u.id AND pf.business_id = b.business_id AND pf.cleared_at IS NULL) AS flags
+                WHERE pf.user_id = u.id AND pf.business_id = b.business_id AND pf.cleared_at IS NULL) AS flags,
+              (SELECT st.full_name FROM case_watches cw JOIN staff st ON st.id = cw.supervisor_id
+                WHERE cw.user_id = u.id AND cw.business_id = b.business_id AND cw.ended_at IS NULL LIMIT 1) AS watched_by
          FROM queue_tickets t
          JOIN queues   q ON q.id = t.queue_id
          JOIN branches b ON b.id = q.branch_id

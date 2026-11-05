@@ -33,10 +33,12 @@ import {
   AlertCircle, ArrowLeft, CalendarClock, ChevronRight, Mail, Phone, RotateCcw, User,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
+import { CaseWatch } from './CaseWatch';
 
 type Pattern = 'same_service' | 'multiple_services';
 
 interface CaseRow {
+  watched_by?: string | null;
   user_id: string;
   full_name: string;
   email: string | null;
@@ -232,6 +234,7 @@ export function CustomerCasesWorkspace({ businessId, branchId, window: win }: {
                     {c.resolved > 0 && <span className="qc-dim"> · {c.resolved} served</span>}
                   </span>
                   <span className="qc-tags">
+                    {c.watched_by && <span className="qc-tag">Watched by {c.watched_by}</span>}
                     {c.flags?.includes('priority') && <span className="qc-tag qc-tag--hot">Priority</span>}
                     {c.flags?.includes('watch') && <span className="qc-tag">Watch</span>}
                     {c.reasons?.includes('frequent_this_week') && (
@@ -332,6 +335,8 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
               </div>
             ))}
           </div>
+
+          <CaseWatch userId={userId} />
 
           <h3 className="qc-h3">Who served them</h3>
           {servedBy(d.visits).length ? (
