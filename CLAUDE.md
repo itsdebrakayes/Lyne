@@ -29,7 +29,9 @@ to `production` and `staging` on 13 October 2026. Old branches are kept only as
    If a merge into `production` brings one in (for example as a modify/delete
    conflict), delete it in the merge commit.
    `database/showcase/*.sql` is different: production-safe example organisations
-   (fictional, labelled, no logins or people), loaded on the owner's say-so.
+   (fictional, labelled, no logins or people), loaded on the owner's say-so. So is
+   `apps/backend/scripts/seed-showcase-history.js`: Lignum's invented visits and
+   login-less staff, also on the owner's say-so.
 5. **Never commit secrets:** `.env*` (except `.env.example`), `secrets/`, `*.p8`, `*.p12`,
    keystores, `backups/`. Never print a secret in a commit message, log or chat.
 6. **Never create real-agency data in anything public.** The demo agencies (TAJ, PICA,
