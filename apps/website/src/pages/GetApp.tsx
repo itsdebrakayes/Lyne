@@ -6,14 +6,19 @@
  * link that goes nowhere; the day its URL is set, it becomes a button.
  */
 import { motion } from "framer-motion";
-import { Apple, ArrowUpRight, Check, Play } from "lucide-react";
+import { Check } from "lucide-react";
 import { MOBILE_STORES } from "@/lib/mobileRelease";
 import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
 import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 
+/* The stores' own badges, unaltered, as both companies' guidelines require:
+   public/badges/app-store-badge.svg from developer.apple.com and
+   public/badges/google-play-badge.png from play.google.com/intl/en_us/badges.
+   Google's PNG carries its own clear space, so it is drawn taller and pulled in
+   by the same amount to sit at the same visual height as Apple's. */
 const STORE_COPY = {
-  ios: { icon: Apple, name: "App Store", sub: "For iPhone and iPad" },
-  android: { icon: Play, name: "Google Play", sub: "For Android phones" },
+  ios: { badge: "/badges/app-store-badge.svg", alt: "Download on the App Store", sub: "For iPhone and iPad", height: 56, pull: 0 },
+  android: { badge: "/badges/google-play-badge.png", alt: "Get it on Google Play", sub: "For Android phones", height: 83, pull: -13.5 },
 } as const;
 
 const INCLUDED = [
@@ -50,38 +55,37 @@ const GetApp = ({ mobile = false }: { mobile?: boolean }) => {
             </p>
           </motion.div>
 
-          <div className="mx-auto mt-12 grid max-w-3xl gap-5 sm:grid-cols-2">
+          <div className="mx-auto mt-10 flex max-w-3xl flex-wrap items-start justify-center gap-x-8 gap-y-6">
             {MOBILE_STORES.map((store) => {
               const copy = STORE_COPY[store.id];
-              const Icon = copy.icon;
-              const body = (
-                <>
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-white/10 bg-lyne-purple/15 text-lyne-lavender">
-                    <Icon className="h-6 w-6" />
-                  </span>
-                  <span className="flex-1 text-left">
-                    <span className="block text-xs text-lyne-lavender/60">
-                      {store.available ? "Download on" : "Coming soon to"}
-                    </span>
-                    <span className="block text-xl font-bold tracking-tight">{copy.name}</span>
-                    <span className="block text-xs text-lyne-lavender/55">{copy.sub}</span>
-                  </span>
-                  {store.available && <ArrowUpRight className="h-5 w-5 text-lyne-lavender/70" />}
-                </>
+              const badge = (
+                <img
+                  src={copy.badge}
+                  alt={copy.alt}
+                  style={{ height: copy.height, margin: `${copy.pull}px 0` }}
+                  className="w-auto"
+                />
               );
-              return store.available ? (
-                <a
-                  key={store.id}
-                  href={store.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="panel panel-hover flex items-center gap-4 p-6 ring-1 ring-lyne-purple/30 transition-transform hover:scale-[1.01]"
-                >
-                  {body}
-                </a>
-              ) : (
-                <div key={store.id} aria-disabled="true" className="panel flex items-center gap-4 p-6 opacity-60">
-                  {body}
+              return (
+                <div key={store.id} className="flex flex-col items-center gap-3 text-center">
+                  {store.available ? (
+                    <a
+                      href={store.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={copy.alt}
+                      className="rounded-xl transition-transform hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lyne-lavender"
+                    >
+                      {badge}
+                    </a>
+                  ) : (
+                    /* Not live yet: the real badge, not a link, and a plain
+                       label under it. The badge itself is never altered. */
+                    <span aria-disabled="true">{badge}</span>
+                  )}
+                  <span className="text-sm text-lyne-lavender/60">
+                    {store.available ? copy.sub : `Coming soon · ${copy.sub.replace("For ", "for ")}`}
+                  </span>
                 </div>
               );
             })}
