@@ -35,7 +35,7 @@ import { Seg, Bars, Toggle, EmptyTab } from './ExecTabsQX';
 import MessageComposer from '../../components/MessageComposer';
 import { fmtN } from '../insights';
 import { replayTour } from '../../hooks/useTour';
-import { buildBranchReport } from '../reportDoc';
+import { buildBranchReportDoc, stripPageMarks, type Edition } from '../branchReportDoc';
 import { ReportDownloadButtons, ReportPreview } from './ReportExport';
 
 /* ══════════════════════ window cover ══════════════════════
@@ -78,7 +78,7 @@ export type MgrTabData = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
   /** The Reports tab's own period and the data fetched for it. */
-  report?: { period: string; setPeriod: (p: string) => void; data: MgrTabData; loaded: number; total: number };
+  report?: { period: string; setPeriod: (p: string) => void; evidence?: unknown; failed?: boolean };
   /** "Today", or the dates selected. Named on any figure that follows the period. */
   windowLabel?: string;
   branchName: string; org: string; managerName: string;
@@ -696,69 +696,53 @@ export function MgrTargetsTab() {
 
 /* ══════════════════════ 5 · REPORTS ══════════════════════ */
 /**
- * A branch pack, not the company one. Shorter on purpose — a manager presents
- * this at a branch meeting, so it is the floor, the lines and the people, and
- * nothing about other branches.
+ * The branch report, to docs/reports/BRANCH_REPORT_REQUIREMENTS.md. Three editions,
+ * each its own document, built from evidence the server computes for that period.
+ * Covers this branch only, and complete days only.
  */
-const MGR_SECTIONS: Array<{ key: string; title: string; blurb: string; pages: number; locked?: boolean }> = [
-  { key: 'cover', title: 'Cover And Contents', blurb: 'Title page, period, and what is inside', pages: 2, locked: true },
-  { key: 'summary', title: 'Branch Summary', blurb: 'How the branch performed, in plain English', pages: 2, locked: true },
-  { key: 'targets', title: 'Against Targets', blurb: 'Each target, where the branch landed, and the gap', pages: 1 },
-  { key: 'services', title: 'Service Lines', blurb: 'Every line, its wait, and whether it was staffed for it', pages: 2 },
-  { key: 'staff', title: 'Staff And Counters', blurb: 'Who worked, how many they saw, counter cover through the day', pages: 2 },
-  { key: 'busy', title: 'Busy Times', blurb: 'The hour-by-hour pattern for this branch', pages: 1 },
-  { key: 'actions', title: 'What To Change', blurb: 'Recommendations for the coming period', pages: 1 },
-  { key: 'appendix', title: 'Appendix — Daily Figures', blurb: 'The underlying numbers, day by day', pages: 1 },
-];
+const REPORT_EDITIONS: Record<Edition, { label: string; about: string }> = {
+  7: { label: 'Last 7 Days', about: 'Operational review: recent problems and next week\'s actions.' },
+  30: { label: 'Last 30 Days', about: 'Management review: what explains this period, with a page for each operating day.' },
+  90: { label: 'Last 90 Days', about: 'Performance review: what is changing persistently, week by week.' },
+};
 
 export function MgrReportsTab() {
   const live = useMgr();
   const [ownPeriod, setOwnPeriod] = useState('30');
-  const period = live.report?.period ?? ownPeriod;
-  const setPeriod = live.report?.setPeriod ?? setOwnPeriod;
-  const d = live.report?.data ?? live;
-  const loaded = live.report?.loaded ?? 1;
-  const total = live.report?.total ?? 1;
-  const ready = loaded >= total;
-  const [on, setOn] = useState<string[]>(() => MGR_SECTIONS.map((s) => s.key));
-  const pages = MGR_SECTIONS.filter((s) => on.includes(s.key)).reduce((t, s) => t + s.pages, 0);
-  const periodLabel = ({ '7': 'Last 7 Days', '30': 'Last 30 Days', '90': 'Last 90 Days' } as Record<string, string>)[period] || '';
-  const html = useMemo(() => buildBranchReport(d, { sections: on, periodLabel }), [d, on, periodLabel]);
-  const filename = `Branch Report - ${d.branchName} - ${d.generatedOn}`;
+  const edition = (live.report?.period ?? ownPeriod) as Edition;
+  const setEdition = live.report?.setPeriod ?? setOwnPeriod;
+  const evidence = live.report?.evidence;
+  const built = useMemo(
+    () => (evidence ? buildBranchReportDoc(evidence, edition, { managerName: live.managerName, generatedOn: live.generatedOn }) : null),
+    [evidence, edition, live.managerName, live.generatedOn],
+  );
+  const preview = useMemo(() => (built ? stripPageMarks(built.html) : ''), [built]);
+  const filename = `Branch Report - ${live.branchName} - ${REPORT_EDITIONS[edition].label} - ${live.generatedOn}`;
 
   return (
     <div className="qx-grid">
-      <Card span={6} title="Build A Branch Report"
-        cap="Covers this branch only. Nothing about other branches appears in it.">
+      <Card span={5} title="Build A Branch Report"
+        cap="Covers this branch only, and complete days only: it ends yesterday.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
-            <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Period</div>
-            <Seg value={period} onChange={setPeriod}
+            <div className="qx-navlabel" style={{ marginBottom: 9, padding: 0 }}>Edition</div>
+            <Seg value={edition} onChange={setEdition}
               options={[['7', 'Last 7 Days'], ['30', 'Last 30 Days'], ['90', 'Last 90 Days']]} />
+            <p style={{ fontSize: 12, color: 'var(--c-dim)', fontWeight: 600, margin: '10px 0 0' }}>{REPORT_EDITIONS[edition].about}</p>
           </div>
-          <div>
-            <div className="qx-navlabel" style={{ marginBottom: 4, padding: 0 }}>Sections Included</div>
-            {MGR_SECTIONS.map((s) => {
-              const isOn = on.includes(s.key);
-              return (
-                <div className="qx-secrow" key={s.key}>
-                  <button type="button" className="qx-secbox" aria-pressed={isOn} aria-label={s.title} disabled={s.locked}
-                    onClick={() => !s.locked && setOn((p) => (p.includes(s.key) ? p.filter((x) => x !== s.key) : [...p, s.key]))}>
-                    {isOn ? <Check size={12} /> : null}
-                  </button>
-                  <div><b>{s.title}</b><small>{s.blurb}</small></div>
-                  <span className="qx-secpages">{isOn ? `${s.pages} ${s.pages === 1 ? 'page' : 'pages'}` : '—'}</span>
-                </div>
-              );
-            })}
-          </div>
-          <ReportDownloadButtons html={html} filename={filename} disabled={!ready}
-            trailing={<span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 700, marginLeft: 'auto' }}>about {pages} pages</span>} />
+          {live.report?.failed ? (
+            <Note icon={AlertTriangle} tone="bad" title="The Report Could Not Be Built"
+              body="The figures for this period did not load. Nothing is wrong with your data; try again in a moment." />
+          ) : null}
+          <ReportDownloadButtons html={built?.html ?? ''} filename={filename} disabled={!built} />
+          <p style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 600, margin: 0 }}>
+            Length follows the branch: its services, staff and operating days. The PDF has page numbers in its contents; Word numbers its own pages.
+          </p>
         </div>
       </Card>
 
-      <Card span={6} title="Preview" cap="The whole document, exactly as it downloads">
-        <ReportPreview html={html} title="Branch report preview" loaded={loaded} total={total} />
+      <Card span={7} title="Preview" cap="The whole document, as it downloads">
+        <ReportPreview html={preview} title="Branch report preview" loaded={built ? 1 : 0} total={1} />
       </Card>
     </div>
   );

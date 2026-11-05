@@ -17,6 +17,7 @@
  *     — employee KPI cards for executive dashboards
  */
 
+const { buildBranchReport } = require('../utils/branchReport');
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -560,6 +561,111 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch demand breakdown.' });
+  }
+});
+
+/**
+ * GET /analytics/branch-report — the evidence for one branch's report.
+ * docs/reports/BRANCH_REPORT_REQUIREMENTS.md sets what it has to say. One row per
+ * visit goes through utils/branchReport.js; only figures leave, never a customer.
+ * Made-up simulator visitors are not visits and are left out.
+ */
+router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    const branchId = scopedBranchId(req, req.query.branch_id);
+    const range = safeDateRange(req.query);
+    if (!businessId || !branchId || !range) return res.status(400).json({ error: 'business_id, branch_id, from and to are required.' });
+
+    const [[bounds]] = await pool.query(
+      `SELECT DATEDIFF(?, ?) + 1 AS days,
+              DATE_FORMAT(DATE_SUB(?, INTERVAL DATEDIFF(?, ?) + 1 DAY), '%Y-%m-%d') AS prev_from,
+              DATE_FORMAT(DATE_SUB(?, INTERVAL 1 DAY), '%Y-%m-%d') AS prev_to,
+              ? < CURDATE() AS complete_days`,
+      [range.to, range.from, range.from, range.to, range.from, range.from, range.to]);
+    if (!(Number(bounds.days) >= 1 && Number(bounds.days) <= 120)) return res.status(400).json({ error: 'A report covers 1 to 120 days.' });
+    const previous = { from: bounds.prev_from, to: bounds.prev_to };
+
+    const [[branch]] = await pool.query(
+      `SELECT br.name, br.opening_time, br.closing_time, br.open_days, br.parish, br.address,
+              TIMESTAMPDIFF(MINUTE, br.opening_time, br.closing_time) AS open_minutes,
+              b.name AS org, b.sector
+         FROM branches br JOIN businesses b ON b.id = br.business_id
+        WHERE br.id = ? AND br.business_id = ?`, [branchId, businessId]);
+    if (!branch) return res.status(404).json({ error: 'Branch not found.' });
+
+    const [rows] = await pool.query(
+      `SELECT DATE_FORMAT(q.queue_date, '%Y-%m-%d') AS day, q.service_id, t.user_id, t.status, t.closed_reason, t.channel,
+              t.served_by_staff_id AS served_by, t.served_at_counter_id AS counter_id, t.appointment_at IS NOT NULL AS is_appointment,
+              HOUR(t.joined_at) AS join_hour, HOUR(t.started_serving_at) AS start_hour,
+              TIMESTAMPDIFF(SECOND, t.joined_at, t.called_at) / 60 AS wait_min,
+              TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at) / 60 AS service_min,
+              TIMESTAMPDIFF(SECOND, t.joined_at, t.completed_at) / 60 AS elapsed_min
+         FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
+        WHERE q.branch_id = ? AND q.queue_date BETWEEN ? AND ?
+          AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')`,
+      [branchId, previous.from, range.to]);
+
+    const [services] = await pool.query('SELECT id, name FROM services WHERE business_id = ?', [businessId]);
+    const [staff] = await pool.query(
+      `SELECT st.id, st.full_name, r.name AS role FROM staff st LEFT JOIN roles r ON r.id = st.role_id WHERE st.business_id = ?`, [businessId]);
+    const [counters] = await pool.query('SELECT id, label, service_id, is_active FROM counters WHERE branch_id = ?', [branchId]);
+    const [assignments] = await pool.query(
+      `SELECT DATE_FORMAT(sa.assignment_date, '%Y-%m-%d') AS day, sa.staff_id, sa.counter_id
+         FROM staff_assignments sa JOIN counters c ON c.id = sa.counter_id
+        WHERE c.branch_id = ? AND sa.assignment_date BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+    const [shifts] = await pool.query(
+      `SELECT sh.staff_id, DATE_FORMAT(sh.clocked_in_at, '%Y-%m-%d') AS day,
+              (TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) - COALESCE(sh.break_seconds, 0)) / 3600 AS hours
+         FROM staff_shifts sh
+        WHERE sh.branch_id = ? AND sh.clocked_out_at IS NOT NULL AND DATE(sh.clocked_in_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+    const [holidays] = await pool.query(
+      `SELECT DATE_FORMAT(holiday_date, '%Y-%m-%d') AS day, name FROM public_holidays
+        WHERE holiday_date BETWEEN ? AND DATE_ADD(?, INTERVAL 14 DAY)`, [range.from, range.to]);
+    const [[companyTarget]] = await pool.query('SELECT target_wait_minutes, target_completion_rate, target_no_show_rate FROM business_targets WHERE business_id = ?', [businessId]);
+    const [[branchTarget]] = await pool.query('SELECT target_wait_minutes, target_completion_rate, target_no_show_rate FROM branch_targets WHERE branch_id = ?', [branchId]);
+    const [targetChanges] = await pool.query(
+      `SELECT tc.metric, tc.branch_id, tc.old_value, tc.new_value, tc.reason,
+              DATE_FORMAT(tc.changed_at, '%Y-%m-%d') AS day, st.full_name AS changed_by_name
+         FROM target_changes tc LEFT JOIN staff st ON st.id = tc.changed_by
+        WHERE tc.business_id = ? AND (tc.branch_id IS NULL OR tc.branch_id = ?)
+        ORDER BY tc.changed_at`, [businessId, branchId]);
+    const [sessions] = await pool.query(
+      `SELECT ss.id, ss.name, DATE_FORMAT(ss.session_date, '%Y-%m-%d') AS day, ss.capacity, ss.status,
+              DATE_FORMAT(ss.starts_at, '%H:%i') AS planned_start, DATE_FORMAT(ss.ends_at, '%H:%i') AS planned_end,
+              COUNT(r.id) AS registered, SUM(r.status = 'cancelled') AS cancelled,
+              SUM(r.checked_in_at IS NOT NULL) AS checked_in
+         FROM scheduled_sessions ss LEFT JOIN session_registrations r ON r.session_id = ss.id
+        WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND ss.status <> 'draft'
+        GROUP BY ss.id ORDER BY ss.session_date`, [branchId, range.from, range.to]);
+    const [appointments] = await pool.query(
+      `SELECT r.status, r.checked_in_at, ss.appointment_late_minutes AS late_allowed,
+              TIMESTAMPDIFF(MINUTE, TIMESTAMP(ss.session_date, r.appointment_time), r.checked_in_at) AS late_min
+         FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+        WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND r.appointment_time IS NOT NULL`, [branchId, range.from, range.to]);
+    const [flags] = await pool.query(
+      `SELECT pf.flag, DATE_FORMAT(pf.created_at, '%Y-%m-%d') AS created_day, DATE_FORMAT(pf.cleared_at, '%Y-%m-%d') AS cleared_day,
+              DATEDIFF(COALESCE(pf.cleared_at, ?), pf.created_at) AS age_days, DATEDIFF(pf.cleared_at, pf.created_at) AS resolve_days
+         FROM patient_flags pf
+        WHERE pf.business_id = ?
+          AND EXISTS (SELECT 1 FROM queue_tickets t JOIN queues q ON q.id = t.queue_id WHERE t.user_id = pf.user_id AND q.branch_id = ?)`,
+      [range.to, businessId, branchId]);
+    const [[ratings]] = await pool.query(
+      `SELECT COUNT(*) AS n, ROUND(AVG(tr.rating), 1) AS average, ROUND(AVG(tr.wait_ok) * 100, 1) AS wait_ok_pct
+         FROM ticket_ratings tr WHERE tr.branch_id = ? AND DATE(tr.created_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+
+    const report = buildBranchReport({
+      rows, period: range, previous, branch, services, staff, counters, assignments, shifts,
+      holidays, companyTarget, branchTarget, targetChanges, sessions, appointments, flags, ratings,
+    });
+    res.json({
+      ...report,
+      org: branch.org, sector: branch.sector, completeDays: Boolean(Number(bounds.complete_days)),
+      timezone: process.env.TZ || 'server time', generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build the branch report.' });
   }
 });
 

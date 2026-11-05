@@ -25,7 +25,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
-import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { labelFor, makeWindow, rowsIn, shiftDays, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
@@ -111,11 +111,16 @@ export default function ManagerDashboard() {
   /* Everything below follows the selected period, and the last answer stays on
      screen while the next one loads so a tap does not flash the tab empty. */
   const windowData = usePeriodData(d.analyticsQuery, win, true);
-  /* The report chooses its own period, and fetches it, so a report labelled Last
-     30 Days holds 30 days whatever the rest of the screen happens to be showing. */
+  /* A report covers complete days, so it ends yesterday, and it fetches its own
+     evidence whatever the rest of the screen happens to be showing. */
   const [reportPeriod, setReportPeriod] = useState('30');
-  const reportWin = useMemo(() => makeWindow(today(), windowDaysOf(reportPeriod)), [reportPeriod]);
-  const reportFetch = usePeriodData(d.analyticsQuery, reportWin, tab === 'reports');
+  const reportWin = useMemo(() => makeWindow(shiftDays(today(), -1), windowDaysOf(reportPeriod)), [reportPeriod]);
+  const reportScope = `business_id=${d.businessId}&branch_id=${d.branchId}&from=${reportWin.from}&to=${reportWin.to}`;
+  const reportEvidence = useQuery({
+    queryKey: ['branch-report', reportScope],
+    queryFn: () => api.get<any>(`/analytics/branch-report?${reportScope}`),
+    enabled: Boolean(tab === 'reports' && d.businessId && d.branchId),
+  });
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
@@ -228,25 +233,6 @@ export default function ManagerDashboard() {
        windowData.hourly, windowData.daily, win, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
        achievedWait, completed, totalToday, noShows, avgService, left, servedHours]);
 
-  const reportData = useMemo(() => {
-    const t = periodTotals(rowsIn(summary, reportWin));
-    return buildMgrData({
-      ...MGR_REPORT_DEFAULTS, periodLabel: labelFor(reportWin), windowLabel: labelFor(reportWin),
-      branchName, org, managerName: d.admin?.name || '',
-      queues: d.queues as any[], services: reportFetch.services, staff: d.staff as any[], staffInWindow: reportFetch.staff,
-      productivity: d.productivity, counters: d.counters as any[], demandHourly: reportFetch.hourly, demandWeekly: reportFetch.daily,
-      target: d.effectiveTarget, companyTarget: d.targets, branchTarget: d.branchTargets,
-      avgWait: t.achievedWait, avgService: t.avgService,
-      completionPct: t.totalToday ? Math.round((t.completed / t.totalToday) * 100) : 0,
-      noShowPct: t.totalToday ? +((t.noShows / t.totalToday) * 100).toFixed(1) : 0,
-      openFrom: timeLabel(d.branchSettings?.hours?.opening_time) || '—',
-      openTo: timeLabel(d.branchSettings?.hours?.closing_time) || '—',
-      servedToday: t.completed, balking: d.balking,
-      todayJoined: t.totalToday, todayCompleted: t.completed, todayNoShows: t.noShows, todayLeft: t.left,
-    });
-  }, [reportWin, summary, reportFetch.services, reportFetch.staff, reportFetch.hourly, reportFetch.daily,
-      branchName, org, d.admin, d.queues, d.staff, d.productivity, d.counters, d.effectiveTarget, d.targets,
-      d.branchTargets, d.branchSettings, d.balking]);
 
   /* The manager asks; the supervisor acts. Sending lands in the bell of every
      active supervisor at this branch. */
@@ -389,7 +375,7 @@ export default function ManagerDashboard() {
       }
     >
       {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
-      <MgrDataProvider value={{ ...liveData, report: { period: reportPeriod, setPeriod: setReportPeriod, data: reportData, loaded: reportFetch.loaded, total: reportFetch.total },
+      <MgrDataProvider value={{ ...liveData, report: { period: reportPeriod, setPeriod: setReportPeriod, evidence: reportEvidence.data, failed: reportEvidence.isError },
         onAskSupervisor: askSupervisor, askState, askError,
         onSaveBranchTargets: saveBranchTargets, targetsSaveState: tgtState, targetsSaveError: tgtError,
         targetsSetBy: d.branchTargets?.set_by_name ?? null, targetsSetAt: d.branchTargets?.updated_at ?? null,
@@ -420,7 +406,7 @@ export default function ManagerDashboard() {
   );
 }
 
-/** A period's four server-side pieces. `loaded` of `total` drives the report's bar. */
+/** A period's four server-side pieces. */
 function usePeriodData(analyticsQuery: string, win: { from: string; to: string }, wanted: boolean) {
   const scope = `${analyticsQuery}&from=${win.from}&to=${win.to}`;
   const base = { enabled: Boolean(analyticsQuery && wanted), placeholderData: keepPreviousData };
@@ -431,10 +417,8 @@ function usePeriodData(analyticsQuery: string, win: { from: string; to: string }
   const staff = useQuery(get('staff', `staff?${scope}`));
   const hourly = useQuery(get('hour', `demand?${scope}&rows=service&by=hour`));
   const daily = useQuery(get('dow', `demand?${scope}&rows=service&by=dow`));
-  const all = [services, staff, hourly, daily];
   return {
     services: services.data ?? [], staff: staff.data ?? [], hourly: hourly.data ?? [], daily: daily.data ?? [],
-    loaded: all.filter((q) => q.isFetched && !q.isPlaceholderData).length, total: all.length,
   };
 }
 
@@ -454,8 +438,6 @@ function periodTotals(rows: any[]) {
     totalToday: sum('total_visitors') || completed + sum('no_show_count'),
   };
 }
-
-const MGR_REPORT_DEFAULTS = { faq: [], todayByHour: [], yesterdayByHour: [], servedHourLabels: [] };
 
 /* ---------- shared sub-cards (used by both dashboards) ---------- */
 // Empty now lives in the shared kit; re-exported so existing importers keep working.
