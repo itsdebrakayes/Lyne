@@ -288,7 +288,7 @@ export function useDashboardData(serviceId = '') {
   const activeQueries = allQueries.filter((q) => q.dataUpdatedAt > 0);
 
   return {
-    admin, businessId, branchId,
+    admin, businessId, branchId, analyticsQuery,
     /* The OLDEST panel on screen, not the newest.
        "Updated 14:32" has to be a promise about everything the reader can see.
        Taking the newest would let one 10-second queue poll vouch for an

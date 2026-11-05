@@ -44,16 +44,21 @@ const fmtDate = (v?: string) => {
   return new Date(y, m - 1, d).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-export function CustomerDirectory({ businessId, branchId }: { businessId?: string; branchId?: string }) {
+export function CustomerDirectory({ businessId, branchId, window: win, windowLabel }: {
+  businessId?: string; branchId?: string;
+  /** The period the dashboard has selected. Without one, the last 90 days. */
+  window?: { from: string; to: string }; windowLabel?: string;
+}) {
   const [q, setQ] = useState('');
   const [openUser, setOpenUser] = useState<string | null>(null);
 
   const list = useQuery({
-    queryKey: ['customer-directory', businessId, branchId, q],
+    queryKey: ['customer-directory', businessId, branchId, q, win?.from, win?.to],
     queryFn: () => api.get<{ window_days: number; customers: DirectoryRow[] }>(
       `/analytics/customers?business_id=${businessId}`
       + (branchId ? `&branch_id=${branchId}` : '')
-      + `&days=90${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}`),
+      + (win ? `&from=${win.from}&to=${win.to}` : '&days=90')
+      + `${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}`),
     enabled: Boolean(businessId),
     /* The search is a server round trip, so it waits for a pause in typing
        rather than firing on every keystroke. */
@@ -68,7 +73,7 @@ export function CustomerDirectory({ businessId, branchId }: { businessId?: strin
 
   return (
     <div className="qx-grid">
-      <Card span={12} title="Customers" cap="Everyone who has visited in the last 90 days. Open anyone to see their full history."
+      <Card span={12} title="Customers" cap={`Everyone who visited ${!win ? 'in the last 90 days' : windowLabel === 'Today' ? 'today' : `in ${windowLabel}`}. Open anyone to see their full history.`}
         tools={
           <div className="qx-dirsearch">
             <Search size={14} />
@@ -84,7 +89,7 @@ export function CustomerDirectory({ businessId, branchId }: { businessId?: strin
           <p className="qx-mc-hint">Loading…</p>
         ) : !rows.length ? (
           <EmptyTab
-            title={q.trim() ? 'Nobody Matches That' : 'No Customers Yet'}
+            title={q.trim() ? 'Nobody Matches That' : win ? 'Nobody In This Period' : 'No Customers Yet'}
             body={q.trim()
               ? 'Try part of a name, an email address, or a phone number. Walk-ins with no account cannot be searched — there is no record to match them against.'
               : 'Customers appear here once they have finished a visit. Walk-ins without an account are not listed: there is no way to recognise them across visits.'} />

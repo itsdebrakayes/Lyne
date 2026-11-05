@@ -114,17 +114,22 @@ function spanDays(from: string, to: string) {
   return Math.max(1, d);
 }
 
-export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: string; branchId?: string }) {
+export function CustomerCasesWorkspace({ businessId, branchId, window: win }: {
+  businessId?: string; branchId?: string;
+  /** The period the dashboard has selected. Without one, this screen offers its own. */
+  window?: { from: string; to: string; days: number };
+}) {
   const terms = useSectorTerms();
-  const [days, setDays] = useState(30);
+  const [ownDays, setDays] = useState(30);
+  const days = win?.days ?? ownDays;
   const [minVisits, setMinVisits] = useState(3);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const q = useQuery({
-    queryKey: ['customer-cases', businessId, branchId, days, minVisits],
+    queryKey: ['customer-cases', businessId, branchId, days, win?.from, win?.to, minVisits],
     queryFn: () => api.get<{ window_days: number; min_visits: number; cases: CaseRow[] }>(
       `/analytics/customer-cases?business_id=${businessId}`
-      + `${branchId ? `&branch_id=${branchId}` : ''}&days=${days}&min_visits=${minVisits}`,
+      + `${branchId ? `&branch_id=${branchId}` : ''}${win ? `&from=${win.from}&to=${win.to}` : `&days=${days}`}&min_visits=${minVisits}`,
     ),
     enabled: Boolean(businessId),
   });
@@ -151,15 +156,17 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
         </div>
 
         <div className="qc-filters">
-          <label className="qc-field">
-            <span>Looking back</span>
-            <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={180}>6 months</option>
-            </select>
-          </label>
+          {win ? null : (
+            <label className="qc-field">
+              <span>Looking back</span>
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+                <option value={180}>6 months</option>
+              </select>
+            </label>
+          )}
           <label className="qc-field">
             <span>Flag after</span>
             <select value={minVisits} onChange={(e) => setMinVisits(Number(e.target.value))}>

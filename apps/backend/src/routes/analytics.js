@@ -524,10 +524,16 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
        Today, by hour, against yesterday" on the manager overview. Without it,
        the 90-day demand pattern that drives Busy Times. */
     const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || '')) ? String(req.query.day) : null;
+    /* ?from=&to= is any chosen period (Busy Times), every visit that joined. */
+    const range = safeDateRange(req.query);
     const conditions = day
       ? ['w.business_id = ?', 'w.visit_date = ?', "w.status = 'served'"]
-      : ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
-    const params = day ? [scopedBusinessId(req, business_id), day] : [scopedBusinessId(req, business_id)];
+      : range
+        ? ['w.business_id = ?', 'w.visit_date BETWEEN ? AND ?']
+        : ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = day ? [scopedBusinessId(req, business_id), day]
+      : range ? [scopedBusinessId(req, business_id), range.from, range.to]
+        : [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'w.service_id');
@@ -777,6 +783,8 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
 
     const conditions = ['st.business_id = ?', "t.status = 'served'"];
     const params = [scopedBusinessId(req, business_id)];
+    const range = safeDateRange(req.query);
+    if (range) { conditions.push('q.queue_date BETWEEN ? AND ?'); params.push(range.from, range.to); }
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('st.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'q.service_id');
@@ -1262,6 +1270,14 @@ const ENDED_STATUSES = "('served','left','cancelled','no_show')";
 const RESOLVED = "(t.status = 'served' AND t.closed_reason IS NULL)";
 
 /** Days of history to consider. Clamped — this drives a GROUP BY over tickets. */
+/** An explicit ?from=&to= window of calendar dates, or null if none was given.
+ *  The dashboards' period control sends these so a past week can be looked at,
+ *  not only the days ending today. */
+function safeDateRange({ from, to }) {
+  const ok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  return ok(from) && ok(to) ? { from: String(from), to: String(to) } : null;
+}
+
 function safeWindowDays(value, fallback = 30) {
   const n = Math.round(Number(value));
   return Number.isFinite(n) && n >= 1 && n <= 365 ? n : fallback;
@@ -1286,9 +1302,10 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
     const days = safeWindowDays(req.query.days);
     const minVisits = safeMinVisits(req.query.min_visits);
 
+    const range = safeDateRange(req.query);
     const conditions = [`b.business_id = ?`, `t.status IN ${ENDED_STATUSES}`,
-                        `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
-    const params = [scopedBusinessId(req, business_id), days];
+                        range ? 'q.queue_date BETWEEN ? AND ?' : `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
+    const params = [scopedBusinessId(req, business_id), ...(range ? [range.from, range.to] : [days])];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'q.service_id');
@@ -1462,9 +1479,10 @@ router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const days = safeWindowDays(req.query.days, 90);
+    const range = safeDateRange(req.query);
     const conditions = ['b.business_id = ?', `t.status IN ${ENDED_STATUSES}`,
-                        'q.queue_date >= CURDATE() - INTERVAL ? DAY'];
-    const params = [scopedBusinessId(req, business_id), days];
+                        range ? 'q.queue_date BETWEEN ? AND ?' : 'q.queue_date >= CURDATE() - INTERVAL ? DAY'];
+    const params = [scopedBusinessId(req, business_id), ...(range ? [range.from, range.to] : [days])];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'q.service_id');

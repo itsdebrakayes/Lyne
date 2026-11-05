@@ -65,6 +65,9 @@ export type MgrSvc = {
   id: string; code: string; name: string; waiting: number; wait: number;
   counters: number; open: number; longest: number;
   state: 'open' | 'busy' | 'soon' | 'closed';
+  /* What the selected period did; the fields above are the floor right now. */
+  visits?: number; served?: number; noShows?: number;
+  periodWait?: number; periodCounter?: number; dropoff?: number;
 };
 export type MgrTargetRow = {
   key: string; label: string; unit: string; now: number;
@@ -74,10 +77,16 @@ export type MgrTargetRow = {
 export type MgrTabData = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
+  /** The Reports tab's own period and the data fetched for it. */
+  report?: { period: string; setPeriod: (p: string) => void; data: MgrTabData; loaded: number; total: number };
+  /** "Today", or the dates selected. Named on any figure that follows the period. */
+  windowLabel?: string;
   branchName: string; org: string; managerName: string;
   staff: MgrStaff[];
   services: MgrSvc[];
   hours: string[];
+  /** the service each row of svcHeat belongs to */
+  heatRows?: string[];
   svcHeat: number[][];
   dow: { labels: string[]; values: number[] };
   targets: MgrTargetRow[];
@@ -300,7 +309,7 @@ export function MgrStaffTab() {
       ) : null}
 
       <Card span={flagged.length ? 7 : 12} title={<>The Floor Right Now<span className="qx-count">{rows.length}</span></>}
-        cap="Everyone rostered here today, and what they are doing"
+        cap={`Counter and status are live. Seen and Avg cover ${d.windowLabel ?? 'Today'}.`}
         tools={<>
           <Seg value={only} onChange={setOnly} options={[['all', 'Everyone'], ['flagged', 'Needs Attention']]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Name, Counter Or Service…" />
@@ -355,60 +364,65 @@ export function MgrStaffTab() {
 }
 
 /* ══════════════════════ 2 · SERVICES ══════════════════════ */
-const MSVC_GRID = 'minmax(0,2.2fr) 80px 92px 96px 104px 120px';
+const MSVC_GRID = 'minmax(0,2.2fr) 70px 70px 88px 96px 78px 84px 112px';
 
 export function MgrServicesTab() {
   const d = useMgr();
-  const [view, setView] = useState<'waiting' | 'wait'>('waiting');
+  const [view, setView] = useState<'visits' | 'wait' | 'dropoff'>('visits');
+  const label = d.windowLabel ?? 'Today';
 
   if (!d.services.length) {
     return <EmptyTab title="No Services On This Branch Yet"
-      body="Services are configured when the branch is set up. Once they exist, each line shows how many are waiting, how long the wait is, and how many windows are covering it." />;
+      body="Services are configured when the branch is set up. Once they exist, each line shows how many people it handled, how long they waited, and how many windows cover it." />;
   }
 
+  /* The cards read what the selected period did, because that is what the period
+     control changes. Only the Right Now card is live: it is the one thing a
+     period cannot describe, and on its own it reads all zeros once a branch closes. */
+  const active = d.services.filter((s) => (s.visits ?? 0) > 0);
+  const totalVisits = active.reduce((t, s) => t + (s.visits ?? 0), 0);
+  const totalServed = active.reduce((t, s) => t + (s.served ?? 0), 0);
   const totalWaiting = d.services.reduce((t, s) => t + s.waiting, 0);
-  const worst = [...d.services].sort((a, b) => b.wait - a.wait)[0];
-  const shortest = [...d.services].sort((a, b) => a.wait - b.wait)[0];
+  const weightedWait = totalVisits
+    ? Math.round(active.reduce((t, s) => t + (s.periodWait ?? 0) * (s.visits ?? 0), 0) / totalVisits) : 0;
+  const worst = [...active].sort((a, b) => (b.periodWait ?? 0) - (a.periodWait ?? 0))[0];
+  const best = [...active].sort((a, b) => (a.periodWait ?? 0) - (b.periodWait ?? 0))[0];
+  const value = (s: MgrSvc) => (view === 'wait' ? s.periodWait ?? 0 : view === 'dropoff' ? Math.round(s.dropoff ?? 0) : s.visits ?? 0);
+  const openWindows = d.services.reduce((t, s) => t + s.open, 0);
+  const allWindows = d.services.reduce((t, s) => t + s.counters, 0);
 
   return (
     <div className="qx-grid">
-      <Stat span={3} icon={Users} label="Waiting Right Now" value={totalWaiting}
-        foot="Across every line at this branch" />
-      <Stat span={3} icon={Clock} tone="bad" label="Longest Line" value={worst.code} unit={`${worst.wait} min`}
-        chip={{ dir: 'bad', text: `${worst.waiting} Waiting` }} foot={worst.name} />
-      <Stat span={3} icon={CheckCircle2} label="Moving Best" value={shortest.code} unit={`${shortest.wait} min`}
-        foot={shortest.name} />
-      <Stat span={3} icon={Waypoints} label="Services Offered" value={d.services.length}
-        foot={`${d.services.reduce((t, s) => t + s.open, 0)} windows open in total`} />
+      <Stat span={3} icon={Users} label={`Visits · ${label}`} value={fmtN(totalVisits)}
+        foot={`${fmtN(totalServed)} served, across ${active.length} of ${d.services.length} services`} />
+      <Stat span={3} icon={Clock} tone={worst ? 'bad' : undefined} label="Longest Average Wait" value={worst ? worst.code : '—'}
+        unit={worst ? `${worst.periodWait} min` : undefined} foot={worst ? worst.name : 'No visits in this period'} />
+      <Stat span={3} icon={CheckCircle2} label="Shortest Average Wait" value={best ? best.code : '—'}
+        unit={best ? `${best.periodWait} min` : undefined} foot={best ? best.name : 'No visits in this period'} />
+      <Stat span={3} icon={Waypoints} label="Average Wait" value={weightedWait} unit="min"
+        foot={`Across every visit · ${label}`} />
 
-      <Card span={7} title="Where The Line Is" cap="Every service at this branch, worst first"
-        tools={<Seg value={view} onChange={setView} options={[['waiting', 'People Waiting'], ['wait', 'Wait Time']]} />}>
-        <Bars unit={view === 'wait' ? ' min' : ''} invert
-          items={[...d.services]
-            .sort((a, b) => (view === 'wait' ? b.wait - a.wait : b.waiting - a.waiting))
-            .map((s) => ({ name: s.name, value: view === 'wait' ? s.wait : s.waiting }))} />
-        <div style={{ marginTop: 13 }}>
-          <Note icon={AlertTriangle} tone={worst.open < worst.counters || !worst.counters ? 'bad' : 'warn'}
-            title={`${worst.name} Is Your Bottleneck`}
-            body={!worst.counters
-              ? `${worst.waiting} people are waiting and this line has no windows set up at all. Add its counters before anyone can be put on it.`
-              : worst.open < worst.counters
-                ? `${worst.waiting} people are waiting on ${worst.open} of ${worst.counters} windows. Opening one more is the single fastest thing you can do this hour.`
-                : `${worst.waiting} people are waiting and every window is already open. This is a pace problem, not a staffing one.`} />
-
-        </div>
+      <Card span={7} title="How Each Service Did" cap={label}
+        tools={<Seg value={view} onChange={setView} options={[['visits', 'Visits'], ['wait', 'Average Wait'], ['dropoff', 'Did Not Finish']]} />}>
+        {active.length ? (
+          <Bars unit={view === 'wait' ? ' min' : view === 'dropoff' ? '%' : ''} invert={view !== 'visits'}
+            items={[...active].sort((a, b) => value(b) - value(a)).map((s) => ({ name: s.name, value: value(s) }))} />
+        ) : <div className="qx-empty">No visits in this period.</div>}
+        {worst ? (
+          <div style={{ marginTop: 13 }}>
+            <Note icon={AlertTriangle} tone={worst.state === 'busy' ? 'bad' : 'warn'}
+              title={`${worst.name} Had The Longest Wait`}
+              body={`People waited ${worst.periodWait} minutes on average, and ${worst.periodCounter} minutes at the counter once called. ${Math.round(worst.dropoff ?? 0)}% of its ${fmtN(worst.visits ?? 0)} visits did not finish.`} />
+          </div>
+        ) : null}
       </Card>
 
       <div className="qx-stack s5">
-        <Card title="Longest Person Waiting" cap="The individual wait, not the average — this is who complains">
-          <Bars unit=" min" invert
-            items={[...d.services].sort((a, b) => b.longest - a.longest).map((s) => ({ name: s.code, value: s.longest }))} />
-        </Card>
-        <Card title="Cover" cap="Windows open against windows available">
+        <Card title="Right Now" cap={totalWaiting ? `${totalWaiting} waiting, ${openWindows} of ${allWindows} windows open` : `Nobody waiting, ${openWindows} of ${allWindows} windows open`}>
           <div className="qx-sbreak">
             {d.services.map((s) => (
               <div key={s.id}>
-                <div className="r"><span>{s.name}</span><b>{s.open} / {s.counters}</b></div>
+                <div className="r"><span>{s.name}</span><b>{s.waiting} waiting · {s.open} / {s.counters}</b></div>
                 <div className="qx-bar">
                   <i style={{
                     width: `${(s.open / Math.max(1, s.counters)) * 100}%`,
@@ -422,28 +436,32 @@ export function MgrServicesTab() {
       </div>
 
       <Card span={12} title={<>All Services<span className="qx-count">{d.services.length}</span></>}
-        cap="Longest wait first">
-        <Table grid={MSVC_GRID} columns={['Service', 'Waiting', 'Avg Wait', 'Longest', 'Windows', 'Status']}
-          items={[...d.services].sort((a, b) => b.wait - a.wait)}
+        cap={`${label}. Waiting Now is live.`}>
+        <Table grid={MSVC_GRID} columns={['Service', 'Visits', 'Served', 'Avg Wait', 'At Counter', 'No-Shows', 'Waiting Now', 'Status']}
+          items={[...d.services].sort((a, b) => (b.periodWait ?? 0) - (a.periodWait ?? 0))}
           renderRow={(s) => (
             <Row key={s.id} grid={MSVC_GRID}>
               <div className="qx-cellmain">
                 <span className="qx-av" style={avatarStyle(s.name)}>{s.code}</span>
                 <div style={{ minWidth: 0 }}><b>{s.name}</b><small>{s.open} of {s.counters} windows open</small></div>
               </div>
+              <div className="qx-num">{fmtN(s.visits ?? 0)}</div>
+              <div className="qx-num">{fmtN(s.served ?? 0)}</div>
+              <div className="qx-num">{s.visits ? <>{s.periodWait}<u> min</u></> : '—'}</div>
+              <div className="qx-num">{s.visits ? <>{s.periodCounter}<u> min</u></> : '—'}</div>
+              <div className="qx-num">{fmtN(s.noShows ?? 0)}</div>
               <div className="qx-num">{s.waiting}</div>
-              <div className="qx-num">{s.wait}<u> min</u></div>
-              <div className="qx-num">{s.longest}<u> min</u></div>
-              <div className="qx-num">{s.open}/{s.counters}</div>
-              <div><Status kind={s.state}>{s.state === 'busy' ? 'Over Capacity' : 'Running Well'}</Status></div>
+              <div><Status kind={s.state}>{!s.visits ? 'No Visits' : s.state === 'busy' ? 'Over Target' : 'On Target'}</Status></div>
             </Row>
           )} />
         <div className="qx-tfoot" style={{ gridTemplateColumns: MSVC_GRID }}>
           <span>All Services</span>
+          <b>{fmtN(totalVisits)}</b>
+          <b>{fmtN(totalServed)}</b>
+          <b>{weightedWait}<u> min avg</u></b>
+          <span />
+          <b>{fmtN(active.reduce((t, s) => t + (s.noShows ?? 0), 0))}</b>
           <b>{totalWaiting}</b>
-          <b>{Math.round(d.services.reduce((t, s) => t + s.wait, 0) / d.services.length)}<u> min avg</u></b>
-          <b>{Math.max(...d.services.map((s) => s.longest))}<u> min</u></b>
-          <b>{d.services.reduce((t, s) => t + s.open, 0)}/{d.services.reduce((t, s) => t + s.counters, 0)}</b>
           <span />
         </div>
       </Card>
@@ -454,7 +472,12 @@ export function MgrServicesTab() {
 /* ══════════════════════ 3 · BUSY TIMES ══════════════════════ */
 export function MgrBusyTab() {
   const d = useMgr();
+  const label = d.windowLabel ?? 'Today';
+  const multiDay = Boolean(d.periodLabel);
   const perHour = d.hours.map((_, i) => d.svcHeat.reduce((t, r) => t + (r[i] ?? 0), 0));
+  const heaviest = (d.heatRows ?? [])
+    .map((name, i) => ({ name, visits: (d.svcHeat[i] ?? []).reduce((t, v) => t + v, 0) }))
+    .sort((a, b) => b.visits - a.visits)[0];
   /* An hour only counts as one this branch actually OPERATES in. Filtering on
      v > 0 was not enough: a handful of stray after-hours tickets made midnight
      the "quietest open hour", so the board recommended scheduling breaks at
@@ -469,48 +492,44 @@ export function MgrBusyTab() {
     ? operating.reduce((a, b) => (b.v < a.v ? b : a)).i : -1;
 
   if (!d.svcHeat.length || !d.hours.length || peak < 0) {
-    return <EmptyTab title="No Demand Pattern Yet"
-      body="This needs a few days of visits at this branch before a pattern is worth reading. Once there is enough history it shows which hours carry the pressure and where cover is genuinely free." />;
+    return <EmptyTab title={`No Visits · ${label}`}
+      body="Nobody joined a line at this branch in this period. Choose a longer period, or step back to an earlier one with the arrows on the date." />;
   }
 
   return (
     <div className="qx-grid">
-      {/* These are 90-day totals — /analytics/demand is a fixed 90-day window,
-          which is right for a PATTERN but was reading as "today" beside a Today
-          pill. The pill is gone from this tab and the window is now stated, so
-          "4,786" is legible as three months rather than one morning. */}
       <Stat span={3} icon={TrendingUp} tone="bad" label="Busiest Hour" value={d.hours[peak]}
         chip={{ dir: 'bad', text: 'Peak' }}
-        foot={`${fmtN(perHour[peak])} joined in that hour over the last 90 days`} />
+        foot={`${fmtN(perHour[peak])} joined in that hour · ${label}`} />
       <Stat span={3} icon={Coffee} label="Best Hour For Breaks" value={d.hours[quiet]}
         foot="Quietest open hour — schedule cover changes here" />
       {/* The KPI value was the three-letter code with the real name demoted to
           the caption — so the biggest text on the card was "SD". Name up top,
           the number that earns the ranking underneath. */}
       <Stat span={3} icon={Waypoints} tone="bad" label="Heaviest Service"
-        value={d.services.length ? d.services[0].name : '—'}
-        foot={d.services.length
-          ? `${fmtN(d.services[0].waiting)} waiting right now`
-          : 'No services yet'} />
+        value={heaviest ? heaviest.name : '—'}
+        foot={heaviest ? `${fmtN(heaviest.visits)} visits · ${label}` : 'No services yet'} />
       <Stat span={3} icon={Clock} label="Open" value={`${d.openFrom} – ${d.openTo}`}
         foot="Remote joining opens five minutes before the doors" />
 
       <Card span={12} title="When The Pressure Lands Here"
-        cap="Visits per hour by service, last 90 days. Staff the darkest cells; the pale ones are safe for breaks and training.">
-        <Heatmap rowLabels={d.services.map((s) => s.name)} colLabels={d.hours}
+        cap={`Visits per hour by service · ${label}. Staff the darkest cells; the pale ones are safe for breaks and training.`}>
+        <Heatmap rowLabels={d.heatRows ?? []} colLabels={d.hours}
           data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
       </Card>
 
-      <Card span={8} title="Through The Day" cap="Everyone joining a line at this branch, by hour">
+      <Card span={multiDay ? 8 : 12} title="Through The Day" cap={`Everyone joining a line at this branch, by hour · ${label}`}>
         <div className="qx-chartfill">
-          <Chart values={perHour} labels={d.hours} label="Average Weekday" unit="joins" h={230} />
+          <Chart values={perHour} labels={d.hours} label={label} unit="joins" h={230} />
         </div>
       </Card>
 
-      <div className="qx-stack s4">
-        <Card title="Which Day Is Heaviest" cap="Average visits per weekday">
-          <Bars items={d.dow.labels.map((l, i) => ({ name: l, value: d.dow.values[i] }))} />
-        </Card>
+      <div className={multiDay ? 'qx-stack s4' : 'qx-stack s12'}>
+        {multiDay ? (
+          <Card title="Which Day Is Heaviest" cap={`Visits per weekday · ${label}`}>
+            <Bars items={d.dow.labels.map((l, i) => ({ name: l, value: d.dow.values[i] }))} />
+          </Card>
+        ) : null}
         <Focus eyebrow="Do This Next"
           title={`Put Your Cover On The ${d.hours[peak]} Block`}
           body={`${d.hours[peak]} is the heaviest hour at this branch. ${d.hours[quiet]} is the lightest, which is where breaks and training belong so they cost nothing.`}
@@ -693,8 +712,14 @@ const MGR_SECTIONS: Array<{ key: string; title: string; blurb: string; pages: nu
 ];
 
 export function MgrReportsTab() {
-  const d = useMgr();
-  const [period, setPeriod] = useState('30');
+  const live = useMgr();
+  const [ownPeriod, setOwnPeriod] = useState('30');
+  const period = live.report?.period ?? ownPeriod;
+  const setPeriod = live.report?.setPeriod ?? setOwnPeriod;
+  const d = live.report?.data ?? live;
+  const loaded = live.report?.loaded ?? 1;
+  const total = live.report?.total ?? 1;
+  const ready = loaded >= total;
   const [on, setOn] = useState<string[]>(() => MGR_SECTIONS.map((s) => s.key));
   const pages = MGR_SECTIONS.filter((s) => on.includes(s.key)).reduce((t, s) => t + s.pages, 0);
   const periodLabel = ({ '7': 'Last 7 Days', '30': 'Last 30 Days', '90': 'Last 90 Days' } as Record<string, string>)[period] || '';
@@ -727,13 +752,13 @@ export function MgrReportsTab() {
               );
             })}
           </div>
-          <ReportDownloadButtons html={html} filename={filename}
+          <ReportDownloadButtons html={html} filename={filename} disabled={!ready}
             trailing={<span style={{ fontSize: 11.5, color: 'var(--c-faint)', fontWeight: 700, marginLeft: 'auto' }}>about {pages} pages</span>} />
         </div>
       </Card>
 
       <Card span={6} title="Preview" cap="The whole document, exactly as it downloads">
-        <ReportPreview html={html} title="Branch report preview" />
+        <ReportPreview html={html} title="Branch report preview" loaded={loaded} total={total} />
       </Card>
     </div>
   );
@@ -1184,10 +1209,10 @@ export function MgrOverviewQX({ onNav }: { onNav: (k: string) => void }) {
         ) : <div className="qx-empty">No visits recorded yet today.</div>}
       </Card>
 
-      <Card span={12} title="Busy Times" cap="Visits per hour by service. Staff the darkest cells; the pale ones are safe for breaks and training.">
+      <Card span={12} title="Busy Times" cap={`Visits per hour by service · ${d.windowLabel ?? 'Today'}. Staff the darkest cells; the pale ones are safe for breaks and training.`}>
         {d.svcHeat.length && d.hours.length
-          ? <Heatmap rowLabels={d.services.map((s) => s.name)} colLabels={d.hours} data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
-          : <div className="qx-empty">Not enough history yet to show a pattern.</div>}
+          ? <Heatmap rowLabels={d.heatRows ?? []} colLabels={d.hours} data={heatData(d.svcHeat)} display={d.svcHeat} unit="" />
+          : <div className="qx-empty">No visits in this period.</div>}
       </Card>
     </div>
   );
