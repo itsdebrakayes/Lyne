@@ -179,7 +179,7 @@ function main() {
   insert('lgbv_lines', ['id', 'branch_id', 'service_id', 'queue_date'], queues.map((q) => q.slice(0, 4)));
   out(`INSERT IGNORE INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_active)
 SELECT id, branch_id, service_id, queue_date, 400, 0 FROM lgbv_lines;`);
-  out(`CREATE TEMPORARY TABLE lgbv_tickets (${TICKET_COLS.map((c) => (c === 'queue_id' ? 'queue_id VARCHAR(64)' : `${c} VARCHAR(64)`)).join(', ')});`);
+  out(`CREATE TEMPORARY TABLE lgbv_tickets (${TICKET_COLS.map((c) => (c === 'id' ? 'id VARCHAR(64) PRIMARY KEY' : `${c} VARCHAR(64)`)).join(', ')});`);
   insert('lgbv_tickets', TICKET_COLS, tickets);
   out(`INSERT INTO queue_tickets (${TICKET_COLS.join(', ')})
 SELECT ${TICKET_COLS.map((c) => (c === 'queue_id' ? 'q.id' : `t.${c}`)).join(', ')}
