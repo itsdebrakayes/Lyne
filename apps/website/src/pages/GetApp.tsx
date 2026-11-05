@@ -55,7 +55,7 @@ const GetApp = ({ mobile = false }: { mobile?: boolean }) => {
             </p>
           </motion.div>
 
-          <div className="mx-auto mt-12 grid max-w-3xl gap-5 sm:grid-cols-2">
+          <div className="mx-auto mt-10 flex max-w-3xl flex-wrap items-start justify-center gap-x-8 gap-y-6">
             {MOBILE_STORES.map((store) => {
               const copy = STORE_COPY[store.id];
               const badge = (
@@ -67,7 +67,7 @@ const GetApp = ({ mobile = false }: { mobile?: boolean }) => {
                 />
               );
               return (
-                <div key={store.id} className="panel flex flex-col items-center gap-3 p-7 text-center">
+                <div key={store.id} className="flex flex-col items-center gap-3 text-center">
                   {store.available ? (
                     <a
                       href={store.url}
