@@ -18,6 +18,7 @@
  */
 
 const { buildBranchReport } = require('../utils/branchReport');
+const caseAlerts = require('../utils/caseAlerts');
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -1592,6 +1593,7 @@ router.post('/customers/:user_id/flags', requireAuth, requireStaffRole('supervis
     await pool.query(
       `INSERT INTO patient_flags (id, business_id, user_id, flag, note, set_by_staff_id) VALUES (?, ?, ?, ?, ?, ?)`,
       [id, businessId, req.params.user_id, flag, note ? String(note).slice(0, 255) : null, req.dbStaff?.id || null]);
+    caseAlerts.flagChanged(businessId, req.params.user_id, flag, 'set', req.dbStaff);
     res.status(201).json({ id, flag });
   } catch (error) {
     console.error('set patient flag error:', error);
@@ -1603,11 +1605,13 @@ router.delete('/customers/:user_id/flags/:flag_id', requireAuth, requireStaffRol
   try {
     const businessId = scopedBusinessId(req, req.query.business_id);
     if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const [[cleared]] = await pool.query('SELECT flag FROM patient_flags WHERE id = ?', [req.params.flag_id]);
     const [r] = await pool.query(
       `UPDATE patient_flags SET cleared_at = NOW(), cleared_by_staff_id = ?
         WHERE id = ? AND user_id = ? AND business_id = ? AND cleared_at IS NULL`,
       [req.dbStaff?.id || null, req.params.flag_id, req.params.user_id, businessId]);
     if (!r.affectedRows) return res.status(404).json({ error: 'Flag not found.' });
+    caseAlerts.flagChanged(businessId, req.params.user_id, cleared?.flag, 'cleared', req.dbStaff);
     res.json({ cleared: true });
   } catch (error) {
     console.error('clear patient flag error:', error);

@@ -44,6 +44,7 @@ const router = require('express').Router();
 const { listedSectorClause } = require('../utils/listing');
 const { clock12 } = require('../utils/joinWindow');
 const { activeClosure, closureMessage } = require('../utils/branchClosures');
+const caseAlerts = require('../utils/caseAlerts');
 const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -877,6 +878,7 @@ async function checkIn(req, res, channel) {
     await conn.commit();
     const [[ticket]] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
     broadcast(queue.id, ticket);
+    caseAlerts.visitStarted(ticketId);
 
     res.status(201).json({
       registration_id: registration.id,

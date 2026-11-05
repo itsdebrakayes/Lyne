@@ -202,3 +202,24 @@ test('the report counts cases watched at the end of the period and transfers in 
   assert.equal(r.cases.transfers, 1);
   assert.equal(r.cases.takenUp, 2);
 });
+
+const { joinMessage, endMessage } = require('../src/utils/caseAlerts');
+const facts = { client: 'Shanique Powell', service: 'Account Opening', branch: 'Half Way Tree', ticket_number: 'ACC-106', ahead: 5, channel: 'kiosk', status: 'served', closed_reason: null, missed_before: 0, flags: [] };
+
+test('a watched client joining says where they are, and what happened last time', () => {
+  assert.equal(joinMessage({ ...facts, missed_before: 2, last_reason: 'the visit was not finished: wrong or missing documents', flags: [{ flag: 'watch', note: 'Same ID, two names' }] }),
+    'Shanique Powell is at the branch and has joined the Account Opening line at Half Way Tree (ACC-106, 5 ahead). This is their 3rd try at this service; last time, the visit was not finished: wrong or missing documents. Flagged Watch (Same ID, two names).');
+});
+
+test('joining from home is not called being at the branch', () => {
+  assert.match(joinMessage({ ...facts, channel: 'app' }), /has joined from the app/);
+});
+
+test('not being served again counts the tries', () => {
+  assert.equal(endMessage({ ...facts, closed_reason: 'wrong_documents', missed_before: 1 }),
+    'Shanique Powell was not served again at Account Opening (ACC-106): the visit was not finished: wrong or missing documents. That is 2 unfinished visits for this service.');
+});
+
+test('being served is good news, and says so', () => {
+  assert.equal(endMessage({ ...facts, served_by: 'Natalie Brooks' }), 'Shanique Powell was served at Account Opening by Natalie Brooks (ACC-106).');
+});

@@ -63,6 +63,7 @@
  */
 const pool = require('../db/pool');
 const { sendPushToUser } = require('../utils/pushSender');
+const caseAlerts = require('../utils/caseAlerts');
 
 /** What the person is told. The ticket's reason, in their own terms: without it
  *  the app can only say "cancelled", which reads like something went wrong. */
@@ -141,6 +142,7 @@ async function closeOut(conn, fromStatus, toStatus, note, reason, pushes) {
 
 async function closeRows(conn, rows, fromStatus, toStatus, note, reason, pushes) {
   if (!rows.length) return 0;
+  const ended = pushes.ended || (pushes.ended = []);
 
   let closed = 0;
   for (const r of rows) {
@@ -222,6 +224,7 @@ async function closeRows(conn, rows, fromStatus, toStatus, note, reason, pushes)
           userId: r.user_id, title: 'Your queue update', body: PUSH_BODY,
           data: { ticketId: r.id, type: 'queue_update' },
         });
+        ended.push(r.id);
       }
     }
     // An audit trail matters here: this is the system changing somebody's
@@ -260,6 +263,7 @@ async function closeBranchLines(branchIds) {
     }
     await conn.commit();
     pushes.forEach((p) => sendPushToUser(p.userId, p).catch(() => {}));
+    (pushes.ended || []).forEach((id) => caseAlerts.visitEnded(id));
     return closed;
   } catch (err) {
     await conn.rollback().catch(() => {});
@@ -330,6 +334,7 @@ async function runTicketExpiry() {
     await conn.commit();
     // After the commit, so a rollback never reaches anyone's phone.
     pushes.forEach((p) => sendPushToUser(p.userId, p).catch(() => {}));
+    (pushes.ended || []).forEach((id) => caseAlerts.visitEnded(id));
     await closeForgottenShifts().catch((err) => console.error('[TicketExpiry] forgotten shifts:', err.message));
     return {
       enabled: true,

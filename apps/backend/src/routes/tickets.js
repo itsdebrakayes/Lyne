@@ -37,6 +37,7 @@ const { isTestVerificationCode } = require('../utils/testVerificationCode');
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, branchClosedMessage, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
 const { activeClosure, closureMessage } = require('../utils/branchClosures');
+const caseAlerts = require('../utils/caseAlerts');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 
@@ -339,6 +340,7 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
     );
 
     await conn.commit();
+    caseAlerts.visitStarted(ticketId);
     const [ticket] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
     broadcast(queue_id, ticket[0]);
     res.status(201).json(ticket[0]);
@@ -1009,6 +1011,7 @@ router.put('/:id/leave', requireAuth, requireTicketAccess, async (req, res) => {
       [uuidv4(), ticket.id, ticket.status]
     );
     await conn.commit();
+    caseAlerts.visitEnded(ticket.id);
     const [updated] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
     broadcast(ticket.queue_id, updated[0]);
     res.json(updated[0]);
@@ -1207,6 +1210,7 @@ router.put('/:id/incomplete', requireAuth, requireTicketAccess, async (req, res)
       now,
     });
     await conn.commit();
+    caseAlerts.visitEnded(ticket.id);
 
     const [updated] = await pool.query('SELECT * FROM queue_tickets WHERE id = ?', [ticket.id]);
     const { verification_code: _code, ...staffSafe } = updated[0];
@@ -1363,6 +1367,7 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
     }
 
     await conn.commit();
+    if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) caseAlerts.visitEnded(ticket.id);
 
     // Deliver the push only after the transaction is durable.
     if (pendingPush) {
@@ -1632,6 +1637,7 @@ router.put('/:id/skip', requireAuth, requireStaffRole('line_staff', 'manager', '
     );
 
     await conn.commit();
+    if (disposition === 'remove') caseAlerts.visitEnded(ticket.id);
 
     if (pendingPush) {
       sendPushToUser(pendingPush.userId, pendingPush).catch(() => {});
