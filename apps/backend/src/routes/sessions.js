@@ -42,6 +42,7 @@
  */
 const router = require('express').Router();
 const { listedSectorClause } = require('../utils/listing');
+const { clock12 } = require('../utils/joinWindow');
 const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -695,6 +696,23 @@ async function checkIn(req, res, channel) {
     if (Number(dateCheck.delta) < 0) {
       await conn.rollback();
       return res.status(409).json({ error: 'This session has already taken place.' });
+    }
+
+    /* Not after the doors have shut: nobody is left to call the number, and the
+       end-of-day sweep would cancel the ticket minutes later. A session that
+       runs past the branch's usual closing keeps its own hours, and a Saturday
+       session at a weekday branch is why this does not look at open_days. */
+    const [closing] = await conn.query(
+      `SELECT b.name, b.closing_time,
+              NOW() >= GREATEST(TIMESTAMP(CURDATE(), b.closing_time), COALESCE(?, '1970-01-01')) AS past
+         FROM branches b WHERE b.id = ?`,
+      [session.ends_at || null, session.branch_id]
+    );
+    if (closing?.[0] && Number(closing[0].past) === 1) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: `${closing[0].name} closed at ${clock12(closing[0].closing_time)} today, so check-in has ended.`,
+      });
     }
 
     /* An appointment (migration 042). Measured in the database's clock, the same

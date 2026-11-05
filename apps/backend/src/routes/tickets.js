@@ -35,7 +35,7 @@ const { sendPushToUser } = require('../utils/pushSender');
 const { isTestVerificationCode } = require('../utils/testVerificationCode');
 
 const { estimateWaitMinutes } = require('../utils/waitEstimator');
-const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
+const { remoteJoinBlockedUntil, branchClosedMessage, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 
@@ -229,9 +229,14 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
     // Walk-ins first — this route is the customer app (channel 'app'), so remote
     // joining opens a few minutes after the branch does. See utils/joinWindow.js.
     const [branchRows] = await conn.query(
-      'SELECT opening_time, open_days FROM branches WHERE id = ?',
+      'SELECT name, opening_time, closing_time, open_days FROM branches WHERE id = ?',
       [queue.branch_id]
     );
+    const closedMessage = branchClosedMessage(branchRows[0]);
+    if (closedMessage) {
+      await conn.rollback();
+      return res.status(409).json({ error: closedMessage });
+    }
     const remoteOpensAt = remoteJoinBlockedUntil(branchRows[0]);
     if (remoteOpensAt) {
       await conn.rollback();

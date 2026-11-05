@@ -80,6 +80,7 @@ export interface TicketRecord {
   status_message?: string | null;
   readiness_shown_at?: string | null;
   readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
+  closed_reason?: string | null;
   readiness_note?: string | null;
   /* Timestamps. GET /tickets/:id selects t.*, so these have always been on the
      wire — they had no name here until the ticket needed to draw a timeline

@@ -5,7 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER } = require('../src/utils/joinWindow');
+const { remoteJoinBlockedUntil, branchClosedMessage, REMOTE_JOIN_BUFFER } = require('../src/utils/joinWindow');
 
 // Mon–Fri, doors at 08:00. 2026-07-21 is a Tuesday.
 const BRANCH = { opening_time: '08:00:00', open_days: '1,2,3,4,5' };
@@ -56,4 +56,23 @@ test('a branch with no schedule set has no buffer to enforce', () => {
   assert.equal(remoteJoinBlockedUntil({}, at(8, 1)), null);
   assert.equal(remoteJoinBlockedUntil({ opening_time: '08:00:00' }, at(8, 1)), null);
   assert.equal(remoteJoinBlockedUntil({ open_days: '1,2,3,4,5' }, at(8, 1)), null);
+});
+
+const HWT = { name: 'Half Way Tree', closing_time: '16:00:00', open_days: '1,2,3,4,5' };
+
+test('open until the minute the branch closes', () => {
+  assert.equal(branchClosedMessage(HWT, at(15, 59)), null);
+});
+
+test('refuses from closing time, naming the branch and the hour', () => {
+  assert.equal(branchClosedMessage(HWT, at(22, 24)), 'Half Way Tree closed at 4 PM today. You can join again when it reopens.');
+});
+
+test('refuses on a day the branch does not open', () => {
+  // 2026-07-25 is a Saturday.
+  assert.equal(branchClosedMessage(HWT, new Date(2026, 6, 25, 11, 0)), 'Half Way Tree is closed today.');
+});
+
+test('a branch with no closing time is not refused', () => {
+  assert.equal(branchClosedMessage({ name: 'X', closing_time: null }, at(23, 0)), null);
 });

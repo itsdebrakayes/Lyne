@@ -40,8 +40,16 @@ const WALLET_NOTE = Platform.OS === 'android'
 const TERMINAL_META: Record<string, { label: string; tone: string; note: string }> = {
   no_show: { label: 'Place released', tone: colors.busy, note: 'The call window passed, so your spot was released. You can rejoin the queue below.' },
   left: { label: 'You left the queue', tone: colors.muted, note: 'You left this line. Join again whenever you are ready.' },
-  cancelled: { label: 'Ticket cancelled', tone: colors.muted, note: 'This ticket was cancelled. You can join a new queue anytime.' },
+  cancelled: { label: 'Ticket cancelled', tone: colors.muted, note: 'A member of staff at the branch ended this ticket. If you were not expecting that, please speak to someone there.' },
   served: { label: 'Completed', tone: colors.light, note: 'This visit is complete. See you next time!' },
+};
+
+/* Why a ticket ended when the system ended it, not the person. "Cancelled" alone
+   reads like a fault; these say what actually happened. */
+const CLOSED_REASON_META: Record<string, { label: string; note: string }> = {
+  branch_closed_before_called: { label: 'Branch closed', note: 'The branch closed before your number was called, so this ticket has ended. You can join again when it reopens.' },
+  branch_closed_after_called: { label: 'Branch closed', note: 'Your number was called, but the branch closed before you reached the counter.' },
+  service_not_finalised: { label: 'Branch closed', note: 'The branch closed before your visit was finished in the system, so this ticket has been closed.' },
 };
 
 /** A label/value pair from the boarding pass's detail grid. */
@@ -303,7 +311,7 @@ export default function TicketScreen() {
      button they just pressed. */
   const terminal = ticket.status === 'served' && ticket.readiness_outcome === 'incomplete'
     ? { ...TERMINAL_META.served, label: 'Marked incomplete', note: 'This visit was marked incomplete. You can join the line again whenever you are ready.' }
-    : TERMINAL_META[ticket.status];
+    : TERMINAL_META[ticket.status] && { ...TERMINAL_META[ticket.status], ...CLOSED_REASON_META[ticket.closed_reason ?? ''] };
   /* Still in the line, so leaving and alerts still mean something. Once the
      ticket is in_service neither does: there is no place left to give up and
      nothing left to be told. */

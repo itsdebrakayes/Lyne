@@ -62,6 +62,17 @@
  * window, not at some global 3am.
  */
 const pool = require('../db/pool');
+const { sendPushToUser } = require('../utils/pushSender');
+
+/** What the person is told. The ticket's reason, in their own terms: without it
+ *  the app can only say "cancelled", which reads like something went wrong. */
+const PERSON_MESSAGE = {
+  branch_closed_before_called: (r) => `${r.branch_name} closed before ${r.ticket_number} was called, so your ticket has ended. You can join again when the branch reopens.`,
+  branch_closed_after_called: (r) => `${r.ticket_number} was called at ${r.branch_name}, but the branch closed before you reached the counter.`,
+  service_not_finalised: (r) => `${r.branch_name} closed before your visit was finished in the system, so ${r.ticket_number} has been closed.`,
+};
+/** Sent as Lyne's other ticket pushes are: the detail stays inside the app. */
+const PUSH_BODY = 'Your queue status has changed. Open Lyne for the details.';
 
 /** How long after closing to wait before calling it. Long enough for staff to
  *  finish the people already in front of them; short enough that the next
@@ -99,6 +110,7 @@ const CANDIDATE_SQL = `
          t.joined_at,
          t.queue_id,
          q.queue_date,
+         q.queue_date = CURDATE() AS is_today,
          q.service_id,
          b.id   AS branch_id,
          bz.id  AS business_id,
@@ -117,7 +129,7 @@ const CANDIDATE_SQL = `
    LIMIT 5000
 `;
 
-async function closeOut(conn, fromStatus, toStatus, note, reason) {
+async function closeOut(conn, fromStatus, toStatus, note, reason, pushes) {
   const [rows] = await conn.query(CANDIDATE_SQL, [fromStatus, GRACE_MINUTES]);
   if (!rows.length) return 0;
 
@@ -127,7 +139,9 @@ async function closeOut(conn, fromStatus, toStatus, note, reason) {
       `UPDATE queue_tickets
           SET status = ?,
               closed_reason = ?,
-              completed_at = COALESCE(completed_at, ?)
+              /* Never before they joined: a place taken after closing would
+                 otherwise read as finished before it began. */
+              completed_at = COALESCE(completed_at, GREATEST(?, joined_at))
         WHERE id = ? AND status = ?`,
       [toStatus, reason, r.closed_at, r.id, fromStatus]
     );
@@ -186,14 +200,28 @@ async function closeOut(conn, fromStatus, toStatus, note, reason) {
          r.business_name, r.branch_name, r.service_name, r.ticket_number,
          r.queue_date, r.joined_at, r.closed_at, toStatus]
       );
+
+      /* Tell them why. Only for the day just ended: a sweep catching up on old
+         tickets must not fill someone's phone with last month's news. */
+      if (r.is_today) {
+        await conn.query(
+          `INSERT INTO notifications (id, user_id, ticket_id, notification_type, channel, message)
+           VALUES (UUID(), ?, ?, 'queue_update', 'push', ?)`,
+          [r.user_id, r.id, PERSON_MESSAGE[reason](r)]
+        );
+        pushes.push({
+          userId: r.user_id, title: 'Your queue update', body: PUSH_BODY,
+          data: { ticketId: r.id, type: 'queue_update' },
+        });
+      }
     }
     // An audit trail matters here: this is the system changing somebody's
     // ticket without a human touching it, and "why did my ticket cancel?" has
     // to be answerable.
     await conn.query(
       `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, event_timestamp, notes)
-       VALUES (UUID(), ?, ?, ?, ?, ?)`,
-      [r.id, fromStatus, toStatus, r.closed_at, note]
+       VALUES (UUID(), ?, ?, ?, GREATEST(?, ?), ?)`,
+      [r.id, fromStatus, toStatus, r.closed_at, r.joined_at, note]
     );
   }
   return closed;
@@ -203,18 +231,19 @@ async function runTicketExpiry() {
   if (!ENABLED) return { enabled: false, cancelled: 0, noShow: 0, stuckInService: 0 };
 
   const conn = await pool.getConnection();
+  const pushes = [];
   try {
     await conn.beginTransaction();
 
     const cancelled = await closeOut(
       conn, 'waiting', 'cancelled',
       'Branch closed before this number was called.',
-      'branch_closed_before_called'
+      'branch_closed_before_called', pushes
     );
     const noShow = await closeOut(
       conn, 'called', 'no_show',
       'Called, but the branch closed before they came forward.',
-      'branch_closed_after_called'
+      'branch_closed_after_called', pushes
     );
     // Still surfaced by name, because a clerk repeatedly leaving tickets open
     // IS worth a manager's attention. It is now reported AND closed, rather
@@ -223,10 +252,12 @@ async function runTicketExpiry() {
     const unfinished = await closeOut(
       conn, 'in_service', 'cancelled',
       'Service was never completed before the branch closed.',
-      'service_not_finalised'
+      'service_not_finalised', pushes
     );
 
     await conn.commit();
+    // After the commit, so a rollback never reaches anyone's phone.
+    pushes.forEach((p) => sendPushToUser(p.userId, p).catch(() => {}));
     return {
       enabled: true,
       cancelled,
