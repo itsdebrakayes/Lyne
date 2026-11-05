@@ -124,6 +124,10 @@ const CANDIDATE_SQL = `
     JOIN businesses bz ON bz.id = b.business_id
     JOIN services   s  ON s.id  = q.service_id
    WHERE t.status = ?
+     /* The review simulator's made-up visitors are not visits. Closing them here
+        recorded each as a cancelled visit, and the simulator refilled the line, so
+        every sweep after closing added more. It clears its own the next day. */
+     AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')
      AND TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time))
          + INTERVAL ? MINUTE < NOW()
    LIMIT 5000

@@ -226,3 +226,10 @@ test('a place taken after closing never reads as finished before it began', asyn
   const update = queries.find((q) => /UPDATE queue_tickets/.test(q.sql));
   assert.match(update.sql, /GREATEST\(\?, joined_at\)/);
 });
+
+test("the simulator's made-up visitors are never closed out as visits", async () => {
+  reset();
+  await runTicketExpiry();
+  const candidates = queries.find((q) => /FROM queue_tickets t/.test(q.sql));
+  assert.match(candidates.sql, /t\.guest_name <> 'Review demo visitor'/);
+});
