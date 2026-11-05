@@ -59,6 +59,10 @@ interface WalkInTicket {
 
 type Step = 'welcome' | 'choose' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
 type Notify = 'sms' | 'screen';
+/* Nothing can send a text yet: the server has no SMS provider. Until it does the
+   kiosk must not offer or promise one, because the person would wait for a
+   message that never comes. Turn this on the day the provider is live. */
+const SMS_READY = false;
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: 'service', label: 'Service' },
@@ -352,7 +356,7 @@ function Choose({ onBooking, onJoin, onBack, kx }: {
         {card({
           icon: 'people-outline',
           title: 'Join A Line',
-          body: 'No booking? Pick what you came for and take a place. We can text you when you are nearly up.',
+          body: `No booking? Pick what you came for and take a place.${SMS_READY ? ' We can text you when you are nearly up.' : ''}`,
           onPress: onJoin,
           label: 'Join a line without a booking.',
         })}
@@ -399,7 +403,7 @@ function Welcome({ org, branch, onStart, kx }: {
 
 
       <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
-        {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
+        {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', SMS_READY ? 'Text Updates' : 'To Use']].map(([big, small]) => (
           <View key={small} style={{ alignItems: 'center' }}>
             <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 24, color: colors.ink }}>{big}</Text>
             <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 12.5, color: colors.muted, marginTop: 4 }}>{small}</Text>
@@ -574,8 +578,9 @@ function Confirm({ svc, onBack, onNext, kx, total = 3 }: {
           {wait >= BUSY_MINUTES && (
             <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 16 }}>
               <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15.5) : 13.5, color: colors.ink, lineHeight: 21 }}>
-                This line is longer than usual today. You're welcome to join — we'll text you so you
-                don't have to stand and wait.
+                {SMS_READY
+                  ? "This line is longer than usual today. You're welcome to join — we'll text you so you don't have to stand and wait."
+                  : "This line is longer than usual today. You're welcome to join, and you'll see your number on the screen when it's your turn."}
               </Text>
             </View>
           )}
@@ -672,6 +677,7 @@ function Details({
           </View>
         )}
 
+        {SMS_READY && (
         <View>
           <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1.2, marginBottom: 8 }}>
             HOW SHOULD WE TELL YOU?
@@ -705,6 +711,7 @@ function Details({
             })}
           </View>
         </View>
+        )}
 
         {notify === 'sms' && (
           <View>
