@@ -358,6 +358,7 @@ const schemas = {
   branchSettings: z.object({
     branch_id:      idSchema.optional(),
     allow_overflow: z.coerce.boolean().optional(),
+    text_when_called: z.boolean().optional(),
     /* Line Helper, per branch. It ships ON at every branch, so this is the OFF
        switch. It lives on the settings endpoint rather than on PUT /branches
        because it is a POLICY rather than a detail — it belongs beside

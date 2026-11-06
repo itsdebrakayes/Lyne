@@ -38,6 +38,7 @@ const { estimateWaitMinutes } = require('../utils/waitEstimator');
 const { remoteJoinBlockedUntil, branchClosedMessage, REMOTE_JOIN_BUFFER } = require('../utils/joinWindow');
 const { activeClosure, closureMessage } = require('../utils/branchClosures');
 const caseAlerts = require('../utils/caseAlerts');
+const { textWhenCalled, stopCode } = require('../utils/smsAlerts');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 
@@ -93,11 +94,13 @@ const joinQueueSchema = z.object({
 
 // A kiosk clerk adds a walk-in (someone at the branch without the app). They
 // pick a service; the branch is the clerk's own. Name is required so line staff
-// have someone to call; phone is optional (used for an SMS follow-up later).
+// have someone to call; phone is optional, and a text is only sent if they chose it.
 const walkInSchema = z.object({
   service_id:  z.string().min(1).max(64),
   guest_name:  z.string().trim().min(1, 'A name is required to add a walk-in.').max(120),
   guest_phone: z.string().trim().max(30).optional(),
+  /** They chose "Text Me" at the kiosk. A phone number alone is not agreement. */
+  sms_consent: z.boolean().optional(),
   /* Healthcare front desk: date of birth, why they came, and the department's
      triage questions asked aloud. All optional unless the department has
      triage questions, which must then be answered like in the app. */
@@ -372,7 +375,7 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
   if (!branchId) {
     return res.status(403).json({ error: 'This kiosk account is not assigned to a branch.' });
   }
-  const { service_id, guest_name, guest_phone, guest_dob, visit_reason, triage_answers } = parsed.data;
+  const { service_id, guest_name, guest_phone, guest_dob, visit_reason, triage_answers, sms_consent } = parsed.data;
 
   const conn = await pool.getConnection();
   try {
@@ -451,10 +454,11 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
     await conn.query(
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, guest_name, guest_phone, guest_dob, ticket_number, verification_code, position, status,
-          estimated_wait_minutes, channel, visit_reason, triage_answers, triage_flag)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk', ?, ?, ?)`,
+          estimated_wait_minutes, channel, visit_reason, triage_answers, triage_flag, notify_consent_at, sms_stop_code)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk', ?, ?, ?, ?, ?)`,
       [ticketId, queue.id, guest_name, guest_phone || null, guest_dob || null, ticketNumber, verificationCode, position,
-        estimatedWait, visit_reason || null, triage.answers ? JSON.stringify(triage.answers) : null, triage.flag]
+        estimatedWait, visit_reason || null, triage.answers ? JSON.stringify(triage.answers) : null, triage.flag,
+        sms_consent && guest_phone ? new Date() : null, sms_consent && guest_phone ? stopCode() : null]
     );
     await conn.query(
       `INSERT INTO queue_events (id, ticket_id, previous_status, new_status)
@@ -1368,6 +1372,7 @@ router.put('/:id/status', requireAuth, requireStaffRole('line_staff', 'manager',
 
     await conn.commit();
     if (['served', 'left', 'cancelled', 'no_show'].includes(new_status)) caseAlerts.visitEnded(ticket.id);
+    if (new_status === 'called') textWhenCalled(ticket.id);
 
     // Deliver the push only after the transaction is durable.
     if (pendingPush) {

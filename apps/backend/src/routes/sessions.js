@@ -45,6 +45,7 @@ const { listedSectorClause } = require('../utils/listing');
 const { clock12 } = require('../utils/joinWindow');
 const { activeClosure, closureMessage } = require('../utils/branchClosures');
 const caseAlerts = require('../utils/caseAlerts');
+const { stopCode } = require('../utils/smsAlerts');
 const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -315,6 +316,8 @@ const registerSchema = eligibilitySchema.extend({
    place on their account alone, and a guest by name. */
 const publicRegisterSchema = registerSchema.extend({
   reference: z.string().trim().max(60).optional(),
+  /** Asked to be texted when called. A phone number alone is not agreement. */
+  sms_consent: z.boolean().optional(),
 });
 
 /* Only staff may set a time. A member of the public choosing their own slot
@@ -569,12 +572,13 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
     await conn.query(
       `INSERT INTO session_registrations
          (id, session_id, user_id, guest_name, guest_phone, guest_email, reference,
-          appointment_time, verified, registration_code, rescheduled_from_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          appointment_time, verified, registration_code, rescheduled_from_id, sms_consent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         registrationId, session.id, req.dbUser?.id || null,
         name || null, phone || null, email || null,
         reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code, movedFrom,
+        parsed.data.sms_consent && phone ? new Date() : null,
       ]
     );
 
@@ -811,13 +815,16 @@ async function checkIn(req, res, channel) {
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, guest_name, guest_phone, guest_access_token,
           ticket_number, verification_code, position, status, estimated_wait_minutes, channel,
-          appointment_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?)`,
+          appointment_at, notify_consent_at, sms_stop_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
       [
         ticketId, queue.id, ownerId,
         registration.guest_name || null, registration.guest_phone || null, guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
         honoured ? appointment.slot_at : null,
+        /* A guest's yes from registering comes with them; an account's is on the account. */
+        !ownerId && registration.sms_consent_at ? registration.sms_consent_at : null,
+        !ownerId && registration.sms_consent_at && registration.guest_phone ? stopCode() : null,
       ]
     );
     await conn.query(
