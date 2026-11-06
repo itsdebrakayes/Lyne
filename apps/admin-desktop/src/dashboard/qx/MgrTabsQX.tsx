@@ -124,11 +124,11 @@ export type MgrTabData = {
      the tab used to be pure useState, so a manager could switch a policy off,
      watch it move, and change nothing. */
   settings?: {
-    branch: { allow_overflow: boolean; line_helper_enabled?: boolean; updated_by_name?: string | null };
+    branch: { text_when_called?: boolean; sms_available?: boolean; allow_overflow: boolean; line_helper_enabled?: boolean; updated_by_name?: string | null };
     alerts: { idle_after_minutes: number | null; line_over_target: 'on' | 'off' };
     hours: { opening_time: string | null; closing_time: string | null } | null;
   } | null;
-  onSaveBranchSettings?: (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean }) => Promise<void> | void;
+  onSaveBranchSettings?: (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean; text_when_called?: boolean }) => Promise<void> | void;
   onSaveAlertPrefs?: (patch: { idle_after_minutes?: number | null; line_over_target?: 'on' | 'off' }) => Promise<void> | void;
   settingsSaveState?: 'idle' | 'saving' | 'saved' | 'error';
   settingsSaveError?: string | null;
@@ -824,17 +824,20 @@ export function MgrSettingsTab() {
               onClick={() => d.onSaveBranchSettings?.({ line_helper_enabled: !helperOn })} />
           </div>
 
-          {/* Disabled, not fake. Neither feature exists: the backend has no SMS
-              integration and the kiosk has no printer driver. */}
+          {/* Each text costs money, so this is off until a manager turns it on, and
+              only people who said yes are ever texted. */}
           <div className="qx-setrow">
             <div>
               <b>Text {terms.visitor.many} When Called</b>
-              <small>Needs an SMS provider connected. Until then everyone is notified in the app.</small>
+              <small>{d.settings?.branch.sms_available
+                ? `Sends one text to ${lower(terms.visitor.many)} who asked for it, from the kiosk or the app. Each text is charged.`
+                : 'Texting is not switched on for Lyne yet. Until then everyone is notified in the app.'}</small>
             </div>
-            <Toggle on={false} label="Text when called" disabled
-              title="No SMS provider is connected yet"
-              onClick={() => undefined} />
+            <Toggle on={Boolean(d.settings?.branch.text_when_called)} label="Text when called"
+              disabled={saving || !d.onSaveBranchSettings || !d.settings?.branch.sms_available}
+              onClick={() => d.onSaveBranchSettings?.({ text_when_called: !d.settings?.branch.text_when_called })} />
           </div>
+          {/* Disabled, not fake: the kiosk has no printer driver. */}
           <div className="qx-setrow">
             <div>
               <b>Lobby Kiosk Prints Tickets</b>

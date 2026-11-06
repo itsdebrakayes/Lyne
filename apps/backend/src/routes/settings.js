@@ -127,7 +127,6 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
     const branchId = scopedBranchId(req, req.body.branch_id);
     if (!branchId) return res.status(400).json({ error: 'branch_id is required.' });
 
-    const allowOverflow = req.body.allow_overflow ? 1 : 0;
 
     /* Written to the branches row, which is where the Line Helper join path
        reads it. Only when it was actually sent: a settings save that only
@@ -143,9 +142,11 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
       `INSERT INTO branch_settings (branch_id, allow_overflow, updated_by)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE
-         allow_overflow = VALUES(allow_overflow),
+         allow_overflow = IF(? IS NULL, allow_overflow, VALUES(allow_overflow)),
          updated_by = VALUES(updated_by)`,
-      [branchId, allowOverflow, req.dbStaff?.id || null]
+      /* Only what was sent: saving one toggle used to switch overflow off. */
+      [branchId, req.body.allow_overflow ? 1 : 0, req.dbStaff?.id || null,
+        req.body.allow_overflow === undefined ? null : 1]
     );
 
     /* Only when sent, as with Line Helper: saving another setting leaves it be. */

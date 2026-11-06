@@ -283,7 +283,7 @@ export default function ManagerDashboard() {
      tab — controls that moved and changed nothing. */
   const [setState, setSetState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [setError, setSetError] = useState<string | null>(null);
-  const saveBranchSettings = useCallback(async (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean }) => {
+  const saveBranchSettings = useCallback(async (patch: { text_when_called?: boolean; allow_overflow?: boolean; line_helper_enabled?: boolean }) => {
     setSetState('saving'); setSetError(null);
     try {
       /* The patch is spread rather than destructured field by field. Naming

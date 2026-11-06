@@ -16,6 +16,7 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { useContentColumn } from '../../lib/stage';
+import { PhoneAlertsCard } from '../../components/PhoneAlertsCard';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -233,6 +234,8 @@ export default function ProfileScreen() {
           { icon: 'help', label: 'Help and support', onPress: () => navigation.navigate('Help') },
           { icon: 'document', label: 'Privacy policy and terms', onPress: () => navigation.navigate('Legal') },
         ]} />
+
+        <PhoneAlertsCard />
 
         {/* Log out and Delete account: last, in red, and Delete opens a sheet
             that says exactly what goes before anything is removed. */}
