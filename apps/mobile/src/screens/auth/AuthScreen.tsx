@@ -31,9 +31,6 @@ import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 import { AuthMode, AuthModeSwitch } from '../../components/AuthModeSwitch';
 import { SignupCodeEntry } from '../../components/SignupCodeEntry';
-import { SmsSignupCode } from '../../components/SmsSignupCode';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../lib/apiClient';
 import { clearPendingSignup, readPendingSignup, rememberPendingSignup } from '../../lib/pendingSignup';
 import { setDocument } from '../../lib/documentVault';
 import { formatTrn, isValidTrn } from '../../lib/trn';
@@ -88,15 +85,6 @@ export default function AuthScreen() {
     if (signInError) setError(signInError.message === 'Invalid login credentials' ? 'That email and password don’t match. Try again.' : signInError.message);
   };
 
-  /* Text codes only appear once the provider is on, so older setups are unchanged. */
-  const smsSignup = useQuery({
-    queryKey: ['sms-status'],
-    queryFn: () => api.get<{ available: boolean }>('/sms/status', false),
-    retry: false,
-  });
-  const [confirmBy, setConfirmBy] = useState<'email' | 'sms'>('email');
-  const [smsSentTo, setSmsSentTo] = useState<string | null>(null);
-
   const handleSignUp = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim()) { setError('Add your name, email and phone number to continue.'); return; }
     if (!password) { setError('Create a password to secure your account.'); return; }
@@ -107,12 +95,6 @@ export default function AuthScreen() {
     if (trn.trim() && !isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
     setLoading(true); setError(null);
     try {
-      if (confirmBy === 'sms') {
-        await api.post('/sms/signup/start', { phone: phone.trim() }, false);
-        if (trn.trim()) await setDocument('trn', formatTrn(trn.trim()));
-        setSmsSentTo(phone.trim());
-        return;
-      }
       /* The TRN is not sent anywhere. It used to ride along as account
          metadata, which put it on Supabase's servers despite the privacy
          policy's promise that it stays on the phone. It goes to the device
@@ -176,12 +158,7 @@ export default function AuthScreen() {
             <AuthModeSwitch mode={mode} onChange={switchMode} />
           </Animated.View>
 
-          {smsSentTo ? (
-            <Animated.View entering={ENTER} exiting={EXIT}>
-              <SmsSignupCode phone={smsSentTo} email={email.trim().toLowerCase()} password={password} fullName={fullName.trim()}
-                dob={dob ? toISODate(dob) : undefined} onBack={() => setSmsSentTo(null)} />
-            </Animated.View>
-          ) : awaitingCode ? (
+          {awaitingCode ? (
             <Animated.View entering={ENTER} exiting={EXIT}>
               <SignupCodeEntry
                 email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
@@ -257,19 +234,6 @@ export default function AuthScreen() {
               )}
 
               <Animated.View layout={LAYOUT}>
-                {signup && smsSignup.data?.available ? (
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={styles.optionalHint}>Confirm my account by</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                      {(['email', 'sms'] as const).map((way) => (
-                        <TouchableOpacity key={way} onPress={() => setConfirmBy(way)} accessibilityRole="radio" accessibilityState={{ selected: confirmBy === way }}
-                          style={{ flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: confirmBy === way ? colors.accent : colors.border, backgroundColor: confirmBy === way ? colors.accent : 'transparent' }}>
-                          <Text style={{ fontFamily: font.bold, fontSize: 14, color: confirmBy === way ? '#fff' : colors.ink }}>{way === 'email' ? 'Email' : 'Text message'}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
                 <TouchableOpacity
                   activeOpacity={0.9}
                   style={[styles.btn, loading && { opacity: 0.7 }]}

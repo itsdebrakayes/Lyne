@@ -1,5 +1,5 @@
 /**
- * PhoneAlertsCard — add or change a phone number, and choose to get texts.
+ * PhoneAlertsCard — verify a phone number by text, and choose to get texts.
  *
  * The number goes through Supabase: updateUser({ phone }) texts a code, and
  * verifyOtp with type 'phone_change' proves it. Never signInWithOtp: a phone number
@@ -36,7 +36,7 @@ export function PhoneAlertsCard() {
   const qc = useQueryClient();
   const pref = useQuery({ queryKey: ['sms-preference'], queryFn: () => api.get<Pref>('/sms/preference') });
   const [editing, setEditing] = useState(false);
-  const [phone, setPhone] = useState('');
+  const [typed, setPhone] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,6 +44,9 @@ export function PhoneAlertsCard() {
 
   const d = pref.data;
   if (!d?.available) return null;
+  /* The number from sign-up is waiting here, unproven, so nobody retypes it. Changing
+     a verified number starts empty. */
+  const phone = typed ?? (d.verified ? '' : d.phone || '');
 
   const send = async () => {
     const e164 = toE164(phone);
@@ -63,7 +66,7 @@ export function PhoneAlertsCard() {
       const { error: err } = await supabase.auth.verifyOtp({ phone: sentTo, token: code, type: 'phone_change' });
       if (err) throw err;
       await api.put('/sms/preference', { opt_in: true });
-      setEditing(false); setSentTo(null); setCode(''); setPhone('');
+      setEditing(false); setSentTo(null); setCode(''); setPhone(null);
       await qc.invalidateQueries({ queryKey: ['sms-preference'] });
     } catch (caught) { setError(friendly(caught)); } finally { setBusy(false); }
   };

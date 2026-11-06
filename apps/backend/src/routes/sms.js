@@ -1,37 +1,25 @@
 /**
- * sms.js — agreeing to texts, stopping them, and signing up by text.
+ * sms.js — agreeing to texts and stopping them.
  *
  * GET  /api/sms/status            is texting on (and, with branch_id, at this branch)?
  * GET  /api/sms/preference        my number and whether I get texts
  * PUT  /api/sms/preference        turn my texts on or off
  * POST /api/sms/stop              stop texts from the link in a message
- * POST /api/sms/signup/start      send a sign-up code
- * POST /api/sms/signup/finish     check it and create the account
  *
- * Why sign-up does not use Supabase's phone path: "Confirm email" is on, so a new
- * email account has no session until it confirms, and updateUser({ phone }) needs a
- * session. Here Twilio Verify proves the phone first, and only then is the account
- * made, with its email and that phone. It still cannot exist without an email.
+ * A phone is never how an account is made. Sign-up is by email; a signed-in person
+ * proves a number through Supabase (updateUser, then verifyOtp), whose Phone provider
+ * uses Twilio Verify, and that proof is what allows texts.
  */
 const router = require('express').Router();
-const { z } = require('zod');
 const { createClient } = require('@supabase/supabase-js');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
-const {
-  smsAvailable, normalizeJamaican, refusal, record, startVerification, checkVerification,
-} = require('../utils/smsSender');
+const { smsAvailable, normalizeJamaican } = require('../utils/smsSender');
 const { canTextAtBranch } = require('../utils/smsAlerts');
 
 const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const admin = () => createClient(process.env.SUPABASE_URL, serviceKey(), { auth: { persistSession: false } });
-
-const REFUSED = {
-  throttled: 'Too many codes have gone to this number. Wait an hour and try again.',
-  daily_cap: 'Text codes are busy right now. Try confirming by email instead.',
-  opted_out: 'This number has asked not to be texted. Confirm by email instead.',
-};
 
 router.get('/status', async (req, res) => {
   try {
@@ -94,68 +82,6 @@ router.post('/stop', authLimiter, async (req, res) => {
   } catch (err) {
     console.error('sms stop:', err);
     res.status(500).json({ error: 'Could not stop texts. Try again.' });
-  }
-});
-
-const startSchema = z.object({ phone: z.string().trim().min(7).max(20) });
-const finishSchema = z.object({
-  phone: z.string().trim().min(7).max(20),
-  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code.'),
-  email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(254),
-  password: z.string().min(8, 'Use at least 8 characters.').max(72),
-  full_name: z.string().trim().min(1).max(120),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
-
-const available = (res) => {
-  if (smsAvailable() && process.env.TWILIO_VERIFY_SERVICE_SID) return true;
-  res.status(503).json({ error: 'Text codes are not available right now. Confirm by email instead.' });
-  return false;
-};
-
-router.post('/signup/start', authLimiter, async (req, res) => {
-  const parsed = startSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Enter your mobile number.' });
-  if (!available(res)) return undefined;
-  const phone = normalizeJamaican(parsed.data.phone);
-  if (!phone) return res.status(400).json({ error: 'Enter a Jamaican mobile number, like 876-555-0100.' });
-  try {
-    const no = await refusal(phone);
-    if (no) return res.status(429).json({ error: REFUSED[no] });
-    await startVerification(phone);
-    await record(phone, { purpose: 'signup_code', status: 'sent' });
-    return res.json({ sent: true });
-  } catch (err) {
-    console.error('sms signup start:', err.code || err.message);
-    if (err.code === 60203 || err.status === 429) return res.status(429).json({ error: REFUSED.throttled });
-    return res.status(502).json({ error: 'Could not send a code. Check the number, or confirm by email instead.' });
-  }
-});
-
-router.post('/signup/finish', authLimiter, async (req, res) => {
-  const parsed = finishSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Check your details.' });
-  if (!available(res)) return undefined;
-  const { code, email, password, full_name: fullName, date_of_birth: dob } = parsed.data;
-  const phone = normalizeJamaican(parsed.data.phone);
-  if (!phone) return res.status(400).json({ error: 'Enter a Jamaican mobile number, like 876-555-0100.' });
-  try {
-    if (!(await checkVerification(phone, code))) return res.status(400).json({ error: 'That code is not right, or it has expired.' });
-    const { error } = await admin().auth.admin.createUser({
-      email, password, phone: phone.slice(1),
-      /* The phone proved this person is real, which is what confirming an email was
-         for here. The email itself is unproven; a password reset still goes to it. */
-      email_confirm: true, phone_confirm: true,
-      user_metadata: { full_name: fullName, phone, ...(dob ? { date_of_birth: dob } : {}) },
-    });
-    if (error) {
-      const taken = /already|exists|registered/i.test(error.message);
-      return res.status(taken ? 409 : 502).json({ error: taken ? 'That email or number already has an account. Sign in instead.' : 'Could not create your account. Try again.' });
-    }
-    return res.status(201).json({ created: true });
-  } catch (err) {
-    console.error('sms signup finish:', err.code || err.message);
-    return res.status(502).json({ error: 'Could not check your code. Try again.' });
   }
 });
 

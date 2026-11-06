@@ -100,15 +100,6 @@ async function sendSms({ to, body, purpose, ticketId = null, userId = null }) {
   }
 }
 
-/** Sign-up codes go through Twilio Verify, which writes and checks its own message. */
-async function startVerification(phone) {
-  await twilioClient().verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: phone, channel: 'sms' });
-}
-async function checkVerification(phone, code) {
-  const r = await twilioClient().verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to: phone, code });
-  return r.status === 'approved';
-}
-
 module.exports = {
-  sendSms, smsAvailable, normalizeJamaican, fitsOneSegment, refusal, record, startVerification, checkVerification,
+  sendSms, smsAvailable, normalizeJamaican, fitsOneSegment, refusal, record,
 };
