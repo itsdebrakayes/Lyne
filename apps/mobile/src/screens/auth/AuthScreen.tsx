@@ -21,6 +21,7 @@ import {
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { TERMS_VERSION } from '../../lib/legalContent';
+import { SOCIAL_AUTH_ENABLED } from '../../lib/features';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
@@ -299,7 +300,7 @@ export default function AuthScreen() {
                 </TouchableOpacity>
 
                 <SocialAuthButtons onError={setError} />
-                {signup && (
+                {signup && SOCIAL_AUTH_ENABLED && (
                   <Text style={styles.socialTerms}>
                     Continuing with Apple or Google also means you agree to the{' '}
                     <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'terms' })}>Terms</Text> and{' '}
