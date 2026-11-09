@@ -25,7 +25,8 @@ const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
 const { withPremiumState, trialEndsAt, TRIAL_DAYS, requirePayments } = require('../lib/premium');
-const { profileSyncLimiter } = require('../middleware/rateLimiter');
+const { profileSyncLimiter, authLimiter } = require('../middleware/rateLimiter');
+const { z } = require('zod');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
@@ -298,6 +299,63 @@ router.post('/start-trial', requirePayments, requireAuth, async (req, res) => {
 // ── POST /api/auth/logout ──────────────────────────────────────
 // Revokes the current token and destroys the session record.
 // Client should also call supabase.auth.signOut() to clear local storage.
+// ── Forgotten password ─────────────────────────────────────────────────────────
+// POST /api/auth/password-reset/start   { email }                 email a 6-digit code
+// POST /api/auth/password-reset/finish  { email, code, password } set the new password
+//
+// By code, not by link: the app uses PKCE and has no deep-link handler, and a code
+// works whichever device opens the email. Supabase's Reset Password email must
+// include {{ .Token }}. The code is checked here, not on the phone, because checking
+// it on the phone would sign the person in before they had chosen a new password.
+// Once set, every other session is signed out. Start always answers the same way,
+// so nobody can use it to find out whether an email has an account.
+const resetStart = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+const resetFinish = resetStart.extend({
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code from the email.'),
+  password: z.string().min(8, 'Use at least 8 characters.').max(72, 'Use 72 characters or fewer.'),
+});
+const publicKey = () => process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+const publicClient = () => createSupabaseClient(process.env.SUPABASE_URL, publicKey(), {
+  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+});
+
+router.post('/password-reset/start', authLimiter, async (req, res) => {
+  const parsed = resetStart.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!process.env.SUPABASE_URL || !publicKey()) return res.status(503).json({ error: 'Password reset is unavailable right now. Try again later.' });
+  const { error } = await publicClient().auth.resetPasswordForEmail(parsed.data.email);
+  if (error) {
+    console.error('[PasswordReset] start:', error.status, error.code || error.message);
+    if (error.status === 429) return res.status(429).json({ error: 'Too many reset emails have been sent. Wait a few minutes and try again.' });
+  }
+  return res.json({ sent: true });
+});
+
+router.post('/password-reset/finish', authLimiter, async (req, res) => {
+  const parsed = resetFinish.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Check your details.' });
+  if (!supabaseAdmin || !publicKey()) return res.status(503).json({ error: 'Password reset is unavailable right now. Try again later.' });
+  const { email, code, password } = parsed.data;
+  try {
+    const { data, error } = await publicClient().auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if (error || !data?.user || !data?.session) {
+      return res.status(400).json({ error: "That code didn't work. It may have expired: send a new one and use the latest email." });
+    }
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, { password });
+    if (updateError) {
+      const weak = /password/i.test(updateError.message);
+      return res.status(weak ? 400 : 502).json({ error: weak ? updateError.message : 'Could not save your new password. Try again.' });
+    }
+    // Anyone still signed in with the old password is signed out everywhere.
+    const { error: outError } = await supabaseAdmin.auth.admin.signOut(data.session.access_token, 'global');
+    if (outError) console.error('[PasswordReset] sign-out everywhere failed:', outError.message);
+    return res.json({ reset: true });
+  } catch (err) {
+    console.error('[PasswordReset] finish:', err.message);
+    return res.status(502).json({ error: 'Could not reset your password. Try again.' });
+  }
+});
+
 router.post('/logout', requireAuth, async (req, res) => {
   try {
     const token = (req.headers.authorization || '').split(' ')[1];

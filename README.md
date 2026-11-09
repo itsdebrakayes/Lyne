@@ -309,7 +309,7 @@ All run inside the API process (`apps/backend/src/jobs`) unless noted. Each logs
 
 - **Push notifications** (called, wait changed, Line Helper joined) go through the **Expo push service** (`utils/pushSender.js`). Devices register their Expo push token with the API (`device_push_tokens`). Tokens Expo reports as dead are deactivated. Apple's APNs credential for these is managed by EAS. Android uses the FCM credential uploaded to EAS.
 - **iOS Live Activities** are updated by the API directly through APNs (`utils/apnsSender.js`, `utils/liveUpdates.js`), using the `APNS_*` variables and the `live_activity_tokens` table (migration 036). Without those variables, Live Activities still update while the app is open, just not when it is closed.
-- **Auth email** (confirm sign-up, reset password) is sent by Supabase through Resend SMTP. The template is in `supabase/templates/`.
+- **Auth email** (confirm sign-up, reset password) is sent by Supabase through Resend SMTP. The templates are in `supabase/templates/` and are pasted into Supabase by hand. Both carry a six-digit `{{ .Token }}`. Forgotten password: Forgot Password on the app's sign-in screen calls `/api/auth/password-reset/start`, and the person types the emailed code with a new password into `/finish`, which checks the code on the server, sets the password and signs out every other session. The code is checked on the server so the phone is not signed in before a new password is chosen.
 
 ---
 

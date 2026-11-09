@@ -31,6 +31,7 @@ import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 import { AuthMode, AuthModeSwitch } from '../../components/AuthModeSwitch';
 import { SignupCodeEntry } from '../../components/SignupCodeEntry';
+import { PasswordReset } from '../../components/PasswordReset';
 import { clearPendingSignup, readPendingSignup, rememberPendingSignup } from '../../lib/pendingSignup';
 import { setDocument } from '../../lib/documentVault';
 import { formatTrn, isValidTrn } from '../../lib/trn';
@@ -68,6 +69,7 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
   /* An account created here earlier that still needs its code (the app was
      closed in between): reopen in Create account, on the code. */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export default function AuthScreen() {
     readPendingSignup().then(e => { setPendingEmail(e); if (e) setMode('signup'); });
   }, []);
 
-  const switchMode = (next: AuthMode) => { setError(null); setMode(next); };
+  const switchMode = (next: AuthMode) => { setError(null); setResetting(false); setMode(next); };
 
   const handleSignIn = async () => {
     if (!email.trim() || !password) { setError('Enter your email and password to continue.'); return; }
@@ -158,7 +160,11 @@ export default function AuthScreen() {
             <AuthModeSwitch mode={mode} onChange={switchMode} />
           </Animated.View>
 
-          {awaitingCode ? (
+          {resetting && !signup ? (
+            <Animated.View entering={ENTER} exiting={EXIT}>
+              <PasswordReset initialEmail={email} onDone={() => { setResetting(false); setPassword(''); }} />
+            </Animated.View>
+          ) : awaitingCode ? (
             <Animated.View entering={ENTER} exiting={EXIT}>
               <SignupCodeEntry
                 email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
@@ -224,6 +230,12 @@ export default function AuthScreen() {
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
                   </TouchableOpacity>
                 </View>
+                {!signup && (
+                  <TouchableOpacity onPress={() => { setError(null); setResetting(true); }} accessibilityRole="button"
+                    style={styles.forgotRow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.forgotText}>Forgot password?</Text>
+                  </TouchableOpacity>
+                )}
               </Animated.View>
 
               {signup && (
@@ -305,6 +317,8 @@ const makeStyles = () => StyleSheet.create({
   },
   btnText: { fontFamily: font.extra, color: '#ffffff', fontSize: 16 },
 
+  forgotRow: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 },
+  forgotText: { fontFamily: font.bold, fontSize: 13, color: colors.accentDeep },
   switchRow: { alignItems: 'center', marginTop: 22 },
   switchText: { fontFamily: font.medium, fontSize: 13.5, color: colors.muted },
   switchBold: { fontFamily: font.bold, color: colors.ink },
