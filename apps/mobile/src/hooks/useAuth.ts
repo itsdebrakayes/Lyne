@@ -250,6 +250,13 @@ export const useAuth = () => {
       options: { data: metadata, emailRedirectTo: `${SITE_URL}/auth/confirmed` },
     });
     if (error) return { error };
+    /* An email that already belongs to a confirmed account does NOT come back
+       as an error: Supabase returns a stand-in user with no identities, sends
+       no email, and reports success. Without this check the person is told to
+       wait for an email that never arrives. */
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: new Error('An account with this email already exists. Sign in instead, reset your password, or use a different email.') };
+    }
     // When the project requires email confirmation, signUp succeeds but returns
     // no session — we can't sync to the backend (it needs a token) until they
     // confirm, so surface that instead of failing on the sync call.

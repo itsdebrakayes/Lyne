@@ -348,8 +348,12 @@ router.post('/logout', requireAuth, async (req, res) => {
 //                          row is allowed to anonymise: the agency keeps its
 //                          operational record of "a person was served at 10:04",
 //                          with nothing left tying it to a human.
-//   • ticket_ratings,
-//     session_registrations — anonymise cleanly; no personal columns.
+//   • ticket_ratings      — the free-text comment is removed; the score stays.
+//   • session_registrations — guest contact details scrubbed.
+//   • sms_log (no FK)      — the user_id link is removed; only a hash of the
+//                          number remains, for the per-number throttle.
+// The Supabase sign-in record is deleted last, through the admin API, so the
+// email address is free to sign up again.
 //
 // Telling someone their data is gone while their scanned passport number sits
 // in a table with a null user_id would be a lie, and under the DPA an offence.
@@ -398,13 +402,30 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
       await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
-        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL WHERE user_id = ?',
+        "UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL, readiness_note = NULL, triage_flag = 'none', notify_consent_at = NULL WHERE user_id = ?",
         [userId]
       );
       await conn.query(
         'UPDATE session_registrations SET guest_name = NULL, guest_phone = NULL, guest_email = NULL WHERE user_id = ?',
         [userId]
       );
+      // A rating's free-text comment is the customer's own words; the score stays.
+      await conn.query('UPDATE ticket_ratings SET comment = NULL WHERE user_id = ?', [userId]);
+      /* Text-message columns and sms_log arrive with migration 048, which may
+         not be applied on every database yet. Only "that table/column does not
+         exist" is tolerated here; any other error still aborts the deletion. */
+      for (const sql of [
+        'UPDATE queue_tickets SET sms_stop_code = NULL WHERE user_id = ?',
+        'UPDATE session_registrations SET sms_consent_at = NULL WHERE user_id = ?',
+        // sms_log keeps only a hash of the number for throttling; drop the link to the person.
+        'UPDATE sms_log SET user_id = NULL WHERE user_id = ?',
+      ]) {
+        try {
+          await conn.query(sql, [userId]);
+        } catch (e) {
+          if (e.code !== 'ER_NO_SUCH_TABLE' && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        }
+      }
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
     dataDeleted = true;
