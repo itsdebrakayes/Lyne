@@ -156,6 +156,10 @@ export default function AccountScreen() {
   const hint = { fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6, lineHeight: 18 } as const;
 
   const buttons = (label: string, onPress: () => void) => (
+    <>
+    {!!error && (
+      <Text accessibilityLiveRegion="polite" style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 12 }}>{error}</Text>
+    )}
     <View style={{ flexDirection: 'row', gap: 11, marginTop: 18 }}>
       <TouchableOpacity onPress={close} style={[t.ghostBtn, { flex: 1, minHeight: 52 }]}>
         <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>Cancel</Text>
@@ -164,6 +168,7 @@ export default function AccountScreen() {
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>{label}</Text>}
       </TouchableOpacity>
     </View>
+    </>
   );
 
   return (
@@ -265,9 +270,6 @@ export default function AccountScreen() {
                 <PasswordReset signedIn initialEmail={email} onDone={() => setSheet(null)} />
               )}
 
-              {!!error && sheet !== 'passwordByCode' && (
-                <Text accessibilityLiveRegion="polite" style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 12 }}>{error}</Text>
-              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

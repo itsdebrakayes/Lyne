@@ -76,6 +76,12 @@ services:
       MYSQL_DATABASE:       ${MYSQL_DATABASE:-lyne}
       SUPABASE_URL:         ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
+      APP_IOS_LATEST: ${APP_IOS_LATEST:-}
+      APP_IOS_MINIMUM: ${APP_IOS_MINIMUM:-}
+      APP_IOS_URL: ${APP_IOS_URL:-}
+      APP_ANDROID_LATEST: ${APP_ANDROID_LATEST:-}
+      APP_ANDROID_MINIMUM: ${APP_ANDROID_MINIMUM:-}
+      APP_ANDROID_URL: ${APP_ANDROID_URL:-}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       # Empty locally, which means Sentry is off. Present so a developer can
       # set it for one run to check the wiring without editing compose.
