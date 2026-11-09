@@ -21,7 +21,7 @@ export type IconName =
   | 'clock' | 'counter' | 'arrowDown' | 'arrowRight' | 'arrowUpRight' | 'mic'
   | 'government' | 'financial' | 'education' | 'health' | 'grid'
   | 'check' | 'ticket' | 'ticketOutline' | 'walk' | 'close'
-  | 'phone' | 'mail' | 'shield' | 'help' | 'appearance' | 'document' | 'plus' | 'trash';
+  | 'phone' | 'mail' | 'shield' | 'help' | 'appearance' | 'document' | 'plus' | 'trash' | 'star';
 
 interface Props {
   name: IconName;
@@ -180,6 +180,8 @@ export default function Icon({ name, size = 22, color, weight = 1.8, knockout = 
           <Rect x={3} y={5.5} width={18} height={13} rx={2.6} {...stroke} />
           <Path d="m4 8 7.1 4.8a1.6 1.6 0 0 0 1.8 0L20 8" {...stroke} />
         </>;
+      case 'star':
+        return <Path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8L12 3.6Z" {...stroke} />;
       case 'shield':
         return <>
           <Path d="M12 3 5 5.8v5.5c0 4.4 3 8.1 7 9.7 4-1.6 7-5.3 7-9.7V5.8L12 3Z" {...stroke} />

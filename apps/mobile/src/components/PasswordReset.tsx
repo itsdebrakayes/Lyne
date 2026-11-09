@@ -18,7 +18,12 @@ const RESEND_SECONDS = 60;
 
 const message = (caught: unknown, fallback: string) => (caught instanceof Error && caught.message) || fallback;
 
-export function PasswordReset({ initialEmail, onDone }: { initialEmail: string; onDone: () => void }) {
+export function PasswordReset({ initialEmail, onDone, signedIn = false }: {
+  initialEmail: string;
+  onDone: () => void;
+  /** From Account: the email is the account's own and cannot be changed here. */
+  signedIn?: boolean;
+}) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState(initialEmail.trim());
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -85,16 +90,20 @@ export function PasswordReset({ initialEmail, onDone }: { initialEmail: string; 
           <Ionicons name={sentTo ? 'mail-unread-outline' : 'key-outline'} size={26} color={colors.light} />
         </View>
         <Text style={{ fontFamily: font.extra, fontSize: 20, color: colors.ink, textAlign: 'center', letterSpacing: -0.3 }}>
-          {sentTo ? 'Choose a new password' : 'Reset your password'}
+          {sentTo ? 'Choose a new password' : signedIn ? 'Change password by email' : 'Reset your password'}
         </Text>
         <Text style={{ fontFamily: font.medium, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: 8, marginBottom: 20, maxWidth: 310 }}>
           {sentTo
-            ? `If ${sentTo} has a Lyne account, we sent it a ${LENGTH}-digit code. Enter it with your new password.`
-            : 'Enter the email you signed up with and we will send you a code.'}
+            ? (signedIn
+              ? `We sent a ${LENGTH}-digit code to ${sentTo}. Enter it with your new password.`
+              : `If ${sentTo} has a Lyne account, we sent it a ${LENGTH}-digit code. Enter it with your new password.`)
+            : signedIn
+              ? `We will send a code to ${email}. Your other devices are signed out once the password changes.`
+              : 'Enter the email you signed up with and we will send you a code.'}
         </Text>
       </View>
 
-      {!sentTo ? (
+      {!sentTo && signedIn ? null : !sentTo ? (
         <>
           <Text style={label}>Email address</Text>
           <TextInput style={field} value={email} onChangeText={setEmail} placeholder="you@email.com" placeholderTextColor={colors.faint}
@@ -153,13 +162,13 @@ export function PasswordReset({ initialEmail, onDone }: { initialEmail: string; 
       )}
 
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, marginTop: 6 }}>
-        {sentTo && (
+        {sentTo && !signedIn && (
           <TouchableOpacity onPress={() => { setSentTo(null); setCode(''); setError(null); setNotice(null); }} style={{ minHeight: 40, justifyContent: 'center' }} accessibilityRole="button">
             <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.muted }}>Use a different email</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={onDone} style={{ minHeight: 40, justifyContent: 'center' }} accessibilityRole="button">
-          <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.muted }}>Back to sign in</Text>
+          <Text style={{ fontFamily: font.semibold, fontSize: 13.5, color: colors.muted }}>{signedIn ? 'Cancel' : 'Back to sign in'}</Text>
         </TouchableOpacity>
       </View>
     </View>

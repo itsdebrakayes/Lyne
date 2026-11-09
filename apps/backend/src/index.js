@@ -167,6 +167,7 @@ app.use(generalLimiter);
 /* sync-user is limited inside routes/auth.js now, after requireAuth, so the
    budget is per person rather than per address — see profileSyncLimiter. */
 app.use('/api/auth',           require('./routes/auth'));
+app.use('/api/app',            require('./routes/appVersion'));
 
 app.use('/api/businesses',     require('./routes/businesses'));
 app.use('/api/branches',       require('./routes/branches'));

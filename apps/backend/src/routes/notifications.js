@@ -13,6 +13,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireTicketAccess } = require('../middleware/tenantAccess');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -37,6 +38,23 @@ router.get('/', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch notifications.' });
+  }
+});
+
+/* Signing out must stop this phone getting the account's alerts: before this,
+   a signed-out phone kept receiving "you're being called" for the last person
+   until somebody else signed in. The token alone identifies the device, so no
+   sign-in is needed: the app calls this after the session is gone, or on the
+   next launch if it was offline at the time. */
+router.post('/unregister-device', authLimiter, async (req, res) => {
+  const token = typeof req.body?.expo_push_token === 'string' ? req.body.expo_push_token.trim() : '';
+  if (!token || token.length > 255) return res.status(400).json({ error: 'expo_push_token is required.' });
+  try {
+    await pool.query('DELETE FROM device_push_tokens WHERE expo_push_token = ?', [token]);
+    res.json({ removed: true });
+  } catch (err) {
+    console.error('unregister-device:', err.message);
+    res.status(500).json({ error: 'Failed to unregister device.' });
   }
 });
 

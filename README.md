@@ -134,6 +134,12 @@ Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL s
 - Plan your visit, busy-times heatmap, week planner (driven by the model worker).
 - Live Activities on iOS (lock screen and Dynamic Island).
 - Account deletion in Settings (type `DELETE` to confirm). Required by both stores.
+- **Account** (tap the name card in Settings): name changes at once; email changes only after a 6-digit code to the new address (and the current one when Supabase's Secure Email Change is on; the Change Email Address template must carry `{{ .Token }}`); password changes with the current password or an emailed code, then every other device is signed out. Sign-in with an unconfirmed email sends a fresh code and opens the code screen.
+- **Signing out stops notifications**: the phone's push token is removed (`POST /api/notifications/unregister-device`, no sign-in needed; retried on next launch if offline). Sign Out of All Devices (`/api/auth/signout-everywhere`) ends every Supabase session and removes every token.
+- **Download my data** (Privacy and security): `/api/auth/export` as a JSON file through the share sheet. Documents are not in it because they never leave the phone.
+- **Update notice**: on launch the app reads `/api/app/version`. Older than `APP_*_LATEST`: a bottom notice with Update and Not now that fades on its own. Older than `APP_*_MINIMUM`: it stays. A store without `APP_*_URL` gets none. Raise these in `/srv/lyne/.env` after each release goes live.
+- **Rate Lyne** in Settings > Support: the store's own rating sheet, or the store page.
+- The Notifications screen says when notifications are off and opens the phone's Settings.
 - Free in version 1; the premium screens exist but `PAYMENTS_ENABLED` is false and everyone has every feature.
 
 Builds are made with EAS ([§17](#17-mobile-releases-app-store-and-google-play)).

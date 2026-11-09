@@ -49,7 +49,7 @@ export default function AuthScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(72);
   const lift = useNavBarLift();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resendSignupCode } = useAuth();
   const { scheme } = useTheme();
   const styles = useMemo(() => makeStyles(), [scheme]);
 
@@ -83,6 +83,19 @@ export default function AuthScreen() {
     if (!email.trim() || !password) { setError('Enter your email and password to continue.'); return; }
     setLoading(true); setError(null);
     const { error: signInError } = await signIn(email.trim(), password);
+    /* Signed up but never entered the code: the password is right, the email is
+       not proven yet. Send a fresh code and take them to it, instead of a dead
+       end that says "Email not confirmed". */
+    const code = (signInError as { code?: string } | null)?.code;
+    if (signInError && (code === 'email_not_confirmed' || /email not confirmed/i.test(signInError.message))) {
+      const address = email.trim().toLowerCase();
+      await resendSignupCode(address);
+      await rememberPendingSignup(address);
+      setLoading(false);
+      setConfirmSent(true);
+      setMode('signup');
+      return;
+    }
     setLoading(false);
     if (signInError) setError(signInError.message === 'Invalid login credentials' ? 'That email and password don’t match. Try again.' : signInError.message);
   };
@@ -169,7 +182,7 @@ export default function AuthScreen() {
               <SignupCodeEntry
                 email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
                 password={confirmSent ? password : undefined}
-                metadata={confirmSent ? { full_name: fullName.trim(), phone: phone.trim(), ...(dob ? { date_of_birth: toISODate(dob) } : {}) } : undefined}
+                metadata={confirmSent && fullName.trim() ? { full_name: fullName.trim(), phone: phone.trim(), ...(dob ? { date_of_birth: toISODate(dob) } : {}) } : undefined}
                 onUseDifferentEmail={async () => { await clearPendingSignup(); setPendingEmail(null); setConfirmSent(false); }}
                 onGoToSignIn={() => { setConfirmSent(false); switchMode('signin'); }}
               />

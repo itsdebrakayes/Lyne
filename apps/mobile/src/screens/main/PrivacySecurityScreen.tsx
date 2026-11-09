@@ -13,6 +13,8 @@ import { colors, font, shadow, t } from '../../lib/theme';
 import api from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { APP_LOCK_KEY } from '../../components/LockGate';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 function Row({ icon, title, sub, right }: { icon: keyof typeof Ionicons.glyphMap; title: string; sub: string; right: React.ReactNode }) {
   return (
@@ -55,11 +57,34 @@ export default function PrivacySecurityScreen() {
     AsyncStorage.setItem(APP_LOCK_KEY, next ? '1' : '0').catch(() => {});
   };
 
+  /* A copy of everything the server holds, as JSON, handed to the share sheet so
+     it can be saved to Files, emailed or kept. The file is deleted from the app's
+     cache straight after: the copy is theirs, not ours. */
+  const [exporting, setExporting] = useState(false);
+  const downloadMyData = async () => {
+    setExporting(true);
+    let file: File | null = null;
+    try {
+      const data = await api.get<unknown>('/auth/export');
+      file = new File(Paths.cache, `lyne-my-data-${new Date().toISOString().slice(0, 10)}.json`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(JSON.stringify(data, null, 2));
+      if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this phone.');
+      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Lyne data', UTI: 'public.json' });
+    } catch (caught) {
+      Alert.alert('Could not prepare your data', caught instanceof Error ? caught.message : 'Try again in a moment.');
+    } finally {
+      try { file?.delete(); } catch { /* already gone */ }
+      setExporting(false);
+    }
+  };
+
   const signOutEverywhere = () => Alert.alert(
     'Sign out of all devices',
     'This ends every active session. You’ll need to sign in again everywhere.',
     [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out all', style: 'destructive', onPress: async () => {
-      try { setSigningOut(true); await api.post('/auth/force-signout', {}); } catch { /* still sign out locally */ }
+      try { setSigningOut(true); await api.post('/auth/signout-everywhere', {}); } catch { /* still sign out locally */ }
       finally { setSigningOut(false); await signOut(); }
     } }],
   );
@@ -101,9 +126,19 @@ export default function PrivacySecurityScreen() {
         </TouchableOpacity>
 
         <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 28, marginBottom: 12, marginLeft: 4 }}>Your data</Text>
+        <TouchableOpacity onPress={downloadMyData} disabled={exporting} accessibilityRole="button" style={[t.card, { padding: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 13, ...shadow.card }]}>
+          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="download-outline" size={18} color={colors.ink} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Download my data</Text>
+            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>A copy of everything Lyne holds about you, as a JSON file</Text>
+          </View>
+          {exporting ? <ActivityIndicator color={colors.ink} /> : <Ionicons name="chevron-forward" size={18} color={colors.chevron} />}
+        </TouchableOpacity>
         <View style={[t.card, { padding: 18, ...shadow.card }]}>
           <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.sub, lineHeight: 20 }}>
-            Your card details never touch our servers — they’re handled directly by Stripe. Your ID and TRN are shared only with the agency serving you, to verify you at the counter, and can be locked behind Face ID. We never sell your data.
+            Your ID and TRN stay on this phone and are never sent to Lyne; you show them at the counter yourself, and they can be locked behind Face ID. Deleting your account erases what Lyne holds about you. We never sell your data.
           </Text>
         </View>
       </ScrollView>

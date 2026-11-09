@@ -4,6 +4,7 @@ import api, { supabase, isTransient } from '../lib/apiClient';
 import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
 import { clearPendingSignup } from '../lib/pendingSignup';
+import { retryPendingUnregister, unregisterPushDevice } from '../lib/notifications';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 /** Where the confirmation link lands; see apps/website AuthConfirmed. */
@@ -121,6 +122,7 @@ export const useAuth = () => {
 
     if (!sbUser) {
       syncedUid.current = null;
+      retryPendingUnregister();
       setUser(null);
       setKiosk(null);
       setUnreachable(false);
@@ -315,6 +317,9 @@ export const useAuth = () => {
     /* Nothing from a sign-up survives a sign-out (or a deleted account): the
        next person sees the fresh Sign in and Create account forms. */
     await clearPendingSignup();
+    /* Before the session goes: this phone must stop receiving the account's
+       alerts ("you're being called") the moment nobody is signed in on it. */
+    await unregisterPushDevice();
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);

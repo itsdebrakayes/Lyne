@@ -150,6 +150,11 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
 
     // Already synced?
     if (req.dbUser) {
+      /* Supabase owns the sign-in email. A change confirmed there (Account >
+         Email) reaches this row on the next sync, so the two never disagree. */
+      if (supabaseUser.email && supabaseUser.email.toLowerCase() !== String(req.dbUser.email || '').toLowerCase()) {
+        await pool.query('UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?', [supabaseUser.email.toLowerCase(), req.dbUser.id]);
+      }
       // Update profile fields if provided
       if (full_name || phone) {
         await pool.query(
@@ -299,6 +304,70 @@ router.post('/start-trial', requirePayments, requireAuth, async (req, res) => {
 // ── POST /api/auth/logout ──────────────────────────────────────
 // Revokes the current token and destroys the session record.
 // Client should also call supabase.auth.signOut() to clear local storage.
+// ── POST /api/auth/signout-everywhere ─────────────────────────
+// A customer's "Sign out of all devices". /force-signout is the staff tool for
+// someone else's account, and refused customers, so this button used to sign out
+// only the phone it was pressed on. Supabase ends every session (refresh tokens),
+// and every phone stops getting this account's notifications at once.
+router.post('/signout-everywhere', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'Clients only.' });
+  try {
+    await pool.query('DELETE FROM device_push_tokens WHERE user_id = ?', [req.dbUser.id]);
+    const jwt = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (supabaseAdmin && jwt) {
+      const { error } = await supabaseAdmin.auth.admin.signOut(jwt, 'global');
+      if (error) console.error('[SignOutEverywhere]', error.message);
+    }
+    res.json({ signed_out: true });
+  } catch (err) {
+    console.error('[SignOutEverywhere]', err.message);
+    res.status(500).json({ error: 'Could not sign out everywhere. Try again.' });
+  }
+});
+
+// ── GET /api/auth/export ──────────────────────────────────────
+// "Download my data": everything Lyne's server holds about this person, as JSON
+// (the usual machine-readable format for a data access request). Documents such
+// as a TRN are not here because they never leave the phone.
+router.get('/export', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'Clients only.' });
+  const id = req.dbUser.id;
+  const q = async (sql) => (await pool.query(sql, [id]))[0];
+  try {
+    const [[profile]] = await pool.query(
+      `SELECT email, full_name, phone, date_of_birth, created_at, updated_at, sms_opt_in, sms_opt_in_at, phone_verified_at,
+              is_premium, trial_started_at, premium_until
+         FROM users WHERE id = ?`, [id]);
+    const data = {
+      exported_at: new Date().toISOString(),
+      about: 'Everything Lyne holds about your account. Identification numbers you saved (TRN, National ID) are kept only on your phone, so they are not in this file.',
+      profile,
+      visits: await q(
+        `SELECT t.ticket_number, t.status, t.channel, t.visit_reason, t.joined_at, t.called_at, t.completed_at, t.closed_reason,
+                t.estimated_wait_minutes, t.appointment_at, t.notify_consent_at, b.name AS business, br.name AS branch, s.name AS service
+           FROM queue_tickets t
+           JOIN queues qu ON qu.id = t.queue_id
+           LEFT JOIN services s ON s.id = qu.service_id
+           LEFT JOIN branches br ON br.id = qu.branch_id
+           LEFT JOIN businesses b ON b.id = br.business_id
+          WHERE t.user_id = ? ORDER BY t.joined_at DESC`),
+      ratings: await q('SELECT rating, wait_ok, comment, created_at FROM ticket_ratings WHERE user_id = ? ORDER BY created_at DESC'),
+      session_registrations: await q(
+        `SELECT reference, appointment_time, status, registered_at, checked_in_at, sms_consent_at
+           FROM session_registrations WHERE user_id = ? ORDER BY registered_at DESC`),
+      saved_businesses: await q(
+        `SELECT b.name, sb.saved_at FROM saved_businesses sb JOIN businesses b ON b.id = sb.business_id WHERE sb.user_id = ?`),
+      notifications: await q('SELECT notification_type, channel, message, is_read, sent_at FROM notifications WHERE user_id = ? ORDER BY sent_at DESC'),
+      devices: await q('SELECT platform, device_name, last_seen_at, created_at FROM device_push_tokens WHERE user_id = ?'),
+    };
+    res.setHeader('Content-Disposition', 'attachment; filename="lyne-my-data.json"');
+    res.json(data);
+  } catch (err) {
+    console.error('[Export]', err.message);
+    res.status(500).json({ error: 'Could not gather your data. Try again.' });
+  }
+});
+
 // ── Forgotten password ─────────────────────────────────────────────────────────
 // POST /api/auth/password-reset/start   { email }                 email a 6-digit code
 // POST /api/auth/password-reset/finish  { email, code, password } set the new password
