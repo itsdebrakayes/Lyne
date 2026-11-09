@@ -9,6 +9,8 @@
  * code change:
  *   APP_IOS_LATEST, APP_IOS_MINIMUM, APP_IOS_URL
  *   APP_ANDROID_LATEST, APP_ANDROID_MINIMUM, APP_ANDROID_URL
+ * and optionally APP_IOS_NOTES / APP_ANDROID_NOTES: one line on what the new
+ * version brings, shown on the update card ("Faster sign-in and a new Account page").
  * A store with no URL yet (iOS before approval) gets no notice at all.
  */
 const router = require('express').Router();
@@ -20,6 +22,7 @@ const store = (prefix) => {
     latest: (process.env[`${prefix}_LATEST`] || '').trim() || null,
     minimum: (process.env[`${prefix}_MINIMUM`] || '').trim() || null,
     url,
+    notes: (process.env[`${prefix}_NOTES`] || '').trim().slice(0, 200) || null,
   };
 };
 

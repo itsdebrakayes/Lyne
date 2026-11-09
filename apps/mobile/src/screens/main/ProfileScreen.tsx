@@ -18,6 +18,7 @@ import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { useContentColumn } from '../../lib/stage';
 import { PhoneAlertsCard } from '../../components/PhoneAlertsCard';
 import { rateLyne } from '../../lib/storeLinks';
+import { SettingsGroup } from '../../components/SettingsGroup';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -27,39 +28,8 @@ const DOC_SHEET: Record<DocKey, { title: string; hint: string; placeholder: stri
   phone: { title: 'Add your phone', hint: 'Used for queue updates if push notifications are unavailable.', placeholder: '876-000-0000', keyboard: 'phone-pad' },
 };
 
-/* App Screens Refresh 1d: the grouped-list pattern most apps use. A row is an
-   icon, a label, and on the right its current value and a chevron. */
-type Row = { icon: IconName; label: string; value?: string; valueTone?: 'muted' | 'accent'; dot?: boolean; onPress?: () => void };
-
-function Group({ title, rows }: { title?: string; rows: Row[] }) {
-  return (
-    <View>
-      {title ? <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, marginTop: 24, marginBottom: 8, marginLeft: 16 }}>{title}</Text> : null}
-      <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
-        {rows.map((r, i) => (
-          <TouchableOpacity
-            key={r.label}
-            disabled={!r.onPress}
-            onPress={r.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={r.value ? `${r.label}, ${r.value}` : r.label}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
-          >
-            <Icon name={r.icon} size={19} color={colors.sub} />
-            <View style={{ flex: 1, minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 16, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
-              <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.ink }}>{r.label}</Text>
-              {r.dot ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} /> : null}
-              {r.value ? (
-                <Text numberOfLines={1} style={{ maxWidth: 170, fontFamily: font.medium, fontSize: 15, color: r.valueTone === 'accent' ? colors.accent : colors.muted }}>{r.value}</Text>
-              ) : null}
-              {r.onPress ? <Icon name="chevronRight" size={16} color={colors.chevron} /> : null}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
+/* The grouped-list pattern most apps use, shared with Account and Privacy. */
+const Group = SettingsGroup;
 
 export default function ProfileScreen() {
   const column = useContentColumn();
@@ -211,24 +181,11 @@ export default function ProfileScreen() {
 
         {/* Log out and Delete account: last, in red, and Delete opens a sheet
             that says exactly what goes before anything is removed. */}
-        <View style={{ marginTop: 24, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
-          <TouchableOpacity onPress={signOut} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}>
-            <Ionicons name="log-out-outline" size={19} color={colors.dangerInk} />
-            <View style={{ flex: 1, minHeight: 50, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: colors.borderSoft }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Log out</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); }}
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-            accessibilityHint="Opens a confirmation. Deletion is permanent."
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
-          >
-            <Ionicons name="trash-outline" size={19} color={colors.dangerInk} />
-            <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Delete account</Text>
-          </TouchableOpacity>
-        </View>
+        <Group rows={[
+          { icon: 'logout', label: 'Log out', tone: 'danger', onPress: signOut },
+          { icon: 'trash', label: 'Delete account', tone: 'danger', accessibilityHint: 'Opens a confirmation. Deletion is permanent.',
+            onPress: () => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); } },
+        ]} />
         <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: 16 }}>Lyne {appVersion}</Text>
       </ScrollView>
       <TabBar active="Profile" />

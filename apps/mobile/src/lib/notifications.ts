@@ -154,6 +154,42 @@ export async function unregisterPushDevice() {
   }
 }
 
+/**
+ * Alerts already on this phone belong to whoever set them. On sign-out the
+ * server stops sending, but a reminder scheduled on the phone ("Time to head
+ * out"), the live-ticket notification and anything still sitting in the
+ * notification list would carry on for an account that is no longer here.
+ */
+export async function clearLocalNotifications() {
+  try { await Notifications.cancelAllScheduledNotificationsAsync(); } catch { /* nothing scheduled */ }
+  try { await Notifications.dismissAllNotificationsAsync(); } catch { /* nothing shown */ }
+  try { await Notifications.setBadgeCountAsync(0); } catch { /* no badge */ }
+}
+
+/* The account this phone's token was last sent to the server for, in this run. */
+let registeredFor: string | null = null;
+
+/**
+ * After a sign-in, point this phone's alerts at the account now signed in —
+ * without asking for permission (that is asked when someone joins a line).
+ * The server moves an existing token to the new account, so the previous
+ * account's alerts can never reach it again.
+ */
+export async function refreshPushRegistration(userId: string) {
+  if (registeredFor === userId) return;
+  registeredFor = userId;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await registerPushNotifications();
+  } catch {
+    registeredFor = null; // try again on the next sign-in event
+  }
+}
+
+/** For sign-out: the next account must register afresh. */
+export function forgetPushRegistration() { registeredFor = null; }
+
 /** A sign-out that happened offline: finish unregistering now. */
 export async function retryPendingUnregister() {
   try {

@@ -169,7 +169,11 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
         ) : !user ? (
           /* Sign in and create account are one screen; a device nobody has
              signed in on opens it in Create account (lib/deviceHistory.ts). */
-          <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+          <>
+            <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+            {/* Readable before an account exists: sign-up asks people to accept them. */}
+            <Stack.Screen name="Legal" component={LegalScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />

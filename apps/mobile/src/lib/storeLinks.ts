@@ -10,7 +10,7 @@ import { Linking, Platform } from 'react-native';
 import * as StoreReview from 'expo-store-review';
 import api from './apiClient';
 
-export type StoreInfo = { latest: string | null; minimum: string | null; url: string } | null;
+export type StoreInfo = { latest: string | null; minimum: string | null; url: string; notes?: string | null } | null;
 export type VersionInfo = { ios: StoreInfo; android: StoreInfo };
 
 const ANDROID_PAGE = 'https://play.google.com/store/apps/details?id=com.lyne.mobile';

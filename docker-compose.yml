@@ -79,9 +79,11 @@ services:
       APP_IOS_LATEST: ${APP_IOS_LATEST:-}
       APP_IOS_MINIMUM: ${APP_IOS_MINIMUM:-}
       APP_IOS_URL: ${APP_IOS_URL:-}
+      APP_IOS_NOTES: ${APP_IOS_NOTES:-}
       APP_ANDROID_LATEST: ${APP_ANDROID_LATEST:-}
       APP_ANDROID_MINIMUM: ${APP_ANDROID_MINIMUM:-}
       APP_ANDROID_URL: ${APP_ANDROID_URL:-}
+      APP_ANDROID_NOTES: ${APP_ANDROID_NOTES:-}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       # Empty locally, which means Sentry is off. Present so a developer can
       # set it for one run to check the wiring without editing compose.

@@ -15,32 +15,25 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { supabase } from '../../lib/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import { colors, font, inputReset, t } from '../../lib/theme';
+import { colors, font, inputReset, personInitials, t } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useContentColumn } from '../../lib/stage';
 import { PasswordReset } from '../../components/PasswordReset';
+import { SettingsGroup, SettingsHeader } from '../../components/SettingsGroup';
+import { confirmSignOutEverywhere, downloadMyData } from '../../lib/accountActions';
 
 type Sheet = null | 'name' | 'email' | 'password' | 'passwordByCode' | 'phone';
 
 const message = (caught: unknown, fallback: string) => (caught instanceof Error && caught.message) || fallback;
-
-function Row({ label, value, onPress, last }: { label: string; value: string; onPress: () => void; last?: boolean }) {
-  return (
-    <TouchableOpacity onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`}
-      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 56, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.borderSoft, gap: 10 }}>
-      <Text style={{ width: 92, fontFamily: font.medium, fontSize: 15, color: colors.sub }}>{label}</Text>
-      <Text numberOfLines={1} style={{ flex: 1, fontFamily: font.semibold, fontSize: 15, color: colors.ink }}>{value}</Text>
-      <Ionicons name="chevron-forward" size={16} color={colors.chevron} />
-    </TouchableOpacity>
-  );
-}
 
 export default function AccountScreen() {
   const navigation = useNavigation<any>();
   const topPad = useTopPad(24);
   const lift = useNavBarLift();
   const column = useContentColumn();
-  const { user, refreshProfile, signIn } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
+  const [exporting, setExporting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const [sheet, setSheet] = useState<Sheet>(null);
   const [busy, setBusy] = useState(false);
@@ -174,29 +167,40 @@ export default function AccountScreen() {
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: 60 + lift }, column]} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn} accessibilityRole="button" accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <Text accessibilityRole="header" style={t.h2}>Account</Text>
+        <SettingsHeader title="Account" onBack={() => navigation.goBack()} />
+
+        {/* Who is signed in, the way Apple ID and most banking apps open their
+            account page: the person first, then what can be changed. */}
+        <View style={{ alignItems: 'center', marginTop: 22 }}>
+          <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: font.semibold, fontSize: 30, color: '#fff' }}>{personInitials(user?.full_name || email || '?')}</Text>
+          </View>
+          <Text numberOfLines={1} style={{ fontFamily: font.extra, fontSize: 22, letterSpacing: -0.5, color: colors.ink, marginTop: 14 }}>{user?.full_name || 'Your account'}</Text>
+          {!!email && <Text numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 14, color: colors.muted, marginTop: 3 }}>{email}</Text>}
         </View>
 
         {!!done && (
-          <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: colors.successSoft, borderRadius: 16, padding: 14, marginBottom: 16 }}>
+          <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: colors.successSoft, borderRadius: 16, padding: 14, marginTop: 20 }}>
             <Ionicons name="checkmark-circle" size={18} color={colors.light} />
             <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>{done}</Text>
           </View>
         )}
 
-        <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
-          <Row label="Name" value={user?.full_name || 'Add your name'} onPress={() => open('name')} />
-          <Row label="Email" value={email || '—'} onPress={() => open('email')} />
-          <Row label="Phone" value={user?.phone || 'Add'} onPress={() => open('phone')} />
-          <Row label="Password" value={hasPassword ? '••••••••' : 'Not set'} onPress={() => open(hasPassword ? 'password' : 'passwordByCode')} last />
-        </View>
-        <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: 10, marginHorizontal: 4, lineHeight: 17 }}>
-          Your email signs you in. Changing it or your password needs a code from your email, or your current password, so nobody can take over the account from an unlocked phone.
-        </Text>
+        <SettingsGroup title="Personal details" rows={[
+          { icon: 'person', label: 'Name', value: user?.full_name || 'Add', valueTone: user?.full_name ? 'muted' : 'accent', onPress: () => open('name') },
+          { icon: 'phone', label: 'Phone', value: user?.phone || 'Add', valueTone: user?.phone ? 'muted' : 'accent', onPress: () => open('phone') },
+        ]} footer="Branches see your name when they call you. Your phone is a contact number; to get texts, verify it under Text alerts in Settings." />
+
+        <SettingsGroup title="Sign-in and security" rows={[
+          { icon: 'mail', label: 'Email', value: email || 'Add', onPress: () => open('email') },
+          { icon: 'key', label: 'Password', value: hasPassword ? 'Change' : 'Set one', onPress: () => open(hasPassword ? 'password' : 'passwordByCode') },
+          { icon: 'logout', label: 'Sign out of all devices', tone: 'danger', busy: signingOut, onPress: () => confirmSignOutEverywhere(signOut, setSigningOut) },
+        ]} footer="Changing your email or password needs your current password or a code from your email, so nobody can take over the account from an unlocked phone." />
+
+        <SettingsGroup title="Your data" rows={[
+          { icon: 'download', label: 'Download my data', sub: 'Everything Lyne holds about you, as a file you can keep', busy: exporting,
+            onPress: async () => { setExporting(true); try { await downloadMyData(); } finally { setExporting(false); } } },
+        ]} footer="To delete your account and everything in it, go to the bottom of Settings." />
       </ScrollView>
 
       <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={close}>

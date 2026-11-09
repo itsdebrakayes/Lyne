@@ -19,7 +19,8 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { TERMS_VERSION } from '../../lib/legalContent';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
@@ -49,6 +50,7 @@ export default function AuthScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(72);
   const lift = useNavBarLift();
+  const navigation = useNavigation<any>();
   const { signIn, signUp, resendSignupCode } = useAuth();
   const { scheme } = useTheme();
   const styles = useMemo(() => makeStyles(), [scheme]);
@@ -63,6 +65,7 @@ export default function AuthScreen() {
   const [trn, setTrn] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState<Field | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -105,6 +108,7 @@ export default function AuthScreen() {
     if (!password) { setError('Create a password to secure your account.'); return; }
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
+    if (!agreed) { setError('Accept the Terms of Use and Privacy Policy to create your account.'); return; }
     /* Date of birth and TRN are optional (App Review guideline 5.1.1(v)): the
        app works without either. A TRN, if given, must at least be a TRN. */
     if (trn.trim() && !isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
@@ -118,6 +122,9 @@ export default function AuthScreen() {
         full_name: fullName.trim(),
         phone: phone.trim(),
         ...(dob ? { date_of_birth: toISODate(dob) } : {}),
+        /* Kept on the account, so there is a record of what was agreed and when. */
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: TERMS_VERSION,
       });
       if (signupError) throw signupError;
       if (trn.trim()) await setDocument('trn', formatTrn(trn.trim()));
@@ -258,10 +265,27 @@ export default function AuthScreen() {
                 </Animated.View>
               )}
 
+              {signup && (
+                <Animated.View entering={ENTER} exiting={EXIT} layout={LAYOUT} style={styles.agreeRow}>
+                  <TouchableOpacity onPress={() => { setAgreed(a => !a); if (error) setError(null); }} accessibilityRole="checkbox"
+                    accessibilityState={{ checked: agreed }} accessibilityLabel="I agree to the Terms of Use and Privacy Policy"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={[styles.checkbox, agreed && styles.checkboxOn]}>
+                    {agreed && <Ionicons name="checkmark" size={15} color="#fff" />}
+                  </TouchableOpacity>
+                  <Text style={styles.agreeText} onPress={() => setAgreed(a => !a)}>
+                    I agree to Lyne’s{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'terms' })} accessibilityRole="link">Terms of Use</Text>
+                    {' '}and{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'privacy' })} accessibilityRole="link">Privacy Policy</Text>.
+                  </Text>
+                </Animated.View>
+              )}
+
               <Animated.View layout={LAYOUT}>
                 <TouchableOpacity
                   activeOpacity={0.9}
-                  style={[styles.btn, loading && { opacity: 0.7 }]}
+                  style={[styles.btn, (loading || (signup && !agreed)) && { opacity: 0.55 }]}
                   onPress={signup ? handleSignUp : handleSignIn}
                   disabled={loading}
                   accessibilityRole="button"
@@ -275,6 +299,13 @@ export default function AuthScreen() {
                 </TouchableOpacity>
 
                 <SocialAuthButtons onError={setError} />
+                {signup && (
+                  <Text style={styles.socialTerms}>
+                    Continuing with Apple or Google also means you agree to the{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'terms' })}>Terms</Text> and{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'privacy' })}>Privacy Policy</Text>.
+                  </Text>
+                )}
 
                 <TouchableOpacity onPress={() => switchMode(signup ? 'signin' : 'signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
                   <Text style={styles.switchText}>
@@ -298,6 +329,12 @@ const makeStyles = () => StyleSheet.create({
   /* paddingBottom (set inline) clears the docked bottom motif and the Android
      nav bar; at 40 the last row ended underneath the fade. */
   inner: { paddingHorizontal: 28 },
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 18 },
+  checkbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.fieldBg, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  agreeText: { flex: 1, fontFamily: font.medium, fontSize: 13.5, lineHeight: 20, color: colors.sub },
+  agreeLink: { fontFamily: font.bold, color: colors.accentDeep, textDecorationLine: 'underline' },
+  socialTerms: { fontFamily: font.medium, fontSize: 12, lineHeight: 17, color: colors.muted, textAlign: 'center', marginTop: 10, paddingHorizontal: 8 },
 
   /* The lockup is wordmark-plus-symbol, so it is wide rather than square and
      carries the name itself. */

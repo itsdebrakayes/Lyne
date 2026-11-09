@@ -21,7 +21,8 @@ export type IconName =
   | 'clock' | 'counter' | 'arrowDown' | 'arrowRight' | 'arrowUpRight' | 'mic'
   | 'government' | 'financial' | 'education' | 'health' | 'grid'
   | 'check' | 'ticket' | 'ticketOutline' | 'walk' | 'close'
-  | 'phone' | 'mail' | 'shield' | 'help' | 'appearance' | 'document' | 'plus' | 'trash' | 'star';
+  | 'phone' | 'mail' | 'shield' | 'help' | 'appearance' | 'document' | 'plus' | 'trash' | 'star'
+  | 'key' | 'download' | 'logout' | 'lock' | 'arrowUpCircle';
 
 interface Props {
   name: IconName;
@@ -210,6 +211,31 @@ export default function Icon({ name, size = 22, color, weight = 1.8, knockout = 
           <Path d="M4 6.6h16M9.4 6.6V4.4h5.2v2.2" {...stroke} />
           <Path d="M6.4 6.6 7.3 19a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.9-12.4" {...stroke} />
           <Path d="M10.4 10.4v6M13.6 10.4v6" {...stroke} />
+        </>;
+      case 'key':
+        return <>
+          <Circle cx={8} cy={15.5} r={4.2} {...stroke} />
+          <Path d="m11 12.5 8.5-8.5M16.5 7l2.4 2.4M14.2 9.3l1.8 1.8" {...stroke} />
+        </>;
+      case 'download':
+        return <>
+          <Path d="M12 3.8v11.4m0 0-4.4-4.4m4.4 4.4 4.4-4.4" {...stroke} />
+          <Path d="M4.5 15.5v2.3a2.4 2.4 0 0 0 2.4 2.4h10.2a2.4 2.4 0 0 0 2.4-2.4v-2.3" {...stroke} />
+        </>;
+      case 'logout':
+        return <>
+          <Path d="M14 4.5H7.2a2.2 2.2 0 0 0-2.2 2.2v10.6a2.2 2.2 0 0 0 2.2 2.2H14" {...stroke} />
+          <Path d="M10.5 12H20m0 0-3.4-3.4M20 12l-3.4 3.4" {...stroke} />
+        </>;
+      case 'lock':
+        return <>
+          <Rect x={4.8} y={10.4} width={14.4} height={10.2} rx={2.6} {...stroke} />
+          <Path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8" {...stroke} />
+        </>;
+      case 'arrowUpCircle':
+        return <>
+          <Circle cx={12} cy={12} r={8.8} {...stroke} />
+          <Path d="M12 16.4V7.8m0 0-3.6 3.6M12 7.8l3.6 3.6" {...stroke} />
         </>;
       default:
         return null;

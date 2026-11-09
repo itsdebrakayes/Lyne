@@ -4,7 +4,10 @@ import api, { supabase, isTransient } from '../lib/apiClient';
 import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
 import { clearPendingSignup } from '../lib/pendingSignup';
-import { retryPendingUnregister, unregisterPushDevice } from '../lib/notifications';
+import {
+  clearLocalNotifications, forgetPushRegistration, refreshPushRegistration,
+  retryPendingUnregister, unregisterPushDevice,
+} from '../lib/notifications';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 /** Where the confirmation link lands; see apps/website AuthConfirmed. */
@@ -80,6 +83,7 @@ export const useAuth = () => {
     if (me.type === 'user') {
       setKiosk(null);
       setUser(me.record);
+      refreshPushRegistration(me.record.id);
       return me.record;
     }
     // The one staff role the mobile app serves: a kiosk clerk, who logs in here
@@ -320,6 +324,8 @@ export const useAuth = () => {
     /* Before the session goes: this phone must stop receiving the account's
        alerts ("you're being called") the moment nobody is signed in on it. */
     await unregisterPushDevice();
+    forgetPushRegistration();
+    await clearLocalNotifications();
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);

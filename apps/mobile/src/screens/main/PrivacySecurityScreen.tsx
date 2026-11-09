@@ -1,35 +1,18 @@
 /**
- * PrivacySecurityScreen — app lock (Face ID), session control, and a plain
- * statement of how Lyne handles data. Built for a market where digital trust is
- * the whole sell.
+ * PrivacySecurityScreen — app lock (Face ID), session control, the data
+ * download, and a plain statement of how Lyne handles data. Built for a market
+ * where digital trust is the whole sell. Same grouped rows as Settings.
  */
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, font, shadow, t } from '../../lib/theme';
-import api from '../../lib/apiClient';
+import { colors, font, t } from '../../lib/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { APP_LOCK_KEY } from '../../components/LockGate';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-
-function Row({ icon, title, sub, right }: { icon: keyof typeof Ionicons.glyphMap; title: string; sub: string; right: React.ReactNode }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderSoft }}>
-      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon} size={17} color={colors.ink} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>{title}</Text>
-        <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2, lineHeight: 17 }}>{sub}</Text>
-      </View>
-      {right}
-    </View>
-  );
-}
+import { SettingsGroup, SettingsHeader } from '../../components/SettingsGroup';
+import { confirmSignOutEverywhere, downloadMyData } from '../../lib/accountActions';
 
 export default function PrivacySecurityScreen() {
   const navigation = useNavigation<any>();
@@ -57,86 +40,32 @@ export default function PrivacySecurityScreen() {
     AsyncStorage.setItem(APP_LOCK_KEY, next ? '1' : '0').catch(() => {});
   };
 
-  /* A copy of everything the server holds, as JSON, handed to the share sheet so
-     it can be saved to Files, emailed or kept. The file is deleted from the app's
-     cache straight after: the copy is theirs, not ours. */
   const [exporting, setExporting] = useState(false);
-  const downloadMyData = async () => {
-    setExporting(true);
-    let file: File | null = null;
-    try {
-      const data = await api.get<unknown>('/auth/export');
-      file = new File(Paths.cache, `lyne-my-data-${new Date().toISOString().slice(0, 10)}.json`);
-      if (file.exists) file.delete();
-      file.create();
-      file.write(JSON.stringify(data, null, 2));
-      if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this phone.');
-      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Lyne data', UTI: 'public.json' });
-    } catch (caught) {
-      Alert.alert('Could not prepare your data', caught instanceof Error ? caught.message : 'Try again in a moment.');
-    } finally {
-      try { file?.delete(); } catch { /* already gone */ }
-      setExporting(false);
-    }
-  };
-
-  const signOutEverywhere = () => Alert.alert(
-    'Sign out of all devices',
-    'This ends every active session. You’ll need to sign in again everywhere.',
-    [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out all', style: 'destructive', onPress: async () => {
-      try { setSigningOut(true); await api.post('/auth/signout-everywhere', {}); } catch { /* still sign out locally */ }
-      finally { setSigningOut(false); await signOut(); }
-    } }],
-  );
 
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={t.content} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={t.iconBtn}><Ionicons name="chevron-back" size={20} color={colors.ink} /></TouchableOpacity>
-          <Text style={t.h2}>Privacy & security</Text>
-        </View>
+        <SettingsHeader title="Privacy and security" onBack={() => navigation.goBack()} />
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12, marginLeft: 4 }}>Security</Text>
-        <View style={[t.card, { overflow: 'hidden', ...shadow.card }]}>
-          <Row
-            icon="lock-closed-outline"
-            title="App Lock"
-            sub={bioAvailable ? 'Require Face ID each time you open Lyne' : 'Set up Face ID / a passcode on your device to use this'}
-            right={<Switch value={appLock} onValueChange={toggleAppLock} trackColor={{ true: colors.accent, false: colors.border }} />}
-          />
-          <Row
-            icon="finger-print-outline"
-            title="Protect documents"
-            sub="Saved ID/TRN can require Face ID to view. Toggle it when you add each document"
-            right={<Ionicons name="checkmark-circle" size={20} color={colors.light} />}
-          />
-        </View>
+        <SettingsGroup title="Security" rows={[
+          { icon: 'lock', label: 'App Lock',
+            sub: bioAvailable ? 'Ask for Face ID each time Lyne opens' : 'Set up Face ID or a passcode on this phone first',
+            right: <Switch value={appLock} onValueChange={toggleAppLock} trackColor={{ true: colors.accent, false: colors.border }} accessibilityLabel="App Lock" /> },
+          { icon: 'shield', label: 'Protect documents', sub: 'Each saved ID or TRN can ask for Face ID before it shows. Turn it on when you add one.' },
+        ]} />
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 28, marginBottom: 12, marginLeft: 4 }}>Sessions</Text>
-        <TouchableOpacity onPress={signOutEverywhere} disabled={signingOut} style={[t.card, { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 13, ...shadow.card }]}>
-          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Sign out of all devices</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>End every active session everywhere</Text>
-          </View>
-          {signingOut ? <ActivityIndicator color={colors.danger} /> : <Ionicons name="chevron-forward" size={18} color={colors.chevron} />}
-        </TouchableOpacity>
+        <SettingsGroup title="Sessions" rows={[
+          { icon: 'logout', label: 'Sign out of all devices', sub: 'Ends every session, including this one', tone: 'danger', busy: signingOut,
+            onPress: () => confirmSignOutEverywhere(signOut, setSigningOut) },
+        ]} />
 
-        <Text style={{ fontFamily: font.extra, fontSize: 11.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 28, marginBottom: 12, marginLeft: 4 }}>Your data</Text>
-        <TouchableOpacity onPress={downloadMyData} disabled={exporting} accessibilityRole="button" style={[t.card, { padding: 16, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 13, ...shadow.card }]}>
-          <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="download-outline" size={18} color={colors.ink} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Download my data</Text>
-            <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 2 }}>A copy of everything Lyne holds about you, as a JSON file</Text>
-          </View>
-          {exporting ? <ActivityIndicator color={colors.ink} /> : <Ionicons name="chevron-forward" size={18} color={colors.chevron} />}
-        </TouchableOpacity>
-        <View style={[t.card, { padding: 18, ...shadow.card }]}>
+        <SettingsGroup title="Your data" rows={[
+          { icon: 'download', label: 'Download my data', sub: 'Everything Lyne holds about you, as a file you can keep', busy: exporting,
+            onPress: async () => { setExporting(true); try { await downloadMyData(); } finally { setExporting(false); } } },
+        ]} />
+
+        <View style={{ marginTop: 26, padding: 18, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSoft }}>
+          <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.ink, marginBottom: 6 }}>How Lyne treats your data</Text>
           <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.sub, lineHeight: 20 }}>
             Your ID and TRN stay on this phone and are never sent to Lyne; you show them at the counter yourself, and they can be locked behind Face ID. Deleting your account erases what Lyne holds about you. We never sell your data.
           </Text>
