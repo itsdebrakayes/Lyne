@@ -189,7 +189,7 @@ export default function AccountScreen() {
         <SettingsGroup title="Personal details" rows={[
           { icon: 'person', label: 'Name', value: user?.full_name || 'Add', valueTone: user?.full_name ? 'muted' : 'accent', onPress: () => open('name') },
           { icon: 'phone', label: 'Phone', value: user?.phone || 'Add', valueTone: user?.phone ? 'muted' : 'accent', onPress: () => open('phone') },
-        ]} footer="Branches see your name when they call you. Your phone is a contact number; to get texts, verify it under Text alerts in Settings." />
+        ]} footer="Branches see your name when they call you. Your phone is a contact number for the branches you visit." />
 
         <SettingsGroup title="Sign-in and security" rows={[
           { icon: 'mail', label: 'Email', value: email || 'Add', onPress: () => open('email') },
@@ -204,7 +204,7 @@ export default function AccountScreen() {
       </ScrollView>
 
       <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={close}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={close} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift, maxHeight: '92%' }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
@@ -221,7 +221,7 @@ export default function AccountScreen() {
               {sheet === 'phone' && (
                 <>
                   <Text style={title}>Phone</Text>
-                  <Text style={hint}>A contact number for branches. To get texts, verify it under Text alerts in Settings.</Text>
+                  <Text style={hint}>A contact number for the branches you visit.</Text>
                   <TextInput autoFocus value={text} onChangeText={setText} keyboardType="phone-pad" autoComplete="tel" placeholder="876-000-0000" placeholderTextColor={colors.faint} style={field} accessibilityLabel="Phone" />
                   {buttons('Save', () => saveProfileField('phone'))}
                 </>
@@ -263,7 +263,7 @@ export default function AccountScreen() {
                   <TouchableOpacity onPress={() => setShow(s => !s)} style={{ marginTop: 10, alignSelf: 'flex-start' }} accessibilityRole="button">
                     <Text style={{ fontFamily: font.bold, fontSize: 13, color: colors.accentDeep }}>{show ? 'Hide passwords' : 'Show passwords'}</Text>
                   </TouchableOpacity>
-                  {buttons('Change password', changePassword)}
+                  {buttons('Update', changePassword)}
                   <TouchableOpacity onPress={() => open('passwordByCode')} style={{ alignSelf: 'center', marginTop: 14, minHeight: 40, justifyContent: 'center' }} accessibilityRole="button">
                     <Text style={{ fontFamily: font.bold, fontSize: 14, color: colors.accentDeep }}>Forgot it? Use a code from your email</Text>
                   </TouchableOpacity>
