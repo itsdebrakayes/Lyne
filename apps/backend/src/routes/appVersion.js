@@ -27,7 +27,8 @@ const store = (prefix) => {
 };
 
 router.get('/version', (_req, res) => {
-  res.set('Cache-Control', 'public, max-age=300');
+  /* Never cached: a phone holding an old answer would miss a required update. */
+  res.set('Cache-Control', 'no-store');
   res.json({ ios: store('APP_IOS'), android: store('APP_ANDROID') });
 });
 
