@@ -410,12 +410,15 @@ router.post('/logout', requireAuth, async (req, res) => {
 //   • session_registrations — guest contact details scrubbed.
 //   • sms_log (no FK)      — the user_id link is removed; only a hash of the
 //                          number remains, for the per-number throttle.
+//   • audit_logs          — the person's ID, IP address and device are removed;
+//                          what happened and when stays. The deletion itself is
+//                          logged with no ID, so it is proof without a name.
 // The Supabase sign-in record is deleted last, through the admin API, so the
 // email address is free to sign up again.
 //
 // Telling someone their data is gone while their scanned passport number sits
 // in a table with a null user_id would be a lie, and under the DPA an offence.
-router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async (req, res) => {
+router.delete('/account', requireAuth, auditLog('delete_account', 'user', null, { anonymous: true }), async (req, res) => {
   if (!req.dbUser) {
     return res.status(403).json({
       error: 'Staff accounts are managed by their business and cannot be deleted from the app.',
@@ -484,6 +487,15 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
           if (e.code !== 'ER_NO_SUCH_TABLE' && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
         }
       }
+      /* Earlier audit entries keep what happened and when, but not who: the
+         person's ID, IP address and device go. The deletion's own entry is
+         written without them (auditLog anonymous), so it proves a deletion
+         happened without saying whose. */
+      await conn.query(
+        "UPDATE audit_logs SET actor_id = NULL, ip_address = NULL, user_agent = NULL WHERE actor_type = 'user' AND actor_id = ?",
+        [userId]
+      );
+      await conn.query('UPDATE audit_logs SET resource_id = NULL WHERE resource_id = ?', [userId]);
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
     dataDeleted = true;
