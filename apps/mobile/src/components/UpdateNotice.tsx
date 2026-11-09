@@ -15,7 +15,7 @@
  * A store with no URL yet gets nothing.
  */
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Image, Linking, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -51,6 +51,14 @@ export function UpdateNotice() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  /* Android's Back button would otherwise move the screens hidden under the
+     required-update page. Nothing behind it works, so Back stays put. */
+  useEffect(() => {
+    if (!notice?.required) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, [notice]);
 
   useEffect(() => {
     if (!notice || notice.required) return;
