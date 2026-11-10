@@ -431,14 +431,17 @@ app.listen(PORT, () => {
      any real organisation is live. See jobs/reviewSimulator.js. */
   // Also runs for the showcase organisations alone (REVIEW_SHOWCASE_IDS), so
   // turning App Review mode off after approval leaves the examples moving.
-  const { runReviewSimulatorTick, settings: reviewSimSettings, organisations: simOrganisations } = require('./jobs/reviewSimulator');
-  if (simOrganisations(reviewSimSettings()).length) {
+  const { runReviewSimulatorTick, settings: reviewSimSettings, organisations: simOrganisations, configured: simConfigured } = require('./jobs/reviewSimulator');
+  if (simConfigured(reviewSimSettings())) {
     const simTick = () => runReviewSimulatorTick()
       .catch((err) => console.error('[ReviewSimulator] tick failed:', err.message));
     simTick();
     setInterval(simTick, 15 * 1000);
     const sim = reviewSimSettings();
     console.log(`[ReviewSimulator] ACTIVE for ${simOrganisations(sim).join(', ')}${sim.enabled ? ` (review account ${sim.email})` : ' (showcase only)'}.`);
+    if (sim.demoIds.length) {
+      console.log(`[ReviewSimulator] Demo window for ${sim.demoIds.join(', ')}: ${sim.demoFrom && sim.demoUntil ? `${new Date(sim.demoFrom).toISOString()} to ${new Date(sim.demoUntil).toISOString()}` : 'NOT SET (DEMO_FROM and DEMO_UNTIL are both needed), so it stays off'}.`);
+    }
   }
   console.log(
     `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `

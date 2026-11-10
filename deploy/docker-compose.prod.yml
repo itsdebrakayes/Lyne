@@ -137,6 +137,10 @@ services:
       REVIEW_ACCOUNT_EMAIL:     ${REVIEW_ACCOUNT_EMAIL:-}
       # Showcase organisations kept alive the same way (database/showcase/).
       REVIEW_SHOWCASE_IDS:      ${REVIEW_SHOWCASE_IDS:-}
+      # A showcase switched on for a set time only, for a live demonstration.
+      DEMO_SHOWCASE_IDS:        ${DEMO_SHOWCASE_IDS:-}
+      DEMO_FROM:                ${DEMO_FROM:-}
+      DEMO_UNTIL:               ${DEMO_UNTIL:-}
       # Sectors the public app lists. Empty (the default) lists every sector;
       # the demo overlay narrows it to healthcare. Leave unset in production.
       LISTED_SECTORS:           ${LISTED_SECTORS:-}
