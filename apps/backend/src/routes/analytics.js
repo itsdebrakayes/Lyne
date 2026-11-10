@@ -596,7 +596,8 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
     if (!branch) return res.status(404).json({ error: 'Branch not found.' });
 
     const [rows] = await pool.query(
-      `SELECT DATE_FORMAT(q.queue_date, '%Y-%m-%d') AS day, q.service_id, t.user_id, t.status, t.closed_reason, t.channel,
+      `SELECT t.id, t.transferred_from_ticket_id, t.transferred_to_ticket_id,
+              DATE_FORMAT(q.queue_date, '%Y-%m-%d') AS day, q.service_id, t.user_id, t.status, t.closed_reason, t.channel,
               t.served_by_staff_id AS served_by, t.served_at_counter_id AS counter_id, t.appointment_at IS NOT NULL AS is_appointment,
               HOUR(t.joined_at) AS join_hour, HOUR(t.started_serving_at) AS start_hour,
               TIMESTAMPDIFF(SECOND, t.joined_at, t.called_at) / 60 AS wait_min,

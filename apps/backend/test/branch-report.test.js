@@ -223,3 +223,17 @@ test('not being served again counts the tries', () => {
 test('being served is good news, and says so', () => {
   assert.equal(endMessage({ ...facts, served_by: 'Natalie Brooks' }), 'Shanique Powell was served at Account Opening by Natalie Brooks (ACC-106).');
 });
+
+test('a line transfer is finished at the first desk and reported with its path', () => {
+  const services = [{ id: 'teller', name: 'Teller' }, { id: 'loans', name: 'Loans' }];
+  const rows = [
+    visit('2026-11-02', { id: 'a', closed_reason: 'transferred', transferred_to_ticket_id: 'b' }),
+    visit('2026-11-02', { id: 'b', service_id: 'loans', transferred_from_ticket_id: 'a' }),
+    visit('2026-11-02', { id: 'c' }),
+  ];
+  const r = buildBranchReport({ ...base, services, rows });
+  assert.equal(r.summary.completed, 3);
+  assert.equal(r.transfers.count, 1);
+  assert.equal(r.transfers.received, 1);
+  assert.deepEqual(r.transfers.paths, [{ from: 'Teller', to: 'Loans', count: 1 }]);
+});
