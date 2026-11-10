@@ -427,7 +427,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
    mysql --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user=doadmin -p \
      --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne < database/migrations/0NN_name.sql
    ```
-4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good.
+4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good. It first resets every tracked file to world-readable (the API container runs as a non-root user, and a checkout made under `umask 077` once took production down with `EACCES` on `index.js`).
 5. **Verify.** Run `bash deploy/verify.sh`; it should report no failures. The firewall and SSH checks need root and show as "to look at". Check the job lines in `docker logs lyne_api`, and look at the app on a phone.
 
 **Rolling back code:** `bash deploy/deploy.sh rollback` returns to the last good commit. A schema change does not roll back with the code; restore the backup taken in step 3 if a migration was the problem.
