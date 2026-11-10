@@ -26,6 +26,17 @@ cd "$ROOT"
 # identified the same way before and after.
 COMPOSE="docker compose --project-directory $ROOT -f deploy/docker-compose.prod.yml"
 
+# The API image copies this checkout and runs as a non-root user, so every
+# tracked file must be readable by others. A shell with `umask 077` (as a
+# secrets-handling script once had on 9 Nov 2026) makes git write changed files
+# as 600, and the container then dies with EACCES on /app/src/index.js. Force
+# the normal mode back before anything is built, on deploy and on rollback.
+umask 022
+fix_modes() {
+  git -C "$ROOT" ls-files -z | (cd "$ROOT" && xargs -0 chmod go+r)
+  git -C "$ROOT" ls-files -z | (cd "$ROOT" && xargs -0 -n1 dirname | sort -u | xargs chmod go+rx)
+}
+
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 warn() { printf '\n\033[1;33mWARNING:\033[0m %s\n' "$*" >&2; }
@@ -52,6 +63,7 @@ rollback_to() {
   # invoking shell's NODE_ENV that would strand vite in that path.
   ( unset NODE_ENV; cd "$ROOT/apps/admin-desktop" && npm ci --silent && npx vite build ) \
     || warn "the admin app failed to rebuild on the rolled-back commit; the API is what matters here."
+  fix_modes
   $COMPOSE build --pull || die "the rolled-back image would not build. This droplet needs hands."
   $COMPOSE up -d --remove-orphans || die "the rolled-back containers would not start. This droplet needs hands."
   for attempt in $(seq 1 18); do
@@ -146,6 +158,7 @@ log "Building the admin app"
 
 # ── Containers ───────────────────────────────────────────────────────────────
 log "Building images"
+fix_modes
 $COMPOSE build --pull
 
 log "Starting"

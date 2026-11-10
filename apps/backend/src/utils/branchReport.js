@@ -392,6 +392,28 @@ function buildBranchReport(input) {
     });
   }
 
+  /* Line transfers (migration 049): a person sent from one service to another
+     inside the branch. Each hop closes one visit and opens another, so the
+     receiving line counts the person again; the count is shown so arrivals can
+     be read with that in mind. */
+  const byId = new Map(input.rows.filter((r) => r.id).map((r) => [r.id, r]));
+  const sent = rows.filter((r) => r.closed_reason === 'transferred');
+  const pathCounts = new Map();
+  for (const r of sent) {
+    const to = byId.get(r.transferred_to_ticket_id);
+    const key = `${r.service_id}>${to ? to.service_id : ''}`;
+    pathCounts.set(key, (pathCounts.get(key) || 0) + 1);
+  }
+  const transfers = {
+    count: sent.length,
+    received: rows.filter((r) => r.transferred_from_ticket_id).length,
+    sharePct: rate(sent.length, rows.length),
+    paths: [...pathCounts].map(([key, count]) => {
+      const [from, to] = key.split('>');
+      return { from: serviceName.get(from) || from, to: to ? serviceName.get(to) || to : null, count };
+    }).sort((a, b) => b.count - a.count),
+  };
+
   /* ── targets ──────────────────────────────────────────── */
   const end = period.to;
   const summary = s(rows);
@@ -535,6 +557,7 @@ function buildBranchReport(input) {
     services, staff, counters, uncovered,
     channels, reasons: reasons(rows),
     repeats: { windowDays: REPEAT_WINDOW, people: byPerson.size, repeatPeople, afterIncomplete, incompleteLinked },
+    transfers,
     targets, targetHistory: input.targetChanges || [],
     sessions, appointments, cases, exceptions, forecast, coverage,
     ratings: input.ratings || null,

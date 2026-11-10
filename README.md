@@ -153,12 +153,14 @@ Role dashboards:
 
 | Role | Scope |
 |---|---|
-| `line_staff` | Their counter: call, verify by code, serve, skip / no-show |
+| `line_staff` | Their counter: call, verify by code, serve, transfer, skip / no-show |
 | `supervisor` | A section of a branch (migration 043: `branch_sections`, `staff.section_id`): only that section's lines, staff, counters, clients and patterns. Without a section, the whole branch. Can close and reopen session registration, register walk-ups at the door, and end a session's day |
 | `manager` | One branch: open/close queues, assign counters, branch analytics and targets |
 | `executive` | The whole organisation: analytics, targets, trends, reports |
 | `kiosk_clerk` | Walk-in intake only; issues `channel='kiosk'` tickets for people without the app |
 | `platform_admin` | Lyne staff only; can create organisations (no UI yet; done via API/SQL) |
+
+**Transfers between lines** (migration 049). While serving someone, the desk can press **Transfer** and send them to any other open line at the same branch (triage to radiology, assessment to cashier), with an optional handover note that only staff see. `POST /api/tickets/:id/transfer` closes the old ticket as `served` with `closed_reason = 'transferred'` (counted as a finished visit everywhere, never as incomplete) and opens a new ticket in the new line's own numbering (`RAD-004`), linked both ways (`transferred_from_ticket_id` / `transferred_to_ticket_id`). The new ticket is placed by `journey_started_at`, when the person first arrived, which is carried across every hop: they go in front of the first waiting person who arrived after them, never to the back. A person can be transferred any number of times. The waiting row and the desk show "From Triage · TRI-012" and the note; the patient's phone follows to the new ticket, says where it came from, and restarts the lock-screen ticket with the new number. `GET /api/tickets/:id/transfer-targets` lists the lines it can go to. The branch report's journeys chapter counts transfers and their from-to paths, and notes how many arrivals came by transfer (the receiving line counts the person again).
 
 A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
 
@@ -425,7 +427,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
    mysql --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user=doadmin -p \
      --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne < database/migrations/0NN_name.sql
    ```
-4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good.
+4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good. It first resets every tracked file to world-readable (the API container runs as a non-root user, and a checkout made under `umask 077` once took production down with `EACCES` on `index.js`).
 5. **Verify.** Run `bash deploy/verify.sh`; it should report no failures. The firewall and SSH checks need root and show as "to look at". Check the job lines in `docker logs lyne_api`, and look at the app on a phone.
 
 **Rolling back code:** `bash deploy/deploy.sh rollback` returns to the last good commit. A schema change does not roll back with the code; restore the backup taken in step 3 if a migration was the problem.
