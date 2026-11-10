@@ -28,13 +28,19 @@ const CODE = (name?: string) => (titleCase(name) || '')
 export type MgrLiveInput = {
   /** e.g. "Aug 2 – August 31, 2026". Absent means the screen is showing today. */
   periodLabel?: string;
+  /** What the period control has selected, in words: "Today", or the date range. */
+  windowLabel: string;
   branchName: string; org: string; managerName: string;
   /** live queue rows for today, one per service */
   queues: any[];
   /** /analytics/services — total_visits, avg_wait_minutes, avg_service_minutes */
   services: any[];
-  /** /analytics/staff — full_name, tickets_handled, avg_handle_minutes */
+  /** /analytics/staff, everyone who has worked here: the roster and who is on shift */
   staff: any[];
+  /** /analytics/staff for the selected period: tickets_handled, avg_handle_minutes */
+  staffInWindow: any[];
+  /** who is on shift and on a break, live */
+  presence?: Array<{ staff_id: string; on_break: boolean }>;
   /** productivity insight: { slowdowns: [], idle: [] } */
   productivity: any;
   /** /analytics/counters — the desks, and who staff_assignments seats at each */
@@ -106,14 +112,35 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     byService.set(key, cur);
   }
 
+  /* A service with visits in the period but no line open today is still part of
+     that period's story, so it gets a row too. */
+  for (const [key, h] of history) {
+    if (byService.has(key)) continue;
+    const name = titleCase(h.service_name) || 'Service';
+    byService.set(key, { id: key, code: CODE(name), name, waiting: 0, wait: 0, counters: 0, open: 0, longest: 0, state: 'open' });
+  }
+
   const services: MgrSvc[] = [...byService.values()]
-    .map((s) => ({
-      ...s,
-      // History enriches where it exists, but never decides whether the row is here.
-      code: CODE(titleCase(history.get(s.id)?.service_name) || s.name),
-      state: (s.wait > targetWait ? 'busy' : 'open') as MgrSvc['state'],
-    }))
-    .sort((a, b) => b.waiting - a.waiting);
+    .map((s) => {
+      const h = history.get(s.id);
+      const visits = Math.round(num(h?.total_visits));
+      const periodWait = Math.round(num(h?.avg_wait_minutes));
+      return {
+        ...s,
+        // History enriches where it exists, but never decides whether the row is here.
+        code: CODE(titleCase(h?.service_name) || s.name),
+        visits,
+        served: Math.round(num(h?.completed)),
+        noShows: Math.round(num(h?.no_shows)),
+        periodWait,
+        periodCounter: Math.round(num(h?.avg_service_minutes)),
+        dropoff: num(h?.dropoff_pct),
+        /* Measured against the target on what the period actually did. Judging it
+           on the live projection read "Running Well" at every closed branch. */
+        state: ((visits ? periodWait : s.wait) > targetWait ? 'busy' : 'open') as MgrSvc['state'],
+      };
+    })
+    .sort((a, b) => (b.visits ?? 0) - (a.visits ?? 0) || b.waiting - a.waiting);
 
   /* ── the floor ──
      A staff row on its own says who worked and how many they saw. The state
@@ -139,9 +166,14 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     if (c.staff_name) onDesk.set(String(c.staff_name), seat);
   }
 
+  /* The roster comes from everyone who has worked here; what they did comes from
+     the selected period, so somebody with no visits in it reads 0 rather than
+     disappearing from the floor. */
+  const inWindow = new Map(i.staffInWindow.map((s) => [String(s.staff_id), s]));
   const staff: MgrStaff[] = i.staff.map((s) => {
     const name = titleCase(s.full_name) || '—';
-    const seen = Math.round(num(s.tickets_handled));
+    const worked = inWindow.get(String(s.staff_id));
+    const seen = Math.round(num(worked?.tickets_handled));
     const desk = onDesk.get(String(s.staff_id)) || onDesk.get(String(s.full_name)) || null;
     /* "Serving" means AT A DESK right now — not "handled a ticket at some point
        today", which is what tickets_handled says. The old reading marked the
@@ -153,8 +185,10 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
        between windows looks like. A shift record says which. Only once somebody
        is known to be present do the performance flags (idle, slow) apply; a
        clerk who has gone home is not "idle with people waiting", they are off. */
-    const onBreak = Boolean(s.on_break_since);
-    const onShift = Boolean(s.clocked_in_at);
+    /* The live feed first: the staff list itself refreshes hourly. */
+    const live = (i.presence ?? []).find((p) => String(p.staff_id) === String(s.staff_id));
+    const onBreak = live ? live.on_break : Boolean(s.on_break_since);
+    const onShift = Boolean(live) || Boolean(s.clocked_in_at);
     const state: MgrStaff['state'] = !onShift ? 'off'
       : onBreak ? 'break'
       : idle.has(s.full_name) ? 'idle'
@@ -169,7 +203,7 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
       counter: desk?.counter || '—',
       svc: desk?.svc || '—',
       seen,
-      avg: Math.round(num(s.avg_handle_minutes)),
+      avg: Math.round(num(worked?.avg_handle_minutes)),
       since: onSinceLabel(s.signed_in_at, s.first_activity_at),
       state,
       note: idle.get(s.full_name) || slow.get(s.full_name),
@@ -184,6 +218,9 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
   const hourSet = [...new Set(i.demandHourly.map((c) => num(c.bucket)))].sort((a, b) => a - b);
   const hours = hourSet.map(hourLabel);
   const rowNames = [...new Set(i.demandHourly.map((c) => String(c.row_name || '')))].filter(Boolean);
+  /* The grid's own names. Labelling it from the service list put each row beside
+     the wrong service, because that list is sorted differently and can be longer. */
+  const heatRows = rowNames.map((rn) => titleCase(rn));
   const svcHeat = rowNames.map((rn) => hourSet.map((h) => {
     const cell = i.demandHourly.find((c) => String(c.row_name) === rn && num(c.bucket) === h);
     return Math.round(num(cell?.visit_count));
@@ -212,7 +249,8 @@ export function buildMgrData(i: MgrLiveInput): MgrTabData {
     branchName: titleCase(i.branchName) || 'Your Branch',
     org: i.org,
     managerName: titleCase(i.managerName) || '—',
-    staff, services, hours, svcHeat, dow, targets,
+    staff, services, hours, heatRows, svcHeat, dow, targets,
+    windowLabel: i.windowLabel,
     faq: i.faq,
     servedToday: i.servedToday,
     /* Forwarded so the stat labels can name the window they are summing. */

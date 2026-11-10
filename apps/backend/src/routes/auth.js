@@ -25,7 +25,8 @@ const { isPlatformAdmin } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { withTransaction } = require('../db/tx');
 const { withPremiumState, trialEndsAt, TRIAL_DAYS, requirePayments } = require('../lib/premium');
-const { profileSyncLimiter } = require('../middleware/rateLimiter');
+const { profileSyncLimiter, authLimiter } = require('../middleware/rateLimiter');
+const { z } = require('zod');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
@@ -149,6 +150,11 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
 
     // Already synced?
     if (req.dbUser) {
+      /* Supabase owns the sign-in email. A change confirmed there (Account >
+         Email) reaches this row on the next sync, so the two never disagree. */
+      if (supabaseUser.email && supabaseUser.email.toLowerCase() !== String(req.dbUser.email || '').toLowerCase()) {
+        await pool.query('UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?', [supabaseUser.email.toLowerCase(), req.dbUser.id]);
+      }
       // Update profile fields if provided
       if (full_name || phone) {
         await pool.query(
@@ -298,6 +304,127 @@ router.post('/start-trial', requirePayments, requireAuth, async (req, res) => {
 // ── POST /api/auth/logout ──────────────────────────────────────
 // Revokes the current token and destroys the session record.
 // Client should also call supabase.auth.signOut() to clear local storage.
+// ── POST /api/auth/signout-everywhere ─────────────────────────
+// A customer's "Sign out of all devices". /force-signout is the staff tool for
+// someone else's account, and refused customers, so this button used to sign out
+// only the phone it was pressed on. Supabase ends every session (refresh tokens),
+// and every phone stops getting this account's notifications at once.
+router.post('/signout-everywhere', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'Clients only.' });
+  try {
+    await pool.query('DELETE FROM device_push_tokens WHERE user_id = ?', [req.dbUser.id]);
+    const jwt = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (supabaseAdmin && jwt) {
+      const { error } = await supabaseAdmin.auth.admin.signOut(jwt, 'global');
+      if (error) console.error('[SignOutEverywhere]', error.message);
+    }
+    res.json({ signed_out: true });
+  } catch (err) {
+    console.error('[SignOutEverywhere]', err.message);
+    res.status(500).json({ error: 'Could not sign out everywhere. Try again.' });
+  }
+});
+
+// ── GET /api/auth/export ──────────────────────────────────────
+// "Download my data": everything Lyne's server holds about this person, as JSON
+// (the usual machine-readable format for a data access request). Documents such
+// as a TRN are not here because they never leave the phone.
+router.get('/export', requireAuth, async (req, res) => {
+  if (!req.dbUser) return res.status(403).json({ error: 'Clients only.' });
+  const id = req.dbUser.id;
+  const q = async (sql) => (await pool.query(sql, [id]))[0];
+  try {
+    const [[profile]] = await pool.query(
+      `SELECT email, full_name, phone, date_of_birth, created_at, updated_at, sms_opt_in, sms_opt_in_at, phone_verified_at,
+              is_premium, trial_started_at, premium_until
+         FROM users WHERE id = ?`, [id]);
+    const data = {
+      exported_at: new Date().toISOString(),
+      about: 'Everything Lyne holds about your account. Identification numbers you saved (TRN, National ID) are kept only on your phone, so they are not in this file.',
+      profile,
+      visits: await q(
+        `SELECT t.ticket_number, t.status, t.channel, t.visit_reason, t.joined_at, t.called_at, t.completed_at, t.closed_reason,
+                t.estimated_wait_minutes, t.appointment_at, t.notify_consent_at, b.name AS business, br.name AS branch, s.name AS service
+           FROM queue_tickets t
+           JOIN queues qu ON qu.id = t.queue_id
+           LEFT JOIN services s ON s.id = qu.service_id
+           LEFT JOIN branches br ON br.id = qu.branch_id
+           LEFT JOIN businesses b ON b.id = br.business_id
+          WHERE t.user_id = ? ORDER BY t.joined_at DESC`),
+      ratings: await q('SELECT rating, wait_ok, comment, created_at FROM ticket_ratings WHERE user_id = ? ORDER BY created_at DESC'),
+      session_registrations: await q(
+        `SELECT reference, appointment_time, status, registered_at, checked_in_at, sms_consent_at
+           FROM session_registrations WHERE user_id = ? ORDER BY registered_at DESC`),
+      saved_businesses: await q(
+        `SELECT b.name, sb.saved_at FROM saved_businesses sb JOIN businesses b ON b.id = sb.business_id WHERE sb.user_id = ?`),
+      notifications: await q('SELECT notification_type, channel, message, is_read, sent_at FROM notifications WHERE user_id = ? ORDER BY sent_at DESC'),
+      devices: await q('SELECT platform, device_name, last_seen_at, created_at FROM device_push_tokens WHERE user_id = ?'),
+    };
+    res.setHeader('Content-Disposition', 'attachment; filename="lyne-my-data.json"');
+    res.json(data);
+  } catch (err) {
+    console.error('[Export]', err.message);
+    res.status(500).json({ error: 'Could not gather your data. Try again.' });
+  }
+});
+
+// ── Forgotten password ─────────────────────────────────────────────────────────
+// POST /api/auth/password-reset/start   { email }                 email a 6-digit code
+// POST /api/auth/password-reset/finish  { email, code, password } set the new password
+//
+// By code, not by link: the app uses PKCE and has no deep-link handler, and a code
+// works whichever device opens the email. Supabase's Reset Password email must
+// include {{ .Token }}. The code is checked here, not on the phone, because checking
+// it on the phone would sign the person in before they had chosen a new password.
+// Once set, every other session is signed out. Start always answers the same way,
+// so nobody can use it to find out whether an email has an account.
+const resetStart = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+const resetFinish = resetStart.extend({
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code from the email.'),
+  password: z.string().min(8, 'Use at least 8 characters.').max(72, 'Use 72 characters or fewer.'),
+});
+const publicKey = () => process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+const publicClient = () => createSupabaseClient(process.env.SUPABASE_URL, publicKey(), {
+  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+});
+
+router.post('/password-reset/start', authLimiter, async (req, res) => {
+  const parsed = resetStart.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!process.env.SUPABASE_URL || !publicKey()) return res.status(503).json({ error: 'Password reset is unavailable right now. Try again later.' });
+  const { error } = await publicClient().auth.resetPasswordForEmail(parsed.data.email);
+  if (error) {
+    console.error('[PasswordReset] start:', error.status, error.code || error.message);
+    if (error.status === 429) return res.status(429).json({ error: 'Too many reset emails have been sent. Wait a few minutes and try again.' });
+  }
+  return res.json({ sent: true });
+});
+
+router.post('/password-reset/finish', authLimiter, async (req, res) => {
+  const parsed = resetFinish.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Check your details.' });
+  if (!supabaseAdmin || !publicKey()) return res.status(503).json({ error: 'Password reset is unavailable right now. Try again later.' });
+  const { email, code, password } = parsed.data;
+  try {
+    const { data, error } = await publicClient().auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if (error || !data?.user || !data?.session) {
+      return res.status(400).json({ error: "That code didn't work. It may have expired: send a new one and use the latest email." });
+    }
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, { password });
+    if (updateError) {
+      const weak = /password/i.test(updateError.message);
+      return res.status(weak ? 400 : 502).json({ error: weak ? updateError.message : 'Could not save your new password. Try again.' });
+    }
+    // Anyone still signed in with the old password is signed out everywhere.
+    const { error: outError } = await supabaseAdmin.auth.admin.signOut(data.session.access_token, 'global');
+    if (outError) console.error('[PasswordReset] sign-out everywhere failed:', outError.message);
+    return res.json({ reset: true });
+  } catch (err) {
+    console.error('[PasswordReset] finish:', err.message);
+    return res.status(502).json({ error: 'Could not reset your password. Try again.' });
+  }
+});
+
 router.post('/logout', requireAuth, async (req, res) => {
   try {
     const token = (req.headers.authorization || '').split(' ')[1];
@@ -348,12 +475,19 @@ router.post('/logout', requireAuth, async (req, res) => {
 //                          row is allowed to anonymise: the agency keeps its
 //                          operational record of "a person was served at 10:04",
 //                          with nothing left tying it to a human.
-//   • ticket_ratings,
-//     session_registrations — anonymise cleanly; no personal columns.
+//   • ticket_ratings      — the free-text comment is removed; the score stays.
+//   • session_registrations — guest contact details scrubbed.
+//   • sms_log (no FK)      — the user_id link is removed; only a hash of the
+//                          number remains, for the per-number throttle.
+//   • audit_logs          — the person's ID, IP address and device are removed;
+//                          what happened and when stays. The deletion itself is
+//                          logged with no ID, so it is proof without a name.
+// The Supabase sign-in record is deleted last, through the admin API, so the
+// email address is free to sign up again.
 //
 // Telling someone their data is gone while their scanned passport number sits
 // in a table with a null user_id would be a lie, and under the DPA an offence.
-router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async (req, res) => {
+router.delete('/account', requireAuth, auditLog('delete_account', 'user', null, { anonymous: true }), async (req, res) => {
   if (!req.dbUser) {
     return res.status(403).json({
       error: 'Staff accounts are managed by their business and cannot be deleted from the app.',
@@ -398,13 +532,39 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user'), async
       await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
-        'UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL WHERE user_id = ?',
+        "UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL, readiness_note = NULL, triage_flag = 'none', notify_consent_at = NULL WHERE user_id = ?",
         [userId]
       );
       await conn.query(
         'UPDATE session_registrations SET guest_name = NULL, guest_phone = NULL, guest_email = NULL WHERE user_id = ?',
         [userId]
       );
+      // A rating's free-text comment is the customer's own words; the score stays.
+      await conn.query('UPDATE ticket_ratings SET comment = NULL WHERE user_id = ?', [userId]);
+      /* Text-message columns and sms_log arrive with migration 048, which may
+         not be applied on every database yet. Only "that table/column does not
+         exist" is tolerated here; any other error still aborts the deletion. */
+      for (const sql of [
+        'UPDATE queue_tickets SET sms_stop_code = NULL WHERE user_id = ?',
+        'UPDATE session_registrations SET sms_consent_at = NULL WHERE user_id = ?',
+        // sms_log keeps only a hash of the number for throttling; drop the link to the person.
+        'UPDATE sms_log SET user_id = NULL WHERE user_id = ?',
+      ]) {
+        try {
+          await conn.query(sql, [userId]);
+        } catch (e) {
+          if (e.code !== 'ER_NO_SUCH_TABLE' && e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        }
+      }
+      /* Earlier audit entries keep what happened and when, but not who: the
+         person's ID, IP address and device go. The deletion's own entry is
+         written without them (auditLog anonymous), so it proves a deletion
+         happened without saying whose. */
+      await conn.query(
+        "UPDATE audit_logs SET actor_id = NULL, ip_address = NULL, user_agent = NULL WHERE actor_type = 'user' AND actor_id = ?",
+        [userId]
+      );
+      await conn.query('UPDATE audit_logs SET resource_id = NULL WHERE resource_id = ?', [userId]);
       await conn.query('DELETE FROM users WHERE id = ?', [userId]);
     });
     dataDeleted = true;

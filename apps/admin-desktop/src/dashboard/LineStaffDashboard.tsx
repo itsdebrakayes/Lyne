@@ -226,8 +226,10 @@ export default function LineStaffDashboard() {
 
   const shift = useQuery({
     queryKey: ['my-shift'],
-    queryFn: () => api.get<{ on_shift: boolean; on_break: boolean }>('/staff/me/shift'),
-    refetchInterval: 60_000,
+    queryFn: () => api.get<{ on_shift: boolean; on_break: boolean; shift: { counter_label: string | null } | null }>('/staff/me/shift'),
+    /* A supervisor can move someone to another desk at any moment, and the header
+       has to show it without a restart. */
+    refetchInterval: 15_000,
   });
   const attendance = useCallback(async (path: string) => {
     await api.post(`/staff/me/${path}`, {});
@@ -262,6 +264,14 @@ export default function LineStaffDashboard() {
       await api.put(`/tickets/${id}/move-to`, { to });
       await refetchDesk();
     },
+    onLoadTransferTargets: (id: string) =>
+      api.get<Array<{ queue_id: string; service_name: string; waiting: number }>>(`/tickets/${id}/transfer-targets`),
+    onTransfer: async (id: string, queueId: string, note: string) => {
+      const r = await api.post<{ to: { ticket_number: string; service_name: string; place: number } }>(
+        `/tickets/${id}/transfer`, { queue_id: queueId, note });
+      await refetchDesk();
+      return { no: r.to.ticket_number, service: r.to.service_name, place: r.to.place };
+    },
     onSetTriageFlag: async (id: string, flag: 'none' | 'possibly_urgent') => {
       await api.put(`/tickets/${id}/triage-flag`, { flag });
       await refetchDesk();
@@ -273,7 +283,7 @@ export default function LineStaffDashboard() {
     /* The QUEUE endpoint does not carry the desk — but /auth/me does, from
        staff_assignments. Standing the service name in for the counter is what
        made the header chip read "TRN Registration · TRN Registration". */
-    counter: admin?.staffRecord?.counter_label || service || '—',
+    counter: shift.data?.shift?.counter_label || admin?.staffRecord?.counter_label || service || '—',
     serviceName: service || '—',
     branchName: branch,
     tickets, history: history.data || [], analytics: a,

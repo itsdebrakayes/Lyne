@@ -76,7 +76,12 @@ export type LineTicket = {
   unresolved30d?: number;
   visitReason?: string | null;
   dateOfBirth?: string | null;
+  /* Arrived by transfer from another line (migration 049): the old ticket and
+     line, and the handover note left for this desk. The note is staff-only. */
+  transferredFrom?: { no: string; service: string } | null;
+  transferNote?: string | null;
 };
+export type TransferTarget = { queue_id: string; service_name: string; waiting: number };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
   /* 'incomplete' is a visit that happened and did not achieve what the person
@@ -136,6 +141,10 @@ export type LineTabData = {
   onCallAgain?: (ticketId: string) => Promise<void> | void;
   /** Put a waiting patient anywhere in the line ('top', 'bottom' or a place). */
   onMove?: (ticketId: string, to: 'top' | 'bottom' | number) => Promise<void> | void;
+  /** Lines at this branch the person being served can be sent to. */
+  onLoadTransferTargets?: (ticketId: string) => Promise<TransferTarget[]>;
+  /** Send the person being served to another line, placed by when they arrived. */
+  onTransfer?: (ticketId: string, queueId: string, note: string) => Promise<{ no: string; service: string; place: number }>;
   /** Set or clear the possibly-urgent tag (e.g. for a walk-in). */
   onSetTriageFlag?: (ticketId: string, flag: 'none' | 'possibly_urgent') => Promise<void> | void;
   /** How many times the person at the window has been called. */
@@ -431,6 +440,11 @@ export function LineOverviewQX() {
   const [endingIncomplete, setEndingIncomplete] = useState(false);
   const [incompleteReason, setIncompleteReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  /* Transfer: null = panel closed; [] while the lines load. */
+  const [transferLines, setTransferLines] = useState<TransferTarget[] | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [transferDone, setTransferDone] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
   // service is under way that is who is in front of you.
@@ -461,6 +475,7 @@ export function LineOverviewQX() {
   useEffect(() => {
     setCode(['', '', '', '', '', '']); setCodeState('idle'); setCodeError(null);
     setReadinessChoice(null); setReadinessNote(''); setReadinessError(null);
+    setTransferLines(null); setTransferTo(''); setTransferNote('');
   }, [activeId]);
 
   const waiting = d.queue.filter((t) => t.state === 'waiting' && t.id !== activeId);
@@ -527,6 +542,34 @@ export function LineOverviewQX() {
       setIncompleteReason('');
     });
   };
+
+  /* Transfer is a handover, not an ending: the person goes to another line here
+     with a new ticket in that line's numbering, placed by when they first
+     arrived — never at the back. The desk is then free for the next person. */
+  const openTransfer = () => {
+    if (!activeId) return;
+    if (transferLines) { setTransferLines(null); return; }
+    setEndingIncomplete(false);
+    setTransferLines([]); setTransferTo(''); setTransferNote('');
+    run(async () => {
+      const lines = (await d.onLoadTransferTargets?.(activeId)) || [];
+      setTransferLines(lines);
+      if (!lines.length) setActionError('There are no other open lines at this branch to send them to.');
+    });
+  };
+  const transfer = () => {
+    if (!activeId || !transferTo) return;
+    run(async () => {
+      const moved = await d.onTransfer?.(activeId, transferTo, transferNote.trim());
+      setTransferLines(null); setTransferTo(''); setTransferNote('');
+      if (moved) setTransferDone(`Sent to ${moved.service} as ${moved.no} · place ${moved.place} by arrival time`);
+    });
+  };
+  useEffect(() => {
+    if (!transferDone) return undefined;
+    const t = setTimeout(() => setTransferDone(null), 8000);
+    return () => clearTimeout(t);
+  }, [transferDone]);
 
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
@@ -673,11 +716,17 @@ export function LineOverviewQX() {
               {stage === 'serving' ? (
                 <span className="ql-tag ok"><Check size={13} />Code verified</span>
               ) : null}
+              {active.transferredFrom ? (
+                <span className="ql-tag"><ArrowLeftRight size={13} />From {active.transferredFrom.service} · {active.transferredFrom.no}</span>
+              ) : null}
               {stage === 'called' && calls > 1 ? (
                 <span className="ql-tag warn"><PhoneOff size={13} />Called {calls} times</span>
               ) : null}
             </div>
 
+            {active.transferNote ? (
+              <div className="ql-handover"><b>Handover note</b>{active.transferNote}</div>
+            ) : null}
             <div className="ql-meta">
               <span><Users size={14} />Waited {active.waited} min in line</span>
               <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
@@ -969,10 +1018,16 @@ export function LineOverviewQX() {
               </button>
               {/* Second, quieter, and never the default. Most visits finish. */}
               <button type="button" className="ql-btn" disabled={busy}
-                onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
+                onClick={() => { setTransferLines(null); setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
                 aria-expanded={endingIncomplete}>
                 <AlertTriangle size={17} />Mark As Incomplete
               </button>
+              {d.onTransfer ? (
+                <button type="button" className="ql-btn" disabled={busy} onClick={openTransfer}
+                  aria-expanded={Boolean(transferLines)}>
+                  <ArrowLeftRight size={17} />Transfer
+                </button>
+              ) : null}
               {/* Hold means "pause my line", and it only exists now that a break
                   is a real state. It finishes with the person in front of you
                   first — you are not walking away mid-conversation. */}
@@ -981,20 +1036,8 @@ export function LineOverviewQX() {
                 onClick={() => run(() => d.onBreakStart?.())}>
                 <Pause size={17} />Hold
               </button>
-              {/* Transfer and Requeue used to sit here, and BOTH were wired to
-                  `finish` — the Complete action. Three buttons, three labels,
-                  one behaviour: pressing Transfer silently closed the visit as
-                  served and called the next person, and the clerk had no way to
-                  know the customer they meant to move had just been marked
-                  served instead.
-                  Neither can be wired correctly yet. There is no transfer
-                  endpoint at all, and /skip only accepts a ticket that is still
-                  `waiting` — not one already in service — so requeueing from
-                  the counter has nothing to call either. A control that quietly
-                  does something else is worse than one that is not there, so
-                  they are gone until there is something real behind them.
-                  The FAQ at the top of this file still describes Transfer; that
-                  copy is the promise this needs to be built to keep. */}
+              {/* Requeue is still absent: /skip only accepts a waiting ticket,
+                  so requeueing from the counter has nothing real to call. */}
             </>
           ) : null}
         </div>
@@ -1002,6 +1045,54 @@ export function LineOverviewQX() {
         {/* The reason, revealed only when asked for. A permanent dropdown beside
             Complete would invite a clerk to fill it in on visits that finished
             perfectly well. */}
+        {stage === 'serving' && transferLines ? (
+          <div className="ql-incomplete ql-transfer">
+            <div className="ql-incomplete-head">
+              <span className="ql-incomplete-badge"><ArrowLeftRight size={16} /></span>
+              <div>
+                <b id="transfer-title">Send {active?.name || 'them'} to another line</b>
+                <small>They get that line’s next ticket number and are placed by the time they first arrived, not at the back. Their phone follows them.</small>
+              </div>
+            </div>
+            <div className="ql-reasons" role="radiogroup" aria-labelledby="transfer-title">
+              {transferLines.length === 0 && busy ? <small style={{ opacity: .7 }}>Loading lines…</small> : null}
+              {transferLines.map((l) => {
+                const on = transferTo === l.queue_id;
+                return (
+                  <button key={l.queue_id} type="button" role="radio" aria-checked={on}
+                    className={on ? 'on' : ''} disabled={busy} onClick={() => setTransferTo(l.queue_id)}>
+                    <span className="ic"><ArrowLeftRight size={16} /></span>
+                    <span className="tx">
+                      <b>{l.service_name}</b>
+                      <small>{l.waiting === 0 ? 'Nobody waiting' : `${l.waiting} waiting`}</small>
+                    </span>
+                    <span className="tick">{on ? <Check size={14} /> : null}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <label className="ql-readynote" style={{ marginTop: 12 }}>
+              <textarea rows={2} maxLength={200} value={transferNote} disabled={busy}
+                placeholder="Handover note for the next desk (optional), e.g. Chest X-ray, left side"
+                onChange={(e) => setTransferNote(e.target.value)} />
+              <small>Only staff see this note. It is never sent to the {lower(terms.visitor.one)}.</small>
+            </label>
+            <div className="ql-incomplete-acts">
+              <button type="button" className="ql-btn primary" style={{ flex: '1 1 240px' }} onClick={transfer}
+                disabled={!transferTo || busy}>
+                {busy ? 'Sending…' : 'Transfer & Free My Window'}
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setTransferLines(null); setTransferTo(''); setTransferNote(''); }}>
+                Keep Serving
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {transferDone ? (
+          <div className="ql-handover" role="status" style={{ marginTop: 12 }}><b>Transferred</b>{transferDone}</div>
+        ) : null}
+
         {stage === 'serving' && endingIncomplete ? (
           <div className="ql-incomplete">
             <div className="ql-incomplete-head">
@@ -1092,6 +1183,7 @@ export function LineOverviewQX() {
                           and the row is where a clerk decides who to try. */}
                       {(t.callCount || 0) > 1 ? ` · called ${t.callCount}×` : ''}
                       {appointmentClock(t.appointmentAt) ? ` · appointment ${appointmentClock(t.appointmentAt)}` : ''}
+                      {t.transferredFrom ? ` · from ${t.transferredFrom.service} (${t.transferredFrom.no})` : ''}
                     </small>
                   </div>
                 </div>

@@ -117,7 +117,7 @@ name against it needs a person; everything else is in
       unsigned in the meantime — `npm run build:win:unsigned` — which is fine
       for a pilot unless the site enforces SmartScreen or WDAC.
       See [desktop-signing.md](desktop-signing.md).
-- [ ] **SMS provider** sender registration — approval lead time, not price, is
+- [x] **SMS provider**: Twilio is live, and Jamaica needed no sender registration. Earlier note: — approval lead time, not price, is
       what delays it. [../LAUNCH_PROCUREMENT.md](../LAUNCH_PROCUREMENT.md#11-sms-provider---unblocks-text-customers-when-called)
 - [ ] **Sentry account** and DSN — free tier, and the code already no-ops
       without it

@@ -42,6 +42,10 @@
  */
 const router = require('express').Router();
 const { listedSectorClause } = require('../utils/listing');
+const { clock12 } = require('../utils/joinWindow');
+const { activeClosure, closureMessage } = require('../utils/branchClosures');
+const caseAlerts = require('../utils/caseAlerts');
+const { stopCode } = require('../utils/smsAlerts');
 const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
@@ -312,6 +316,8 @@ const registerSchema = eligibilitySchema.extend({
    place on their account alone, and a guest by name. */
 const publicRegisterSchema = registerSchema.extend({
   reference: z.string().trim().max(60).optional(),
+  /** Asked to be texted when called. A phone number alone is not agreement. */
+  sms_consent: z.boolean().optional(),
 });
 
 /* Only staff may set a time. A member of the public choosing their own slot
@@ -552,15 +558,27 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
 
     const registrationId = uuidv4();
     const code = createRegistrationCode();
+    /* The booking this one replaces, if the person just moved one. */
+    let movedFrom = null;
+    if (req.dbUser?.id) {
+      const [moved] = await conn.query(
+        `SELECT r.id FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+          WHERE r.user_id = ? AND r.status = 'rescheduled' AND ss.business_id = ?
+            AND NOT EXISTS (SELECT 1 FROM session_registrations n WHERE n.rescheduled_from_id = r.id)
+          ORDER BY r.registered_at DESC LIMIT 1`,
+        [req.dbUser.id, session.business_id]);
+      movedFrom = moved?.[0]?.id || null;
+    }
     await conn.query(
       `INSERT INTO session_registrations
          (id, session_id, user_id, guest_name, guest_phone, guest_email, reference,
-          appointment_time, verified, registration_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          appointment_time, verified, registration_code, rescheduled_from_id, sms_consent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         registrationId, session.id, req.dbUser?.id || null,
         name || null, phone || null, email || null,
-        reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code,
+        reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code, movedFrom,
+        parsed.data.sms_consent && phone ? new Date() : null,
       ]
     );
 
@@ -601,11 +619,14 @@ router.post('/public/:id/check-in', optionalAuth, (req, res) => checkIn(req, res
 router.post('/public/:id/cancel', requireAuth, async (req, res) => {
   try {
     if (!req.dbUser?.id) return res.status(403).json({ error: 'Sign in to change a booking.' });
+    /* Changing a booking is one booking moving, not one lost and one gained. The
+       next booking this person makes with the organisation is linked back to it. */
+    const moving = req.body?.reschedule === true;
     const [result] = await pool.query(
       `UPDATE session_registrations
-          SET status = 'cancelled'
+          SET status = ?
         WHERE session_id = ? AND user_id = ? AND status = 'registered'`,
-      [req.params.id, req.dbUser.id]
+      [moving ? 'rescheduled' : 'cancelled', req.params.id, req.dbUser.id]
     );
     if (!result.affectedRows) {
       return res.status(404).json({ error: 'You do not hold a place in this session that can be given back.' });
@@ -697,6 +718,29 @@ async function checkIn(req, res, channel) {
       return res.status(409).json({ error: 'This session has already taken place.' });
     }
 
+    const closure = await activeClosure(conn, session.branch_id);
+    if (closure) {
+      await conn.rollback();
+      return res.status(409).json({ error: closureMessage(closure) });
+    }
+
+    /* Not after the doors have shut: nobody is left to call the number, and the
+       end-of-day sweep would cancel the ticket minutes later. A session that
+       runs past the branch's usual closing keeps its own hours, and a Saturday
+       session at a weekday branch is why this does not look at open_days. */
+    const [closing] = await conn.query(
+      `SELECT b.name, b.closing_time,
+              NOW() >= GREATEST(TIMESTAMP(CURDATE(), b.closing_time), COALESCE(?, '1970-01-01')) AS past
+         FROM branches b WHERE b.id = ?`,
+      [session.ends_at || null, session.branch_id]
+    );
+    if (closing?.[0] && Number(closing[0].past) === 1) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: `${closing[0].name} closed at ${clock12(closing[0].closing_time)} today, so check-in has ended.`,
+      });
+    }
+
     /* An appointment (migration 042). Measured in the database's clock, the same
        one CURDATE() above used, so the slot and "now" can never disagree about
        which timezone the branch is in. */
@@ -771,13 +815,16 @@ async function checkIn(req, res, channel) {
       `INSERT INTO queue_tickets
          (id, queue_id, user_id, guest_name, guest_phone, guest_access_token,
           ticket_number, verification_code, position, status, estimated_wait_minutes, channel,
-          appointment_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?)`,
+          appointment_at, notify_consent_at, sms_stop_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
       [
         ticketId, queue.id, ownerId,
         registration.guest_name || null, registration.guest_phone || null, guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
         honoured ? appointment.slot_at : null,
+        /* A guest's yes from registering comes with them; an account's is on the account. */
+        !ownerId && registration.sms_consent_at ? registration.sms_consent_at : null,
+        !ownerId && registration.sms_consent_at && registration.guest_phone ? stopCode() : null,
       ]
     );
     await conn.query(
@@ -832,10 +879,13 @@ async function checkIn(req, res, channel) {
     if (session.status === 'open' || session.status === 'closed') {
       await conn.query("UPDATE scheduled_sessions SET status = 'in_progress' WHERE id = ?", [session.id]);
     }
+    // When it really began: the first person through the door.
+    await conn.query('UPDATE scheduled_sessions SET started_at = COALESCE(started_at, NOW()) WHERE id = ?', [session.id]);
 
     await conn.commit();
     const [[ticket]] = await conn.query('SELECT * FROM queue_tickets WHERE id = ?', [ticketId]);
     broadcast(queue.id, ticket);
+    caseAlerts.visitStarted(ticketId);
 
     res.status(201).json({
       registration_id: registration.id,
@@ -1545,13 +1595,23 @@ router.post('/:id/close', requireAuth, requireStaffRole(...STAFF_VIEW),
         return res.status(409).json({ error: 'This session is already closed.' });
       }
 
+      /* Ending before the planned end is an interruption, and the reason is the
+         one thing nobody can reconstruct afterwards. */
+      const reason = String(req.body?.reason || '').trim().slice(0, 255);
+      const [[timing]] = await pool.query('SELECT ? > NOW() AS early', [session.ends_at]);
+      if (Number(timing?.early) === 1 && reason.length < 3) {
+        return res.status(400).json({ error: 'This session is ending early. Say why before ending it.', needs_reason: true });
+      }
+
       const [result] = await pool.query(
         `UPDATE session_registrations
             SET status = 'no_show'
           WHERE session_id = ? AND status = 'registered'`,
         [session.id]
       );
-      await pool.query("UPDATE scheduled_sessions SET status = 'completed' WHERE id = ?", [session.id]);
+      await pool.query(
+        "UPDATE scheduled_sessions SET status = 'completed', ended_at = NOW(), ended_by = ?, end_reason = ? WHERE id = ?",
+        [req.dbStaff?.id || null, reason || null, session.id]);
 
       res.json({
         session_id: session.id,

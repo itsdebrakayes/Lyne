@@ -103,6 +103,10 @@ export const PRIVACY_POLICY: LegalSection[] = [
   },
 ];
 
+/** Which wording a person accepted at sign-up (stored on their account as
+ *  terms_version). Change it whenever the Terms or Privacy Policy change. */
+export const TERMS_VERSION = '2026-11-09';
+
 export const TERMS: LegalSection[] = [
   {
     heading: 'What this service does',

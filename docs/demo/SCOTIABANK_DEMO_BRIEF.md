@@ -110,19 +110,29 @@ or uploaded list). Both are pilot items.
 
 ## 5. Demo setup on the day
 
-1. Load the bank: migrations 040 and 041, then `database/demo_bank_seed.sql`,
-   then `database/demo_sector_seed.sql` (its closing sweep must run last). The
-   daily refresh (`npm run refresh:demo-data`) does this in the right order.
+The full procedure is in `README.demo.md`. In short, on the morning of the demo:
+
+1. Reseed so the live lines are fresh: `npm run refresh:demo-data`. If the
+   90-day history is missing (Busy Times, Trends and the forecast look empty),
+   load it with `seed-demo-bank-history.js` as described in `README.demo.md`.
 2. List only the bank on phones: set `LISTED_SECTORS=banking` in `.env` and
    restart the API (`docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d api`).
    Put it back to `healthcare` for hospital demos.
-3. Logins (create these four in Supabase Auth first, then run
-   `sync-demo-test-accounts`): `staff-bank@test.com` (Teller 1, Half Way Tree),
-   `supervisor-bank@test.com`, `manager-bank@test.com`, `executive-bank@test.com`.
-4. Branch hours are real: Half Way Tree 8:30 to 4:00, the others 8:30 to 2:30,
-   weekdays. Rehearse inside those hours or the lines show closed. The two
-   sessions are on the coming Saturday and move forward each week.
-5. Reseed the morning of the demo so the live lines are fresh.
+3. Point the demo logins at the bank: `bash scripts/demo-switch.sh bank
+   --customer=<email of the demo phone's account>`. The seven `demo.*@uselyne.com`
+   logins become the officers, supervisors, manager and executive, the kiosk moves
+   to Half Way Tree's front desk, and the phone gets the next appointment today and
+   no other bookings, so Saturday Banking can be registered for live. Passwords
+   are in `secrets/staff-logins.txt`. Seats are per day: run it that morning.
+4. Open **Lyne Admin Demo**, not Lyne Admin. It is the one that talks to the demo
+   stack, and it needs Docker running.
+5. Branch hours are real: Half Way Tree 8:30 to 4:00, the others 8:30 to 2:30,
+   weekdays. Rehearse inside those hours or the lines show closed. Saturday
+   sessions stay open for registration until 5 p.m. the evening before.
+
+The kiosk offers no text messages: Lyne has no SMS provider yet, so tickets are
+called on the screen and on the phone. If asked, say so plainly: texting is a
+provider and a sender registration away, and it is not in this demo.
 
 ## 6. Questions to ask in the room
 

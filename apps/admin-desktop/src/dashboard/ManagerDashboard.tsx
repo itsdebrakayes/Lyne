@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import MessageComposer from '../components/MessageComposer';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutGrid, Users, Waypoints, Grid3x3, Target, FileText, Settings, Headphones,
   AlertTriangle, TrendingUp, Clock, Info, ChevronDown, Mail, Phone, ClipboardCheck, CalendarClock,
@@ -25,7 +25,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 import { Shell as QxShell, Head as QxHead, Pills as QxPills, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
 import { MgrDataProvider, MgrOverviewQX, mgrTab, MGR_TAB_HEAD } from './qx/MgrTabsQX';
 import { buildMgrData } from './qx/mgrLiveData';
-import { labelFor, makeWindow, rowsIn, today, windowDaysOf } from './dateWindow';
+import { labelFor, makeWindow, rowsIn, shiftDays, today, windowDaysOf } from './dateWindow';
 import { DateWindowChip } from './DateWindowChip';
 import { ManagerReadinessWorkspace, type ReadinessService } from '../components/dashboard/ReadinessWorkspace';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
@@ -102,8 +102,25 @@ export default function ManagerDashboard() {
      changed. Every headline number came from `last` — one single day — so there
      was no period for a period control to select. */
   const [period, setPeriod] = useState('today');
+  /* Client Cases has a period of its own. A case is somebody who keeps coming
+     back, so a single day can never show one, and that tab offers 7 to 90 days. */
+  const [casePeriod, setCasePeriod] = useState('30');
   const [anchor, setAnchor] = useState(today());
   const win = useMemo(() => makeWindow(anchor, windowDaysOf(period)), [anchor, period]);
+  const caseWin = useMemo(() => makeWindow(anchor, windowDaysOf(casePeriod)), [anchor, casePeriod]);
+  /* Everything below follows the selected period, and the last answer stays on
+     screen while the next one loads so a tap does not flash the tab empty. */
+  const windowData = usePeriodData(d.analyticsQuery, win, true);
+  /* A report covers complete days, so it ends yesterday, and it fetches its own
+     evidence whatever the rest of the screen happens to be showing. */
+  const [reportPeriod, setReportPeriod] = useState('30');
+  const reportWin = useMemo(() => makeWindow(shiftDays(today(), -1), windowDaysOf(reportPeriod)), [reportPeriod]);
+  const reportScope = `business_id=${d.businessId}&branch_id=${d.branchId}&from=${reportWin.from}&to=${reportWin.to}`;
+  const reportEvidence = useQuery({
+    queryKey: ['branch-report', reportScope],
+    queryFn: () => api.get<any>(`/analytics/branch-report?${reportScope}`),
+    enabled: Boolean(tab === 'reports' && d.businessId && d.branchId),
+  });
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
   const org = d.admin?.staffRecord.business_name || 'Your Business';
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
@@ -134,13 +151,7 @@ export default function ManagerDashboard() {
      the default "Today" window these are identical to what they were, so the
      dashboard opens exactly as it did — the difference only appears once
      somebody actually picks a period, which is the point. */
-  const sumIn = (k: string) => windowRows.reduce((t, s: any) => t + num(s[k]), 0);
-  const achievedWait = windowRows.length
-    ? Math.round(windowRows.reduce((t, s: any) => t + num(s.avg_wait_time_minutes), 0) / windowRows.length)
-    : 0;
-  const completed = sumIn('completed_count');
-  const totalToday = sumIn('total_visitors') || completed + sumIn('no_show_count');
-  const noShows = sumIn('no_show_count');
+  const { achievedWait, completed, totalToday, noShows, avgService, left } = periodTotals(windowRows);
   // The manager measures against their OWN branch target (which overlays the
   // company target); it falls back to the company target until they set one.
   const target = d.effectiveTarget;
@@ -200,14 +211,16 @@ export default function ManagerDashboard() {
   /* Everything the ported manager screens read, mapped from the live layer. */
   const liveData = useMemo(() => buildMgrData({
     periodLabel: win.days > 1 ? labelFor(win) : undefined,
+    windowLabel: win.to === today() && win.days === 1 ? 'Today' : labelFor(win),
     branchName, org, managerName: d.admin?.name || '',
-    queues: d.queues as any[], services: d.services as any[], staff: d.staff as any[],
-    productivity: d.productivity, counters: d.counters as any[], demandHourly: d.demandHourly as any[], demandWeekly: d.demandWeekly as any[],
+    queues: d.queues as any[], services: windowData.services, staff: d.staff as any[], presence: d.presence,
+    staffInWindow: windowData.staff,
+    productivity: d.productivity, counters: d.counters as any[], demandHourly: windowData.hourly, demandWeekly: windowData.daily,
     target: d.effectiveTarget, companyTarget: d.targets, branchTarget: d.branchTargets,
     avgWait: achievedWait,
     completionPct: totalToday ? Math.round((completed / totalToday) * 100) : 0,
     noShowPct: totalToday ? +((noShows / totalToday) * 100).toFixed(1) : 0,
-    avgService: Math.round(num(last.avg_service_time_minutes)),
+    avgService,
     openFrom: timeLabel(d.branchSettings?.hours?.opening_time) || '—',
     openTo: timeLabel(d.branchSettings?.hours?.closing_time) || '—',
     faq: MGR_FAQ,
@@ -215,10 +228,11 @@ export default function ManagerDashboard() {
     ...servedHours,
     balking: d.balking,
     todayJoined: totalToday, todayCompleted: completed, todayNoShows: noShows,
-    todayLeft: num(last.left_count),
-  }), [branchName, org, d.admin, d.queues, d.services, d.staff, d.productivity, d.demandHourly,
-       d.demandWeekly, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
-       achievedWait, completed, totalToday, noShows, last, servedHours]);
+    todayLeft: left,
+  }), [branchName, org, d.admin, d.queues, d.presence, windowData.services, d.staff, windowData.staff, d.productivity,
+       windowData.hourly, windowData.daily, win, d.effectiveTarget, d.targets, d.branchTargets, d.balking,
+       achievedWait, completed, totalToday, noShows, avgService, left, servedHours]);
+
 
   /* The manager asks; the supervisor acts. Sending lands in the bell of every
      active supervisor at this branch. */
@@ -269,7 +283,7 @@ export default function ManagerDashboard() {
      tab — controls that moved and changed nothing. */
   const [setState, setSetState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [setError, setSetError] = useState<string | null>(null);
-  const saveBranchSettings = useCallback(async (patch: { allow_overflow?: boolean; line_helper_enabled?: boolean }) => {
+  const saveBranchSettings = useCallback(async (patch: { text_when_called?: boolean; allow_overflow?: boolean; line_helper_enabled?: boolean }) => {
     setSetState('saving'); setSetError(null);
     try {
       /* The patch is spread rather than destructured field by field. Naming
@@ -344,24 +358,25 @@ export default function ManagerDashboard() {
           right={<>
             {/* Only show the period pill on tabs it actually drives.
                   · readiness — has its own Today/Week/Month control
-                  · busy      — a 90-day PATTERN by design; one day of data is not
-                                a pattern, and the pill sat there implying the
-                                heatmap was today's while it never changed
+                  · sessions  — dated events, not a reporting period
                   · reports   — the report carries its own PERIOD selector, so two
                                 controls disagreed on screen (header said Today,
                                 the pack said Last 30 Days) */}
-            {!['readiness', 'sessions', 'busy', 'reports'].includes(tab) ? <QxPills value={period} onChange={setPeriod}
-              options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
-            {['readiness', 'sessions', 'busy', 'reports'].includes(tab)
+            {tab === 'cases'
+              ? <QxPills value={casePeriod} onChange={setCasePeriod} options={[['7', '7 Days'], ['30', '30 Days'], ['90', '90 Days']]} />
+              : !['readiness', 'sessions', 'reports'].includes(tab) ? <QxPills value={period} onChange={setPeriod}
+                options={[['today', 'Today'], ['7', '7 Days'], ['30', '30 Days']]} /> : null}
+            {['readiness', 'sessions', 'reports'].includes(tab)
               ? <span className="qx-datechip"><CalendarDays size={14} />{todayLabel}</span>
-              : <DateWindowChip window={win} onChange={setAnchor} />}
+              : <DateWindowChip window={tab === 'cases' ? caseWin : win} onChange={setAnchor} />}
             <button type="button" className="qx-btn ghost" onClick={() => d.refreshAll()}><QxRefresh size={14} />Update</button>
           </>}
         />
       }
     >
       {tour.running ? <Spotlight steps={TOURS.manager} onDone={tour.finish} /> : null}
-      <MgrDataProvider value={{ ...liveData, onAskSupervisor: askSupervisor, askState, askError,
+      <MgrDataProvider value={{ ...liveData, report: { period: reportPeriod, setPeriod: setReportPeriod, evidence: reportEvidence.data, failed: reportEvidence.isError },
+        onAskSupervisor: askSupervisor, askState, askError,
         onSaveBranchTargets: saveBranchTargets, targetsSaveState: tgtState, targetsSaveError: tgtError,
         targetsSetBy: d.branchTargets?.set_by_name ?? null, targetsSetAt: d.branchTargets?.updated_at ?? null,
         settings: d.branchSettings, onSaveBranchSettings: saveBranchSettings, onSaveAlertPrefs: saveAlertPrefs,
@@ -369,8 +384,8 @@ export default function ManagerDashboard() {
         {tab === 'overview' ? <MgrOverviewQX onNav={setTab} />
           : tab === 'readiness' ? <ManagerReadinessWorkspace businessId={d.businessId} branchId={d.branchId} services={readinessServices.data || []} />
             : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} />
-            : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
-            : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
+            : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} window={caseWin} />
+            : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} window={win} windowLabel={liveData.windowLabel} />
             : mgrTab(tab, setTab)}
       </MgrDataProvider>
       {/* The reply box for a message opened from the bell. It lives at the
@@ -389,6 +404,39 @@ export default function ManagerDashboard() {
       ) : null}
     </QxShell>
   );
+}
+
+/** A period's four server-side pieces. */
+function usePeriodData(analyticsQuery: string, win: { from: string; to: string }, wanted: boolean) {
+  const scope = `${analyticsQuery}&from=${win.from}&to=${win.to}`;
+  const base = { enabled: Boolean(analyticsQuery && wanted), placeholderData: keepPreviousData };
+  const get = (key: string, path: string) => ({
+    queryKey: ['mgr-period', key, scope], queryFn: () => api.get<any[]>(`/analytics/${path}`), ...base,
+  });
+  const services = useQuery(get('services', `services?${scope}`));
+  const staff = useQuery(get('staff', `staff?${scope}`));
+  const hourly = useQuery(get('hour', `demand?${scope}&rows=service&by=hour`));
+  const daily = useQuery(get('dow', `demand?${scope}&rows=service&by=dow`));
+  return {
+    services: services.data ?? [], staff: staff.data ?? [], hourly: hourly.data ?? [], daily: daily.data ?? [],
+  };
+}
+
+/** One period's headline figures from its daily rows. Averages are weighted by
+ *  visits, so a quiet day does not count the same as a payday. */
+function periodTotals(rows: any[]) {
+  const sum = (k: string) => rows.reduce((t, s: any) => t + num(s[k]), 0);
+  const avg = (k: string) => {
+    const seen = rows.filter((s: any) => num(s[k]) > 0);
+    const weight = seen.reduce((t, s: any) => t + (num(s.total_visitors) || 1), 0);
+    return weight ? Math.round(seen.reduce((t, s: any) => t + num(s[k]) * (num(s.total_visitors) || 1), 0) / weight) : 0;
+  };
+  const completed = sum('completed_count');
+  return {
+    achievedWait: avg('avg_wait_time_minutes'), avgService: avg('avg_service_time_minutes'),
+    completed, noShows: sum('no_show_count'), left: sum('left_count'),
+    totalToday: sum('total_visitors') || completed + sum('no_show_count'),
+  };
 }
 
 /* ---------- shared sub-cards (used by both dashboards) ---------- */

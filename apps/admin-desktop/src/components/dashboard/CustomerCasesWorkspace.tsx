@@ -33,10 +33,12 @@ import {
   AlertCircle, ArrowLeft, CalendarClock, ChevronRight, Mail, Phone, RotateCcw, User,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
+import { CaseWatch } from './CaseWatch';
 
 type Pattern = 'same_service' | 'multiple_services';
 
 interface CaseRow {
+  watched_by?: string | null;
   user_id: string;
   full_name: string;
   email: string | null;
@@ -70,6 +72,7 @@ interface Visit {
   channel: string;
   waited_minutes: number | null;
   served_by: string | null;
+  counter_label?: string | null;
 }
 
 interface Detail {
@@ -114,17 +117,22 @@ function spanDays(from: string, to: string) {
   return Math.max(1, d);
 }
 
-export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: string; branchId?: string }) {
+export function CustomerCasesWorkspace({ businessId, branchId, window: win }: {
+  businessId?: string; branchId?: string;
+  /** The period the dashboard has selected. Without one, this screen offers its own. */
+  window?: { from: string; to: string; days: number };
+}) {
   const terms = useSectorTerms();
-  const [days, setDays] = useState(30);
+  const [ownDays, setDays] = useState(30);
+  const days = win?.days ?? ownDays;
   const [minVisits, setMinVisits] = useState(3);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const q = useQuery({
-    queryKey: ['customer-cases', businessId, branchId, days, minVisits],
+    queryKey: ['customer-cases', businessId, branchId, days, win?.from, win?.to, minVisits],
     queryFn: () => api.get<{ window_days: number; min_visits: number; cases: CaseRow[] }>(
       `/analytics/customer-cases?business_id=${businessId}`
-      + `${branchId ? `&branch_id=${branchId}` : ''}&days=${days}&min_visits=${minVisits}`,
+      + `${branchId ? `&branch_id=${branchId}` : ''}${win ? `&from=${win.from}&to=${win.to}` : `&days=${days}`}&min_visits=${minVisits}`,
     ),
     enabled: Boolean(businessId),
   });
@@ -151,15 +159,17 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
         </div>
 
         <div className="qc-filters">
-          <label className="qc-field">
-            <span>Looking back</span>
-            <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={180}>6 months</option>
-            </select>
-          </label>
+          {win ? null : (
+            <label className="qc-field">
+              <span>Looking back</span>
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+                <option value={180}>6 months</option>
+              </select>
+            </label>
+          )}
           <label className="qc-field">
             <span>Flag after</span>
             <select value={minVisits} onChange={(e) => setMinVisits(Number(e.target.value))}>
@@ -224,6 +234,7 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
                     {c.resolved > 0 && <span className="qc-dim"> · {c.resolved} served</span>}
                   </span>
                   <span className="qc-tags">
+                    {c.watched_by && <span className="qc-tag">Watched by {c.watched_by}</span>}
                     {c.flags?.includes('priority') && <span className="qc-tag qc-tag--hot">Priority</span>}
                     {c.flags?.includes('watch') && <span className="qc-tag">Watch</span>}
                     {c.reasons?.includes('frequent_this_week') && (
@@ -259,6 +270,20 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
       </p>
     </div>
   );
+}
+
+/** "Natalie Brooks served 3 of 20 visits at Personal Banking 1: 5 Oct, 12 Oct." */
+function servedBy(visits: Array<{ served_by: string | null; counter_label?: string | null; queue_date: string }>) {
+  const byName = new Map<string, { name: string; count: number; counters: Set<string>; dates: string[] }>();
+  for (const v of visits) {
+    if (!v.served_by) continue;
+    const row = byName.get(v.served_by) ?? { name: v.served_by, count: 0, counters: new Set<string>(), dates: [] };
+    row.count += 1;
+    if (v.counter_label) row.counters.add(v.counter_label);
+    row.dates.push(fmtDate(v.queue_date));
+    byName.set(v.served_by, row);
+  }
+  return [...byName.values()].sort((a, b) => b.count - a.count).map((p) => ({ ...p, counters: [...p.counters] }));
 }
 
 export function CaseDetail({ businessId, userId, onBack }: { businessId: string; userId: string; onBack: () => void }) {
@@ -311,6 +336,18 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
             ))}
           </div>
 
+          <CaseWatch userId={userId} />
+
+          <h3 className="qc-h3">Who served them</h3>
+          {servedBy(d.visits).length ? (
+            <ul className="qc-servedby">
+              {servedBy(d.visits).map((p) => (
+                <li key={p.name}><b>{p.name}</b> served {p.count} of {d.visits.length} visits
+                  {p.counters.length ? ` at ${p.counters.join(', ')}` : ''}: {p.dates.join(', ')}</li>
+              ))}
+            </ul>
+          ) : <div className="qc-note">No officer is recorded against these visits.</div>}
+
           <h3 className="qc-h3">Every visit, most recent first</h3>
           <ol className="qc-timeline">
             {d.visits.map((v) => {
@@ -331,7 +368,7 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
                       {live ? 'In the line now' : label(v.closed_reason || v.status)}
                     </span>
                     {v.waited_minutes != null && <small>waited {v.waited_minutes}m</small>}
-                    {v.served_by && <small>seen by {v.served_by}</small>}
+                    {v.served_by && <small>seen by {v.served_by}{v.counter_label ? ` at ${v.counter_label}` : ''}</small>}
                   </span>
                 </li>
               );

@@ -31,6 +31,7 @@ import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
+import AccountScreen from '../screens/main/AccountScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -53,6 +54,7 @@ export type RootStackParamList = {
   AgencyHelp: { slug: string };
   DocumentCapture: { field: 'national_id' | 'trn' };
   PrivacySecurity: undefined;
+  Account: undefined;
   Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
   /* The Predictive Insights screens. Each carries the branch it is about rather
@@ -167,7 +169,11 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
         ) : !user ? (
           /* Sign in and create account are one screen; a device nobody has
              signed in on opens it in Create account (lib/deviceHistory.ts). */
-          <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+          <>
+            <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+            {/* Readable before an account exists: sign-up asks people to accept them. */}
+            <Stack.Screen name="Legal" component={LegalScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
@@ -177,6 +183,7 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+            <Stack.Screen name="Account"   component={AccountScreen}   />
             <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
             <Stack.Screen name="Session"   component={SessionScreen}   />

@@ -80,6 +80,7 @@ export interface TicketRecord {
   status_message?: string | null;
   readiness_shown_at?: string | null;
   readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
+  closed_reason?: string | null;
   readiness_note?: string | null;
   /* Timestamps. GET /tickets/:id selects t.*, so these have always been on the
      wire — they had no name here until the ticket needed to draw a timeline
@@ -88,6 +89,13 @@ export interface TicketRecord {
   called_at?: string | null;
   started_serving_at?: string | null;
   completed_at?: string | null;
+  /* Transfers between lines (migration 049). A transferred ticket closes as
+     served with closed_reason 'transferred' and points at the new one; the new
+     one names the ticket and line it came from. */
+  transferred_to_ticket_id?: string | null;
+  transferred_from_ticket_id?: string | null;
+  transferred_from_number?: string | null;
+  transferred_from_service?: string | null;
 }
 
 export interface SavedBusiness {

@@ -38,6 +38,7 @@ const pool = require('../db/pool');
 const { issueTicketSlot } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
 const { sendPushToUser } = require('../utils/pushSender');
+const { activeClosure } = require('../utils/branchClosures');
 
 /** Marks the made-up visitors, so they are never mistaken for people. */
 const DEMO_VISITOR = 'Review demo visitor';
@@ -78,6 +79,7 @@ async function keepLinesBusy(businessId) {
   const [branches] = await pool.query(
     `SELECT id FROM branches WHERE business_id = ? AND is_active = 1`, [businessId]);
   for (const b of branches) {
+    if (await activeClosure(pool, b.id)) continue; // a closed branch has no line
     await ensureQueuesForToday(businessId, b.id);
     const [queues] = await pool.query(
       `SELECT q.id, q.branch_id, q.service_id, s.ticket_prefix, s.base_avg_time_minutes,

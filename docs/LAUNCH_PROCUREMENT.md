@@ -17,6 +17,13 @@ not a second budget.
 
 ### 1.1 SMS provider  → unblocks "Text Customers When Called"
 
+**Status (November 2026): live with Twilio.** The Messaging Service sends from the
+name "Lyne" to Jamaica only, at about US$0.32 a segment, and no sender registration
+was needed for Jamaica. The sender cannot take replies, so STOP does not work: people
+stop through the app or the link in the text. The code is in
+`apps/backend/src/utils/smsSender.js`, behind one interface, and sends nothing unless
+`SMS_ENABLED=true`. What follows is the original evaluation, kept for the record.
+
 **Yes, you need an API key.** SMS cannot be sent from our own servers; a licensed
 carrier or aggregator has to inject the message into the mobile network. That
 means an account, a sender identity, and per-message billing.

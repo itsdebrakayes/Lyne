@@ -264,12 +264,9 @@ function Details({ name, setName, phone, setPhone, notify, setNotify, onBack, on
           <div className="qk-notify">
             <small>How Should We Tell You?</small>
             <div className="qk-notifyrow">
-              <button type="button" className={`qk-choice${notify === 'sms' ? ' on' : ''}`}
-                onClick={() => { setNotify('sms'); setField('phone'); }}>
-                <MessageSquare size={22} />
-                <b>Text Me</b>
-                <small>Wait anywhere nearby</small>
-              </button>
+              {/* No "Text Me" here: this kiosk builds its ticket on the screen and
+                  never reaches the server, so a text could not follow. The real
+                  kiosk is apps/mobile/src/screens/kiosk/KioskScreen.tsx. */}
               <button type="button" className={`qk-choice${notify === 'screen' ? ' on' : ''}`}
                 onClick={() => { setNotify('screen'); setField('name'); }}>
                 <Printer size={22} />

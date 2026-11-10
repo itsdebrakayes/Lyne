@@ -16,6 +16,9 @@ import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { TabBar } from '../../components/TabBar';
 import { useTheme, ThemeMode } from '../../lib/ThemeProvider';
 import { useContentColumn } from '../../lib/stage';
+import { PhoneAlertsCard } from '../../components/PhoneAlertsCard';
+import { rateLyne } from '../../lib/storeLinks';
+import { SettingsGroup } from '../../components/SettingsGroup';
 
 type DocKey = 'trn' | 'national_id' | 'phone';
 
@@ -25,39 +28,8 @@ const DOC_SHEET: Record<DocKey, { title: string; hint: string; placeholder: stri
   phone: { title: 'Add your phone', hint: 'Used for queue updates if push notifications are unavailable.', placeholder: '876-000-0000', keyboard: 'phone-pad' },
 };
 
-/* App Screens Refresh 1d: the grouped-list pattern most apps use. A row is an
-   icon, a label, and on the right its current value and a chevron. */
-type Row = { icon: IconName; label: string; value?: string; valueTone?: 'muted' | 'accent'; dot?: boolean; onPress?: () => void };
-
-function Group({ title, rows }: { title?: string; rows: Row[] }) {
-  return (
-    <View>
-      {title ? <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.sub, marginTop: 24, marginBottom: 8, marginLeft: 16 }}>{title}</Text> : null}
-      <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
-        {rows.map((r, i) => (
-          <TouchableOpacity
-            key={r.label}
-            disabled={!r.onPress}
-            onPress={r.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={r.value ? `${r.label}, ${r.value}` : r.label}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
-          >
-            <Icon name={r.icon} size={19} color={colors.sub} />
-            <View style={{ flex: 1, minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 16, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.borderSoft }}>
-              <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.ink }}>{r.label}</Text>
-              {r.dot ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.light }} /> : null}
-              {r.value ? (
-                <Text numberOfLines={1} style={{ maxWidth: 170, fontFamily: font.medium, fontSize: 15, color: r.valueTone === 'accent' ? colors.accent : colors.muted }}>{r.value}</Text>
-              ) : null}
-              {r.onPress ? <Icon name="chevronRight" size={16} color={colors.chevron} /> : null}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
+/* The grouped-list pattern most apps use, shared with Account and Privacy. */
+const Group = SettingsGroup;
 
 export default function ProfileScreen() {
   const column = useContentColumn();
@@ -72,22 +44,17 @@ export default function ProfileScreen() {
   const [docValue, setDocValue] = useState('');
   const [docSaving, setDocSaving] = useState(false);
   const [docError, setDocError] = useState('');
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [emailValue, setEmailValue] = useState('');
-  const [emailSaving, setEmailSaving] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
   const [notifState, setNotifState] = useState<'On' | 'Off'>('Off');
-  const [emailVerified, setEmailVerified] = useState(false);
   useFocusEffect(useCallback(() => {
     Notifications.getPermissionsAsync().then(p => setNotifState(p.granted ? 'On' : 'Off')).catch(() => {});
-    supabase.auth.getSession().then(({ data }) => setEmailVerified(Boolean(data.session?.user?.email_confirmed_at))).catch(() => {});
-  }, []));
+    // Coming back from Account: show the name and email just saved there.
+    refreshProfile().catch(() => {});
+  }, [refreshProfile]));
 
   const name = user?.full_name || 'Your account';
   const email = user?.email || '—';
@@ -173,33 +140,13 @@ export default function ProfileScreen() {
     }
   };
 
-  const openEmailSheet = () => { setEmailValue(user?.email || ''); setEmailError(''); setEmailSent(false); setEmailOpen(true); };
-  const saveEmail = async () => {
-    const next = emailValue.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailError('Enter a valid email address.'); return; }
-    if (next === (user?.email || '').toLowerCase()) { setEmailError('That’s already your email.'); return; }
-    try {
-      setEmailSaving(true);
-      setEmailError('');
-      // Supabase sends a confirmation link to the new address; the change only
-      // takes effect once it's confirmed, so we surface that instead of a save.
-      const { error: updErr } = await supabase.auth.updateUser({ email: next });
-      if (updErr) throw updErr;
-      setEmailSent(true);
-    } catch (caught: unknown) {
-      setEmailError(caught instanceof Error ? caught.message : 'Could not update email. Try again.');
-    } finally {
-      setEmailSaving(false);
-    }
-  };
-
   return (
     <View style={t.root}>
       <ScrollView contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: topPad, paddingBottom: TAB_BAR_CLEARANCE + lift }, column]} showsVerticalScrollIndicator={false}>
         <Text accessibilityRole="header" style={{ fontFamily: font.semibold, fontSize: 32, letterSpacing: -0.8, lineHeight: 35, color: colors.ink }}>Settings</Text>
 
         {/* profile */}
-        <TouchableOpacity onPress={openEmailSheet} accessibilityRole="button" accessibilityLabel={`${name}, ${email}`}
+        <TouchableOpacity onPress={() => navigation.navigate('Account')} accessibilityRole="button" accessibilityLabel={`Account: ${name}, ${email}`}
           style={{ marginTop: 20, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: font.semibold, fontSize: 18, color: '#fff' }}>{personInitials(name)}</Text>
@@ -210,11 +157,6 @@ export default function ProfileScreen() {
           </View>
           <Icon name="chevronRight" size={16} color={colors.chevron} />
         </TouchableOpacity>
-
-        <Group title="Personal details" rows={[
-          { icon: 'phone', label: 'Phone', value: user?.phone || 'Add', valueTone: user?.phone ? 'muted' : 'accent', onPress: () => openDocSheet('phone', user?.phone) },
-          { icon: 'mail', label: 'Email', value: emailVerified ? 'Verified' : 'Unverified', onPress: openEmailSheet },
-        ]} />
 
         <Group title="Documents" rows={docs.map(d => ({
           icon: d.icon, label: d.key, value: d.value ? 'On file' : 'Add', valueTone: d.value ? 'muted' as const : 'accent' as const, dot: Boolean(d.value),
@@ -232,35 +174,25 @@ export default function ProfileScreen() {
         <Group title="Support" rows={[
           { icon: 'help', label: 'Help and support', onPress: () => navigation.navigate('Help') },
           { icon: 'document', label: 'Privacy policy and terms', onPress: () => navigation.navigate('Legal') },
+          { icon: 'star', label: 'Rate Lyne', onPress: rateLyne },
         ]} />
+
+        <PhoneAlertsCard />
 
         {/* Log out and Delete account: last, in red, and Delete opens a sheet
             that says exactly what goes before anything is removed. */}
-        <View style={{ marginTop: 24, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' }}>
-          <TouchableOpacity onPress={signOut} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}>
-            <Ionicons name="log-out-outline" size={19} color={colors.dangerInk} />
-            <View style={{ flex: 1, minHeight: 50, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: colors.borderSoft }}>
-              <Text style={{ fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Log out</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); }}
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-            accessibilityHint="Opens a confirmation. Deletion is permanent."
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 16, minHeight: 50 }}
-          >
-            <Ionicons name="trash-outline" size={19} color={colors.dangerInk} />
-            <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: colors.dangerInk }}>Delete account</Text>
-          </TouchableOpacity>
-        </View>
+        <Group rows={[
+          { icon: 'logout', label: 'Log out', tone: 'danger', onPress: signOut },
+          { icon: 'trash', label: 'Delete account', tone: 'danger', accessibilityHint: 'Opens a confirmation. Deletion is permanent.',
+            onPress: () => { setDeleteConfirm(''); setDeleteError(''); setDeleteOpen(true); } },
+        ]} />
         <Text style={{ textAlign: 'center', fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: 16 }}>Lyne {appVersion}</Text>
       </ScrollView>
       <TabBar active="Profile" />
 
       {/* delete confirmation */}
       <Modal visible={deleteOpen} transparent animationType="slide" onRequestClose={() => setDeleteOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => !deleting && setDeleteOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(6,12,20,.55)' }} />
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
             <Text style={{ fontFamily: font.extra, fontSize: 21, color: colors.ink, letterSpacing: -0.5 }}>Delete your account?</Text>
@@ -298,7 +230,7 @@ export default function ProfileScreen() {
 
       {/* document edit sheet */}
       <Modal visible={!!editingDoc} transparent animationType="slide" onRequestClose={() => setEditingDoc(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setEditingDoc(null)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
           {editingDoc && (
             <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
@@ -325,52 +257,6 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* email change sheet */}
-      <Modal visible={emailOpen} transparent animationType="slide" onRequestClose={() => setEmailOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setEmailOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(10,16,14,.5)' }} />
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 34 + lift }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 18 }} />
-            {emailSent ? (
-              <View style={{ alignItems: 'center', paddingVertical: 6 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                  <Icon name="mail" size={26} color={colors.light} />
-                </View>
-                <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4, textAlign: 'center' }}>Confirm your new email</Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 13, color: colors.muted, marginTop: 8, lineHeight: 19, textAlign: 'center' }}>We sent a confirmation link to {emailValue.trim().toLowerCase()}. Your email updates once you tap it.</Text>
-                <TouchableOpacity onPress={() => setEmailOpen(false)} style={[t.primaryBtn, { alignSelf: 'stretch', minHeight: 52, marginTop: 20 }]}>
-                  <Text style={t.primaryBtnText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <Text style={{ fontFamily: font.extra, fontSize: 19, color: colors.ink, letterSpacing: -0.4 }}>Change email</Text>
-                <Text style={{ fontFamily: font.medium, fontSize: 12.5, color: colors.muted, marginTop: 6, lineHeight: 18 }}>This is your sign-in email. We’ll send a confirmation link to the new address before it changes.</Text>
-                <TextInput
-                  autoFocus
-                  value={emailValue}
-                  onChangeText={setEmailValue}
-                  placeholder="you@email.com"
-                  placeholderTextColor={colors.faint}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  style={[{ backgroundColor: colors.fieldBg, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 16, height: 54, fontFamily: font.semibold, color: colors.ink, fontSize: 15, marginTop: 16 }, inputReset]}
-                />
-                {!!emailError && <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.danger, marginTop: 10 }}>{emailError}</Text>}
-                <View style={{ flexDirection: 'row', gap: 11, marginTop: 18 }}>
-                  <TouchableOpacity onPress={() => setEmailOpen(false)} style={[t.ghostBtn, { flex: 1, minHeight: 52 }]}>
-                    <Text style={{ fontFamily: font.extra, fontSize: 14, color: colors.ink }}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity disabled={emailSaving} onPress={saveEmail} style={[t.primaryBtn, { flex: 1, minHeight: 52 }]}>
-                    {emailSaving ? <ActivityIndicator color="#fff" /> : <Text style={t.primaryBtnText}>Send link</Text>}
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
         </KeyboardAvoidingView>
       </Modal>
 

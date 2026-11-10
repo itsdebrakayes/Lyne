@@ -53,6 +53,7 @@ const TITLES: Record<string, string> = {
 
 /** Which ones deserve to look louder than the rest. */
 const KINDS: Record<string, QxNotifyItem['kind']> = {
+  case_update: 'warn',
   assignment_request: 'warn',
   staffing_alert: 'warn',
   target_missed: 'urgent',
@@ -82,8 +83,10 @@ export function useNotifications(): QxNotify & {
   const list = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Row[]>('/notifications'),
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    /* A supervisor needs to hear a watched client has joined while they are still
+       in the line, not a minute later. */
+    refetchInterval: 20_000,
+    staleTime: 10_000,
   });
 
   const readOne = useMutation({

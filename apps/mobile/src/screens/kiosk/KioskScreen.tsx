@@ -29,7 +29,7 @@
  *  • It reads at standing distance — roughly an arm and a half away — so the
  *    type scale is far larger than a phone's.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, Text,
   TextInput, TouchableOpacity, View, useWindowDimensions,
@@ -59,6 +59,10 @@ interface WalkInTicket {
 
 type Step = 'welcome' | 'choose' | 'service' | 'confirm' | 'triage' | 'details' | 'ticket' | 'booking';
 type Notify = 'sms' | 'screen';
+/* Whether this branch can text: the provider is on and the manager switched it on.
+   The kiosk must not offer or promise a text otherwise, because the person would
+   wait for a message that never comes. */
+const SmsReady = createContext(false);
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: 'service', label: 'Service' },
@@ -291,6 +295,7 @@ function Frame({ eyebrow, title, sub, children, onBack, primary, footNote, kx }:
 function Choose({ onBooking, onJoin, onBack, kx }: {
   onBooking: () => void; onJoin: () => void; onBack: () => void; kx: KioskScale;
 }) {
+  const SMS_READY = useContext(SmsReady);
   const card = (opts: {
     icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress: () => void; primary?: boolean; label: string;
   }) => (
@@ -352,7 +357,7 @@ function Choose({ onBooking, onJoin, onBack, kx }: {
         {card({
           icon: 'people-outline',
           title: 'Join A Line',
-          body: 'No booking? Pick what you came for and take a place. We can text you when you are nearly up.',
+          body: `No booking? Pick what you came for and take a place.${SMS_READY ? ' We can text you when you are called.' : ''}`,
           onPress: onJoin,
           label: 'Join a line without a booking.',
         })}
@@ -364,6 +369,7 @@ function Choose({ onBooking, onJoin, onBack, kx }: {
 function Welcome({ org, branch, onStart, kx }: {
   org: string; branch: string; onStart: () => void; kx: KioskScale;
 }) {
+  const SMS_READY = useContext(SmsReady);
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -399,7 +405,7 @@ function Welcome({ org, branch, onStart, kx }: {
 
 
       <View style={{ flexDirection: 'row', gap: kx.wide ? kx.s(60) : 28, marginTop: kx.wide ? kx.s(62) : 40 }}>
-        {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', 'Text Updates']].map(([big, small]) => (
+        {[['3', 'Quick Steps'], ['~1', 'Minute To Join'], ['Free', SMS_READY ? 'Text Updates' : 'To Use']].map(([big, small]) => (
           <View key={small} style={{ alignItems: 'center' }}>
             <Text style={{ fontFamily: font.extra, fontSize: kx.wide ? kx.s(34) : 24, color: colors.ink }}>{big}</Text>
             <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15) : 12.5, color: colors.muted, marginTop: 4 }}>{small}</Text>
@@ -519,6 +525,7 @@ function ChooseService({ services, onPick, onBack, kx, total = 3 }: {
 function Confirm({ svc, onBack, onNext, kx, total = 3 }: {
   svc: ServiceSummary; onBack: () => void; onNext: () => void; kx: KioskScale; total?: number;
 }) {
+  const SMS_READY = useContext(SmsReady);
   const wait = waitFor(svc);
   const waiting = num(svc.waiting_count);
   const open = num(svc.active_counters);
@@ -574,8 +581,9 @@ function Confirm({ svc, onBack, onNext, kx, total = 3 }: {
           {wait >= BUSY_MINUTES && (
             <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 16 }}>
               <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(15.5) : 13.5, color: colors.ink, lineHeight: 21 }}>
-                This line is longer than usual today. You're welcome to join — we'll text you so you
-                don't have to stand and wait.
+                {SMS_READY
+                  ? "This line is longer than usual today. You're welcome to join — we'll text you when you're called, so you don't have to stand and wait."
+                  : "This line is longer than usual today. You're welcome to join, and you'll see your number on the screen when it's your turn."}
               </Text>
             </View>
           )}
@@ -598,6 +606,7 @@ function Details({
   healthcare: boolean; dob: string; setDob: (v: string) => void; reason: string; setReason: (v: string) => void;
   eyebrow: string;
 }) {
+  const SMS_READY = useContext(SmsReady);
   const dobOk = !healthcare || !dob.trim() || usDateToIso(dob) !== null;
   const ready = name.trim().length > 1 && dobOk
     && (notify === 'screen' || (notify === 'sms' && phone.replace(/\D/g, '').length >= 7));
@@ -672,13 +681,14 @@ function Details({
           </View>
         )}
 
+        {SMS_READY && (
         <View>
           <Text style={{ fontFamily: font.bold, fontSize: 12.5, color: colors.muted, letterSpacing: 1.2, marginBottom: 8 }}>
             HOW SHOULD WE TELL YOU?
           </Text>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {([
-              { key: 'sms' as const, icon: 'chatbubble-outline' as const, title: 'Text Me', sub: 'Wait anywhere nearby' },
+              { key: 'sms' as const, icon: 'chatbubble-outline' as const, title: 'Text Me', sub: 'One text when you are called' },
               { key: 'screen' as const, icon: 'tv-outline' as const, title: 'Watch The Screen', sub: 'Stay in the lobby' },
             ]).map(opt => {
               const on = notify === opt.key;
@@ -705,6 +715,7 @@ function Details({
             })}
           </View>
         </View>
+        )}
 
         {notify === 'sms' && (
           <View>
@@ -840,7 +851,7 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
           </Text>
           <Text style={{ fontFamily: font.semibold, fontSize: kx.wide ? kx.s(17) : 14.5, color: colors.muted, lineHeight: 24 }}>
             {notify === 'sms'
-              ? "We'll text you a few minutes before you're called, so you can wait nearby."
+              ? "We'll text you when you're called, so you can wait nearby. The text says how to stop."
               : 'Watch the screens in the lobby — your number and name appear when it\'s your turn.'}
           </Text>
 
@@ -967,6 +978,7 @@ export default function KioskScreen() {
       service_id: serviceId,
       guest_name: name.trim(),
       guest_phone: notify === 'sms' ? phone.trim() || undefined : undefined,
+      sms_consent: notify === 'sms' || undefined,
       guest_dob: healthcare && dob.trim() ? usDateToIso(dob) || undefined : undefined,
       visit_reason: healthcare && reason.trim() ? reason.trim() : undefined,
       triage_answers: hasTriage ? triagePayload(questions, answers) : undefined,
@@ -994,7 +1006,16 @@ export default function KioskScreen() {
   const org = actor.businessName || 'Welcome';
   const branch = actor.branchName || '';
 
+  /* Asked again every few minutes, so turning texts on or off reaches the kiosk. */
+  const smsStatus = useQuery({
+    queryKey: ['sms-status', actor?.branchId],
+    queryFn: () => api.get<{ branch?: boolean }>(`/sms/status?branch_id=${actor?.branchId}`),
+    enabled: Boolean(actor?.branchId),
+    refetchInterval: 5 * 60_000,
+  });
+
   return (
+    <SmsReady.Provider value={Boolean(smsStatus.data?.branch)}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPad }}
@@ -1084,5 +1105,6 @@ export default function KioskScreen() {
         />
       )}
     </KeyboardAvoidingView>
+    </SmsReady.Provider>
   );
 }

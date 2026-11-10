@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import { UpdateNotice } from './src/components/UpdateNotice';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from './src/lib/ThemeProvider';
 import { LockGate } from './src/components/LockGate';
@@ -105,6 +106,7 @@ function App() {
             <AppNavigator onReady={markReady} />
           </LockGate>
         </QueryClientProvider>
+        {!launching && <UpdateNotice />}
         {launching && (
           <View style={StyleSheet.absoluteFill}>
             {/* Light text over the navy stage; unmounting hands the bar back

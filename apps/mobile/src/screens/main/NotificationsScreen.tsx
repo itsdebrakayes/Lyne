@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, Linking, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,6 +62,29 @@ export default function NotificationsScreen() {
      a cached answer. */
   useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
+  /* Off at the phone level: nothing here can turn it back on except the phone's
+     own Settings, so say so and take them there. Never asked yet: ask here. */
+  const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('granted');
+  const checkPermission = useCallback(() => {
+    Notifications.getPermissionsAsync()
+      .then(p => setPermission(p.granted ? 'granted' : p.canAskAgain ? 'undetermined' : 'denied'))
+      .catch(() => {});
+  }, []);
+  useFocusEffect(checkPermission);
+  // Back from the phone's Settings: the screen never lost focus, so look again.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', st => { if (st === 'active') checkPermission(); });
+    return () => sub.remove();
+  }, [checkPermission]);
+  const turnOn = async () => {
+    if (permission === 'undetermined') {
+      const p = await Notifications.requestPermissionsAsync().catch(() => null);
+      if (p?.granted) { setPermission('granted'); return; }
+      if (p && !p.canAskAgain) { setPermission('denied'); return; }
+    }
+    Linking.openSettings().catch(() => {});
+  };
+
   // Opening the screen clears the unread state.
   useEffect(() => {
     if (notifications.some(n => !n.is_read)) {
@@ -81,6 +105,23 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <Text style={[t.h2, { marginBottom: 22 }]}>Notifications</Text>
+
+        {permission !== 'granted' && (
+          <View accessibilityLiveRegion="polite" style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 18, gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+              <Ionicons name="notifications-off-outline" size={20} color={colors.ink} />
+              <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 15, color: colors.ink }}>Notifications are turned off</Text>
+            </View>
+            <Text style={{ fontFamily: font.medium, fontSize: 13.5, color: colors.muted, lineHeight: 19 }}>
+              {permission === 'denied'
+                ? 'Turn them on in your phone’s Settings for Lyne, so you hear when you’re called even with the app closed.'
+                : 'Turn them on so you hear when you’re called, even with the app closed.'}
+            </Text>
+            <TouchableOpacity onPress={turnOn} accessibilityRole="button" style={[t.primaryBtn, { minHeight: 48 }]}>
+              <Text style={t.primaryBtnText}>{permission === 'denied' ? 'Open Settings' : 'Turn on notifications'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {isLoading && <SkeletonRows count={4} />}
         {!!error && !isLoading && (

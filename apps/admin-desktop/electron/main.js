@@ -1,3 +1,4 @@
+const { printReport, stripPageMarks } = require('./reportPdf');
 const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -269,24 +270,11 @@ ipcMain.handle('report:save', async (_, args) => {
     const file = uniquePath(dir, base, format);
 
     if (format === 'doc') {
-      const wordHtml = html.replace('<html>', '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">');
+      // Word paginates for itself, so the contents' page numbers cannot be known here.
+      const wordHtml = stripPageMarks(html).replace('<html>', '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">');
       fs.writeFileSync(file, '\ufeff' + wordHtml, 'utf8');
     } else {
-      // Offscreen, no preload, no node: it only lays out a static document.
-      const printer = new BrowserWindow({
-        show: false,
-        webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false },
-      });
-      try {
-        await printer.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-        const pdf = await printer.webContents.printToPDF({
-          pageSize: 'A4', printBackground: true,
-          margins: { top: 0.5, bottom: 0.6, left: 0.5, right: 0.5 },
-        });
-        fs.writeFileSync(file, pdf);
-      } finally {
-        printer.destroy();
-      }
+      fs.writeFileSync(file, await printReport(BrowserWindow, html));
     }
     shell.showItemInFolder(file);
     return { ok: true, path: file };

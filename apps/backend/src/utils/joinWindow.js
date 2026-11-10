@@ -41,4 +41,33 @@ function remoteJoinBlockedUntil(branch, now = new Date()) {
   return opensAt;
 }
 
-module.exports = { remoteJoinBlockedUntil, REMOTE_JOIN_BUFFER };
+function clock12(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+/**
+ * Why nobody can take a place at this branch right now, or null if they can.
+ *
+ * Without this a person could join after closing, and the end-of-day sweep
+ * (jobs/expireStaleTickets.js) would cancel the ticket minutes later: a place
+ * they were given and then lost, with nobody at a counter to call them. Only
+ * "already closed" and "closed today" are refused; before opening, a person
+ * holds a place for the day ahead.
+ *
+ * @param {{name?: string, closing_time?: string|null, open_days?: string|null}} branch
+ * @returns {string|null} the sentence to show the person
+ */
+function branchClosedMessage(branch, now = new Date()) {
+  if (!branch || !branch.closing_time) return null;
+  const name = branch.name || 'This branch';
+  if (branch.open_days) {
+    const days = String(branch.open_days).split(',').map((d) => parseInt(d, 10)).filter((d) => !Number.isNaN(d));
+    if (days.length && !days.includes(now.getDay())) return `${name} is closed today.`;
+  }
+  const [h, m] = String(branch.closing_time).split(':').map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + (m || 0)) return null;
+  return `${name} closed at ${clock12(branch.closing_time)} today. You can join again when it reopens.`;
+}
+
+module.exports = { remoteJoinBlockedUntil, branchClosedMessage, clock12, REMOTE_JOIN_BUFFER };

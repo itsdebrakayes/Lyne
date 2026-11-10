@@ -160,7 +160,7 @@ test('every automatic change writes an audit event', async () => {
   assert.ok(event, 'the system changing a ticket unattended must leave a trail');
   // Stamped at closing too, so the event timeline matches the recorded outcome.
   assert.equal(event.params[3], '2026-08-17 16:00:00');
-  assert.match(String(event.params[4]), /closed/i);
+  assert.match(String(event.params[5]), /closed/i);
 });
 
 test('no branch can be skipped: a missing closing time falls back to the business', async () => {
@@ -195,4 +195,41 @@ test('every live status is swept — nothing may survive the day', async () => {
   for (const status of ['waiting', 'called', 'in_service']) {
     assert.ok(swept.includes(status), `${status} tickets are never closed out`);
   }
+});
+
+test('a ticket closed today tells the person why, once, after the commit', async () => {
+  reset();
+  candidateRows.waiting = [{
+    id: 't1', status: 'waiting', user_id: 'u1', is_today: 1, ticket_number: 'ACC-106',
+    closed_at: '2026-11-04 16:00:00', branch_name: 'Half Way Tree',
+  }];
+  await runTicketExpiry();
+  const note = queries.find((q) => /INSERT INTO notifications/.test(q.sql));
+  assert.ok(note, 'expected an in-app notification');
+  assert.match(note.params[2], /Half Way Tree closed before ACC-106 was called/);
+});
+
+test('catching up on an old day sends nobody anything', async () => {
+  reset();
+  candidateRows.waiting = [{
+    id: 't1', status: 'waiting', user_id: 'u1', is_today: 0, ticket_number: 'ACC-1',
+    closed_at: '2026-10-01 16:00:00', branch_name: 'Half Way Tree',
+  }];
+  await runTicketExpiry();
+  assert.ok(!queries.some((q) => /INSERT INTO notifications/.test(q.sql)));
+});
+
+test('a place taken after closing never reads as finished before it began', async () => {
+  reset();
+  candidateRows.waiting = [{ id: 't1', status: 'waiting', closed_at: '2026-11-04 16:00:00', branch_name: 'K' }];
+  await runTicketExpiry();
+  const update = queries.find((q) => /UPDATE queue_tickets/.test(q.sql));
+  assert.match(update.sql, /GREATEST\(\?, joined_at\)/);
+});
+
+test("the simulator's made-up visitors are never closed out as visits", async () => {
+  reset();
+  await runTicketExpiry();
+  const candidates = queries.find((q) => /FROM queue_tickets t/.test(q.sql));
+  assert.match(candidates.sql, /t\.guest_name <> 'Review demo visitor'/);
 });

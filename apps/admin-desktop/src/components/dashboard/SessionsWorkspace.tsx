@@ -965,8 +965,10 @@ export function SessionsScreen() {
   const canEdit = d.canEdit;
   const refresh = d.onRefresh;
 
+  /* Ending before the planned time is an interruption, so it needs a reason. */
+  const [endReason, setEndReason] = useState('');
   const close = useMutation({
-    mutationFn: () => api.post<{ marked_no_show: number }>(`/sessions/${active}/close`, {}),
+    mutationFn: () => api.post<{ marked_no_show: number }>(`/sessions/${active}/close`, { reason: endReason.trim() }),
     onSuccess: refresh,
   });
 
@@ -1190,6 +1192,10 @@ export function SessionsScreen() {
                 <Card title="Close The Session" cap="Do this once the last person has been seen">
                   <Note icon={AlertTriangle} tone="warn" title="This Cannot Be Undone"
                     body={`The ${summary?.registered ?? 0} who never arrived will be recorded as no-shows, and nobody else will be able to check in.`} />
+                  <label className="qx-field" style={{ marginTop: 12 }}><span>Reason, If Ending Early</span>
+                    <input value={endReason} maxLength={255} onChange={(e) => setEndReason(e.target.value)} placeholder="Power outage, system down, staffing…" />
+                  </label>
+                  {close.isError ? <Note icon={AlertTriangle} tone="bad" title="Not Ended" body={close.error instanceof Error ? close.error.message : 'Try again.'} /> : null}
                   <button type="button" className="qx-btn" style={{ marginTop: 12 }}
                     disabled={close.isPending}
                     onClick={() => close.mutate()}>

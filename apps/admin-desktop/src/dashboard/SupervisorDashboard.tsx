@@ -83,7 +83,9 @@ export default function SupervisorDashboard() {
         return api.post('/assignments', {
           staff_id: staffId,
           counter_id: deskId,
-          assignment_date: new Date().toISOString().slice(0, 10),
+          /* The branch's date. toISOString is UTC, which after 7pm in Jamaica is
+             tomorrow, so an evening move landed on the wrong day. */
+          assignment_date: today(),
         });
       }
       // Clearing a desk: remove today's assignment for it.
@@ -169,7 +171,7 @@ export default function SupervisorDashboard() {
        to a branch. Labelled by branch rather than inventing a section name. */
     sectionName: sectionName || branchName,
     branchName, supervisorName: d.admin?.name || '',
-    queues: d.queues as any[], counters: countersQuery.data || [],
+    queues: d.queues as any[], counters: countersQuery.data || [], presence: d.presence,
     staff: shownStaff, productivity: d.productivity,
     demandHourly: d.demandHourly as any[], target: d.effectiveTarget,
     avgWait: liveWait,
@@ -197,7 +199,7 @@ export default function SupervisorDashboard() {
       };
     })(),
   }), [assigned, d.admin, branchName, d.queues, countersQuery.data, shownStaff, d.productivity, d.demandHourly,
-       d.effectiveTarget, liveWait, last, supWindow, win]);
+       d.effectiveTarget, liveWait, last, supWindow, win, d.presence]);
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;
 

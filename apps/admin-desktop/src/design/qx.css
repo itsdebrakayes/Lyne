@@ -916,6 +916,18 @@
 .ql-incomplete-foot { display: block; margin-top: 10px; font-size: 10.5px; line-height: 1.45; opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .ql-reasons button { transition: none; } }
 
+/* Transfer: the same panel shape as Incomplete, in the brand blue rather than
+   amber — it is a handover, not a problem. */
+.ql-transfer { background: rgba(120,170,255,.08); border-color: rgba(140,180,255,.34); }
+.ql-transfer .ql-incomplete-badge { background: rgba(140,180,255,.22); color: #CFE0FF; }
+.ql-transfer .ql-reasons button.on { border-color: rgba(160,195,255,.8); background: rgba(140,180,255,.18); }
+.ql-transfer .ql-reasons button.on .ic { background: rgba(140,180,255,.32); color: #E2ECFF; }
+.ql-transfer .ql-reasons button.on .tick { background: #9DBDFF; border-color: #9DBDFF; color: #12203A; }
+.ql-transfer .ql-readynote textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.16); resize: vertical; }
+.ql-handover { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(140,180,255,.12);
+  border: 1px solid rgba(140,180,255,.3); font-size: 12.5px; font-weight: 600; line-height: 1.45; }
+.ql-handover b { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .75; margin-bottom: 2px; }
+
 /* actions sit at the base of the stage, so the hero grows into the space */
 .ql-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
 .ql-btn {
@@ -1613,3 +1625,24 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .qx-legend-sw { width: 18px; height: 8px; border-radius: 999px; display: inline-block; background: var(--c-primary); }
 .qx-legend-sw.b { background: var(--c-second, #8AA4C8); }
 .qx-legend-sw.bad { background: var(--c-bad); }
+
+/* A labelled field on its own, outside a .qx-fieldrow. */
+.qx-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 168px; }
+.qx-field > span { font-size: 11.5px; font-weight: 700; color: var(--c-dim); }
+.qx-field input, .qx-field select {
+  height: 38px; padding: 0 11px; border-radius: 10px; border: 1px solid var(--c-line-2);
+  background: var(--c-surface); color: var(--c-ink, inherit); font: inherit; font-size: 13px; font-weight: 600;
+}
+
+.qc-servedby { margin: 8px 0 14px; padding: 0 0 0 18px; font-size: 12.5px; color: var(--c-dim); font-weight: 600; }
+.qc-servedby li { margin: 0 0 5px; }
+.qc-servedby b { color: var(--c-text); }
+
+.qc-watch { margin: 4px 0 16px; }
+.qc-watch-now { font-size: 13px; color: var(--c-dim); font-weight: 600; margin: 6px 0 9px; }
+.qc-watch-now b { color: var(--c-text); }
+.qc-watch-acts { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 9px; }
+.qc-watch-acts select {
+  border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface);
+  color: var(--c-text); font-size: 12.5px; font-weight: 600; padding: 8px 10px;
+}

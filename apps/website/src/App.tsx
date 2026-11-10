@@ -39,6 +39,7 @@ import MobileNotFound from './pages/mobile/MobileNotFound';
 // the public repository. Load it only for /account so missing account secrets
 // can never prevent the public marketing and legal pages from starting.
 const Account = React.lazy(() => import('./pages/Account'));
+const StopTexts = React.lazy(() => import('./pages/StopTexts'));
 const accountPortalConfigured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
 );
@@ -162,6 +163,8 @@ function App() {
                 description="How to delete your Lyne account and everything on it, from inside the app or without it. What is removed, what is kept, and how to ask us.">
                 <ResponsivePage desktop={<DeleteAccount />} mobile={<MobileDeleteAccount />} />
               </Seo>} />
+            {/* Where the link in a text lands. No index entry: it is one person's. */}
+            <Route path="/stop/:code" element={<StopTexts />} />
             {/* Where the confirmation email's link lands. One layout serves
                 both widths; it is a single card. */}
             <Route path="/auth/confirmed" element={
