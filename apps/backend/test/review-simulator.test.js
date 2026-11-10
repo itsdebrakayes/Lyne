@@ -42,3 +42,21 @@ test('showcase organisations have their own switch', () => {
   assert.deepEqual(organisations(settings({ REVIEW_SIMULATOR: 'true' })), ['biz-review-demo-0001']);
   assert.deepEqual(organisations(settings({})), []);
 });
+
+test('a demo window is on only between DEMO_FROM and DEMO_UNTIL, and needs both', () => {
+  const { demoActive, configured } = require('../src/jobs/reviewSimulator');
+  const env = { DEMO_SHOWCASE_IDS: 'wf-biz-0001', DEMO_FROM: '2026-11-10T14:00:00-05:00', DEMO_UNTIL: '2026-11-10T18:00:00-05:00' };
+  const s = settings(env);
+  assert.equal(configured(s), true);
+  assert.equal(demoActive(s, new Date('2026-11-10T18:59:00Z')), false); // 13:59 Jamaica
+  assert.equal(demoActive(s, new Date('2026-11-10T19:00:00Z')), true); // 14:00
+  assert.equal(demoActive(s, new Date('2026-11-10T23:00:00Z')), false); // 18:00, the end
+  assert.equal(demoActive(settings({ DEMO_SHOWCASE_IDS: 'wf-biz-0001', DEMO_FROM: env.DEMO_FROM }), new Date('2026-11-10T20:00:00Z')), false);
+  // A demo organisation is not a regular showcase: it is never served on its own outside the window.
+  assert.deepEqual(organisations(s), []);
+});
+
+test('in a demo window the person at the front waits for the desk', () => {
+  assert.match(src, /else if \(!holdAtFront\) \{\s*await moveReviewerTicket\(t\.id, 'called'/);
+  assert.match(src, /holdAtFront: true/);
+});
