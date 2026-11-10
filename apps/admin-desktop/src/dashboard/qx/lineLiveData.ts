@@ -71,6 +71,10 @@ export function buildLineData(i: LineLiveInput): LineTabData {
       unresolved30d: num(t.unresolved_30d),
       visitReason: t.visit_reason || null,
       dateOfBirth: t.guest_dob || null,
+      transferredFrom: t.transferred_from_number
+        ? { no: String(t.transferred_from_number), service: String(t.transferred_from_service || 'another line') }
+        : null,
+      transferNote: t.transfer_note || null,
     }));
 
   const history: LineDone[] = i.history.map((t) => ({
@@ -90,7 +94,7 @@ export function buildLineData(i: LineLiveInput): LineTabData {
     outcome: (t.status === 'no_show' ? 'no_show'
       : t.status === 'left' ? 'left'
       : t.status === 'cancelled' ? 'cancelled'
-      : t.status === 'transferred' ? 'transferred'
+      : t.status === 'transferred' || t.closed_reason === 'transferred' ? 'transferred'
       : t.closed_reason ? 'incomplete'
       : 'served') as LineDone['outcome'],
     reason: t.closed_reason || null,

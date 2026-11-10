@@ -47,6 +47,7 @@ const TERMINAL_META: Record<string, { label: string; tone: string; note: string 
 /* Why a ticket ended when the system ended it, not the person. "Cancelled" alone
    reads like a fault; these say what actually happened. */
 const CLOSED_REASON_META: Record<string, { label: string; note: string }> = {
+  transferred: { label: 'Moved to another line', note: 'Staff moved you to another line here. Your new ticket is on the Ticket tab.' },
   branch_closed_before_called: { label: 'Branch closed', note: 'The branch closed before your number was called, so this ticket has ended. You can join again when it reopens.' },
   branch_closed_after_called: { label: 'Branch closed', note: 'Your number was called, but the branch closed before you reached the counter.' },
   branch_closure: { label: 'Branch closed', note: 'The branch closed unexpectedly, so this ticket has ended. The branch page says why, and when it expects to reopen.' },
@@ -81,7 +82,7 @@ export default function TicketScreen() {
   const [askWhy, setAskWhy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
-  const previous = useRef<{ status?: string; wait?: number }>({});
+  const previous = useRef<{ id?: string; status?: string; wait?: number }>({});
 
   const enableAlerts = async () => {
     if (alerts === 'enabling' || alerts === 'on') return;
@@ -112,10 +113,31 @@ export default function TicketScreen() {
   const { refreshing, onRefresh } = useRefresh(activeTicketQuery.refetch, ticketQuery.refetch);
   const queryClient = useQueryClient();
 
+  /* Transferred: staff moved them to another line, which is a NEW ticket. Follow
+     it — an opened ticket switches to the new one, and the active-ticket view
+     asks again — instead of showing "Visit complete" for a visit that is still
+     going on. */
+  const movedTo = ticket?.closed_reason === 'transferred' ? ticket.transferred_to_ticket_id : null;
+  useEffect(() => {
+    if (!movedTo) return;
+    if (providedTicketId) navigation.setParams({ ticketId: movedTo });
+    else activeTicketQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movedTo]);
+
   useEffect(() => {
     if (!ticket) return;
     const liveStatuses = ['waiting', 'called', 'in_service'];
-    if (previous.current.status && previous.current.status !== ticket.status) {
+    if (ticket.closed_reason === 'transferred') return; // the new ticket takes over
+    if (previous.current.id && previous.current.id !== ticket.id && ticket.transferred_from_ticket_id) {
+      // Arrived here by transfer: say so once, with the new number.
+      scheduleQueueUpdateNotification(
+        `Moved to ${ticket.service_name || 'another line'}`,
+        `Your new ticket is ${ticket.ticket_number}. You keep your place by the time you arrived.`,
+        ticket.id,
+      ).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } else if (previous.current.status && previous.current.status !== ticket.status) {
       // Buzz the phone on the two status changes that matter — being called
       // forward (the whole point of the app) and losing your place.
       if (ticket.status === 'called') haptics.success();
@@ -158,7 +180,7 @@ export default function TicketScreen() {
       // closing. Whatever armed the "head out" alert, it is no longer true.
       cancelDepartureReminder();
     }
-    previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
+    previous.current = { id: ticket.id, status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket, queryClient]);
 
   /* Directions hand off to whatever map app the person actually uses, rather
@@ -361,6 +383,17 @@ export default function TicketScreen() {
             <Text style={{ flex: 1, fontFamily: font.extra, fontSize: 14.5, color: '#fff' }}>{statusLabel}</Text>
           </View>
         )}
+
+        {/* Arrived by transfer: where from, and the old number, so the new one
+            is not a surprise and they can say it at the desk if asked. */}
+        {active && ticket.transferred_from_number ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14, ...shadow.card }}>
+            <Ionicons name="swap-horizontal" size={20} color={colors.accent} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>
+              {`Moved here from ${ticket.transferred_from_service || 'another line'} (was ${ticket.transferred_from_number}). You keep your place by the time you arrived.`}
+            </Text>
+          </View>
+        ) : null}
 
         {/* An honoured appointment (migration 042). Says why their place is
             ahead of people who were here first, so the client is not surprised

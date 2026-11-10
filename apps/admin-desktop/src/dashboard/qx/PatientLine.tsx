@@ -30,6 +30,9 @@ const chip = (bg: string, fg: string) => ({
 
 export function PatientTags({ t }: { t: LineTicket }) {
   const tags: JSX.Element[] = [];
+  if (t.transferredFrom) {
+    tags.push(<span key="x" title={t.transferNote ? `Handover: ${t.transferNote}` : undefined} style={chip('var(--c-primary-soft)', 'var(--c-primary)')}>From {t.transferredFrom.service} · {t.transferredFrom.no}</span>);
+  }
   if (t.triageFlag === 'possibly_urgent') {
     tags.push(<span key="u" style={chip('var(--c-bad-soft)', 'var(--c-bad)')}><AlertTriangle size={11} />Possibly Urgent</span>);
   }
@@ -197,6 +200,13 @@ function PatientCard({ t, place, canAct, busy, onClose, onCall, onTop, onFlag }:
         ) : (
           <div style={{ marginTop: 6, fontSize: 13, color: 'var(--c-dim)' }}>No triage answers. They may have been checked in at the desk.</div>
         )}
+
+        {t.transferredFrom ? (
+          <div style={{ marginTop: 12, fontSize: 13 }}>
+            <b>Transferred from {t.transferredFrom.service}</b> ({t.transferredFrom.no})
+            {t.transferNote ? <div style={{ marginTop: 4, color: 'var(--c-dim)' }}>Handover note: {t.transferNote}</div> : null}
+          </div>
+        ) : null}
 
         {(t.visits7d || t.unresolved30d) ? (
           <div style={{ marginTop: 12, fontSize: 13, color: 'var(--c-dim)' }}>

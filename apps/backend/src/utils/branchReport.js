@@ -39,7 +39,8 @@ const OPEN_STATUSES = new Set(['waiting', 'called', 'in_service']);
 /** The one outcome a visit ended in. */
 function outcomeOf(r) {
   if (OPEN_STATUSES.has(r.status)) return 'open';
-  if (r.status === 'served') return r.closed_reason ? 'incomplete' : 'completed';
+  // A transfer (migration 049) is a finished visit at this desk, not an unfinished one.
+  if (r.status === 'served') return r.closed_reason && r.closed_reason !== 'transferred' ? 'incomplete' : 'completed';
   if (r.status === 'no_show') return 'noShow';
   if (r.status === 'left') return 'left';
   return 'cancelled';

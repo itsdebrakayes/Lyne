@@ -1422,7 +1422,7 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
  * before somebody reads a low number as good news.
  */
 const ENDED_STATUSES = "('served','left','cancelled','no_show')";
-const RESOLVED = "(t.status = 'served' AND t.closed_reason IS NULL)";
+const RESOLVED = "(t.status = 'served' AND (t.closed_reason IS NULL OR t.closed_reason = 'transferred'))";
 
 /** Days of history to consider. Clamped — this drives a GROUP BY over tickets. */
 /** An explicit ?from=&to= window of calendar dates, or null if none was given.
@@ -1744,7 +1744,7 @@ router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'm
     );
 
     const ended = visits.filter(v => ['served', 'left', 'cancelled', 'no_show'].includes(v.status));
-    const resolved = ended.filter(v => v.status === 'served' && !v.closed_reason);
+    const resolved = ended.filter(v => v.status === 'served' && (!v.closed_reason || v.closed_reason === 'transferred'));
 
     res.json({
       window_days: days,

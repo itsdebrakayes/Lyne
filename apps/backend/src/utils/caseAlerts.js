@@ -25,7 +25,7 @@ const ordinal = (n) => { const v = n % 100; return `${n}${['th', 'st', 'nd', 'rd
 
 /** How the visit ended, in words, or null if it ended well. */
 function missedOutcome(v) {
-  if (v.status === 'served') return v.closed_reason ? `the visit was not finished: ${REASON_LABEL[v.closed_reason] || 'no reason given'}` : null;
+  if (v.status === 'served') return v.closed_reason && v.closed_reason !== 'transferred' ? `the visit was not finished: ${REASON_LABEL[v.closed_reason] || 'no reason given'}` : null;
   if (v.status === 'no_show') return v.closed_reason ? REASON_LABEL[v.closed_reason] || 'they did not come forward when called' : 'they did not come forward when called';
   if (v.status === 'left') return 'they left before being called';
   return v.closed_reason ? REASON_LABEL[v.closed_reason] || 'their ticket was cancelled' : 'their ticket was cancelled';

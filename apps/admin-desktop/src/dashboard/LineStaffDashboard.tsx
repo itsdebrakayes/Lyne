@@ -264,6 +264,14 @@ export default function LineStaffDashboard() {
       await api.put(`/tickets/${id}/move-to`, { to });
       await refetchDesk();
     },
+    onLoadTransferTargets: (id: string) =>
+      api.get<Array<{ queue_id: string; service_name: string; waiting: number }>>(`/tickets/${id}/transfer-targets`),
+    onTransfer: async (id: string, queueId: string, note: string) => {
+      const r = await api.post<{ to: { ticket_number: string; service_name: string; place: number } }>(
+        `/tickets/${id}/transfer`, { queue_id: queueId, note });
+      await refetchDesk();
+      return { no: r.to.ticket_number, service: r.to.service_name, place: r.to.place };
+    },
     onSetTriageFlag: async (id: string, flag: 'none' | 'possibly_urgent') => {
       await api.put(`/tickets/${id}/triage-flag`, { flag });
       await refetchDesk();
