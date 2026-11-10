@@ -1508,6 +1508,11 @@ router.get('/:id/transfer-targets', requireAuth, requireStaffRole('line_staff', 
       `SELECT t.queue_id, q.branch_id FROM queue_tickets t JOIN queues q ON q.id = t.queue_id WHERE t.id = ?`,
       [req.params.id]);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found.' });
+    /* Open today's lines first, as the desk does, so a line nobody has opened
+       yet today is offered rather than yesterday's. Lazy: queues.js loads
+       after this file. */
+    const [[biz]] = await pool.query('SELECT business_id FROM branches WHERE id = ?', [ticket.branch_id]);
+    if (biz) await require('./queues').ensureQueuesForToday(biz.business_id, ticket.branch_id).catch(() => {});
     const [rows] = await pool.query(
       `SELECT q.id AS queue_id, s.id AS service_id, s.name AS service_name, s.ticket_prefix,
               (SELECT COUNT(*) FROM queue_tickets w WHERE w.queue_id = q.id AND w.status = 'waiting') AS waiting
