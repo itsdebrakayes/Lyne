@@ -153,12 +153,14 @@ Role dashboards:
 
 | Role | Scope |
 |---|---|
-| `line_staff` | Their counter: call, verify by code, serve, skip / no-show |
+| `line_staff` | Their counter: call, verify by code, serve, transfer, skip / no-show |
 | `supervisor` | A section of a branch (migration 043: `branch_sections`, `staff.section_id`): only that section's lines, staff, counters, clients and patterns. Without a section, the whole branch. Can close and reopen session registration, register walk-ups at the door, and end a session's day |
 | `manager` | One branch: open/close queues, assign counters, branch analytics and targets |
 | `executive` | The whole organisation: analytics, targets, trends, reports |
 | `kiosk_clerk` | Walk-in intake only; issues `channel='kiosk'` tickets for people without the app |
 | `platform_admin` | Lyne staff only; can create organisations (no UI yet; done via API/SQL) |
+
+**Transfers between lines** (migration 049). While serving someone, the desk can press **Transfer** and send them to any other open line at the same branch (triage to radiology, assessment to cashier), with an optional handover note that only staff see. `POST /api/tickets/:id/transfer` closes the old ticket as `served` with `closed_reason = 'transferred'` (counted as a finished visit everywhere, never as incomplete) and opens a new ticket in the new line's own numbering (`RAD-004`), linked both ways (`transferred_from_ticket_id` / `transferred_to_ticket_id`). The new ticket is placed by `journey_started_at`, when the person first arrived, which is carried across every hop: they go in front of the first waiting person who arrived after them, never to the back. A person can be transferred any number of times. The waiting row and the desk show "From Triage · TRI-012" and the note; the patient's phone follows to the new ticket, says where it came from, and restarts the lock-screen ticket with the new number. `GET /api/tickets/:id/transfer-targets` lists the lines it can go to.
 
 A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
 
