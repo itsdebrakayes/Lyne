@@ -11,7 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -66,8 +65,7 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.8.3",
     "vaul": "^0.9.9",
-    "vite": "^8.1.0",
-    "zod": "^3.25.76"
+    "vite": "^8.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

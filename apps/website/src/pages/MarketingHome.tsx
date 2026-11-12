@@ -353,7 +353,7 @@ const plans = [
   */
   {
     name: "Business",
-    price: "From US$4,500/mo",
+    price: "From US$6,000/mo",
     desc: "For organisations running their own lines, at one location or many.",
     features: ["Front desk, manager and executive screens", "Queues, appointments and walk-ins", "Branch and cross-location reporting", "Plans for 1, 5, 10 or more locations", "Implementation with our team; training scoped with you"],
     highlighted: false,
