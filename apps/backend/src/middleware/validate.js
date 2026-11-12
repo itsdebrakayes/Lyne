@@ -352,6 +352,11 @@ const schemas = {
     is_active:             z.coerce.boolean().optional(),
   }),
 
+  /* Migration 051. Executive only; always the caller's own organisation. */
+  publicInsights: z.object({
+    level: z.enum(['full', 'limited']),
+  }).strict(),
+
   branchSettings: z.object({
     branch_id:      idSchema.optional(),
     allow_overflow: z.coerce.boolean().optional(),

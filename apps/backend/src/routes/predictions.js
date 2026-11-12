@@ -11,6 +11,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { hasPremium } = require('../lib/premium');
+const { sharesFullDetail } = require('../lib/publicInsights');
 const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
 const {
@@ -28,6 +29,12 @@ async function getPredictions(req, res, publicOnly = false) {
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
     if (publicOnly && (!type || !PUBLIC_INSIGHT_TYPES.has(type))) {
       return res.status(400).json({ error: 'A supported public insight type is required.' });
+    }
+    /* An organisation on 'limited' public insights (migration 051) shares only
+       the headline best time. Wait predictions and the heatmap are its own to
+       keep, so the public feed answers with nothing rather than an error. */
+    if (publicOnly && type !== 'best_time_to_visit' && !(await sharesFullDetail(business_id))) {
+      return res.json([]);
     }
 
     const conditions = ['p.business_id = ?'];
@@ -405,7 +412,11 @@ router.get('/best-times', optionalAuth, async (req, res) => {
        to be the thing the customer is being shown they cannot read yet. What it
        does not get is a single number — no best hour, no busiest hour, no week
        strip, no grid. Nothing that could be reassembled into the feature. */
-    const entitled = hasPremium(req.dbUser);
+    /* The organisation's choice comes first (migration 051). On 'limited' it
+       gets the old free-tier answer whoever is asking: the headline best times
+       and today's shape, and none of the depth below. */
+    const detailShared = await sharesFullDetail(business_id);
+    const entitled = detailShared && hasPremium(req.dbUser);
 
     res.json({
       window_days: 90,
@@ -415,6 +426,10 @@ router.get('/best-times', optionalAuth, async (req, res) => {
       /* Named so the client does not have to infer it from absent fields, and
          so a future caller cannot mistake "no history" for "not paid". */
       premium: entitled,
+      /* False when the ORGANISATION holds the detail back, as opposed to a
+         customer not having it. The app shows "not published by <org>"
+         rather than an upsell or "not enough visits". */
+      detail_shared: detailShared,
       /* THE TIER LINE, placed where the design puts it. The locked panel in
          Predictive Insights covers the HEATMAP, not the service list — a free
          customer sees that Court Order Collection is quietest on Friday at 1pm
@@ -536,6 +551,12 @@ router.get('/for-you', requireAuth, async (req, res) => {
     const services = tally((r) => r.service_id, (r) => r.service_name);
     const hours    = tally((r) => Number(r.hour), (r) => String(r.hour));
     const home = branches[0];
+
+    /* Personal timing is built from the branch's own wait history, so it is
+       detail the organisation may have chosen not to publish. */
+    if (!(await sharesFullDetail(home.extra.business_id))) {
+      return res.json({ personalised: false, reason: 'not_shared_by_organisation' });
+    }
 
     /* Their journey, measured rather than assumed: the median travel time of
        the Line Helper requests they have made. No requests means no claim. */

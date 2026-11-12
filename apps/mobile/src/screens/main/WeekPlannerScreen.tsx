@@ -32,7 +32,7 @@ type Params = RouteProp<RootStackParamList, 'WeekPlanner'>;
 
 interface Cell { dow: number; hour: number; visits: number; avg_wait: number }
 interface ServicePlan { service_id: string; service_name: string; grid?: Cell[] }
-interface BestTimes { window_days: number; services: ServicePlan[] }
+interface BestTimes { window_days: number; services: ServicePlan[]; detail_shared?: boolean }
 
 /** The design's row pitch. The blocks are placed against it, so it is one value. */
 const ROW_H = 56;
@@ -267,6 +267,12 @@ export default function WeekPlannerScreen() {
             <ErrorCard title="Week unavailable"
               message="This branch's pattern could not be loaded."
               onRetry={() => q.refetch()} />
+          </View>
+        ) : q.data?.detail_shared === false ? (
+          <View style={{ padding: 22 }}>
+            <EmptyState icon="lock" title="Not published by this organisation"
+              body="This organisation shares the best time to visit each service, but not a day-by-day pattern."
+              actionLabel="Go back" onAction={() => navigation.goBack()} />
           </View>
         ) : !dayHours.length ? (
           <View style={{ padding: 22 }}>
