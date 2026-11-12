@@ -22,7 +22,6 @@ const morgan      = require('morgan');
 const {
   profileSyncLimiter,
   queueJoinLimiter,
-  ocrLimiter,
   publicQueueLimiter,
   sessionLookupLimiter,
   paymentLimiter,
@@ -157,7 +156,7 @@ const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
 const { requirePayments } = require('./lib/premium');
 app.post('/api/payments/webhook', requirePayments, express.raw({ type: 'application/json' }), webhookHandler);
 
-// Body parsing — limit OCR uploads separately (see /api/ocr route)
+// Body parsing
 app.use(express.json({ limit: '1mb' }));
 
 // Global rate limiter
@@ -220,10 +219,11 @@ app.post('/api/payments/portal/verify', sessionLookupLimiter);
 /* paymentLimiter likewise moved into routes/payments.js, after requireAuth. */
 app.use('/api/payments',       requirePayments, paymentsRouter);
 
-// OCR — strict rate limit + larger body size for image uploads
-/* ocrLimiter moved into routes/ocr.js, after requireAuth. The body parser
-   stays here: it is per-mount configuration, not a limit. */
-app.use('/api/ocr', express.json({ limit: '10mb' }), require('./routes/ocr'));
+/* /api/ocr was removed on 11 November 2026. It stored every scanned
+   document's TRN, national ID and passport number on the server, unmasked,
+   while the apps already read documents on the phone and keep the numbers
+   there. Migration 050 drops the table it wrote to. Do not bring it back:
+   identification numbers do not leave the customer's device. */
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));

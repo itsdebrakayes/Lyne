@@ -14,7 +14,6 @@ const analyticsRouter = require('../src/routes/analytics');
 const staffRouter = require('../src/routes/staff');
 const assignmentsRouter = require('../src/routes/assignments');
 const staffInviteRouter = require('../src/routes/staff-invite');
-const ocrRouter = require('../src/routes/ocr');
 const targetsRouter = require('../src/routes/targets');
 const servicesRouter = require('../src/routes/services');
 const { lookupActorBySupabaseUid } = require('../src/middleware/auth');
@@ -171,10 +170,6 @@ test('assignment and invite administration routes require authenticated staff ac
   }
 });
 
-test('ocr signed url route requires authenticated access checks', () => {
-  const handlers = routeHandlers(ocrRouter, 'get', '/signed-url/:id');
-  assert.ok(handlers.includes('requireAuth'));
-});
 
 test('new analytics dashboards require authenticated staff access', () => {
   const lineHandlers = routeHandlers(analyticsRouter, 'get', '/line-staff');
