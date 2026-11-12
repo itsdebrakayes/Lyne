@@ -26,6 +26,7 @@ import { ReportDownloadButtons, ReportPreview } from './ReportExport';
 import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
 import { PublicInsightsPanel } from '../../components/dashboard/PublicInsightsPanel';
 import { DataExportPanel } from '../../components/dashboard/DataExportPanel';
+import { AuditLogPanel } from '../../components/dashboard/AuditLogPanel';
 import { LobbyScreensPanel } from '../../components/dashboard/LobbyScreensPanel';
 import { TargetHistory } from './TargetHistory';
 import {
@@ -1322,6 +1323,7 @@ export function ExecSettings() {
       <PublicInsightsPanel span={12} />
       <LobbyScreensPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
       <DataExportPanel span={12} />
+      <AuditLogPanel span={12} />
       {/* Read-only until there is an endpoint to save them. */}
       <Card span={7} title="Organisation Details" cap="Printed on every report. To change them, contact Lyne support.">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
