@@ -58,7 +58,7 @@ const {
 const { auditLog } = require('../middleware/auditLog');
 const { planSession, sittingHours } = require('../utils/sessionPlan');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
-const { issueTicketSlot } = require('../utils/ticketSlot');
+const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 const { projectedWaitMinutes } = require('../utils/etaMath');
 const {
   appointmentWindow, appointmentTiming, appointmentInsertIndex, appointmentMessage, slotLabel,
@@ -653,7 +653,7 @@ async function checkIn(req, res, channel) {
 
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
+    await beginSlotTransaction(conn);
 
     const [sessions] = await conn.query(
       `SELECT ${SESSION_SELECT} ${SESSION_FROM} WHERE ss.id = ? LIMIT 1`,
