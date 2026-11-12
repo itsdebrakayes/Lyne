@@ -19,6 +19,7 @@ import { ExecutiveOverviewQX } from './qx/ExecutiveOverviewQX';
 import { ExecDataProvider, execTab, EXEC_TAB_HEAD } from './qx/ExecTabsQX';
 import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { buildExecData } from './qx/execLiveData';
+import { useSectorTerms } from '../hooks/useSectorTerms';
 
 /* Kept verbatim from the Help & Support tab this replaced — these answers were
    written against how the system actually behaves and should not be re-guessed. */
@@ -266,20 +267,23 @@ export default function ExecutiveDashboard() {
   const windowRows = useMemo(() => rowsIn(summary, win), [summary, win]);
   const prevRows = useMemo(() => rowsIn(summary, prevWin), [summary, prevWin]);
 
+  const terms = useSectorTerms();
   const liveTabData = useMemo(() => buildExecData({
     summary, windowRows, prevRows,
     rawSummary: d.summary as any[], week, served, completed, noShows, avgWait,
     target, managers, branchTrends: d.branchTrends as any[], branchWeek, services: d.services as any[],
-    channels: d.channels, preds, heat, org, adminName: d.admin?.name,
+    channels: d.channels, preds, heat, org, adminName: d.admin?.name, visitorPlural: terms.visitor.many,
     faq: EXEC_FAQ,
+    queues: d.queues as any[], branchManagers: d.branchManagers as any[],
   }), [summary, windowRows, prevRows, d.summary, week, served, completed, noShows, avgWait, target, managers,
-       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin]);
+       d.branchTrends, branchWeek, d.services, d.channels, preds, heat, org, d.admin, terms.visitor.many,
+       d.queues, d.branchManagers]);
 
   const qcExec = useQueryClient();
   /* The Save Targets button used to just clear its own dirty flag. */
   const [tgtState, setTgtState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [tgtError, setTgtError] = useState<string | null>(null);
-  const saveCompanyTargets = useCallback(async (vals: Record<string, number>) => {
+  const saveCompanyTargets = useCallback(async (vals: Record<string, number>, reason?: string) => {
     setTgtState('saving'); setTgtError(null);
     try {
       await api.put('/targets', {
@@ -287,8 +291,10 @@ export default function ExecutiveDashboard() {
         target_wait_minutes: Math.round(vals.wait),
         target_completion_rate: Math.round(vals.done),
         target_no_show_rate: Math.round(vals.noshow),
+        ...(reason ? { note: reason } : {}),
       });
       await qcExec.invalidateQueries({ queryKey: ['targets'] });
+      qcExec.invalidateQueries({ queryKey: ['target-history'] });
       setTgtState('saved');
     } catch (err) {
       setTgtState('error');
@@ -365,7 +371,7 @@ export default function ExecutiveDashboard() {
               hold a session away from a branch (a hired venue is a company
               commitment, and 027 declines to invent a branch row for one). */}
           {tab === 'sessions'
-            ? <SessionsWorkspace businessId={d.businessId} />
+            ? <SessionsWorkspace businessId={d.businessId} canDoor={false} />
             : execTab(tab, setTab)}
         </ExecDataProvider>
       )}

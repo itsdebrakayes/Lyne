@@ -4,6 +4,10 @@ import api, { supabase, isTransient } from '../lib/apiClient';
 import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
 import { clearPendingSignup } from '../lib/pendingSignup';
+import {
+  clearLocalNotifications, forgetPushRegistration, refreshPushRegistration,
+  retryPendingUnregister, unregisterPushDevice,
+} from '../lib/notifications';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
 
 /** Where the confirmation link lands; see apps/website AuthConfirmed. */
@@ -79,6 +83,7 @@ export const useAuth = () => {
     if (me.type === 'user') {
       setKiosk(null);
       setUser(me.record);
+      refreshPushRegistration(me.record.id);
       return me.record;
     }
     // The one staff role the mobile app serves: a kiosk clerk, who logs in here
@@ -121,6 +126,7 @@ export const useAuth = () => {
 
     if (!sbUser) {
       syncedUid.current = null;
+      retryPendingUnregister();
       setUser(null);
       setKiosk(null);
       setUnreachable(false);
@@ -250,6 +256,13 @@ export const useAuth = () => {
       options: { data: metadata, emailRedirectTo: `${SITE_URL}/auth/confirmed` },
     });
     if (error) return { error };
+    /* An email that already belongs to a confirmed account does NOT come back
+       as an error: Supabase returns a stand-in user with no identities, sends
+       no email, and reports success. Without this check the person is told to
+       wait for an email that never arrives. */
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: new Error('An account with this email already exists. Sign in instead, reset your password, or use a different email.') };
+    }
     // When the project requires email confirmation, signUp succeeds but returns
     // no session — we can't sync to the backend (it needs a token) until they
     // confirm, so surface that instead of failing on the sync call.
@@ -308,6 +321,11 @@ export const useAuth = () => {
     /* Nothing from a sign-up survives a sign-out (or a deleted account): the
        next person sees the fresh Sign in and Create account forms. */
     await clearPendingSignup();
+    /* Before the session goes: this phone must stop receiving the account's
+       alerts ("you're being called") the moment nobody is signed in on it. */
+    await unregisterPushDevice();
+    forgetPushRegistration();
+    await clearLocalNotifications();
     await supabase.auth.signOut();
     setUser(null);
     setKiosk(null);

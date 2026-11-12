@@ -1,3 +1,4 @@
+const { printReport, stripPageMarks } = require('./reportPdf');
 const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -242,6 +243,45 @@ ipcMain.handle('settings:pick-folder', async (_, current) => {
 });
 
 ipcMain.handle('settings:open-folder', (_, dir) => shell.openPath(dir));
+
+/* ── reports ──
+   The Reports tab hands over a finished HTML document; this writes it as Word
+   (.doc, HTML that Word opens) or prints it to PDF in a hidden window, into the
+   folder chosen at setup (Downloads if none), then shows the file. The renderer
+   never touches the filesystem. A name that already exists gets " (2)" and so
+   on rather than being overwritten. */
+function uniquePath(dir, base, ext) {
+  let candidate = path.join(dir, `${base}.${ext}`);
+  for (let n = 2; fs.existsSync(candidate) && n < 1000; n++) {
+    candidate = path.join(dir, `${base} (${n}).${ext}`);
+  }
+  return candidate;
+}
+
+ipcMain.handle('report:save', async (_, args) => {
+  try {
+    const html = String(args && args.html || '');
+    const format = args && args.format === 'pdf' ? 'pdf' : 'doc';
+    const base = String(args && args.filename || 'Lyne report').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 120) || 'Lyne report';
+    if (!html) return { ok: false, error: 'The report was empty.' };
+
+    const dir = readSettings().downloadDir || app.getPath('downloads');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = uniquePath(dir, base, format);
+
+    if (format === 'doc') {
+      // Word paginates for itself, so the contents' page numbers cannot be known here.
+      const wordHtml = stripPageMarks(html).replace('<html>', '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">');
+      fs.writeFileSync(file, '\ufeff' + wordHtml, 'utf8');
+    } else {
+      fs.writeFileSync(file, await printReport(BrowserWindow, html));
+    }
+    shell.showItemInFolder(file);
+    return { ok: true, path: file };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'The report could not be saved.' };
+  }
+});
 
 /* Start with the machine — a branch terminal should come back up after a power
    cut without someone having to know to launch it. */

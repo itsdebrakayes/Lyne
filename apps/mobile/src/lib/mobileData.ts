@@ -5,11 +5,16 @@ export interface BranchSummary {
   business_id: string;
   business_name: string;
   business_slug: string;
+  /** The letters people use for the organisation ("PICA"), from the
+   *  database (migration 040). Absent on an API that predates it. */
+  business_short_name?: string | null;
   name: string;
   address?: string | null;
   phone?: string | null;
   city?: string;
   parish?: string;
+  /** ISO 3166-1 alpha-2 (migration 039). Absent on an API that predates it. */
+  country_code?: string | null;
   latitude?: number;
   longitude?: number;
   opening_time?: string | null;
@@ -53,6 +58,8 @@ export interface ServiceReadinessItem {
 }
 
 export interface TicketRecord {
+  /** Set when an appointment slot was honoured at check-in (migration 042). */
+  appointment_at?: string | null;
   id: string;
   queue_id: string;
   ticket_number: string;
@@ -73,6 +80,7 @@ export interface TicketRecord {
   status_message?: string | null;
   readiness_shown_at?: string | null;
   readiness_outcome?: 'ready' | 'incomplete' | 'not_checked';
+  closed_reason?: string | null;
   readiness_note?: string | null;
   /* Timestamps. GET /tickets/:id selects t.*, so these have always been on the
      wire — they had no name here until the ticket needed to draw a timeline
@@ -81,6 +89,13 @@ export interface TicketRecord {
   called_at?: string | null;
   started_serving_at?: string | null;
   completed_at?: string | null;
+  /* Transfers between lines (migration 049). A transferred ticket closes as
+     served with closed_reason 'transferred' and points at the new one; the new
+     one names the ticket and line it came from. */
+  transferred_to_ticket_id?: string | null;
+  transferred_from_ticket_id?: string | null;
+  transferred_from_number?: string | null;
+  transferred_from_service?: string | null;
 }
 
 export interface SavedBusiness {
@@ -115,25 +130,14 @@ export function initials(value: string) {
  * the acronym people actually use, and nothing underneath it. Spelling the
  * full name out under every tile was what made the grid feel cluttered.
  *
- * Keyed on business id, not on the name: a business that gets renamed keeps
- * its acronym, which is the whole point of having one. The name fallback is
- * for anything onboarded after this map was written — it will look sensible,
- * just not authoritative, and that is the right failure. */
-const ORG_ACRONYM: Record<string, string> = {
-  'biz-cfcu-001': 'CFC',    // Community First Credit Union
-  'biz-fhc-001': 'FHC',     // First Heritage Co-operative Credit Union
-  'biz-pica-001': 'PICA',   // Passport Office of Jamaica
-  'biz-taj-001': 'TAJ',     // Tax Administration Jamaica
-  'biz-utech-001': 'UTECH', // University of Technology, Jamaica
-  'biz-nht-001': 'NHT',     // National Housing Trust
-  'biz-uwi-001': 'UWI',     // The University of the West Indies, Mona
-  'biz-court-001': 'TCJ',   // Traffic Court of Jamaica
-};
-
-/** The letters people use for this agency. */
-export function orgAcronym(businessId: string | null | undefined, name: string): string {
-  const known = businessId ? ORG_ACRONYM[businessId] : undefined;
-  if (known) return known;
+ * The acronym is the organisation's short_name, set in the database when it is
+ * onboarded (migration 040). It used to be a map in this file keyed on business
+ * id, which meant every new organisation needed an app release to be named
+ * properly. The initials fallback covers an organisation with no short name
+ * yet: sensible, just not authoritative. */
+export function orgAcronym(shortName: string | null | undefined, name: string): string {
+  const known = shortName?.trim();
+  if (known) return known.toUpperCase();
   /* Initials of the significant words — "National Housing Trust" → NHT — which
      is what an acronym usually is, and is right more often than a slug. */
   return (name || '')

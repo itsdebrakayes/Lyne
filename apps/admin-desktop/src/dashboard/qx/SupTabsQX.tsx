@@ -31,6 +31,8 @@ export type SupDesk = {
   id: string; label: string; svc: string;
   staffId: string | null; staffName: string | null;
   waiting: number; servedToday: number;
+  /** the person seated here is on a break, so the window is closed for now */
+  onBreak?: boolean;
 };
 export type SupStaff = {
   id: string; name: string; deskId: string | null; desk: string;
@@ -241,9 +243,11 @@ export function SupDesksTab() {
   const clear = (deskId: string) => d.onAssign(deskId, null);
 
   const roster = staffNow.filter((s) => s.state !== 'off');
-  const covered = d.desks.filter((x) => staffAt(x.id)).length;
+  /* Someone on a break is not covering their desk. A new person placed on it is. */
+  const isCovered = (x: SupDesk) => Boolean(staffAt(x.id)) && staffAt(x.id)?.state !== 'break';
+  const covered = d.desks.filter(isCovered).length;
   const empty = d.desks.length - covered;
-  const uncoveredWithQueue = d.desks.filter((x) => !staffAt(x.id) && x.waiting > 0);
+  const uncoveredWithQueue = d.desks.filter((x) => !isCovered(x) && x.waiting > 0);
   const placedIds = new Set(d.desks.map((x) => staffAt(x.id)?.id).filter(Boolean));
   const free = roster.filter((s) => !placedIds.has(s.id) && PLACEABLE.includes(s.state));
 
@@ -326,7 +330,8 @@ export function SupDesksTab() {
                 <div className="qs-grid">
                   {desks.map((dk) => {
                     const who = staffAt(dk.id);
-                    const alert = !who && dk.waiting > 0;
+                    const away = who?.state === 'break';
+                    const alert = (!who || away) && dk.waiting > 0;
                     const isDrop = dropTarget === dk.id;
                     return (
                       <button key={dk.id} type="button"
@@ -336,7 +341,7 @@ export function SupDesksTab() {
                         onDragOver={(e) => { e.preventDefault(); setDropTarget(dk.id); }}
                         onDragLeave={() => setDropTarget((t) => (t === dk.id ? null : t))}
                         onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) place(dk.id, id); }}
-                        title={who ? 'Tap to take them off this desk' : picked ? 'Tap to place them here' : undefined}>
+                        title={picked ? 'Tap to place them here' : who ? 'Tap to take them off this desk' : undefined}>
                         <span className="lbl">
                           <b>{dk.label}</b>
                           <small style={alert ? { color: 'var(--c-bad)' } : undefined}>{dk.waiting} waiting</small>
@@ -349,7 +354,7 @@ export function SupDesksTab() {
                         ) : (
                           <span className="none">{alert ? 'Empty — people waiting' : 'Empty'}</span>
                         )}
-                        {who ? <span className="none">{dk.servedToday} seen today</span> : null}
+                        {who ? <span className="none" style={away ? { color: 'var(--c-warn)' } : undefined}>{away ? 'On Break · Window Closed' : `${dk.servedToday} seen today`}</span> : null}
                       </button>
                     );
                   })}

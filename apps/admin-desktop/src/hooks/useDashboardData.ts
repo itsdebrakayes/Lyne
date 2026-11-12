@@ -193,6 +193,27 @@ export function useDashboardData(serviceId = '') {
     queryFn: () => api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=${demandRows}&by=dow`),
     enabled: Boolean(canAnalytics && analyticsQuery), refetchInterval: analyticsEvery,
   });
+  /* Customers served by hour, today and yesterday, for the manager overview's
+     hourly line. Local dates: a day here means the branch's day, not UTC's. */
+  const localDay = (back: number) => {
+    const d = new Date(Date.now() - back * 864e5);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const servedByHour = useQuery({
+    queryKey: ['ops-served-by-hour', analyticsQuery, localDay(0)],
+    queryFn: async () => {
+      const [today, yesterday] = await Promise.all([0, 1].map((back) =>
+        api.get<DemandCell[]>(`/analytics/demand?${analyticsQuery}&rows=branch&by=hour&day=${localDay(back)}`)));
+      return { today, yesterday };
+    },
+    enabled: Boolean(branchScoped && analyticsQuery), refetchInterval: LIVE_INTERVAL,
+  });
+  /* Who runs each branch, for the executive's Branches tab. */
+  const branchManagers = useQuery({
+    queryKey: ['exec-branch-managers', businessId],
+    queryFn: () => api.get<any[]>(`/analytics/managers?business_id=${businessId}&period=this_week`),
+    enabled: Boolean(admin?.role === 'executive' && businessId), refetchInterval: analyticsEvery,
+  });
   const targets = useQuery({
     queryKey: ['ops-targets', businessId],
     queryFn: () => api.get<BusinessTargets>(`/targets?business_id=${businessId}`),
@@ -213,7 +234,14 @@ export function useDashboardData(serviceId = '') {
   const counters = useQuery({
     queryKey: ['ops-counters', businessId, branchId],
     queryFn: () => api.get<any[]>(`/analytics/counters?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
-    enabled: Boolean(canAnalytics && businessId), refetchInterval: analyticsEvery,
+    enabled: Boolean(canAnalytics && businessId), refetchInterval: branchScoped ? LIVE_INTERVAL : analyticsEvery,
+  });
+  /* Who is on a break, on the live cadence: the rest of the staff feed refreshes
+     hourly, which is no use for knowing a window has just gone quiet. */
+  const presence = useQuery({
+    queryKey: ['ops-presence', businessId, branchId],
+    queryFn: () => api.get<Array<{ staff_id: string; on_break: boolean }>>(`/analytics/presence?business_id=${businessId}${branchId ? `&branch_id=${branchId}` : ''}`),
+    enabled: Boolean(branchScoped && businessId), refetchInterval: 15_000,
   });
   // Settings tab: branch policy + this person's own alert thresholds + the
   // read-only hours. Not polled — these change when somebody saves them, not on
@@ -267,7 +295,8 @@ export function useDashboardData(serviceId = '') {
   const activeQueries = allQueries.filter((q) => q.dataUpdatedAt > 0);
 
   return {
-    admin, businessId, branchId,
+    admin, businessId, branchId, analyticsQuery,
+    presence: presence.data ?? [],
     /* The OLDEST panel on screen, not the newest.
        "Updated 14:32" has to be a promise about everything the reader can see.
        Taking the newest would let one 10-second queue poll vouch for an
@@ -293,6 +322,8 @@ export function useDashboardData(serviceId = '') {
     branchTrends: branchTrends.data || [],
     heatmap: heatmap.data || [],
     demandHourly: demandHourly.data || [],
+    servedByHour: servedByHour.data || { today: [], yesterday: [] },
+    branchManagers: branchManagers.data || [],
     demandWeekly: demandWeekly.data || [],
     targets: targets.data || DEFAULT_TARGETS,
     branchTargets: branchTargets.data || null,

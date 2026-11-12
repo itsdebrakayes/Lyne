@@ -22,7 +22,6 @@ const morgan      = require('morgan');
 const {
   profileSyncLimiter,
   queueJoinLimiter,
-  ocrLimiter,
   publicQueueLimiter,
   sessionLookupLimiter,
   paymentLimiter,
@@ -157,7 +156,7 @@ const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
 const { requirePayments } = require('./lib/premium');
 app.post('/api/payments/webhook', requirePayments, express.raw({ type: 'application/json' }), webhookHandler);
 
-// Body parsing — limit OCR uploads separately (see /api/ocr route)
+// Body parsing
 app.use(express.json({ limit: '1mb' }));
 
 // Global rate limiter
@@ -167,6 +166,7 @@ app.use(generalLimiter);
 /* sync-user is limited inside routes/auth.js now, after requireAuth, so the
    budget is per person rather than per address — see profileSyncLimiter. */
 app.use('/api/auth',           require('./routes/auth'));
+app.use('/api/app',            require('./routes/appVersion'));
 
 app.use('/api/businesses',     require('./routes/businesses'));
 app.use('/api/branches',       require('./routes/branches'));
@@ -201,6 +201,9 @@ app.use('/api/settings',       require('./routes/settings'));
 app.use('/api/predictions',    require('./routes/predictions'));
 app.use('/api/pipeline',       require('./routes/pipeline'));
 app.use('/api/notifications',  require('./routes/notifications'));
+app.use('/api/closures',       require('./routes/closures'));
+app.use('/api/case-watch',     require('./routes/caseWatch'));
+app.use('/api/sms',            require('./routes/sms'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/iap',            requirePayments, require('./routes/iap'));
 app.use('/api/saved',          require('./routes/saved'));
@@ -216,10 +219,11 @@ app.post('/api/payments/portal/verify', sessionLookupLimiter);
 /* paymentLimiter likewise moved into routes/payments.js, after requireAuth. */
 app.use('/api/payments',       requirePayments, paymentsRouter);
 
-// OCR — strict rate limit + larger body size for image uploads
-/* ocrLimiter moved into routes/ocr.js, after requireAuth. The body parser
-   stays here: it is per-mount configuration, not a limit. */
-app.use('/api/ocr', express.json({ limit: '10mb' }), require('./routes/ocr'));
+/* /api/ocr was removed on 11 November 2026. It stored every scanned
+   document's TRN, national ID and passport number on the server, unmasked,
+   while the apps already read documents on the phone and keep the numbers
+   there. Migration 050 drops the table it wrote to. Do not bring it back:
+   identification numbers do not leave the customer's device. */
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));
@@ -425,13 +429,19 @@ app.listen(PORT, () => {
      OFF unless REVIEW_SIMULATOR=true. Plays the counter's part for the
      fictional review organisation only, so a reviewer sees a line move before
      any real organisation is live. See jobs/reviewSimulator.js. */
-  const { runReviewSimulatorTick, settings: reviewSimSettings } = require('./jobs/reviewSimulator');
-  if (reviewSimSettings().enabled) {
+  // Also runs for the showcase organisations alone (REVIEW_SHOWCASE_IDS), so
+  // turning App Review mode off after approval leaves the examples moving.
+  const { runReviewSimulatorTick, settings: reviewSimSettings, organisations: simOrganisations, configured: simConfigured } = require('./jobs/reviewSimulator');
+  if (simConfigured(reviewSimSettings())) {
     const simTick = () => runReviewSimulatorTick()
       .catch((err) => console.error('[ReviewSimulator] tick failed:', err.message));
     simTick();
     setInterval(simTick, 15 * 1000);
-    console.log(`[ReviewSimulator] ACTIVE for ${reviewSimSettings().businessId} / ${reviewSimSettings().email}.`);
+    const sim = reviewSimSettings();
+    console.log(`[ReviewSimulator] ACTIVE for ${simOrganisations(sim).join(', ')}${sim.enabled ? ` (review account ${sim.email})` : ' (showcase only)'}.`);
+    if (sim.demoIds.length) {
+      console.log(`[ReviewSimulator] Demo window for ${sim.demoIds.join(', ')}: ${sim.demoFrom && sim.demoUntil ? `${new Date(sim.demoFrom).toISOString()} to ${new Date(sim.demoUntil).toISOString()}` : 'NOT SET (DEMO_FROM and DEMO_UNTIL are both needed), so it stays off'}.`);
+    }
   }
   console.log(
     `[TicketExpiry] ${process.env.TICKET_EXPIRY_ENABLED === 'false' ? 'DISABLED' : 'Active'}; `

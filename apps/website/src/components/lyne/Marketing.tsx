@@ -44,7 +44,7 @@ export function MarketingNav() {
           <Link to="/join-us" className="text-sm font-medium text-lyne-lavender/70 transition-colors hover:text-white">
             Get a quote
           </Link>
-          <a href="/#pricing" className="btn btn-primary text-sm">
+          <a href="/get-the-app" className="btn btn-primary text-sm">
             Download <ArrowUpRight className="h-4 w-4" />
           </a>
         </div>
@@ -85,7 +85,7 @@ export function MarketingNav() {
             <Link to="/join-us" onClick={() => setOpen(false)} className="py-2.5 text-lyne-lavender/80 hover:text-white">
               Get a quote
             </Link>
-            <a href="/#pricing" onClick={() => setOpen(false)} className="btn btn-primary mt-2">
+            <a href="/get-the-app" onClick={() => setOpen(false)} className="btn btn-primary mt-2">
               Download
             </a>
           </div>
@@ -101,7 +101,7 @@ const footerCols: Array<{ title: string; items: Array<{ label: string; href: str
     items: [
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/#pricing" },
-      { label: "Mobile App", href: "/#pricing" },
+      { label: "Mobile App", href: "/get-the-app" },
       { label: "Desktop App", href: "/download" },
     ],
   },

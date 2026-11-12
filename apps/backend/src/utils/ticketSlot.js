@@ -66,7 +66,36 @@ function createVerificationCode() {
  * (which counts served and abandoned tickets too), and using position here was
  * the bug that produced frozen 245-minute estimates.
  */
+/**
+ * Start a transaction that will hand out a place in line.
+ *
+ * Every caller of issueTicketSlot MUST open its transaction with this, not
+ * conn.beginTransaction(). Found 11 November 2026 by
+ * test/db/walkin-concurrency.db.test.js against a real MySQL: under InnoDB's
+ * default REPEATABLE READ, a transaction's snapshot is fixed by its FIRST plain
+ * SELECT. The walk-in route reads the service before it locks the line, so a
+ * clerk who then waited for the lock still read the line as it was before the
+ * other clerks' walk-ins committed — and eleven people in one burst were all
+ * given place 2.
+ *
+ * READ COMMITTED makes every read see what has been committed at that moment.
+ * Together with the line's row lock (taken below, and by the callers), the
+ * next place is always computed from the true end of the line. It adds no
+ * extra locks, so it cannot add deadlocks. SET TRANSACTION applies to the next
+ * transaction on this connection only, so the pool's other work is unchanged.
+ */
+async function beginSlotTransaction(conn) {
+  await conn.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+  await conn.beginTransaction();
+}
+
 async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avgTimeMinutes, waitingAhead }) {
+  /* Hold the line's row lock while the place is computed and written. Callers
+     that already locked it get it again at no cost (same transaction); callers
+     that did not — the review simulator did not — are now serialised with
+     every other join to the same line instead of racing them. */
+  await conn.query('SELECT id FROM queues WHERE id = ? FOR UPDATE', [queueId]);
+
   /* Ticket numbers restart each day. Scoping by queue_id ALONE assumed one queue
      row per day, which production guarantees (ensureQueuesForToday creates a
      fresh row) but the demo does not — it re-dates a fixed row, so MAX(position)
@@ -129,4 +158,4 @@ async function issueTicketSlot(conn, { queueId, branchId, serviceId, prefix, avg
 
 module.exports = {
   CODE_ALPHABET,
-  CODE_LENGTH, issueTicketSlot, createVerificationCode };
+  CODE_LENGTH, issueTicketSlot, beginSlotTransaction, createVerificationCode };

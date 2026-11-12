@@ -53,6 +53,8 @@ export type AdminSession = {
   requires_eligibility: boolean;
   second_factor: 'none' | 'surname';
   arrive_minutes_before?: number | null;
+  /** When an appointment's check-in opens and how long its slot is held (migration 042). */
+  appointment_window?: { early: number; late: number };
   status: 'draft' | 'open' | 'closed' | 'in_progress' | 'completed' | 'cancelled';
   registered_count: number;
   checked_in_count: number;
@@ -68,6 +70,8 @@ type Registration = {
   id: string;
   registration_code: string;
   reference?: string | null;
+  /** "10:30" when the organisation booked this person a time. */
+  appointment_time?: string | null;
   verified: boolean;
   status: 'registered' | 'checked_in' | 'no_show' | 'cancelled';
   guest_name?: string | null;
@@ -316,7 +320,7 @@ function SessionPlanPanel({ session }: { session: AdminSession }) {
 function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => void }) {
   const [code, setCode] = useState('');
   const [result, setResult] = useState<
-    | { kind: 'ok'; ticket: string; name: string | null; verified: boolean; repeat: boolean }
+    | { kind: 'ok'; ticket: string; name: string | null; verified: boolean; repeat: boolean; appointment: string | null }
     | { kind: 'err'; message: string }
     | null
   >(null);
@@ -327,6 +331,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
       verified?: boolean;
       reference?: string | null;
       ticket: { ticket_number: string; guest_name?: string | null };
+      appointment?: { time: string; timing: string; message: string | null } | null;
     }>(`/sessions/${sessionId}/check-in`, { code: value }),
     onSuccess: (data) => {
       setResult({
@@ -335,6 +340,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
         name: data.ticket?.guest_name || null,
         verified: Boolean(data.verified),
         repeat: Boolean(data.already_checked_in),
+        appointment: data.appointment?.message || null,
       });
       setCode('');
       onDone();
@@ -378,6 +384,9 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
               ? 'Confirmed against today’s list.'
               : 'Not checked against a list — confirm their paperwork at the counter.'}
           </p>
+          {/* On time: called ahead of walk-ins. Late: in the usual order. The
+              clerk reads this out, so it is the API's own sentence. */}
+          {result.appointment ? <p>{result.appointment}</p> : null}
         </div>
       ) : null}
 
@@ -386,6 +395,65 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
           <Note icon={AlertTriangle} tone="bad" title="Not Checked In" body={result.message} />
         </div>
       ) : null}
+    </Card>
+  );
+}
+
+/* ══════════════════════ registration ══════════════════════ */
+
+/**
+ * The supervisor's and manager's control: is this session still taking places?
+ * Closing stops new registrations anywhere (app, web, door) and leaves everyone
+ * already registered untouched. Checking people in is the desk's job, so it is
+ * not offered here.
+ */
+function RegistrationPanel({ session, onDone }: { session: AdminSession; onDone: () => void }) {
+  const terms = useSectorTerms();
+  const toggle = useMutation({
+    mutationFn: (open: boolean) => api.post<AdminSession>(`/sessions/${session.id}/registration`, { open }),
+    onSuccess: () => onDone(),
+  });
+  const open = session.status === 'open';
+  const closed = session.status === 'closed' || session.status === 'draft';
+  const full = session.places_remaining <= 0;
+
+  return (
+    <Card title="Registration" cap={open ? 'Taking places now' : closed ? 'Not taking places' : STATUS_WORD[session.status]}>
+      {open || closed ? (
+        <>
+          <Note
+            icon={open ? Users : ShieldCheck}
+            title={open
+              ? (full ? 'Open, But Full' : `Open · ${session.places_remaining} Places Left`)
+              : 'Closed To New Registrations'}
+            body={open
+              ? `${terms.visitor.many} can still take a place in the app, on the web or at the door. Close it when the day is full enough or the deadline has passed.`
+              : `Nobody new can register. The ${session.registered_count} already booked keep their places and check in on the day as normal.`}
+          />
+          <button
+            type="button"
+            className={open ? 'qx-btn' : 'qx-btn ghost'}
+            style={{ marginTop: 12 }}
+            disabled={toggle.isPending}
+            onClick={() => toggle.mutate(!open)}
+          >
+            {toggle.isPending ? 'Saving…' : open ? 'Close Registration' : 'Reopen Registration'}
+          </button>
+          {toggle.error ? (
+            <div style={{ marginTop: 10 }}>
+              <Note icon={AlertTriangle} tone="bad" title="Not Changed" body={humanError((toggle.error as Error).message)} />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <Note
+          icon={Clock}
+          title={session.status === 'in_progress' ? 'Running Now' : session.status === 'completed' ? 'This Session Has Finished' : 'Cancelled'}
+          body={session.status === 'in_progress'
+            ? `Check-in has started, so registration is closed. The desks are checking ${lower(terms.visitor.many)} in as they arrive.`
+            : 'The record below is what happened.'}
+        />
+      )}
     </Card>
   );
 }
@@ -402,7 +470,7 @@ function CheckInPanel({ sessionId, onDone }: { sessionId: string; onDone: () => 
 function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone: () => void }) {
   const terms = useSectorTerms();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ reference: '', surname: '', name: '', phone: '' });
+  const [form, setForm] = useState({ reference: '', surname: '', name: '', phone: '', time: '' });
   const [issued, setIssued] = useState<{ code: string; overridden: boolean } | null>(null);
 
   const register = useMutation({
@@ -413,11 +481,12 @@ function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone:
         surname: form.surname.trim() || undefined,
         name: form.name.trim() || undefined,
         phone: form.phone.trim() || undefined,
+        appointment_time: form.time || undefined,
       },
     ),
     onSuccess: (data) => {
       setIssued({ code: data.registration_code, overridden: Boolean(data.eligibility_overridden) });
-      setForm({ reference: '', surname: '', name: '', phone: '' });
+      setForm({ reference: '', surname: '', name: '', phone: '', time: '' });
       onDone();
     },
   });
@@ -456,6 +525,10 @@ function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone:
         <label>
           <span>Phone <small>Optional</small></span>
           <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </label>
+        <label>
+          <span>Appointment Time <small>Optional</small></span>
+          <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
         </label>
       </div>
 
@@ -513,7 +586,11 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
     .filter(Boolean)
     .map((line) => {
       const parts = line.split(/\t|,|;|\s{2,}/).map((p) => p.trim()).filter(Boolean);
-      return { reference: parts[0], surname: parts[1] || undefined, division: parts[2] || undefined };
+      /* A column that reads as a time is the appointment (migration 042), from
+         wherever it sits, so a booking export can be pasted as it comes. */
+      const timeAt = parts.findIndex((p, i) => i > 0 && /^\d{1,2}:\d{2}$/.test(p));
+      const time = timeAt > 0 ? parts.splice(timeAt, 1)[0].padStart(5, '0') : undefined;
+      return { reference: parts[0], surname: parts[1] || undefined, division: parts[2] || undefined, time };
     })
     .filter((e) => e.reference), [raw]);
 
@@ -536,7 +613,7 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
   return (
     <Card
       title="Load The List"
-      cap={`One ${lower(terms.visitor.one).replace(/s$/, '')} per line: reference, surname, ${lower(terms.section.one)}`}
+      cap={`One ${lower(terms.visitor.one).replace(/s$/, '')} per line: reference, surname, ${lower(terms.section.one)}, and a time such as 10:30 if they have an appointment`}
       tools={<button type="button" className="qx-btn ghost" onClick={() => setOpen(false)}><X size={14} />Close</button>}
     >
       <textarea
@@ -553,7 +630,7 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
           discover afterwards that a stray header row cost them three. */}
       <p className="qx-hint">
         {entries.length
-          ? `Read ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}. Separate columns with a comma, a tab, or two spaces.`
+          ? `Read ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${entries.some((e) => e.time) ? `, ${entries.filter((e) => e.time).length} with an appointment time. Check-in opens ${session.appointment_window?.early ?? 15} minutes before each time and the slot is held ${session.appointment_window?.late ?? 10} minutes after` : ''}. Separate columns with a comma, a tab, or two spaces.`
           : 'Paste or type the list above. Commas, tabs and two-space columns all work.'}
       </p>
 
@@ -721,8 +798,18 @@ export type SessionsData = {
   sessions: AdminSession[];
   detail: RegistrationsPayload | null;
   loading: boolean;
-  /** Supervisors watch and check people in; they do not create or close a day. */
+  /** Managers and executives create sessions and load lists. */
   canEdit: boolean;
+  /** Register a walk-up at the door: the people in the branch (supervisor, manager). */
+  canDoor: boolean;
+  /** End the day: supervisor, manager and executive. */
+  canClose: boolean;
+  /* Who is looking, which decides the panel beside the list:
+     'desk'    — line staff: check people in as they arrive.
+     'oversee' — supervisors, managers, executives: open and close registration.
+     Check-in belongs with whoever is at the door; running the day belongs
+     with whoever is responsible for it. */
+  mode?: 'desk' | 'oversee';
   active: string;
   onSelect: (id: string) => void;
   onRefresh: () => void;
@@ -781,6 +868,9 @@ export const SESSIONS_FIXTURES: SessionsData = {
   },
   loading: false,
   canEdit: true,
+  canDoor: true,
+  canClose: true,
+  mode: 'oversee',
   active: 'ses-court-sat',
   onSelect: () => undefined,
   onRefresh: () => undefined,
@@ -798,11 +888,17 @@ const useSessions = () => useContext(SessionsCtx);
 /* ══════════════════════ the screen ══════════════════════ */
 
 const REG_GRID = 'minmax(0,1.5fr) minmax(0,1.2fr) 108px minmax(0,1fr) 118px';
+/* Without a list there is no reference to show, so the column goes rather
+   than standing empty on every row. */
+const REG_GRID_NOREF = 'minmax(0,1.8fr) 118px minmax(0,1fr) 118px';
 
 /** Extracted only so the grid above reads as a grid rather than 40 lines of table. */
-function SessionRegistrations({ terms, rows, q, onSearch }: {
+function SessionRegistrations({ terms, rows, q, onSearch, showReference }: {
   terms: ReturnType<typeof useSectorTerms>;
   rows: Registration[];
+  /** True for a session checked against a list: the reference is the person's
+   *  booking or approval number on that list (PA-26-1041, a ticket number). */
+  showReference: boolean;
   q: string;
   onSearch: (v: string) => void;
 }) {
@@ -814,13 +910,19 @@ function SessionRegistrations({ terms, rows, q, onSearch }: {
       tools={<InlineSearch value={q} onChange={onSearch} placeholder="Search name, reference or code…" />}
     >
       <Table
-        grid={REG_GRID}
-        columns={[terms.visitor.one, terms.identifier?.label || 'Reference', 'Code', 'Status', 'Ticket']}
+        grid={showReference ? REG_GRID : REG_GRID_NOREF}
+        columns={showReference
+          ? [terms.visitor.one, terms.identifier?.label || 'Booking Reference', 'Check-In Code', 'Status', 'Ticket']
+          : [terms.visitor.one, 'Check-In Code', 'Status', 'Ticket']}
         items={rows}
         empty={q ? `Nobody matches “${q}”.` : 'Nobody has registered for this session yet.'}
         renderRow={(r) => (
-          <Row key={r.id} grid={REG_GRID}>
-            <span className="qx-strong">{r.user_name || r.guest_name || '—'}</span>
+          <Row key={r.id} grid={showReference ? REG_GRID : REG_GRID_NOREF}>
+            <span className="qx-strong">
+              {r.user_name || r.guest_name || '—'}
+              {r.appointment_time ? <small className="qx-mono" style={{ display: 'block', fontWeight: 500 }}>Appointment {r.appointment_time}</small> : null}
+            </span>
+{showReference ? (
             <span className="qx-ref">
               {r.reference || '—'}
               {/* The whole point of the flag. A tick means the organisation's own
@@ -829,6 +931,7 @@ function SessionRegistrations({ terms, rows, q, onSearch }: {
                 ? <ShieldCheck size={13} className="qx-ok" aria-label="Confirmed against the list" />
                 : <ShieldQuestion size={13} className="qx-unk" aria-label="Not checked against a list" />}
             </span>
+            ) : null}
             <span className="qx-mono">{r.registration_code}</span>
             <span>
               {r.status === 'checked_in' ? <Status kind="open">Arrived</Status>
@@ -862,8 +965,10 @@ export function SessionsScreen() {
   const canEdit = d.canEdit;
   const refresh = d.onRefresh;
 
+  /* Ending before the planned time is an interruption, so it needs a reason. */
+  const [endReason, setEndReason] = useState('');
   const close = useMutation({
-    mutationFn: () => api.post<{ marked_no_show: number }>(`/sessions/${active}/close`, {}),
+    mutationFn: () => api.post<{ marked_no_show: number }>(`/sessions/${active}/close`, { reason: endReason.trim() }),
     onSuccess: refresh,
   });
 
@@ -876,7 +981,7 @@ export function SessionsScreen() {
      hole on the right. A supervisor, who may not edit, gets a single full-width
      column instead of a third of a row floating in space. "No dead space" is a
      rule of this design system, not a preference. */
-  const bottomSpan = d.canEdit ? 's6' : 's12';
+  const bottomSpan = d.canEdit || d.canDoor || d.canClose ? 's6' : 's12';
 
   const shown = useMemo(() => {
     const rows = d.detail?.registrations || [];
@@ -1014,7 +1119,9 @@ export function SessionsScreen() {
               list. Everything supporting sits in a three-up row below, which is
               also what stops the grid leaving a hole beside a short table. */}
           <div className="qx-stack s5">
-            {isToday && session.status !== 'completed' && session.status !== 'cancelled'
+            {d.mode !== 'desk'
+              ? <RegistrationPanel session={session} onDone={refresh} />
+              : isToday && session.status !== 'completed' && session.status !== 'cancelled'
               ? <CheckInPanel sessionId={session.id} onDone={refresh} />
               : (
                 <Card title="Check-In Opens On The Day" cap={dayLabel(session.session_date)}>
@@ -1061,25 +1168,34 @@ export function SessionsScreen() {
           </div>
 
           {/* ── who is expected ───────────────────────────── */}
-          <SessionRegistrations terms={terms} rows={shown} q={q} onSearch={setQ} />
+          <SessionRegistrations terms={terms} rows={shown} q={q} onSearch={setQ} showReference={Boolean(session.requires_eligibility || shown.some((r) => r.reference))} />
 
-          {canEdit ? (
+          {canEdit || d.canDoor || d.canClose ? (
             <div className={`qx-stack ${bottomSpan}`}>
-              <Card title="Running The Day" cap="The two things a clerk does before the doors open">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <CauseListPanel session={session} onDone={refresh} />
-                  <DoorRegisterPanel session={session} onDone={refresh} />
-                </div>
-              </Card>
+              {/* The list is office work (managers, executives); registering
+                  somebody who walks up is floor work (supervisors, managers).
+                  An executive is not standing at the door. */}
+              {canEdit || d.canDoor ? (
+                <Card title="Running The Day" cap={canEdit && d.canDoor ? 'The two things done before the doors open' : canEdit ? 'Who is allowed to register' : 'Somebody who arrives without registering'}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {canEdit ? <CauseListPanel session={session} onDone={refresh} /> : null}
+                    {d.canDoor ? <DoorRegisterPanel session={session} onDone={refresh} /> : null}
+                  </div>
+                </Card>
+              ) : null}
 
               {/* Set apart, and last. Ending the day writes a no-show against
                   every person who did not arrive — a permanent mark on somebody
                   who may have been stuck in traffic. It does not belong in a
                   stack of ordinary buttons where it can be hit by accident. */}
-              {isToday && session.status !== 'completed' && session.status !== 'cancelled' ? (
+              {d.canClose && isToday && session.status !== 'completed' && session.status !== 'cancelled' ? (
                 <Card title="Close The Session" cap="Do this once the last person has been seen">
                   <Note icon={AlertTriangle} tone="warn" title="This Cannot Be Undone"
                     body={`The ${summary?.registered ?? 0} who never arrived will be recorded as no-shows, and nobody else will be able to check in.`} />
+                  <label className="qx-field" style={{ marginTop: 12 }}><span>Reason, If Ending Early</span>
+                    <input value={endReason} maxLength={255} onChange={(e) => setEndReason(e.target.value)} placeholder="Power outage, system down, staffing…" />
+                  </label>
+                  {close.isError ? <Note icon={AlertTriangle} tone="bad" title="Not Ended" body={close.error instanceof Error ? close.error.message : 'Try again.'} /> : null}
                   <button type="button" className="qx-btn" style={{ marginTop: 12 }}
                     disabled={close.isPending}
                     onClick={() => close.mutate()}>
@@ -1120,11 +1236,14 @@ export function SessionsScreen() {
  * Owns the queries and the selection, and hands the screen a plain data object.
  * Everything below this line is the only part that knows an API exists.
  */
-export function SessionsWorkspace({ businessId, branchId, canEdit = true }: {
+export function SessionsWorkspace({ businessId, branchId, canEdit = true, canDoor = canEdit, canClose = canEdit, mode = 'oversee' }: {
   /** Undefined while the account is still resolving — every query is gated on it. */
   businessId?: string;
   branchId?: string | null;
   canEdit?: boolean;
+  canDoor?: boolean;
+  canClose?: boolean;
+  mode?: 'desk' | 'oversee';
 }) {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string>('');
@@ -1164,6 +1283,9 @@ export function SessionsWorkspace({ businessId, branchId, canEdit = true }: {
     detail: detail.data ?? null,
     loading: sessions.isLoading,
     canEdit,
+    canDoor,
+    canClose,
+    mode,
     active,
     businessId,
     branchId,

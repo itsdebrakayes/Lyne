@@ -25,11 +25,13 @@ import HistoryScreen    from '../screens/main/HistoryScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen    from '../screens/main/ProfileScreen';
 import PlanVisitScreen  from '../screens/main/PlanVisitScreen';
+import SessionScreen    from '../screens/main/SessionScreen';
 import HelpScreen       from '../screens/main/HelpScreen';
 import AgencyHelpScreen from '../screens/main/AgencyHelpScreen';
 import DocumentCaptureScreen from '../screens/main/DocumentCaptureScreen';
 import LegalScreen from '../screens/main/LegalScreen';
 import PrivacySecurityScreen from '../screens/main/PrivacySecurityScreen';
+import AccountScreen from '../screens/main/AccountScreen';
 
 // Queue flow screens
 import BusinessScreen   from '../screens/queue/BusinessScreen';
@@ -52,6 +54,7 @@ export type RootStackParamList = {
   AgencyHelp: { slug: string };
   DocumentCapture: { field: 'national_id' | 'trn' };
   PrivacySecurity: undefined;
+  Account: undefined;
   Legal:      { tab?: 'privacy' | 'terms' } | undefined;
   Plan:       { businessId?: string; branchId?: string } | undefined;
   /* The Predictive Insights screens. Each carries the branch it is about rather
@@ -59,10 +62,14 @@ export type RootStackParamList = {
      on the same data it was opened with. */
   BusyTimes:  { businessId: string; branchId: string; branchName?: string; serviceId?: string };
   WeekPlanner:{ businessId: string; branchId: string; branchName?: string; serviceId?: string; targetDow?: number };
-  LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number };
-  HelperHold: { helperId?: string } | undefined;
+  LineHelper: { businessId: string; branchId: string; branchName?: string; serviceId?: string; serviceName?: string; targetHour?: number; targetDow?: number;
+    /** Editing: the helper this one replaces, released only once the new one is confirmed. */
+    replaceHelperId?: string };
+  /** justScheduled: arrived straight from booking, so show Done and Change Time. */
+  HelperHold: { helperId?: string; justScheduled?: boolean; editFrom?: RootStackParamList['LineHelper'] } | undefined;
   /* A sitting you must hold a place at in advance — only reachable when one is
      actually open, so the app never shows a door that leads nowhere. */
+  Session:    { sessionId: string };
   Business:   { businessId: string; businessName: string };
   Branch:     { businessId: string; branchId: string; branchName: string };
   Service:    { businessId: string; branchId: string };
@@ -162,7 +169,11 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
         ) : !user ? (
           /* Sign in and create account are one screen; a device nobody has
              signed in on opens it in Create account (lib/deviceHistory.ts). */
-          <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+          <>
+            <Stack.Screen name="Auth" component={AuthScreen} initialParams={{ mode: returning ? 'signin' : 'signup' }} />
+            {/* Readable before an account exists: sign-up asks people to accept them. */}
+            <Stack.Screen name="Legal" component={LegalScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Main"      component={MainTabs}        />
@@ -172,8 +183,10 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
             <Stack.Screen name="AgencyHelp" component={AgencyHelpScreen} />
             <Stack.Screen name="DocumentCapture" component={DocumentCaptureScreen} />
             <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+            <Stack.Screen name="Account"   component={AccountScreen}   />
             <Stack.Screen name="Legal"     component={LegalScreen}     />
             <Stack.Screen name="Plan"      component={PlanVisitScreen} />
+            <Stack.Screen name="Session"   component={SessionScreen}   />
       <Stack.Screen name="BusyTimes" component={BusyTimesScreen} />
       <Stack.Screen name="WeekPlanner" component={WeekPlannerScreen} />
       <Stack.Screen name="LineHelper" component={LineHelperScreen} />

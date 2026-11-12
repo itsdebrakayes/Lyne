@@ -234,7 +234,7 @@ ON DUPLICATE KEY UPDATE
   shift_start = VALUES(shift_start),
   shift_end = VALUES(shift_end);
 
-INSERT INTO users (id, email, full_name, phone, national_id, trn, date_of_birth)
+INSERT INTO users (id, email, full_name, phone, date_of_birth)
 SELECT
   CONCAT('usr-demo-', LPAD(n.n, 2, '0')),
   CONCAT('demo.customer', LPAD(n.n, 2, '0'), '@lyne.test'),
@@ -245,8 +245,6 @@ SELECT
     'Damian Scott', 'Kendra Thomas', 'Nicholas Walker', 'Monique Williams', 'Gavin Wright'
   ),
   CONCAT('876-555-', LPAD(2000 + n.n, 4, '0')),
-  CONCAT('JM-DEMO-', LPAD(n.n, 4, '0')),
-  CONCAT(LPAD(100 + n.n, 3, '0'), '-', LPAD(200 + n.n, 3, '0'), '-', LPAD(300 + n.n, 3, '0')),
   DATE_SUB(CURDATE(), INTERVAL (25 + n.n) YEAR)
 FROM (
   SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
@@ -256,9 +254,7 @@ FROM (
 ) n
 ON DUPLICATE KEY UPDATE
   full_name = VALUES(full_name),
-  phone = VALUES(phone),
-  national_id = VALUES(national_id),
-  trn = VALUES(trn);
+  phone = VALUES(phone);
 
 INSERT INTO saved_businesses (user_id, business_id)
 SELECT u.id, b.id

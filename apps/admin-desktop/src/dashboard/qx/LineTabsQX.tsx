@@ -15,10 +15,12 @@
  *   My Stats — my own numbers, with the section average for context only
  *   Support  — answers for someone on a window, phrased plainly
  */
+import { sectorExamples } from '../../hooks/sectorExamples';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Bell, Check, CheckCircle2, ChevronDown, Clock, Headphones, Mail, MessageSquare, Pause,
   PhoneOff, SkipForward, Timer, Users, PlayCircle,
+  ArrowLeftRight, DoorOpen, FileWarning, Shuffle, WifiOff,
 } from 'lucide-react';
 import {
   Card, Stat, Chart, Table, Row, InlineSearch, Status, Note, Chip, Ring,
@@ -27,6 +29,7 @@ import {
 import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import { replayTour } from '../../hooks/useTour';
+import { PatientLine, PatientTags } from './PatientLine';
 
 /* Counter labels are written as "Window 17 - TRN Registration", so pairing one
    with its own service produced "TRN Registration · TRN Registration". Say the
@@ -56,9 +59,29 @@ export type LineTicket = {
   joinedAt?: string | null;
   /** How they got into the line: from the app, a kiosk, or walking up. */
   channel?: string | null;
+  /** Set when an appointment's slot was honoured at check-in (migration 042). */
+  appointmentAt?: string | null;
   /** How many times they have been called. Two is a different situation. */
   callCount?: number;
+  /* Healthcare. Server order (position) is the call order; these are what
+     staff weigh when changing it. */
+  position?: number;
+  triageFlag?: 'none' | 'possibly_urgent';
+  triageAnswers?: Array<{ question_id: string; question: string; red_flag: boolean; answer: boolean }>;
+  patientFlags?: Array<'priority' | 'watch'>;
+  flagNote?: string | null;
+  frequentVisitor?: boolean;
+  repeatUnresolved?: boolean;
+  visits7d?: number;
+  unresolved30d?: number;
+  visitReason?: string | null;
+  dateOfBirth?: string | null;
+  /* Arrived by transfer from another line (migration 049): the old ticket and
+     line, and the handover note left for this desk. The note is staff-only. */
+  transferredFrom?: { no: string; service: string } | null;
+  transferNote?: string | null;
 };
+export type TransferTarget = { queue_id: string; service_name: string; waiting: number };
 export type LineDone = {
   id: string; no: string; name: string; at: string; minutes: number;
   /* 'incomplete' is a visit that happened and did not achieve what the person
@@ -104,11 +127,26 @@ export type LineTabData = {
      check always passed. Each of these writes the ticket status through
      PUT /tickets/:id/status. */
   onCall?: (ticketId: string) => Promise<void> | void;
+  /** Other lines at this branch with people waiting, offered when the clerk's
+   *  own line is empty and the branch allows overflow. */
+  overflowLines?: Array<{ id: string; name: string; waiting: number }>;
+  /** The line the clerk is helping, or null when they are on their own. */
+  helpingLine?: string | null;
+  onHelpLine?: (queueId: string) => void;
+  onBackToMyLine?: () => void;
   /** Starts the service. The code goes to the SERVER, which is what checks it. */
   onStartServing?: (ticketId: string, code: string) => Promise<void> | void;
   onComplete?: (ticketId: string, outcome?: 'ready' | 'incomplete', note?: string, closedReason?: string) => Promise<void> | void;
   onNoShow?: (ticketId: string) => Promise<void> | void;
   onCallAgain?: (ticketId: string) => Promise<void> | void;
+  /** Put a waiting patient anywhere in the line ('top', 'bottom' or a place). */
+  onMove?: (ticketId: string, to: 'top' | 'bottom' | number) => Promise<void> | void;
+  /** Lines at this branch the person being served can be sent to. */
+  onLoadTransferTargets?: (ticketId: string) => Promise<TransferTarget[]>;
+  /** Send the person being served to another line, placed by when they arrived. */
+  onTransfer?: (ticketId: string, queueId: string, note: string) => Promise<{ no: string; service: string; place: number }>;
+  /** Set or clear the possibly-urgent tag (e.g. for a walk-in). */
+  onSetTriageFlag?: (ticketId: string, flag: 'none' | 'possibly_urgent') => Promise<void> | void;
   /** How many times the person at the window has been called. */
   callCount?: number;
 };
@@ -117,8 +155,11 @@ export type LineTabData = {
 const FX_QUEUE: LineTicket[] = [
   { id: 't1', no: 'TRN-014', name: 'Kemar Lewis', waited: 6, state: 'called' },
   { id: 't2', no: 'TRN-015', name: 'Marcia Grant', waited: 12, state: 'waiting' },
-  { id: 't3', no: 'TRN-016', name: 'Andre Blake', waited: 18, state: 'waiting' },
-  { id: 't4', no: 'TRN-017', name: 'Simone Clarke', waited: 24, state: 'waiting' },
+  { id: 't3', no: 'TRN-016', name: 'Andre Blake', waited: 18, state: 'waiting', triageFlag: 'possibly_urgent',
+    triageAnswers: [{ question_id: 'x1', question: 'Have you hit your head in the last 24 hours?', red_flag: true, answer: true },
+      { question_id: 'x2', question: 'Did you pass out or lose consciousness?', red_flag: true, answer: false }] },
+  { id: 't4', no: 'TRN-017', name: 'Simone Clarke', waited: 24, state: 'waiting', patientFlags: ['priority'],
+    flagNote: 'Sickle cell disease. See promptly for pain crises per care plan.', frequentVisitor: true, visits7d: 3 },
   { id: 't5', no: 'TRN-018', name: 'Devon Hall', waited: 29, state: 'waiting' },
   { id: 't6', no: 'TRN-012', name: 'Patricia Reid', waited: 41, state: 'noresponse' },
 ];
@@ -180,7 +221,20 @@ const useLine = () => useContext(LineCtx);
    column. A clerk glancing up should know how this person reached them without
    reading a table: somebody who joined from home has been travelling, somebody
    a clerk typed in is standing there already. */
-function joinedPill(t: { channel?: string | null }) {
+/** "10:30" from the slot the API stored. */
+function appointmentClock(at?: string | null) {
+  if (!at) return null;
+  /* The API sends an instant (UTC on the wire); the branch's clock is the
+     desk's own, so format it locally rather than slicing the text. */
+  const d = new Date(at);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function joinedPill(t: { channel?: string | null; appointmentAt?: string | null }) {
+  /* Why this person is ahead of people who arrived earlier. Without it, a clerk
+     sees a ticket that jumped the line and has no answer for the room. */
+  const slot = appointmentClock(t.appointmentAt);
+  if (slot) return `Appointment at ${slot} · checked in`;
   const c = String(t.channel || '');
   if (c === 'app') return 'Joined from the Lyne app';
   if (c === 'kiosk') return 'Added at the kiosk';
@@ -211,6 +265,34 @@ const INCOMPLETE_REASONS: { value: string; label: string }[] = [
   { value: 'system_issue', label: 'System or payment problem' },
 ];
 
+/* What each reason looks like on the desk: an icon to find it by and one line
+   saying when it applies, so a clerk picks the right card at a glance instead
+   of reading a dropdown. Keyed by value, so both lists share them. */
+const REASON_LOOK: Record<string, { icon: typeof Clock; hint: string }> = {
+  day_ended:          { icon: Clock,          hint: 'Closing time came before it could be finished' },
+  wrong_documents:    { icon: FileWarning,    hint: 'Missing ID, proof of address, a form or a letter' },
+  wrong_service:      { icon: Shuffle,        hint: 'They were in the wrong line for what they need' },
+  referred_elsewhere: { icon: ArrowLeftRight, hint: 'Sent on to somewhere better placed to help' },
+  customer_left:      { icon: DoorOpen,       hint: 'Walked away before the visit was finished' },
+  left_before_seen:   { icon: DoorOpen,       hint: 'Walked away before the visit was finished' },
+  system_issue:       { icon: WifiOff,        hint: 'Our system, a payment or the network failed' },
+  needs_test_first:   { icon: FileWarning,    hint: 'A test or scan has to happen before this visit' },
+  rescheduled:        { icon: Clock,          hint: 'Booked to come back another time' },
+};
+
+/* A hospital's reasons a visit ends without the thing the patient came for.
+   Admission and transfer are deliberately absent: they are completed visits. */
+const HEALTHCARE_INCOMPLETE_REASONS: { value: string; label: string }[] = [
+  { value: 'needs_test_first', label: 'Needs a test or imaging first' },
+  { value: 'wrong_documents', label: 'Missing order, referral or paperwork' },
+  { value: 'referred_elsewhere', label: 'Referred to another department or provider' },
+  { value: 'wrong_service', label: 'Needed a different department' },
+  { value: 'rescheduled', label: 'Visit rescheduled' },
+  { value: 'left_before_seen', label: 'Left before seeing a clinician' },
+  { value: 'day_ended', label: 'Department closed for the day' },
+  { value: 'system_issue', label: 'System problem' },
+];
+
 const OUTCOME: Record<LineDone['outcome'], { label: string; kind: 'open' | 'busy' | 'soon' | 'closed' }> = {
   served: { label: 'Served', kind: 'open' },
   incomplete: { label: 'Incomplete', kind: 'soon' },
@@ -228,6 +310,9 @@ const REASON_LABEL: Record<string, string> = {
   referred_elsewhere: 'referred elsewhere',
   customer_left: 'left part-way',
   system_issue: 'system problem',
+  needs_test_first: 'needs a test first',
+  rescheduled: 'rescheduled',
+  left_before_seen: 'left before seen',
 };
 
 /* ══════════════════════ LIVE LINE (overview) ══════════════════════ */
@@ -355,6 +440,11 @@ export function LineOverviewQX() {
   const [endingIncomplete, setEndingIncomplete] = useState(false);
   const [incompleteReason, setIncompleteReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  /* Transfer: null = panel closed; [] while the lines load. */
+  const [transferLines, setTransferLines] = useState<TransferTarget[] | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [transferDone, setTransferDone] = useState<string | null>(null);
 
   // Whoever the DATABASE says is at this window. Serving outranks called: if a
   // service is under way that is who is in front of you.
@@ -385,12 +475,16 @@ export function LineOverviewQX() {
   useEffect(() => {
     setCode(['', '', '', '', '', '']); setCodeState('idle'); setCodeError(null);
     setReadinessChoice(null); setReadinessNote(''); setReadinessError(null);
+    setTransferLines(null); setTransferTo(''); setTransferNote('');
   }, [activeId]);
 
   const waiting = d.queue.filter((t) => t.state === 'waiting' && t.id !== activeId);
   const noAnswer = d.queue.filter((t) => t.state === 'noresponse');
   const active = activeTicket;
-  const next = [...waiting].sort((a, b) => b.waited - a.waited)[0] || null;
+  /* The top of the line, in the order the server holds it. This used to be
+     whoever had waited longest, which ignored any reordering: a patient staff
+     had moved to the top would still not be called next. */
+  const next = waiting[0] || null;
   const calls = d.callCount ?? 1;
 
   /**
@@ -448,6 +542,34 @@ export function LineOverviewQX() {
       setIncompleteReason('');
     });
   };
+
+  /* Transfer is a handover, not an ending: the person goes to another line here
+     with a new ticket in that line's numbering, placed by when they first
+     arrived — never at the back. The desk is then free for the next person. */
+  const openTransfer = () => {
+    if (!activeId) return;
+    if (transferLines) { setTransferLines(null); return; }
+    setEndingIncomplete(false);
+    setTransferLines([]); setTransferTo(''); setTransferNote('');
+    run(async () => {
+      const lines = (await d.onLoadTransferTargets?.(activeId)) || [];
+      setTransferLines(lines);
+      if (!lines.length) setActionError('There are no other open lines at this branch to send them to.');
+    });
+  };
+  const transfer = () => {
+    if (!activeId || !transferTo) return;
+    run(async () => {
+      const moved = await d.onTransfer?.(activeId, transferTo, transferNote.trim());
+      setTransferLines(null); setTransferTo(''); setTransferNote('');
+      if (moved) setTransferDone(`Sent to ${moved.service} as ${moved.no} · place ${moved.place} by arrival time`);
+    });
+  };
+  useEffect(() => {
+    if (!transferDone) return undefined;
+    const t = setTimeout(() => setTransferDone(null), 8000);
+    return () => clearTimeout(t);
+  }, [transferDone]);
 
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;
@@ -594,11 +716,17 @@ export function LineOverviewQX() {
               {stage === 'serving' ? (
                 <span className="ql-tag ok"><Check size={13} />Code verified</span>
               ) : null}
+              {active.transferredFrom ? (
+                <span className="ql-tag"><ArrowLeftRight size={13} />From {active.transferredFrom.service} · {active.transferredFrom.no}</span>
+              ) : null}
               {stage === 'called' && calls > 1 ? (
                 <span className="ql-tag warn"><PhoneOff size={13} />Called {calls} times</span>
               ) : null}
             </div>
 
+            {active.transferNote ? (
+              <div className="ql-handover"><b>Handover note</b>{active.transferNote}</div>
+            ) : null}
             <div className="ql-meta">
               <span><Users size={14} />Waited {active.waited} min in line</span>
               <span><Clock size={14} />{deskLabel(d.counter, d.serviceName)}</span>
@@ -741,8 +869,8 @@ export function LineOverviewQX() {
                 <label htmlFor="readiness-note">What was missing or not prepared?</label>
                 <textarea id="readiness-note" maxLength={255} value={readinessNote}
                   onChange={(e) => { setReadinessNote(e.target.value); setReadinessError(null); }}
-                  placeholder="e.g. Proof of address was older than three months" />
-                <small>{readinessNote.length}/255 · Do not enter account balances or sensitive financial details.</small>
+                  placeholder={sectorExamples(terms.sector).missingPlaceholder} />
+                <small>{readinessNote.length}/255 · {sectorExamples(terms.sector).sensitiveWarning}</small>
               </div>
             ) : null}
             {readinessError ? <div className="ql-verifymsg bad">{readinessError}</div> : null}
@@ -816,6 +944,27 @@ export function LineOverviewQX() {
           </div>
         ) : null}
 
+        {d.helpingLine ? (
+          <div className="ql-overflow helping" role="status">
+            <div><b>Helping {d.helpingLine}</b><small>You are calling from this line because yours was empty.</small></div>
+            <button type="button" className="ql-btn" onClick={() => d.onBackToMyLine?.()} disabled={stage !== 'idle'}
+              title={stage !== 'idle' ? 'Finish the person at your window first' : undefined}>
+              Back To My Line
+            </button>
+          </div>
+        ) : stage === 'idle' && !next && d.overflowLines?.length ? (
+          <div className="ql-overflow" role="region" aria-label="Help another line">
+            <div><b>Your Line Is Empty</b><small>Your branch lets free windows call from any line. These have people waiting:</small></div>
+            <div className="ql-overflow-lines">
+              {d.overflowLines.map((l) => (
+                <button key={l.id} type="button" className="ql-btn" onClick={() => d.onHelpLine?.(l.id)}>
+                  <Users size={16} />{l.name}<span className="ql-overflow-n">{l.waiting} waiting</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="ql-acts">
           {stage === 'idle' ? (
             <>
@@ -869,10 +1018,16 @@ export function LineOverviewQX() {
               </button>
               {/* Second, quieter, and never the default. Most visits finish. */}
               <button type="button" className="ql-btn" disabled={busy}
-                onClick={() => { setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
+                onClick={() => { setTransferLines(null); setEndingIncomplete((v) => !v); setIncompleteReason(''); }}
                 aria-expanded={endingIncomplete}>
                 <AlertTriangle size={17} />Mark As Incomplete
               </button>
+              {d.onTransfer ? (
+                <button type="button" className="ql-btn" disabled={busy} onClick={openTransfer}
+                  aria-expanded={Boolean(transferLines)}>
+                  <ArrowLeftRight size={17} />Transfer
+                </button>
+              ) : null}
               {/* Hold means "pause my line", and it only exists now that a break
                   is a real state. It finishes with the person in front of you
                   first — you are not walking away mid-conversation. */}
@@ -881,20 +1036,8 @@ export function LineOverviewQX() {
                 onClick={() => run(() => d.onBreakStart?.())}>
                 <Pause size={17} />Hold
               </button>
-              {/* Transfer and Requeue used to sit here, and BOTH were wired to
-                  `finish` — the Complete action. Three buttons, three labels,
-                  one behaviour: pressing Transfer silently closed the visit as
-                  served and called the next person, and the clerk had no way to
-                  know the customer they meant to move had just been marked
-                  served instead.
-                  Neither can be wired correctly yet. There is no transfer
-                  endpoint at all, and /skip only accepts a ticket that is still
-                  `waiting` — not one already in service — so requeueing from
-                  the counter has nothing to call either. A control that quietly
-                  does something else is worse than one that is not there, so
-                  they are gone until there is something real behind them.
-                  The FAQ at the top of this file still describes Transfer; that
-                  copy is the promise this needs to be built to keep. */}
+              {/* Requeue is still absent: /skip only accepts a waiting ticket,
+                  so requeueing from the counter has nothing real to call. */}
             </>
           ) : null}
         </div>
@@ -902,32 +1045,100 @@ export function LineOverviewQX() {
         {/* The reason, revealed only when asked for. A permanent dropdown beside
             Complete would invite a clerk to fill it in on visits that finished
             perfectly well. */}
+        {stage === 'serving' && transferLines ? (
+          <div className="ql-incomplete ql-transfer">
+            <div className="ql-incomplete-head">
+              <span className="ql-incomplete-badge"><ArrowLeftRight size={16} /></span>
+              <div>
+                <b id="transfer-title">Send {active?.name || 'them'} to another line</b>
+                <small>They get that line’s next ticket number and are placed by the time they first arrived, not at the back. Their phone follows them.</small>
+              </div>
+            </div>
+            <div className="ql-reasons" role="radiogroup" aria-labelledby="transfer-title">
+              {transferLines.length === 0 && busy ? <small style={{ opacity: .7 }}>Loading lines…</small> : null}
+              {transferLines.map((l) => {
+                const on = transferTo === l.queue_id;
+                return (
+                  <button key={l.queue_id} type="button" role="radio" aria-checked={on}
+                    className={on ? 'on' : ''} disabled={busy} onClick={() => setTransferTo(l.queue_id)}>
+                    <span className="ic"><ArrowLeftRight size={16} /></span>
+                    <span className="tx">
+                      <b>{l.service_name}</b>
+                      <small>{l.waiting === 0 ? 'Nobody waiting' : `${l.waiting} waiting`}</small>
+                    </span>
+                    <span className="tick">{on ? <Check size={14} /> : null}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <label className="ql-readynote" style={{ marginTop: 12 }}>
+              <textarea rows={2} maxLength={200} value={transferNote} disabled={busy}
+                placeholder="Handover note for the next desk (optional), e.g. Chest X-ray, left side"
+                onChange={(e) => setTransferNote(e.target.value)} />
+              <small>Only staff see this note. It is never sent to the {lower(terms.visitor.one)}.</small>
+            </label>
+            <div className="ql-incomplete-acts">
+              <button type="button" className="ql-btn primary" style={{ flex: '1 1 240px' }} onClick={transfer}
+                disabled={!transferTo || busy}>
+                {busy ? 'Sending…' : 'Transfer & Free My Window'}
+              </button>
+              <button type="button" className="ql-btn" disabled={busy}
+                onClick={() => { setTransferLines(null); setTransferTo(''); setTransferNote(''); }}>
+                Keep Serving
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {transferDone ? (
+          <div className="ql-handover" role="status" style={{ marginTop: 12 }}><b>Transferred</b>{transferDone}</div>
+        ) : null}
+
         {stage === 'serving' && endingIncomplete ? (
-          <div className="ql-readiness" role="group" aria-label="Mark this visit as incomplete">
-            <label htmlFor="incomplete-reason">Why is this visit incomplete?</label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-              <span className="qx-select">
-                <select id="incomplete-reason" value={incompleteReason}
-                  onChange={(e) => setIncompleteReason(e.target.value)}>
-                  <option value="">Choose a reason…</option>
-                  {INCOMPLETE_REASONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-                <ChevronDown />
-              </span>
-              <button type="button" className="ql-btn danger" onClick={endIncomplete}
+          <div className="ql-incomplete">
+            <div className="ql-incomplete-head">
+              <span className="ql-incomplete-badge"><AlertTriangle size={16} /></span>
+              <div>
+                <b id="incomplete-title">Why couldn’t this visit be finished?</b>
+                <small>Pick the closest reason. It goes to your manager’s report, never to the {lower(terms.visitor.one)}.</small>
+              </div>
+            </div>
+            <div className="ql-reasons" role="radiogroup" aria-labelledby="incomplete-title">
+              {(terms.sector === 'healthcare' ? HEALTHCARE_INCOMPLETE_REASONS : INCOMPLETE_REASONS).map((r) => {
+                const look = REASON_LOOK[r.value] || { icon: AlertTriangle, hint: '' };
+                const ReasonIcon = look.icon;
+                const on = incompleteReason === r.value;
+                /* The organisation's own words: a bank's client was referred to
+                   another branch, not "customer" and "office". */
+                const label = r.label
+                  .replace('Customer', terms.visitor.one)
+                  .replace('another office', `another ${lower(terms.location.one)}`);
+                return (
+                  <button key={r.value} type="button" role="radio" aria-checked={on}
+                    className={on ? 'on' : ''} disabled={busy}
+                    onClick={() => setIncompleteReason(r.value)}>
+                    <span className="ic"><ReasonIcon size={17} /></span>
+                    <span className="tx">
+                      <b>{label}</b>
+                      {look.hint ? <small>{look.hint}</small> : null}
+                    </span>
+                    <span className="tick">{on ? <Check size={14} /> : null}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ql-incomplete-acts">
+              <button type="button" className="ql-btn danger strong" onClick={endIncomplete}
                 disabled={!incompleteReason || busy}>
-                {busy ? 'Saving…' : 'Mark Visit As Incomplete'}
+                {busy ? 'Saving…' : 'End Visit As Incomplete'}
               </button>
               <button type="button" className="ql-btn" disabled={busy}
                 onClick={() => { setEndingIncomplete(false); setIncompleteReason(''); }}>
-                Cancel
+                Keep Serving
               </button>
             </div>
-            <small>
-              The visit still counts as time spent at your desk. It is recorded as
-              not having achieved what the person came for.
+            <small className="ql-incomplete-foot">
+              The time at your desk still counts. The visit is recorded as not having
+              done what the {lower(terms.visitor.one)} came for, so it can be fixed for next time.
             </small>
           </div>
         ) : null}
@@ -944,15 +1155,21 @@ export function LineOverviewQX() {
         title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Line'}<span className="qx-count">{list.length}</span></>}
         cap={view === 'noanswer'
           ? 'They can be called back without taking a new ticket'
-          : 'Longest wait first — the order they will be called in'}
+          : 'The order they will be called in. Drag to move someone; tap for details'}
         tools={<>
           <Seg value={view} onChange={setView}
             options={[['line', `Waiting (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
+        {view === 'line' && !q ? (
+          <PatientLine items={list} canAct={stage === 'idle'} busy={busy}
+            onCall={(id) => run(() => d.onCall?.(id))}
+            onMove={d.onMove ? (id, to) => run(() => d.onMove?.(id, to)) : undefined}
+            onSetTriageFlag={d.onSetTriageFlag ? (id, f) => run(() => d.onSetTriageFlag?.(id, f)) : undefined} />
+        ) : (
         <div>
           <Table grid={LQ_GRID} columns={['Ticket', 'Joined', 'Channel', 'Waited', '']}
-            items={[...list].sort((a, b) => b.waited - a.waited)}
+            items={view === 'noanswer' ? [...list].sort((a, b) => b.waited - a.waited) : list}
             empty={view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
             renderRow={(t) => (
               <Row key={t.id} grid={LQ_GRID}>
@@ -965,6 +1182,8 @@ export function LineOverviewQX() {
                       {/* A second call is a different situation from a first,
                           and the row is where a clerk decides who to try. */}
                       {(t.callCount || 0) > 1 ? ` · called ${t.callCount}×` : ''}
+                      {appointmentClock(t.appointmentAt) ? ` · appointment ${appointmentClock(t.appointmentAt)}` : ''}
+                      {t.transferredFrom ? ` · from ${t.transferredFrom.service} (${t.transferredFrom.no})` : ''}
                     </small>
                   </div>
                 </div>
@@ -987,6 +1206,7 @@ export function LineOverviewQX() {
               </Row>
             )} />
         </div>
+        )}
       </Card>
     </div>
   );
@@ -1034,20 +1254,20 @@ export function LineTicketsTab() {
         title={<>{view === 'noanswer' ? 'Did Not Answer' : 'Your Active Tickets'}<span className="qx-count">{list.length}</span></>}
         cap={view === 'noanswer'
           ? 'They kept their place — calling them back does not need a new ticket'
-          : 'Longest wait first, which is the order they will be called in'}
+          : 'In the order they will be called'}
         tools={<>
           <Seg value={view} onChange={setView}
             options={[['line', `In Line (${waiting.length})`], ['noanswer', `No Answer (${noAnswer.length})`]]} />
           <InlineSearch value={q} onChange={setQ} placeholder="Search Ticket Or Name…" />
         </>}>
         <Table grid={LTK_GRID} columns={['Ticket', 'Waiting', 'Status', 'Joined']}
-          items={[...list].sort((a, b) => b.waited - a.waited)}
+          items={view === 'noanswer' ? [...list].sort((a, b) => b.waited - a.waited) : list}
           empty={q ? `Nothing matches “${q}”.` : view === 'noanswer' ? 'Nobody has missed their call.' : 'Your line is empty.'}
           renderRow={(t) => (
             <Row key={t.id} grid={LTK_GRID}>
               <div className="qx-cellmain">
                 <span className="qx-av" style={avatarStyle(t.name)}>{initials(t.name)}</span>
-                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small></div>
+                <div style={{ minWidth: 0 }}><b>{t.no}</b><small>{t.name}</small><PatientTags t={t} /></div>
               </div>
               <div className="qx-num" style={{ color: t.waited > 25 ? 'var(--c-bad)' : undefined }}>
                 {t.waited}<u> min</u>

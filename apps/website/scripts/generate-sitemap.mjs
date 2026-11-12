@@ -26,6 +26,7 @@ const ROUTES = [
   /* Indexed: the person who needs it is an IT officer at a branch who was sent
      a link, lost it, and will search for "lyne admin download". */
   { path: '/download', priority: '0.6', changefreq: 'monthly' },
+  { path: '/get-the-app', priority: '0.8', changefreq: 'monthly' },
   { path: '/privacy',  priority: '0.3', changefreq: 'yearly'  },
   { path: '/cookies',  priority: '0.3', changefreq: 'yearly'  },
   /* Indexed because somebody looking for "how do I cancel Lyne" should find

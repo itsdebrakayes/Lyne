@@ -83,7 +83,7 @@ feature work ──► staging ──(merge when tested)──► production   (
 **Rules** (also in `CLAUDE.md`, which AI coding agents read before committing)
 
 - Never commit to `production` or `demo` directly. If an emergency fix has to go to `production` first, merge it back into `staging` the same day.
-- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md` or `apps/backend/scripts/sync-demo-test-accounts.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
+- `production` must never contain `database/demo_*.sql`, `database/seed.sql`, `docker-compose.demo.yml`, `scripts/demo-*.sh`, `README.demo.md`, `apps/backend/scripts/sync-demo-test-accounts.js` or `apps/backend/scripts/seed-demo-healthcare.js`. These ship on `staging` and `demo` only. Because they are absent from `production` and untouched on `staging`, an ordinary merge keeps them out. If a merge ever brings one in, delete it in the merge commit.
 - Do not create real-agency data anywhere public. The demo agencies are named after real Jamaican government bodies (TAJ, PICA, NHT) with whom there is no agreement. They live only on the private demo server and must never reach production or a store reviewer (App Store 5.2.1, Play impersonation policy).
 - Old branches are not deleted outright. They are kept as tags named `archive/<branch>`. The tree as it was before the October 2026 clean-up is tagged `archive/pre-cleanup-2026-10-13`.
 
@@ -128,11 +128,19 @@ Never committed: `.env` files, `secrets/`, `*.p8`, `*.p12`, keystores, `backups/
 Expo / React Native. Bundle id and package are both **`com.lyne.mobile`**, URL scheme `lyne`. These are permanent once published.
 
 - Browse participating organisations, branches and services; see the live wait before going.
+- Home and Search (before anything is typed) recommend only places within reach, nearest first: the phone's country, and a distance sized to it (about 50 miles in Jamaica, 200 miles by default; `apps/mobile/src/lib/nearbyRule.ts`). Search before typing lists the whole country, nearest first; a typed name searches everywhere. With nothing in reach, Home falls back to the whole country, then to everything, and says so in the heading. A line or ticket uses its organisation's words (`lib/placeWords.ts`): a hospital patient is "being seen", not "at the counter".
 - Join a line remotely, get a numbered ticket, watch position and estimated wait, get notified when called.
 - **Lyne Helper**: recommends good times to visit, can join a line on the customer's behalf, or watch a recommended window and join automatically. "Let people pass if I'm late" gives the place to whoever is behind, up to three turns.
 - Plan your visit, busy-times heatmap, week planner (driven by the model worker).
 - Live Activities on iOS (lock screen and Dynamic Island).
 - Account deletion in Settings (type `DELETE` to confirm). Required by both stores.
+- **Sign-up asks people to accept** the Terms of Use and Privacy Policy (a required checkbox; both open in the app before an account exists). The acceptance is kept on the Supabase account as `terms_accepted_at` and `terms_version` (`TERMS_VERSION` in `lib/legalContent.ts`; change it whenever the wording changes). Apple and Google sign-in carry a line saying continuing means agreeing.
+- **Account** (tap the name card in Settings): a profile header, then Personal details, Sign-in and security (including Sign out of all devices) and Your data (Download my data). Settings, Account and Privacy share `components/SettingsGroup.tsx`. Name changes at once; email changes only after a 6-digit code to the new address (and the current one when Supabase's Secure Email Change is on; the Change Email Address template must carry `{{ .Token }}`); password changes with the current password or an emailed code, then every other device is signed out. Sign-in with an unconfirmed email sends a fresh code and opens the code screen.
+- **Signing out stops notifications**: the phone's push token is removed (`POST /api/notifications/unregister-device`, no sign-in needed; retried on next launch if offline), and reminders scheduled on the phone, the live-ticket notification and the badge are cleared. Signing in moves the phone's token to the new account at once (when notifications are already allowed), so only that account's alerts arrive. Sign out of all devices (`/api/auth/signout-everywhere`) ends every Supabase session and removes every token.
+- **Download my data** (Account, and Privacy and security): `/api/auth/export` as a JSON file through the share sheet. Documents are not in it because they never leave the phone.
+- **Update notice**: on launch the app reads `/api/app/version`. Older than `APP_*_LATEST`: a card above the tab bar with the app icon, the version, `APP_*_NOTES` (one line on what is new, optional) and Update / Not now; it fades on its own. Older than `APP_*_MINIMUM`: a full screen with one Update button, kept for versions that truly no longer work. A store without `APP_*_URL` gets none. Raise these in `/srv/lyne/.env` after each release goes live.
+- **Rate Lyne** in Settings > Support: the store's own rating sheet, or the store page.
+- The Notifications screen says when notifications are off and opens the phone's Settings.
 - Free in version 1; the premium screens exist but `PAYMENTS_ENABLED` is false and everyone has every feature.
 
 Builds are made with EAS ([§17](#17-mobile-releases-app-store-and-google-play)).
@@ -145,14 +153,18 @@ Role dashboards:
 
 | Role | Scope |
 |---|---|
-| `line_staff` | Their counter: call, verify by code, serve, skip / no-show |
-| `supervisor` | A section of a branch; reassign staff between counters |
+| `line_staff` | Their counter: call, verify by code, serve, transfer, skip / no-show |
+| `supervisor` | A section of a branch (migration 043: `branch_sections`, `staff.section_id`): only that section's lines, staff, counters, clients and patterns. Without a section, the whole branch. Can close and reopen session registration, register walk-ups at the door, and end a session's day |
 | `manager` | One branch: open/close queues, assign counters, branch analytics and targets |
 | `executive` | The whole organisation: analytics, targets, trends, reports |
 | `kiosk_clerk` | Walk-in intake only; issues `channel='kiosk'` tickets for people without the app |
 | `platform_admin` | Lyne staff only; can create organisations (no UI yet; done via API/SQL) |
 
+**Transfers between lines** (migration 049). While serving someone, the desk can press **Transfer** and send them to any other open line at the same branch (triage to radiology, assessment to cashier), with an optional handover note that only staff see. `POST /api/tickets/:id/transfer` closes the old ticket as `served` with `closed_reason = 'transferred'` (counted as a finished visit everywhere, never as incomplete) and opens a new ticket in the new line's own numbering (`RAD-004`), linked both ways (`transferred_from_ticket_id` / `transferred_to_ticket_id`). The new ticket is placed by `journey_started_at`, when the person first arrived, which is carried across every hop: they go in front of the first waiting person who arrived after them, never to the back. A person can be transferred any number of times. The waiting row and the desk show "From Triage · TRI-012" and the note; the patient's phone follows to the new ticket, says where it came from, and restarts the lock-screen ticket with the new number. `GET /api/tickets/:id/transfer-targets` lists the lines it can go to. The branch report's journeys chapter counts transfers and their from-to paths, and notes how many arrivals came by transfer (the receiving line counts the person again).
+
 A manager can switch Line Helper off for their branch (Settings → "Let Lyne Hold A Place For Customers"). The change is audit-logged.
+
+**Sessions** (Sessions tab, managers and executives) are announced, capped windows people register for and check in to; checking in creates an ordinary ticket. A session can require an approved list (migration 029). People on it can also hold an **appointment time** (migration 042), carried in the list import or typed by staff at the door; members of the public cannot set their own. Check-in opens 15 minutes before the time and the slot is held 10 minutes after (both per session). An on-time check-in goes ahead of walk-ins and behind earlier appointments; an early one is told when check-in opens; a late one joins in the usual order. The rule is `apps/backend/src/utils/appointments.js`. Supervisors, managers and executives open and close registration (Sessions → Registration); line staff check people in from **Bookings & Check-In**, and the kiosk iPad asks first, after Touch To Begin, whether the person has an appointment or booking or wants to join a line, both by code alone (`POST /sessions/check-in-by-code` finds the booking among today's sessions at that branch). Supervisors and managers can also register people at the door (executives cannot: they are not in the branch); supervisors, managers and executives can end the day, which records everyone who never arrived as a no-show. In the mobile app, Home shows the bookings a signed-in person holds, with **Check In** on the day; an organisation's page lists its upcoming sessions (**Book & check in**, shown only when there is one); the session screen (`screens/main/SessionScreen.tsx`) lets a client hold a place (with their list reference where one is required), see their code and appointment time, and check themselves in on the day, including with a code staff gave them. A ticket from a self check-in belongs to the signed-in account. There is still no public web page for this.
 
 ### API — `apps/backend`
 
@@ -166,7 +178,7 @@ A Python container that runs six models on boot and every two hours and writes t
 
 ### Website — `apps/website`
 
-The public marketing site: product information, the organisation quote estimator (`src/pages/JoinUs.tsx` and `src/pages/mobile/MobileJoinUs.tsx`), app-store links, and the legal pages. It never touches customer data. Hosted on GoDaddy ([§19](#19-website)).
+The public marketing site: product information, the organisation quote estimator (`src/lib/pricing.ts`), the Get the app page, and the legal pages. It never touches customer data. Hosted on GoDaddy ([§19](#19-website)).
 
 ---
 
@@ -234,6 +246,7 @@ Production values go in `/srv/lyne/.env`, created from `deploy/env.production.ex
 | iOS Live Activities | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the `.p8` on one line, `\n` for newlines), `APNS_ENV` | Use key `6H44RYBAX3`, the push key. `549M7577B2` is the Sign in with Apple key and cannot send pushes. |
 | In-app purchases | `APPSTORE_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT`, `PLAY_PACKAGE_NAME` | Unused in version 1 |
 | App Review simulator | `REVIEW_SIMULATOR`, `REVIEW_BUSINESS_ID`, `REVIEW_ACCOUNT_EMAIL` | See [§17](#17-mobile-releases-app-store-and-google-play) |
+| Public listing | `LISTED_SECTORS` | Empty (production) lists every sector. The demo overlay sets `healthcare` so the demo shows only the hospital system. |
 
 Never set in production: `NODE_ENV` (the compose file sets it; in `.env` it breaks the admin build), `ALLOW_DEMO_DATA_REFRESH`, `STAFF_TEST_VERIFICATION_CODE`.
 
@@ -242,6 +255,22 @@ Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXP
 ---
 
 ## 8. Database
+
+**Targets** are set by the executive for the company and refined by a manager for their branch. Every save needs a reason, and each metric that moved is written to `target_changes` (migration 044) with its old and new value; both Targets tabs show that change history (`GET /targets/history`).
+
+**Reports** (Reports tab, managers and executives; `dashboard/reportDoc.ts`) are written as a study, not a printout: introduction, methodology with sample sizes, numbered figures each with a "what this shows" paragraph and an analysis, observations, a final analysis with reasoned recommendations, limitations and appendices. Every sentence is generated from the period's figures; charts are table cells so Word keeps them.
+
+**Operating records** (migration 045). National holidays close a branch by themselves (dates as observed, in `public_holidays`, to 2030; health organisations are exempt), and a manager or executive can choose Stay Open in Settings (`holiday_openings`). `branch_closures`: a manager closes their branch, or an executive any branch or all of them, for a run of days, as a closure or an outage, with a reason (Settings). Joining, kiosk tickets, check-in, registering and clocking in are refused (managers and executives may still clock in), the app shows the reason and the expected reopening, anyone waiting is taken off the line and told, staff get a bell message and booked clients a notification. `counter_sittings`: clocking in opens a counter, clocking out or a break closes it, and a supervisor's move shifts the person at once, with a bell message; the desk updates within 15 seconds. A counter's open time is the union of its sittings, so someone picking it up keeps it open. A shift nobody clocked out of is ended at closing time and marked `auto_closed`. Sessions record `started_at` (first check-in) and `ended_at`; ending early needs a reason. Moving a booking is status `rescheduled`, and the next booking links back through `rescheduled_from_id`.
+
+**Case watching** (migration 047). A supervisor can take a client's case, a branch manager or executive can assign one, and the watcher or a manager can transfer it or let it go (`/api/case-watch`, `case_watches`). One watcher at a time; the history stays, and the new supervisor gets a bell message. The watcher hears (`utils/caseAlerts.js`) when the client joins a line, however the visit ends, and when a flag changes. A flagged client with no watcher goes to the branch's supervisors when they join. Staff bell only, never the client. Cases have no due date and are not reopened. The report's Client Cases chapter counts cases watched, taken on and transferred.
+
+**Text messages** (migration 048). Twilio, behind `apps/backend/src/utils/smsSender.js`: nothing sends unless `SMS_ENABLED=true`, a message over one 160-character segment is refused, each number is limited per hour and the system per day (`SMS_PER_NUMBER_PER_HOUR`, `SMS_DAILY_CAP`), and `sms_log` keeps a hash of the number, never the number. Only someone who said yes is texted: the kiosk's Text Me (`notify_consent_at` on the ticket), registering with consent, or the app's Text Alerts card, and only at a branch whose manager switched on Text When Called. Texts come from the name "Lyne" and cannot take replies, so STOP does not work: accounts stop in the app, and everyone else through `uselyne.com/stop/<code>` in the text (`sms_opt_outs`, by number). The sender is Jamaica only. Sign-up is by email only. A signed-in person verifies a number by text in the Text Alerts card, through Supabase (`updateUser({ phone })` then `verifyOtp` with type `phone_change`, never `signInWithOtp`), whose Phone provider uses Twilio Verify; that service is set in Supabase, not in Lyne's `.env`. Supabase's before-user-created hook (`supabase/migrations/20261106000000_block_phone_only_signup.sql`) refuses any sign-up without an email.
+
+**Branch reports.** `docs/reports/BRANCH_REPORT_REQUIREMENTS.md` is the owner's specification, and anything that writes a report works to it. The manager's Reports tab offers 7, 30 and 90-day editions, ending yesterday. `GET /analytics/branch-report` computes the evidence from one row per visit (`apps/backend/src/utils/branchReport.js`, pure and tested) and `apps/admin-desktop/src/dashboard/branchReportDoc.ts` writes the document from it. `electron/reportPdf.js` prints each chapter alone to count its pages, fills in the contents, then prints the whole with page numbers; Word numbers its own pages. Where Lyne does not record something (a case's owner, a session's actual start, outages as events) the report says so rather than estimating. The executive's company report is still the older format.
+
+**Showcase organisations** (`database/showcase/`): Lignum Bank and Wrenfield Health, fictional examples that sit in the live app beside Blue Harbour so prospects can see a bank and a hospital. Each file holds only the organisation (branches, services, what-to-bring lists, triage questions, counters, targets, and Lignum's next four Saturday Bankings): no logins, staff, people or visits, and nothing outside its own ids. Lignum and Wrenfield also have invented history on the owner's say-so, so they can be demonstrated on production: `apps/backend/scripts/seed-showcase-history.js` prints the SQL for Lignum's 90 days of nameless walk-in visits (ids `lgbv-`) and 20 fictional staff rows with no login (ids `stf-lgb-`); `seed-showcase-history-wrenfield.js` does the same for Wrenfield's three hospitals (ids `wfv-`, staff `stf-wfh-`, every day of the week, with transfers between departments). It connects to nothing, rerunning replaces its own rows, and today is left alone. Run it again the day before a demo to bring the history up to yesterday, then rebuild Lignum's daily rollup. They are not demo seeds and may run on production, on the owner's say-so. The App Review simulator keeps their lines open and moving when their ids are in `REVIEW_SHOWCASE_IDS`; that list is its own switch, so `REVIEW_SIMULATOR=false` after approval leaves the showcase running. In a showcase organisation anyone who joins is served; elsewhere only the review account. For a live demonstration an organisation can instead be switched on for a set time only (`DEMO_SHOWCASE_IDS`, `DEMO_FROM`, `DEMO_UNTIL`, ISO times with the zone): inside the window its lines fill with made-up walk-ins who are served ahead of whoever joins, but the person at the front waits for the desk, so the presenter calls, serves and transfers them; afterwards the waiting made-up walk-ins are removed. Keep that organisation out of `REVIEW_SHOWCASE_IDS`. Rerun `lignum_bank.sql` about monthly to roll Saturday Banking forward.
+
+**Today's numbers are live.** `analytics_summaries` is rolled up at 01:00, so `/analytics/summary` reads today, and any service- or section-scoped view, straight from `wait_time_records`, which is written as each visit finishes. **Overflow:** with a branch's "Allow Overflow Onto Any Window" on, `/queues/mine` also returns the branch's other lines (`is_mine = 0`), and a clerk whose own line is empty is offered them on the desk.
 
 **Schema.** `database/schema.sql` plus every file in `database/migrations/`, in order. Migrations are append-only: never edit one that has been applied anywhere; write a new one.
 
@@ -253,7 +282,7 @@ Mobile build-time variables (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SITE_URL`, `EXP
 - Global SQL mode must **not** include `ANSI_QUOTES`, `PIPES_AS_CONCAT` or `IGNORE_SPACE`. DigitalOcean enables some of these by default, and they break 21 SQL files.
 - The app login holds `SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES` only (`database/security/harden_database.sql`). If a feature needs DDL, it belongs in a migration.
 
-**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1.
+**Migration state on production:** 001–036 applied. **037 (`iap_subscriptions`) is deliberately not applied** because payments are off in version 1. **038 (healthcare) and 039 (`branches.country_code`, default `JM`) are not applied yet**; both need a backup and the owner's approval. The code runs without them, but hospital features and country matching need them.
 
 **What is allowed in the production database:** schema, migrations, reference data created by migrations (e.g. `subscription_tiers` via 020), and the review tenant (`review_tenant_seed.sql`, `review_tenant_history.sql`). Nothing else is seeded. Re-run the history file every few weeks to move its 90-day window forward; it is idempotent.
 
@@ -289,7 +318,7 @@ All run inside the API process (`apps/backend/src/jobs`) unless noted. Each logs
 
 - **Push notifications** (called, wait changed, Line Helper joined) go through the **Expo push service** (`utils/pushSender.js`). Devices register their Expo push token with the API (`device_push_tokens`). Tokens Expo reports as dead are deactivated. Apple's APNs credential for these is managed by EAS. Android uses the FCM credential uploaded to EAS.
 - **iOS Live Activities** are updated by the API directly through APNs (`utils/apnsSender.js`, `utils/liveUpdates.js`), using the `APNS_*` variables and the `live_activity_tokens` table (migration 036). Without those variables, Live Activities still update while the app is open, just not when it is closed.
-- **Auth email** (confirm sign-up, reset password) is sent by Supabase through Resend SMTP. The template is in `supabase/templates/`.
+- **Auth email** (confirm sign-up, reset password) is sent by Supabase through Resend SMTP. The templates are in `supabase/templates/` and are pasted into Supabase by hand. Both carry a six-digit `{{ .Token }}`. Forgotten password: Forgot Password on the app's sign-in screen calls `/api/auth/password-reset/start`, and the person types the emailed code with a new password into `/finish`, which checks the code on the server, sets the password and signs out every other session. The code is checked on the server so the phone is not signed in before a new password is chosen.
 
 ---
 
@@ -398,7 +427,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
    mysql --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user=doadmin -p \
      --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne < database/migrations/0NN_name.sql
    ```
-4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good.
+4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good. It first resets every tracked file to world-readable (the API container runs as a non-root user, and a checkout made under `umask 077` once took production down with `EACCES` on `index.js`).
 5. **Verify.** Run `bash deploy/verify.sh`; it should report no failures. The firewall and SSH checks need root and show as "to look at". Check the job lines in `docker logs lyne_api`, and look at the app on a phone.
 
 **Rolling back code:** `bash deploy/deploy.sh rollback` returns to the last good commit. A schema change does not roll back with the code; restore the backup taken in step 3 if a migration was the problem.
@@ -409,7 +438,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
 
 ## 16. Backups and restore
 
-- **Nightly** at 02:15 Jamaica time, cron on the droplet runs `deploy/backup-managed-db.sh` as `lyne_backup`. It dumps, gunzips the result to verify it, checks that the key tables are present, keeps 14 days, then copies the file to the Spaces bucket `lyne-backups`. Log: `/srv/lyne/backups/backup.log`.
+- **Nightly** at 02:15 Jamaica time, cron on the droplet runs `deploy/backup-managed-db.sh` as `lyne_backup`. It dumps, gunzips the result to verify it, checks that the key tables are present and keeps 14 days on the droplet. It then calls `deploy/offsite-backup.sh`, which encrypts the dump on the droplet (gpg AES-256, passphrase in `secrets/backup-passphrase`), uploads it to the DigitalOcean Spaces bucket in `secrets/deploy-values.txt` under `prod/`, and checks the uploaded size; the bucket deletes copies after 90 days. A failed upload fails the run. Log: `/srv/lyne/backups/backup.log`. `deploy/verify.sh` fails if the newest backup is not in the bucket. **The passphrase is the only way to open the off-site copies:** the owner keeps a copy off the droplet. To restore from the bucket: `bash deploy/offsite-backup.sh list`, then `bash deploy/offsite-backup.sh fetch <name> /tmp/restore.sql.gz` and restore that file as below. (Off-site copies were set up on 11 November 2026; before that, backups existed only on the droplet.)
 - **Before any manual write** (migration, seed, data fix), take a backup by hand with the same script and note the file name.
 - **Restore rehearsal** (into a scratch schema, so production is never touched):
   ```bash
@@ -454,8 +483,9 @@ Everything is in `docs/launch/`. In short:
 
 - `godaddy-build.mjs` builds `apps/website` into `apps/website/dist`.
 - `godaddy-server.mjs` serves that folder (SPA fallback to `index.html`) on `PORT`.
+- GoDaddy builds each new `production` commit as a **preview** automatically. It only goes live when someone clicks **Publish to Live** on the app's page in the GoDaddy Node.js hosting panel.
 
-The organisation **quote estimator** is a client-side formula in `apps/website/src/pages/JoinUs.tsx` (desktop) and `apps/website/src/pages/mobile/MobileJoinUs.tsx` (mobile). Both must be changed together. Store links are in `src/lib/mobileRelease.ts`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
+The organisation **quote estimator** reads one price list, `apps/website/src/lib/pricing.ts`, copied from the Lyne Meeting Deck (10 November 2026, slides 10 and 13): Lyne Branch (1 location, US$4,500 a month, US$54,000 a year, implementation from US$15,000), Lyne Operations (up to 5, US$12,500 / US$150,000, from US$50,000), Lyne Executive (up to 10, US$25,000 / US$300,000, from US$125,000), and Government / Enterprise (11 or more) as a custom contract. Yearly is twelve monthly payments with no annual discount, so the site shows no "save by paying annually" figure, and implementation is always shown as "from". Like slide 13, the estimator also shows the first-year total (twelve monthly payments plus implementation), the price per location per month, and the deck's exclusions (training, taxes, messaging, hardware, travel, integrations, additional services). Government / Enterprise shows only "Custom" and "Contact us to get started": sales' internal formula for it is kept out of the code on purpose, because everything in `pricing.ts` ships to visitors' browsers. The desktop and mobile pages (`src/pages/JoinUs.tsx`, `src/pages/mobile/MobileJoinUs.tsx`) only display it. Store links are in `src/lib/mobileRelease.ts` (Google Play is live; the App Store link appears once `VITE_IOS_APP_URL` is set) and every download control goes to `/get-the-app`. Legal text appears both on the site and in the app (`apps/mobile/src/lib/legalContent.ts`); keep the two in step with `legal/`.
 
 ---
 
@@ -497,6 +527,8 @@ The organisation **quote estimator** is a client-side formula in `apps/website/s
 9. The organisation has confirmed in writing that Lyne may use its name and branding.
 
 Organisations are created by a `platform_admin` through the API; there is no admin console for this yet.
+
+Nothing about an organisation is built into the mobile app, so onboarding never needs a store release. Its tile acronym is `businesses.short_name` and its Help-centre guide (hours, documents, JP rules) is `businesses.help_guide`, both set through `POST`/`PUT /api/businesses` (migration 040). Without a short name the app shows the name's initials; without a guide the organisation is not listed in Help.
 
 ---
 

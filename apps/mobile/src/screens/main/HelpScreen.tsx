@@ -16,7 +16,8 @@ import { colors, font, shadow, t } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import api from '../../lib/apiClient';
 import Icon from '../../components/Icon';
-import { GENERAL_FAQS, AGENCY_GUIDES } from '../../lib/helpContent';
+import { GENERAL_FAQS, GuideSource, guideFromBusiness } from '../../lib/helpContent';
+import { orgAcronym } from '../../lib/mobileData';
 import { FaqBucket, FaqAnswer } from '../../components/FaqBucket';
 
 const SUPPORT_EMAIL = 'customersupport@uselyne.com';
@@ -38,20 +39,22 @@ export default function HelpScreen() {
   const topPad = useTopPad(14);
   const lift = useNavBarLift();
 
-  /* Which of the curated guides are about an agency that is actually on Lyne.
-     The guides are a hand-written file, and a hand-written file does not know
-     who has signed — so on a build with an empty database this screen listed
-     three real government bodies as agencies "Lyne works with" while Home two
-     taps away said there were none. The database decides; the file only
-     supplies the words. Same query key as Home, so it is one request. */
+  /* The organisations on Lyne that have a Help guide. Guides used to be a
+     hand-written file in the app, which did not know who had signed (an empty
+     database still listed three real government bodies) and needed an app
+     release for every new organisation. Now each guide is the organisation's
+     help_guide in the database (migration 040). Same query key as Home, so it
+     is one request. */
   const { data: businesses = [] } = useQuery({
     queryKey: ['mobile-businesses'],
-    queryFn: () => api.get<Array<{ id: string; slug?: string }>>('/businesses', false),
+    queryFn: () => api.get<GuideSource[]>('/businesses', false),
   });
-  const guides = useMemo(() => {
-    const live = new Set(businesses.map(b => String(b.slug || '')).filter(Boolean));
-    return AGENCY_GUIDES.filter(g => live.has(g.slug));
-  }, [businesses]);
+  const guides = useMemo(
+    () => businesses
+      .map(b => guideFromBusiness(b, orgAcronym(b.short_name, b.name)))
+      .filter((g): g is NonNullable<typeof g> => !!g),
+    [businesses],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

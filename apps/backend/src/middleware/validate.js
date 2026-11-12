@@ -27,6 +27,21 @@ function validate(schema) {
 }
 
 // ── Shared schemas ────────────────────────────────────────────
+/* A Help-centre guide (migration 040), in the shape AgencyHelpScreen reads.
+   Bounded so a mistake in an admin tool cannot put a megabyte of JSON on a row
+   every anonymous caller downloads. */
+const helpGuideSchema = z.object({
+  hours:     z.string().max(200),
+  hoursNote: z.string().max(400).optional(),
+  general:   z.string().max(2000).optional(),
+  services:  z.array(z.object({
+    name:       z.string().min(1).max(200),
+    documents:  z.array(z.string().max(300)).max(20),
+    jp:         z.string().max(600),
+    jpRequired: z.boolean(),
+  })).max(30),
+});
+
 const schemas = {
   // Auth
   /* No national_id or trn: identification is kept in the device keychain by the
@@ -51,7 +66,9 @@ const schemas = {
   createBusiness: z.object({
     name:                 z.string().min(1).max(255),
     slug:                 z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, 'slug must be lowercase alphanumeric with hyphens'),
+    short_name:           z.string().min(1).max(12).optional(),
     description:          z.string().max(1000).optional(),
+    help_guide:           helpGuideSchema.optional(),
     logo_url:             z.string().url().optional(),
     website_url:          z.string().url().optional(),
     phone:                z.string().max(50).optional(),
@@ -196,11 +213,8 @@ const schemas = {
     shift_end:       z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
   }),
 
-  /* national_id and trn are declared because THIS BRANCH still writes them.
-     Omitting them here would strip the fields and quietly change what the
-     product stores — a privacy change belongs in the privacy commit, not as a
-     side effect of a validation pass. The branch reconciliation removes both
-     the columns' write path and these two lines together. */
+  /* No national_id or trn: they stay on the customer's phone, and migration
+     050 dropped the columns. zod strips any field not listed here. */
   updateProfile: z.object({
     full_name:     z.string().min(1).max(255).optional(),
     phone:         z.string().max(50).optional(),
@@ -228,7 +242,9 @@ const schemas = {
 
   updateBusiness: z.object({
     name:                 z.string().min(1).max(255).optional(),
+    short_name:           z.string().min(1).max(12).optional(),
     description:          z.string().max(1000).optional(),
+    help_guide:           helpGuideSchema.optional(),
     logo_url:             z.string().url().optional(),
     website_url:          z.string().url().optional(),
     phone:                z.string().max(50).optional(),
@@ -339,6 +355,7 @@ const schemas = {
   branchSettings: z.object({
     branch_id:      idSchema.optional(),
     allow_overflow: z.coerce.boolean().optional(),
+    text_when_called: z.boolean().optional(),
     /* Line Helper, per branch. It ships ON at every branch, so this is the OFF
        switch. It lives on the settings endpoint rather than on PUT /branches
        because it is a POLICY rather than a detail — it belongs beside

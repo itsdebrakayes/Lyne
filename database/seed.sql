@@ -169,17 +169,17 @@ INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, e
 -- DEMO USERS (10 sample clients)
 -- =============================================================
 
-INSERT INTO users (id, email, full_name, phone, national_id, trn, date_of_birth) VALUES
-('usr-001', 'john.smith@email.com',    'John Smith',    '876-555-0101', 'JM-1234567', '123-456-789', '1985-03-14'),
-('usr-002', 'mary.jones@email.com',    'Mary Jones',    '876-555-0102', 'JM-2345678', '234-567-890', '1990-07-22'),
-('usr-003', 'paul.brown@email.com',    'Paul Brown',    '876-555-0103', 'JM-3456789', '345-678-901', '1978-11-05'),
-('usr-004', 'grace.white@email.com',   'Grace White',   '876-555-0104', 'JM-4567890', '456-789-012', '1995-01-30'),
-('usr-005', 'david.green@email.com',   'David Green',   '876-555-0105', 'JM-5678901', '567-890-123', '1982-09-18'),
-('usr-006', 'lisa.black@email.com',    'Lisa Black',    '876-555-0106', 'JM-6789012', '678-901-234', '1998-04-12'),
-('usr-007', 'kevin.hall@email.com',    'Kevin Hall',    '876-555-0107', 'JM-7890123', '789-012-345', '1975-12-25'),
-('usr-008', 'angela.king@email.com',   'Angela King',   '876-555-0108', 'JM-8901234', '890-123-456', '1988-06-08'),
-('usr-009', 'mark.scott@email.com',    'Mark Scott',    '876-555-0109', 'JM-9012345', '901-234-567', '1993-02-17'),
-('usr-010', 'denise.allen@email.com',  'Denise Allen',  '876-555-0110', 'JM-0123456', '012-345-678', '1970-08-03');
+INSERT INTO users (id, email, full_name, phone, date_of_birth) VALUES
+('usr-001', 'john.smith@email.com',    'John Smith',    '876-555-0101', '1985-03-14'),
+('usr-002', 'mary.jones@email.com',    'Mary Jones',    '876-555-0102', '1990-07-22'),
+('usr-003', 'paul.brown@email.com',    'Paul Brown',    '876-555-0103', '1978-11-05'),
+('usr-004', 'grace.white@email.com',   'Grace White',   '876-555-0104', '1995-01-30'),
+('usr-005', 'david.green@email.com',   'David Green',   '876-555-0105', '1982-09-18'),
+('usr-006', 'lisa.black@email.com',    'Lisa Black',    '876-555-0106', '1998-04-12'),
+('usr-007', 'kevin.hall@email.com',    'Kevin Hall',    '876-555-0107', '1975-12-25'),
+('usr-008', 'angela.king@email.com',   'Angela King',   '876-555-0108', '1988-06-08'),
+('usr-009', 'mark.scott@email.com',    'Mark Scott',    '876-555-0109', '1993-02-17'),
+('usr-010', 'denise.allen@email.com',  'Denise Allen',  '876-555-0110', '1970-08-03');
 
 
 -- =============================================================
@@ -210,10 +210,10 @@ INSERT INTO queues (id, branch_id, service_id, queue_date, max_capacity, is_acti
 
 -- Intake forms
 INSERT INTO intake_forms (id, service_id, user_id, form_data) VALUES
-('iform-001', 'svc-taj-trn', 'usr-001', '{"purpose":"new_trn","national_id":"JM-1234567","dob":"1985-03-14"}'),
-('iform-002', 'svc-taj-trn', 'usr-002', '{"purpose":"update_trn","national_id":"JM-2345678","dob":"1990-07-22"}'),
+('iform-001', 'svc-taj-trn', 'usr-001', '{"purpose":"new_trn","dob":"1985-03-14"}'),
+('iform-002', 'svc-taj-trn', 'usr-002', '{"purpose":"update_trn","dob":"1990-07-22"}'),
 ('iform-003', 'svc-taj-pay', 'usr-003', '{"payment_type":"income_tax","amount":15000}'),
-('iform-004', 'svc-pica-new','usr-004', '{"application_type":"first_time","national_id":"JM-4567890"}'),
+('iform-004', 'svc-pica-new','usr-004', '{"application_type":"first_time"}'),
 ('iform-005', 'svc-pica-ren','usr-005', '{"passport_number":"A1234567","expiry_date":"2024-01-15"}'),
 ('iform-006', 'svc-nht-ben', 'usr-006', '{"enquiry_type":"balance_check","trn":"678-901-234"}');
 

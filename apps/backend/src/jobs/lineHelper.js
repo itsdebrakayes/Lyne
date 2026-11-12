@@ -20,7 +20,7 @@
  */
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
-const { issueTicketSlot } = require('../utils/ticketSlot');
+const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
 const { sendPushToUser } = require('../utils/pushSender');
 
@@ -53,7 +53,7 @@ async function joinDueHelpers(now = new Date()) {
   for (const h of due) {
     const conn = await pool.getConnection();
     try {
-      await conn.beginTransaction();
+      await beginSlotTransaction(conn);
 
       const [claim] = await conn.query(
         `UPDATE line_helper_requests SET status = 'joining'

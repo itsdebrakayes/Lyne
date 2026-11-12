@@ -183,7 +183,17 @@
       ],
       "expo-apple-authentication",
       "expo-web-browser",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# Loaded by name at runtime (seen as ClassNotFoundException under R8):\n# background notification handling and Expo's headless app loader.\n-keep class expo.modules.notifications.** { *; }\n-keep class expo.modules.adapters.react.apploader.** { *; }\n-keep class expo.modules.taskManager.** { *; }"
+          }
+        }
+      ]
     ],
     "extra": {
       "supabaseUrl": "https://edavcmrruwxnmzktvwoz.supabase.co",

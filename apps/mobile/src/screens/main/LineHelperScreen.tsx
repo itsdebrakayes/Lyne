@@ -50,7 +50,7 @@ export default function LineHelperScreen() {
   const route = useRoute<Params>();
   const { user } = useAuth();
 
-  const { businessId, branchId, branchName, serviceId, serviceName, targetDow, targetHour } = route.params ?? ({} as any);
+  const { businessId, branchId, branchName, serviceId, serviceName, targetDow, targetHour, replaceHelperId } = route.params ?? ({} as any);
 
   const [travel, setTravel] = useState<number>(25);
   const [letPass, setLetPass] = useState(true);
@@ -97,6 +97,12 @@ export default function LineHelperScreen() {
     if (!joinAt) return;
     try {
       setBusy(true); setError('');
+      /* Changing the time: only one helper may run, so the old one is released
+         now, at the moment the new time is confirmed, never earlier. Backing
+         out of the edit leaves the original exactly as it was. */
+      if (replaceHelperId) {
+        await api.patch(`/line-helper/${replaceHelperId}`, { action: 'release' });
+      }
       await api.post('/line-helper', {
         branch_id: branchId,
         service_id: serviceId,
@@ -104,7 +110,11 @@ export default function LineHelperScreen() {
         travel_minutes: travel,
         let_pass: letPass,
       });
-      navigation.replace('HelperHold');
+      // Replaced, not pushed: Back from the hold screen must not reopen the form.
+      navigation.replace('HelperHold', {
+        justScheduled: true,
+        editFrom: { businessId, branchId, branchName, serviceId, serviceName, targetDow, targetHour },
+      });
     } catch (e: any) {
       setError(e?.message || 'That did not schedule. Try again in a moment.');
     } finally { setBusy(false); }

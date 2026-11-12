@@ -27,15 +27,18 @@
  * number read as good news.
  */
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useSectorTerms } from '../../hooks/useSectorTerms';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle, ArrowLeft, CalendarClock, ChevronRight, Mail, Phone, RotateCcw, User,
 } from 'lucide-react';
 import api from '@/lib/apiClient';
+import { CaseWatch } from './CaseWatch';
 
 type Pattern = 'same_service' | 'multiple_services';
 
 interface CaseRow {
+  watched_by?: string | null;
   user_id: string;
   full_name: string;
   email: string | null;
@@ -46,6 +49,11 @@ interface CaseRow {
   services_tried: number;
   services: string[];
   pattern: Pattern;
+  /** Why this person is listed: unresolved repeats, frequent this week, or both. */
+  reasons?: Array<'repeat_unresolved' | 'frequent_this_week'>;
+  visits_7d?: number;
+  /** Flags staff have set: priority, watch. */
+  flags?: Array<'priority' | 'watch'>;
   outcomes: string[];
   first_visit: string;
   last_visit: string;
@@ -59,9 +67,12 @@ interface Visit {
   ticket_number: string;
   status: string;
   closed_reason: string | null;
+  /** What the desk wrote about this visit, when anything. */
+  note?: string | null;
   channel: string;
   waited_minutes: number | null;
   served_by: string | null;
+  counter_label?: string | null;
 }
 
 interface Detail {
@@ -74,6 +85,13 @@ interface Detail {
    is a database value; nobody should have to learn the enum to use the screen. */
 const REASON_LABEL: Record<string, string> = {
   wrong_documents: 'Wrong documents',
+  needs_test_first: 'Needs a test first',
+  rescheduled: 'Rescheduled',
+  left_before_seen: 'Left before seen',
+  referred_elsewhere: 'Referred elsewhere',
+  customer_left: 'Left part-way',
+  day_ended: 'Day ended',
+  system_issue: 'System problem',
   wrong_service: 'Wrong service',
   service_not_finalised: 'Not finished',
   branch_closed_before_called: 'Branch closed first',
@@ -99,16 +117,22 @@ function spanDays(from: string, to: string) {
   return Math.max(1, d);
 }
 
-export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: string; branchId?: string }) {
-  const [days, setDays] = useState(30);
+export function CustomerCasesWorkspace({ businessId, branchId, window: win }: {
+  businessId?: string; branchId?: string;
+  /** The period the dashboard has selected. Without one, this screen offers its own. */
+  window?: { from: string; to: string; days: number };
+}) {
+  const terms = useSectorTerms();
+  const [ownDays, setDays] = useState(30);
+  const days = win?.days ?? ownDays;
   const [minVisits, setMinVisits] = useState(3);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const q = useQuery({
-    queryKey: ['customer-cases', businessId, branchId, days, minVisits],
+    queryKey: ['customer-cases', businessId, branchId, days, win?.from, win?.to, minVisits],
     queryFn: () => api.get<{ window_days: number; min_visits: number; cases: CaseRow[] }>(
       `/analytics/customer-cases?business_id=${businessId}`
-      + `${branchId ? `&branch_id=${branchId}` : ''}&days=${days}&min_visits=${minVisits}`,
+      + `${branchId ? `&branch_id=${branchId}` : ''}${win ? `&from=${win.from}&to=${win.to}` : `&days=${days}`}&min_visits=${minVisits}`,
     ),
     enabled: Boolean(businessId),
   });
@@ -127,22 +151,25 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
     <div className="qx-stack">
       <header className="qc-head">
         <div>
-          <h2 className="qc-h2">Customer Cases</h2>
+          <h2 className="qc-h2">{terms.visitor.one} Cases</h2>
           <p className="qc-sub">
-            People who have been back more than once and still have not got what they came for.
+            People who have been back more than once and still have not got what they came for,
+            people in several times this week, and anyone staff have flagged.
           </p>
         </div>
 
         <div className="qc-filters">
-          <label className="qc-field">
-            <span>Looking back</span>
-            <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={180}>6 months</option>
-            </select>
-          </label>
+          {win ? null : (
+            <label className="qc-field">
+              <span>Looking back</span>
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+                <option value={180}>6 months</option>
+              </select>
+            </label>
+          )}
           <label className="qc-field">
             <span>Flag after</span>
             <select value={minVisits} onChange={(e) => setMinVisits(Number(e.target.value))}>
@@ -207,6 +234,12 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
                     {c.resolved > 0 && <span className="qc-dim"> · {c.resolved} served</span>}
                   </span>
                   <span className="qc-tags">
+                    {c.watched_by && <span className="qc-tag">Watched by {c.watched_by}</span>}
+                    {c.flags?.includes('priority') && <span className="qc-tag qc-tag--hot">Priority</span>}
+                    {c.flags?.includes('watch') && <span className="qc-tag">Watch</span>}
+                    {c.reasons?.includes('frequent_this_week') && (
+                      <span className="qc-tag qc-tag--hot">{c.visits_7d} visits this week</span>
+                    )}
                     <span className={`qc-tag ${c.pattern === 'same_service' ? 'qc-tag--hot' : ''}`}>
                       {c.pattern === 'same_service'
                         ? `Same service: ${c.services[0]}`
@@ -237,6 +270,20 @@ export function CustomerCasesWorkspace({ businessId, branchId }: { businessId?: 
       </p>
     </div>
   );
+}
+
+/** "Natalie Brooks served 3 of 20 visits at Personal Banking 1: 5 Oct, 12 Oct." */
+function servedBy(visits: Array<{ served_by: string | null; counter_label?: string | null; queue_date: string }>) {
+  const byName = new Map<string, { name: string; count: number; counters: Set<string>; dates: string[] }>();
+  for (const v of visits) {
+    if (!v.served_by) continue;
+    const row = byName.get(v.served_by) ?? { name: v.served_by, count: 0, counters: new Set<string>(), dates: [] };
+    row.count += 1;
+    if (v.counter_label) row.counters.add(v.counter_label);
+    row.dates.push(fmtDate(v.queue_date));
+    byName.set(v.served_by, row);
+  }
+  return [...byName.values()].sort((a, b) => b.count - a.count).map((p) => ({ ...p, counters: [...p.counters] }));
 }
 
 export function CaseDetail({ businessId, userId, onBack }: { businessId: string; userId: string; onBack: () => void }) {
@@ -273,6 +320,8 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
             </div>
           </header>
 
+          <PersonFlags businessId={businessId} userId={userId} />
+
           <div className="qc-stats">
             {[
               { k: 'Visits', v: d.summary.visits },
@@ -287,6 +336,18 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
             ))}
           </div>
 
+          <CaseWatch userId={userId} />
+
+          <h3 className="qc-h3">Who served them</h3>
+          {servedBy(d.visits).length ? (
+            <ul className="qc-servedby">
+              {servedBy(d.visits).map((p) => (
+                <li key={p.name}><b>{p.name}</b> served {p.count} of {d.visits.length} visits
+                  {p.counters.length ? ` at ${p.counters.join(', ')}` : ''}: {p.dates.join(', ')}</li>
+              ))}
+            </ul>
+          ) : <div className="qc-note">No officer is recorded against these visits.</div>}
+
           <h3 className="qc-h3">Every visit, most recent first</h3>
           <ol className="qc-timeline">
             {d.visits.map((v) => {
@@ -298,13 +359,16 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
                   <span className="qc-visit-what">
                     <b>{v.service_name}</b>
                     <small>{v.branch_name} · {v.ticket_number} · joined by {v.channel.replace('_', ' ')}</small>
+                    {v.note ? (
+                      <small style={{ display: 'block', marginTop: 4, fontStyle: 'italic', opacity: 0.9 }}>“{v.note}”</small>
+                    ) : null}
                   </span>
                   <span className="qc-visit-out">
                     <span className={`qc-tag ${resolved ? 'qc-tag--ok' : live ? '' : 'qc-tag--hot'}`}>
                       {live ? 'In the line now' : label(v.closed_reason || v.status)}
                     </span>
                     {v.waited_minutes != null && <small>waited {v.waited_minutes}m</small>}
-                    {v.served_by && <small>seen by {v.served_by}</small>}
+                    {v.served_by && <small>seen by {v.served_by}{v.counter_label ? ` at ${v.counter_label}` : ''}</small>}
                   </span>
                 </li>
               );
@@ -317,3 +381,65 @@ export function CaseDetail({ businessId, userId, onBack }: { businessId: string;
 }
 
 export default CustomerCasesWorkspace;
+
+/* ── Flags a member of staff puts on a person ───────────────────────────────
+   Priority: their condition means they should be seen sooner; the tag shows on
+   their row in every line here. Watch: the team wants to notice them arriving.
+   Set and cleared by people, recorded with who did it. */
+type FlagRow = { id: string; flag: 'priority' | 'watch'; note: string | null; created_at: string; cleared_at: string | null; set_by: string | null };
+
+function PersonFlags({ businessId, userId }: { businessId: string; userId: string }) {
+  const qc = useQueryClient();
+  const key = ['person-flags', businessId, userId];
+  const q = useQuery({
+    queryKey: key,
+    queryFn: () => api.get<{ flags: FlagRow[] }>(`/analytics/customers/${userId}/flags?business_id=${businessId}`),
+  });
+  const [adding, setAdding] = useState<'priority' | 'watch' | null>(null);
+  const [note, setNote] = useState('');
+  const set = useMutation({
+    mutationFn: (flag: 'priority' | 'watch') =>
+      api.post(`/analytics/customers/${userId}/flags`, { business_id: businessId, flag, note: note.trim() || undefined }),
+    onSuccess: () => { setAdding(null); setNote(''); qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['customer-cases'] }); },
+  });
+  const clear = useMutation({
+    mutationFn: (id: string) => api.delete(`/analytics/customers/${userId}/flags/${id}?business_id=${businessId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['customer-cases'] }); },
+  });
+  const active = (q.data?.flags || []).filter((f) => !f.cleared_at);
+  const has = (f: 'priority' | 'watch') => active.some((a) => a.flag === f);
+
+  return (
+    <section className="qc-flags" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {active.map((f) => (
+        <div key={f.id} className="qc-note" style={{ alignItems: 'flex-start' }}>
+          <AlertCircle size={16} />
+          <span style={{ flex: 1 }}>
+            <b>{f.flag === 'priority' ? 'Priority' : 'Watch'}</b>
+            {f.note ? ` · ${f.note}` : ''}
+            <small style={{ display: 'block', opacity: 0.7 }}>
+              Set {fmtDate(f.created_at)}{f.set_by ? ` by ${f.set_by}` : ''}
+            </small>
+          </span>
+          <button type="button" className="qc-linkbtn" disabled={clear.isPending} onClick={() => clear.mutate(f.id)}>Clear</button>
+        </div>
+      ))}
+      {adding ? (
+        <div className="qc-note" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <b>{adding === 'priority' ? 'Mark as Priority' : 'Add to Watch'}</b>
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={255}
+            placeholder="Short note for colleagues (optional)" aria-label="Note"
+            style={{ flex: '1 1 240px', minHeight: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--c-line-2)' }} />
+          <button type="button" className="qc-linkbtn" disabled={set.isPending} onClick={() => set.mutate(adding)}>Save</button>
+          <button type="button" className="qc-linkbtn" onClick={() => { setAdding(null); setNote(''); }}>Cancel</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {!has('priority') && <button type="button" className="qc-linkbtn" onClick={() => setAdding('priority')}>Mark as Priority</button>}
+          {!has('watch') && <button type="button" className="qc-linkbtn" onClick={() => setAdding('watch')}>Add to Watch</button>}
+        </div>
+      )}
+      {(set.error || clear.error) ? <div className="qc-note qc-note--bad">That did not save. Try again.</div> : null}
+    </section>
+  );
+}

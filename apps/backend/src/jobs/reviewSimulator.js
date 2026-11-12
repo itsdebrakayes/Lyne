@@ -11,7 +11,24 @@
  *     Civic Centre seeded by database/review_tenant_seed.sql), and
  *   - tickets belonging to the review account (REVIEW_ACCOUNT_EMAIL).
  *
- * Nothing outside that organisation is read or written. It is OFF unless the
+ * Showcase organisations (REVIEW_SHOWCASE_IDS, comma-separated: the fictional
+ * Lignum Bank and Wrenfield Health from database/showcase/) get the same
+ * treatment, so every example organisation in the live app has open lines
+ * with people in them, and a reviewer who joins one is served like at Blue
+ * Harbour.
+ *
+ * Demo window (DEMO_SHOWCASE_IDS, DEMO_FROM, DEMO_UNTIL): for a live
+ * demonstration, a showcase organisation can be switched on for a set time
+ * only, e.g. DEMO_FROM=2026-11-10T14:00:00-05:00 and DEMO_UNTIL=...T18:00:00-05:00.
+ * Inside the window its lines fill with made-up walk-ins as above, and the
+ * made-up people ahead of anyone who joins are served one by one so the
+ * person moves up. Unlike showcase mode, a person who reaches the front is
+ * NOT called by the simulator: they wait for the desk, so the presenter calls,
+ * serves and transfers them in the admin app. Outside the window the
+ * organisation is left alone, and the made-up walk-ins still waiting are
+ * removed.
+ *
+ * Nothing outside those organisations is read or written. It is OFF unless the
  * server sets REVIEW_SIMULATOR=true, and turning that off stops it at once,
  * with no app release. The app runs exactly the same code for the reviewer as
  * for anyone else; only the speed of the line differs.
@@ -29,9 +46,10 @@
  */
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
-const { issueTicketSlot } = require('../utils/ticketSlot');
+const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
 const { sendPushToUser } = require('../utils/pushSender');
+const { activeClosure } = require('../utils/branchClosures');
 
 /** Marks the made-up visitors, so they are never mistaken for people. */
 const DEMO_VISITOR = 'Review demo visitor';
@@ -47,7 +65,31 @@ function settings(env = process.env) {
     enabled: String(env.REVIEW_SIMULATOR || '').toLowerCase() === 'true',
     businessId: env.REVIEW_BUSINESS_ID || 'biz-review-demo-0001',
     email: (env.REVIEW_ACCOUNT_EMAIL || 'appreview@uselyne.com').toLowerCase(),
+    /** Showcase organisations have their own switch (the list itself), so App
+        Review mode can be turned off after approval while the example
+        organisations keep moving. */
+    showcaseIds: String(env.REVIEW_SHOWCASE_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
+    demoIds: String(env.DEMO_SHOWCASE_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
+    demoFrom: Date.parse(env.DEMO_FROM || '') || null,
+    demoUntil: Date.parse(env.DEMO_UNTIL || '') || null,
   };
+}
+
+/** Inside the demo window. Both ends are required, so a half-set window is off. */
+function demoActive(s, now = new Date()) {
+  return Boolean(s.demoIds.length && s.demoFrom && s.demoUntil
+    && now.getTime() >= s.demoFrom && now.getTime() < s.demoUntil);
+}
+
+/** Anything for the job to do now or later: decides whether the timer runs at all. */
+function configured(s) {
+  return organisations(s).length > 0 || s.demoIds.length > 0;
+}
+
+/** Every organisation a tick looks after, the review one first, no repeats. */
+function organisations(s) {
+  return [...(s.enabled ? [s.businessId] : []), ...s.showcaseIds]
+    .filter((id, i, all) => all.indexOf(id) === i);
 }
 
 /** Seconds from SQL TIMESTAMPDIFF; NULL (never happened) counts as long ago. */
@@ -62,6 +104,7 @@ async function keepLinesBusy(businessId) {
   const [branches] = await pool.query(
     `SELECT id FROM branches WHERE business_id = ? AND is_active = 1`, [businessId]);
   for (const b of branches) {
+    if (await activeClosure(pool, b.id)) continue; // a closed branch has no line
     await ensureQueuesForToday(businessId, b.id);
     const [queues] = await pool.query(
       `SELECT q.id, q.branch_id, q.service_id, s.ticket_prefix, s.base_avg_time_minutes,
@@ -72,7 +115,7 @@ async function keepLinesBusy(businessId) {
       for (let n = Number(q.waiting); n < MIN_WAITING; n++) {
         const conn = await pool.getConnection();
         try {
-          await conn.beginTransaction();
+          await beginSlotTransaction(conn);
           const slot = await issueTicketSlot(conn, {
             queueId: q.id, branchId: q.branch_id, serviceId: q.service_id,
             prefix: q.ticket_prefix, avgTimeMinutes: Number(q.base_avg_time_minutes) || 8, waitingAhead: n,
@@ -150,7 +193,7 @@ async function moveReviewerTicket(ticketId, newStatus, now) {
 }
 
 /** 3 — the reviewer's line moves. */
-async function moveReviewerLines(businessId, email, now = new Date()) {
+async function moveReviewerLines(businessId, email, now = new Date(), { anyone = false, holdAtFront = false } = {}) {
   const { broadcast } = ticketsRoute();
   const [tickets] = await pool.query(
     /* Ages are computed by the database against its own NOW(): the stored
@@ -163,12 +206,16 @@ async function moveReviewerLines(businessId, email, now = new Date()) {
             TIMESTAMPDIFF(SECOND, (SELECT MAX(x.completed_at) FROM queue_tickets x
               WHERE x.queue_id = t.queue_id AND x.guest_name = ? AND x.completed_at IS NOT NULL), NOW()) AS since_step
        FROM queue_tickets t
-       JOIN users u ON u.id = t.user_id
+       LEFT JOIN users u ON u.id = t.user_id
        JOIN queues q ON q.id = t.queue_id
        JOIN branches b ON b.id = q.branch_id
-      WHERE b.business_id = ? AND LOWER(u.email) = ?
-        AND t.status IN ('waiting','called','in_service')`,
-    [DEMO_VISITOR, businessId, email]);
+      WHERE b.business_id = ?
+        AND t.status IN ('waiting','called','in_service')
+        /* In a showcase organisation anyone who joins is served, so the
+           example works for whoever tries it; elsewhere only the reviewer.
+           Made-up visitors are never moved as if they were a person. */
+        AND ${anyone ? "(t.guest_name IS NULL OR t.guest_name <> ?)" : 'LOWER(u.email) = ?'}`,
+    [DEMO_VISITOR, businessId, anyone ? DEMO_VISITOR : email]);
 
   let moved = 0;
   for (const t of tickets) {
@@ -191,10 +238,12 @@ async function moveReviewerLines(businessId, email, now = new Date()) {
           moved += 1;
           broadcast(t.queue_id, { id: ahead.id, status: 'served' });
         }
-      } else {
+      } else if (!holdAtFront) {
         await moveReviewerTicket(t.id, 'called', now);
         moved += 1;
       }
+    } else if (holdAtFront) {
+      /* Demo window: the desk calls, serves and transfers; the simulator never does. */
     } else if (t.status === 'called' && age(t.since_called) >= CALLED_SECONDS) {
       await moveReviewerTicket(t.id, 'in_service', now);
       moved += 1;
@@ -215,17 +264,37 @@ async function clearOldVisitors(businessId) {
     [businessId, DEMO_VISITOR]);
 }
 
-async function runReviewSimulatorTick(env = process.env) {
+/** After the demo window: made-up walk-ins still waiting today are removed. */
+async function clearWaitingVisitors(businessId) {
+  await pool.query(
+    `DELETE t FROM queue_tickets t
+       JOIN queues q ON q.id = t.queue_id JOIN branches b ON b.id = q.branch_id
+      WHERE b.business_id = ? AND t.guest_name = ? AND t.status = 'waiting'`,
+    [businessId, DEMO_VISITOR]);
+}
+
+async function runReviewSimulatorTick(env = process.env, now = new Date()) {
   const s = settings(env);
-  if (!s.enabled) return { enabled: false };
-  await clearOldVisitors(s.businessId);
-  await keepLinesBusy(s.businessId);
-  await hurryReviewerHelper(s.businessId, s.email);
-  const moved = await moveReviewerLines(s.businessId, s.email);
+  if (!configured(s)) return { enabled: false };
+  let moved = 0;
+  const regular = organisations(s);
+  for (const id of s.demoIds.filter((x) => !regular.includes(x))) {
+    if (!demoActive(s, now)) { await clearWaitingVisitors(id); continue; }
+    await clearOldVisitors(id);
+    await keepLinesBusy(id);
+    moved += Number(await moveReviewerLines(id, s.email, now, { anyone: true, holdAtFront: true })) || 0;
+  }
+  for (const id of organisations(s)) {
+    const showcase = id !== s.businessId || !s.enabled;
+    await clearOldVisitors(id);
+    await keepLinesBusy(id);
+    if (s.enabled) await hurryReviewerHelper(id, s.email);
+    moved += Number(await moveReviewerLines(id, s.email, new Date(), { anyone: showcase })) || 0;
+  }
   return { enabled: true, moved };
 }
 
 module.exports = {
-  runReviewSimulatorTick, settings, DEMO_VISITOR,
+  runReviewSimulatorTick, settings, organisations, demoActive, configured, DEMO_VISITOR,
   STEP_SECONDS, CALLED_SECONDS, SERVING_SECONDS,
 };

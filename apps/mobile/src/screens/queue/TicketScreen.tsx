@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Platform, RefreshControl, ScrollView
 import { RouteProp, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { colors, font, t, type, initials } from '../../lib/theme';
+import { colors, font, shadow, t, type, initials } from '../../lib/theme';
 import { useNavBarLift, useTopPad } from '../../lib/insets';
 import { useRefresh } from '../../lib/useRefresh';
 import { haptics } from '../../lib/haptics';
@@ -24,7 +24,9 @@ import { TicketPrinter } from '../../components/TicketPrinter';
 import Icon from '../../components/Icon';
 import { Ionicons } from '@expo/vector-icons';
 import TicketPass from '../../components/TicketPass';
+import { UrgentNotice } from '../../components/TriageQuestions';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { usePlaceWords } from '../../lib/placeWords';
 
 type Params = RouteProp<RootStackParamList, 'Ticket'>;
 
@@ -38,8 +40,18 @@ const WALLET_NOTE = Platform.OS === 'android'
 const TERMINAL_META: Record<string, { label: string; tone: string; note: string }> = {
   no_show: { label: 'Place released', tone: colors.busy, note: 'The call window passed, so your spot was released. You can rejoin the queue below.' },
   left: { label: 'You left the queue', tone: colors.muted, note: 'You left this line. Join again whenever you are ready.' },
-  cancelled: { label: 'Ticket cancelled', tone: colors.muted, note: 'This ticket was cancelled. You can join a new queue anytime.' },
+  cancelled: { label: 'Ticket cancelled', tone: colors.muted, note: 'A member of staff at the branch ended this ticket. If you were not expecting that, please speak to someone there.' },
   served: { label: 'Completed', tone: colors.light, note: 'This visit is complete. See you next time!' },
+};
+
+/* Why a ticket ended when the system ended it, not the person. "Cancelled" alone
+   reads like a fault; these say what actually happened. */
+const CLOSED_REASON_META: Record<string, { label: string; note: string }> = {
+  transferred: { label: 'Moved to another line', note: 'Staff moved you to another line here. Your new ticket is on the Ticket tab.' },
+  branch_closed_before_called: { label: 'Branch closed', note: 'The branch closed before your number was called, so this ticket has ended. You can join again when it reopens.' },
+  branch_closed_after_called: { label: 'Branch closed', note: 'Your number was called, but the branch closed before you reached the counter.' },
+  branch_closure: { label: 'Branch closed', note: 'The branch closed unexpectedly, so this ticket has ended. The branch page says why, and when it expects to reopen.' },
+  service_not_finalised: { label: 'Branch closed', note: 'The branch closed before your visit was finished in the system, so this ticket has been closed.' },
 };
 
 /** A label/value pair from the boarding pass's detail grid. */
@@ -70,7 +82,7 @@ export default function TicketScreen() {
   const [askWhy, setAskWhy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [alerts, setAlerts] = useState<'idle' | 'enabling' | 'on' | 'denied'>('idle');
-  const previous = useRef<{ status?: string; wait?: number }>({});
+  const previous = useRef<{ id?: string; status?: string; wait?: number }>({});
 
   const enableAlerts = async () => {
     if (alerts === 'enabling' || alerts === 'on') return;
@@ -97,13 +109,35 @@ export default function TicketScreen() {
     refetchInterval: 5_000,
   });
   const ticket = ticketQuery.data;
+  const words = usePlaceWords(ticket?.business_id);
   const { refreshing, onRefresh } = useRefresh(activeTicketQuery.refetch, ticketQuery.refetch);
   const queryClient = useQueryClient();
+
+  /* Transferred: staff moved them to another line, which is a NEW ticket. Follow
+     it — an opened ticket switches to the new one, and the active-ticket view
+     asks again — instead of showing "Visit complete" for a visit that is still
+     going on. */
+  const movedTo = ticket?.closed_reason === 'transferred' ? ticket.transferred_to_ticket_id : null;
+  useEffect(() => {
+    if (!movedTo) return;
+    if (providedTicketId) navigation.setParams({ ticketId: movedTo });
+    else activeTicketQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movedTo]);
 
   useEffect(() => {
     if (!ticket) return;
     const liveStatuses = ['waiting', 'called', 'in_service'];
-    if (previous.current.status && previous.current.status !== ticket.status) {
+    if (ticket.closed_reason === 'transferred') return; // the new ticket takes over
+    if (previous.current.id && previous.current.id !== ticket.id && ticket.transferred_from_ticket_id) {
+      // Arrived here by transfer: say so once, with the new number.
+      scheduleQueueUpdateNotification(
+        `Moved to ${ticket.service_name || 'another line'}`,
+        `Your new ticket is ${ticket.ticket_number}. You keep your place by the time you arrived.`,
+        ticket.id,
+      ).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } else if (previous.current.status && previous.current.status !== ticket.status) {
       // Buzz the phone on the two status changes that matter — being called
       // forward (the whole point of the app) and losing your place.
       if (ticket.status === 'called') haptics.success();
@@ -114,12 +148,12 @@ export default function TicketScreen() {
       const where = ticket.branch_name || 'Your branch';
       const incomplete = ticket.readiness_outcome === 'incomplete';
       const banner: Record<string, [string, string] | undefined> = {
-        called: ["You're being called", `${where}: head to the counter and show your code.`],
-        in_service: ["You're at the counter", `${where}: you are being served now.`],
+        called: ["You're being called", `${where}: head to ${words.desk} and show your code.`],
+        in_service: [words.servedTitle, `${where}: ${words.servedBody}`],
         served: incomplete
           ? ['Visit marked incomplete', `${where}: join the line again whenever you are ready.`]
           : ['Visit complete', `${where}: thanks for using Lyne.`],
-        no_show: ['You lost your place in line', `${where}: you were called and did not reach the counter.`],
+        no_show: ['You lost your place in line', `${where}: you were called and did not reach ${words.desk}.`],
         waiting: ['Back in line', `${where}: you are waiting again.`],
       };
       const note = banner[ticket.status];
@@ -146,7 +180,7 @@ export default function TicketScreen() {
       // closing. Whatever armed the "head out" alert, it is no longer true.
       cancelDepartureReminder();
     }
-    previous.current = { status: ticket.status, wait: ticket.estimated_wait_minutes };
+    previous.current = { id: ticket.id, status: ticket.status, wait: ticket.estimated_wait_minutes };
   }, [ticket, queryClient]);
 
   /* Directions hand off to whatever map app the person actually uses, rather
@@ -205,7 +239,7 @@ export default function TicketScreen() {
       ]);
       setConfirmIncomplete(false);
     } catch (err: any) {
-      setError(err?.message || 'Could not update this visit. Try again, or tell the staff at the counter.');
+      setError(err?.message || `Could not update this visit. Try again, or tell the staff at ${words.desk}.`);
     } finally {
       setClosing(false);
     }
@@ -300,15 +334,15 @@ export default function TicketScreen() {
      button they just pressed. */
   const terminal = ticket.status === 'served' && ticket.readiness_outcome === 'incomplete'
     ? { ...TERMINAL_META.served, label: 'Marked incomplete', note: 'This visit was marked incomplete. You can join the line again whenever you are ready.' }
-    : TERMINAL_META[ticket.status];
+    : TERMINAL_META[ticket.status] && { ...TERMINAL_META[ticket.status], ...CLOSED_REASON_META[ticket.closed_reason ?? ''] };
   /* Still in the line, so leaving and alerts still mean something. Once the
      ticket is in_service neither does: there is no place left to give up and
      nothing left to be told. */
   const queued = called || ticket.status === 'waiting';
   const statusLabel = called
-    ? "It's your turn. Head to the counter"
+    ? words.calledStatus
     : inService
-      ? 'You are being served now'
+      ? words.servedStatus
       : ticket.status_message || (active ? 'You are in line' : terminal?.label || ticket.status.replace('_', ' '));
   const spot = ticket.waiting_position ?? ticket.position;
 
@@ -336,6 +370,12 @@ export default function TicketScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 32 + lift, ...column }} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
 
+        {/* A red-flag triage answer: they are in the line, but should go to
+            the triage desk now rather than wait. Stays up until they are seen. */}
+        {(ticket as { triage_flag?: string }).triage_flag === 'possibly_urgent' && !inService ? (
+          <View style={{ marginBottom: 14, borderRadius: 18, backgroundColor: '#fff' }}><UrgentNotice /></View>
+        ) : null}
+
         {/* status banner — the one thing that must never be missed */}
         {(called || inService) && (
           <View style={{ backgroundColor: called ? colors.accent : colors.light, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }}>
@@ -344,12 +384,39 @@ export default function TicketScreen() {
           </View>
         )}
 
+        {/* Arrived by transfer: where from, and the old number, so the new one
+            is not a surprise and they can say it at the desk if asked. */}
+        {active && ticket.transferred_from_number ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14, ...shadow.card }}>
+            <Ionicons name="swap-horizontal" size={20} color={colors.accent} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>
+              {`Moved here from ${ticket.transferred_from_service || 'another line'} (was ${ticket.transferred_from_number}). You keep your place by the time you arrived.`}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* An honoured appointment (migration 042). Says why their place is
+            ahead of people who were here first, so the client is not surprised
+            and can say so if anyone asks. */}
+        {active && ticket.appointment_at ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 18, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14, ...shadow.card }}>
+            <Ionicons name="calendar-outline" size={20} color={colors.accent} />
+            <Text style={{ flex: 1, fontFamily: font.semibold, fontSize: 13.5, color: colors.ink, lineHeight: 19 }}>
+              {/* An instant on the wire, so read it in the phone's own clock. */}
+              {`Appointment at ${new Date(ticket.appointment_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. You'll be called ahead of walk-ins.`}
+            </Text>
+          </View>
+        ) : null}
+
         {/* The pass, on the boarding-pass model: the journey on a dark panel,
             a perforation, and the scannable half below it. */}
         <TicketPass
           branchName={ticket.branch_name || 'Your branch'}
           serviceName={ticket.service_name || 'Your service'}
           ticketNumber={ticket.ticket_number}
+          nowLabel={words.nowLabel}
+          locationLabel={words.locationLabel}
+          serviceLabel={words.serviceLabel}
           joinedAt={ticket.joined_at}
           endedAt={ticket.completed_at || ticket.called_at}
           remainingMinutes={Number(ticket.estimated_wait_minutes || 0)}
@@ -369,7 +436,7 @@ export default function TicketScreen() {
             </View>
             <Text style={{ fontFamily: font.medium, fontSize: 12, color: colors.muted, marginTop: 12, textAlign: 'center', lineHeight: 17 }}>
               {active
-                ? 'Show this code at the counter when your number is called.'
+                ? `Show this code at ${words.desk} when your number is called.`
                 : 'This is the code that was on the ticket. It is kept for your records.'}
             </Text>
 
@@ -473,7 +540,7 @@ export default function TicketScreen() {
               disabled={closing}
               activeOpacity={0.9}
               accessibilityRole="button"
-              accessibilityHint="For when you reached the counter but could not finish"
+              accessibilityHint={words.incompleteHint}
               style={{ minHeight: 58, borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}
             >
               {closing ? <ActivityIndicator color="#fff" /> : (
@@ -590,7 +657,7 @@ export default function TicketScreen() {
       <ConfirmSheet
         visible={confirmIncomplete}
         title="Mark this visit incomplete?"
-        message="Use this if you reached the counter but could not finish. The branch will see the visit as incomplete, and you can join the line again whenever you are ready."
+        message={words.incompleteBody}
         confirmLabel="Mark incomplete"
         cancelLabel="Keep the visit open"
         icon="alert-circle-outline"

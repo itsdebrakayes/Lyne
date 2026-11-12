@@ -19,7 +19,9 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { TERMS_VERSION } from '../../lib/legalContent';
+import { SOCIAL_AUTH_ENABLED } from '../../lib/features';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/ThemeProvider';
@@ -31,6 +33,7 @@ import { AuthMotifFrame } from '../../components/AuthMotifFrame';
 import { SocialAuthButtons } from '../../components/SocialAuthButtons';
 import { AuthMode, AuthModeSwitch } from '../../components/AuthModeSwitch';
 import { SignupCodeEntry } from '../../components/SignupCodeEntry';
+import { PasswordReset } from '../../components/PasswordReset';
 import { clearPendingSignup, readPendingSignup, rememberPendingSignup } from '../../lib/pendingSignup';
 import { setDocument } from '../../lib/documentVault';
 import { formatTrn, isValidTrn } from '../../lib/trn';
@@ -48,7 +51,8 @@ export default function AuthScreen() {
   const column = useContentColumn();
   const topPad = useTopPad(72);
   const lift = useNavBarLift();
-  const { signIn, signUp } = useAuth();
+  const navigation = useNavigation<any>();
+  const { signIn, signUp, resendSignupCode } = useAuth();
   const { scheme } = useTheme();
   const styles = useMemo(() => makeStyles(), [scheme]);
 
@@ -62,12 +66,14 @@ export default function AuthScreen() {
   const [trn, setTrn] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState<Field | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
   /* An account created here earlier that still needs its code (the app was
      closed in between): reopen in Create account, on the code. */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -75,24 +81,38 @@ export default function AuthScreen() {
     readPendingSignup().then(e => { setPendingEmail(e); if (e) setMode('signup'); });
   }, []);
 
-  const switchMode = (next: AuthMode) => { setError(null); setMode(next); };
+  const switchMode = (next: AuthMode) => { setError(null); setResetting(false); setMode(next); };
 
   const handleSignIn = async () => {
     if (!email.trim() || !password) { setError('Enter your email and password to continue.'); return; }
     setLoading(true); setError(null);
     const { error: signInError } = await signIn(email.trim(), password);
+    /* Signed up but never entered the code: the password is right, the email is
+       not proven yet. Send a fresh code and take them to it, instead of a dead
+       end that says "Email not confirmed". */
+    const code = (signInError as { code?: string } | null)?.code;
+    if (signInError && (code === 'email_not_confirmed' || /email not confirmed/i.test(signInError.message))) {
+      const address = email.trim().toLowerCase();
+      await resendSignupCode(address);
+      await rememberPendingSignup(address);
+      setLoading(false);
+      setConfirmSent(true);
+      setMode('signup');
+      return;
+    }
     setLoading(false);
     if (signInError) setError(signInError.message === 'Invalid login credentials' ? 'That email and password don’t match. Try again.' : signInError.message);
   };
 
   const handleSignUp = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim()) { setError('Add your name, email and phone number to continue.'); return; }
-    if (!dob) { setError('Choose your date of birth.'); return; }
     if (!password) { setError('Create a password to secure your account.'); return; }
     if (password.length < 8) { setError('Your password needs at least 8 characters.'); return; }
     if (password !== confirm) { setError('Those passwords don’t match.'); return; }
-    if (!trn.trim()) { setError('Add your TRN. Branches use it to verify you.'); return; }
-    if (!isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
+    if (!agreed) { setError('Accept the Terms of Use and Privacy Policy to create your account.'); return; }
+    /* Date of birth and TRN are optional (App Review guideline 5.1.1(v)): the
+       app works without either. A TRN, if given, must at least be a TRN. */
+    if (trn.trim() && !isValidTrn(trn)) { setError('A TRN is nine digits, like 123-456-789.'); return; }
     setLoading(true); setError(null);
     try {
       /* The TRN is not sent anywhere. It used to ride along as account
@@ -102,10 +122,13 @@ export default function AuthScreen() {
       const { error: signupError, needsConfirmation } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         phone: phone.trim(),
-        date_of_birth: toISODate(dob),
+        ...(dob ? { date_of_birth: toISODate(dob) } : {}),
+        /* Kept on the account, so there is a record of what was agreed and when. */
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: TERMS_VERSION,
       });
       if (signupError) throw signupError;
-      await setDocument('trn', formatTrn(trn.trim()));
+      if (trn.trim()) await setDocument('trn', formatTrn(trn.trim()));
       if (needsConfirmation) {
         await rememberPendingSignup(email.trim().toLowerCase());
         setConfirmSent(true);
@@ -158,12 +181,16 @@ export default function AuthScreen() {
             <AuthModeSwitch mode={mode} onChange={switchMode} />
           </Animated.View>
 
-          {awaitingCode ? (
+          {resetting && !signup ? (
+            <Animated.View entering={ENTER} exiting={EXIT}>
+              <PasswordReset initialEmail={email} onDone={() => { setResetting(false); setPassword(''); }} />
+            </Animated.View>
+          ) : awaitingCode ? (
             <Animated.View entering={ENTER} exiting={EXIT}>
               <SignupCodeEntry
                 email={confirmSent ? email.trim().toLowerCase() : pendingEmail!}
                 password={confirmSent ? password : undefined}
-                metadata={confirmSent && dob ? { full_name: fullName.trim(), phone: phone.trim(), date_of_birth: toISODate(dob) } : undefined}
+                metadata={confirmSent && fullName.trim() ? { full_name: fullName.trim(), phone: phone.trim(), ...(dob ? { date_of_birth: toISODate(dob) } : {}) } : undefined}
                 onUseDifferentEmail={async () => { await clearPendingSignup(); setPendingEmail(null); setConfirmSent(false); }}
                 onGoToSignIn={() => { setConfirmSent(false); switchMode('signin'); }}
               />
@@ -194,14 +221,16 @@ export default function AuthScreen() {
                 <Text style={styles.label}>Phone number</Text>
                 <TextInput style={fieldStyle('phone')} {...focusProps('phone')} placeholder="876-000-0000" placeholderTextColor={colors.faint} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" />
 
-                <Text style={styles.label}>Date of birth</Text>
+                <Text style={styles.label}>Date of birth (optional)</Text>
                 <TouchableOpacity activeOpacity={0.85} onPress={() => setCalendarOpen(true)} style={[styles.input, styles.row, calendarOpen && styles.inputFocused]}>
                   <Text style={{ flex: 1, fontFamily: font.medium, fontSize: 15, color: dob ? colors.ink : colors.faint }}>{dob ? formatDob(dob) : 'Select your date of birth'}</Text>
                   <Ionicons name="calendar-outline" size={18} color={colors.muted} />
                 </TouchableOpacity>
+                <Text style={styles.optionalHint}>Helps a branch tell you apart from someone with the same name.</Text>
 
-                <Text style={styles.label}>TRN</Text>
+                <Text style={styles.label}>TRN (optional)</Text>
                 <TextInput style={fieldStyle('trn')} {...focusProps('trn')} placeholder="000-000-000" placeholderTextColor={colors.faint} value={trn} onChangeText={setTrn} keyboardType="number-pad" />
+                <Text style={styles.optionalHint}>Kept only on this phone, never sent to Lyne. You can add it later in your profile.</Text>
                 </Animated.View>
               )}
 
@@ -222,6 +251,12 @@ export default function AuthScreen() {
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
                   </TouchableOpacity>
                 </View>
+                {!signup && (
+                  <TouchableOpacity onPress={() => { setError(null); setResetting(true); }} accessibilityRole="button"
+                    style={styles.forgotRow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.forgotText}>Forgot password?</Text>
+                  </TouchableOpacity>
+                )}
               </Animated.View>
 
               {signup && (
@@ -231,10 +266,27 @@ export default function AuthScreen() {
                 </Animated.View>
               )}
 
+              {signup && (
+                <Animated.View entering={ENTER} exiting={EXIT} layout={LAYOUT} style={styles.agreeRow}>
+                  <TouchableOpacity onPress={() => { setAgreed(a => !a); if (error) setError(null); }} accessibilityRole="checkbox"
+                    accessibilityState={{ checked: agreed }} accessibilityLabel="I agree to the Terms of Use and Privacy Policy"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={[styles.checkbox, agreed && styles.checkboxOn]}>
+                    {agreed && <Ionicons name="checkmark" size={15} color="#fff" />}
+                  </TouchableOpacity>
+                  <Text style={styles.agreeText} onPress={() => setAgreed(a => !a)}>
+                    I agree to Lyne’s{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'terms' })} accessibilityRole="link">Terms of Use</Text>
+                    {' '}and{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'privacy' })} accessibilityRole="link">Privacy Policy</Text>.
+                  </Text>
+                </Animated.View>
+              )}
+
               <Animated.View layout={LAYOUT}>
                 <TouchableOpacity
                   activeOpacity={0.9}
-                  style={[styles.btn, loading && { opacity: 0.7 }]}
+                  style={[styles.btn, (loading || (signup && !agreed)) && { opacity: 0.55 }]}
                   onPress={signup ? handleSignUp : handleSignIn}
                   disabled={loading}
                   accessibilityRole="button"
@@ -248,6 +300,13 @@ export default function AuthScreen() {
                 </TouchableOpacity>
 
                 <SocialAuthButtons onError={setError} />
+                {signup && SOCIAL_AUTH_ENABLED && (
+                  <Text style={styles.socialTerms}>
+                    Continuing with Apple or Google also means you agree to the{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'terms' })}>Terms</Text> and{' '}
+                    <Text style={styles.agreeLink} onPress={() => navigation.navigate('Legal', { tab: 'privacy' })}>Privacy Policy</Text>.
+                  </Text>
+                )}
 
                 <TouchableOpacity onPress={() => switchMode(signup ? 'signin' : 'signup')} style={styles.switchRow} hitSlop={{ top: 8, bottom: 8 }}>
                   <Text style={styles.switchText}>
@@ -271,6 +330,12 @@ const makeStyles = () => StyleSheet.create({
   /* paddingBottom (set inline) clears the docked bottom motif and the Android
      nav bar; at 40 the last row ended underneath the fade. */
   inner: { paddingHorizontal: 28 },
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 18 },
+  checkbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.fieldBg, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  agreeText: { flex: 1, fontFamily: font.medium, fontSize: 13.5, lineHeight: 20, color: colors.sub },
+  agreeLink: { fontFamily: font.bold, color: colors.accentDeep, textDecorationLine: 'underline' },
+  socialTerms: { fontFamily: font.medium, fontSize: 12, lineHeight: 17, color: colors.muted, textAlign: 'center', marginTop: 10, paddingHorizontal: 8 },
 
   /* The lockup is wordmark-plus-symbol, so it is wide rather than square and
      carries the name itself. */
@@ -286,6 +351,7 @@ const makeStyles = () => StyleSheet.create({
   errorText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: colors.danger },
 
   label: { fontFamily: font.bold, fontSize: 13, color: colors.sub, marginBottom: 7, marginLeft: 2 },
+  optionalHint: { fontFamily: font.medium, fontSize: 12, color: colors.faint, marginTop: -8, marginBottom: 14, marginLeft: 2, lineHeight: 17 },
   input: {
     backgroundColor: colors.fieldBg, borderWidth: 1, borderColor: colors.border,
     borderRadius: 16, paddingHorizontal: 17, height: 54,
@@ -302,6 +368,8 @@ const makeStyles = () => StyleSheet.create({
   },
   btnText: { fontFamily: font.extra, color: '#ffffff', fontSize: 16 },
 
+  forgotRow: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 },
+  forgotText: { fontFamily: font.bold, fontSize: 13, color: colors.accentDeep },
   switchRow: { alignItems: 'center', marginTop: 22 },
   switchText: { fontFamily: font.medium, fontSize: 13.5, color: colors.muted },
   switchBold: { fontFamily: font.bold, color: colors.ink },

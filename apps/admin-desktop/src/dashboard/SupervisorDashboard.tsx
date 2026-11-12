@@ -4,6 +4,7 @@
  * the Manager cards, minus the editing controls: a supervisor watches the floor
  * and SEES the branch targets, but does not set them.
  */
+import { useSectorTerms } from '../hooks/useSectorTerms';
 import { useEffect, useMemo, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import MessageComposer from '../components/MessageComposer';
@@ -54,6 +55,7 @@ const NAV: NavItem[] = [
 ];
 
 export default function SupervisorDashboard() {
+  const terms = useSectorTerms();
   const d = useDashboardData();
   const { logout } = useAdminAuth();
   const tour = useTour('supervisor');
@@ -81,7 +83,9 @@ export default function SupervisorDashboard() {
         return api.post('/assignments', {
           staff_id: staffId,
           counter_id: deskId,
-          assignment_date: new Date().toISOString().slice(0, 10),
+          /* The branch's date. toISOString is UTC, which after 7pm in Jamaica is
+             tomorrow, so an evening move landed on the wrong day. */
+          assignment_date: today(),
         });
       }
       // Clearing a desk: remove today's assignment for it.
@@ -99,6 +103,10 @@ export default function SupervisorDashboard() {
   const todayLabel = new Date().toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
+  /* The part of the branch this supervisor runs (migration 043). Without one
+     they cover the whole branch, and the screens say so. */
+  const sectionName = d.admin?.staffRecord.section_name || null;
+  const scopeName = sectionName ? `${branchName} · ${sectionName}` : branchName;
   const preds = d.predictions as any[];
 
   const summary = useMemo(() => dailyRollup(d.summary), [d.summary]);
@@ -148,8 +156,8 @@ export default function SupervisorDashboard() {
 
 
   const titles: Record<string, [string, string]> = {
-    overview: ['Your Floor, Right Now', `${branchName} — Live Queues, Waits And What Needs Attention.`],
-    staff: ['Staff', `Who's Serving At ${branchName} And How Today Is Going.`],
+    overview: ['Your Floor, Right Now', `${scopeName} — Live Queues, Waits And What Needs Attention.`],
+    staff: ['Staff', `Who's Serving In ${sectionName || branchName} And How Today Is Going.`],
     sessions: ['Sessions', 'A Capped Day People Registered For — Check Them In As They Arrive.'],
     busy: ['Busy Times', 'When The Branch Is Busiest — Plan Cover And Breaks.'],
     targets: ['Targets', 'The Branch Targets Your Manager Set — For Reference.'],
@@ -161,9 +169,9 @@ export default function SupervisorDashboard() {
     window: supWindow,
     /* Sections are not modelled on the staff record — a supervisor is attached
        to a branch. Labelled by branch rather than inventing a section name. */
-    sectionName: branchName,
+    sectionName: sectionName || branchName,
     branchName, supervisorName: d.admin?.name || '',
-    queues: d.queues as any[], counters: countersQuery.data || [],
+    queues: d.queues as any[], counters: countersQuery.data || [], presence: d.presence,
     staff: shownStaff, productivity: d.productivity,
     demandHourly: d.demandHourly as any[], target: d.effectiveTarget,
     avgWait: liveWait,
@@ -191,7 +199,7 @@ export default function SupervisorDashboard() {
       };
     })(),
   }), [assigned, d.admin, branchName, d.queues, countersQuery.data, shownStaff, d.productivity, d.demandHourly,
-       d.effectiveTarget, liveWait, last, supWindow, win]);
+       d.effectiveTarget, liveWait, last, supWindow, win, d.presence]);
 
   const uncovered = liveData.desks.find((x) => !x.staffId && x.waiting > 0) || null;
 
@@ -200,15 +208,15 @@ export default function SupervisorDashboard() {
   return (
     <QxShell
       brand="Lyne"
-      brandSub={branchName}
-      nav={NAV.map((n) => ({ key: n.key, label: n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
+      brandSub={scopeName}
+      nav={NAV.map((n) => ({ key: n.key, label: n.key === 'cases' ? `${terms.visitor.one} Cases` : n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}
       active={tab}
       onNav={setTab}
       notifications={notify.unread}
       notify={notify}
       account={{ name: d.admin?.name || 'Supervisor', role: 'Supervisor', email: d.admin?.staffRecord.email, onSignOut: logout }}
       search={tab === 'staff' ? { value: q, onChange: setQ, placeholder: 'Search staff by name or code…' } : undefined}
-      context={<><MapPin size={13} /><span>{branchName}</span><b>· {liveData.desks.length} Desks</b></>}
+      context={<><MapPin size={13} /><span>{scopeName}</span><b>· {liveData.desks.length} Desks</b></>}
       railCard={
         <div className="qx-railcard">
           <small>Right Now</small>
@@ -223,7 +231,7 @@ export default function SupervisorDashboard() {
         <QxHead
           title={tab === 'overview' ? greetingFor(d.admin?.name) : (SUP_TAB_HEAD[tab]?.title ?? titles[tab]?.[0] ?? '')}
           sub={tab === 'overview'
-            ? `Here's how ${branchName} is covered right now.`
+            ? `Here's how ${sectionName || branchName} is covered right now.`
             : (SUP_TAB_HEAD[tab]?.sub ?? titles[tab]?.[1] ?? '')}
           live={<Freshness at={d.lastUpdatedAt} fetching={d.isFetching} failed={d.hasError} />}
           right={<>
@@ -249,7 +257,7 @@ export default function SupervisorDashboard() {
       {tour.running ? <Spotlight steps={TOURS.supervisor} onDone={tour.finish} /> : null}
       <SupDataProvider value={liveData}>
         {tab === 'overview' ? <SupOverviewQX onNav={setTab} />
-          : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} />
+          : tab === 'sessions' ? <SessionsWorkspace businessId={d.businessId} branchId={d.branchId} canEdit={false} canDoor canClose />
             : tab === 'cases' ? <CustomerCasesWorkspace businessId={d.businessId} branchId={d.branchId} />
             : tab === 'customers' ? <CustomerDirectory businessId={d.businessId} branchId={d.branchId} />
             : supTab(tab, setTab)}

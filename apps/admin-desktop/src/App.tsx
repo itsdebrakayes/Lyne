@@ -45,8 +45,18 @@ function RoleRouter() {
     case 'executive':  return <Navigate to="/executive"  replace />;
     case 'manager':    return <Navigate to="/manager"    replace />;
     case 'supervisor': return <Navigate to="/supervisor" replace />;
-    default:           return <Navigate to="/staff"      replace />;
+    case 'line_staff': return <Navigate to="/staff"      replace />;
+    /* A role with no dashboard. useAdminAuth refuses these at sign-in, so this
+       is the safety net: sending them to /staff bounced back here forever and
+       left a black window. */
+    default:           return <SignOutUnknownRole />;
   }
+}
+
+function SignOutUnknownRole() {
+  const { logout } = useAdminAuth();
+  useEffect(() => { logout(); }, [logout]);
+  return <LoadingScreen />;
 }
 
 export default function App() {

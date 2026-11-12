@@ -19,6 +19,7 @@ import Cookies from './pages/Cookies';
 import Refunds from './pages/Refunds';
 import DeleteAccount from './pages/DeleteAccount';
 import Download from './pages/Download';
+import GetApp from './pages/GetApp';
 import NotFound from './pages/NotFound';
 import AuthConfirmed from './pages/AuthConfirmed';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -38,6 +39,7 @@ import MobileNotFound from './pages/mobile/MobileNotFound';
 // the public repository. Load it only for /account so missing account secrets
 // can never prevent the public marketing and legal pages from starting.
 const Account = React.lazy(() => import('./pages/Account'));
+const StopTexts = React.lazy(() => import('./pages/StopTexts'));
 const accountPortalConfigured = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
 );
@@ -147,6 +149,13 @@ function App() {
                 description="Install the Lyne Admin console on a Windows or Mac computer at your branch. Requires an account issued by Lyne under an active agreement — there is no sign-up.">
                 <ResponsivePage desktop={<Download />} mobile={<MobileDownload />} />
               </Seo>} />
+            <Route path="/get-the-app" element={
+              <Seo
+                path="/get-the-app"
+                title="Get the Lyne app"
+                description="Lyne is free on Google Play and the App Store. Join a line from your phone, see your live place, and get a notification when it is your turn.">
+                <ResponsivePage desktop={<GetApp />} mobile={<GetApp mobile />} />
+              </Seo>} />
             <Route path="/delete-account" element={
               <Seo
                 path="/delete-account"
@@ -154,6 +163,8 @@ function App() {
                 description="How to delete your Lyne account and everything on it, from inside the app or without it. What is removed, what is kept, and how to ask us.">
                 <ResponsivePage desktop={<DeleteAccount />} mobile={<MobileDeleteAccount />} />
               </Seo>} />
+            {/* Where the link in a text lands. No index entry: it is one person's. */}
+            <Route path="/stop/:code" element={<StopTexts />} />
             {/* Where the confirmation email's link lands. One layout serves
                 both widths; it is a single card. */}
             <Route path="/auth/confirmed" element={

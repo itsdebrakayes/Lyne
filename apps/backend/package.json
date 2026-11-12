@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:db": "LYNE_TEST_DB=1 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3307 node --env-file=../../.env --test test/db/"
   },
   "dependencies": {
     "@sentry/node": "^11.4.0",
@@ -22,6 +23,7 @@
     "morgan": "^1.10.0",
     "mysql2": "^3.9.7",
     "stripe": "^22.3.0",
+    "twilio": "^6.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

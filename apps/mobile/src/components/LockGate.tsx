@@ -6,7 +6,7 @@
  * fail open (never lock the user out of their own account).
  */
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, TouchableOpacity, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,7 +68,7 @@ export function LockGate({ children, paused = false, onLocked }: {
         <Ionicons name="lock-closed" size={30} color={colors.accent} />
       </View>
       <Text style={{ fontFamily: font.extra, fontSize: 20, color: '#fff', letterSpacing: -0.3 }}>Lyne is locked</Text>
-      <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,.6)', marginTop: 8, textAlign: 'center' }}>Unlock with Face ID to continue.</Text>
+      <Text style={{ fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,.6)', marginTop: 8, textAlign: 'center' }}>{Platform.OS === 'ios' ? 'Unlock with Face ID to continue.' : 'Unlock with your fingerprint or screen lock to continue.'}</Text>
       {state === 'locked' ? (
         <TouchableOpacity onPress={prompt} style={{ marginTop: 26, backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 28, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="scan" size={17} color={colors.accentInk} />

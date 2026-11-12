@@ -37,9 +37,12 @@ export interface MobileStore {
   available: boolean;
 }
 
+export const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.lyne.mobile';
+
 export const MOBILE_STORES: MobileStore[] = [
   { id: 'ios', label: 'App Store', url: clean(env.VITE_IOS_APP_URL), available: false },
-  { id: 'android', label: 'Google Play', url: clean(env.VITE_ANDROID_APP_URL), available: false },
+  /* Live on Google Play since October 2026; the env var can still override. */
+  { id: 'android', label: 'Google Play', url: clean(env.VITE_ANDROID_APP_URL) || ANDROID_STORE_URL, available: false },
 ].map((s) => ({ ...s, available: s.url.length > 0 }));
 
 /** True once the app can actually be downloaded from at least one store. */

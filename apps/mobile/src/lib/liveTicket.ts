@@ -65,6 +65,15 @@ export async function syncLiveTicket(ticket: LiveTicket | null | undefined): Pro
     return;
   }
   if (ticket.id !== activeTicketId) {
+    /* A different ticket while one is still on the lock screen means staff
+       moved them to another line (a transfer is a new ticket with a new
+       number). End the old activity so the new number shows, and drop the
+       token subscription that would keep reporting to the old ticket. */
+    if (activeTicketId) {
+      tokenSub?.remove();
+      tokenSub = null;
+      if (Platform.OS === 'ios') await LiveActivity.end(null, false).catch(() => {});
+    }
     activeTicketId = ticket.id;
     aheadAtStart = 0;
     lastSent = '';

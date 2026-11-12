@@ -8,6 +8,7 @@
  * action plan, so the business decides what "on target" means and by when.
  */
 
+const crypto = require('crypto');
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -62,6 +63,27 @@ async function fetchBusinessTarget(businessId) {
   };
 }
 
+/* The change log (migration 044). Called with the values as they stood before
+   a save and as they stand after; writes one row per metric that moved. The
+   reason is the note typed with the change. Never fails the save it records:
+   a database still without 044 keeps working, it just keeps no history. */
+const LOGGED_METRICS = ['target_wait_minutes', 'target_completion_rate', 'target_no_show_rate', 'horizon_months'];
+async function logTargetChanges({ businessId, branchId, before, after, reason, staffId }) {
+  const rows = LOGGED_METRICS
+    .filter((m) => after[m] != null && Number(before?.[m]) !== Number(after[m]))
+    .map((m) => [crypto.randomUUID(), businessId, branchId || null, m,
+      before?.[m] == null ? null : Number(before[m]), Number(after[m]), reason || null, staffId || null]);
+  if (!rows.length) return;
+  try {
+    await pool.query(
+      `INSERT INTO target_changes (id, business_id, branch_id, metric, old_value, new_value, reason, changed_by)
+       VALUES ?`, [rows]
+    );
+  } catch (err) {
+    console.error('[targets] change log not written:', err.message);
+  }
+}
+
 router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
   try {
     const businessId = scopedBusinessId(req, req.query.business_id);
@@ -84,6 +106,7 @@ router.put('/', requireAuth, requireStaffRole('executive'), requireBusinessAcces
     const horizonMonths = clampInt(req.body.horizon_months, 1, 60, DEFAULTS.horizon_months);
     const note = typeof req.body.note === 'string' ? req.body.note.slice(0, 255) : null;
     const targetDate = horizonDate(horizonMonths);
+    const before = await fetchBusinessTarget(businessId);
 
     await pool.query(
       `INSERT INTO business_targets
@@ -100,6 +123,11 @@ router.put('/', requireAuth, requireStaffRole('executive'), requireBusinessAcces
          set_by_staff_id = VALUES(set_by_staff_id)`,
       [businessId, targetWait, targetCompletion, targetNoShow, horizonMonths, targetDate, note, req.dbStaff?.id || null]
     );
+    await logTargetChanges({
+      businessId, branchId: null, before, reason: note, staffId: req.dbStaff?.id,
+      after: { target_wait_minutes: targetWait, target_completion_rate: targetCompletion,
+        target_no_show_rate: targetNoShow, horizon_months: horizonMonths },
+    });
 
     const [rows] = await pool.query(
       `SELECT t.*, s.full_name AS set_by_name
@@ -186,6 +214,11 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
     const targetCompletion = clampInt(req.body.target_completion_rate, 1, 100, DEFAULTS.target_completion_rate);
     const targetNoShow = clampInt(req.body.target_no_show_rate, 0, 100, DEFAULTS.target_no_show_rate);
     const note = typeof req.body.note === 'string' ? req.body.note.slice(0, 255) : null;
+    // What the branch was held to before: its own numbers, else the company's.
+    const company0 = await fetchBusinessTarget(branch.business_id);
+    const [[prior]] = await pool.query('SELECT * FROM branch_targets WHERE branch_id = ?', [branchId]);
+    const before = {};
+    for (const m of BRANCH_METRICS) before[m] = prior?.[m] ?? company0[m];
 
     await pool.query(
       `INSERT INTO branch_targets
@@ -199,6 +232,10 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
          set_by_staff_id = VALUES(set_by_staff_id)`,
       [branchId, branch.business_id, targetWait, targetCompletion, targetNoShow, note, req.dbStaff?.id || null]
     );
+    await logTargetChanges({
+      businessId: branch.business_id, branchId, before, reason: note, staffId: req.dbStaff?.id,
+      after: { target_wait_minutes: targetWait, target_completion_rate: targetCompletion, target_no_show_rate: targetNoShow },
+    });
 
     // Return the same effective shape the GET produces.
     const company = await fetchBusinessTarget(branch.business_id);
@@ -226,6 +263,36 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save branch targets.' });
+  }
+});
+
+// GET /api/targets/history?business_id=&branch_id= — the change log, newest
+// first. A manager or supervisor sees their own branch and the company target
+// it inherits; an executive sees everything, or one branch when asked.
+router.get('/history', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const branchId = scopedBranchId(req, req.query.branch_id);
+    const conditions = ['c.business_id = ?'];
+    const params = [businessId];
+    if (branchId) { conditions.push('(c.branch_id = ? OR c.branch_id IS NULL)'); params.push(branchId); }
+    const [rows] = await pool.query(
+      `SELECT c.id, c.branch_id, b.name AS branch_name, c.metric, c.old_value, c.new_value,
+              c.reason, c.changed_at, s.full_name AS changed_by_name
+         FROM target_changes c
+         LEFT JOIN branches b ON b.id = c.branch_id
+         LEFT JOIN staff s ON s.id = c.changed_by
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY c.changed_at DESC
+        LIMIT 200`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json([]);
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch target history.' });
   }
 });
 

@@ -13,10 +13,11 @@
  *   • idle_after_minutes  — per person; filters their own "needs attention" feed.
  *   • line_over_target    — per person; same feed.
  *
- * Two settings on that tab are deliberately absent, because the features they
- * describe do not exist yet (no SMS integration, no kiosk printer). They stay
- * visibly disabled in the UI with the reason shown. When either lands, add it
- * here — do not add storage first and hope.
+ *   • text_when_called    — branch policy, read by utils/smsAlerts.js. Off by
+ *                           default, because each text costs money.
+ *
+ * Kiosk printing is deliberately absent: there is no printer driver, so it stays
+ * visibly disabled in the UI with the reason shown.
  *
  * Scoping follows targets.js exactly: scopedBranchId pins a manager to their own
  * branch whatever the body says; an executive may address any branch in their
@@ -28,20 +29,24 @@ const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireBranchAccess, scopedBranchId } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
+const { smsAvailable } = require('../utils/smsSender');
 
 const router = express.Router();
 
 /** Absent rows mean defaults, so GET never 404s on a branch nobody has configured. */
-const BRANCH_DEFAULTS = Object.freeze({ allow_overflow: false, line_helper_enabled: true });
+const BRANCH_DEFAULTS = Object.freeze({ allow_overflow: false, line_helper_enabled: true, text_when_called: false });
 const ALERT_DEFAULTS = Object.freeze({ idle_after_minutes: 20, line_over_target: 'on' });
 
 /** Only thresholds the UI offers. Anything else falls back rather than being stored. */
 const IDLE_CHOICES = [10, 20];
 
 function shapeBranch(row) {
-  if (!row) return { ...BRANCH_DEFAULTS };
+  if (!row) return { ...BRANCH_DEFAULTS, sms_available: smsAvailable() };
   return {
     allow_overflow: Boolean(row.allow_overflow),
+    text_when_called: Boolean(row.text_when_called),
+    /* Whether the switch can do anything: texting needs the provider connected. */
+    sms_available: smsAvailable(),
     /* Read off the branches row, not branch_settings — the Line Helper join
        path reads branches.line_helper_enabled, and one column read by two
        places that could disagree is a bug waiting to happen. */
@@ -122,7 +127,6 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
     const branchId = scopedBranchId(req, req.body.branch_id);
     if (!branchId) return res.status(400).json({ error: 'branch_id is required.' });
 
-    const allowOverflow = req.body.allow_overflow ? 1 : 0;
 
     /* Written to the branches row, which is where the Line Helper join path
        reads it. Only when it was actually sent: a settings save that only
@@ -138,10 +142,17 @@ router.put('/branch', requireAuth, requireStaffRole('manager', 'executive'), req
       `INSERT INTO branch_settings (branch_id, allow_overflow, updated_by)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE
-         allow_overflow = VALUES(allow_overflow),
+         allow_overflow = IF(? IS NULL, allow_overflow, VALUES(allow_overflow)),
          updated_by = VALUES(updated_by)`,
-      [branchId, allowOverflow, req.dbStaff?.id || null]
+      /* Only what was sent: saving one toggle used to switch overflow off. */
+      [branchId, req.body.allow_overflow ? 1 : 0, req.dbStaff?.id || null,
+        req.body.allow_overflow === undefined ? null : 1]
     );
+
+    /* Only when sent, as with Line Helper: saving another setting leaves it be. */
+    if (req.body.text_when_called !== undefined) {
+      await pool.query('UPDATE branch_settings SET text_when_called = ? WHERE branch_id = ?', [req.body.text_when_called ? 1 : 0, branchId]);
+    }
 
     const [rows] = await pool.query(
       `SELECT bs.*, s.full_name AS updated_by_name, b.line_helper_enabled

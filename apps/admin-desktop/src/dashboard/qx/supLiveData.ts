@@ -44,6 +44,8 @@ export type SupLiveInput = {
   faq: Array<{ q: string; a: string }>;
   /** Session assignments, owned by the dashboard so they survive tab changes. */
   assigned: Record<string, string | null>;
+  /** who is on shift and on a break, live */
+  presence?: Array<{ staff_id: string; on_break: boolean }>;
   onAssign: (deskId: string, staffId: string | null) => void;
 };
 
@@ -67,6 +69,8 @@ export function buildSupData(i: SupLiveInput): SupTabData {
     if (c.staff_name) onDesk.set(String(c.staff_name), String(c.counter_label || ''));
   }
 
+  const onBreak = new Set((i.presence ?? []).filter((p) => p.on_break).map((p) => String(p.staff_id)));
+
   const staff: SupStaff[] = i.staff.map((s) => {
     const name = titleCase(s.full_name) || '—';
     const seen = Math.round(num(s.tickets_handled));
@@ -76,7 +80,8 @@ export function buildSupData(i: SupLiveInput): SupTabData {
        some point today". Reading it off tickets_handled marked everyone in the
        branch as serving, including people with no window at all. Anyone in the
        branch without a desk is free to cover. */
-    const state: SupStaff['state'] = idle.has(s.full_name) ? 'idle'
+    const state: SupStaff['state'] = onBreak.has(String(s.staff_id)) ? 'break'
+      : idle.has(s.full_name) ? 'idle'
       : desk ? 'serving'
       : 'unassigned';
     return {
@@ -89,7 +94,6 @@ export function buildSupData(i: SupLiveInput): SupTabData {
       // The staff endpoint reports throughput, not a clock-in time.
       onSince: onSinceLabel(s.signed_in_at, s.first_activity_at),
       state,
-      // Break tracking is not recorded anywhere yet, so this is never asserted.
       breakDue: false,
       note: idle.get(s.full_name) || slow.get(s.full_name),
     };
@@ -122,6 +126,7 @@ export function buildSupData(i: SupLiveInput): SupTabData {
       svc: titleCase(c.service_name) || 'Unassigned',
       staffId: c.staff_id ? String(c.staff_id) : null,
       staffName: c.staff_name ? titleCase(c.staff_name) : null,
+      onBreak: c.staff_id ? onBreak.has(String(c.staff_id)) : false,
       waiting: Math.round(num(c.service_waiting) / share),
       servedToday: Math.round(num(c.served_today)),
     };

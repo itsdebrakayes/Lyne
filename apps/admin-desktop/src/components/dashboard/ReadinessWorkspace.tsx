@@ -1,3 +1,4 @@
+import { sectorExamples } from '../../hooks/sectorExamples';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -76,6 +77,7 @@ function ReadinessEditor({ services, initialServiceId }: {
   initialServiceId?: string;
 }) {
   const terms = useSectorTerms();
+  const examples = sectorExamples(terms.sector);
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState(initialServiceId || services[0]?.id || '');
   const [items, setItems] = useState<ReadinessItem[]>([]);
@@ -184,7 +186,7 @@ function ReadinessEditor({ services, initialServiceId }: {
         <>
           <div className="qx-readyintro">
             <ClipboardCheck size={18} />
-            <p><b>Keep it concrete.</b> “Bring two payslips” is useful; “bring all documents” is not. Ticks are a prompt only—staff still check at the desk.</p>
+            <p><b>Keep it concrete.</b> “{examples.concreteGood}” is useful; “{examples.concreteVague}” is not. Ticks are a prompt only—staff still check at the desk.</p>
           </div>
 
           {!items.length ? (
@@ -208,7 +210,7 @@ function ReadinessEditor({ services, initialServiceId }: {
                       </select></label>
                       <label className="grow"><span>Checklist label</span><input maxLength={140} value={item.label}
                         onChange={(event) => update(index, { label: event.target.value })}
-                        placeholder={item.kind === 'bring' ? 'e.g. Two recent payslips' : 'e.g. Complete the loan application'} /></label>
+                        placeholder={item.kind === 'bring' ? examples.bringPlaceholder : examples.preparePlaceholder} /></label>
                     </div>
                     <div className="qx-readyrow">
                       <label className="grow"><span>Helpful detail</span><input maxLength={400} value={item.detail}
@@ -221,7 +223,7 @@ function ReadinessEditor({ services, initialServiceId }: {
                     </div>
                     <label className="qx-readyrequired"><input type="checkbox" checked={item.is_mandatory}
                       onChange={(event) => update(index, { is_mandatory: event.target.checked })} />
-                      <span><b>Required to proceed</b><small>Members must confirm this before joining.</small></span>
+                      <span><b>Required to proceed</b><small>{terms.visitor.many} must confirm this before joining.</small></span>
                     </label>
                   </div>
                   <button type="button" className="qx-readydelete" aria-label="Delete checklist item" onClick={() => remove(index)}><Trash2 /></button>

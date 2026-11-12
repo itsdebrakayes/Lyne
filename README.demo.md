@@ -32,6 +32,7 @@ The demo overlay loads into `demo-db`:
 - `database/seed.sql` (legacy TAJ, NHT, and PICA fixtures)
 - `database/demo_active_seed.sql` (live queues and tickets)
 - `database/demo_credit_union_seed.sql` (fictional Community First pilot, approved-style readiness lists, and incomplete-visit outcomes)
+- `database/demo_help_guides.sql` (short names and Help-centre guides for the demo agencies; updates only, safe to re-run on an existing demo database after migration 040)
 
 Then link the Supabase test accounts and refresh the queue dates to today:
 
@@ -41,6 +42,108 @@ ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 \
   npm run sync:demo-test-accounts
 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 npm run refresh:demo-data
 ```
+
+## The demo logins and the Lyne Admin Demo app
+
+The seven `demo.*@uselyne.com` logins (passwords in `secrets/staff-logins.txt`)
+exist in two places, and the difference matters:
+
+- **Production** (the installed **Lyne Admin** app, `api.uselyne.com`): they
+  belong to Blue Harbour Civic Centre, the fictional review organisation, and
+  stay there. Production may not hold the demo organisations.
+- **The demo server on this Mac** (Docker, port 4000): they are personas you
+  point at whichever organisation the next demo is about:
+
+  ```bash
+  bash scripts/demo-switch.sh bank          # Lignum Bank
+  bash scripts/demo-switch.sh creditunion   # Community First Credit Union
+  bash scripts/demo-switch.sh court         # Traffic Court
+  bash scripts/demo-switch.sh hospital      # Wrenfield Health
+  bash scripts/demo-switch.sh blueharbour   # exactly what production has
+  ```
+
+  officer/officer2/officer3 are line staff seated at a desk, supervisor and
+  supervisor2 are branch supervisors, then the manager and the executive. The kiosk iPad's login (`kiosk-hospital@test.com`) moves with them, to that
+  organisation's front desk. Seats
+  are per day, so run it again on the morning of a demo.
+
+  For a session demo, add `--customer=<email>` with the customer account the
+  demo phone is signed in as: it gets the next appointment slot today (to show
+  checking in) and loses any other booking (so Saturday Banking can be
+  registered for live). Saturday sessions stay open for registration until
+  5 p.m. the evening before.
+
+To show the demo server in an installed app, use **Lyne Admin Demo** (built with
+`npm run package:mac:demo` in `apps/admin-desktop`, then copied to
+/Applications). It talks only to `http://localhost:4000/api`, keeps its own
+sign-in separate from Lyne Admin, and needs Docker running with the demo stack
+up. "No MySQL record found for this account" means the login reached a server
+where that account is not linked: run the switch, or check which app you
+opened.
+
+## Bank demo (Lignum Bank)
+
+A fictional Jamaican commercial bank for the bank demos (`database/demo_bank_seed.sql`,
+loaded by the installer and the daily refresh after migrations 040 and 041). Three
+branches with real banking hours, six services with what-to-bring lists, live lines,
+incomplete visits, and two Saturday sessions (Saturday Banking, and a loan clinic
+gated by an approved list). For the pattern screens (busy times, through the day, branch comparison, forecasts), load 90 days of ordinary traffic once after the seed:
+`ALLOW_DEMO_BANK_HISTORY=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node apps/backend/scripts/seed-demo-bank-history.js`
+(about 30,000 visits, shaped by hour, weekday, payday and month-end). Half Way Tree has two sections, Teller Services and Personal Banking; `demo.supervisor@` runs the first and `demo.supervisor2@` the second.
+It also carries four weeks of history from 30 fictional clients, so Client
+Cases has seven real stories in it (documents, a held pension, a card dispute,
+a loan applicant, a returnee, a busy business owner, remittance outages) and
+every teller and officer has visits to show. The wording is the `banking` sector's: Clients, Banking
+Officers, Departments. The full brief is `docs/demo/SCOTIABANK_DEMO_BRIEF.md`.
+
+**Appointments** (migration 042). The weekday session *Personal Banking Appointments, Half Way Tree* holds 14 bookings, one every half hour from 09:00 to 15:30, each with check-in code `PBK-HHMM` (`PBK-1030` is the 10:30). Check in the slot nearest the clock, either from the session's check-in box in the admin app or on the phone (Lignum Bank → Book & check in → the appointments session → Already have a code?): it goes to the front of Account Opening, ahead of the walk-ins, and the phone opens the live ticket. A code checked in more than 15 minutes early is refused with the time check-in opens; more than 10 minutes late joins in the usual order. The Saturday loan clinic's approved list also carries times (10:00 to 12:45).
+
+To list only the bank on phones, set `LISTED_SECTORS=banking` in `.env` and restart
+the API. Logins (create them in Supabase Auth, then run `sync-demo-test-accounts`):
+
+| Login | Who |
+|---|---|
+| `staff-bank@test.com` | Shauna Edwards, Teller 1, Half Way Tree |
+| `supervisor-bank@test.com` | Kimberley Hylton, Half Way Tree |
+| `manager-bank@test.com` | Dwayne Pottinger, Half Way Tree |
+| `executive-bank@test.com` | Lorraine Gordon, bank-wide |
+
+## Hospital demo (Wrenfield Health)
+
+The fictional US health system — three hospitals, eleven departments with
+triage questions, 900 patients and 90 days of visits — is not in the SQL
+seeds. Load it, or refresh today's lines on the morning of a demo, with:
+
+```bash
+docker exec -e ALLOW_DEMO_HEALTHCARE_SEED=true lyne_api node scripts/seed-demo-healthcare.js
+```
+
+It runs inside the API container because that is where the database settings
+live. It removes earlier Wrenfield data first, and keeps staff already linked
+to Supabase. It needs migrations 038 and 039. Then link the logins (from
+`apps/backend`, on the host; the API image does not contain this script):
+
+```bash
+ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node scripts/sync-demo-test-accounts.js
+```
+
+The demo overlay sets `LISTED_SECTORS=healthcare`, so the phone lists only the
+hospitals. Nothing else is deleted: other organisations still sign in to the
+admin app. Set `LISTED_SECTORS=` (empty) in `.env` to list everything again.
+
+| Login | Who | Simulator location |
+|---|---|---|
+| `patient-ellery@test.com` | Maya Ellison, nearest Wrenfield Medical Center | `39.512,-117.185` |
+| `patient-twinfords@test.com` | Jordan Pike, nearest Wrenfield Valley Hospital | `39.512,-116.705` |
+| `patient-brannock@test.com` | Rosa Delgado, nearest Wrenfield Regional Hospital | `39.512,-116.215` |
+| `kiosk-hospital@test.com` | Front-desk iPad, Wrenfield Medical Center | |
+| `staff-hospital@test.com` | Renee Abbott, Emergency Department | |
+| `supervisor-hospital@test.com` | Tasha Coleman, RN (charge nurse) | |
+| `manager-hospital@test.com` | Gregory Dalton | |
+| `executive-hospital@test.com` | Dr. Helena Marsh | |
+
+A patient's location is the phone's, not the account's. Move a simulator with
+`xcrun simctl location <device> set <lat>,<lng>`.
 
 `database/demo_data.sql` is retained as an older prototype fixture, but it is
 not auto-loaded because the production schema has moved on. Keep the maintained

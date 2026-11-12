@@ -6,6 +6,14 @@ to the session tracker._
 
 ---
 
+## After the Robert Lawrence demo (11 November 2026)
+
+- **Website prices match the Meeting Deck (10 Nov 2026).** Branch US$4,500/mo, Operations US$12,500/mo (up to 5), Executive US$25,000/mo (up to 10); Government / Enterprise from 11 locations, custom. Yearly is twelve monthly payments with no discount; implementation shown "from"; first-year total, per-location price and the deck's exclusions shown, as on slide 13. The Enterprise formula stays out of the browser bundle.
+- **Simultaneous walk-ins could share a place in line.** Found by a new test against a real MySQL server (`test/db/walkin-concurrency.db.test.js`, `npm run test:db`): under REPEATABLE READ the walk-in transaction's first read fixed its snapshot before it took the line's lock, and in one burst eleven people were given place 2. Every place-issuing transaction now runs READ COMMITTED (`beginSlotTransaction`) and `issueTicketSlot` locks the line itself, which also serialises the review simulator with real joins. Five bursts of 28 simultaneous joins now give places 1..N exactly.
+- **The last server path for TRN and national ID is gone.** `/api/ocr` was still mounted and stored scanned ID numbers unmasked; removed. Migration 050 drops `ocr_results` and `users.trn` / `users.national_id` (production: needs backup and approval). Demo seeds no longer write them. `test/no-identity-numbers.test.js` guards it.
+- **Encrypted off-site backups.** `deploy/offsite-backup.sh` encrypts each nightly dump (AES-256) and uploads it to DigitalOcean Spaces, verifying the stored size; `verify.sh` fails without it. README §16 had claimed an off-site copy that did not exist. Goes live with secrets/step30 after a production deploy.
+- **Data security overview** (`docs/security/DATA_SECURITY_OVERVIEW.md` and PDF): every control with the file behind it, the Jamaica Data Protection Act's duties and Lyne's status on each, and the gaps.
+
 ## The queue lifecycle, fixed at the root (August 2026)
 
 This block started as one reported symptom — a new arrival appearing ahead of people already waiting — and ended up being four separate faults sharing a cause: nothing in the system decided which *day* a line belonged to.
@@ -57,7 +65,7 @@ The demo is what a reviewer or a prospect actually sees, so a fault here reads a
 ## Repository and build health
 
 - **The repo was inside iCloud Drive.** `~/Documents` is covered by Desktop & Documents sync, so every file carried File Provider extended attributes. Two consequences, both of which had been blocking work: `codesign` refused the embedded `React.framework` ("resource fork, Finder information, or similar detritus not allowed"), and Node's `process.cwd()` threw inside a File Provider path during React Native codegen. The repo now lives at `~/Developer/Lyne`.
-- **The iOS native project had a half-finished rename.** `project.pbxproj` said `LYNE` everywhere while the folder on disk was still `ios/QMENOW/`, so `pod install` had failed since 21 August (`No such file or directory — ios/LYNE/PrivacyInfo.xcprivacy`) and no native build had succeeded since. Meanwhile the JS had gained `expo-secure-store`, which the last-good binary did not contain — so the simulator silently fell back to a three-week-old bundle and showed a sign-in screen that had been replaced twice. Regenerated with `expo prebuild --clean`; the build is green and the simulator runs current code.
+- **The iOS native project had a half-finished rename.** `project.pbxproj` said `LYNE` everywhere while the folder on disk still had the pre-rename name, so `pod install` had failed since 21 August (`No such file or directory — ios/LYNE/PrivacyInfo.xcprivacy`) and no native build had succeeded since. Meanwhile the JS had gained `expo-secure-store`, which the last-good binary did not contain — so the simulator silently fell back to a three-week-old bundle and showed a sign-in screen that had been replaced twice. Regenerated with `expo prebuild --clean`; the build is green and the simulator runs current code.
 - **108 Finder duplicates removed** and the pattern that produced them blocked in `.gitignore`.
 
 ---

@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickFolder: (current) => ipcRenderer.invoke('settings:pick-folder', current),
   openFolder: (dir) => ipcRenderer.invoke('settings:open-folder', dir),
   setLoginLaunch: (on) => ipcRenderer.invoke('settings:set-login-launch', on),
+
+  /* Reports tab: save a finished report as Word or PDF into the chosen folder. */
+  saveReport: (args) => ipcRenderer.invoke('report:save', args),
 });

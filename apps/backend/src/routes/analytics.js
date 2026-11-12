@@ -17,6 +17,8 @@
  *     — employee KPI cards for executive dashboards
  */
 
+const { buildBranchReport } = require('../utils/branchReport');
+const caseAlerts = require('../utils/caseAlerts');
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -28,6 +30,8 @@ const {
   requireBranchAccess,
   scopedBusinessId,
   scopedBranchId,
+  pushSectionScope,
+  sectionServiceIds,
 } = require('../middleware/tenantAccess');
 
 function periodRange(period, month) {
@@ -95,87 +99,95 @@ function utilizationScore(utilization) {
   return Math.max(0, Math.min(100, 100 - Math.abs(value - 0.8) * 140));
 }
 
+/* Live per-day rows straight from wait_time_records, shaped like an
+   analytics_summaries row. Two callers need it:
+   - a service or a section view, because the rollup has no service dimension
+     (its rows are branch-level, service_id NULL), and
+   - TODAY, because the rollup is built by the 01:00 job. A manager opening
+     "Today" at 11 a.m. was reading a row that would not exist until tomorrow,
+     so every today card sat empty however busy the branch was. Visits are
+     written to wait_time_records as they finish (tickets.js), so this is live. */
+async function liveSummaryRows({ businessId, branchId, serviceIds, from, to }) {
+  const conditions = ['w.business_id = ?'];
+  const params = [businessId];
+  if (branchId) { conditions.push('w.branch_id = ?'); params.push(branchId); }
+  if (serviceIds) { conditions.push('w.service_id IN (?)'); params.push(serviceIds); }
+  if (from) { conditions.push('w.visit_date >= ?'); params.push(from); }
+  if (to)   { conditions.push('w.visit_date <= ?'); params.push(to); }
+  // Only fall back to the 30-day window when NEITHER bound was given.
+  if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
+
+  const [rows] = await pool.query(
+    `SELECT w.visit_date AS summary_date,
+            w.branch_id,
+            b.name AS branch_name,
+            COUNT(*)                              AS total_visitors,
+            SUM(w.status = 'served')              AS completed_count,
+            SUM(w.status = 'cancelled')           AS cancelled_count,
+            SUM(w.status = 'no_show')             AS no_show_count,
+            SUM(w.status = 'left')                AS left_count,
+            ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
+            ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
+            ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
+            /* Served WITHIN target, as distinct from served at all. The average
+               hides the tail: a branch averaging 19 minutes against a 20-minute
+               target can still have a fifth of its visitors waiting over 40.
+               Branch target, then business target, then 20 — the order the
+               dashboards resolve targets in. */
+            ROUND(
+              SUM(w.status = 'served'
+                  AND w.wait_time_minutes IS NOT NULL
+                  AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
+              / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
+            ) AS served_within_target_pct,
+            COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
+     FROM wait_time_records w
+     LEFT JOIN branches b ON w.branch_id = b.id
+     LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
+     LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
+     ORDER BY w.visit_date DESC`,
+    params
+  );
+  return rows;
+}
+
+const ymdOf = (v) => (v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+  : String(v).slice(0, 10));
+
 // Daily summary
 router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
     const { business_id, branch_id, from, to } = req.query;
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
+    const businessId = scopedBusinessId(req, business_id);
+    const branchId = scopedBranchId(req, branch_id);
     const serviceId = safeServiceId(req.query.service_id);
-    if (serviceId) {
-      // analytics_summaries has no service dimension, so service-scoped
-      // summaries are computed live from wait_time_records.
-      const conditions = ['w.business_id = ?', 'w.service_id = ?'];
-      const params = [scopedBusinessId(req, business_id), serviceId];
-      const scopedBranch = scopedBranchId(req, branch_id);
-      if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
-      if (from)      { conditions.push('w.visit_date >= ?'); params.push(from); }
-      if (to)        { conditions.push('w.visit_date <= ?'); params.push(to); }
-      // Only fall back to the 30-day window when NEITHER bound was given.
-      // (Previously this `else` hung off `if (to)`, so passing `from` alone was
-      // silently overridden by the 30-day floor.)
-      if (!from && !to) { conditions.push('w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
-
-      const [rows] = await pool.query(
-        `SELECT w.visit_date AS summary_date,
-                w.branch_id,
-                b.name AS branch_name,
-                COUNT(*)                              AS total_visitors,
-                SUM(w.status = 'served')              AS completed_count,
-                SUM(w.status = 'no_show')             AS no_show_count,
-                SUM(w.status = 'cancelled')           AS left_count,
-                ROUND(AVG(w.wait_time_minutes), 1)    AS avg_wait_time_minutes,
-                ROUND(AVG(w.service_time_minutes), 1) AS avg_service_time_minutes,
-                ROUND(SUM(w.status = 'served') / COUNT(*) * 100, 1) AS completion_rate,
-                /* Served WITHIN target — the pilot's own success measure, and a
-                   different question from completion_rate.
-                   completion_rate asks whether somebody was seen. This asks
-                   whether they were seen in time, which is what a taxpayer
-                   actually experiences and what TAJ has proposed to judge the
-                   pilot on. The average hides the tail: a branch averaging 19
-                   minutes against a 20-minute target can still have a fifth of
-                   its visitors waiting over 40, and the average will not say so.
-                   Branch target where one is set, otherwise the business
-                   target, otherwise 20 — the same order the dashboards resolve
-                   targets in, so the number on this card and the notch on the
-                   chart mean the same thing. */
-                ROUND(
-                  SUM(w.status = 'served'
-                      AND w.wait_time_minutes IS NOT NULL
-                      AND w.wait_time_minutes <= COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20))
-                  / NULLIF(SUM(w.status = 'served' AND w.wait_time_minutes IS NOT NULL), 0) * 100, 1
-                ) AS served_within_target_pct,
-                COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes
-         FROM wait_time_records w
-         LEFT JOIN branches b ON w.branch_id = b.id
-         LEFT JOIN branch_targets   bt  ON bt.branch_id    = w.branch_id
-         LEFT JOIN business_targets bzt ON bzt.business_id = w.business_id
-         WHERE ${conditions.join(' AND ')}
-         GROUP BY w.visit_date, w.branch_id, b.name, bt.target_wait_minutes, bzt.target_wait_minutes
-         ORDER BY w.visit_date DESC`,
-        params
-      );
-      return res.json(rows);
+    const section = sectionServiceIds(req);
+    // A supervisor with a section only ever sees its services; a service filter
+    // from them is honoured only inside that section.
+    const serviceIds = section
+      ? (serviceId ? section.filter((id) => id === serviceId) : section)
+      : (serviceId ? [serviceId] : null);
+    if (serviceIds) {
+      if (!serviceIds.length) return res.json([]);
+      return res.json(await liveSummaryRows({ businessId, branchId, serviceIds, from, to }));
     }
 
-    const conditions = ['a.business_id = ?'];
-    const params = [scopedBusinessId(req, business_id)];
-    const scopedBranch = scopedBranchId(req, branch_id);
-    if (scopedBranch) { conditions.push('a.branch_id = ?'); params.push(scopedBranch); }
+    const conditions = ['a.business_id = ?', 'a.service_id IS NULL'];
+    const params = [businessId];
+    if (branchId) { conditions.push('a.branch_id = ?'); params.push(branchId); }
     if (from)      { conditions.push('a.summary_date >= ?'); params.push(from); }
     if (to)        { conditions.push('a.summary_date <= ?'); params.push(to); }
-    // Only fall back to the 30-day window when NEITHER bound was given.
     if (!from && !to) { conditions.push('a.summary_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)'); }
 
     const [rows] = await pool.query(
-      /* served_within_target_pct is computed here rather than stored on
-         analytics_summaries. The rollup has no such column, and adding one means
-         a migration plus a backfill of every historical row — where this reads
-         the same wait_time_records the rollup was built from and needs neither.
-         The cost is a correlated subquery per summary row; the periods these
-         screens ask for are days and weeks, not years, so it stays cheap.
-         Target resolution matches the service-scoped branch above: branch, then
-         business, then 20. */
+      /* served_within_target_pct is computed here rather than stored in
+         analytics_summaries: adding it there means a migration plus a backfill,
+         where this reads the same wait_time_records the rollup was built from. */
       `SELECT a.*, b.name AS branch_name,
               COALESCE(bt.target_wait_minutes, bzt.target_wait_minutes, 20) AS target_wait_minutes,
               (SELECT ROUND(
@@ -194,7 +206,15 @@ router.get('/summary', requireAuth, requireStaffRole('supervisor', 'manager', 'e
        ORDER BY a.summary_date DESC`,
       params
     );
-    res.json(rows);
+
+    // Today from the live records, replacing whatever the rollup has (nothing,
+    // before the 01:00 job; a stale partial day if someone refreshed it by hand).
+    const [[{ today }]] = await pool.query('SELECT CURDATE() AS today');
+    const todayKey = ymdOf(today);
+    const wantsToday = (!from || ymdOf(from) <= todayKey) && (!to || ymdOf(to) >= todayKey);
+    if (!wantsToday) return res.json(rows);
+    const live = await liveSummaryRows({ businessId, branchId, serviceIds: null, from: todayKey, to: todayKey });
+    res.json([...live, ...rows.filter((r) => ymdOf(r.summary_date) !== todayKey)]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch analytics summary.' });
@@ -354,7 +374,7 @@ router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusin
          COALESCE(assignments.assigned_staff, 0) AS assigned_staff,
          COALESCE(counters.counter_count, 0) AS counter_count
        FROM staff mgr
-       JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager'
+       JOIN roles r ON r.id = mgr.role_id AND r.name = 'manager' AND mgr.is_active = TRUE
        LEFT JOIN branches br ON br.id = mgr.branch_id
        LEFT JOIN wait_time_records w ON w.branch_id = br.id AND w.business_id = mgr.business_id AND ${range.visitSql}
        LEFT JOIN (
@@ -427,6 +447,7 @@ router.get('/heatmap', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const heatmapService = safeServiceId(req.query.service_id);
     if (heatmapService) { conditions.push('w.service_id = ?'); params.push(heatmapService); }
 
@@ -460,6 +481,7 @@ router.get('/services', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
     // Date window so per-service totals can be scoped to the same period the
@@ -500,10 +522,23 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
     const rowsBy = req.query.rows === 'branch' ? 'branch' : 'service';
     const bucket = req.query.by === 'dow' ? 'w.day_of_week' : 'w.hour_of_day';
 
-    const conditions = ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
-    const params = [scopedBusinessId(req, business_id)];
+    /* ?day=YYYY-MM-DD narrows it to one day's SERVED visits — "Customers Served
+       Today, by hour, against yesterday" on the manager overview. Without it,
+       the 90-day demand pattern that drives Busy Times. */
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || '')) ? String(req.query.day) : null;
+    /* ?from=&to= is any chosen period (Busy Times), every visit that joined. */
+    const range = safeDateRange(req.query);
+    const conditions = day
+      ? ['w.business_id = ?', 'w.visit_date = ?', "w.status = 'served'"]
+      : range
+        ? ['w.business_id = ?', 'w.visit_date BETWEEN ? AND ?']
+        : ['w.business_id = ?', 'w.visit_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)'];
+    const params = day ? [scopedBusinessId(req, business_id), day]
+      : range ? [scopedBusinessId(req, business_id), range.from, range.to]
+        : [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
 
@@ -530,6 +565,140 @@ router.get('/demand', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
   }
 });
 
+/**
+ * GET /analytics/branch-report — the evidence for one branch's report.
+ * docs/reports/BRANCH_REPORT_REQUIREMENTS.md sets what it has to say. One row per
+ * visit goes through utils/branchReport.js; only figures leave, never a customer.
+ * Made-up simulator visitors are not visits and are left out.
+ */
+router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    const branchId = scopedBranchId(req, req.query.branch_id);
+    const range = safeDateRange(req.query);
+    if (!businessId || !branchId || !range) return res.status(400).json({ error: 'business_id, branch_id, from and to are required.' });
+
+    const [[bounds]] = await pool.query(
+      `SELECT DATEDIFF(?, ?) + 1 AS days,
+              DATE_FORMAT(DATE_SUB(?, INTERVAL DATEDIFF(?, ?) + 1 DAY), '%Y-%m-%d') AS prev_from,
+              DATE_FORMAT(DATE_SUB(?, INTERVAL 1 DAY), '%Y-%m-%d') AS prev_to,
+              ? < CURDATE() AS complete_days`,
+      [range.to, range.from, range.from, range.to, range.from, range.from, range.to]);
+    if (!(Number(bounds.days) >= 1 && Number(bounds.days) <= 120)) return res.status(400).json({ error: 'A report covers 1 to 120 days.' });
+    const previous = { from: bounds.prev_from, to: bounds.prev_to };
+
+    const [[branch]] = await pool.query(
+      `SELECT br.name, br.opening_time, br.closing_time, br.open_days, br.parish, br.address,
+              TIMESTAMPDIFF(MINUTE, br.opening_time, br.closing_time) AS open_minutes,
+              b.name AS org, b.sector
+         FROM branches br JOIN businesses b ON b.id = br.business_id
+        WHERE br.id = ? AND br.business_id = ?`, [branchId, businessId]);
+    if (!branch) return res.status(404).json({ error: 'Branch not found.' });
+
+    const [rows] = await pool.query(
+      `SELECT t.id, t.transferred_from_ticket_id, t.transferred_to_ticket_id,
+              DATE_FORMAT(q.queue_date, '%Y-%m-%d') AS day, q.service_id, t.user_id, t.status, t.closed_reason, t.channel,
+              t.served_by_staff_id AS served_by, t.served_at_counter_id AS counter_id, t.appointment_at IS NOT NULL AS is_appointment,
+              HOUR(t.joined_at) AS join_hour, HOUR(t.started_serving_at) AS start_hour,
+              TIMESTAMPDIFF(SECOND, t.joined_at, t.called_at) / 60 AS wait_min,
+              TIMESTAMPDIFF(SECOND, t.started_serving_at, t.completed_at) / 60 AS service_min,
+              TIMESTAMPDIFF(SECOND, t.joined_at, t.completed_at) / 60 AS elapsed_min
+         FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
+        WHERE q.branch_id = ? AND q.queue_date BETWEEN ? AND ?
+          AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')`,
+      [branchId, previous.from, range.to]);
+
+    const [services] = await pool.query('SELECT id, name FROM services WHERE business_id = ?', [businessId]);
+    const [staff] = await pool.query(
+      `SELECT st.id, st.full_name, r.name AS role FROM staff st LEFT JOIN roles r ON r.id = st.role_id WHERE st.business_id = ?`, [businessId]);
+    const [counters] = await pool.query('SELECT id, label, service_id, is_active FROM counters WHERE branch_id = ?', [branchId]);
+    const [assignments] = await pool.query(
+      `SELECT DATE_FORMAT(sa.assignment_date, '%Y-%m-%d') AS day, sa.staff_id, sa.counter_id
+         FROM staff_assignments sa JOIN counters c ON c.id = sa.counter_id
+        WHERE c.branch_id = ? AND sa.assignment_date BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+    const [shifts] = await pool.query(
+      `SELECT sh.staff_id, DATE_FORMAT(sh.clocked_in_at, '%Y-%m-%d') AS day,
+              (TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) - COALESCE(sh.break_seconds, 0)) / 3600 AS hours,
+              sh.auto_closed,
+              TIMESTAMPDIFF(SECOND, sh.clocked_in_at, sh.clocked_out_at) / 3600 AS shift_hours,
+              COALESCE(sh.break_seconds, 0) / 3600 AS break_hours
+         FROM staff_shifts sh
+        WHERE sh.branch_id = ? AND sh.clocked_out_at IS NOT NULL AND DATE(sh.clocked_in_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+    const [holidays] = await pool.query(
+      `SELECT DATE_FORMAT(holiday_date, '%Y-%m-%d') AS day, name FROM public_holidays
+        WHERE holiday_date BETWEEN ? AND DATE_ADD(?, INTERVAL 14 DAY)`, [range.from, range.to]);
+    const [[companyTarget]] = await pool.query('SELECT target_wait_minutes, target_completion_rate, target_no_show_rate FROM business_targets WHERE business_id = ?', [businessId]);
+    const [[branchTarget]] = await pool.query('SELECT target_wait_minutes, target_completion_rate, target_no_show_rate FROM branch_targets WHERE branch_id = ?', [branchId]);
+    const [targetChanges] = await pool.query(
+      `SELECT tc.metric, tc.branch_id, tc.old_value, tc.new_value, tc.reason,
+              DATE_FORMAT(tc.changed_at, '%Y-%m-%d') AS day, st.full_name AS changed_by_name
+         FROM target_changes tc LEFT JOIN staff st ON st.id = tc.changed_by
+        WHERE tc.business_id = ? AND (tc.branch_id IS NULL OR tc.branch_id = ?)
+        ORDER BY tc.changed_at`, [businessId, branchId]);
+    const [sessions] = await pool.query(
+      `SELECT ss.id, ss.name, DATE_FORMAT(ss.session_date, '%Y-%m-%d') AS day, ss.capacity, ss.status,
+              DATE_FORMAT(ss.starts_at, '%H:%i') AS planned_start, DATE_FORMAT(ss.ends_at, '%H:%i') AS planned_end,
+              DATE_FORMAT(ss.started_at, '%H:%i') AS actual_start, DATE_FORMAT(ss.ended_at, '%H:%i') AS actual_end,
+              TIMESTAMPDIFF(MINUTE, ss.starts_at, ss.started_at) AS start_late_min,
+              TIMESTAMPDIFF(MINUTE, ss.ended_at, ss.ends_at) AS ended_early_min,
+              ss.end_reason, ender.full_name AS ended_by_name,
+              COUNT(r.id) AS registered, SUM(r.status = 'cancelled') AS cancelled,
+              SUM(r.checked_in_at IS NOT NULL) AS checked_in
+         FROM scheduled_sessions ss LEFT JOIN session_registrations r ON r.session_id = ss.id
+         LEFT JOIN staff ender ON ender.id = ss.ended_by
+        WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND ss.status <> 'draft'
+        GROUP BY ss.id ORDER BY ss.session_date`, [branchId, range.from, range.to]);
+    const [appointments] = await pool.query(
+      `SELECT r.status, r.checked_in_at, ss.appointment_late_minutes AS late_allowed,
+              EXISTS (SELECT 1 FROM session_registrations n WHERE n.rescheduled_from_id = r.id) AS moved,
+              TIMESTAMPDIFF(MINUTE, TIMESTAMP(ss.session_date, r.appointment_time), r.checked_in_at) AS late_min
+         FROM session_registrations r JOIN scheduled_sessions ss ON ss.id = r.session_id
+        WHERE ss.branch_id = ? AND ss.session_date BETWEEN ? AND ? AND r.appointment_time IS NOT NULL`, [branchId, range.from, range.to]);
+    const [flags] = await pool.query(
+      `SELECT pf.flag, DATE_FORMAT(pf.created_at, '%Y-%m-%d') AS created_day, DATE_FORMAT(pf.cleared_at, '%Y-%m-%d') AS cleared_day,
+              DATEDIFF(COALESCE(pf.cleared_at, ?), pf.created_at) AS age_days, DATEDIFF(pf.cleared_at, pf.created_at) AS resolve_days
+         FROM patient_flags pf
+        WHERE pf.business_id = ?
+          AND EXISTS (SELECT 1 FROM queue_tickets t JOIN queues q ON q.id = t.queue_id WHERE t.user_id = pf.user_id AND q.branch_id = ?)`,
+      [range.to, businessId, branchId]);
+    const [[ratings]] = await pool.query(
+      `SELECT COUNT(*) AS n, ROUND(AVG(tr.rating), 1) AS average, ROUND(AVG(tr.wait_ok) * 100, 1) AS wait_ok_pct
+         FROM ticket_ratings tr WHERE tr.branch_id = ? AND DATE(tr.created_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+
+    const [closures] = await pool.query(
+      `SELECT c.kind, c.reason, c.branch_id, DATE_FORMAT(c.starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(c.ends_on, '%Y-%m-%d') AS ends_on,
+              DATE_FORMAT(c.lifted_at, '%Y-%m-%d') AS lifted_on, st.full_name AS created_by_name
+         FROM branch_closures c LEFT JOIN staff st ON st.id = c.created_by
+        WHERE c.business_id = ? AND (c.branch_id IS NULL OR c.branch_id = ?) AND c.starts_on <= ? AND c.ends_on >= ?`,
+      [businessId, branchId, range.to, range.from]);
+    const [sittings] = await pool.query(
+      `SELECT cs.counter_id, cs.staff_id, DATE_FORMAT(cs.opened_at, '%Y-%m-%d') AS day,
+              HOUR(cs.opened_at) * 60 + MINUTE(cs.opened_at) AS from_min,
+              HOUR(cs.closed_at) * 60 + MINUTE(cs.closed_at) AS to_min, cs.end_reason
+         FROM counter_sittings cs JOIN counters c ON c.id = cs.counter_id
+        WHERE c.branch_id = ? AND cs.closed_at IS NOT NULL AND DATE(cs.opened_at) BETWEEN ? AND ?`, [branchId, range.from, range.to]);
+
+    const [watches] = await pool.query(
+      `SELECT cw.user_id, st.full_name AS supervisor_name, DATE_FORMAT(cw.started_at, '%Y-%m-%d') AS started_day,
+              DATE_FORMAT(cw.ended_at, '%Y-%m-%d') AS ended_day, cw.end_reason
+         FROM case_watches cw JOIN staff st ON st.id = cw.supervisor_id
+        WHERE cw.business_id = ? AND st.branch_id = ?`, [businessId, branchId]);
+
+    const report = buildBranchReport({
+      watches, rows, period: range, previous, branch, services, staff, counters, assignments, shifts, closures, sittings,
+      holidays, companyTarget, branchTarget, targetChanges, sessions, appointments, flags, ratings,
+    });
+    res.json({
+      ...report,
+      org: branch.org, sector: branch.sector, completeDays: Boolean(Number(bounds.complete_days)),
+      timezone: process.env.TZ || 'server time', generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build the branch report.' });
+  }
+});
+
 // Weekly busyness per service — day-of-week traffic for each service
 router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
@@ -540,6 +709,7 @@ router.get('/service-weekly', requireAuth, requireStaffRole('supervisor', 'manag
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('w.service_id = ?'); params.push(serviceFilter); }
 
@@ -577,6 +747,7 @@ router.get('/channels', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id), days];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const where = conditions.join(' AND ');
 
     // A ticket can only be created two ways in this product: the customer app
@@ -659,8 +830,10 @@ router.get('/productivity', requireAuth, requireStaffRole('line_staff', 'supervi
 
     const scopedBiz = scopedBusinessId(req, business_id);
     const scopedBranch = scopedBranchId(req, branch_id);
-    const branchClause = scopedBranch ? 'AND c.branch_id = ?' : '';
-    const branchParam = scopedBranch ? [scopedBranch] : [];
+    // A supervisor with a section sees only that section's counters.
+    const sectionIds = sectionServiceIds(req);
+    const branchClause = (scopedBranch ? 'AND c.branch_id = ?' : '') + (sectionIds ? ' AND c.service_id IN (?)' : '');
+    const branchParam = [...(scopedBranch ? [scopedBranch] : []), ...(sectionIds ? [sectionIds] : [])];
 
     // (A) Slowdowns — a counter serving well above the service's typical time.
     const [slowRows] = await pool.query(
@@ -746,8 +919,11 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
 
     const conditions = ['st.business_id = ?', "t.status = 'served'"];
     const params = [scopedBusinessId(req, business_id)];
+    const range = safeDateRange(req.query);
+    if (range) { conditions.push('q.queue_date BETWEEN ? AND ?'); params.push(range.from, range.to); }
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('st.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     const staffServiceFilter = safeServiceId(req.query.service_id);
     if (staffServiceFilter) { conditions.push('q.service_id = ?'); params.push(staffServiceFilter); }
 
@@ -795,6 +971,26 @@ router.get('/staff', requireAuth, requireStaffRole('supervisor', 'manager', 'exe
   }
 });
 
+/**
+ * GET /analytics/presence — who is on shift and who is on a break, right now.
+ * Light enough to poll, so a supervisor sees a break within seconds rather than
+ * at the next analytics refresh.
+ */
+router.get('/presence', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
+  try {
+    const scopedBranch = scopedBranchId(req, req.query.branch_id);
+    const [rows] = await pool.query(
+      `SELECT sh.staff_id, sh.counter_id, sh.on_break_since IS NOT NULL AS on_break
+         FROM staff_shifts sh JOIN staff st ON st.id = sh.staff_id
+        WHERE st.business_id = ? AND sh.clocked_out_at IS NULL ${scopedBranch ? 'AND sh.branch_id = ?' : ''}`,
+      scopedBranch ? [scopedBusinessId(req, req.query.business_id), scopedBranch] : [scopedBusinessId(req, req.query.business_id)]);
+    res.json(rows.map((r) => ({ ...r, on_break: Boolean(Number(r.on_break)) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch who is on shift.' });
+  }
+});
+
 // Branch performance trends — daily aggregates for line charts
 router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
   try {
@@ -805,6 +1001,7 @@ router.get('/branch-trends', requireAuth, requireStaffRole('supervisor', 'manage
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('w.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'w.service_id');
     const trendServiceFilter = safeServiceId(req.query.service_id);
     if (trendServiceFilter) { conditions.push('w.service_id = ?'); params.push(trendServiceFilter); }
     const [rows] = await pool.query(
@@ -913,6 +1110,7 @@ router.get('/balking', requireAuth, requireStaffRole('supervisor', 'manager', 'e
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     const serviceFilter = safeServiceId(req.query.service_id);
     if (serviceFilter) { conditions.push('q.service_id = ?'); params.push(serviceFilter); }
 
@@ -1011,6 +1209,7 @@ router.get('/counters', requireAuth, requireStaffRole('supervisor', 'manager', '
     const params = [scopedBusinessId(req, business_id)];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('c.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'c.service_id');
 
     const [rows] = await pool.query(
       `SELECT c.id            AS counter_id,
@@ -1100,6 +1299,7 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
     ];
     const params = [businessId, ...range.params];
     if (branchId) { conditions.push('q.branch_id = ?'); params.push(branchId); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
     if (serviceId) { conditions.push('q.service_id = ?'); params.push(serviceId); }
     const where = conditions.join(' AND ');
 
@@ -1223,13 +1423,24 @@ router.get('/readiness', requireAuth, requireStaffRole('manager', 'executive'), 
  * before somebody reads a low number as good news.
  */
 const ENDED_STATUSES = "('served','left','cancelled','no_show')";
-const RESOLVED = "(t.status = 'served' AND t.closed_reason IS NULL)";
+const RESOLVED = "(t.status = 'served' AND (t.closed_reason IS NULL OR t.closed_reason = 'transferred'))";
 
 /** Days of history to consider. Clamped — this drives a GROUP BY over tickets. */
+/** An explicit ?from=&to= window of calendar dates, or null if none was given.
+ *  The dashboards' period control sends these so a past week can be looked at,
+ *  not only the days ending today. */
+function safeDateRange({ from, to }) {
+  const ok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  return ok(from) && ok(to) ? { from: String(from), to: String(to) } : null;
+}
+
 function safeWindowDays(value, fallback = 30) {
   const n = Math.round(Number(value));
   return Number.isFinite(n) && n >= 1 && n <= 365 ? n : fallback;
 }
+
+/** Ended visits in the last seven days that make someone a frequent visitor. */
+const FREQUENT_WEEK = 3;
 
 /** How many unresolved visits before somebody is a case. */
 function safeMinVisits(value, fallback = 3) {
@@ -1247,11 +1458,13 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
     const days = safeWindowDays(req.query.days);
     const minVisits = safeMinVisits(req.query.min_visits);
 
+    const range = safeDateRange(req.query);
     const conditions = [`b.business_id = ?`, `t.status IN ${ENDED_STATUSES}`,
-                        `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
-    const params = [scopedBusinessId(req, business_id), days];
+                        range ? 'q.queue_date BETWEEN ? AND ?' : `q.queue_date >= CURDATE() - INTERVAL ? DAY`];
+    const params = [scopedBusinessId(req, business_id), ...(range ? [range.from, range.to] : [days])];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
 
     const [rows] = await pool.query(
       `SELECT u.id                                            AS user_id,
@@ -1266,18 +1479,28 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
               MAX(q.queue_date)                               AS last_visit,
               GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR '|')            AS service_names,
               GROUP_CONCAT(DISTINCT COALESCE(t.closed_reason, t.status)
-                           ORDER BY 1 SEPARATOR '|')                                AS outcomes
+                           ORDER BY 1 SEPARATOR '|')                                AS outcomes,
+              /* Frequent visitors: someone in several times in a week is a
+                 case whether or not each visit was resolved. In a hospital
+                 that is the patient whose condition is not being managed, as
+                 often as it is a process failure. */
+              SUM(q.queue_date >= CURDATE() - INTERVAL 7 DAY)                       AS visits_7d,
+              (SELECT GROUP_CONCAT(DISTINCT pf.flag ORDER BY pf.flag)
+                 FROM patient_flags pf
+                WHERE pf.user_id = u.id AND pf.business_id = b.business_id AND pf.cleared_at IS NULL) AS flags,
+              (SELECT st.full_name FROM case_watches cw JOIN staff st ON st.id = cw.supervisor_id
+                WHERE cw.user_id = u.id AND cw.business_id = b.business_id AND cw.ended_at IS NULL LIMIT 1) AS watched_by
          FROM queue_tickets t
          JOIN queues   q ON q.id = t.queue_id
          JOIN branches b ON b.id = q.branch_id
          JOIN services s ON s.id = q.service_id
          JOIN users    u ON u.id = t.user_id
         WHERE ${conditions.join(' AND ')}
-        GROUP BY u.id, u.full_name, u.email, u.phone
-       HAVING unresolved >= ?
-        ORDER BY unresolved DESC, last_visit DESC
+        GROUP BY u.id, u.full_name, u.email, u.phone, b.business_id
+       HAVING unresolved >= ? OR visits_7d >= ? OR flags IS NOT NULL
+        ORDER BY (flags IS NOT NULL) DESC, unresolved DESC, visits_7d DESC, last_visit DESC
         LIMIT 100`,
-      [...params, minVisits]
+      [...params, minVisits, FREQUENT_WEEK]
     );
 
     res.json({
@@ -1302,6 +1525,13 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
              process that is failing that person; four different services is a
              person with a lot to do. They need different conversations. */
           pattern: Number(r.services_tried) === 1 ? 'same_service' : 'multiple_services',
+          visits_7d: Number(r.visits_7d || 0),
+          /* Why this person is on the list. More than one can apply. */
+          reasons: [
+            ...(Number(r.unresolved) >= minVisits ? ['repeat_unresolved'] : []),
+            ...(Number(r.visits_7d) >= FREQUENT_WEEK ? ['frequent_this_week'] : []),
+          ],
+          flags: r.flags ? String(r.flags).split(',') : [],
           outcomes: String(r.outcomes || '').split('|').filter(Boolean),
           first_visit: r.first_visit,
           last_visit: r.last_visit,
@@ -1311,6 +1541,82 @@ router.get('/customer-cases', requireAuth, requireStaffRole('supervisor', 'manag
   } catch (error) {
     console.error('customer-cases error:', error);
     res.status(500).json({ error: 'Failed to load customer cases.' });
+  }
+});
+
+/* ── Patient flags ───────────────────────────────────────────────────────
+ *
+ * A flag a member of staff puts on a person, at this organisation only:
+ *   priority — their condition means they should be seen sooner; shown on
+ *              their row in every line they join here.
+ *   watch    — the team wants to notice when they arrive.
+ * Setting and clearing are both recorded with who did it. Flags are never set
+ * by the software itself.
+ */
+const PATIENT_FLAGS = new Set(['priority', 'watch']);
+
+router.get('/customers/:user_id/flags', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const [rows] = await pool.query(
+      `SELECT pf.id, pf.flag, pf.note, pf.created_at, pf.cleared_at,
+              sb.full_name AS set_by, cb.full_name AS cleared_by
+         FROM patient_flags pf
+         LEFT JOIN staff sb ON sb.id = pf.set_by_staff_id
+         LEFT JOIN staff cb ON cb.id = pf.cleared_by_staff_id
+        WHERE pf.user_id = ? AND pf.business_id = ?
+        ORDER BY pf.cleared_at IS NULL DESC, pf.created_at DESC
+        LIMIT 50`,
+      [req.params.user_id, businessId]);
+    res.json({ flags: rows });
+  } catch (error) {
+    console.error('patient flags error:', error);
+    res.status(500).json({ error: 'Failed to load flags.' });
+  }
+});
+
+router.post('/customers/:user_id/flags', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess('body'), async (req, res) => {
+  try {
+    const { flag, note } = req.body || {};
+    const businessId = scopedBusinessId(req, req.body?.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    if (!PATIENT_FLAGS.has(flag)) return res.status(400).json({ error: "flag must be 'priority' or 'watch'." });
+    const [[seen]] = await pool.query(
+      `SELECT 1 AS ok FROM queue_tickets t JOIN queues q ON q.id = t.queue_id JOIN branches b ON b.id = q.branch_id
+        WHERE t.user_id = ? AND b.business_id = ? LIMIT 1`, [req.params.user_id, businessId]);
+    if (!seen) return res.status(404).json({ error: 'This person has no visits here.' });
+    await pool.query(
+      `UPDATE patient_flags SET cleared_at = NOW(), cleared_by_staff_id = ?
+        WHERE user_id = ? AND business_id = ? AND flag = ? AND cleared_at IS NULL`,
+      [req.dbStaff?.id || null, req.params.user_id, businessId, flag]);
+    const id = require('crypto').randomUUID();
+    await pool.query(
+      `INSERT INTO patient_flags (id, business_id, user_id, flag, note, set_by_staff_id) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, businessId, req.params.user_id, flag, note ? String(note).slice(0, 255) : null, req.dbStaff?.id || null]);
+    caseAlerts.flagChanged(businessId, req.params.user_id, flag, 'set', req.dbStaff);
+    res.status(201).json({ id, flag });
+  } catch (error) {
+    console.error('set patient flag error:', error);
+    res.status(500).json({ error: 'Failed to set the flag.' });
+  }
+});
+
+router.delete('/customers/:user_id/flags/:flag_id', requireAuth, requireStaffRole('supervisor', 'manager', 'executive'), requireBusinessAccess(), async (req, res) => {
+  try {
+    const businessId = scopedBusinessId(req, req.query.business_id);
+    if (!businessId) return res.status(400).json({ error: 'business_id is required.' });
+    const [[cleared]] = await pool.query('SELECT flag FROM patient_flags WHERE id = ?', [req.params.flag_id]);
+    const [r] = await pool.query(
+      `UPDATE patient_flags SET cleared_at = NOW(), cleared_by_staff_id = ?
+        WHERE id = ? AND user_id = ? AND business_id = ? AND cleared_at IS NULL`,
+      [req.dbStaff?.id || null, req.params.flag_id, req.params.user_id, businessId]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Flag not found.' });
+    caseAlerts.flagChanged(businessId, req.params.user_id, cleared?.flag, 'cleared', req.dbStaff);
+    res.json({ cleared: true });
+  } catch (error) {
+    console.error('clear patient flag error:', error);
+    res.status(500).json({ error: 'Failed to clear the flag.' });
   }
 });
 
@@ -1334,11 +1640,13 @@ router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 
     if (!business_id) return res.status(400).json({ error: 'business_id is required.' });
 
     const days = safeWindowDays(req.query.days, 90);
+    const range = safeDateRange(req.query);
     const conditions = ['b.business_id = ?', `t.status IN ${ENDED_STATUSES}`,
-                        'q.queue_date >= CURDATE() - INTERVAL ? DAY'];
-    const params = [scopedBusinessId(req, business_id), days];
+                        range ? 'q.queue_date BETWEEN ? AND ?' : 'q.queue_date >= CURDATE() - INTERVAL ? DAY'];
+    const params = [scopedBusinessId(req, business_id), ...(range ? [range.from, range.to] : [days])];
     const scopedBranch = scopedBranchId(req, branch_id);
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
+    pushSectionScope(req, conditions, params, 'q.service_id');
 
     /* Parameterised LIKE with the wildcards in the VALUE, never in the SQL, and
        the operand escaped so a customer searching for "100%" does not match
@@ -1417,14 +1725,18 @@ router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'm
     const [visits] = await pool.query(
       `SELECT t.id, q.queue_date, b.name AS branch_name, s.name AS service_name,
               t.ticket_number, t.status, t.closed_reason, t.channel,
+              /* What the desk wrote: "proof of address older than three
+                 months". The reason says the visit failed; this says why. */
+              t.readiness_note AS note,
               t.estimated_wait_minutes, t.joined_at, t.called_at, t.completed_at,
               TIMESTAMPDIFF(MINUTE, t.joined_at, COALESCE(t.called_at, t.completed_at)) AS waited_minutes,
-              st.full_name AS served_by
+              st.full_name AS served_by, cn.label AS counter_label
          FROM queue_tickets t
          JOIN queues   q  ON q.id = t.queue_id
          JOIN branches b  ON b.id = q.branch_id
          JOIN services s  ON s.id = q.service_id
          LEFT JOIN staff st ON st.id = t.served_by_staff_id
+         LEFT JOIN counters cn ON cn.id = t.served_at_counter_id
         WHERE t.user_id = ? AND b.business_id = ?
           AND q.queue_date >= CURDATE() - INTERVAL ? DAY
         ORDER BY q.queue_date DESC, t.joined_at DESC
@@ -1433,7 +1745,7 @@ router.get('/customers/:user_id', requireAuth, requireStaffRole('supervisor', 'm
     );
 
     const ended = visits.filter(v => ['served', 'left', 'cancelled', 'no_show'].includes(v.status));
-    const resolved = ended.filter(v => v.status === 'served' && !v.closed_reason);
+    const resolved = ended.filter(v => v.status === 'served' && (!v.closed_reason || v.closed_reason === 'transferred'));
 
     res.json({
       window_days: days,

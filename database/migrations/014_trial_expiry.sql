@@ -21,11 +21,10 @@
 -- worse than the bug.
 -- =============================================================
 
--- No USE statement. This migration arrived from the PR branch, where the schema
--- was still called qme_now; this branch renamed it to lyne. Hardcoding either
--- name breaks the other, and docker-init.sh already selects the database before
+-- No USE statement. This migration arrived from a branch where the schema still
+-- had its pre-rename name; this branch named it lyne. Hardcoding either name
+-- breaks the other, and docker-init.sh already selects the database before
 -- running each file, so the statement was never doing useful work.
--- (was: USE qme_now;)
 
 SET @db_name = DATABASE();
 

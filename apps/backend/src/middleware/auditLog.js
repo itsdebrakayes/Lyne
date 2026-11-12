@@ -23,19 +23,22 @@ const pool = require('../db/pool');
  * @param {string} action - The action being performed (e.g., 'read_customer', 'update_staff')
  * @param {string} resourceType - The type of resource (e.g., 'customer', 'staff', 'ocr_submission')
  * @param {Function} [getResourceId] - Optional function(req) => string to extract resource ID
+ * @param {{ anonymous?: boolean }} [options] - anonymous: record only that the action
+ *   happened and when. Used for account deletion, where keeping the person's ID, IP
+ *   address or device would defeat the deletion the record is proof of.
  * @returns {Function} Express middleware
  */
-function auditLog(action, resourceType, getResourceId) {
+function auditLog(action, resourceType, getResourceId, { anonymous = false } = {}) {
   return async (req, _res, next) => {
     // Fire-and-forget — do not block the request
     setImmediate(async () => {
       try {
-        const actorId   = req.dbStaff?.id || req.dbUser?.id || null;
+        const actorId   = anonymous ? null : (req.dbStaff?.id || req.dbUser?.id || null);
         const actorType = req.dbStaff ? 'staff' : (req.dbUser ? 'user' : 'anonymous');
         const businessId = req.dbStaff?.business_id || req.body?.business_id || req.query?.business_id || null;
-        const resourceId = getResourceId ? getResourceId(req) : (req.params.id || null);
-        const ipAddress  = req.ip || req.connection?.remoteAddress || null;
-        const userAgent  = req.headers['user-agent'] || null;
+        const resourceId = anonymous ? null : (getResourceId ? getResourceId(req) : (req.params.id || null));
+        const ipAddress  = anonymous ? null : (req.ip || req.connection?.remoteAddress || null);
+        const userAgent  = anonymous ? null : (req.headers['user-agent'] || null);
 
         await pool.query(
           `INSERT INTO audit_logs

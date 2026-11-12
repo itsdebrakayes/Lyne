@@ -220,6 +220,56 @@ const accounts = [
     assignedServiceId: null,
   },
 
+  /* ── Lignum Bank (fictional commercial bank) — every admin level ────────
+     For the bank demos. Like the court logins these adopt the staff rows
+     database/demo_bank_seed.sql creates, so each arrives with today's lines
+     and history. The teller is seated at Teller 1, where the live line is. */
+  {
+    email: 'staff-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-tel1',
+    fullName: 'Shauna Edwards',
+    staffCode: 'LGB-T01',
+    roleId: 'role-staff-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: 'svc-lgb-teller',
+    counterId: 'ctr-lgb-hwt-tel-1',
+  },
+  {
+    email: 'supervisor-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-sup',
+    fullName: 'Kimberley Hylton',
+    staffCode: 'LGB-SV1',
+    roleId: 'role-supervisor-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'manager-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-hwt-mgr',
+    fullName: 'Dwayne Pottinger',
+    staffCode: 'LGB-BM1',
+    roleId: 'role-mgr-001',
+    businessId: 'biz-lgb-001',
+    branchId: 'br-lgb-hwt',
+    assignedServiceId: null,
+  },
+  {
+    email: 'executive-bank@test.com',
+    kind: 'staff',
+    id: 'stf-lgb-exec',
+    fullName: 'Lorraine Gordon',
+    staffCode: 'LGB-EX1',
+    roleId: 'role-exec-001',
+    businessId: 'biz-lgb-001',
+    branchId: null,
+    assignedServiceId: null,
+  },
+
   /* ── Traffic Court — every admin level ─────────────────────────────────
      The court is the only tenant that owns a scheduled session, so until these
      existed the entire Sessions feature — the cause list, the registration
@@ -283,6 +333,43 @@ const accounts = [
     businessId: 'biz-court-001',
     branchId: null,
     assignedServiceId: null,
+  },
+
+  /* ── Wrenfield Health (fictional US hospital demo) ──────────────────────
+     Adopt the staff rows scripts/seed-demo-healthcare.js creates at the
+     flagship hospital, so each login arrives with 90 days of history. Run that
+     seed first. The kiosk login is the front-desk iPad. */
+  {
+    // Three patients, one for each hospital. Where they "live" is the
+    // phone's location, not the account: set the simulator next to the
+    // hospital (README.demo.md lists the coordinates).
+    email: 'patient-ellery@test.com', kind: 'user', id: 'wf-usr-test-ellery', fullName: 'Maya Ellison', savedBusinessId: null,
+  },
+  {
+    email: 'patient-twinfords@test.com', kind: 'user', id: 'wf-usr-test-twinfords', fullName: 'Jordan Pike', savedBusinessId: null,
+  },
+  {
+    email: 'patient-brannock@test.com', kind: 'user', id: 'wf-usr-test-brannock', fullName: 'Rosa Delgado', savedBusinessId: null,
+  },
+  {
+    email: 'kiosk-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-kiosk', fullName: 'Wrenfield Medical Center Front Desk',
+    staffCode: 'WF-ELLERY-KIOSK', roleId: 'role-kiosk-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'staff-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-1', fullName: 'Renee Abbott',
+    staffCode: 'WF-ELLERY-01', roleId: 'role-staff-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: 'wf-svc-ed',
+  },
+  {
+    email: 'supervisor-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-sup', fullName: 'Tasha Coleman, RN',
+    staffCode: 'WF-ELLERY-SUP', roleId: 'role-supervisor-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'manager-hospital@test.com', kind: 'staff', id: 'wf-stf-ellery-mgr', fullName: 'Gregory Dalton',
+    staffCode: 'WF-ELLERY-MGR', roleId: 'role-mgr-001', businessId: 'wf-biz-0001', branchId: 'wf-brn-ellery', assignedServiceId: null,
+  },
+  {
+    email: 'executive-hospital@test.com', kind: 'staff', id: 'wf-stf-exec', fullName: 'Dr. Helena Marsh',
+    staffCode: 'WF-EXEC-1', roleId: 'role-exec-001', businessId: 'wf-biz-0001', branchId: null, assignedServiceId: null,
   },
 ];
 
@@ -413,15 +500,19 @@ async function syncMobileUser(connection, account, supabaseUser) {
      a credit union, on the day the point being made was about TAJ. Saving one
      agency is also what a real person's account looks like; four is what a
      seed script looks like. */
-  await connection.query(
-    `INSERT INTO saved_businesses (user_id, business_id)
-     VALUES (?, 'biz-taj-001')
-     ON DUPLICATE KEY UPDATE saved_at = saved_at`,
-    [userId]
-  );
+  const saved = account.savedBusinessId === undefined ? 'biz-taj-001' : account.savedBusinessId;
+  if (saved) {
+    await connection.query(
+      `INSERT INTO saved_businesses (user_id, business_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE saved_at = saved_at`,
+      [userId, saved]
+    );
+  }
+  // The hospital patients save nothing, so Home leads with what is near.
   await connection.query(
     'DELETE FROM saved_businesses WHERE user_id = ? AND business_id <> ?',
-    [userId, 'biz-taj-001']
+    [userId, saved || '']
   );
 }
 
