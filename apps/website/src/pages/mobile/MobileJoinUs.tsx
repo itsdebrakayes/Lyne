@@ -227,9 +227,9 @@ const MobileJoinUs = () => {
                 </div>
                 <div className="mt-5 space-y-2.5 text-sm text-lyne-lavender/65">
                   {!quote.plan.custom && (
-                    <div className="flex justify-between gap-3"><span>Billed annually</span><span className="text-right font-medium text-white">{usd(quote.annual!)}/year</span></div>
+                    <div className="flex justify-between gap-3"><span>Yearly (12 monthly payments)</span><span className="text-right font-medium text-white">{usd(quote.annual!)}/year</span></div>
                   )}
-                  <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "Scoped with you" : usd(quote.implementation!)}</span></div>
+                  <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "Scoped with you" : `from ${usd(quote.implementation!)}`}</span></div>
                   <div className="flex justify-between gap-3"><span>Messaging / SMS</span><span className="text-right font-medium text-white">{MESSAGING_NOTE}</span></div>
                   <div className="flex justify-between gap-3"><span>Locations</span><span className="font-medium text-white">{branches}{quote.plan.custom ? "" : ` of ${quote.plan.maxLocations}`}</span></div>
                   <div className="flex justify-between gap-3"><span>Total service lines</span><span className="font-medium text-white">{branches * services}</span></div>

@@ -1,9 +1,12 @@
 /**
  * Lyne organisation pricing — the one copy the quote estimator reads.
  *
- * Source: "Lyne Competitive Pricing & Positioning Matrix" (pricing verified
- * September 4, 2026), section 4 "Proposed Lyne Packages". Every figure below is
- * copied from that table; change them there first, then here.
+ * Source: the Lyne Meeting Deck (10 November 2026), slides 10 and 12. Every
+ * figure below is copied from the deck; change it there first, then here.
+ *
+ * Yearly is twelve monthly payments with no discount for paying annually, so
+ * there is no "you save" figure. Implementation is a starting price ("from"):
+ * the final figure is scoped with the buyer.
  *
  * Price depends on the number of locations only. Services per branch and how
  * busy the branches are do not change the price; the estimator still asks for
@@ -11,11 +14,11 @@
  *
  * The plan is the smallest one that covers the locations. A buyer may choose a
  * larger plan (Executive features at three locations, say) but never a smaller
- * one. Sixteen or more locations is a Government / Enterprise contract, which
+ * one. Eleven or more locations is a Government / Enterprise contract, which
  * is custom-priced.
  *
- * Government / Enterprise figures are deliberately NOT in this file. The
- * matrix gives internal "from" figures for sales; they must never reach the
+ * Government / Enterprise figures are deliberately NOT in this file. Sales
+ * has an internal formula for them; they must never reach the
  * public site (anything here ships in the browser bundle), so the site only
  * ever says "Custom" and invites the buyer to contact us.
  */
@@ -31,9 +34,9 @@ export interface Plan {
   maxLocations: number;
   /** US$ per month; null where the plan is custom-priced. */
   monthly: number | null;
-  /** US$ per year when billed annually; null where the plan is custom-priced. */
+  /** US$ per year: twelve monthly payments, no annual discount; null where custom-priced. */
   annual: number | null;
-  /** One-time implementation, US$; null where the plan is custom-priced. */
+  /** One-time implementation starting price ("from"), US$; null where custom-priced. */
   implementation: number | null;
   /** True for Government / Enterprise: no public price, scoped with sales. */
   custom: boolean;
@@ -45,9 +48,9 @@ export const PLANS: Plan[] = [
     name: "Lyne Branch",
     detail: "One location: queues, appointments, staff and branch reporting",
     maxLocations: 1,
-    monthly: 1095,
-    annual: 11950,
-    implementation: 4500,
+    monthly: 4500,
+    annual: 54000,
+    implementation: 15000,
     custom: false,
   },
   {
@@ -55,19 +58,19 @@ export const PLANS: Plan[] = [
     name: "Lyne Operations",
     detail: "Up to 5 locations, with cross-branch reporting and priority support",
     maxLocations: 5,
-    monthly: 2795,
-    annual: 29950,
-    implementation: 8500,
+    monthly: 12500,
+    annual: 150000,
+    implementation: 50000,
     custom: false,
   },
   {
     id: "executive",
     name: "Lyne Executive",
-    detail: "Up to 15 locations, with the executive dashboard and governance",
-    maxLocations: 15,
-    monthly: 5995,
-    annual: 64950,
-    implementation: 15000,
+    detail: "Up to 10 locations, with the executive dashboard and governance",
+    maxLocations: 10,
+    monthly: 25000,
+    annual: 300000,
+    implementation: 125000,
     custom: false,
   },
   {
@@ -106,8 +109,6 @@ export interface Estimate {
   monthly: number | null;
   annual: number | null;
   implementation: number | null;
-  /** What paying annually saves against twelve monthly payments; null if custom. */
-  annualSaving: number | null;
   /** Monthly price divided by locations; null if custom. */
   perLocationMonthly: number | null;
 }
@@ -119,7 +120,6 @@ export function estimate(locations: number, chosen: PlanId | null): Estimate {
     monthly: plan.monthly,
     annual: plan.annual,
     implementation: plan.implementation,
-    annualSaving: plan.monthly === null || plan.annual === null ? null : plan.monthly * 12 - plan.annual,
     perLocationMonthly: plan.monthly === null ? null : Math.round(plan.monthly / Math.max(1, locations)),
   };
 }
@@ -138,8 +138,8 @@ export function estimateLines(e: Estimate): string[] {
   return [
     `Plan: ${e.plan.name}`,
     `Monthly: ${usd(e.monthly!)}/month`,
-    `Annual: ${usd(e.annual!)}/year`,
-    `Implementation: ${usd(e.implementation!)} one-time`,
+    `Yearly: ${usd(e.annual!)}/year (12 monthly payments)`,
+    `Implementation: from ${usd(e.implementation!)} one-time`,
     `Messaging / SMS: ${MESSAGING_NOTE}`,
   ];
 }
