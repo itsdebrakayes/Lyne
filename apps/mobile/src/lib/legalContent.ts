@@ -10,6 +10,9 @@
  */
 
 export const COMPANY = 'DKS Technologies';
+/** Keep in step with apps/website/src/lib/legalEntity.ts. DKS Technologies is a business name, not a company. */
+export const OPERATOR_STATUS =
+  `${COMPANY} is a business name registered in Jamaica under the Registration of Business Names Act, registration number 11602/2026. ${COMPANY} is not a company. It is owned and operated by its proprietor as a sole trader.`;
 export const APP_NAME = 'Lyne';
 export const SUPPORT_EMAIL = 'customersupport@uselyne.com';
 export const PRIVACY_CONTACT = 'customersupport@uselyne.com';
@@ -38,6 +41,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
     heading: 'Who we are',
     body: [
       `${APP_NAME} is operated by ${COMPANY}. We are responsible for the personal information described here. If you want to reach a person about your data, write to ${PRIVACY_CONTACT}.`,
+      OPERATOR_STATUS,
     ],
   },
   {
@@ -112,6 +116,7 @@ export const TERMS: LegalSection[] = [
     heading: 'What this service does',
     body: [
       `${APP_NAME} lets you join a queue at a participating business or agency from your phone and follow your place in that queue until you are called. ${COMPANY} operates the app; the business you visit provides the actual service.`,
+      OPERATOR_STATUS,
     ],
   },
   {

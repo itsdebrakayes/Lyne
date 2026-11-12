@@ -8,7 +8,7 @@
 
 ## 1. Agreement
 
-These Terms are between you and **[REGISTERED COMPANY NAME]** ("Lyne", "we", "us"), a business registered in Jamaica under the Registration of Business Names Act and operated as a sole trader.
+These Terms are between you and **[PROPRIETOR NAME] trading as [REGISTERED BUSINESS NAME]** ("Lyne", "we", "us"). Lyne is operated by **[REGISTERED BUSINESS NAME]**, a business name registered in Jamaica under the Registration of Business Names Act, registration number **[BUSINESS NAME REGISTRATION NUMBER]**. [REGISTERED BUSINESS NAME] is not a company. It is owned and operated by its proprietor as a sole trader.
 
 By creating an account or using Lyne you accept these Terms and our [Privacy Policy](./PRIVACY_POLICY.md). **If you do not accept them, do not use the service.**
 
@@ -175,7 +175,7 @@ Please contact us first at **[SUPPORT EMAIL]** — most things are resolved quic
 
 ## 15. Contact
 
-**[REGISTERED COMPANY NAME]**
+**[REGISTERED BUSINESS NAME]**
 [ADDRESS]
 [SUPPORT EMAIL]
 

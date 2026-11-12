@@ -1,5 +1,5 @@
 /**
- * legalEntity.ts — the handful of legal facts only the company can supply.
+ * legalEntity.ts — the handful of legal facts only the business can supply.
  *
  * The Privacy Policy and Terms are written and complete except for these. They
  * are gathered here, in one file, for two reasons:
@@ -11,7 +11,7 @@
  * 2. While any of them is blank, the published pages carry a visible notice
  *    saying so, and the blank is rendered as an obvious marker rather than as
  *    prose. That is deliberate: a policy that quietly reads "operated by
- *    [REGISTERED COMPANY NAME]" is worse than one that says plainly it is not
+ *    [REGISTERED BUSINESS NAME]" is worse than one that says plainly it is not
  *    finished — especially in a procurement review, which is where these
  *    documents will actually be read.
  *
@@ -20,6 +20,14 @@
  */
 
 export interface LegalEntity {
+  /**
+   * The proprietor: the legal person behind DKS Technologies, which is a
+   * business name, not a company. Named wherever a contracting party has to be
+   * ("[PROPRIETOR NAME] trading as DKS Technologies"). Left blank until the
+   * owner decides to publish her name; while blank the legal pages show the
+   * "not finished" notice.
+   */
+  proprietorName: string;
   /** The registered business name, exactly as filed. */
   registeredName: string;
   /**
@@ -50,6 +58,7 @@ export interface LegalEntity {
 }
 
 export const LEGAL_ENTITY: LegalEntity = {
+  proprietorName: "",
   // From the Certificate of Registration, Form B.N.9, dated 9 August 2026.
   registeredName: "DKS Technologies",
   businessRegistrationNumber: "11602/2026",
@@ -71,6 +80,7 @@ export const LEGAL_ENTITY: LegalEntity = {
 /** Which identity fields are still outstanding. Empty array = ready to publish. */
 export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): string[] {
   const labels: Record<keyof LegalEntity, string> = {
+    proprietorName: "Proprietor's name",
     registeredName: "Registered business name",
     businessRegistrationNumber: "Business Name (BN) registration number",
     correspondenceAddress: "Correspondence address",
@@ -88,13 +98,14 @@ export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): stri
  *
  * An unfilled field is left as its own placeholder token rather than being
  * silently replaced with an empty string — a sentence that reads "operated by ,
- * a company registered in Jamaica" would look like a rendering bug and hide the
+ * a business name registered in Jamaica" would look like a rendering bug and hide the
  * real problem.
  */
 export function applyLegalEntity(markdown: string, entity: LegalEntity = LEGAL_ENTITY): string {
   const map: Record<string, string> = {
-    "[REGISTERED COMPANY NAME]": entity.registeredName,
-    "[NUMBER]": entity.businessRegistrationNumber,
+    "[PROPRIETOR NAME]": entity.proprietorName,
+    "[REGISTERED BUSINESS NAME]": entity.registeredName,
+    "[BUSINESS NAME REGISTRATION NUMBER]": entity.businessRegistrationNumber,
     "[ADDRESS]": entity.correspondenceAddress,
     "[PRIVACY EMAIL]": entity.privacyEmail,
     "[SUPPORT EMAIL]": entity.supportEmail,

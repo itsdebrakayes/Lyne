@@ -16,7 +16,7 @@
  * reviewer comparing the store listing against the app is the reason it is
  * worded identically rather than merely similarly.
  *
- * The company name is pulled from legalEntity.ts rather than typed again, so
+ * The business name is pulled from legalEntity.ts rather than typed again, so
  * renaming the business cannot leave a stale name in the disclaimer.
  */
 import { LEGAL_ENTITY } from "./legalEntity";

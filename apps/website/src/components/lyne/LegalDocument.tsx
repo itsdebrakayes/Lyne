@@ -23,7 +23,7 @@ function inline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   // One pass, alternating between the three inline forms these documents use.
   // Placeholders are an alternative HERE rather than a separate pre-pass:
-  // marking them first split "**... [NUMBER] ...**" and left the asterisks
+  // marking them first split "**... [BUSINESS NAME REGISTRATION NUMBER] ...**" and left the asterisks
   // visible on the published page.
   const pattern = /(\*\*(?:[^*]|\*(?!\*))+\*\*)|(\[[A-Z][A-Z0-9 /"'\u2014\u2013.,_-]*\])|(\[[^\]]+\]\([^)]+\))|(`[^`]+`)/g;
   let last = 0;
