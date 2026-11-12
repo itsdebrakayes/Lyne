@@ -1,5 +1,5 @@
 /**
- * legalEntity.ts — the handful of legal facts only the company can supply.
+ * legalEntity.ts — the handful of legal facts only the business can supply.
  *
  * The Privacy Policy and Terms are written and complete except for these. They
  * are gathered here, in one file, for two reasons:
@@ -11,7 +11,7 @@
  * 2. While any of them is blank, the published pages carry a visible notice
  *    saying so, and the blank is rendered as an obvious marker rather than as
  *    prose. That is deliberate: a policy that quietly reads "operated by
- *    [REGISTERED COMPANY NAME]" is worse than one that says plainly it is not
+ *    [REGISTERED BUSINESS NAME]" is worse than one that says plainly it is not
  *    finished — especially in a procurement review, which is where these
  *    documents will actually be read.
  *
@@ -20,7 +20,11 @@
  */
 
 export interface LegalEntity {
-  /** The registered business name, exactly as filed. */
+  /**
+   * The registered business name, exactly as filed. It is also how the
+   * contracting party is named in the Terms and Refund Policy: the owner's
+   * choice (12 Nov 2026) is "DKS Technologies", not her personal name.
+   */
   registeredName: string;
   /**
    * Business Name (BN) registration number from the Companies Office of
@@ -54,7 +58,7 @@ export const LEGAL_ENTITY: LegalEntity = {
   registeredName: "DKS Technologies",
   businessRegistrationNumber: "11602/2026",
   correspondenceAddress:
-    "Debra-Kaye Samantha Smith, c/o Marvaley Post Office, Kingston 20, Jamaica",
+    "DKS Technologies, c/o Marvaley Post Office, Kingston 20, Jamaica",
   /* One mailbox, used for both. A privacy policy that routes data-subject
      requests to an address nobody has created is worse than one that shares an
      inbox — the request simply bounces, and the obligation is missed. Split
@@ -88,13 +92,13 @@ export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): stri
  *
  * An unfilled field is left as its own placeholder token rather than being
  * silently replaced with an empty string — a sentence that reads "operated by ,
- * a company registered in Jamaica" would look like a rendering bug and hide the
+ * a business name registered in Jamaica" would look like a rendering bug and hide the
  * real problem.
  */
 export function applyLegalEntity(markdown: string, entity: LegalEntity = LEGAL_ENTITY): string {
   const map: Record<string, string> = {
-    "[REGISTERED COMPANY NAME]": entity.registeredName,
-    "[NUMBER]": entity.businessRegistrationNumber,
+    "[REGISTERED BUSINESS NAME]": entity.registeredName,
+    "[BUSINESS NAME REGISTRATION NUMBER]": entity.businessRegistrationNumber,
     "[ADDRESS]": entity.correspondenceAddress,
     "[PRIVACY EMAIL]": entity.privacyEmail,
     "[SUPPORT EMAIL]": entity.supportEmail,

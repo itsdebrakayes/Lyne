@@ -111,7 +111,7 @@ If we add anything that stores or transmits data about you, this page is updated
 
 ## 11. Contact
 
-**[REGISTERED COMPANY NAME]**
+**[REGISTERED BUSINESS NAME]**
 [ADDRESS]
 [PRIVACY EMAIL]
 

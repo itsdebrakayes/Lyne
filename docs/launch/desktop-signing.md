@@ -25,7 +25,7 @@ Since the 2023 CA/Browser Forum rules, every publicly-trusted code signing key
 — OV as well as EV — must live on certified hardware. The CAs meet that with a
 **cloud HSM** rather than a posted token: the key is generated inside the CA's
 HSM and the build calls out to sign. Nothing is manufactured and nothing is
-shipped, which is the only workable arrangement when the company is in Jamaica.
+shipped, which is the only workable arrangement when the business is in Jamaica.
 
 **Providers wired up** (`electron/sign-windows.js`):
 

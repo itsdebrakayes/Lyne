@@ -112,7 +112,7 @@ name against it needs a person; everything else is in
 - [ ] **Code-signing certificate** for the Windows admin app. There is no USB
       token to post — the CAs meet the hardware-key rule with a cloud HSM, so
       nothing ships to Jamaica. SSL.com eSigner or DigiCert KeyLocker; Azure
-      Trusted Signing is unavailable to a Jamaican company. The slow part is
+      Trusted Signing is unavailable to a Jamaican business. The slow part is
       organisation validation, not delivery, so start it early. The build works
       unsigned in the meantime — `npm run build:win:unsigned` — which is fine
       for a pilot unless the site enforces SmartScreen or WDAC.

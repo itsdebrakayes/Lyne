@@ -54,7 +54,7 @@ data decisions — §18 and §23A are drafted to prevent exactly that.
 
 The drafts are thorough and specific to what this app actually does — I wrote them against the real schema, not from a template. But the Data Protection Act, 2020 carries **criminal penalties** for some breaches, and a data controller handling TRN, National ID and passport numbers is squarely in its strictest category.
 
-Get a Jamaican attorney with data-protection experience to review both documents before launch. This is a few hundred dollars that protects the whole company. Budget it alongside the procurement licence.
+Get a Jamaican attorney with data-protection experience to review both documents before launch. This is a few hundred dollars that protects the whole business. Budget it alongside the procurement licence.
 
 ## 2. "They agree to everything we might do in future" is not achievable — and asking for it creates risk
 
@@ -100,7 +100,7 @@ A second pass, covering the things the first one did not. What changed:
 
 **Two real gaps closed:**
 - `mailto:hello@lyne.app` was the primary business call-to-action on the home page. That domain is not ours; the address could never have received a reply.
-- `+1 (876) 000-0000` was published as the company's contact number, on both the desktop and mobile contact blocks.
+- `+1 (876) 000-0000` was published as the business's contact number, on both the desktop and mobile contact blocks.
 
 **One gap left open deliberately** — see the list below: Google Fonts is fetched from Google's servers before the banner is answered, so a visitor's IP reaches Google regardless of what they choose. Section 4 of the Cookie Policy states this plainly rather than letting the banner imply a control it does not have. The fix is to self-host the font files.
 

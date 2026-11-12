@@ -9,7 +9,7 @@
  * on a useful timetable.
  *
  * Two providers are wired up, because they are the two that will sell to a
- * company outside the US and Canada:
+ * business outside the US and Canada:
  *
  *   SSL.com eSigner   CodeSignTool, driven by username / password / TOTP.
  *   DigiCert KeyLocker  smctl, driven by an API key and a client certificate.

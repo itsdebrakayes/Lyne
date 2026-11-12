@@ -106,7 +106,7 @@ const footerCols: Array<{ title: string; items: Array<{ label: string; href: str
     ],
   },
   {
-    title: "Company",
+    title: "Our Business",
     items: [
       { label: "About", href: "/about" },
       { label: "Partners", href: "/#partners" },
@@ -149,8 +149,9 @@ export function MarketingFooter() {
         <div className="mt-14 border-t border-white/[0.06] pt-6 text-xs leading-relaxed text-lyne-lavender/45">
           <p>
             <span className="font-semibold text-lyne-lavender/70">{LEGAL_ENTITY.registeredName}</span>
-            {" — "}registered in Jamaica under the Registration of Business Names Act,
-            registration number {LEGAL_ENTITY.businessRegistrationNumber}. Operated as a sole trader.
+            {" — "}a business name registered in Jamaica under the Registration of Business Names Act,
+            registration number {LEGAL_ENTITY.businessRegistrationNumber}. {LEGAL_ENTITY.registeredName} is
+            not a company. It is owned and operated by its proprietor as a sole trader.
           </p>
           <p className="mt-1">
             {LEGAL_ENTITY.correspondenceAddress} ·{" "}
