@@ -203,21 +203,34 @@ or Twilio.** To do (owner): add them.
 
 1. **Register with the Information Commissioner, and appoint a Data Protection Officer** (owner).
    Hospitals bring health information, which makes a DPO a legal requirement.
-2. **Go live with the fixes already built:** the TRN route removal and migration 050, encrypted
-   off-site backups, and the walk-in numbering fix (owner approval, then deploy).
+2. **Go live with the 12 November work** (on `staging`; owner approval, then deploy): the security
+   review fixes, the organisation data export, the activity log screen, automatic sign-out of an
+   unattended screen, and lobby screens (migration 052). Already live since 11–12 November: the TRN
+   route removal and migration 050, encrypted off-site backups, the walk-in numbering fix and the
+   public-insights switch (migration 051).
 3. **Two-factor sign-in for staff.** The Act doesn't name it, but any bank or government security
    review will ask for it. Supabase supports authenticator-app codes (TOTP) at no extra cost. The
    plan is to require it on the server for executives, managers and supervisors, by checking the
    `aal2` claim in the sign-in token, with enrolment in the desktop admin; kiosk accounts are exempt.
+   Single sign-on with an organisation's own identity provider is the second step. Both are set out
+   in `docs/security/SIGN_IN_HARDENING_PLAN.md`.
 4. **Incident response procedure and breach register,** to meet the 72-hour notification duty: who
    decides, who is told, a template notice for the Commissioner, and a log of every incident.
 5. **Data processing agreement template** for organisations, and the sub-processor list completed (§6).
-6. **Organisation-level export and contract-end deletion** (§7).
+6. **Contract-end deletion on request** (§7). The organisation-level export is built: Settings → Your Data,
+   executive only, audit-logged (`apps/backend/src/routes/orgExport.js`).
 7. **First annual DPIA,** due by 31 March 2027.
 8. **Legal structure and insurance:** DKS Technologies is a business name, not a company; its proprietor trades as a sole trader with no cyber insurance
    (`legal/COMPLIANCE_NOTES.md`). Public-sector and bank procurement usually require both.
-9. **Independent test:** no external penetration test or certification yet. The internal checklist
-   is `docs/pre-launch-security-checklist.md`.
+9. **Independent test:** no external penetration test or certification yet. An internal review of
+   every server route and the desktop app's bridges was done on 12 November 2026 (findings and fixes
+   in `docs/COMPLETED_WORK.md`); that is not a substitute. The internal checklist is
+   `docs/pre-launch-security-checklist.md`.
+10. **Dependencies:** the server and admin app have no known critical or high vulnerabilities after
+    the 12 November patches. The website has one high (zod, needs a major upgrade) and the mobile
+    app's build tooling has several; neither is in code that handles personal data on the server.
+11. **One server, no standby.** A lost droplet means restoring from the off-site backup onto a new
+    one: hours, not minutes. No uptime commitment should be given beyond what that supports.
 
 ## 9. What Lyne should not claim yet
 
