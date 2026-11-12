@@ -71,8 +71,8 @@ function standardDb() {
     if (/COUNT\(\*\)/i.test(sql)) return [[{ cnt: 7 }]];
     if (/SELECT slug FROM businesses/i.test(sql)) return [[{ slug: 'taj' }]];
     if (/^\s*INSERT INTO staff/i.test(sql)) return [{ affectedRows: 1 }];
-    if (/SELECT business_id, branch_id FROM staff/i.test(sql)) {
-      return [[{ business_id: 'biz-taj-001', branch_id: 'br-taj-kgn' }]];
+    if (/SELECT s\.business_id, s\.branch_id, r\.name AS role_name FROM staff/i.test(sql)) {
+      return [[targetRow]];
     }
     if (/^\s*UPDATE staff/i.test(sql)) return [{ affectedRows: 1 }];
     if (/SELECT \* FROM staff/i.test(sql)) return [[{ id: 'new-staff' }]];
@@ -88,7 +88,12 @@ function createReq(body, dbStaff = manager) {
   return { body: { ...body }, params: {}, dbStaff };
 }
 
-test.beforeEach(() => { statements = []; queryImpl = standardDb(); });
+/* The staff row being edited on the update path. */
+let targetRow;
+test.beforeEach(() => {
+  statements = []; queryImpl = standardDb();
+  targetRow = { business_id: 'biz-taj-001', branch_id: 'br-taj-kgn', role_name: 'line_staff' };
+});
 
 const insertOf = () => statements.find(([sql]) => /^\s*INSERT INTO staff/i.test(sql));
 const updateOf = () => statements.find(([sql]) => /^\s*UPDATE staff/i.test(sql));
@@ -182,4 +187,61 @@ test('an update that leaves role_id absent still works', async () => {
 
   assert.equal(res.statusCode, 200, 'omitting role_id must not trip the guard');
   assert.ok(updateOf(), 'the update runs');
+});
+
+/* ── Who may edit whom ───────────────────────────────────────────────────────
+   An executive has no branch, and the branch check passes when there is no
+   branch to check, so a branch manager could reach the executive's row. */
+const executive = { id: 'staff-exec', business_id: 'biz-taj-001', branch_id: null, role_name: 'executive' };
+const putReq = (id, body, dbStaff = manager) => ({ body: { ...body }, params: { id }, dbStaff });
+
+test('a manager cannot deactivate, demote or re-email their executive', async () => {
+  targetRow = { business_id: 'biz-taj-001', branch_id: null, role_name: 'executive' };
+  for (const body of [{ is_active: false }, { role_id: 'role-staff-001' }, { email: 'mallory@example.test' }]) {
+    statements = [];
+    const res = fakeRes();
+    await handlerFor('put', '/:id')(putReq('staff-exec', body), res);
+    assert.equal(res.statusCode, 403, JSON.stringify(body));
+    assert.equal(updateOf(), undefined, 'no staff row may be changed');
+  }
+});
+
+test('a manager cannot edit a fellow manager at their branch', async () => {
+  targetRow = { business_id: 'biz-taj-001', branch_id: 'br-taj-kgn', role_name: 'manager' };
+  const res = fakeRes();
+  await handlerFor('put', '/:id')(putReq('staff-mgr-2', { is_active: false }), res);
+  assert.equal(res.statusCode, 403);
+  assert.equal(updateOf(), undefined);
+});
+
+test('a manager can still edit their own row and the people below them', async () => {
+  targetRow = { business_id: 'biz-taj-001', branch_id: 'br-taj-kgn', role_name: 'manager' };
+  let res = fakeRes();
+  await handlerFor('put', '/:id')(putReq('staff-mgr', { phone: '+18765550100' }), res);
+  assert.notEqual(res.statusCode, 403, 'own row');
+  assert.ok(updateOf());
+
+  statements = [];
+  targetRow = { business_id: 'biz-taj-001', branch_id: 'br-taj-kgn', role_name: 'supervisor' };
+  res = fakeRes();
+  await handlerFor('put', '/:id')(putReq('staff-sup', { is_active: false }), res);
+  assert.notEqual(res.statusCode, 403, 'a supervisor is below a manager');
+  assert.ok(updateOf());
+});
+
+test('an executive can edit a manager and another executive, never a platform admin', async () => {
+  for (const role_name of ['manager', 'executive']) {
+    statements = [];
+    targetRow = { business_id: 'biz-taj-001', branch_id: null, role_name };
+    const res = fakeRes();
+    await handlerFor('put', '/:id')(putReq('someone-else', { is_active: false }, executive), res);
+    assert.notEqual(res.statusCode, 403, role_name);
+    assert.ok(updateOf(), role_name);
+  }
+  statements = [];
+  targetRow = { business_id: 'biz-taj-001', branch_id: null, role_name: 'platform_admin' };
+  const res = fakeRes();
+  await handlerFor('put', '/:id')(putReq('root', { is_active: false }, executive), res);
+  assert.equal(res.statusCode, 403);
+  assert.equal(updateOf(), undefined);
 });

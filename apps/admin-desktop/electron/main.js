@@ -143,7 +143,7 @@ function createWindow() {
 
   // Open external links in the default browser
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalSafely(url);
     return { action: 'deny' };
   });
 
@@ -154,7 +154,7 @@ function createWindow() {
     const allowed = isDev ? devServerUrl : APP_ORIGIN;
     if (!url.startsWith(allowed)) {
       event.preventDefault();
-      shell.openExternal(url);
+      openExternalSafely(url);
     }
   });
 }
@@ -216,7 +216,7 @@ app.on('window-all-closed', () => {
 });
 
 // IPC: open external URL
-ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
+ipcMain.handle('open-external', (_, url) => openExternalSafely(url));
 
 /* ── first-launch setup ── */
 ipcMain.handle('settings:get', () => ({
@@ -242,7 +242,18 @@ ipcMain.handle('settings:pick-folder', async (_, current) => {
   return res.filePaths[0];
 });
 
-ipcMain.handle('settings:open-folder', (_, dir) => shell.openPath(dir));
+/* Folders only. shell.openPath on a FILE opens it with its default handler,
+   which for a program means running it, so a path that is not an existing
+   directory is refused. */
+ipcMain.handle('settings:open-folder', (_, dir) => {
+  try {
+    const target = path.resolve(String(dir || ''));
+    if (!fs.statSync(target).isDirectory()) return 'Not a folder.';
+    return shell.openPath(target);
+  } catch {
+    return 'Folder not found.';
+  }
+});
 
 /* ── reports ──
    The Reports tab hands over a finished HTML document; this writes it as Word
@@ -250,6 +261,19 @@ ipcMain.handle('settings:open-folder', (_, dir) => shell.openPath(dir));
    folder chosen at setup (Downloads if none), then shows the file. The renderer
    never touches the filesystem. A name that already exists gets " (2)" and so
    on rather than being overwritten. */
+/* The only schemes handed to the operating system. shell.openExternal passes
+   the URL to whatever is registered for its scheme, and on Windows several
+   registered schemes run programs (ms-msdt:, search-ms:, file: on an .exe), so
+   a link reaching the renderer must never be able to choose one. */
+const EXTERNAL_SCHEMES = new Set(['https:', 'http:', 'mailto:', 'tel:']);
+function openExternalSafely(url) {
+  try {
+    if (EXTERNAL_SCHEMES.has(new URL(String(url)).protocol)) return shell.openExternal(String(url));
+  } catch { /* not a URL */ }
+  console.warn('[security] refused to open a non-web link');
+  return Promise.resolve();
+}
+
 function uniquePath(dir, base, ext) {
   let candidate = path.join(dir, `${base}.${ext}`);
   for (let n = 2; fs.existsSync(candidate) && n < 1000; n++) {
