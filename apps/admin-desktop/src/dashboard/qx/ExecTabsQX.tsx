@@ -24,6 +24,7 @@ import SupportAsk from '../../components/SupportAsk';
 import { buildCompanyReport } from '../reportDoc';
 import { ReportDownloadButtons, ReportPreview } from './ReportExport';
 import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
+import { PublicInsightsPanel } from '../../components/dashboard/PublicInsightsPanel';
 import { TargetHistory } from './TargetHistory';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
@@ -1312,6 +1313,7 @@ export function ExecSettings() {
   return (
     <div className="qx-grid">
       <ClosuresPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
+      <PublicInsightsPanel span={12} />
       {/* Read-only until there is an endpoint to save them. This card used to
           be pre-filled with a sample agency's real contact details and had a
           Save button that saved nothing. */}

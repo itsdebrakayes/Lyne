@@ -30,6 +30,8 @@ const { validate, schemas } = require('../middleware/validate');
 const { requireStaffRole, requireBranchAccess, scopedBranchId } = require('../middleware/tenantAccess');
 const { auditLog } = require('../middleware/auditLog');
 const { smsAvailable } = require('../utils/smsSender');
+const { randomUUID } = require('crypto');
+const publicInsights = require('../lib/publicInsights');
 
 const router = express.Router();
 
@@ -200,6 +202,63 @@ router.put('/alerts', requireAuth, requireStaffRole('supervisor', 'manager', 'ex
   } catch (err) {
     console.error('settings/alerts PUT:', err);
     res.status(500).json({ error: 'Failed to save alert preferences.' });
+  }
+});
+
+// ── /api/settings/public-insights ────────────────────────────
+// How much timing detail the public sees for this organisation (migration 051).
+// Executive only: it is a decision about the whole organisation's exposure.
+// Always the caller's own organisation; there is no business_id to send.
+const PUBLIC_INSIGHT_LEVELS = {
+  full: 'Best times, the hour-by-hour heatmap, the week planner and personal recommendations',
+  limited: 'The best time for each service and today\'s shape only; no heatmap, week planner or personal recommendations',
+};
+
+async function publicInsightsState(businessId) {
+  const level = await publicInsights.publicInsightsLevel(businessId);
+  const [rows] = await pool.query(
+    `SELECT a.created_at AS changed_at, s.full_name AS changed_by
+       FROM audit_logs a LEFT JOIN staff s ON s.id = a.actor_id
+      WHERE a.business_id = ? AND a.action LIKE 'public_insights_set_%'
+      ORDER BY a.created_at DESC LIMIT 1`,
+    [businessId]
+  );
+  return {
+    level,
+    levels: PUBLIC_INSIGHT_LEVELS,
+    last_changed_at: rows[0]?.changed_at || null,
+    last_changed_by: rows[0]?.changed_by || null,
+  };
+}
+
+router.get('/public-insights', requireAuth, requireStaffRole('executive'), async (req, res) => {
+  try {
+    res.json(await publicInsightsState(req.dbStaff.business_id));
+  } catch (err) {
+    console.error('settings/public-insights GET:', err);
+    res.status(500).json({ error: 'Failed to load what the public sees.' });
+  }
+});
+
+router.put('/public-insights', requireAuth, requireStaffRole('executive'), validate(schemas.publicInsights), async (req, res) => {
+  const businessId = req.dbStaff.business_id;
+  const { level } = req.body;
+  try {
+    await pool.query('UPDATE businesses SET public_insights = ?, updated_at = NOW() WHERE id = ?', [level, businessId]);
+    publicInsights.forget(businessId);
+    /* Written here rather than by the auditLog middleware, which records the
+       request before it runs and cannot say WHICH level was chosen. The action
+       carries the level so the audit trail answers "who turned it off, when". */
+    await pool.query(
+      `INSERT INTO audit_logs (id, actor_id, actor_type, business_id, action, resource_type, resource_id, ip_address, user_agent)
+       VALUES (?, ?, 'staff', ?, ?, 'business', ?, ?, ?)`,
+      [randomUUID(), req.dbStaff.id, businessId, `public_insights_set_${level}`, businessId,
+        req.ip || null, req.headers['user-agent'] || null]
+    );
+    res.json(await publicInsightsState(businessId));
+  } catch (err) {
+    console.error('settings/public-insights PUT:', err);
+    res.status(500).json({ error: 'Failed to save what the public sees.' });
   }
 });
 

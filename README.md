@@ -508,6 +508,7 @@ The organisation **quote estimator** reads one price list, `apps/website/src/lib
 | Wallet passes | `WALLET_PASS_ENABLED` | Off |
 | Line Helper | `branches.line_helper_enabled` | On by default; managers can switch it off per branch |
 | Predictions | platform setting + per organisation + per user (migration 030) | On |
+| What the public sees | `businesses.public_insights` (migration 051), `apps/backend/src/lib/publicInsights.js`; executive sets it in Settings → What The Public Sees (`PUT /api/settings/public-insights`, audit-logged) | `full` by default: best times, heatmap, week planner, personal tips. `limited` returns the organisation to the old free tier (headline best time per service and today's shape only). Live queue lengths and current waits are shown either way. A missing column reads as `full`; any other read error holds detail back. |
 | Payments provider for Jamaica | not chosen | Candidates: WiPay, Amber Pay eLink, PayPal card entry (Stripe is unavailable in Jamaica) |
 
 ---
