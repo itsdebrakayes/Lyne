@@ -20,7 +20,12 @@
 #   bash deploy/offsite-backup.sh latest             # the newest dump in BACKUP_DIR
 #   bash deploy/offsite-backup.sh list               # what is in the bucket
 #   bash deploy/offsite-backup.sh fetch NAME OUT     # download + decrypt to OUT (.sql.gz)
-#   bash deploy/offsite-backup.sh lifecycle DAYS     # bucket deletes copies older than DAYS
+#   bash deploy/offsite-backup.sh prune DAYS         # delete copies older than DAYS (keeps the newest)
+#
+# Retention is done by this script (prune, after each nightly upload), not by a
+# bucket lifecycle rule: the Spaces key on the server is deliberately a
+# limited-access key (objects in this bucket only), which cannot change bucket
+# settings. A stolen server key therefore cannot alter the bucket itself.
 #
 # THE PASSPHRASE IS THE ONLY WAY BACK IN. If the droplet is lost, the copy on
 # the droplet is lost with it. Keep a second copy of secrets/backup-passphrase
@@ -87,7 +92,7 @@ latest() {
 
 list() {
   s3 -H "x-amz-content-sha256: ${EMPTY_SHA}" "${ENDPOINT}/?list-type=2&prefix=${PREFIX}/" \
-    | tr '<' '\n' | awk -F'>' '$1=="Key"{k=$2} $1=="Size"{print k"\t"$2}'
+    | tr '<' '\n' | awk -F'>' '$1=="Key"{k=$2} $1=="LastModified"{m=$2} $1=="Size"{print k"\t"$2"\t"m}'
 }
 
 fetch() {
@@ -102,15 +107,20 @@ fetch() {
   echo "    fetched and decrypted to $out"
 }
 
-lifecycle() {
-  local days="$1" body md5
-  [[ "$days" =~ ^[0-9]+$ ]] && [ "$days" -ge 7 ] || die "lifecycle needs a number of days, at least 7"
-  body="<LifecycleConfiguration><Rule><ID>expire-old-backups</ID><Filter><Prefix>${PREFIX}/</Prefix></Filter><Status>Enabled</Status><Expiration><Days>${days}</Days></Expiration></Rule></LifecycleConfiguration>"
-  md5="$(printf '%s' "$body" | openssl dgst -md5 -binary | openssl base64)"
-  s3 -X PUT -H "Content-MD5: ${md5}" -H "Content-Type: application/xml" \
-     -H "x-amz-content-sha256: $(printf '%s' "$body" | openssl dgst -sha256 | awk '{print $NF}')" \
-     --data-binary "$body" "${ENDPOINT}/?lifecycle" > /dev/null
-  echo "    bucket keeps off-site copies for ${days} days"
+prune() {
+  local days="$1" cutoff rows keep n=0 k
+  [[ "$days" =~ ^[0-9]+$ ]] && [ "$days" -ge 7 ] || die "prune needs a number of days, at least 7"
+  cutoff="$(date -u -d "-${days} days" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v-"${days}"d +%Y-%m-%dT%H:%M:%S)"
+  rows="$(list | grep -E "^${PREFIX}/lyne-[^/]*\.sql\.gz\.gpg"$'\t' || true)"
+  [ -n "$rows" ] || { echo "    nothing off-site to prune"; return 0; }
+  keep="$(printf '%s\n' "$rows" | sort -t$'\t' -k3 | tail -1 | cut -f1)"
+  while IFS=$'\t' read -r k _ m; do
+    [ "$k" = "$keep" ] && continue
+    [[ "$m" < "$cutoff" ]] || continue
+    s3 -X DELETE -H "x-amz-content-sha256: ${EMPTY_SHA}" "${ENDPOINT}/${k}" > /dev/null || die "could not delete $k"
+    n=$((n + 1))
+  done <<< "$rows"
+  echo "    off-site: removed ${n} copies older than ${days} days"
 }
 
 case "${1:-}" in
@@ -118,6 +128,6 @@ case "${1:-}" in
   latest)    latest ;;
   list)      list ;;
   fetch)     fetch "${2:-}" "${3:-}" ;;
-  lifecycle) lifecycle "${2:-}" ;;
-  *) sed -n '2,30p' "$0"; exit 2 ;;
+  prune)     prune "${2:-}" ;;
+  *) sed -n '2,36p' "$0"; exit 2 ;;
 esac
