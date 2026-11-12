@@ -25,6 +25,9 @@ import { buildCompanyReport } from '../reportDoc';
 import { ReportDownloadButtons, ReportPreview } from './ReportExport';
 import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
 import { PublicInsightsPanel } from '../../components/dashboard/PublicInsightsPanel';
+import { DataExportPanel } from '../../components/dashboard/DataExportPanel';
+import { AuditLogPanel } from '../../components/dashboard/AuditLogPanel';
+import { LobbyScreensPanel } from '../../components/dashboard/LobbyScreensPanel';
 import { TargetHistory } from './TargetHistory';
 import {
   Activity, AlertTriangle, Award, Building2, Check, CheckCircle2, ChevronDown, ChevronLeft,
@@ -1305,19 +1308,24 @@ export function ExecReports() {
 /* ══════════════════════ 8 · SETTINGS ══════════════════════ */
 export function ExecSettings() {
   const d = useExecData();
-  const [tog, setTog] = useState<Record<string, boolean>>({
-    sms: true, email: true, weekly: true, anomaly: true, kiosk: false,
-  });
-  const flip = (k: string) => setTog((p) => ({ ...p, [k]: !p[k] }));
 
+  /* Everything on this screen is real or it is not here. It used to carry a
+     hardcoded "5 Branches, 34 Line Staff", a "Government Enterprise" plan
+     "invoiced to the Ministry of Finance", notification switches that saved
+     nothing (addressed to a sample agency's email), retention dropdowns that
+     changed nothing and a "Request Export" button with no handler. Every
+     organisation's executive saw that, whoever they were. When notification
+     preferences, retention choices and billing have endpoints, they come back
+     as working controls. */
   return (
     <div className="qx-grid">
       <ClosuresPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
       <PublicInsightsPanel span={12} />
-      {/* Read-only until there is an endpoint to save them. This card used to
-          be pre-filled with a sample agency's real contact details and had a
-          Save button that saved nothing. */}
-      <Card span={7} title="Company Details" cap="Printed on every report. To change them, contact Lyne support.">
+      <LobbyScreensPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
+      <DataExportPanel span={12} />
+      <AuditLogPanel span={12} />
+      {/* Read-only until there is an endpoint to save them. */}
+      <Card span={7} title="Organisation Details" cap="Printed on every report. To change them, contact Lyne support.">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {[
             ['Organisation Name', d.org || '—'],
@@ -1331,61 +1339,15 @@ export function ExecSettings() {
         </div>
       </Card>
 
-      <div className="qx-stack s5">
-        <Card title="At A Glance" cap="What this company is made of">
-          <div className="qx-kv">
-            <div><b>5</b><small>Branches</small></div>
-            <div><b>5</b><small>Managers</small></div>
-            <div><b>34</b><small>Line Staff</small></div>
-            <div><b>5</b><small>Service Lines</small></div>
-          </div>
-          <div style={{ marginTop: 13 }}>
-            <Note icon={Building2} title="Adding A Branch Needs A Manager First"
-              body="Create the manager account under Users, then attach the branch to them." />
-          </div>
-        </Card>
-        <Card title="Plan" cap="Billing and limits">
-          <div className="qx-setrow"><div><b>Government Enterprise</b><small>Unlimited branches and staff, dedicated support</small></div><span className="qx-tag">Active</span></div>
-          <div className="qx-setrow"><div><b>Renews</b><small>Annual term, invoiced to the Ministry of Finance</small></div><span className="qx-tag">1 Apr 2027</span></div>
-        </Card>
-      </div>
-
-      <Card span={6} title="Notifications" cap="What the system tells you about, and how">
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {[
-            ['anomaly', 'Something Unusual At A Branch', 'A wait time, service time or no-show rate well outside its normal range.'],
-            ['weekly', 'Weekly Summary Email', 'Every Monday at 7am, covering the week just finished.'],
-            ['email', 'Email Alerts', 'Send the above to debra.samuels@taj.gov.jm.'],
-            ['sms', 'Text Alerts', 'Only for a branch going over capacity during opening hours.'],
-          ].map(([k, label, blurb]) => (
-            <div className="qx-setrow" key={k}>
-              <div><b>{label}</b><small>{blurb}</small></div>
-              <Toggle on={!!tog[k]} onClick={() => flip(k)} label={label} />
-            </div>
-          ))}
+      <Card span={5} title="At A Glance" cap="What this organisation is made of">
+        <div className="qx-kv">
+          <div><b>{d.branches.length}</b><small>Branches</small></div>
+          <div><b>{d.managers.length}</b><small>Managers</small></div>
+          <div><b>{d.lines.length}</b><small>Service Lines</small></div>
         </div>
-      </Card>
-
-      <Card span={6} title="Data And Access" cap="How long things are kept, and who can see them">
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="qx-setrow">
-            <div><b>Keep Ticket History For</b><small>Individual visit records, including names given at the kiosk.</small></div>
-            <Select label="Retention" value="24" onChange={() => undefined}
-              options={[['12', '12 Months'], ['24', '24 Months'], ['60', '5 Years']]} />
-          </div>
-          <div className="qx-setrow">
-            <div><b>Keep Generated Reports For</b><small>Downloadable copies held on the server.</small></div>
-            <Select label="Report Retention" value="90" onChange={() => undefined}
-              options={[['30', '30 Days'], ['90', '90 Days'], ['365', '1 Year']]} />
-          </div>
-          <div className="qx-setrow">
-            <div><b>Kiosk Terminals Can Print</b><small>Turn off where a branch has no printer and relies on text updates.</small></div>
-            <Toggle on={!!tog.kiosk} onClick={() => flip('kiosk')} label="Kiosk printing" />
-          </div>
-          <div className="qx-setrow">
-            <div><b>Export Everything</b><small>A full copy of this company's data as CSV, for your own records.</small></div>
-            <button type="button" className="qx-btn ghost"><Download size={14} />Request Export</button>
-          </div>
+        <div style={{ marginTop: 13 }}>
+          <Note icon={Building2} title="Adding A Branch Needs A Manager First"
+            body="Create the manager account under Users, then attach the branch to them." />
         </div>
       </Card>
     </div>

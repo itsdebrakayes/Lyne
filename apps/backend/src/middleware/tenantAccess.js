@@ -165,8 +165,12 @@ async function requireTicketAccess(req, res, next) {
       return next();
     }
 
+    /* assertSectionAccess: a supervisor limited to a section (migration 043)
+       may not act on a ticket in another section's line. requireQueueAccess
+       already said so for lines; tickets did not. */
     if (!assertBusinessAccess(req, rows[0].business_id)
       || !assertBranchAccess(req, rows[0].branch_id)
+      || !assertSectionAccess(req, rows[0].service_id)
       || !await assertLineStaffQueueAccess(req, rows[0])) {
       return res.status(403).json({ error: 'You do not have access to this ticket.' });
     }

@@ -21,6 +21,7 @@
  */
 import { TargetHistory } from './TargetHistory';
 import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
+import { LobbyScreensPanel } from '../../components/dashboard/LobbyScreensPanel';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import {
@@ -778,6 +779,7 @@ export function MgrSettingsTab() {
   return (
     <div className="qx-grid">
       <ClosuresPanel span={12} />
+      <LobbyScreensPanel span={12} services={d.services.map((sv) => ({ id: sv.id, name: sv.name }))} />
       <Card span={7} title="This Branch" cap="Shown to customers in the Lyne app and on the lobby kiosk">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="qx-setrow"><div><b>Branch Name</b><small>How customers see it when choosing where to go.</small></div><span className="qx-tag">{d.branchName}</span></div>

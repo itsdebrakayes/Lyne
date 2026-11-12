@@ -144,6 +144,29 @@ const publicQueueLimiter = rateLimit({
   message: { error: 'Too many queue status requests. Please slow down.' },
 });
 
+// ── Lobby display screens ─────────────────────────────────────
+// Every television in a hall shares the branch's one public address, and each
+// asks every five seconds (12 a minute). Counting them against the general
+// limit would let a row of screens use up the address's budget and lock the
+// staff beside them out of the admin app. So a screen is counted on its own,
+// per link per address, and these routes are mounted before the general limit.
+const displayLimiter = rateLimit({
+  keyGenerator:     (req) => `display:${req.ip}:${String(req.params?.token || req.path).slice(0, 64)}`,
+  windowMs:         60 * 1000,
+  max:              40,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message: { error: 'This screen is asking too often.' },
+});
+// Guessing links: an address that asks for many DIFFERENT screens is not a screen.
+const displayProbeLimiter = rateLimit({
+  windowMs:         5 * 60 * 1000,
+  max:              600,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message: { error: 'Too many requests.' },
+});
+
 // ── General API fallback ──────────────────────────────────────
 // The admin dashboards legitimately poll ~15 analytics endpoints on a 60s
 // refresh cycle (~15 req/min at idle, more while navigating), so the ceiling
@@ -199,6 +222,8 @@ module.exports = {
   queueJoinLimiter,
   ocrLimiter,
   publicQueueLimiter,
+  displayLimiter,
+  displayProbeLimiter,
   sessionLookupLimiter,
   paymentLimiter,
   generalLimiter,

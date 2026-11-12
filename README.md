@@ -428,6 +428,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
      --ssl-ca=secrets/mysql-ca.crt --ssl-mode=VERIFY_CA lyne < database/migrations/0NN_name.sql
    ```
 4. **Deploy.** `bash deploy/deploy.sh`. This builds the admin app and images, starts the containers, waits for `/health`, checks the public URL, and records the commit as last-good. It first resets every tracked file to world-readable (the API container runs as a non-root user, and a checkout made under `umask 077` once took production down with `EACCES` on `index.js`).
+   If `deploy/Caddyfile` changed, `deploy.sh` validates the new file and restarts the proxy (a second or two); a file that does not validate stops the deploy with the old proxy still serving.
 5. **Verify.** Run `bash deploy/verify.sh`; it should report no failures. The firewall and SSH checks need root and show as "to look at". Check the job lines in `docker logs lyne_api`, and look at the app on a phone.
 
 **Rolling back code:** `bash deploy/deploy.sh rollback` returns to the last good commit. A schema change does not roll back with the code; restore the backup taken in step 3 if a migration was the problem.
@@ -509,6 +510,8 @@ The organisation **quote estimator** reads one price list, `apps/website/src/lib
 | Wallet passes | `WALLET_PASS_ENABLED` | Off |
 | Line Helper | `branches.line_helper_enabled` | On by default; managers can switch it off per branch |
 | Predictions | platform setting + per organisation + per user (migration 030) | On |
+| Lobby "Now Serving" screens | migration 052 (`lobby_displays`), `apps/backend/src/routes/display.js`, `src/lib/lobbyDisplay.js`, page in `src/display/`; managed in Settings → Lobby Screens | A web page per screen at `https://<api host>/display/<token>`: open it in any TV or signage browser, or embed it (`<iframe>`). Ticket numbers, counters and waiting counts only, never names. A manager creates and switches off screens for their branch, an executive for any branch; both are audit-logged. `/display/*` is the only path that may be framed (Caddyfile and the route's own headers). `?sound=0` and `?lines=0` on the link. |
+| Organisation data export | `apps/backend/src/routes/orgExport.js`, `src/lib/organisationExport.js`; Settings → Your Data (executive) | One zip of 20 CSV files with everything the organisation owns. Always the caller's own organisation; audited before it runs; one a minute. No credentials, codes or app users' own contact details. Cells that would run as spreadsheet formulas are neutralised (`src/utils/csv.js`). |
 | What the public sees | `businesses.public_insights` (migration 051), `apps/backend/src/lib/publicInsights.js`; executive sets it in Settings → What The Public Sees (`PUT /api/settings/public-insights`, audit-logged) | `full` by default: best times, heatmap, week planner, personal tips. `limited` returns the organisation to the old free tier (headline best time per service and today's shape only). Live queue lengths and current waits are shown either way. A missing column reads as `full`; any other read error holds detail back. |
 | Payments provider for Jamaica | not chosen | Candidates: WiPay, Amber Pay eLink, PayPal card entry (Stripe is unavailable in Jamaica) |
 

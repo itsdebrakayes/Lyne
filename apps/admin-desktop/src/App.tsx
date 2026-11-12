@@ -6,6 +6,7 @@ import SupervisorDashboard from './pages/SupervisorDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import LoadingScreen from './components/LoadingScreen';
+import IdleGuard from './components/IdleGuard';
 import DesignPreview from './pages/DesignPreview';
 import KioskApp from './kiosk/KioskApp';
 import SetupWizard from './pages/SetupWizard';
@@ -15,11 +16,12 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/apiClient';
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
-  const { admin, loading } = useAdminAuth();
+  const { admin, loading, logout } = useAdminAuth();
   if (loading) return <LoadingScreen />;
   if (!admin) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(admin.role)) return <Navigate to="/" replace />;
-  return <>{children}</>;
+  // Every signed-in screen is signed out when it has been left unattended.
+  return <IdleGuard onIdle={logout}>{children}</IdleGuard>;
 }
 
 function RoleRouter() {

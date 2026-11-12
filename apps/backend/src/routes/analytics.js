@@ -21,6 +21,7 @@ const { buildBranchReport } = require('../utils/branchReport');
 const caseAlerts = require('../utils/caseAlerts');
 const router = require('express').Router();
 const pool = require('../db/pool');
+const { csvRow } = require('../utils/csv');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { maskEmail, maskPhone } = require('../utils/maskData');
@@ -1064,14 +1065,12 @@ router.get('/export-csv', requireAuth, requireStaffRole('supervisor', 'manager',
     );
     if (!rows.length) return res.status(404).json({ error: 'No data found for the given filters.' });
     const headers = Object.keys(rows[0]);
+    /* csvRow quotes line breaks as well as commas, and stops a cell that starts
+       with = + - @ from running as a formula in a spreadsheet (utils/csv.js).
+       Dates keep the text form this export has always used. */
     const csvLines = [
-      headers.join(','),
-      ...rows.map(r => headers.map(h => {
-        const v = r[h];
-        if (v === null || v === undefined) return '';
-        const s = String(v);
-        return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
-      }).join(','))
+      csvRow(headers),
+      ...rows.map(r => csvRow(headers.map(h => (r[h] instanceof Date ? String(r[h]) : r[h]))))
     ];
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="queue_history_${business_id}.csv"`);

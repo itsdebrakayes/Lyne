@@ -23,6 +23,8 @@ const {
   profileSyncLimiter,
   queueJoinLimiter,
   publicQueueLimiter,
+  displayLimiter,
+  displayProbeLimiter,
   sessionLookupLimiter,
   paymentLimiter,
   generalLimiter,
@@ -129,6 +131,8 @@ app.use(cors({
     return callback(new CorsError(origin));
   },
   credentials: true,
+  // So the admin app can read the file name of a download (the organisation export).
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 /* A rejected origin is a CLIENT error, and it has to say so.
@@ -158,6 +162,14 @@ app.post('/api/payments/webhook', requirePayments, express.raw({ type: 'applicat
 
 // Body parsing
 app.use(express.json({ limit: '1mb' }));
+
+/* Lobby "Now Serving" screens (migration 052): a page and a data feed reached
+   by a private link, mounted BEFORE the general limiter because a hall full of
+   televisions shares one address with the staff (see displayLimiter). */
+const display = require('./routes/display');
+app.use('/display',     displayProbeLimiter, display.pages);
+app.get('/api/display/:token', displayProbeLimiter, displayLimiter);
+app.use('/api/display', display.feed);
 
 // Global rate limiter
 app.use(generalLimiter);
@@ -227,6 +239,9 @@ app.use('/api/payments',       requirePayments, paymentsRouter);
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));
+/* An executive's full copy of their own organisation's records (CSV in a zip). */
+app.use('/api/export',         require('./routes/orgExport'));
+app.use('/api/displays',       display.manage);
 
 // Staff invite — invite-code-based staff onboarding (no self-registration)
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
