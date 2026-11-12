@@ -790,7 +790,7 @@
      and the action bar — on the screen a clerk looks at all day. The floor keeps
      it usable on a short laptop; the ceiling stops it stretching on a tall one. */
   min-height: clamp(400px, 56vh, 620px);
-  position: relative; overflow: hidden; border-radius: var(--r); padding: 22px 26px; color: #E9EEF6;
+  position: relative; overflow: hidden; overflow: clip; border-radius: var(--r); padding: 22px 26px; color: #E9EEF6;
   display: flex; flex-direction: column;
   background: linear-gradient(152deg, #1B3766 0%, #0E1B2E 68%);
   box-shadow: var(--sh-lift); border: 1px solid rgba(255, 255, 255, .07);
@@ -929,7 +929,17 @@
 .ql-handover b { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .75; margin-bottom: 2px; }
 
 /* actions sit at the base of the stage, so the hero grows into the space */
-.ql-acts { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+/* The actions stick to the bottom of the window. The card is taller than a
+   1280x720 or 1366x768 screen (the usual screen-share sizes), and the buttons
+   used to sit below the fold: on a shared screen Transfer could not be seen at
+   all (Robert Lawrence demo, 10 Nov 2026). .ql-stage uses overflow: clip, not
+   hidden, so it does not become the scroll container that sticky needs. */
+.ql-acts {
+  margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 10px;
+  position: sticky; bottom: 0; z-index: 3;
+  margin-inline: -26px; margin-bottom: -22px; padding: 14px 26px 18px;
+  background: #0E1B2E; box-shadow: 0 -22px 22px -4px #0E1B2E;
+}
 .ql-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   min-height: 54px; padding: 0 24px; border: 0; border-radius: 15px;
@@ -1646,3 +1656,13 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
   border: 1px solid var(--c-line-2); border-radius: 10px; background: var(--c-surface);
   color: var(--c-text); font-size: 12.5px; font-weight: 600; padding: 8px 10px;
 }
+
+/* ═══════════ Presentation mode (src/lib/presentation.ts) ═══════════
+   Larger working area for screen sharing. Only .qx-main is zoomed: CSS zoom
+   scales viewport units as well, so the 100vh sidebar would overflow the
+   window. Anything inside that is sized to the viewport is divided back. */
+html[data-present] .qx-main { zoom: 1.25; }
+html[data-present] .qx-main .qx-mc { max-height: calc(86vh / 1.25); }
+.qx-icon.on { background: var(--c-primary); color: #fff; border-color: var(--c-primary); }
+/* Zoomed, a KPI card on a 1280-wide screen is too narrow for label and chip on one line. */
+html[data-present] .qx-stat .top { flex-wrap: wrap; row-gap: 6px; }
