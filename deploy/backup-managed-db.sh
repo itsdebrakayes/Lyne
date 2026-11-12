@@ -243,6 +243,7 @@ echo "    ${KEPT} backup(s) retained in ${BACKUP_DIR}"
 if [ "${OFFSITE:-on}" != off ]; then
   if [ -s "$ROOT/secrets/backup-passphrase" ]; then
     bash "$ROOT/deploy/offsite-backup.sh" upload "$OUT" || die "off-site copy failed; the local backup is fine: $OUT"
+    bash "$ROOT/deploy/offsite-backup.sh" prune "${OFFSITE_KEEP_DAYS:-90}" || echo "WARNING: could not prune old off-site copies (the new copy is safe)" >&2
   else
     warn "no secrets/backup-passphrase, so this backup was NOT copied off the droplet. Run the off-site setup step (deploy/README.md, Backups)."
   fi
