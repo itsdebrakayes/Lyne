@@ -27,6 +27,7 @@ const {
   scopedBranchId,
   assertBusinessAccess,
   assertBranchAccess,
+  isPlatformAdmin,
 } = require('../middleware/tenantAccess');
 const { toPublicStaff } = require('../utils/publicShapes');
 const { activeClosure, closureMessage } = require('../utils/branchClosures');
@@ -84,6 +85,31 @@ async function roleGrantError(req, roleId) {
     return { status: 403, error: 'You cannot assign a role above your own.' };
   }
   return null;
+}
+
+/* Who may EDIT whom (12 Nov 2026). roleGrantError checks the role being handed
+   out; it says nothing about the person being edited. An executive has no
+   branch, and assertBranchAccess passes when there is no branch to check, so a
+   branch manager could deactivate, rename, re-email or DEMOTE their own
+   organisation's executive (line_staff is not "above" a manager, so the grant
+   check allowed it), and could do the same to a fellow manager.
+
+   Rule: you may edit your own row, and anyone strictly below you. Executives
+   may also edit other executives, because someone in the organisation has to
+   be able to. platform_admin rows are never editable here. An unknown role on
+   the target fails closed. */
+function editRankError(req, targetId, targetRole) {
+  if (isPlatformAdmin(req)) return null;
+  if (targetRole === 'platform_admin') {
+    return { status: 403, error: 'That account cannot be changed through this API.' };
+  }
+  if (req.dbStaff?.id === targetId) return null;
+  const callerRole = req.dbStaff?.role_name;
+  const callerRank = ROLE_RANK[callerRole] || 0;
+  const targetRank = ROLE_RANK[targetRole] || Infinity;
+  if (targetRank < callerRank) return null;
+  if (callerRole === 'executive' && targetRole === 'executive') return null;
+  return { status: 403, error: 'You cannot change the account of someone at or above your own level.' };
 }
 
 router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBusinessAccess(), requireBranchAccess, async (req, res) => {
@@ -274,11 +300,16 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
     if (availability_status && !STAFF_AVAILABILITY_STATUSES.has(availability_status)) {
       return res.status(400).json({ error: 'Invalid availability_status.' });
     }
-    const [existing] = await pool.query('SELECT business_id, branch_id FROM staff WHERE id = ? LIMIT 1', [req.params.id]);
+    const [existing] = await pool.query(
+      'SELECT s.business_id, s.branch_id, r.name AS role_name FROM staff s JOIN roles r ON r.id = s.role_id WHERE s.id = ? LIMIT 1',
+      [req.params.id]
+    );
     if (!existing.length) return res.status(404).json({ error: 'Staff member not found.' });
     if (!assertBusinessAccess(req, existing[0].business_id) || !assertBranchAccess(req, existing[0].branch_id)) {
       return res.status(403).json({ error: 'You do not have access to this staff member.' });
     }
+    const rankError = editRankError(req, req.params.id, existing[0].role_name);
+    if (rankError) return res.status(rankError.status).json({ error: rankError.error });
 
     const grantError = await roleGrantError(req, role_id);
     if (grantError) return res.status(grantError.status).json({ error: grantError.error });

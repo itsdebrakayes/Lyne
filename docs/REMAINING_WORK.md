@@ -17,12 +17,12 @@ See `docs/security/DATA_SECURITY_OVERVIEW.md` §8 for detail.
 
 | Item | Notes |
 |---|---|
-| Promote and deploy the 11 Nov fixes | Walk-in numbering, OCR route removal, public-insights switch; then migrations 050 and 051 (backup + approval), then secrets/step30 (off-site backups) |
+| Promote and deploy the 11 Nov fixes | Walk-in numbering, OCR route removal, public-insights switch: done 11–12 Nov. Still to promote: the 12 Nov security fixes, data export, lobby screens (migration 052: backup + approval; `deploy.sh` restarts the proxy for the new Caddyfile) |
 | Register with the Information Commissioner; appoint a Data Protection Officer | Owner. Health data from hospitals makes a DPO a legal requirement; update the privacy policy's DPO line and registration number |
 | Two-factor sign-in for staff | Supabase TOTP; enforce `aal2` on the server for executives, managers, supervisors; enrol in the desktop admin |
 | Incident response procedure and breach register | 72-hour notice to the Commissioner and to affected people |
 | Data processing agreement template; complete the sub-processor list | Add Resend and Twilio to the privacy policy §7.2 |
-| Organisation-wide data export; deletion at contract end | Executive only, audit-logged |
+| Deletion of an organisation's data at contract end | The export is built (Settings → Your Data); deletion on request is still done by hand |
 | First annual DPIA | Due by 31 March 2027 |
 
 ## Operations — small

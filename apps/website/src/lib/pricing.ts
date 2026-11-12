@@ -1,8 +1,11 @@
 /**
  * Lyne organisation pricing — the one copy the quote estimator reads.
  *
- * Source: the Lyne Meeting Deck (10 November 2026), slides 10 and 12. Every
- * figure below is copied from the deck; change it there first, then here.
+ * Monthly list prices set by the owner on 12 November 2026 (US$6,000 /
+ * US$16,500 / US$33,000), raised from the Meeting Deck's 4,500 / 12,500 /
+ * 25,000 so that a founding-partner discount lands on the old figures. The
+ * discount is a sales conversation and never appears here. Implementation
+ * figures are still the deck's. Change the deck and this file together.
  *
  * Yearly is twelve monthly payments with no discount for paying annually, so
  * there is no "you save" figure. Implementation is a starting price ("from"):
@@ -48,8 +51,8 @@ export const PLANS: Plan[] = [
     name: "Lyne Branch",
     detail: "One location: queues, appointments, staff and branch reporting",
     maxLocations: 1,
-    monthly: 4500,
-    annual: 54000,
+    monthly: 6000,
+    annual: 72000,
     implementation: 15000,
     custom: false,
   },
@@ -58,8 +61,8 @@ export const PLANS: Plan[] = [
     name: "Lyne Operations",
     detail: "Up to 5 locations, with cross-branch reporting and priority support",
     maxLocations: 5,
-    monthly: 12500,
-    annual: 150000,
+    monthly: 16500,
+    annual: 198000,
     implementation: 50000,
     custom: false,
   },
@@ -68,8 +71,8 @@ export const PLANS: Plan[] = [
     name: "Lyne Executive",
     detail: "Up to 10 locations, with the executive dashboard and governance",
     maxLocations: 10,
-    monthly: 25000,
-    annual: 300000,
+    monthly: 33000,
+    annual: 396000,
     implementation: 125000,
     custom: false,
   },

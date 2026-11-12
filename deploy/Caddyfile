@@ -25,10 +25,17 @@
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options    "nosniff"
-		X-Frame-Options           "DENY"
 		Referrer-Policy           "strict-origin-when-cross-origin"
 		-Server
 	}
+
+	# Nothing on the API may be framed, EXCEPT the lobby "Now Serving" screens
+	# (/display/*, migration 052): they exist to be embedded in an
+	# organisation's own signage software, show no personal data and have no
+	# controls. The API sets their frame policy itself (frame-ancestors *).
+	@notDisplay not path /display/*
+	header @notDisplay X-Frame-Options "DENY"
+
 
 	# The live queue screens are Server-Sent Events. Caddy buffers proxied
 	# responses by default, which for SSE means the browser receives nothing

@@ -51,6 +51,22 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+/** A file from the API (for example an export). Returns the bytes and the
+ *  file name the server suggested. Errors carry the server's own message. */
+export async function downloadFile(method: 'GET' | 'POST', path: string): Promise<{ blob: Blob; filename: string | null }> {
+  const token = await getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText })) as { error?: string; message?: string };
+    throw new Error(err.error || err.message || `HTTP ${res.status}`);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '');
+  return { blob: await res.blob(), filename: name ? name[1] : null };
+}
+
 const api = {
   get:    <T>(path: string, auth = true) => request<T>('GET',    path, undefined, auth),
   post:   <T>(path: string, body: unknown, auth = true) => request<T>('POST',   path, body, auth),
