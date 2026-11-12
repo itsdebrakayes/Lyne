@@ -25,7 +25,7 @@ This matters more than it sounds, because **it decides who can issue your refund
 | What | Who sells it | Who handles refunds |
 |---|---|---|
 | **Lyne for individuals** — the mobile app | Nobody — it is free, and nothing in it is for sale | Not applicable. See section 6 |
-| **Lyne for organisations** — the administrator application, priced per branch and per service | [REGISTERED COMPANY NAME], directly | **Us.** Sections 3 to 5 apply |
+| **Lyne for organisations** — the administrator application, priced per branch and per service | [REGISTERED BUSINESS NAME], directly | **Us.** Sections 3 to 5 apply |
 | **Joining a queue** | Nobody — it is free | Not applicable |
 | **The service you attend the branch for** | The organisation you visited | The organisation. Not us. See section 8 |
 
@@ -124,6 +124,6 @@ We may update this policy. If a change **reduces** your rights, it applies only 
 
 ## 11. Contact
 
-**[REGISTERED COMPANY NAME]**
+**[REGISTERED BUSINESS NAME]**
 [ADDRESS]
 [SUPPORT EMAIL]

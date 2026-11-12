@@ -214,7 +214,7 @@ or Twilio.** To do (owner): add them.
 5. **Data processing agreement template** for organisations, and the sub-processor list completed (§6).
 6. **Organisation-level export and contract-end deletion** (§7).
 7. **First annual DPIA,** due by 31 March 2027.
-8. **Company and insurance:** DKS Technologies is a sole trader with no cyber insurance
+8. **Legal structure and insurance:** DKS Technologies is a business name, not a company; its proprietor trades as a sole trader with no cyber insurance
    (`legal/COMPLIANCE_NOTES.md`). Public-sector and bank procurement usually require both.
 9. **Independent test:** no external penetration test or certification yet. The internal checklist
    is `docs/pre-launch-security-checklist.md`.
