@@ -21,14 +21,10 @@
 
 export interface LegalEntity {
   /**
-   * The proprietor: the legal person behind DKS Technologies, which is a
-   * business name, not a company. Named wherever a contracting party has to be
-   * ("[PROPRIETOR NAME] trading as DKS Technologies"). Left blank until the
-   * owner decides to publish her name; while blank the legal pages show the
-   * "not finished" notice.
+   * The registered business name, exactly as filed. It is also how the
+   * contracting party is named in the Terms and Refund Policy: the owner's
+   * choice (12 Nov 2026) is "DKS Technologies", not her personal name.
    */
-  proprietorName: string;
-  /** The registered business name, exactly as filed. */
   registeredName: string;
   /**
    * Business Name (BN) registration number from the Companies Office of
@@ -58,12 +54,11 @@ export interface LegalEntity {
 }
 
 export const LEGAL_ENTITY: LegalEntity = {
-  proprietorName: "",
   // From the Certificate of Registration, Form B.N.9, dated 9 August 2026.
   registeredName: "DKS Technologies",
   businessRegistrationNumber: "11602/2026",
   correspondenceAddress:
-    "Debra-Kaye Samantha Smith, c/o Marvaley Post Office, Kingston 20, Jamaica",
+    "DKS Technologies, c/o Marvaley Post Office, Kingston 20, Jamaica",
   /* One mailbox, used for both. A privacy policy that routes data-subject
      requests to an address nobody has created is worse than one that shares an
      inbox — the request simply bounces, and the obligation is missed. Split
@@ -80,7 +75,6 @@ export const LEGAL_ENTITY: LegalEntity = {
 /** Which identity fields are still outstanding. Empty array = ready to publish. */
 export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): string[] {
   const labels: Record<keyof LegalEntity, string> = {
-    proprietorName: "Proprietor's name",
     registeredName: "Registered business name",
     businessRegistrationNumber: "Business Name (BN) registration number",
     correspondenceAddress: "Correspondence address",
@@ -103,7 +97,6 @@ export function outstandingLegalFields(entity: LegalEntity = LEGAL_ENTITY): stri
  */
 export function applyLegalEntity(markdown: string, entity: LegalEntity = LEGAL_ENTITY): string {
   const map: Record<string, string> = {
-    "[PROPRIETOR NAME]": entity.proprietorName,
     "[REGISTERED BUSINESS NAME]": entity.registeredName,
     "[BUSINESS NAME REGISTRATION NUMBER]": entity.businessRegistrationNumber,
     "[ADDRESS]": entity.correspondenceAddress,
