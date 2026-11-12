@@ -185,5 +185,21 @@ else
   no "backups are not scheduled"
 fi
 
+# Off-site copy (deploy/offsite-backup.sh). A backup only on this disk does not
+# survive losing the droplet, and the security overview says there is a copy
+# elsewhere — so its absence is a failure, not a note.
+if [ -s secrets/backup-passphrase ]; then
+  pperms="$(stat -c '%a' secrets/backup-passphrase 2>/dev/null || stat -f '%Lp' secrets/backup-passphrase 2>/dev/null || echo '')"
+  [ "$pperms" = 600 ] && ok "backup encryption passphrase is present and mode 600" || no "secrets/backup-passphrase is mode ${pperms}; chmod 600 it"
+  # Ask the bucket itself, not a log: manual backups log elsewhere.
+  if [ -n "$latest" ] && bash deploy/offsite-backup.sh list 2>/dev/null | grep -q "/$(basename "$latest").gpg"; then
+    ok "the most recent backup was copied off the droplet, encrypted"
+  else
+    no "the most recent backup has no off-site copy in backup.log — run: bash deploy/offsite-backup.sh latest"
+  fi
+else
+  no "no off-site backups: secrets/backup-passphrase is missing (deploy/README.md, Backups)"
+fi
+
 printf '\n\033[1m%d passed, %d failed, %d to look at\033[0m\n\n' "$PASS" "$FAIL" "$WARN"
 [ "$FAIL" -eq 0 ] || exit 1
