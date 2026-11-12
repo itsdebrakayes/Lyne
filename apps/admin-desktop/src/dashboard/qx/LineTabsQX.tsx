@@ -546,6 +546,16 @@ export function LineOverviewQX() {
   /* Transfer is a handover, not an ending: the person goes to another line here
      with a new ticket in that line's numbering, placed by when they first
      arrived — never at the back. The desk is then free for the next person. */
+  /* The transfer and incomplete panels open below the action bar, which on a
+     1280x720 screen is below the fold: bring them into view, or the clerk (or
+     a shared-screen audience) presses Transfer and sees nothing happen. */
+  useEffect(() => {
+    if (transferLines?.length) document.querySelector('.ql-transfer')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [transferLines]);
+  useEffect(() => {
+    if (endingIncomplete) document.querySelector('.ql-incomplete:not(.ql-transfer)')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [endingIncomplete]);
+
   const openTransfer = () => {
     if (!activeId) return;
     if (transferLines) { setTransferLines(null); return; }

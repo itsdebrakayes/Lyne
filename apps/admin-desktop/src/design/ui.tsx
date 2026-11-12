@@ -11,7 +11,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
-import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, RefreshCw, Search } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, Presentation, RefreshCw, Search } from 'lucide-react';
+import { usePresentationMode } from '@/lib/presentation';
 import './qx.css';
 
 /* ─────────────────────── helpers ─────────────────────── */
@@ -91,6 +92,7 @@ export function Shell({
   head?: ReactNode;
   children: ReactNode;
 }) {
+  const [presenting, togglePresenting] = usePresentationMode();
   const groups = useMemo(() => {
     const out: Array<{ label?: string; items: QxNav[] }> = [];
     for (const item of nav) {
@@ -160,6 +162,13 @@ export function Shell({
           </div>
           {context ? <div className="qx-topctx">{context}</div> : null}
           <div className="qx-topright">
+            {/* Larger text for screen sharing (Ctrl/Cmd + Shift + P). */}
+            <button type="button" className={`qx-icon${presenting ? ' on' : ''}`} onClick={togglePresenting}
+              aria-pressed={presenting}
+              aria-label={presenting ? 'Presentation mode is on: turn off' : 'Presentation mode: larger text for screen sharing'}
+              title={presenting ? 'Presentation mode on (Ctrl/Cmd + Shift + P to turn off)' : 'Presentation mode: larger text for screen sharing (Ctrl/Cmd + Shift + P)'}>
+              <Presentation />
+            </button>
             {onTheme ? (
               <button type="button" className="qx-icon" aria-label="Toggle theme" onClick={onTheme}>
                 {theme === 'dark' ? <SunIcon /> : <MoonIcon />}

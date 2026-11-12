@@ -474,6 +474,7 @@ Everything is in `docs/launch/`. In short:
 - The packaged app loads from its own `app://lyne-admin` origin. That origin must be in the server's `ALLOWED_ORIGINS`, otherwise every request is refused.
 - **Signing:** macOS needs the Apple Developer ID certificate and notarisation, or Gatekeeper refuses the app on first open. Windows needs an OV/EV code-signing certificate through a cloud HSM (SSL.com eSigner or DigiCert KeyLocker); this is not bought yet. Until then, `npm run build:win:unsigned` produces a working but unsigned installer. Details: `docs/launch/desktop-signing.md`.
 - Release links shown on the website come from `apps/website/src/lib/desktopRelease.ts`.
+- **Presentation mode** (for screen sharing): the screen icon in the top bar, or Ctrl/Cmd + Shift + P, enlarges the working area by 25% (`src/lib/presentation.ts`; it zooms `.qx-main` only, because the sidebar is sized to the window height). Remembered per computer. On the line desk, the action bar (Start Service, Transfer and the rest) sticks to the bottom of the window, so it is on screen at 1280×720 and 1366×768.
 
 ---
 
