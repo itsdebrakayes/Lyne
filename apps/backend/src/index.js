@@ -58,7 +58,7 @@ const app = express();
  *                when the hop count varies.
  *
  * Getting the number too high is the same failure as `true` for those hops, so
- * when in doubt set it to 1 and check /api/debug/client-ip below.
+ * when in doubt set it to 1 (a development server has /api/debug/client-ip to check).
  */
 const trustProxy = (process.env.TRUST_PROXY || '').trim();
 if (trustProxy) {
@@ -263,21 +263,19 @@ app.get('/health', (_req, res) => res.json({
   uptime:    Math.round(process.uptime()),
 }));
 
-/* Is TRUST_PROXY set correctly? — the only way to know is to ask from outside.
+/* Is TRUST_PROXY set correctly? Ask from outside, on a development server only.
  *
- * A wrong hop count fails silently in both directions: too low and every user
- * shares the proxy's bucket, too high and each user can pick their own. Neither
- * shows up in a log. This returns the address the rate limiters will actually
- * count against, so after a deploy you can curl it from a phone on mobile data
- * and check it is your phone's IP and not the load balancer's.
- *
- * It tells the caller their own IP and nothing else — no forwarded chain, no
- * headers, no internal addresses. Whoever is asking already knows their IP. */
-app.get('/api/debug/client-ip', (req, res) => res.json({
-  client_ip: req.ip,
-  trust_proxy: app.get('trust proxy') ?? false,
-  hint: 'If this is not the address you are calling from, TRUST_PROXY is wrong.',
-}));
+ * A wrong hop count fails silently in both directions, so this returns the
+ * address the rate limiters count against. It is never mounted where
+ * NODE_ENV=production: a public address that echoes the caller's IP is noise
+ * in a security review and tells an attacker how the proxy is set up. On
+ * production, the IP column of a fresh audit_logs row answers the same question. */
+if (isDevelopment) {
+  app.get('/api/debug/client-ip', (req, res) => res.json({
+    client_ip: req.ip,
+    trust_proxy: app.get('trust proxy') ?? false,
+  }));
+}
 
 // 404 handler
 app.use((_req, res) => res.status(404).json({ error: 'Route not found.' }));
