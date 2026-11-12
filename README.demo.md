@@ -39,9 +39,13 @@ Then link the Supabase test accounts and refresh the queue dates to today:
 ```bash
 cd apps/backend
 ALLOW_DEMO_TEST_ACCOUNT_SYNC=true MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 \
-  npm run sync:demo-test-accounts
-MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 npm run refresh:demo-data
+  node scripts/sync-demo-test-accounts.js
+MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node scripts/refresh-demo-data.js
 ```
+
+(These used to be `npm run` scripts; the entries were removed from
+`package.json` when demo tooling left `production` on 13 October 2026, so run
+the files directly.)
 
 ## The demo logins and the Lyne Admin Demo app
 

@@ -112,7 +112,9 @@ or uploaded list). Both are pilot items.
 
 The full procedure is in `README.demo.md`. In short, on the morning of the demo:
 
-1. Reseed so the live lines are fresh: `npm run refresh:demo-data`. If the
+1. Reseed so the live lines are fresh: from `apps/backend`,
+   `MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node scripts/refresh-demo-data.js`
+   (there is no `npm run refresh:demo-data` any more; checked 12 Nov 2026). If the
    90-day history is missing (Busy Times, Trends and the forecast look empty),
    load it with `seed-demo-bank-history.js` as described in `README.demo.md`.
 2. List only the bank on phones: set `LISTED_SECTORS=banking` in `.env` and
@@ -130,9 +132,10 @@ The full procedure is in `README.demo.md`. In short, on the morning of the demo:
    weekdays. Rehearse inside those hours or the lines show closed. Saturday
    sessions stay open for registration until 5 p.m. the evening before.
 
-The kiosk offers no text messages: Lyne has no SMS provider yet, so tickets are
-called on the screen and on the phone. If asked, say so plainly: texting is a
-provider and a sender registration away, and it is not in this demo.
+Text messages are built (Twilio, migration 048) but switched off
+(`SMS_ENABLED=false`) until the sender is registered and tested, so in the demo
+tickets are called on the screen and on the phone. If asked, say so plainly:
+texting is ready and is switched on per organisation for a pilot.
 
 ## 6. Questions to ask in the room
 

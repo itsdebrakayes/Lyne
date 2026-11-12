@@ -72,7 +72,7 @@ The API will be available at `http://localhost:4000`.
 On the `demo` branch, refresh the active testing sandbox with:
 
 ```bash
-npm run refresh:demo-data
+MYSQL_HOST=127.0.0.1 MYSQL_PORT=3308 node scripts/refresh-demo-data.js
 ```
 
 This creates today's active queues and waiting tickets across the demo businesses so mobile, staff, manager, and executive dashboards have realistic data to manipulate.
