@@ -129,6 +129,8 @@ app.use(cors({
     return callback(new CorsError(origin));
   },
   credentials: true,
+  // So the admin app can read the file name of a download (the organisation export).
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 /* A rejected origin is a CLIENT error, and it has to say so.
@@ -227,6 +229,8 @@ app.use('/api/payments',       requirePayments, paymentsRouter);
 
 // Audit log — internal read access for managers/executives
 app.use('/api/audit',          require('./routes/audit'));
+/* An executive's full copy of their own organisation's records (CSV in a zip). */
+app.use('/api/export',         require('./routes/orgExport'));
 
 // Staff invite — invite-code-based staff onboarding (no self-registration)
 app.use('/api/staff-invite',   require('./routes/staff-invite'));
