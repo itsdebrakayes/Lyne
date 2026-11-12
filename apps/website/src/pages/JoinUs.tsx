@@ -7,7 +7,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LEGAL_ENTITY } from "@/lib/legalEntity";
-import { PLANS, MESSAGING_NOTE, estimate, estimateLines, planFits, usd, type PlanId } from "@/lib/pricing";
+import { PLANS, MESSAGING_NOTE, EXCLUSIONS_NOTE, estimate, estimateLines, planFits, usd, type PlanId } from "@/lib/pricing";
 import { MarketingNav, MarketingFooter } from "@/components/lyne/Marketing";
 import { Building2, Calculator, Users, Mail, Phone, MapPin, ArrowRight, Check } from "lucide-react";
 
@@ -230,6 +230,12 @@ const JoinUs = () => {
                     <div className="flex justify-between gap-3"><span>Yearly (12 monthly payments)</span><span className="text-right font-medium text-white">{usd(quote.annual!)}/year</span></div>
                   )}
                   <div className="flex justify-between gap-3"><span>Implementation (one-time)</span><span className="text-right font-medium text-white">{quote.plan.custom ? "Scoped with you" : `from ${usd(quote.implementation!)}`}</span></div>
+                  {!quote.plan.custom && (
+                    <>
+                      <div className="flex justify-between gap-3"><span>First year (with implementation)</span><span className="text-right font-medium text-white">from {usd(quote.firstYear!)}</span></div>
+                      <div className="flex justify-between gap-3"><span>Per location, per month</span><span className="text-right font-medium text-white">{usd(quote.perLocationMonthly!)}</span></div>
+                    </>
+                  )}
                   <div className="flex justify-between gap-3"><span>Messaging / SMS</span><span className="text-right font-medium text-white">{MESSAGING_NOTE}</span></div>
                   <div className="flex justify-between gap-3"><span>Locations</span><span className="font-medium text-white">{branches}{quote.plan.custom ? "" : ` of ${quote.plan.maxLocations}`}</span></div>
                   <div className="flex justify-between gap-3"><span>Total service lines</span><span className="font-medium text-white">{branches * services}</span></div>
@@ -238,7 +244,7 @@ const JoinUs = () => {
                 <p className="mt-4 text-xs text-lyne-lavender/50">
                   {quote.plan.custom
                     ? "Government and enterprise contracts are priced for you: locations, integrations, security and SLAs. Contact us and we will get started."
-                    : "Indicative. Final pricing, messaging and any integrations are confirmed with sales."}
+                    : `Indicative starting prices. ${EXCLUSIONS_NOTE} Annual billing is twelve monthly payments; no discount is assumed.`}
                 </p>
                 <button type="button" onClick={applyEstimateToForm} className="btn btn-primary mt-6 w-full">
                   {quote.plan.custom ? "Contact us to get started" : "Contact sales with this estimate"} <ArrowRight className="h-4 w-4" />

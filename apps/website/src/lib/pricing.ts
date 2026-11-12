@@ -88,6 +88,10 @@ export const PLANS: Plan[] = [
 /** Shown in the summary; the document keeps messaging out of the subscription. */
 export const MESSAGING_NOTE = "Usage-based, quoted with your contract";
 
+/** What the figures leave out, word for word from the deck (slide 13). */
+export const EXCLUSIONS_NOTE =
+  "Figures exclude training, applicable taxes, messaging, hardware, travel, integrations and additional services.";
+
 /** The smallest plan that covers this many locations. */
 export function minimumPlan(locations: number): Plan {
   return PLANS.find((p) => locations <= p.maxLocations) ?? PLANS[PLANS.length - 1];
@@ -111,6 +115,8 @@ export interface Estimate {
   implementation: number | null;
   /** Monthly price divided by locations; null if custom. */
   perLocationMonthly: number | null;
+  /** Twelve monthly payments plus the starting implementation amount; null if custom. */
+  firstYear: number | null;
 }
 
 export function estimate(locations: number, chosen: PlanId | null): Estimate {
@@ -121,6 +127,7 @@ export function estimate(locations: number, chosen: PlanId | null): Estimate {
     annual: plan.annual,
     implementation: plan.implementation,
     perLocationMonthly: plan.monthly === null ? null : Math.round(plan.monthly / Math.max(1, locations)),
+    firstYear: plan.annual === null || plan.implementation === null ? null : plan.annual + plan.implementation,
   };
 }
 
@@ -140,6 +147,8 @@ export function estimateLines(e: Estimate): string[] {
     `Monthly: ${usd(e.monthly!)}/month`,
     `Yearly: ${usd(e.annual!)}/year (12 monthly payments)`,
     `Implementation: from ${usd(e.implementation!)} one-time`,
+    `First year: from ${usd(e.firstYear!)} (12 monthly payments plus implementation)`,
+    `Per location: ${usd(e.perLocationMonthly!)}/month`,
     `Messaging / SMS: ${MESSAGING_NOTE}`,
   ];
 }

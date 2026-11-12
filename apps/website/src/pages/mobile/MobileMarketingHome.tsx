@@ -355,7 +355,7 @@ const plans = [
     name: "Business",
     price: "From US$4,500/mo",
     desc: "For organisations running their own lines, at one location or many.",
-    features: ["Front desk, manager and executive screens", "Queues, appointments and walk-ins", "Branch and cross-location reporting", "Plans for 1, 5, 10 or more locations", "Implementation and training with our team"],
+    features: ["Front desk, manager and executive screens", "Queues, appointments and walk-ins", "Branch and cross-location reporting", "Plans for 1, 5, 10 or more locations", "Implementation with our team; training scoped with you"],
     highlighted: false,
     cta: "Buy a license",
     href: "/join-us#estimate",
