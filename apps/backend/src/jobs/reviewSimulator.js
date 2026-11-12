@@ -46,7 +46,7 @@
  */
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
-const { issueTicketSlot } = require('../utils/ticketSlot');
+const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
 const { sendPushToUser } = require('../utils/pushSender');
 const { activeClosure } = require('../utils/branchClosures');
@@ -115,7 +115,7 @@ async function keepLinesBusy(businessId) {
       for (let n = Number(q.waiting); n < MIN_WAITING; n++) {
         const conn = await pool.getConnection();
         try {
-          await conn.beginTransaction();
+          await beginSlotTransaction(conn);
           const slot = await issueTicketSlot(conn, {
             queueId: q.id, branchId: q.branch_id, serviceId: q.service_id,
             prefix: q.ticket_prefix, avgTimeMinutes: Number(q.base_avg_time_minutes) || 8, waitingAhead: n,

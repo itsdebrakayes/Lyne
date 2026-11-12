@@ -235,13 +235,15 @@ DELETED="$(find "$BACKUP_DIR" -name "lyne-$LABEL-*.sql.gz" -type f -mtime "+$RET
 KEPT="$(find "$BACKUP_DIR" -name "lyne-$LABEL-*.sql.gz" -type f | wc -l | tr -d ' ')"
 echo "    ${KEPT} backup(s) retained in ${BACKUP_DIR}"
 
-cat <<EOF
-
-  This backup is on the SAME DISK as the database it protects, which means it
-  survives a bad migration and not a lost droplet. Two things still to do:
-
-    - Copy it off the box (DigitalOcean Spaces, SPACES_* in secrets/deploy-values.txt)
-    - Rehearse the restore, while the data is still worthless:
-        bash deploy/backup-managed-db.sh --restore ${OUT} --into lyne_restore_test
-
-EOF
+# ── Off-site copy ───────────────────────────────────────────────────────────
+# The dump above is on the same disk as everything else. offsite-backup.sh
+# encrypts it and copies it to DigitalOcean Spaces. A failure here fails the
+# whole run (non-zero exit, in backup.log), because a backup that exists only
+# on the droplet is not the backup the security overview describes.
+if [ "${OFFSITE:-on}" != off ]; then
+  if [ -s "$ROOT/secrets/backup-passphrase" ]; then
+    bash "$ROOT/deploy/offsite-backup.sh" upload "$OUT" || die "off-site copy failed; the local backup is fine: $OUT"
+  else
+    warn "no secrets/backup-passphrase, so this backup was NOT copied off the droplet. Run the off-site setup step (deploy/README.md, Backups)."
+  fi
+fi

@@ -54,15 +54,8 @@ const CONFIG = {
  */
 function buildSteps() {
   return [
-    // ── Identity documents ────────────────────────────────────────────────
-    // The single most sensitive table in the system: extracted_national_id,
-    // extracted_trn, extracted_passport, extracted_dob, raw OCR text.
-    {
-      label: 'ocr_results (identity scans)',
-      count: 'SELECT COUNT(*) AS n FROM ocr_results WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)',
-      run: 'DELETE FROM ocr_results WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)',
-      params: [CONFIG.documents],
-    },
+    // Identity documents: none are held on the server. ocr_results was dropped
+    // by migration 050 (11 Nov 2026); TRN and national ID stay on the phone.
     {
       label: 'intake_forms (submitted form data)',
       count: 'SELECT COUNT(*) AS n FROM intake_forms WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)',

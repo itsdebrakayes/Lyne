@@ -38,7 +38,13 @@ interface ServicePlan {
   service_name: string;
   grid?: Cell[];
 }
-interface BestTimes { window_days: number; services: ServicePlan[] }
+interface BestTimes {
+  window_days: number;
+  services: ServicePlan[];
+  /** False when the organisation has chosen not to publish hour-by-hour detail
+      (migration 051). Not the same as "not enough visits". */
+  detail_shared?: boolean;
+}
 
 export default function BusyTimesScreen() {
   const topPad = useTopPad(8);
@@ -124,6 +130,11 @@ export default function BusyTimesScreen() {
       return <ErrorCard title="Busy times unavailable"
         message="This branch's pattern could not be loaded. Check your connection and try again."
         onRetry={() => q.refetch()} />;
+    }
+    if (q.data?.detail_shared === false) {
+      return <EmptyState icon="lock" title="Not published by this organisation"
+        body="This organisation shares the best time to visit each service, but not its hour-by-hour pattern."
+        actionLabel="Go back" onAction={() => navigation.goBack()} />;
     }
     if (!services.length) {
       return <EmptyState icon="clock" title="Not enough visits yet"

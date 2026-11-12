@@ -40,7 +40,7 @@ const { activeClosure, closureMessage } = require('../utils/branchClosures');
 const caseAlerts = require('../utils/caseAlerts');
 const { textWhenCalled, stopCode } = require('../utils/smsAlerts');
 const { projectedWaitMinutes } = require('../utils/etaMath');
-const { issueTicketSlot } = require('../utils/ticketSlot');
+const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 
 const DEFAULT_CALL_TIMEOUT_SECONDS = 120;
 const MIN_CALL_TIMEOUT_SECONDS = 30;
@@ -220,7 +220,7 @@ router.post('/', requireAuth, queueJoinLimiter, async (req, res) => {
 
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
+    await beginSlotTransaction(conn);
     const { queue_id, form_data, readiness_acknowledged, triage_answers, visit_reason } = parsed.data;
 
     const [queues] = await conn.query(
@@ -381,7 +381,7 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
 
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
+    await beginSlotTransaction(conn);
 
     // The service must be one this branch actually offers (has an active counter
     // for) — this both validates the pick and enforces tenant isolation, since
@@ -1544,7 +1544,7 @@ router.post('/:id/transfer', requireAuth, requireStaffRole('line_staff', 'manage
 
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
+    await beginSlotTransaction(conn);
     const [[ticket]] = await conn.query(
       `SELECT t.*, q.branch_id, q.service_id, s.name AS service_name
          FROM queue_tickets t

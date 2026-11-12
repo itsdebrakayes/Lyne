@@ -78,6 +78,9 @@ interface BestTimes {
   today?: TodayPlan | null;
   /** The server says so explicitly rather than leaving it to be inferred. */
   premium?: boolean;
+  /** False when the organisation publishes only the headline best times
+      (migration 051): no busy-times grid or week planner to link to. */
+  detail_shared?: boolean;
   services: ServicePlan[];
 }
 
@@ -271,11 +274,12 @@ export default function PlanVisitScreen() {
                 chip, chipBg, chipInk, title, sub, onPress, last,
               }: {
                 chip: string; chipBg: string; chipInk: string;
-                title: string; sub: string; onPress: () => void; last?: boolean;
+                title: string; sub: string; onPress?: () => void; last?: boolean;
               }) => (
                 <TouchableOpacity
                   onPress={onPress}
-                  accessibilityRole="button"
+                  disabled={!onPress}
+                  accessibilityRole={onPress ? 'button' : 'text'}
                   accessibilityLabel={`${title}. ${sub}`}
                   style={{
                     flexDirection: 'row', gap: 12, alignItems: 'center',
@@ -293,9 +297,12 @@ export default function PlanVisitScreen() {
                     <Text numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 15, color: colors.ink }}>{title}</Text>
                     <Text style={{ fontFamily: font.medium, fontSize: 13, color: '#8a94a6', marginTop: 2 }}>{sub}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                  {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.muted} /> : null}
                 </TouchableOpacity>
               );
+              /* The organisation publishes only the headline times: nothing
+                 deeper to open, so the rows are statements, not links. */
+              const detailShared = plan.detail_shared !== false;
 
               return (
                 <>
@@ -313,6 +320,7 @@ export default function PlanVisitScreen() {
                         </Text>
                       )}
                     </View>
+                    {detailShared ? (
                     <TouchableOpacity
                       onPress={() => branch && navigation.navigate('BusyTimes', {
                         businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
@@ -322,6 +330,7 @@ export default function PlanVisitScreen() {
                     >
                       <Text style={{ fontFamily: font.semibold, fontSize: 14, color: D.accent }}>Busy times</Text>
                     </TouchableOpacity>
+                    ) : null}
                   </View>
 
                   <View style={{ backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
@@ -350,10 +359,10 @@ export default function PlanVisitScreen() {
                         chipBg={D.coolBg} chipInk={D.coolInk}
                         title={`${aim.best!.day_name} at ${hourText(aim.best!.hour)}`}
                         sub={`${aim.service_name} · about ${Math.round(aim.best!.avg_wait)} min`}
-                        onPress={() => branch && navigation.navigate('WeekPlanner', {
+                        onPress={detailShared ? () => branch && navigation.navigate('WeekPlanner', {
                           businessId: branch.business_id, branchId: branch.id, branchName: branch.name,
                           serviceId: aim.service_id, targetDow: aim.best!.dow,
-                        })}
+                        }) : undefined}
                         last={!avoid}
                       />
                     )}

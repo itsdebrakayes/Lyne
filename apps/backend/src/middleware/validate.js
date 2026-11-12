@@ -213,11 +213,8 @@ const schemas = {
     shift_end:       z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
   }),
 
-  /* national_id and trn are declared because THIS BRANCH still writes them.
-     Omitting them here would strip the fields and quietly change what the
-     product stores — a privacy change belongs in the privacy commit, not as a
-     side effect of a validation pass. The branch reconciliation removes both
-     the columns' write path and these two lines together. */
+  /* No national_id or trn: they stay on the customer's phone, and migration
+     050 dropped the columns. zod strips any field not listed here. */
   updateProfile: z.object({
     full_name:     z.string().min(1).max(255).optional(),
     phone:         z.string().max(50).optional(),
@@ -354,6 +351,11 @@ const schemas = {
     base_avg_time_minutes: z.coerce.number().int().min(1).max(480).optional(),
     is_active:             z.coerce.boolean().optional(),
   }),
+
+  /* Migration 051. Executive only; always the caller's own organisation. */
+  publicInsights: z.object({
+    level: z.enum(['full', 'limited']),
+  }).strict(),
 
   branchSettings: z.object({
     branch_id:      idSchema.optional(),

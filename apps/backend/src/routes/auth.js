@@ -466,9 +466,8 @@ router.post('/logout', requireAuth, async (req, res) => {
 // visit_history) — those look after themselves. Five others are ON DELETE SET
 // NULL, which orphans the row but KEEPS the contents:
 //
-//   • ocr_results        — extracted_national_id, extracted_trn,
-//                          extracted_passport, extracted_dob, raw_text.
-//                          The most sensitive data in the system. Hard-deleted.
+//   • (ocr_results, which held scanned ID numbers, no longer exists:
+//      migration 050 dropped it and the route that wrote to it.)
 //   • intake_forms       — free-form submitted data. Hard-deleted.
 //   • queue_tickets      — guest_name / guest_phone and triage answers (health
 //                          information) survive. Scrubbed, then the
@@ -529,7 +528,6 @@ router.delete('/account', requireAuth, auditLog('delete_account', 'user', null, 
          person first (see the note above this route). These were here once and
          were lost in a later port, which left scanned ID numbers and intake
          answers behind, orphaned but intact, after "your data is gone". */
-      await conn.query('DELETE FROM ocr_results WHERE user_id = ?', [userId]);
       await conn.query('DELETE FROM intake_forms WHERE user_id = ?', [userId]);
       await conn.query(
         "UPDATE queue_tickets SET guest_name = NULL, guest_phone = NULL, guest_access_token = NULL, triage_answers = NULL, visit_reason = NULL, guest_dob = NULL, readiness_note = NULL, triage_flag = 'none', notify_consent_at = NULL WHERE user_id = ?",
