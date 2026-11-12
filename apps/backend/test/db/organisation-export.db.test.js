@@ -63,8 +63,8 @@ async function seedOrg(biz, label, visitorName) {
     `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email) VALUES
        (?, ?, NULL, ?, ?, ?, ?, ?),
        (?, ?, ?,    ?, ?, ?, ?, ?)`,
-    [`${biz}-exec`, biz, await role('executive'), `${biz === A ? SECRET_UID : 'oxt-exec-b-uid'}`, `${label}-E`, `${label} Executive`, `${biz}-exec@example.test`,
-      `${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `${label}-M`, `${label} Manager`, `${biz}-mgr@example.test`]
+    [`${biz}-exec`, biz, await role('executive'), `${biz === A ? SECRET_UID : 'oxt-exec-b-uid'}`, `OXT-${label}-E`, `${label} Executive`, `${biz}-exec@example.test`,
+      `${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `OXT-${label}-M`, `${label} Manager`, `${biz}-mgr@example.test`]
   );
   await pool.query(
     `INSERT INTO queue_tickets (id, queue_id, ticket_number, verification_code, guest_access_token, guest_name, position, status, channel)

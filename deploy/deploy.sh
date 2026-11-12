@@ -164,6 +164,20 @@ $COMPOSE build --pull
 log "Starting"
 $COMPOSE up -d --remove-orphans
 
+# ── The proxy's own config ───────────────────────────────────────────────────
+# `up -d` leaves a running Caddy alone, and the Caddyfile is a single-file bind
+# mount: git replaces the file on pull, so the running container still holds
+# the OLD one and `caddy reload` would re-read that. If the file on disk differs
+# from what the proxy is running, check the new one in a throwaway container,
+# then restart the proxy (a second or two). A bad file stops the deploy here,
+# with the old proxy still serving.
+if ! $COMPOSE exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - deploy/Caddyfile; then
+  log "Caddyfile changed: checking it, then restarting the proxy"
+  $COMPOSE run --rm --no-deps -T caddy caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
+    || die "deploy/Caddyfile does not validate. The proxy was NOT restarted and is still running the previous config."
+  $COMPOSE restart caddy
+fi
+
 # ── Prove it ─────────────────────────────────────────────────────────────────
 log "Waiting for the API to answer"
 for attempt in $(seq 1 30); do

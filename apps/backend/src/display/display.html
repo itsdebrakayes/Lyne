@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Now Serving</title>
+<style>
+  /* One self-contained page: no fonts, images or libraries to fetch, so it
+     starts on a slow connection and on the browser built into a television.
+     Sizes follow the screen (vw / vh), so the same page fills a 32-inch TV, a
+     4K wall display and a tablet on a counter. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #0B1728; color: #EEF3FA;
+    background-image: linear-gradient(152deg, #1B3766 0%, #0E1B2E 62%, #0B1728 100%);
+    display: flex; flex-direction: column; padding: 3vh 3vw 2vh;
+  }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 3vw; }
+  .org { font-size: 3.4vh; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .org small { font-size: 2.4vh; font-weight: 600; opacity: .65; margin-left: 1.2vw; }
+  .clock { font-size: 3.4vh; font-weight: 700; font-variant-numeric: tabular-nums; opacity: .85; white-space: nowrap; }
+  main { flex: 1; display: flex; gap: 3vw; margin-top: 3vh; min-height: 0; }
+  section { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .now { flex: 1.7; }
+  .lines { flex: 1; }
+  h2 { font-size: 2.2vh; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #93A9CC; margin-bottom: 1.6vh; }
+  .rows { flex: 1; display: flex; flex-direction: column; gap: 1.4vh; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 2vw;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 2vh; padding: 1.6vh 2.2vw;
+  }
+  .row .no { font-size: 7vh; font-weight: 800; letter-spacing: -.03em; line-height: 1; white-space: nowrap; }
+  .row .svc { font-size: 2.1vh; font-weight: 600; opacity: .6; margin-top: .6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .to { text-align: right; min-width: 0; }
+  .row .to b { display: block; font-size: 4.4vh; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .to span { font-size: 2vh; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
+  .row.first { background: #FFFFFF; color: #12203A; border-color: #FFFFFF; padding: 2.6vh 2.2vw; }
+  .row.first .no { font-size: 12vh; }
+  .row.first .to b { font-size: 6.4vh; }
+  /* A long counter name wraps onto two lines rather than being cut off. */
+  .row .to b.long { white-space: normal; line-height: 1.08; font-size: 3.4vh; }
+  .row.first .to b.long { font-size: 4.6vh; }
+  .row > div:first-child { flex: none; }
+  .row.fresh { animation: flash 1.1s ease-in-out 4; }
+  @keyframes flash { 50% { background: #9DBDFF; border-color: #9DBDFF; color: #0B1728; } }
+  .line { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 1.8vh; padding: 1.5vh 1.6vw; }
+  .line .top { display: flex; align-items: baseline; justify-content: space-between; gap: 1vw; }
+  .line .name { font-size: 2.6vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .line .count { font-size: 2.4vh; font-weight: 800; white-space: nowrap; color: #BFD3F5; }
+  .line .next { font-size: 2.1vh; font-weight: 600; opacity: .62; margin-top: .5vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quiet { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: .8; }
+  .quiet b { font-size: 5vh; font-weight: 800; }
+  .quiet p { font-size: 2.6vh; opacity: .7; margin-top: 1.2vh; max-width: 60vw; }
+  footer { display: flex; align-items: center; justify-content: space-between; gap: 2vw; margin-top: 2vh; font-size: 1.9vh; font-weight: 600; opacity: .6; }
+  .dot { display: inline-block; width: 1.2vh; height: 1.2vh; border-radius: 50%; background: #58D68D; margin-right: .8vw; vertical-align: middle; }
+  .dot.off { background: #E4726B; }
+  @media (orientation: portrait) {
+    main { flex-direction: column; }
+    .row .no { font-size: 5.4vh; } .row.first .no { font-size: 8vh; }
+    .row .to b { font-size: 3.4vh; } .row.first .to b { font-size: 4.6vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { .row.fresh { animation: none; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="org" id="org">&nbsp;</div>
+    <div class="clock" id="clock" aria-hidden="true"></div>
+  </header>
+  <main id="main">
+    <section class="now" aria-live="polite">
+      <h2>Now Serving</h2>
+      <div class="rows" id="serving"></div>
+    </section>
+    <section class="lines">
+      <h2>Waiting</h2>
+      <div class="rows" id="lines"></div>
+    </section>
+  </main>
+  <footer>
+    <div><span class="dot" id="dot"></span><span id="status">Connecting…</span></div>
+    <div>Lyne</div>
+  </footer>
+  <script src="/display/display.js"></script>
+</body>
+</html>
