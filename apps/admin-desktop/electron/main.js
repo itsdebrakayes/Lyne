@@ -218,6 +218,62 @@ app.on('window-all-closed', () => {
 // IPC: open external URL
 ipcMain.handle('open-external', (_, url) => openExternalSafely(url));
 
+/* "Sign in with Microsoft" (and connecting a Microsoft account in Settings).
+ *
+ * Microsoft's page must not load in the app's own window: that window has the
+ * preload bridge, and a third-party page there could call it. So it opens in a
+ * separate window with NO preload, a sandbox, and a throwaway session (nothing
+ * remembered between sign-ins on a shared branch computer). Supabase finishes
+ * by redirecting to our own address with a one-time code; this window catches
+ * that redirect before it loads, closes, and hands the URL back. The renderer
+ * then trades the code for a session (it holds the PKCE verifier, so the code
+ * is useless to anyone who sees it here).
+ */
+let oauthWindow = null;
+ipcMain.handle('oauth:start', (event, args) => new Promise((resolve) => {
+  const { url, returnTo } = args || {};
+  let start;
+  try { start = new URL(String(url)); } catch { return resolve({ error: 'Bad sign-in address.' }); }
+  const ownOrigin = isDev ? new URL(devServerUrl).origin : APP_ORIGIN;
+  if (start.protocol !== 'https:' || !/\.supabase\.co$/i.test(start.hostname) || start.pathname !== '/auth/v1/authorize'
+      || typeof returnTo !== 'string' || !returnTo.startsWith(ownOrigin)) {
+    return resolve({ error: 'Refused an unexpected sign-in address.' });
+  }
+  if (oauthWindow && !oauthWindow.isDestroyed()) oauthWindow.close();
+
+  const parent = BrowserWindow.fromWebContents(event.sender) || undefined;
+  const w = new BrowserWindow({
+    parent, modal: !!parent, width: 520, height: 700, show: false, autoHideMenuBar: true,
+    title: 'Sign in with Microsoft',
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, partition: `oauth-${Date.now()}` },
+  });
+  oauthWindow = w;
+  let done = false;
+  const finish = (result) => {
+    if (done) return;
+    done = true;
+    resolve(result);
+    if (!w.isDestroyed()) w.close();
+  };
+  const watch = (e, next) => {
+    if (next.startsWith(returnTo)) { e.preventDefault(); finish({ url: next }); return; }
+    /* Any https page may load: a bank's Microsoft sign-in often hands over to
+       the bank's own sign-in server, whose address we cannot know. The window
+       has no bridge to the app and keeps nothing, so that is safe. Anything
+       that is not https (a file, another app's link) is stopped. */
+    let secure = false;
+    try { secure = new URL(next).protocol === 'https:'; } catch { /* not a URL */ }
+    if (!secure) { e.preventDefault(); finish({ error: 'The sign-in page tried to open something that is not a web page. Stopped for safety.' }); }
+  };
+  w.webContents.on('will-redirect', watch);
+  w.webContents.on('will-navigate', watch);
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  w.on('closed', () => { if (oauthWindow === w) oauthWindow = null; finish({ cancelled: true }); });
+  setTimeout(() => finish({ error: 'Sign-in timed out.' }), 10 * 60 * 1000);
+  w.once('ready-to-show', () => w.show());
+  w.loadURL(start.toString());
+}));
+
 /* ── first-launch setup ── */
 ipcMain.handle('settings:get', () => ({
   ...readSettings(),

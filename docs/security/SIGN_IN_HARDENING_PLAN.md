@@ -53,6 +53,12 @@ members of the public using the app.
 **Risk:** people locked out on day one. The per-organisation switch and a
 two-week "enrol by" banner handle that.
 
+## In between: "Sign in with Microsoft" (built 12 November 2026, off until set up)
+
+A button on the sign-in card, like "Sign in with Apple". Works for a Microsoft
+work account once its owner has connected it to their Lyne login while signed
+in. Setup and design: `MICROSOFT_SIGN_IN_SETUP.md`.
+
 ## Step 2: single sign-on with the organisation's own directory (idea, not scheduled)
 
 **What:** staff type their work email, are sent to their organisation's own
