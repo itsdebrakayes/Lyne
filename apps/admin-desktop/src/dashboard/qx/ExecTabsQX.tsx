@@ -27,7 +27,7 @@ import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
 import { PublicInsightsPanel } from '../../components/dashboard/PublicInsightsPanel';
 import { DataExportPanel } from '../../components/dashboard/DataExportPanel';
 import { AuditLogPanel } from '../../components/dashboard/AuditLogPanel';
-import { MicrosoftAccountPanel, MyTwoFactorPanel, OrgTwoFactorPanel } from '../../components/dashboard/TwoFactorPanel';
+import { MicrosoftAccountPanel, OrgTwoFactorPanel } from '../../components/dashboard/TwoFactorPanel';
 import { LobbyScreensPanel } from '../../components/dashboard/LobbyScreensPanel';
 import { TargetHistory } from './TargetHistory';
 import {
@@ -1323,7 +1323,6 @@ export function ExecSettings() {
       <ClosuresPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
       <PublicInsightsPanel span={12} />
       <LobbyScreensPanel span={12} branches={d.branches.map((b) => ({ id: b.id, name: b.name }))} />
-      <MyTwoFactorPanel span={12} />
       <MicrosoftAccountPanel span={12} />
       <OrgTwoFactorPanel span={12} />
       <DataExportPanel span={12} />

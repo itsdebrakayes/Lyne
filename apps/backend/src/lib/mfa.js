@@ -6,12 +6,11 @@
  * (`aal` claim: "aal1" after a password, "aal2" after password + code). This
  * file decides, per request, whether "aal1" is enough.
  *
- * It is not enough when the caller is staff and EITHER
- *   - their organisation requires two-factor (businesses.require_2fa) and they
- *     are a supervisor, manager or executive, OR
- *   - they have enrolled an authenticator app themselves (any staff role):
- *     once you have a second factor, the password alone stops getting in, or
- *     enrolling would protect nothing.
+ * It is not enough when the caller is a supervisor, manager or executive and
+ * their organisation requires two-factor (businesses.require_2fa). Nobody turns
+ * it on for themselves: the executive decides for the organisation, and each
+ * of those people is then walked through setting it up at their next sign-in.
+ * Off by default.
  *
  * Kiosk logins and members of the public are never asked. The token's
  * signature has already been checked by Supabase (auth.getUser) before the
@@ -75,7 +74,7 @@ async function mfaState(staff, user, token, db = pool) {
   }
   const applies = MFA_ROLES.has(staff.role_name);
   const orgRequires = await orgRequires2fa(staff.business_id, db);
-  const required = (applies && orgRequires) || enrolled;
+  const required = applies && orgRequires;
   return { applies, orgRequires, enrolled, required, aal, satisfied: !required || aal === 'aal2' };
 }
 
