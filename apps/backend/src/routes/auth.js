@@ -218,7 +218,7 @@ router.get('/me', requireAuth, async (req, res) => {
     if (req.dbUser) return res.json({ type: 'user', record: withPremiumState(req.dbUser) });
     if (req.dbStaff) {
       const m = req.mfa || {};
-      const mfa = { applies: !!m.applies, org_requires: !!m.orgRequires, enrolled: !!m.enrolled, required: !!m.required, aal: m.aal || 'aal1', satisfied: m.satisfied !== false };
+      const mfa = { applies: !!m.applies, org_requires: !!m.orgRequires, branch_requires: !!m.branchRequires, enrolled: !!m.enrolled, required: !!m.required, aal: m.aal || 'aal1', satisfied: m.satisfied !== false };
       /* Waiting for the two-factor code: say who, and nothing else, until it is entered. */
       if (!mfa.satisfied) {
         return res.json({ type: 'staff', record: { id: req.dbStaff.id, full_name: req.dbStaff.full_name, role_name: req.dbStaff.role_name, business_id: req.dbStaff.business_id }, mfa });

@@ -22,7 +22,7 @@
 import { TargetHistory } from './TargetHistory';
 import { ClosuresPanel } from '../../components/dashboard/ClosuresPanel';
 import { LobbyScreensPanel } from '../../components/dashboard/LobbyScreensPanel';
-import { MicrosoftAccountPanel, MyTwoFactorPanel } from '../../components/dashboard/TwoFactorPanel';
+import { BranchTwoFactorPanel, MicrosoftAccountPanel } from '../../components/dashboard/TwoFactorPanel';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import {
@@ -780,7 +780,7 @@ export function MgrSettingsTab() {
   return (
     <div className="qx-grid">
       <ClosuresPanel span={12} />
-      <MyTwoFactorPanel span={12} />
+      <BranchTwoFactorPanel span={12} />
       <MicrosoftAccountPanel span={12} />
       <LobbyScreensPanel span={12} services={d.services.map((sv) => ({ id: sv.id, name: sv.name }))} />
       <Card span={7} title="This Branch" cap="Shown to customers in the Lyne app and on the lobby kiosk">

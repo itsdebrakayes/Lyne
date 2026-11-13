@@ -51,12 +51,14 @@ async function seedOrg(biz, label) {
      VALUES (?, ?, ?, (SELECT id FROM subscription_tiers ORDER BY id LIMIT 1))`,
     [biz, `${label} Bank`, `${biz}-slug`]
   );
-  await pool.query('INSERT INTO branches (id, business_id, name) VALUES (?, ?, ?)', [`${biz}-branch`, biz, `${label} Main`]);
+  await pool.query('INSERT INTO branches (id, business_id, name) VALUES (?, ?, ?), (?, ?, ?)',
+    [`${biz}-branch`, biz, `${label} Main`, `${biz}-branch2`, biz, `${label} East`]);
   const role = async (name) => (await pool.query('SELECT id FROM roles WHERE name = ?', [name]))[0][0].id;
-  for (const [who, r] of [['exec', 'executive'], ['exec2', 'executive'], ['mgr', 'manager'], ['clerk', 'line_staff'], ['kiosk', 'kiosk_clerk']]) {
+  for (const [who, r, br] of [['exec', 'executive', 'branch'], ['exec2', 'executive', 'branch'], ['mgr', 'manager', 'branch'], ['sup', 'supervisor', 'branch'],
+    ['clerk', 'line_staff', 'branch'], ['kiosk', 'kiosk_clerk', 'branch'], ['mgr2', 'manager', 'branch2'], ['sup2', 'supervisor', 'branch2']]) {
     await pool.query(
       'INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [`${biz}-${who}`, biz, `${biz}-branch`, await role(r), `${biz}-${who}-uid`, `MFA-${label}-${who}`.slice(0, 20), `${label} ${who}`, `${biz}-${who}@example.test`]
+      [`${biz}-${who}`, biz, `${biz}-${br}`, await role(r), `${biz}-${who}-uid`, `MFA-${label}-${who}`.slice(0, 20), `${label} ${who}`, `${biz}-${who}@example.test`]
     );
   }
 }
@@ -125,6 +127,34 @@ test('two-factor is enforced by the server, switched on by an enrolled executive
   // ── Off means off: even someone with an app is not asked.
   assert.equal((await call(u('mgr', 'aal1', true), 'GET', `/api/staff?business_id=${A}`)).status, 200);
 
+  // ── A MANAGER's switch: their own branch only, never another branch or organisation.
+  const needs = async (who, biz = A) => (await call(u(who, 'aal1', false, biz), 'GET', '/api/auth/me')).body.mfa.required;
+  assert.equal((await call(u('mgr'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true, branch_id: `${A}-branch2` })).status, 403, 'not another branch');
+  assert.equal((await call(u('mgr'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true, branch_id: `${B}-branch` })).status, 403, 'not another organisation');
+  assert.equal((await call(u('sup'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true })).status, 403, 'supervisors cannot');
+  assert.equal((await call(u('mgr'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true })).status, 200, 'own branch');
+  assert.equal(await needs('mgr'), true, 'the manager of that branch');
+  assert.equal(await needs('sup'), true, 'its supervisor');
+  assert.equal(await needs('clerk'), false, 'not its desk staff');
+  assert.equal(await needs('exec'), false, 'not the executive: the branch switch is not theirs');
+  assert.equal(await needs('mgr2'), false, 'not the other branch');
+  assert.equal(await needs('sup2'), false, 'not the other branch');
+  for (const who of ['exec', 'mgr', 'sup', 'mgr2', 'sup2']) assert.equal(await needs(who, B), false, `not ${who} at the other organisation`);
+  const [[bRow]] = await pool.query('SELECT require_2fa FROM branches WHERE id = ?', [`${B}-branch`]);
+  assert.equal(Number(bRow.require_2fa), 0, 'the other organisation\'s branch row is untouched');
+  // The manager sees their branch only; an executive of the SAME organisation may switch any of its branches.
+  const mine = await call(u('mgr', 'aal2', true), 'GET', '/api/auth/mfa/branch');
+  assert.equal(mine.status, 200, mine.text);
+  assert.deepEqual(mine.body.staff.map((x) => x.id).sort(), [`${A}-mgr`, `${A}-sup`]);
+  assert.equal((await call(u('mgr', 'aal2', true), 'GET', `/api/auth/mfa/branch?branch_id=${A}-branch2`)).status, 403);
+  assert.equal((await call(u('exec'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true, branch_id: `${B}-branch2` })).status, 403, 'an executive cannot reach another organisation');
+  assert.equal((await call(u('exec'), 'PUT', '/api/auth/mfa/branch', { require_2fa: true, branch_id: `${A}-branch2` })).status, 200);
+  assert.equal(await needs('mgr2'), true);
+  assert.equal((await call(u('exec'), 'PUT', '/api/auth/mfa/branch', { require_2fa: false, branch_id: `${A}-branch2` })).status, 200);
+  assert.equal((await call(u('mgr', 'aal2', true), 'PUT', '/api/auth/mfa/branch', { require_2fa: false })).status, 200);
+  assert.equal(await needs('mgr'), false);
+  assert.equal(await needs('mgr2'), false);
+
   // ── Only an executive switches it on, and then they are asked to set it up too.
   assert.equal((await call(u('mgr'), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true })).status, 403, 'managers cannot');
   const on = await call(u('exec'), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true });
@@ -154,8 +184,11 @@ test('two-factor is enforced by the server, switched on by an enrolled executive
   assert.ok(clerk.body.record.business_name, 'full profile for a desk clerk on a password');
   assert.equal((await call(u('kiosk'), 'GET', '/api/auth/me')).body.mfa.required, false);
 
-  // ── The other organisation is untouched.
+  // ── The organisation switch covers every branch of A, and nothing of B.
+  assert.equal(await needs('mgr2'), true, 'the other branch of the same organisation');
+  assert.equal(await needs('clerk'), false, 'still not desk staff');
   assert.equal((await call(u('mgr', 'aal1', false, B), 'GET', `/api/staff?business_id=${B}`)).status, 200);
+  for (const who of ['exec', 'mgr', 'sup', 'mgr2']) assert.equal(await needs(who, B), false, `not ${who} at the other organisation`);
 
   // ── The executive's view: who has set it up.
   factors.set(`${A}-mgr-uid`, [{ id: 'mgr-f1', factor_type: 'totp', status: 'verified' }]);
@@ -166,6 +199,7 @@ test('two-factor is enforced by the server, switched on by an enrolled executive
   assert.equal(row(`${A}-mgr`).enrolled, true);
   assert.equal(row(`${A}-exec2`).enrolled, false);
   assert.equal(row(`${A}-mgr`).must_use, true);
+  assert.equal(org.body.branches.length, 2);
   assert.equal(row(`${A}-clerk`).must_use, false);
   assert.equal(row(`${A}-kiosk`), undefined, 'kiosks are not listed');
   assert.ok(!org.text.includes(B), 'no other organisation in the list');
@@ -183,6 +217,10 @@ test('two-factor is enforced by the server, switched on by an enrolled executive
   assert.equal((await call(u('exec', 'aal2', true), 'PUT', '/api/auth/mfa/organisation', { require_2fa: false })).status, 200);
   forgetOrg();
   assert.equal((await call(u('mgr'), 'GET', `/api/staff?business_id=${A}`)).status, 200);
-  const [log] = await pool.query("SELECT action FROM audit_logs WHERE business_id = ? AND action LIKE 'two_factor_%'", [A]);
+  const [log] = await pool.query("SELECT action FROM audit_logs WHERE business_id = ? AND action LIKE 'two_factor_%' AND action NOT LIKE 'two_factor_branch_%'", [A]);
   assert.deepEqual(log.map((r) => r.action).sort(), ['two_factor_not_required', 'two_factor_required', 'two_factor_reset']);
+  const [blog] = await pool.query("SELECT action, resource_id FROM audit_logs WHERE business_id = ? AND action LIKE 'two_factor_branch_%' ORDER BY created_at", [A]);
+  assert.equal(blog.length, 4);
+  const [bOther] = await pool.query("SELECT COUNT(*) AS n FROM audit_logs WHERE business_id = ? AND action LIKE 'two_factor_%'", [B]);
+  assert.equal(Number(bOther[0].n), 0, 'nothing logged against the other organisation');
 });

@@ -6,15 +6,19 @@
  * (`aal` claim: "aal1" after a password, "aal2" after password + code). This
  * file decides, per request, whether "aal1" is enough.
  *
- * It is not enough when the caller is a supervisor, manager or executive and
- * their organisation requires two-factor (businesses.require_2fa). Nobody turns
- * it on for themselves: the executive decides for the organisation, and each
- * of those people is then walked through setting it up at their next sign-in.
- * Off by default.
+ * Who must use it. Off by default; nobody turns it on for themselves.
+ *   - Their ORGANISATION requires it (businesses.require_2fa, set by its
+ *     executive): its supervisors, managers and executives, every branch.
+ *   - Their BRANCH requires it (branches.require_2fa, set by its manager or an
+ *     executive of the same organisation): the supervisors and managers whose
+ *     own staff record is in that branch. Not executives, not other branches.
+ * Desk staff, kiosks and members of the public are never asked.
  *
- * Kiosk logins and members of the public are never asked. The token's
- * signature has already been checked by Supabase (auth.getUser) before the
- * claim is read here.
+ * STRICT SCOPE: both switches are read in ONE query keyed on the person's own
+ * staff.business_id, and the branch row is joined only when it belongs to that
+ * same organisation. No other organisation's or branch's setting can apply.
+ * The token's signature has already been checked by Supabase (auth.getUser)
+ * before its claim is read here.
  */
 const pool = require('../db/pool');
 
@@ -37,30 +41,48 @@ function hasVerifiedTotp(user) {
   return Array.isArray(user?.factors) && user.factors.some((f) => f.factor_type === 'totp' && f.status === 'verified');
 }
 
-async function orgRequires2fa(businessId, db = pool) {
-  if (!businessId) return false;
-  const hit = orgCache.get(businessId);
+/** The two switches for one person: their organisation's and their own branch's. */
+async function switchesFor(businessId, branchId, db = pool) {
+  if (!businessId) return { org: false, branch: false };
+  const key = `${businessId}|${branchId || ''}`;
+  const hit = orgCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.value;
-  let value = false;
+  let value = { org: false, branch: false };
   try {
-    const [rows] = await db.query('SELECT require_2fa FROM businesses WHERE id = ? LIMIT 1', [businessId]);
-    value = !!(rows[0] && Number(rows[0].require_2fa));
+    const [rows] = await db.query(
+      `SELECT b.require_2fa AS org, br.require_2fa AS branch
+         FROM businesses b
+         LEFT JOIN branches br ON br.id = ? AND br.business_id = b.id
+        WHERE b.id = ?
+        LIMIT 1`,
+      [branchId || null, businessId]
+    );
+    if (rows[0]) value = { org: !!Number(rows[0].org), branch: !!Number(rows[0].branch) };
   } catch (err) {
-    // Before migration 053 the column does not exist: nobody is required yet.
+    // Before migration 053 the columns do not exist: nobody is required yet.
     if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
   }
-  orgCache.set(businessId, { value, expires: Date.now() + ORG_CACHE_MS });
+  orgCache.set(key, { value, expires: Date.now() + ORG_CACHE_MS });
   return value;
 }
 
-function forgetOrg(businessId) {
-  if (businessId) orgCache.delete(businessId); else orgCache.clear();
+async function orgRequires2fa(businessId, db = pool) {
+  return (await switchesFor(businessId, null, db)).org;
 }
+
+/** Forget cached switches (all of them: a change is rare and must apply at once). */
+function forgetOrg() {
+  orgCache.clear();
+}
+
+/** Who a branch switch covers. Executives answer to the organisation's switch only. */
+const BRANCH_ROLES = new Set(['supervisor', 'manager']);
 
 /**
  * What two-factor means for this request.
  *   applies      the role can be required to use it
  *   orgRequires  the organisation switched it on
+ *   branchRequires  the person's own branch switched it on
  *   enrolled     the person has a verified authenticator app
  *   required     this session must be aal2
  *   aal          what the session is
@@ -70,12 +92,12 @@ async function mfaState(staff, user, token, db = pool) {
   const aal = tokenAal(token);
   const enrolled = hasVerifiedTotp(user);
   if (!staff || NEVER_ASKED.has(staff.role_name)) {
-    return { applies: false, orgRequires: false, enrolled, required: false, aal, satisfied: true };
+    return { applies: false, orgRequires: false, branchRequires: false, enrolled, required: false, aal, satisfied: true };
   }
   const applies = MFA_ROLES.has(staff.role_name);
-  const orgRequires = await orgRequires2fa(staff.business_id, db);
-  const required = applies && orgRequires;
-  return { applies, orgRequires, enrolled, required, aal, satisfied: !required || aal === 'aal2' };
+  const sw = await switchesFor(staff.business_id, staff.branch_id, db);
+  const required = applies && (sw.org || (sw.branch && BRANCH_ROLES.has(staff.role_name)));
+  return { applies, orgRequires: sw.org, branchRequires: sw.branch, enrolled, required, aal, satisfied: !required || aal === 'aal2' };
 }
 
 /* The few addresses a signed-in person must reach BEFORE entering their code:
@@ -93,4 +115,4 @@ function refusal(state) {
     : { status: 403, body: { error: 'Your organisation requires two-factor sign-in. Set it up to continue.', code: 'mfa_enrollment_required' } };
 }
 
-module.exports = { MFA_ROLES, tokenAal, hasVerifiedTotp, orgRequires2fa, forgetOrg, mfaState, openBeforeCode, refusal };
+module.exports = { MFA_ROLES, BRANCH_ROLES, switchesFor, tokenAal, hasVerifiedTotp, orgRequires2fa, forgetOrg, mfaState, openBeforeCode, refusal };
