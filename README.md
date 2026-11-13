@@ -329,7 +329,7 @@ Trust is the product, so security is layered. Every protected API request passes
 1. `helmet` headers, compression, request logging
 2. a CORS allowlist (`ALLOWED_ORIGINS`); native apps send no Origin and are allowed through
 3. rate limiting (`middleware/rateLimiter.js`): general, auth, queue join, OCR, and public polling limits
-4. Supabase JWT verification (`middleware/auth.js`), using the publishable key
+4. Supabase JWT verification (`middleware/auth.js`), using the publishable key, then two-factor: a staff token that has not passed its second factor (`aal2`) is refused where it is required (`src/lib/mfa.js`)
 5. session limiting (`middleware/sessionLimiter.js`)
 6. tenant access checks (`middleware/tenantAccess.js`)
 7. input validation with zod (`middleware/validate.js`)
@@ -511,6 +511,7 @@ The organisation **quote estimator** reads one price list, `apps/website/src/lib
 | Line Helper | `branches.line_helper_enabled` | On by default; managers can switch it off per branch |
 | Predictions | platform setting + per organisation + per user (migration 030) | On |
 | Lobby "Now Serving" screens | migration 052 (`lobby_displays`), `apps/backend/src/routes/display.js`, `src/lib/lobbyDisplay.js`, page in `src/display/`; managed in Settings → Lobby Screens | A web page per screen at `https://<api host>/display/<token>`: open it in any TV or signage browser, or embed it (`<iframe>`). Ticket numbers, counters and waiting counts only, never names. A manager creates and switches off screens for their branch, an executive for any branch; both are audit-logged. `/display/*` is the only path that may be framed (Caddyfile and the route's own headers). `?sound=0` and `?lines=0` on the link. |
+| Two-factor sign-in | migration 053 (`businesses.require_2fa`), `apps/backend/src/lib/mfa.js`, `src/routes/mfa.js` (`/api/auth/mfa`); admin `components/MfaStep.tsx`, Settings → Two-Factor Sign-In and Two-Factor For Your Organisation | An authenticator-app code (Supabase Auth TOTP) after the password. An executive requires it for supervisors, managers and executives; switching it on needs their own session to have passed two-factor. Anyone who has set it up is always asked, switch or not. Kiosks and the public are never asked. Enforced by the API on every request: `GET /api/auth/me`, sign-out and `/api/auth/mfa/status` are the only staff routes open before the code. An executive can reset a lost phone (another executive's, never their own). Every change is audit-logged. No SMS fallback. Single sign-on is planned, not built (`docs/security/SIGN_IN_HARDENING_PLAN.md`). |
 | Organisation data export | `apps/backend/src/routes/orgExport.js`, `src/lib/organisationExport.js`; Settings → Your Data (executive) | One zip of 20 CSV files with everything the organisation owns. Always the caller's own organisation; audited before it runs; one a minute. No credentials, codes or app users' own contact details. Cells that would run as spreadsheet formulas are neutralised (`src/utils/csv.js`). |
 | What the public sees | `businesses.public_insights` (migration 051), `apps/backend/src/lib/publicInsights.js`; executive sets it in Settings → What The Public Sees (`PUT /api/settings/public-insights`, audit-logged) | `full` by default: best times, heatmap, week planner, personal tips. `limited` returns the organisation to the old free tier (headline best time per service and today's shape only). Live queue lengths and current waits are shown either way. A missing column reads as `full`; any other read error holds detail back. |
 | Payments provider for Jamaica | not chosen | Candidates: WiPay, Amber Pay eLink, PayPal card entry (Stripe is unavailable in Jamaica) |
@@ -555,6 +556,8 @@ Nothing about an organisation is built into the mobile app, so onboarding never 
 | `docs/SDK_PRIVACY_AUDIT.md` | What each third-party SDK collects (feeds the store privacy answers) |
 | `docs/WEB_AND_APP_UX_PRINCIPLES.md` | UX rules for every surface |
 | `docs/PRODUCT_VISION.md` | Where the product is going |
+| `docs/sales/COMPETITOR_COMPARISON.md` | What Qminder, Skiplino, Qmatic and Wavetec include for their price, against Lyne; where they are ahead |
+| `docs/security/SIGN_IN_HARDENING_PLAN.md` | Two-factor (built) and single sign-on (parked) |
 | `docs/COMPLETED_WORK.md` | What was fixed and why — read before filing a "bug" that may already be settled |
 | `docs/REMAINING_WORK.md` | What is still open |
 | `database/README.md`, `database/migrations/README.md` | Database specifics |

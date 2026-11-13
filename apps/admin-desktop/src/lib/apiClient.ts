@@ -44,7 +44,11 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText })) as { error?: string; message?: string };
+    const err = await res.json().catch(() => ({ message: res.statusText })) as { error?: string; message?: string; code?: string };
+    /* The server wants the two-factor code (or a set-up): useAdminAuth listens. */
+    if (res.status === 403 && (err.code === 'mfa_required' || err.code === 'mfa_enrollment_required')) {
+      window.dispatchEvent(new Event('lyne:mfa'));
+    }
     throw new Error(err.error || err.message || `HTTP ${res.status}`);
   }
 

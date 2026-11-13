@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, BarChart3, Eye, EyeOff, Loader2, ShieldCheck, Timer, Users } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import MfaStep from '../components/MfaStep';
 import '../styles/admin-kit.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   /* authError carries a refusal from a saved session (a kiosk or customer
      login found at launch), which never went through this form. */
-  const { login, error: authError } = useAdminAuth();
+  const { login, logout, checkAuth, mfaGate, error: authError } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -26,6 +27,7 @@ export default function LoginPage() {
     try {
       const { error: authError } = await login(email, password);
       if (authError) throw authError;
+      // With two-factor still to do, stay here: the code prompt replaces the form.
       navigate('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid credentials.');
@@ -62,8 +64,21 @@ export default function LoginPage() {
         <div className="qa-login-card">
           <div className="qa-login-cardhead">
             <span className="shield"><ShieldCheck size={22} /></span>
-            <span><small>Secure Admin Access</small><h2>Sign In</h2></span>
+            <span>
+              <small>Secure Admin Access</small>
+              <h2>{mfaGate ? (mfaGate.mode === 'enroll' ? 'Set Up Two-Factor' : 'Enter Your Code') : 'Sign In'}</h2>
+            </span>
           </div>
+
+          {mfaGate ? (
+            <MfaStep
+              key={mfaGate.mode}
+              mode={mfaGate.mode}
+              required
+              onDone={() => { checkAuth().then(() => navigate('/')); }}
+              onCancel={() => { logout(); }}
+            />
+          ) : (<>
 
           {error || authError ? (
             <div className="qa-login-error"><AlertCircle size={16} /><span>{error || authError}</span></div>
@@ -95,6 +110,7 @@ export default function LoginPage() {
             Forgotten your password? Your branch manager or IT administrator can reset it —
             accounts are created for you, so there is no self-service reset.
           </p>
+          </>)}
         </div>
       </section>
     </div>
