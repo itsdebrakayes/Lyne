@@ -50,14 +50,7 @@ export interface MfaGate {
   /** verify: has an authenticator app, enter its code. enroll: set one up first. */
   mode: 'verify' | 'enroll';
   name: string;
-  /** Set up by choice (Settings → Set Up At Sign-In), so it can be skipped. */
-  optional?: boolean;
 }
-
-/** Settings asks for two-factor set-up at the next sign-in by leaving this. */
-export const SETUP_2FA_KEY = 'lyne.setup2fa';
-const wantsSetup = () => { try { return sessionStorage.getItem(SETUP_2FA_KEY) === '1'; } catch { return false; } };
-export const clearSetupRequest = () => { try { sessionStorage.removeItem(SETUP_2FA_KEY); } catch { /* storage off */ } };
 
 interface MeMfa { required: boolean; enrolled: boolean; satisfied: boolean; aal: string; org_requires: boolean; applies: boolean }
 
@@ -121,10 +114,6 @@ async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
   if (me.mfa && !me.mfa.satisfied) {
     return { mode: me.mfa.enrolled ? 'verify' : 'enroll', name: me.record.full_name };
   }
-  if (me.mfa && !me.mfa.enrolled && wantsSetup()) {
-    return { mode: 'enroll', name: me.record.full_name, optional: true };
-  }
-  if (me.mfa?.enrolled) clearSetupRequest();
 
   return {
     staffRecord: me.record,

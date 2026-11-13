@@ -7,9 +7,10 @@
  *
  *   GET  /status          this session: required? enrolled? code entered?
  *   GET  /organisation    executive: the switch, and who has set it up
- *   PUT  /organisation    executive: { require_2fa } — switching ON needs the
- *                         executive's own session to have passed two-factor,
- *                         so nobody can lock their organisation out by accident
+ *   PUT  /organisation    executive: { require_2fa }. Switched on, everyone it
+ *                         covers (the executive included) is asked to set it
+ *                         up at their next request; the app takes them to the
+ *                         set-up screen on the sign-in card
  *   POST /reset           executive: { staff_id } — remove a lost phone's
  *                         factor; that person sets up again at next sign-in
  *
@@ -122,12 +123,6 @@ router.put('/organisation', requireAuth, requireStaffRole('executive'), async (r
   const parsed = switchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Send require_2fa as true or false.' });
   const businessId = targetBusiness(req, parsed.data.business_id);
-  if (parsed.data.require_2fa && req.mfa?.aal !== 'aal2') {
-    return res.status(409).json({
-      error: 'Set up two-factor for your own account first, then sign in again with your code. Otherwise you would be locked out by your own switch.',
-      code: 'mfa_self_first',
-    });
-  }
   try {
     const [r] = await pool.query('UPDATE businesses SET require_2fa = ? WHERE id = ?', [parsed.data.require_2fa, businessId]);
     if (!r.affectedRows) return res.status(404).json({ error: 'Organisation not found.' });

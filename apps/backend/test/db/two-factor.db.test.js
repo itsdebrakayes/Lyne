@@ -122,23 +122,21 @@ test('two-factor is enforced by the server, switched on by an enrolled executive
   assert.equal(me.body.mfa.required, false);
   assert.equal((await call(u('mgr'), 'GET', `/api/staff?business_id=${A}`)).status, 200);
 
-  // ── Enrolled yourself: the password alone no longer gets in, even with the switch off.
-  const blocked = await call(u('clerk', 'aal1', true), 'GET', `/api/staff/${A}-clerk`);
-  assert.equal(blocked.status, 403);
-  assert.equal(blocked.body.code, 'mfa_required');
-  me = await call(u('clerk', 'aal1', true), 'GET', '/api/auth/me');
-  assert.equal(me.status, 200, 'who-am-I stays open so the app can ask for the code');
-  assert.equal(me.body.mfa.satisfied, false);
-  assert.equal(me.body.record.email, undefined, 'nothing beyond the name until the code is in');
-  assert.equal(me.body.record.business_name, undefined);
+  // ── Off means off: even someone with an app is not asked.
+  assert.equal((await call(u('mgr', 'aal1', true), 'GET', `/api/staff?business_id=${A}`)).status, 200);
 
-  // ── Switching on: refused to an executive who has not passed two-factor themselves.
-  const early = await call(u('exec'), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true });
-  assert.equal(early.status, 409);
-  assert.equal(early.body.code, 'mfa_self_first');
+  // ── Only an executive switches it on, and then they are asked to set it up too.
   assert.equal((await call(u('mgr'), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true })).status, 403, 'managers cannot');
-  const on = await call(u('exec', 'aal2', true), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true });
+  const on = await call(u('exec'), 'PUT', '/api/auth/mfa/organisation', { require_2fa: true });
   assert.equal(on.status, 200, on.text);
+  const execNext = await call(u('exec'), 'GET', `/api/staff?business_id=${A}`);
+  assert.equal(execNext.status, 403);
+  assert.equal(execNext.body.code, 'mfa_enrollment_required');
+  me = await call(u('exec'), 'GET', '/api/auth/me');
+  assert.equal(me.status, 200, 'who-am-I stays open so the app can show the set-up');
+  assert.equal(me.body.mfa.satisfied, false);
+  assert.equal(me.body.record.email, undefined, 'nothing beyond the name until set up');
+  assert.equal(me.body.record.business_name, undefined);
 
   // ── On: managers and executives without a code are stopped on every staff route.
   const noApp = await call(u('mgr'), 'GET', `/api/staff?business_id=${A}`);

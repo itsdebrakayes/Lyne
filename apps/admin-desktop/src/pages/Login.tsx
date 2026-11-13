@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, BarChart3, Eye, EyeOff, Loader2, ShieldCheck, Timer, Users } from 'lucide-react';
-import { clearSetupRequest, useAdminAuth } from '../hooks/useAdminAuth';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 import type { MfaGate } from '../hooks/useAdminAuth';
 import MfaStep from '../components/MfaStep';
 import { MICROSOFT_ENABLED, signInWithMicrosoft } from '../lib/microsoftSignIn';
@@ -105,14 +105,8 @@ export default function LoginPage() {
             <MfaStep
               key={mfaGate.mode}
               mode={mfaGate.mode}
-              required={!mfaGate.optional}
-              onDone={() => { clearSetupRequest(); checkAuth().then(() => navigate('/')); }}
-              onCancel={() => {
-                clearSetupRequest();
-                // Chosen, not required: skipping it goes on in. Required: signs out.
-                if (mfaGate.optional) checkAuth().then(() => navigate('/')); else logout();
-              }}
-              cancelLabel={mfaGate.optional ? 'Skip for now' : 'Sign out'}
+              onDone={() => { checkAuth().then(() => navigate('/')); }}
+              onCancel={() => { logout(); }}
             />
           ) : (<>
 

@@ -20,9 +20,9 @@ our own sign-in?"
 
 ## Step 1: two-factor with an authenticator app (built 12 November 2026)
 
-Built as described below, with one addition: anyone who has set up an
-authenticator app is asked for its code whether or not their organisation
-requires it (otherwise setting it up by choice would protect nothing). Before
+Built as described below. It is off by default and nobody switches it on for
+themselves: the executive requires it, and everyone it covers (the executive
+first) sets up their authenticator app on the sign-in screen. Before
 switching it on for a real organisation, test it end to end with one real
 account: set it up, sign out, sign in with the code, have an executive reset it.
 
@@ -30,8 +30,8 @@ account: set it up, sign out, sign in with the code, have an executive reset it.
 Google Authenticator, 1Password) after the password. Supabase Auth includes
 this (TOTP) at no extra charge.
 
-**Who:** required for executives, managers and supervisors. Optional for desk
-staff. Never for kiosks (a shared screen with nobody's phone beside it) or for
+**Who:** executives, managers and supervisors, once the executive requires it.
+Not desk staff. Never kiosks (a shared screen with nobody's phone beside it) or for
 members of the public using the app.
 
 **How:**

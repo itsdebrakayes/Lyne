@@ -1,21 +1,20 @@
 /**
  * Two-factor sign-in in Settings (migration 053).
  *
- *   MyTwoFactorPanel    any staff member: set up an authenticator app, or remove it
- *                       when the organisation does not require one
+ *   MyTwoFactorPanel    manager: is it required, read only
  *   OrgTwoFactorPanel   executive: require it for supervisors, managers and
  *                       executives; see who has set it up; reset a lost phone
  *
- * The rules live on the server (apps/backend/src/lib/mfa.js, routes/mfa.js);
- * these screens only ask. Switching it on is refused until the executive's own
- * session has passed two-factor, so nobody locks themselves out.
+ * Off by default. Nobody switches it on for themselves: once the executive
+ * requires it, each person it covers (the executive too) sets up their
+ * authenticator app on the sign-in screen at their next sign-in. The rules
+ * live on the server (apps/backend/src/lib/mfa.js, routes/mfa.js).
  */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
-import api, { supabase } from '@/lib/apiClient';
+import api from '@/lib/apiClient';
 import { Card, Note } from '@/design/ui';
-import { SETUP_2FA_KEY, useAdminAuth } from '../../hooks/useAdminAuth';
 import { MICROSOFT_ENABLED, connectMicrosoft, disconnectMicrosoft, microsoftIdentity } from '@/lib/microsoftSignIn';
 
 type Status = { applies: boolean; org_requires: boolean; enrolled: boolean; required: boolean; aal: string | null; satisfied: boolean };
@@ -29,55 +28,21 @@ const pill = (on: boolean | null) => ({
   color: on ? 'var(--c-primary, #1b4b8f)' : 'var(--c-dim, #5b6575)',
 });
 
+/** A manager's view: whether their organisation requires it, and whether they
+ *  have set it up. Read only: the executive decides, and set-up happens on the
+ *  sign-in screen. */
 export function MyTwoFactorPanel({ span = 12 }: { span?: number }) {
-  const qc = useQueryClient();
   const status = useQuery({ queryKey: ['mfa-status'], queryFn: () => api.get<Status>('/auth/mfa/status') });
-  const { logout } = useAdminAuth();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   const s = status.data;
-
-  /* Set-up happens on the sign-in screen, before anything inside the app,
-     never on a page that is already open. */
-  const setUpAtSignIn = async () => {
-    if (!window.confirm('You will be signed out. Sign in again and Lyne will show the QR code to set up your authenticator app before opening the dashboard.')) return;
-    try { sessionStorage.setItem(SETUP_2FA_KEY, '1'); } catch { /* storage off: they can still be asked by their organisation */ }
-    await logout();
-  };
-
-  const remove = async () => {
-    if (!window.confirm('Remove two-factor from your account? You will sign in with your password only.')) return;
-    setBusy(true); setError('');
-    try {
-      const { data, error: listErr } = await supabase.auth.mfa.listFactors();
-      if (listErr) throw listErr;
-      for (const f of data.totp) {
-        const { error: unErr } = await supabase.auth.mfa.unenroll({ factorId: f.id });
-        if (unErr) throw unErr;
-      }
-      await supabase.auth.refreshSession();
-      await qc.invalidateQueries({ queryKey: ['mfa-status'] });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not remove two-factor.');
-    } finally { setBusy(false); }
-  };
-
   return (
-    <Card span={span} title="Two-Factor Sign-In" cap="A six-digit code from an authenticator app on your phone, asked for after your password. A stolen password alone then cannot open your account.">
+    <Card span={span} title="Two-Factor Sign-In" cap="A six-digit code from an authenticator app on your phone after your password. Your organisation's executive decides whether it is required.">
       {status.isLoading ? <div style={{ color: 'var(--c-dim)', fontSize: 12.5 }}>Checking…</div>
         : status.error ? <Note icon={ShieldAlert} tone="bad" title="Could not check two-factor" body={(status.error as Error).message} />
-        : s?.enrolled ? (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Note icon={ShieldCheck} title="On for your account" body={s.org_requires ? 'Your organisation requires it, so it cannot be removed here. If you lose your phone, an executive can reset it.' : 'You will be asked for a code each time you sign in.'} />
-            {!s.org_requires ? <button type="button" className="qx-btn ghost" disabled={busy} onClick={remove}>Remove Two-Factor</button> : null}
-          </div>
+        : s?.required ? (
+          <Note icon={ShieldCheck} title="Required by your organisation" body="You enter a code from your authenticator app each time you sign in. Lost your phone? Ask an executive to reset it." />
         ) : (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Note icon={ShieldAlert} tone={s?.org_requires && s.applies ? 'warn' : undefined} title="Not set up" body={s?.org_requires && s.applies ? 'Your organisation requires it. You will be asked to set it up at your next sign-in.' : 'Set up on the sign-in screen, in about a minute. You need an authenticator app on your phone.'} />
-            <button type="button" className="qx-btn" onClick={setUpAtSignIn}>Set Up At Sign-In</button>
-          </div>
+          <Note icon={ShieldAlert} title="Not required" body="Your organisation has not switched two-factor on. If it does, you will set it up at your next sign-in." />
         )}
-      {error ? <div style={{ color: 'var(--c-bad, #b42318)', fontSize: 12.5, marginTop: 8 }}>{error}</div> : null}
     </Card>
   );
 }
@@ -95,8 +60,8 @@ export function OrgTwoFactorPanel({ span = 12 }: { span?: number }) {
     if (!o) return;
     const next = !o.require_2fa;
     const ask = next
-      ? `Require two-factor for supervisors, managers and executives?${missing.length ? ` ${missing.length} of them have not set it up yet; they will be asked to at their next sign-in.` : ''}`
-      : 'Stop requiring two-factor? People who set it up keep using it; nobody else is asked.';
+      ? 'Require two-factor for every supervisor, manager and executive? Each of them, you included, will be taken to set up an authenticator app (Microsoft Authenticator, Google Authenticator or 1Password) the next time they sign in. You will be taken there now. Have your phone ready.'
+      : 'Stop requiring two-factor? Everyone signs in with their password only.';
     if (!window.confirm(ask)) return;
     setBusy('switch'); setMessage(null);
     try {
@@ -104,6 +69,8 @@ export function OrgTwoFactorPanel({ span = 12 }: { span?: number }) {
       await qc.invalidateQueries({ queryKey: ['mfa-org'] });
       await qc.invalidateQueries({ queryKey: ['mfa-status'] });
       setMessage({ tone: 'ok', text: next ? 'Two-factor is now required.' : 'Two-factor is no longer required.' });
+      // Switched on: the executive sets theirs up now, on the sign-in card.
+      if (next) window.dispatchEvent(new Event('lyne:mfa'));
     } catch (err) {
       setMessage({ tone: 'bad', text: err instanceof Error ? err.message : 'Could not change the setting.' });
     } finally { setBusy(null); }
@@ -126,7 +93,7 @@ export function OrgTwoFactorPanel({ span = 12 }: { span?: number }) {
 
   return (
     <Card span={span} title="Two-Factor For Your Organisation"
-      cap="When required, every supervisor, manager and executive must enter a code from an authenticator app after their password. Lyne's server checks it on every request. Desk staff may choose it; kiosks are never asked."
+      cap="Off until you switch it on. Then every supervisor, manager and executive sets up an authenticator app at their next sign-in and enters its code after their password from then on. Lyne's server checks it on every request. Desk staff and kiosks are not asked."
       tools={o ? (
         <button type="button" className={o.require_2fa ? 'qx-btn ghost' : 'qx-btn'} disabled={busy !== null} onClick={flip}>
           {o.require_2fa ? 'Stop Requiring' : 'Require Two-Factor'}
@@ -156,7 +123,7 @@ export function OrgTwoFactorPanel({ span = 12 }: { span?: number }) {
                       <td style={cell}>
                         {!p.has_login ? <span style={pill(false)}>No sign-in yet</span>
                           : p.enrolled === null ? <span style={pill(false)}>Unknown</span>
-                          : <span style={pill(p.enrolled)}>{p.enrolled ? 'Set up' : p.must_use && o.require_2fa ? 'Needed at next sign-in' : 'Not set up'}</span>}
+                          : <span style={pill(p.enrolled)}>{p.enrolled ? 'Set up' : !p.must_use ? 'Not needed' : o.require_2fa ? 'Sets up at next sign-in' : 'Not set up'}</span>}
                       </td>
                       <td style={{ ...cell, textAlign: 'right' }}>
                         {p.enrolled && !p.is_you ? (

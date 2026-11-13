@@ -7,7 +7,8 @@
  * Talks to Supabase Auth directly (it holds the secret and checks the code);
  * when the code is right Supabase upgrades this session to "aal2", which is
  * what the Lyne API checks on every request (apps/backend/src/lib/mfa.js).
- * Used on the sign-in screen and, for setting it up by choice, in Settings.
+ * Shown only on the sign-in screen, and only when the organisation's executive
+ * has required two-factor (nobody switches it on for themselves).
  *
  * No text-message fallback, deliberately: SIM swaps defeat it. A lost phone is
  * reset by an executive (Settings → Two-Factor Sign-In).
@@ -23,8 +24,6 @@ type Props = {
   /** Sign out (on the sign-in screen) or close (in Settings). */
   onCancel: () => void;
   cancelLabel?: string;
-  /** True on the sign-in screen when the organisation requires it; false when chosen in Settings. */
-  required?: boolean;
 };
 
 const line = 'var(--qa-line, var(--c-line, #e3e7ee))';
@@ -38,7 +37,7 @@ const input: React.CSSProperties = {
 const qrSrc = (qr: string) => (qr.startsWith('data:') ? qr : `data:image/svg+xml;utf-8,${encodeURIComponent(qr)}`);
 const grouped = (secret: string) => secret.replace(/(.{4})/g, '$1 ').trim();
 
-export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign out', required = false }: Props) {
+export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign out' }: Props) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
@@ -110,8 +109,9 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
       {mode === 'enroll' ? (
         <>
           <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.5 }}>
-            {required ? 'Your organisation asks for a code from an authenticator app as well as your password. ' : ''}
-            Open Microsoft Authenticator, Google Authenticator or 1Password on your phone, add an account, and scan this.
+            Your organisation now requires a code from an authenticator app as well as your password. This is
+            a one-time set-up. Open Microsoft Authenticator, Google Authenticator or 1Password on your phone,
+            add an account, and scan this.
           </p>
           <div style={{ display: 'grid', placeItems: 'center', padding: 14, border: `1px solid ${line}`, borderRadius: 14, background: '#fff', marginBottom: 10, minHeight: 196 }}>
             {preparing ? <Loader2 size={22} className="qa-spin" /> : qr ? <img src={qrSrc(qr)} alt="QR code to add Lyne to your authenticator app" width={180} height={180} /> : <Smartphone size={28} color="#9aa3b2" />}
@@ -139,7 +139,7 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
       <form onSubmit={submit}>
         <label style={{ display: 'block', marginBottom: 12 }}>
           <span style={{ display: 'block', color: dim, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-            {mode === 'enroll' ? 'Code from the app, to confirm' : 'Six-digit code'}
+            {mode === 'enroll' ? 'Then enter the six-digit code the app shows' : 'Six-digit code'}
           </span>
           <input
             ref={field}
@@ -155,7 +155,7 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
         </label>
         <button className="qa-login-submit" type="submit" disabled={busy || preparing || !factorId || code.length !== 6} style={{ width: '100%' }}>
           {busy ? <Loader2 size={16} className="qa-spin" /> : null}
-          {busy ? 'Checking' : mode === 'enroll' ? 'Turn On Two-Factor' : 'Continue'}
+          {busy ? 'Checking' : mode === 'enroll' ? 'Finish Set-Up' : 'Continue'}
         </button>
       </form>
       <button type="button" onClick={onCancel} style={{ display: 'block', margin: '14px auto 0', background: 'none', border: 0, color: dim, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}>

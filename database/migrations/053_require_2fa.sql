@@ -7,10 +7,9 @@
 -- only thing standing in the way.
 --
 -- Off by default, so a pilot starts without it and an executive switches it on
--- once their people have enrolled. The App Store review logins are unaffected
--- while it stays off for their organisation. Anyone who HAS enrolled is asked
--- for their code whatever this says: once you have a second factor, a password
--- alone no longer gets in.
+-- when ready; each supervisor, manager and executive then sets up an
+-- authenticator app at their next sign-in. The App Store review logins are
+-- unaffected while it stays off for their organisation.
 --
 -- Additive. The code treats a missing column as FALSE, so it is safe to apply
 -- before or after the deploy. PRODUCTION: backup first, owner's approval.
