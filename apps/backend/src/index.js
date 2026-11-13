@@ -177,6 +177,7 @@ app.use(generalLimiter);
 // Routes with per-endpoint rate limits
 /* sync-user is limited inside routes/auth.js now, after requireAuth, so the
    budget is per person rather than per address — see profileSyncLimiter. */
+app.use('/api/auth/mfa',       require('./routes/mfa'));
 app.use('/api/auth',           require('./routes/auth'));
 app.use('/api/app',            require('./routes/appVersion'));
 
