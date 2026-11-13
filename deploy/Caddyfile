@@ -33,8 +33,13 @@
 	# (/display/*, migration 052): they exist to be embedded in an
 	# organisation's own signage software, show no personal data and have no
 	# controls. The API sets their frame policy itself (frame-ancestors *).
+	# defer: set AFTER the API answers, so this replaces helmet's SAMEORIGIN
+	# rather than sending a second, conflicting header next to it.
 	@notDisplay not path /display/*
-	header @notDisplay X-Frame-Options "DENY"
+	header @notDisplay {
+		X-Frame-Options "DENY"
+		defer
+	}
 
 
 	# The live queue screens are Server-Sent Events. Caddy buffers proxied
