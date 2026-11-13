@@ -6,6 +6,7 @@ import { API_URL, supabase } from '@/lib/apiClient';
 // cycle with useSectorTerms, which imports this module for real.
 import type { SectorTerms } from './useSectorTerms';
 import { identifyForMonitoring } from '../lib/monitoring';
+import { finishRedirectIfAny } from '../lib/microsoftSignIn';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
@@ -49,7 +50,14 @@ export interface MfaGate {
   /** verify: has an authenticator app, enter its code. enroll: set one up first. */
   mode: 'verify' | 'enroll';
   name: string;
+  /** Set up by choice (Settings → Set Up At Sign-In), so it can be skipped. */
+  optional?: boolean;
 }
+
+/** Settings asks for two-factor set-up at the next sign-in by leaving this. */
+export const SETUP_2FA_KEY = 'lyne.setup2fa';
+const wantsSetup = () => { try { return sessionStorage.getItem(SETUP_2FA_KEY) === '1'; } catch { return false; } };
+export const clearSetupRequest = () => { try { sessionStorage.removeItem(SETUP_2FA_KEY); } catch { /* storage off */ } };
 
 interface MeMfa { required: boolean; enrolled: boolean; satisfied: boolean; aal: string; org_requires: boolean; applies: boolean }
 
@@ -92,6 +100,11 @@ async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
     },
   });
 
+  if (response.status === 404) {
+    /* Signed in to Supabase, but no Lyne staff record: most often a Microsoft
+       account nobody has connected yet. */
+    throw new AccessRefused('This account is not connected to a Lyne staff login. If you used Microsoft, sign in once with your Lyne email and password, then connect Microsoft in Settings.');
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
@@ -108,6 +121,10 @@ async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
   if (me.mfa && !me.mfa.satisfied) {
     return { mode: me.mfa.enrolled ? 'verify' : 'enroll', name: me.record.full_name };
   }
+  if (me.mfa && !me.mfa.enrolled && wantsSetup()) {
+    return { mode: 'enroll', name: me.record.full_name, optional: true };
+  }
+  if (me.mfa?.enrolled) clearSetupRequest();
 
   return {
     staffRecord: me.record,
@@ -169,6 +186,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       setLoading(true);
+      /* Back from Microsoft on the web: trade the code for a session first. */
+      const redirectError = await finishRedirectIfAny();
+      if (redirectError) refusedMessage.current = redirectError;
       const { data: { session } } = await timeout(supabase.auth.getSession());
       await applySession(session?.access_token);
     } catch (err) {

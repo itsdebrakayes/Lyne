@@ -15,7 +15,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import api, { supabase } from '@/lib/apiClient';
 import { Card, Note } from '@/design/ui';
-import MfaStep from '../MfaStep';
+import { SETUP_2FA_KEY, useAdminAuth } from '../../hooks/useAdminAuth';
+import { MICROSOFT_ENABLED, connectMicrosoft, disconnectMicrosoft, microsoftIdentity } from '@/lib/microsoftSignIn';
 
 type Status = { applies: boolean; org_requires: boolean; enrolled: boolean; required: boolean; aal: string | null; satisfied: boolean };
 type OrgStaff = { id: string; full_name: string; role: string; branch_name: string | null; must_use: boolean; has_login: boolean; enrolled: boolean | null; is_you: boolean };
@@ -31,10 +32,18 @@ const pill = (on: boolean | null) => ({
 export function MyTwoFactorPanel({ span = 12 }: { span?: number }) {
   const qc = useQueryClient();
   const status = useQuery({ queryKey: ['mfa-status'], queryFn: () => api.get<Status>('/auth/mfa/status') });
-  const [setting, setSetting] = useState(false);
+  const { logout } = useAdminAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const s = status.data;
+
+  /* Set-up happens on the sign-in screen, before anything inside the app,
+     never on a page that is already open. */
+  const setUpAtSignIn = async () => {
+    if (!window.confirm('You will be signed out. Sign in again and Lyne will show the QR code to set up your authenticator app before opening the dashboard.')) return;
+    try { sessionStorage.setItem(SETUP_2FA_KEY, '1'); } catch { /* storage off: they can still be asked by their organisation */ }
+    await logout();
+  };
 
   const remove = async () => {
     if (!window.confirm('Remove two-factor from your account? You will sign in with your password only.')) return;
@@ -57,20 +66,15 @@ export function MyTwoFactorPanel({ span = 12 }: { span?: number }) {
     <Card span={span} title="Two-Factor Sign-In" cap="A six-digit code from an authenticator app on your phone, asked for after your password. A stolen password alone then cannot open your account.">
       {status.isLoading ? <div style={{ color: 'var(--c-dim)', fontSize: 12.5 }}>Checking…</div>
         : status.error ? <Note icon={ShieldAlert} tone="bad" title="Could not check two-factor" body={(status.error as Error).message} />
-        : setting ? (
-          <div style={{ maxWidth: 380 }}>
-            <MfaStep mode="enroll" cancelLabel="Not now" onCancel={() => setSetting(false)}
-              onDone={async () => { setSetting(false); await supabase.auth.refreshSession(); qc.invalidateQueries({ queryKey: ['mfa-status'] }); }} />
-          </div>
-        ) : s?.enrolled ? (
+        : s?.enrolled ? (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <Note icon={ShieldCheck} title="On for your account" body={s.org_requires ? 'Your organisation requires it, so it cannot be removed here. If you lose your phone, an executive can reset it.' : 'You will be asked for a code each time you sign in.'} />
             {!s.org_requires ? <button type="button" className="qx-btn ghost" disabled={busy} onClick={remove}>Remove Two-Factor</button> : null}
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Note icon={ShieldAlert} tone={s?.org_requires && s.applies ? 'warn' : undefined} title="Not set up" body={s?.org_requires && s.applies ? 'Your organisation requires it. You will be asked to set it up at your next sign-in.' : 'Takes about a minute. You need an authenticator app on your phone.'} />
-            <button type="button" className="qx-btn" onClick={() => setSetting(true)}>Set Up Two-Factor</button>
+            <Note icon={ShieldAlert} tone={s?.org_requires && s.applies ? 'warn' : undefined} title="Not set up" body={s?.org_requires && s.applies ? 'Your organisation requires it. You will be asked to set it up at your next sign-in.' : 'Set up on the sign-in screen, in about a minute. You need an authenticator app on your phone.'} />
+            <button type="button" className="qx-btn" onClick={setUpAtSignIn}>Set Up At Sign-In</button>
           </div>
         )}
       {error ? <div style={{ color: 'var(--c-bad, #b42318)', fontSize: 12.5, marginTop: 8 }}>{error}</div> : null}
@@ -167,6 +171,51 @@ export function OrgTwoFactorPanel({ span = 12 }: { span?: number }) {
             {o.truncated ? <div style={{ color: 'var(--c-dim)', fontSize: 12, marginTop: 8 }}>Showing the first 300 people.</div> : null}
           </>
         ) : null}
+    </Card>
+  );
+}
+
+/**
+ * Connect a Microsoft work account to this Lyne login, so "Sign in with
+ * Microsoft" opens it (lib/microsoftSignIn.ts). Done while signed in, which is
+ * what proves the Microsoft account belongs to this person; Lyne never matches
+ * a Microsoft sign-in to staff by email.
+ */
+export function MicrosoftAccountPanel({ span = 12 }: { span?: number }) {
+  const qc = useQueryClient();
+  const linked = useQuery({ queryKey: ['ms-identity'], queryFn: microsoftIdentity, enabled: MICROSOFT_ENABLED });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!MICROSOFT_ENABLED) return null;
+  const email = (linked.data?.identity_data as { email?: string } | undefined)?.email;
+
+  const act = async (fn: () => Promise<unknown>) => {
+    setBusy(true); setError('');
+    try { await fn(); await qc.invalidateQueries({ queryKey: ['ms-identity'] }); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong.'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Card span={span} title="Microsoft Account" cap="Connect your work Microsoft account and you can use Sign in with Microsoft instead of your Lyne password. Your organisation's own Microsoft rules (password, two-step, leavers) then apply.">
+      {linked.isLoading ? <div style={{ color: 'var(--c-dim)', fontSize: 12.5 }}>Checking…</div>
+        : linked.data ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Note icon={ShieldCheck} title="Connected" body={email ? `Signed in as ${email} at Microsoft.` : 'A Microsoft account is connected.'} />
+            <button type="button" className="qx-btn ghost" disabled={busy}
+              onClick={() => { if (window.confirm('Disconnect Microsoft? You will sign in with your Lyne email and password.')) act(disconnectMicrosoft); }}>
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Note icon={ShieldAlert} title="Not connected" body="You sign in with your Lyne email and password." />
+            <button type="button" className="qx-btn" disabled={busy} onClick={() => act(connectMicrosoft)}>
+              {busy ? 'Waiting for Microsoft…' : 'Connect Microsoft'}
+            </button>
+          </div>
+        )}
+      {error ? <div style={{ color: 'var(--c-bad, #a62b25)', fontSize: 12.5, marginTop: 8 }}>{error}</div> : null}
     </Card>
   );
 }

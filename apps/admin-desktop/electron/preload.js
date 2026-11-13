@@ -26,4 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /* Reports tab: save a finished report as Word or PDF into the chosen folder. */
   saveReport: (args) => ipcRenderer.invoke('report:save', args),
+
+  /* Sign in with Microsoft: opens Microsoft's page in a separate, sandboxed
+     window and resolves with the address Supabase returned to (main.js). */
+  oauthSignIn: (url, returnTo) => ipcRenderer.invoke('oauth:start', { url, returnTo }),
 });

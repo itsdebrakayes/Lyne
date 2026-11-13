@@ -153,7 +153,7 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
             disabled={preparing || !factorId}
           />
         </label>
-        <button className="qa-login-submit qx-btn" type="submit" disabled={busy || preparing || !factorId || code.length !== 6} style={{ width: '100%' }}>
+        <button className="qa-login-submit" type="submit" disabled={busy || preparing || !factorId || code.length !== 6} style={{ width: '100%' }}>
           {busy ? <Loader2 size={16} className="qa-spin" /> : null}
           {busy ? 'Checking' : mode === 'enroll' ? 'Turn On Two-Factor' : 'Continue'}
         </button>
