@@ -131,6 +131,14 @@ function Hero() {
             See how it works <ArrowRight className="h-5 w-5" />
           </a>
         </motion.div>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="mt-5 text-sm text-lyne-lavender/60"
+        >
+          Available on the App Store and Google Play
+        </motion.p>
       </div>
     </section>
   );
