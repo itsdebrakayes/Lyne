@@ -524,6 +524,11 @@
 .qa-login-input .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--qa-faint);display:grid;place-items:center;width:32px;height:32px;cursor:pointer}
 .qa-login-submit{width:100%;border:0;background:var(--qa-grad);color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;box-shadow:0 8px 20px -6px rgba(60,120,220,.6);cursor:pointer}
 .qa-login-submit:disabled{opacity:.7;cursor:default}
+.qa-login-or{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--qa-faint);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.qa-login-or::before,.qa-login-or::after{content:"";flex:1;height:1px;background:var(--qa-line)}
+.qa-login-ms{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid #8c8c8c;background:#fff;color:#5e5e5e;font-family:"Segoe UI",system-ui,sans-serif;font-weight:600;font-size:15px;cursor:pointer}
+.qa-login-ms:hover{background:#f6f6f6}
+.qa-login-ms:disabled{opacity:.7;cursor:default}
 .qa-login-help{color:var(--qa-faint);font-size:12px;text-align:center;margin-top:16px}
 .qa-login-error{display:flex;align-items:center;gap:8px;background:var(--qa-neg-soft);color:var(--qa-neg);border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:16px}
 .qa-spin{animation:qa-rot 1s linear infinite}

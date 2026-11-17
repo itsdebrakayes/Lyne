@@ -10,6 +10,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const pool = require('../db/pool');
 const { sessionLimiter } = require('./sessionLimiter');
+const { mfaState, openBeforeCode, refusal } = require('../lib/mfa');
 
 // JWT verification must use a publishable/anon key. Service-role keys are
 // intentionally not accepted here because this middleware runs on every
@@ -74,7 +75,22 @@ async function requireAuth(req, res, next) {
 
   req.supabaseUser = user;
 
-  Object.assign(req, await lookupActorBySupabaseUid(user.id));
+  try {
+    Object.assign(req, await lookupActorBySupabaseUid(user.id));
+    /* Two-factor (lib/mfa.js, migration 053). Enforced here, on every request,
+       so a stolen password cannot reach a single staff route: the app's code
+       prompt is a convenience on top of this, not the protection. */
+    if (req.dbStaff) {
+      req.mfa = await mfaState(req.dbStaff, user, token);
+      if (!req.mfa.satisfied && !openBeforeCode(req)) {
+        const { status, body } = refusal(req.mfa);
+        return res.status(status).json(body);
+      }
+    }
+  } catch (err) {
+    console.error('[Auth] lookup:', err.message);
+    return res.status(503).json({ error: 'Could not check your account. Try again in a moment.' });
+  }
 
   return sessionLimiter(req, res, next);
 }
@@ -104,7 +120,14 @@ async function optionalAuth(req, _res, next) {
     if (error || !data?.user) return next();
 
     req.supabaseUser = data.user;
-    Object.assign(req, await lookupActorBySupabaseUid(data.user.id));
+    const actor = await lookupActorBySupabaseUid(data.user.id);
+    /* A staff session still waiting for its two-factor code is not a staff
+       identity yet: attach nothing rather than a half-proven one. */
+    if (actor.dbStaff && !(await mfaState(actor.dbStaff, data.user, authHeader.split(' ')[1])).satisfied) {
+      delete req.supabaseUser;
+      return next();
+    }
+    Object.assign(req, actor);
   } catch {
     /* Identification is a bonus here, never a gate. */
   }

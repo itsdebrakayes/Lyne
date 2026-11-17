@@ -93,7 +93,7 @@ legal advice. Have an attorney confirm it before relying on it in a contract.
 | Input validation | Every write validated against a schema; unknown fields stripped | `apps/backend/src/middleware/validate.js` (zod) | In place |
 | Verification codes | Six-character code proves the right person is at the counter; never sent to staff screens; an end-to-end test fails on a leak | `e2e/api-leaks.spec.ts` | In place |
 | Masked contact details | Phone numbers masked on case lists | `apps/backend/src/utils/maskData.js` | In place |
-| **Two-factor sign-in for staff** | Not available | none | **To do (product)**; see §8 |
+| **Two-factor sign-in for staff** | Built on staging (authenticator app, server-enforced, per-organisation switch); not yet on production | migration 053 | **Promote after a real-account test**; see §8 |
 
 ## 4. Personal data on the customer's phone
 
@@ -209,9 +209,10 @@ or Twilio.** To do (owner): add them.
    route removal and migration 050, encrypted off-site backups, the walk-in numbering fix and the
    public-insights switch (migration 051).
 3. **Two-factor sign-in for staff.** The Act doesn't name it, but any bank or government security
-   review will ask for it. Supabase supports authenticator-app codes (TOTP) at no extra cost. The
-   plan is to require it on the server for executives, managers and supervisors, by checking the
-   `aal2` claim in the sign-in token, with enrolment in the desktop admin; kiosk accounts are exempt.
+   review will ask for it. Built on 12 November 2026 (staging): authenticator-app codes (Supabase
+   TOTP, no extra cost), required on the server for executives, managers and supervisors when the
+   organisation switches it on, by checking the `aal2` claim in the sign-in token; set up in the
+   desktop admin; kiosk accounts are exempt; an executive can reset a lost phone.
    Single sign-on with an organisation's own identity provider is the second step. Both are set out
    in `docs/security/SIGN_IN_HARDENING_PLAN.md`.
 4. **Incident response procedure and breach register,** to meet the 72-hour notification duty: who
@@ -234,7 +235,7 @@ or Twilio.** To do (owner): add them.
 
 ## 9. What Lyne should not claim yet
 
-- "Two-factor authentication": not yet.
+- "Two-factor authentication": not until it is on production and has passed a real-account test.
 - "Off-site backups": only once the off-site step has run on production.
 - "TRN never reaches our servers": true for the apps today; unconditionally true once migration 050
   is applied.

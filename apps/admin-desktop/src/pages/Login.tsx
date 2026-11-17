@@ -1,14 +1,46 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, BarChart3, Eye, EyeOff, Loader2, ShieldCheck, Timer, Users } from 'lucide-react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import type { MfaGate } from '../hooks/useAdminAuth';
+import MfaStep from '../components/MfaStep';
+import { MICROSOFT_ENABLED, signInWithMicrosoft } from '../lib/microsoftSignIn';
+
+/* Microsoft's four-square logo, as its sign-in button guidelines ask. */
+function MicrosoftLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" /><rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" /><rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
+}
 import '../styles/admin-kit.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   /* authError carries a refusal from a saved session (a kiosk or customer
      login found at launch), which never went through this form. */
-  const { login, error: authError } = useAdminAuth();
+  const { login, logout, checkAuth, mfaGate: realGate, error: authError } = useAdminAuth();
+  /* Development only: #/login?preview-2fa=verify|enroll shows the code step
+     without a real account, for checking its layout. Gone from a build. */
+  const [params] = useSearchParams();
+  const preview = import.meta.env.DEV ? params.get('preview-2fa') : null;
+  const mfaGate: MfaGate | null = realGate ?? (preview === 'verify' || preview === 'enroll' ? { mode: preview, name: 'Preview' } : null);
+  const [msBusy, setMsBusy] = useState(false);
+
+  const microsoft = async () => {
+    setMsBusy(true);
+    setError('');
+    try {
+      const outcome = await signInWithMicrosoft();
+      if (outcome === 'done') { await checkAuth(); navigate('/'); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Microsoft sign-in failed.');
+    } finally {
+      setMsBusy(false);
+    }
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -26,6 +58,7 @@ export default function LoginPage() {
     try {
       const { error: authError } = await login(email, password);
       if (authError) throw authError;
+      // With two-factor still to do, stay here: the code prompt replaces the form.
       navigate('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid credentials.');
@@ -62,8 +95,20 @@ export default function LoginPage() {
         <div className="qa-login-card">
           <div className="qa-login-cardhead">
             <span className="shield"><ShieldCheck size={22} /></span>
-            <span><small>Secure Admin Access</small><h2>Sign In</h2></span>
+            <span>
+              <small>Secure Admin Access</small>
+              <h2>{mfaGate ? (mfaGate.mode === 'enroll' ? 'Set Up Two-Factor' : 'Enter Your Code') : 'Sign In'}</h2>
+            </span>
           </div>
+
+          {mfaGate ? (
+            <MfaStep
+              key={mfaGate.mode}
+              mode={mfaGate.mode}
+              onDone={() => { checkAuth().then(() => navigate('/')); }}
+              onCancel={() => { logout(); }}
+            />
+          ) : (<>
 
           {error || authError ? (
             <div className="qa-login-error"><AlertCircle size={16} /><span>{error || authError}</span></div>
@@ -91,10 +136,21 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {MICROSOFT_ENABLED ? (
+            <>
+              <div className="qa-login-or" aria-hidden="true"><span>or</span></div>
+              <button type="button" className="qa-login-ms" onClick={microsoft} disabled={msBusy || loading}>
+                {msBusy ? <Loader2 size={16} className="qa-spin" /> : <MicrosoftLogo />}
+                <span>{msBusy ? 'Waiting for Microsoft' : 'Sign in with Microsoft'}</span>
+              </button>
+            </>
+          ) : null}
+
           <p className="qa-login-help">
             Forgotten your password? Your branch manager or IT administrator can reset it —
             accounts are created for you, so there is no self-service reset.
           </p>
+          </>)}
         </div>
       </section>
     </div>

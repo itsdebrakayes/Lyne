@@ -51,7 +51,7 @@ const GetApp = ({ mobile = false }: { mobile?: boolean }) => {
               Get <span className="serif accent-text">Lyne.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-lg text-lyne-lavender/70">
-              Choose your store. The app is the same on both.
+              Available now on the App Store and Google Play. The app is the same on both.
             </p>
           </motion.div>
 

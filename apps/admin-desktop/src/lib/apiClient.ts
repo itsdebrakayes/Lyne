@@ -17,7 +17,12 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const API_URL = (import.meta.env.VITE_API_URL as string)
   || (import.meta.env.DEV ? 'http://localhost:4000/api' : '');
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* pkce: a Microsoft sign-in returns a one-time code that only this app can
+   trade for a session (it holds the verifier). detectSessionInUrl is off so the
+   code is handled in one place, lib/microsoftSignIn.ts, not twice. */
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { flowType: 'pkce', detectSessionInUrl: false },
+});
 
 async function getToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -44,7 +49,11 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText })) as { error?: string; message?: string };
+    const err = await res.json().catch(() => ({ message: res.statusText })) as { error?: string; message?: string; code?: string };
+    /* The server wants the two-factor code (or a set-up): useAdminAuth listens. */
+    if (res.status === 403 && (err.code === 'mfa_required' || err.code === 'mfa_enrollment_required')) {
+      window.dispatchEvent(new Event('lyne:mfa'));
+    }
     throw new Error(err.error || err.message || `HTTP ${res.status}`);
   }
 

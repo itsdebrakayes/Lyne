@@ -1,6 +1,6 @@
 # Sign-in hardening plan: two-factor and single sign-on
 
-**Date:** 12 November 2026. **Status:** plan, nothing here is built. Owner decides.
+**Date:** 12 November 2026. **Status:** step 1 (two-factor) is BUILT on `staging` (migration 053), not yet on production. Step 2 (single sign-on) is an idea for later: the owner asked to leave it alone for now.
 
 Staff sign in with an email and password through Supabase Auth. The server
 checks every request's token, the role and the organisation, and (since 12
@@ -18,14 +18,23 @@ our own sign-in?"
 | Does our password and lockout policy apply? | No (Lyne's: 8 characters minimum) | No | Yes |
 | Can we see who signed in? | Activity log in Lyne | The same | Their directory's log, and Lyne's |
 
-## Step 1: two-factor with an authenticator app (build first)
+## Step 1: two-factor with an authenticator app (built 12 November 2026)
+
+Built as described below. It is off by default and nobody switches it on for
+themselves. An executive requires it for the whole organisation or for single
+branches; a manager for their own branch only. A switch never reaches another
+branch or another organisation (tested). Everyone covered sets up their
+authenticator app on the sign-in screen at their next sign-in. Before
+switching it on for a real organisation, test it end to end with one real
+account: set it up, sign out, sign in with the code, have an executive reset it.
 
 **What:** a six-digit code from an authenticator app (Microsoft Authenticator,
 Google Authenticator, 1Password) after the password. Supabase Auth includes
 this (TOTP) at no extra charge.
 
-**Who:** required for executives, managers and supervisors. Optional for desk
-staff. Never for kiosks (a shared screen with nobody's phone beside it) or for
+**Who:** organisation switch (executive): its executives, managers and
+supervisors. Branch switch (that branch's manager, or an executive): that
+branch's managers and supervisors. Not desk staff. Never kiosks (a shared screen with nobody's phone beside it) or for
 members of the public using the app.
 
 **How:**
@@ -47,7 +56,13 @@ members of the public using the app.
 **Risk:** people locked out on day one. The per-organisation switch and a
 two-week "enrol by" banner handle that.
 
-## Step 2: single sign-on with the organisation's own directory (offer in pilots)
+## In between: "Sign in with Microsoft" (built 12 November 2026, off until set up)
+
+A button on the sign-in card, like "Sign in with Apple". Works for a Microsoft
+work account once its owner has connected it to their Lyne login while signed
+in. Setup and design: `MICROSOFT_SIGN_IN_SETUP.md`.
+
+## Step 2: single sign-on with the organisation's own directory (idea, not scheduled)
 
 **What:** staff type their work email, are sent to their organisation's own
 sign-in (Microsoft Entra ID, Okta, Google Workspace), and come back signed in.
@@ -86,8 +101,9 @@ Enterprise plans, set up during implementation.
 
 ## What not to say before these are built
 
-"Two-factor authentication" and "single sign-on" stay off the website, the
-deck and the security sheet. What is true today: role-based access checked on
+"Single sign-on" stays off the website, the deck and the security sheet.
+"Two-factor sign-in" may be claimed once it is on production and has passed
+the real-account test above. What is true today: role-based access checked on
 the server, organisation-level separation tested on every route, automatic
 sign-out of unattended screens, session limits and revocation, and a readable
 audit trail.

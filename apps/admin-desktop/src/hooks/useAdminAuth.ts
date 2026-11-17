@@ -6,6 +6,7 @@ import { API_URL, supabase } from '@/lib/apiClient';
 // cycle with useSectorTerms, which imports this module for real.
 import type { SectorTerms } from './useSectorTerms';
 import { identifyForMonitoring } from '../lib/monitoring';
+import { finishRedirectIfAny } from '../lib/microsoftSignIn';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
@@ -44,6 +45,15 @@ export interface StaffRecord {
   terms?: SectorTerms;
 }
 
+/** Signed in with a password, but the server wants the two-factor code (lib/mfa.js). */
+export interface MfaGate {
+  /** verify: has an authenticator app, enter its code. enroll: set one up first. */
+  mode: 'verify' | 'enroll';
+  name: string;
+}
+
+interface MeMfa { required: boolean; enrolled: boolean; satisfied: boolean; aal: string; org_requires: boolean; applies: boolean }
+
 interface AdminData {
   staffRecord: StaffRecord;
   name: string;
@@ -54,6 +64,8 @@ interface AdminAuthContextValue {
   admin: AdminData | null;
   loading: boolean;
   error: string | null;
+  /** Set while the session still needs its two-factor code; admin is null meanwhile. */
+  mfaGate: MfaGate | null;
   login: (email: string, password: string) => Promise<{ error: AuthError | Error | null }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -73,7 +85,7 @@ function timeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
 /** A real login that is not allowed in this app. The session is signed out. */
 class AccessRefused extends Error {}
 
-async function fetchAdmin(accessToken: string): Promise<AdminData> {
+async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
   const response = await fetch(`${API_URL}/auth/me`, {
     headers: {
       'Content-Type': 'application/json',
@@ -81,17 +93,26 @@ async function fetchAdmin(accessToken: string): Promise<AdminData> {
     },
   });
 
+  if (response.status === 404) {
+    /* Signed in to Supabase, but no Lyne staff record: most often a Microsoft
+       account nobody has connected yet. */
+    throw new AccessRefused('This account is not connected to a Lyne staff login. If you used Microsoft, sign in once with your Lyne email and password, then connect Microsoft in Settings.');
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
   }
 
-  const me = await response.json() as { type: string; record: StaffRecord };
+  const me = await response.json() as { type: string; record: StaffRecord; mfa?: MeMfa };
   if (me.type !== 'staff') {
     throw new AccessRefused('This is a customer account. Customers use the Lyne app on their phone; the admin app is for staff.');
   }
   if (!ADMIN_ROLES.includes(me.record.role_name)) {
     throw new AccessRefused(ELSEWHERE[me.record.role_name] || 'This account does not have admin access.');
+  }
+
+  if (me.mfa && !me.mfa.satisfied) {
+    return { mode: me.mfa.enrolled ? 'verify' : 'enroll', name: me.record.full_name };
   }
 
   return {
@@ -105,6 +126,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mfaGate, setMfaGate] = useState<MfaGate | null>(null);
   /* Survives the sign-out that a refusal triggers, which would otherwise clear
      the message before the login screen could show it. */
   const refusedMessage = useRef<string | null>(null);
@@ -112,6 +134,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const applySession = useCallback(async (accessToken: string | null | undefined) => {
     if (!accessToken) {
       setAdmin(null);
+      setMfaGate(null);
       /* Clear the error-reporting identity on the way out, or the next person
          to sign in on a shared branch terminal inherits the last one's id. */
       identifyForMonitoring(null, null);
@@ -122,7 +145,16 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
     let nextAdmin: AdminData;
     try {
-      nextAdmin = await fetchAdmin(accessToken);
+      const result = await fetchAdmin(accessToken);
+      if ('mode' in result) {
+        /* Password accepted, code still needed: no dashboard yet. The login
+           screen shows the code prompt (or the set-up screen) instead. */
+        setAdmin(null);
+        setMfaGate(result);
+        setError(null);
+        return;
+      }
+      nextAdmin = result;
     } catch (err) {
       /* Signed in to Supabase but not allowed here: end that session now, so
          the next launch opens on a clean login instead of retrying it. */
@@ -132,6 +164,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       }
       throw err;
     }
+    setMfaGate(null);
     setAdmin(nextAdmin);
     /* Two opaque ids only — never the email or name that sit beside them on
        this same object. See lib/monitoring.ts. */
@@ -142,6 +175,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       setLoading(true);
+      /* Back from Microsoft on the web: trade the code for a session first. */
+      const redirectError = await finishRedirectIfAny();
+      if (redirectError) refusedMessage.current = redirectError;
       const { data: { session } } = await timeout(supabase.auth.getSession());
       await applySession(session?.access_token);
     } catch (err) {
@@ -168,7 +204,11 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         })
         .finally(() => setLoading(false));
     });
-    return () => subscription.unsubscribe();
+    /* The API refused a request for want of the code (a session that lost its
+       second factor, or an organisation that just switched it on): ask again. */
+    const onMfa = () => { checkAuth(); };
+    window.addEventListener('lyne:mfa', onMfa);
+    return () => { subscription.unsubscribe(); window.removeEventListener('lyne:mfa', onMfa); };
   }, [applySession, checkAuth]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -198,12 +238,13 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setAdmin(null);
+    setMfaGate(null);
     setError(null);
   }, []);
 
   const value = useMemo(
-    () => ({ admin, loading, error, login, logout, checkAuth }),
-    [admin, loading, error, login, logout, checkAuth]
+    () => ({ admin, loading, error, mfaGate, login, logout, checkAuth }),
+    [admin, loading, error, mfaGate, login, logout, checkAuth]
   );
 
   return createElement(AdminAuthContext.Provider, { value }, children);
