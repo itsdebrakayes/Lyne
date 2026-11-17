@@ -1,10 +1,19 @@
 # Scotiabank demo, Wed 18 Nov 2026, 10:30 to 11:15 (Jamaica)
 
 Lignum Bank (`biz-lgb-001`) live on production. Demo window: **10:15 to 11:45**.
+
+**Everything that changes the system happens the night before (17 Nov), with final checks then.
+Nothing is deployed, restarted or edited on the morning of the demo.** The morning checklist only
+looks. The window starts by itself at 10:15.
+
+Admin app for the demo: **Lyne Admin** built on 17 Nov from the exact commit production runs,
+pointed at `https://api.uselyne.com`. Everyone signs in with their own login; no passwords are
+built into the app.
+
 Presenter logins: `lignum.*@uselyne.com` (passwords in `secrets/staff-logins.txt`).
 The demo.* logins stay on Blue Harbour.
 
-## 9:45 checklist (5 minutes)
+## 9:45 checklist (5 minutes, look only)
 
 1. **API is up.** In a browser, open `https://api.uselyne.com/health`. It should answer.
 2. **Window is armed.**
@@ -27,7 +36,8 @@ The demo.* logins stay on Blue Harbour.
 
 Check step 2 again. If the line is missing, or the window shows wrong times:
 
-**A. Quickest production fix (about 3 minutes, you run it).** Put Lignum back on the review
+**A. Only if you decide production must change (about 3 minutes, you run it).** This breaks
+the "no changes in the morning" rule, so use B first unless the audience must join on their phones. Put Lignum back on the review
 simulator. Its lines will then move and serve people by themselves, so you won't be the
 one calling them:
 ```bash
