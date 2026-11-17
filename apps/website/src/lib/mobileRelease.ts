@@ -38,9 +38,13 @@ export interface MobileStore {
 }
 
 export const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=com.lyne.mobile';
+/* App Store id 6818920326 (ascAppId in apps/mobile/eas.json). The id-only
+   address works in every country's store. */
+export const IOS_STORE_URL = 'https://apps.apple.com/app/id6818920326';
 
 export const MOBILE_STORES: MobileStore[] = [
-  { id: 'ios', label: 'App Store', url: clean(env.VITE_IOS_APP_URL), available: false },
+  /* Live on the App Store since 16 November 2026; the env var can still override. */
+  { id: 'ios', label: 'App Store', url: clean(env.VITE_IOS_APP_URL) || IOS_STORE_URL, available: false },
   /* Live on Google Play since October 2026; the env var can still override. */
   { id: 'android', label: 'Google Play', url: clean(env.VITE_ANDROID_APP_URL) || ANDROID_STORE_URL, available: false },
 ].map((s) => ({ ...s, available: s.url.length > 0 }));
