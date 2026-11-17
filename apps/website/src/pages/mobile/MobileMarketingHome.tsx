@@ -10,11 +10,9 @@ import {
   TrendingUp,
   ShieldCheck,
   Check,
-  Building2,
   Mail,
   Radio,
   Layers,
-  Sparkles,
 } from "lucide-react";
 import { MobileMarketingNav, MobileMarketingFooter } from "@/components/lyne/mobile/MobileMarketing";
 import { FloatingSquares } from "@/components/lyne/FloatingSquares";
@@ -152,7 +150,6 @@ function WhatItIs() {
     <section className="py-16 sm:py-20">
       <div className="lux-container grid items-start gap-8">
         <div>
-          <div className="chip chip-mute mb-5">What it is</div>
           <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             A simpler way to <span className="serif accent-text">wait your turn</span> — for everybody.
           </h2>
@@ -203,7 +200,6 @@ function Features() {
     <section id="features" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mb-14 max-w-2xl">
-          <div className="chip chip-mute mb-5">The product</div>
           <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Six simple things. <span className="serif accent-text">One easy app.</span>
           </h2>
@@ -253,7 +249,6 @@ function HowItWorks() {
     <section className="border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mb-14 max-w-3xl">
-          <div className="chip chip-mute mb-5">How it works</div>
           <h2 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Up and running in <span className="serif accent-text">minutes,</span> not months.
           </h2>
@@ -287,9 +282,6 @@ function ForBusiness() {
     <section id="partners" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container grid items-start gap-10">
         <div>
-          <div className="chip mb-5">
-            <Building2 className="h-3.5 w-3.5" /> For business
-          </div>
           <h2 className="mb-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Trust us to help you <span className="serif accent-text">run your day.</span>
           </h2>
@@ -375,7 +367,6 @@ function Pricing() {
     <section id="pricing" className="scroll-mt-20 border-t border-white/[0.06] py-16 sm:py-20">
       <div className="lux-container">
         <div className="mx-auto mb-10 max-w-2xl overflow-visible text-center">
-          <div className="chip chip-mute mb-5">Plans</div>
           <h2 className="pb-1 text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
             Plans that <span className="serif accent-text">grow with you.</span>
           </h2>
@@ -399,11 +390,6 @@ function Pricing() {
                   : "panel"
               }`}
             >
-              {plan.highlighted && (
-                <span className="chip mb-4 w-fit">
-                  <Sparkles className="h-3 w-3" /> Free for everyone
-                </span>
-              )}
               <p className="text-sm text-lyne-lavender/65">{plan.name}</p>
               <p className="mt-1 text-4xl font-bold tracking-tight">{plan.price}</p>
               <p className="mt-3 text-sm text-lyne-lavender/60">{plan.desc}</p>

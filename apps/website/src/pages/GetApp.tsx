@@ -46,7 +46,6 @@ const GetApp = ({ mobile = false }: { mobile?: boolean }) => {
             transition={{ duration: 0.6 }}
             className="mx-auto max-w-2xl text-center"
           >
-            <div className="chip chip-mute mx-auto mb-5 w-fit">Free for everyone</div>
             <h1 className={`${mobile ? "text-4xl" : "text-5xl sm:text-6xl"} font-bold leading-[1.05] tracking-tight`}>
               Get <span className="serif accent-text">Lyne.</span>
             </h1>
