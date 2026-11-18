@@ -85,8 +85,12 @@ function timeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
 /** A real login that is not allowed in this app. The session is signed out. */
 class AccessRefused extends Error {}
 
+/** The API refused the token (expired or revoked saved sign-in). */
+class SessionExpired extends Error {}
+
 async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
   const response = await fetch(`${API_URL}/auth/me`, {
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
@@ -96,8 +100,12 @@ async function fetchAdmin(accessToken: string): Promise<AdminData | MfaGate> {
   if (response.status === 404) {
     /* Signed in to Supabase, but no Lyne staff record: most often a Microsoft
        account nobody has connected yet. */
-    throw new AccessRefused('This account is not connected to a Lyne staff login. If you used Microsoft, sign in once with your Lyne email and password, then connect Microsoft in Settings.');
+    throw new AccessRefused('This account is not set up as Lyne staff. Check the email address, or ask your manager to add you.');
   }
+  /* The token was refused: a saved sign-in that has expired. Not the user's
+     fault and not worth a message; the caller refreshes once or signs out. */
+  if (response.status === 401) throw new SessionExpired();
+  if (response.status >= 500) throw new Error('Lyne could not be reached just now. Try again in a moment.');
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
@@ -145,7 +153,28 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
     let nextAdmin: AdminData;
     try {
-      const result = await fetchAdmin(accessToken);
+      let result: AdminData | MfaGate;
+      try {
+        result = await fetchAdmin(accessToken);
+      } catch (err) {
+        if (!(err instanceof SessionExpired)) throw err;
+        /* A saved sign-in that has gone stale: refresh it once. If that
+           fails too, sign out quietly and show a clean login, no error. */
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        if (!data.session?.access_token) {
+          await supabase.auth.signOut().catch(() => {});
+          setAdmin(null); setMfaGate(null); setError(null);
+          return;
+        }
+        try {
+          result = await fetchAdmin(data.session.access_token);
+        } catch (again) {
+          if (!(again instanceof SessionExpired)) throw again;
+          await supabase.auth.signOut().catch(() => {});
+          setAdmin(null); setMfaGate(null); setError(null);
+          return;
+        }
+      }
       if ('mode' in result) {
         /* Password accepted, code still needed: no dashboard yet. The login
            screen shows the code prompt (or the set-up screen) instead. */
