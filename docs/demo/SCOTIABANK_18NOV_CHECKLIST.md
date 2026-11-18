@@ -6,8 +6,10 @@ Lignum Bank (`biz-lgb-001`) live on production. Demo window: **10:15 to 11:45**.
 Nothing is deployed, restarted or edited on the morning of the demo.** The morning checklist only
 looks. The window starts by itself at 10:15.
 
-Admin app for the demo: **Lyne Admin** (`Claude outputs/Lyne Admin - production/`) built on 17 Nov
-from the production commit 344a2f6 (loading fix: light skeleton while figures load, no black screen),
+Admin app for the demo: **Lyne Admin** (`Claude outputs/Lyne Admin - production/Lyne Admin-1.0.1-universal.dmg`),
+built on 18 Nov from production cae5d49. One installer for every Mac (runs natively on Apple-chip Macs,
+no Rosetta), light loading cards instead of a black screen, draggable from the top edge, and only one copy
+can be open at a time (a second copy made everything slow),
 pointed at `https://api.uselyne.com`. Everyone signs in with their own login; no passwords are
 built into the app.
 
@@ -18,7 +20,7 @@ Patricia Henry (executive). The Microsoft button is on the sign-in screen for lo
 and password.
 
 **Tell the room:** join Half Way Tree → **Deposits & Withdrawals**. The first person to join reaches
-the front at about **10:55** and waits there for you to call them as Alicia at Teller 1.
+the front at **11:00** and waits there for you to call them as Alicia at Teller 1.
 
 ## 9:45 checklist (5 minutes, look only)
 
@@ -27,9 +29,9 @@ the front at about **10:55** and waits there for you to call them as Alicia at T
    ```bash
    ssh lyne@64.225.48.161 'docker logs lyne_api 2>&1 | grep ReviewSimulator | tail -2'
    ```
-   You should see `Demo window for biz-lgb-001: 2026-11-18T15:15:00.000Z to 2026-11-18T16:45:00.000Z`.
+   You should see `Demo window for biz-lgb-001: 2026-11-18T15:15:00.000Z to 2026-11-18T16:45:00.000Z; first in line at the front 2026-11-18T16:00:00.000Z` (16:00Z is 11:00 Jamaica).
    The ACTIVE line should not list `biz-lgb-001`.
-3. **Admin sign-in.** Open **Lyne Admin** (the installed one, not "Demo"). Sign in as
+3. **Admin sign-in.** Open **Lyne Admin** (the installed one, not "Demo"; only one copy open). Sign in as
    `lignum.officer`, then sign out and sign in as `lignum.executive`. The executive should see
    three branches. The Overview forecast and Branch Comparison should have data up to 16 Nov.
 4. **Phone.** On your own phone, open the store Lyne app, find **Lignum Bank → Half Way Tree**,
