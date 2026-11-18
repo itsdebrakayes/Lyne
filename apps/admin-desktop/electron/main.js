@@ -105,7 +105,7 @@ function createWindow() {
       ? { titleBarStyle: 'hiddenInset' }
       : {
           titleBarStyle: 'hidden',
-          titleBarOverlay: { color: '#0a0a0a', symbolColor: '#ffffff', height: 36 },
+          titleBarOverlay: { color: '#EFF2F7', symbolColor: '#0B1B3F', height: 36 },
         }),
 
     webPreferences: {

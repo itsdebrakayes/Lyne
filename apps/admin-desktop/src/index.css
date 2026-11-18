@@ -2722,3 +2722,20 @@ button.exec-kpi-card { cursor: pointer; }
   .health-row { grid-template-columns: 4px minmax(120px, 1.2fr) minmax(60px, 1fr) 30px; gap: 10px; }
   .branch-health-row { grid-template-columns: minmax(140px, 1.4fr) minmax(70px, 1fr) 30px 18px; gap: 10px; }
 }
+
+/* Moving the window. The desktop app hides the system title bar (hiddenInset on
+   macOS, an overlay on Windows), so without these nothing on screen can be
+   grabbed and the window cannot be dragged to another display. A strip along
+   the top of every screen, the dashboard top bar and the logo corner drag the
+   window; anything you can click or type in inside them still works. Browsers
+   ignore app-region, so the web admin is unaffected. */
+body::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 36px;
+  -webkit-app-region: drag; app-region: drag; pointer-events: none; z-index: 2147483647;
+}
+.qx-top, .qx-brand { -webkit-app-region: drag; app-region: drag; }
+button, a, input, select, textarea, label, summary, [role="button"], [role="tab"],
+[role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [tabindex]:not([tabindex="-1"]),
+[contenteditable="true"], .qx-top *:is(button, a, input), .qx-brand *:is(button, a) {
+  -webkit-app-region: no-drag; app-region: no-drag;
+}
