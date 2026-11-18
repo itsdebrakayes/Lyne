@@ -4,7 +4,7 @@
  * Attaches the Supabase JWT to every request to the Lyne backend.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, processLock } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -20,8 +20,14 @@ export const API_URL = (import.meta.env.VITE_API_URL as string)
 /* pkce: a Microsoft sign-in returns a one-time code that only this app can
    trade for a session (it holds the verifier). detectSessionInUrl is off so the
    code is handled in one place, lib/microsoftSignIn.ts, not twice. */
+/* lock: processLock. The default is the browser's navigator.locks, which on
+   the packaged app's app:// origin never grants the lock: every getSession()
+   (one per API request) sat out the full 5-second acquire timeout, so after
+   sign-in the window stood empty for 5-60 seconds while localhost was instant
+   (measured with the debugger on 17 Nov 2026). The app is one window, so an
+   in-process lock is all the coordination it needs. */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { flowType: 'pkce', detectSessionInUrl: false },
+  auth: { flowType: 'pkce', detectSessionInUrl: false, lock: processLock },
 });
 
 async function getToken(): Promise<string | null> {

@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import api from '@/lib/apiClient';
+import { useFirstLoad } from '@/design/ui';
 
 export type QueueRow = {
   id: string; branch_id?: string; branch_name?: string; service_id?: string; service_name?: string;
@@ -293,9 +294,10 @@ export function useDashboardData(serviceId = '') {
     employeeKpis, predictions, pipeline, balking, channels, productivity,
   ];
   const activeQueries = allQueries.filter((q) => q.dataUpdatedAt > 0);
+  const firstLoad = useFirstLoad(allQueries);
 
   return {
-    admin, businessId, branchId, analyticsQuery,
+    admin, businessId, branchId, analyticsQuery, firstLoad,
     presence: presence.data ?? [],
     /* The OLDEST panel on screen, not the newest.
        "Updated 14:32" has to be a promise about everything the reader can see.

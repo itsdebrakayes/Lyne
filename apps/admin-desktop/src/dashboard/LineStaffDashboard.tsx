@@ -8,7 +8,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import MessageComposer from '../components/MessageComposer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, Freshness, greetingFor } from '@/design/ui';
+import { Shell as QxShell, Head as QxHead, RefreshIcon as QxRefresh, Freshness, greetingFor, useFirstLoad } from '@/design/ui';
 import { LineDataProvider, LineOverviewQX, lineTab, LINE_TAB_HEAD } from './qx/LineTabsQX';
 import { buildLineData } from './qx/lineLiveData';
 
@@ -117,6 +117,7 @@ export default function LineStaffDashboard() {
   /* failureCount, not isError — see useDashboardData. A query that has ever
      succeeded keeps status 'success' through every later failure. */
   const hasError = lsQueries.some((q) => q.failureCount > 0);
+  const firstLoad = useFirstLoad(lsQueries);
 
   const tickets = ticketsQuery.data || [];
   const waiting = tickets.filter((t) => t.status === 'waiting').sort((a, b) => a.position - b.position);
@@ -329,6 +330,7 @@ export default function LineStaffDashboard() {
 
   return (
     <QxShell
+      loading={firstLoad.loading} failed={firstLoad.failed} onRetry={() => lsQueries.forEach((q) => q.refetch())}
       notifications={notify.unread}
       notify={notify}
       brand="Lyne"
