@@ -14,8 +14,9 @@
  * Every failure path is silent and falls back to the onboarding answer. Nothing
  * here is load-bearing enough to show an error about.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Location from 'expo-location';
+import { useInterval } from './timing';
 
 export type DevicePlace = { city: string; country: string; countryCode: string } | null;
 
@@ -60,24 +61,25 @@ export type Coords = { lat: number; lng: number } | null;
 
 export function useDeviceCoords(): Coords {
   const [coords, setCoords] = useState<Coords>(null);
-  useEffect(() => {
-    let alive = true;
-    const read = async () => {
+  const alive = useRef(true);
+  const read = async () => {
       try {
         const permission = await Location.getForegroundPermissionsAsync();
         if (permission.status !== 'granted') return;
         const position =
           (await Location.getLastKnownPositionAsync()) ||
           (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
-        if (position && alive) setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        if (position && alive.current) setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
       } catch {
         /* No location is a normal state: the list falls back to shortest wait. */
       }
     };
+  useEffect(() => {
+    alive.current = true;
     read();
-    const id = setInterval(read, 60_000);
-    return () => { alive = false; clearInterval(id); };
+    return () => { alive.current = false; };
   }, []);
+  useInterval(read, 60_000);
   return coords;
 }
 

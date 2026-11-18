@@ -1,0 +1,17 @@
+{
+  "name": "lyne-checks",
+  "private": true,
+  "type": "module",
+  "description": "Corrections turned into checks that fail. Run from the repo root: npm --prefix tools/checks run check",
+  "scripts": {
+    "check": "node repo-checks.mjs && npm run lint",
+    "lint": "cd ../.. && tools/checks/node_modules/.bin/eslint -c tools/checks/eslint.config.mjs --max-warnings 0 apps/admin-desktop/src apps/admin-desktop/electron apps/mobile/src apps/backend/src",
+    "repo": "node repo-checks.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "typescript-eslint": "^8.18.1"
+  }
+}

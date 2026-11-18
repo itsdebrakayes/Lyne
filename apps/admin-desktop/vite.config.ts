@@ -48,7 +48,11 @@ export default defineConfig(({ mode }) => {
         {
           entry: 'electron/main.js',
           onstart(options) {
-            options.startup();
+            /* LYNE_ELECTRON_ARGS lets an agent walk the dev window beside the
+               installed app (docs/FEATURE_MAP.md, "How to check"), e.g.
+               "--user-data-dir=/tmp/lyne-verify --remote-debugging-port=9333". */
+            const extra = process.env.LYNE_ELECTRON_ARGS?.split(' ').filter(Boolean);
+            options.startup(extra?.length ? ['.', '--no-sandbox', ...extra] : undefined);
           },
           vite: {
             build: {

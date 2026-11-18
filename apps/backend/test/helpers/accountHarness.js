@@ -257,7 +257,8 @@ async function startWith({ serviceKey = 'service-key', deleteUser } = {}) {
   }, module);
   stubModule('../../src/db/pool', fakePool, module);
 
-  // The auth route reads SUPABASE_SERVICE_KEY at module scope.
+  // The service client is built once per process from SUPABASE_SERVICE_KEY.
+  forget('../../src/lib/supabaseAdmin', module);
   forget('../../src/routes/auth', module);
   forget('../../src/routes/staff-invite', module);
 

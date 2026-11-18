@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, X } from 'lucide-react';
 import api from '@/lib/apiClient';
+import { useTimeout } from '../lib/timing';
 
 export type ComposerTarget =
   | { mode: 'role'; to: 'executive' | 'manager' | 'supervisor' | 'line_staff'; label: string; branchId?: string }
@@ -29,6 +30,8 @@ export function MessageComposer({ target, onClose }: { target: ComposerTarget; o
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  // The confirmation stays up long enough to read, then the dialog closes itself.
+  useTimeout(onClose, state === 'sent' ? 1400 : null);
   const [error, setError] = useState('');
   const first = useRef<HTMLTextAreaElement>(null);
 
@@ -51,9 +54,6 @@ export function MessageComposer({ target, onClose }: { target: ComposerTarget; o
           ? { in_reply_to: target.inReplyTo, message: text }
           : { to: target.to, branch_id: target.branchId, subject: subject.trim() || undefined, message: text });
       setState('sent');
-      /* Held open for a beat on success so the confirmation is actually read,
-         rather than the dialog vanishing and leaving the person unsure. */
-      setTimeout(onClose, 1400);
     } catch (e: any) {
       setState('error');
       setError(e?.message || 'That did not send. Try again in a moment.');

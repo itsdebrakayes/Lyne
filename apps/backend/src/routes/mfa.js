@@ -23,20 +23,12 @@
 const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const { z } = require('zod');
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAdmin: admin } = require('../lib/supabaseAdmin');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, isPlatformAdmin } = require('../middleware/tenantAccess');
 const { MFA_ROLES, BRANCH_ROLES, forgetOrg, hasVerifiedTotp } = require('../lib/mfa');
 
-const serviceKey = () => process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-let adminClient = null;
-function admin() {
-  if (!adminClient && process.env.SUPABASE_URL && serviceKey()) {
-    adminClient = createClient(process.env.SUPABASE_URL, serviceKey(), { auth: { autoRefreshToken: false, persistSession: false } });
-  }
-  return adminClient;
-}
 
 const audit = (req, businessId, action, resourceType, resourceId) => pool.query(
   `INSERT INTO audit_logs (id, actor_id, actor_type, business_id, action, resource_type, resource_id, ip_address, user_agent)

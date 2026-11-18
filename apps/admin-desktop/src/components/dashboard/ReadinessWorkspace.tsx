@@ -8,6 +8,7 @@ import {
 import api from '@/lib/apiClient';
 import { Card, Pills, Stat, Status } from '@/design/ui';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
+import { useTimeout } from '../../lib/timing';
 
 export type ReadinessService = {
   id: string;
@@ -83,6 +84,7 @@ function ReadinessEditor({ services, initialServiceId }: {
   const [items, setItems] = useState<ReadinessItem[]>([]);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  useTimeout(() => setSaved(false), saved ? 2600 : null);
 
   useEffect(() => {
     const preferred = initialServiceId && services.some((service) => service.id === initialServiceId)
@@ -128,7 +130,6 @@ function ReadinessEditor({ services, initialServiceId }: {
       await qc.invalidateQueries({ queryKey: ['readiness-service', selectedId] });
       await qc.invalidateQueries({ queryKey: ['readiness-services'] });
       await qc.invalidateQueries({ queryKey: ['readiness-analytics'] });
-      window.setTimeout(() => setSaved(false), 2600);
     },
   });
 

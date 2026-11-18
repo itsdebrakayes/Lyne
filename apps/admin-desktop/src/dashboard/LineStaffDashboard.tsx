@@ -26,6 +26,7 @@ import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import Spotlight, { TOURS } from '../components/Spotlight';
 import { useTour } from '../hooks/useTour';
 import { StaffReadinessWorkspace } from '../components/dashboard/ReadinessWorkspace';
+import { useNow, useTimeout } from '../lib/timing';
 
 type QueueRow = { id: string; waiting_count?: number; avg_wait_minutes?: number; service_name?: string; branch_name?: string; service_id?: string; is_mine?: number | string };
 type TicketRow = {
@@ -42,7 +43,6 @@ const secSince = (iso?: string) => (iso ? Math.max(0, Math.floor((Date.now() - D
 const secUntil = (iso?: string) => (iso ? Math.floor((Date.parse(iso) - Date.now()) / 1000) : 0);
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 const when = (iso?: string) => { if (!iso) return ''; try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
-function useNow(ms = 1000) { const [, set] = useState(0); useEffect(() => { const id = window.setInterval(() => set((x) => x + 1), ms); return () => window.clearInterval(id); }, [ms]); }
 
 const NAV = [
   { key: 'live', label: 'Live line', icon: Monitor },
@@ -57,7 +57,6 @@ const NAV = [
 export default function LineStaffDashboard() {
   const terms = useSectorTerms();
   const { admin, logout } = useAdminAuth();
-  const tour = useTour('line_staff');
   const qc = useQueryClient();
   const [tab, setTab] = useState('live');
   /* History defaults to the WEEK, not today. At 8am nobody has been served
@@ -73,11 +72,7 @@ export default function LineStaffDashboard() {
   const [msg, setMsg] = useState('');
   // Status messages are transient — auto-clear so an error can never sit on
   // screen forever, and drop it when the user moves to another tab.
-  useEffect(() => {
-    if (!msg) return;
-    const t = window.setTimeout(() => setMsg(''), 5000);
-    return () => window.clearTimeout(t);
-  }, [msg]);
+  useTimeout(() => setMsg(''), msg ? 5000 : null, msg);
   useEffect(() => { setMsg(''); }, [tab]);
   // Contextual search over the ticket/history lists.
   const [q, setQ] = useState('');
@@ -86,7 +81,7 @@ export default function LineStaffDashboard() {
   const tmatch = (t: any) => !needle
     || String(t.ticket_number ?? '').toLowerCase().includes(needle)
     || String(t.user_name ?? '').toLowerCase().includes(needle);
-  useNow();
+  useNow(1000);
 
   const queues = useQuery({ queryKey: ['ls-queues'], queryFn: () => api.get<QueueRow[]>('/queues/mine'), enabled: !!admin, refetchInterval: 10_000 });
   /* The clerk's own line first. With the branch's overflow setting on, the
@@ -118,6 +113,7 @@ export default function LineStaffDashboard() {
      succeeded keeps status 'success' through every later failure. */
   const hasError = lsQueries.some((q) => q.failureCount > 0);
   const firstLoad = useFirstLoad(lsQueries);
+  const tour = useTour('line_staff', !firstLoad.loading);
 
   const tickets = ticketsQuery.data || [];
   const waiting = tickets.filter((t) => t.status === 'waiting').sort((a, b) => a.position - b.position);

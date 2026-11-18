@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import * as Network from 'expo-network';
 import { onlineManager } from '@tanstack/react-query';
+import { useInterval } from './timing';
 
 /**
  * The last time a request to our API actually succeeded.
@@ -100,19 +101,17 @@ export function useIsOffline() {
       if (!cancelled) setOffline(!isOnline(state));
     });
 
-    /* Re-check on a timer as well as on OS events. A successful request is
-       evidence the listener never hears about, so without this the banner
-       would stay up until the radio next changed state — which, on a device
-       that never actually lost its connection, might be never. */
-    const poll = setInterval(() => {
-      if (cancelled) return;
-      Network.getNetworkStateAsync()
-        .then((state) => { if (!cancelled) setOffline(!isOnline(state)); })
-        .catch(() => { if (!cancelled) setOffline(false); });
-    }, 5000);
-
-    return () => { cancelled = true; subscription.remove(); clearInterval(poll); };
+    return () => { cancelled = true; subscription.remove(); };
   }, []);
+
+  /* Re-checked on a timer as well as on OS events: a request that succeeds is
+     evidence the listener never hears about, and without it the banner would
+     stay up until the radio next changed state. */
+  useInterval(() => {
+    Network.getNetworkStateAsync()
+      .then((state) => setOffline(!isOnline(state)))
+      .catch(() => setOffline(false));
+  }, 5000);
 
   return offline;
 }

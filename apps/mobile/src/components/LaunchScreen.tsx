@@ -27,6 +27,7 @@ import Animated, {
   useSharedValue, withTiming, type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import { useTimeout } from '../lib/timing';
 
 const BG = '#0C1B40';
 const INK = '#FFFFFF';
@@ -215,11 +216,7 @@ export default function LaunchScreen({ onDone, onFirstLayout, ready = true }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!held) return;
-    const id = setTimeout(() => setTimedOut(true), MAX_HOLD_MS);
-    return () => clearTimeout(id);
-  }, [held]);
+  useTimeout(() => setTimedOut(true), held ? MAX_HOLD_MS : null);
   useEffect(() => {
     if (!held || !(ready || timedOut) || leaving.current) return;
     leaving.current = true;

@@ -17,6 +17,7 @@ import { usePlaceWords } from '../../lib/placeWords';
 import {
   TriageQuestions, UrgentNotice, triageComplete, triagePayload, triageRedFlag, type TriageAnswers, type TriageQuestion,
 } from '../../components/TriageQuestions';
+import { useNow } from '../../lib/timing';
 
 type Params = RouteProp<RootStackParamList, 'JoinQueue'>;
 interface LiveQueue { id: string | null; waiting_count: number; estimated_wait_minutes: number; }
@@ -58,11 +59,7 @@ export default function JoinQueueScreen() {
 
   // Tick so the screen unlocks itself the moment the branch opens or the
   // walk-in buffer expires — the user should never have to back out and return.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(30_000);
 
   const joinState = useMemo(() => remoteJoinInfo(now, hoursFromBranch(branch)), [now, branch]);
   const queueOpen = !!liveQueue?.id;

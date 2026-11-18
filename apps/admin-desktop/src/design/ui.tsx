@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, Presentation, RefreshCw, Search } from 'lucide-react';
 import { usePresentationMode } from '@/lib/presentation';
+import { useNow, useTimeout } from '../lib/timing';
 import './qx.css';
 
 /* ─────────────────────── helpers ─────────────────────── */
@@ -324,11 +325,7 @@ export function Freshness({ at, fetching, failed }: { at: number; fetching?: boo
   /* Ticks so the label ages on its own. Without it "Updated 14:32" is written
      once and then sits there while the clock moves, which is the same lie in a
      more specific font. */
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 20_000);
-    return () => clearInterval(id);
-  }, []);
+  useNow(20_000);
 
   if (failed) {
     return (
@@ -1108,7 +1105,7 @@ export function LoadFailed({ onRetry }: { onRetry?: () => void }) {
     and the attempts failed. */
 export function useFirstLoad(queries: Array<{ dataUpdatedAt: number; failureCount: number; fetchStatus: string }>, capMs = 4000) {
   const [capped, setCapped] = useState(false);
-  useEffect(() => { const id = window.setTimeout(() => setCapped(true), capMs); return () => window.clearTimeout(id); }, [capMs]);
+  useTimeout(() => setCapped(true), capMs);
   const enabled = queries.filter((q) => q.fetchStatus !== 'idle' || q.dataUpdatedAt > 0 || q.failureCount > 0);
   const loadedAny = queries.some((q) => q.dataUpdatedAt > 0);
   const pending = enabled.filter((q) => q.dataUpdatedAt === 0 && q.failureCount === 0).length;

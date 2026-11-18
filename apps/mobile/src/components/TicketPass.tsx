@@ -21,6 +21,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, font, shadow } from '../lib/theme';
+import { useInterval } from '../lib/timing';
 
 const num = (v: unknown, fallback = 0) => {
   const n = Number(v);
@@ -208,11 +209,7 @@ export function TicketPass({
      moves without anybody touching the screen. A minute is the resolution the
      numbers are stated in, so a minute is how often it needs to change. */
   const [, tick] = useState(0);
-  useEffect(() => {
-    if (!active) return undefined;
-    const id = setInterval(() => tick(n => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, [active]);
+  useInterval(() => tick(n => n + 1), active ? 30_000 : null);
 
   const progress = useMemo(
     () => computeProgress(joinedAt, remainingMinutes),

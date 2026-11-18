@@ -47,6 +47,7 @@ import { useAuth, KioskActor } from '../../hooks/useAuth';
 import {
   TriageQuestions, UrgentNotice, triageComplete, triagePayload, type TriageAnswers, type TriageQuestion,
 } from '../../components/TriageQuestions';
+import { useInterval, useNow } from '../../lib/timing';
 
 interface WalkInTicket {
   id: string;
@@ -103,11 +104,7 @@ function Chrome({ step, org, branch, onHome, withTriage = false }: {
   withTriage?: boolean;
 }) {
   const steps = withTriage ? STEPS : STEPS.filter((s) => s.key !== 'triage');
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(1000);
   const idx = steps.findIndex(s => s.key === step);
 
   return (
@@ -793,10 +790,7 @@ function Ticket({ ticket, serviceName, notify, onDone, kx }: {
   onDone: () => void; kx: KioskScale;
 }) {
   const [left, setLeft] = useState(RESET_SECONDS);
-  useEffect(() => {
-    const id = setInterval(() => setLeft(s => (s <= 1 ? 0 : s - 1)), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useInterval(() => setLeft(s => Math.max(0, s - 1)), left > 0 ? 1000 : null);
   /* Reset from an effect watching the counter, not from inside the tick — a
      setState-during-interval that calls a parent updater mid-render is how a
      terminal ends up resetting twice and losing the next person's first tap. */

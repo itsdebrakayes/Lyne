@@ -59,18 +59,17 @@ export function replayTour() {
   window.dispatchEvent(new Event(REPLAY_EVENT));
 }
 
-export function useTour(role?: string) {
+/** `ready` is the dashboard's first load having finished: the tour points at
+ *  parts of the screen that only exist once the figures are in. */
+export function useTour(role: string | undefined, ready: boolean) {
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
-    if (!role) return;
+    if (!role || !ready) return;
     let alive = true;
-    // A beat after mount, so the screen it points at has actually rendered.
-    const t = setTimeout(() => {
-      hasSeen(role).then((seen) => { if (alive && !seen) setRunning(true); });
-    }, 900);
-    return () => { alive = false; clearTimeout(t); };
-  }, [role]);
+    hasSeen(role).then((seen) => { if (alive && !seen) setRunning(true); });
+    return () => { alive = false; };
+  }, [role, ready]);
 
   // Replay, asked for from Help & Support.
   useEffect(() => {

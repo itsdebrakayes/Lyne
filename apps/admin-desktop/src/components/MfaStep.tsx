@@ -44,6 +44,8 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [preparing, setPreparing] = useState(true);
+  // The code box is disabled until the factor is ready; focus it the moment it is.
+  useEffect(() => { if (!preparing && factorId) field.current?.focus(); }, [preparing, factorId]);
   const [error, setError] = useState('');
   const started = useRef(false);
   const field = useRef<HTMLInputElement>(null);
@@ -80,7 +82,6 @@ export default function MfaStep({ mode, onDone, onCancel, cancelLabel = 'Sign ou
         setError(err instanceof Error ? err.message : 'Could not start two-factor. Try again.');
       } finally {
         setPreparing(false);
-        window.setTimeout(() => field.current?.focus(), 50);
       }
     })();
   }, [mode]);

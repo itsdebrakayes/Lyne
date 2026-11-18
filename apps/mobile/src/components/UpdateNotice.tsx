@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, shadow } from '../lib/theme';
 import { compareVersions, storeInfo } from '../lib/storeLinks';
 import Icon from './Icon';
+import { useTimeout } from '../lib/timing';
 
 const DISMISSED_KEY = 'lyne.updateDismissedFor';
 const AUTO_HIDE_MS = 15000;
@@ -60,11 +61,7 @@ export function UpdateNotice() {
     return () => sub.remove();
   }, [notice]);
 
-  useEffect(() => {
-    if (!notice || notice.required) return;
-    const t = setTimeout(() => setNotice(null), AUTO_HIDE_MS);
-    return () => clearTimeout(t);
-  }, [notice]);
+  useTimeout(() => setNotice(null), notice && !notice.required ? AUTO_HIDE_MS : null, notice);
 
   if (!notice) return null;
   const update = () => Linking.openURL(notice.url).catch(() => {});

@@ -108,6 +108,7 @@ database/
 deploy/            Everything for the droplet: compose file, Caddyfile, deploy/verify/backup scripts, env example
 supabase/          Supabase config, edge functions, email templates, Supabase-side migrations
 docs/              Design, operations and launch documents (index in §23)
+tools/checks/      Lint rules and repo checks that turn corrections into failures (§14)
 legal/             Privacy policy, terms, account deletion, cookie and refund policy (source text)
 e2e/               Playwright end-to-end tests
 store-assets/      App Store / Play screenshots and graphics
@@ -407,10 +408,12 @@ docker compose --profile tools up -d adminer               # optional database b
 | Properties | Position allocator and end-of-day lifecycle | `check-position-allocator.mjs`, `check-end-of-day.mjs` |
 | End to end | Playwright against the real admin and mobile web builds, including the verification-code leak check | `npm run test:e2e` (from the repo root, against the demo stack) |
 | Model | ML helper tests | `cd apps/model && python -m unittest discover -s tests -v` |
+| Corrections | Lint rules and repo checks made from the owner's corrections: no raw timers in UI code, window/main-process import walls, one Supabase service client, every API variable reaches production, demo files off production, no tracked secrets, scoped `umask`, wording, real agencies, excuse comments | `npm --prefix tools/checks ci` once, then `npm --prefix tools/checks run check` |
+| Verification | What each feature looks like when it works, walked in the running app | `docs/FEATURE_MAP.md` |
 
 The invariant and property scripts take `MYSQL_*` from the environment and connect as the application user on purpose, which also proves the hardened grants are enough.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs backend tests, the admin typecheck and model tests on every push. Dependabot opens weekly update pull requests against `staging`.
+GitHub Actions (`.github/workflows/ci.yml`) runs the correction checks, backend tests, the admin typecheck, the mobile typecheck and tests, and model tests on every push. `tools/checks/baseline.json` lists violations that predate a check; its counts may only go down. Dependabot opens weekly update pull requests against `staging`.
 
 Not yet covered: an automated end-to-end test of join → call → serve → notify through the real routes.
 
@@ -543,6 +546,7 @@ Nothing about an organisation is built into the mobile app, so onboarding never 
 
 | Document | For |
 |---|---|
+| `docs/FEATURE_MAP.md` | Every feature from the user's side, how to reach it, and what proves it works |
 | `deploy/README.md` | Setting up the droplet and database from scratch, and the routine deploy |
 | `docs/HOSTING.md` | Why production is shaped the way it is; hardening; growth triggers |
 | `docs/SCALING.md` | What to change as load grows |

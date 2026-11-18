@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { colors, font, inputReset } from '../lib/theme';
 import { clearPendingSignup } from '../lib/pendingSignup';
+import { useInterval } from '../lib/timing';
 
 const LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -36,11 +37,7 @@ export function SignupCodeEntry({
   const [cooldown, setCooldown] = useState(RESEND_SECONDS);
   const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
+  useInterval(() => setCooldown(c => Math.max(0, c - 1)), cooldown > 0 ? 1000 : null);
 
   /* Confirmed through the link instead? Coming back to the app is the moment
      to find out: a password sign-in only succeeds once the email is confirmed. */

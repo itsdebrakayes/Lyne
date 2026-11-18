@@ -30,16 +30,8 @@ const { z } = require('zod');
 const portalHandoff = require('../lib/portalHandoff');
 const { SECTOR_JOIN, SECTOR_COLUMNS, withTerms } = require('../utils/sectorTerms');
 
-// Service-role client, used for exactly one thing: removing the auth identity
-// when someone deletes their account. It is created only if the service key is
-// configured, and every caller must tolerate it being null — a deployment
-// without the key should degrade, not crash at boot.
 const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
-const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
-  ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-  : null;
+const supabaseAdmin = require('../lib/supabaseAdmin').supabaseAdmin();
 
 async function getStaffProfile(staffId) {
   const [rows] = await pool.query(

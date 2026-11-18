@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Clock, Delete, MessageSquare, Printer, RotateCcw, Users, X,
 } from 'lucide-react';
+import { useInterval, useNow } from '../lib/timing';
 import '@/design/qx.css';
 import './kiosk.css';
 
@@ -99,11 +100,7 @@ const STEPS: Array<{ key: Step; label: string }> = [
 ];
 
 function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(1000);
   const idx = STEPS.findIndex((s) => s.key === step);
 
   return (
@@ -307,10 +304,8 @@ function Ticket({ svc, ticket, name, notify, onDone }: {
   notify: 'sms' | 'screen' | null; onDone: () => void;
 }) {
   const [left, setLeft] = useState(RESET_SECONDS);
-  useEffect(() => {
-    const id = setInterval(() => setLeft((s) => (s <= 1 ? (onDone(), 0) : s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [onDone]);
+  useInterval(() => setLeft((s) => Math.max(0, s - 1)), left > 0 ? 1000 : null);
+  useEffect(() => { if (left === 0) onDone(); }, [left, onDone]);
 
   return (
     <div className="qk-frame">

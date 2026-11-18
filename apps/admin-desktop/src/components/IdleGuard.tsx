@@ -13,6 +13,7 @@
  * Default 30 minutes; a build can set VITE_IDLE_MINUTES (minimum 5).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useInterval } from '../lib/timing';
 
 const configured = Number(import.meta.env.VITE_IDLE_MINUTES);
 export const IDLE_MINUTES = Number.isFinite(configured) && configured >= 5 ? configured : 30;
@@ -34,17 +35,13 @@ export default function IdleGuard({ onIdle, children }: { onIdle: () => void; ch
     return () => EVENTS.forEach((e) => window.removeEventListener(e, touch));
   }, [warning]);
 
-  useEffect(() => {
+  useInterval(() => {
     const limitMs = IDLE_MINUTES * 60_000;
-    const check = () => {
-      const idleMs = Date.now() - lastActive.current;
-      if (idleMs >= limitMs) { setSecondsLeft(null); lastActive.current = Date.now(); onIdle(); return; }
-      const left = Math.ceil((limitMs - idleMs) / 1000);
-      setSecondsLeft(left <= WARNING_SECONDS ? left : null);
-    };
-    const timer = window.setInterval(check, 1000);
-    return () => window.clearInterval(timer);
-  }, [onIdle]);
+    const idleMs = Date.now() - lastActive.current;
+    if (idleMs >= limitMs) { setSecondsLeft(null); lastActive.current = Date.now(); onIdle(); return; }
+    const left = Math.ceil((limitMs - idleMs) / 1000);
+    setSecondsLeft(left <= WARNING_SECONDS ? left : null);
+  }, 1000);
 
   return (
     <>

@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, ExternalLink, MonitorPlay, Trash2, Tv } from 'lucide-react';
 import api, { API_URL } from '@/lib/apiClient';
 import { Card, Note } from '@/design/ui';
+import { useTimeout } from '../../lib/timing';
 
 type Screen = {
   id: string; branch_id: string; service_id: string | null; service_name: string | null;
@@ -34,8 +35,9 @@ function lastSeen(iso: string | null) {
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  useTimeout(() => setCopied(false), copied ? 1800 : null);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard refused: the link is still shown */ }
+    try { await navigator.clipboard.writeText(text); setCopied(true); } catch { /* clipboard refused: the link is still shown */ }
   };
   return (
     <button type="button" className="qx-btn ghost" onClick={copy}>

@@ -30,6 +30,7 @@ import { Seg, Bars, EmptyTab } from './ExecTabsQX';
 import { useSectorTerms, lower } from '@/hooks/useSectorTerms';
 import { replayTour } from '../../hooks/useTour';
 import { PatientLine, PatientTags } from './PatientLine';
+import { useInterval, useTimeout } from '../../lib/timing';
 
 /* Counter labels are written as "Window 17 - TRN Registration", so pairing one
    with its own service produced "TRN Registration · TRN Registration". Say the
@@ -461,15 +462,14 @@ export function LineOverviewQX() {
      from the record — so it survives a remount instead of restarting at 0:00
      and under-reporting how long somebody has been kept waiting. */
   const [elapsed, setElapsed] = useState(0);
+  const from = useRef(Date.now());
+  const tickElapsed = () => setElapsed(Math.max(0, Math.floor((Date.now() - from.current) / 1000)));
   useEffect(() => {
-    const startedAt = activeTicket?.startedAt ? Date.parse(activeTicket.startedAt) : null;
-    const from = startedAt && Number.isFinite(startedAt) ? startedAt : Date.now();
-    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - from) / 1000)));
-    tick();
-    if (stage === 'idle') return undefined;
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const startedAt = activeTicket?.startedAt ? Date.parse(activeTicket.startedAt) : NaN;
+    from.current = Number.isFinite(startedAt) ? startedAt : Date.now();
+    tickElapsed();
   }, [stage, activeId, activeTicket?.startedAt]);
+  useInterval(tickElapsed, stage === 'idle' ? null : 1000);
 
   // Reset the code boxes when the person at the window changes.
   useEffect(() => {
@@ -575,11 +575,7 @@ export function LineOverviewQX() {
       if (moved) setTransferDone(`Sent to ${moved.service} as ${moved.no} · place ${moved.place} by arrival time`);
     });
   };
-  useEffect(() => {
-    if (!transferDone) return undefined;
-    const t = setTimeout(() => setTransferDone(null), 8000);
-    return () => clearTimeout(t);
-  }, [transferDone]);
+  useTimeout(() => setTransferDone(null), transferDone ? 8000 : null, transferDone);
 
   const codeReady = code.every((c) => c.length === 1);
   const canNoShow = stage === 'called' && elapsed >= NO_SHOW_AFTER;

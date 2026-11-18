@@ -11,15 +11,13 @@
  * uses Twilio Verify, and that proof is what allows texts.
  */
 const router = require('express').Router();
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAdmin } = require('../lib/supabaseAdmin');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { smsAvailable, normalizeJamaican } = require('../utils/smsSender');
 const { canTextAtBranch } = require('../utils/smsAlerts');
 
-const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const admin = () => createClient(process.env.SUPABASE_URL, serviceKey(), { auth: { persistSession: false } });
 
 router.get('/status', async (req, res) => {
   try {
@@ -49,7 +47,9 @@ router.put('/preference', requireAuth, async (req, res) => {
     const on = req.body?.opt_in === true;
     /* Supabase is what proved the phone, so its record decides. Whatever a phone
        field says, a number nobody verified is never texted. */
-    const { data, error } = await admin().auth.admin.getUserById(req.dbUser.supabase_uid);
+    const admin = supabaseAdmin();
+    if (!admin) return res.status(503).json({ error: 'Text settings are unavailable right now. Try again later.' });
+    const { data, error } = await admin.auth.admin.getUserById(req.dbUser.supabase_uid);
     if (error || !data?.user) return res.status(502).json({ error: 'Could not check your number. Try again.' });
     const phone = data.user.phone_confirmed_at ? normalizeJamaican(data.user.phone) : null;
     if (on && !phone) return res.status(409).json({ error: 'Add and verify a Jamaican mobile number first.' });

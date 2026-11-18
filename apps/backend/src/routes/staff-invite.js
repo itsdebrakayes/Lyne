@@ -14,7 +14,7 @@ const router  = require('express').Router();
 const { z }   = require('zod');
 const { randomUUID: uuidv4 } = require('crypto');
 const crypto  = require('crypto');
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAdmin } = require('../lib/supabaseAdmin');
 const pool    = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
@@ -25,12 +25,6 @@ function validationMessage(error) {
 }
 
 const idSchema = z.string().min(1).max(64);
-
-// Admin Supabase client for creating staff auth accounts
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL        || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || 'placeholder-key'
-);
 
 // ── Validation schemas ────────────────────────────────────────
 const createInviteSchema = z.object({
@@ -184,8 +178,12 @@ router.post('/redeem', async (req, res) => {
       return res.status(409).json({ error: 'A staff account already exists for this email.' });
     }
 
-    // Create Supabase Auth account — staff log in via Supabase just like customers
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const admin = supabaseAdmin();
+    if (!admin) {
+      await conn.rollback();
+      return res.status(503).json({ error: 'Staff sign-up is unavailable right now. Try again later.' });
+    }
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email:          invite.email,
       password,
       email_confirm:  true,

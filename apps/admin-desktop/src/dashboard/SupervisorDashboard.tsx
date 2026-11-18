@@ -58,7 +58,7 @@ export default function SupervisorDashboard() {
   const terms = useSectorTerms();
   const d = useDashboardData();
   const { logout } = useAdminAuth();
-  const tour = useTour('supervisor');
+  const tour = useTour('supervisor', !d.firstLoad.loading);
   /* Desks come from counters, which exist whether or not the day has opened —
      a supervisor sets the board up before the doors do. */
   const countersQuery = useQuery({
