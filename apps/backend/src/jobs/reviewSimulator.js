@@ -28,6 +28,15 @@
  * organisation is left alone, and the made-up walk-ins still waiting are
  * removed.
  *
+ * Paced demo (DEMO_FRONT_AT, optional): instead of moving every 25 seconds,
+ * each line holds DEMO_LINE_DEPTH made-up walk-ins (default 6) and the first
+ * real person in it reaches the front at DEMO_FRONT_AT. One made-up walk-in
+ * ahead of them is served every DEMO_STEP_MINUTES (default 4), timed so the
+ * last one leaves at DEMO_FRONT_AT; someone who joins late catches up 25
+ * seconds a step. Only the first real person in a line drives it: anyone
+ * behind waits until the desk has called the person ahead, then moves up
+ * quickly. Without DEMO_FRONT_AT the window behaves as before.
+ *
  * Nothing outside those organisations is read or written. It is OFF unless the
  * server sets REVIEW_SIMULATOR=true, and turning that off stops it at once,
  * with no app release. The app runs exactly the same code for the reviewer as
@@ -72,6 +81,9 @@ function settings(env = process.env) {
     demoIds: String(env.DEMO_SHOWCASE_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
     demoFrom: Date.parse(env.DEMO_FROM || '') || null,
     demoUntil: Date.parse(env.DEMO_UNTIL || '') || null,
+    demoFrontAt: Date.parse(env.DEMO_FRONT_AT || '') || null,
+    demoStepMinutes: Number(env.DEMO_STEP_MINUTES) > 0 ? Number(env.DEMO_STEP_MINUTES) : 4,
+    demoDepth: Number(env.DEMO_LINE_DEPTH) > 0 ? Math.min(20, Math.floor(Number(env.DEMO_LINE_DEPTH))) : 6,
   };
 }
 
@@ -100,7 +112,7 @@ const age = (secs) => (secs === null || secs === undefined ? Infinity : Number(s
 const ticketsRoute = () => require('../routes/tickets');
 
 /** 1 — every review line open today, with people in it. */
-async function keepLinesBusy(businessId) {
+async function keepLinesBusy(businessId, minWaiting = MIN_WAITING) {
   const [branches] = await pool.query(
     `SELECT id FROM branches WHERE business_id = ? AND is_active = 1`, [businessId]);
   for (const b of branches) {
@@ -112,7 +124,7 @@ async function keepLinesBusy(businessId) {
          FROM queues q JOIN services s ON s.id = q.service_id
         WHERE q.branch_id = ? AND q.queue_date = CURDATE() AND q.is_active = 1`, [b.id]);
     for (const q of queues) {
-      for (let n = Number(q.waiting); n < MIN_WAITING; n++) {
+      for (let n = Number(q.waiting); n < minWaiting; n++) {
         const conn = await pool.getConnection();
         try {
           await beginSlotTransaction(conn);
@@ -193,7 +205,7 @@ async function moveReviewerTicket(ticketId, newStatus, now) {
 }
 
 /** 3 — the reviewer's line moves. */
-async function moveReviewerLines(businessId, email, now = new Date(), { anyone = false, holdAtFront = false } = {}) {
+async function moveReviewerLines(businessId, email, now = new Date(), { anyone = false, holdAtFront = false, paceTo = null } = {}) {
   const { broadcast } = ticketsRoute();
   const [tickets] = await pool.query(
     /* Ages are computed by the database against its own NOW(): the stored
@@ -222,6 +234,16 @@ async function moveReviewerLines(businessId, email, now = new Date(), { anyone =
     if (t.status === 'waiting') {
       const lastMove = Math.min(age(t.since_step), age(t.since_joined));
       if (lastMove < STEP_SECONDS) continue;
+      if (paceTo) {
+        /* Paced demo: only the first real person in the line moves it, one
+           made-up walk-in per step, so they reach the front at frontAt. */
+        const [[c]] = await pool.query(
+          `SELECT SUM(guest_name IS NULL OR guest_name <> ?) AS people, SUM(guest_name = ?) AS visitors
+             FROM queue_tickets WHERE queue_id = ? AND status = 'waiting' AND position < ?`,
+          [DEMO_VISITOR, DEMO_VISITOR, t.queue_id, t.position]);
+        if (Number(c.people) > 0) continue;
+        if (paceTo.frontAt - now.getTime() >= (Number(c.visitors) - 1) * paceTo.stepMs) continue;
+      }
       const [[ahead]] = await pool.query(
         `SELECT id FROM queue_tickets
           WHERE queue_id = ? AND status = 'waiting' AND position < ? ORDER BY position ASC LIMIT 1`,
@@ -281,8 +303,9 @@ async function runReviewSimulatorTick(env = process.env, now = new Date()) {
   for (const id of s.demoIds.filter((x) => !regular.includes(x))) {
     if (!demoActive(s, now)) { await clearWaitingVisitors(id); continue; }
     await clearOldVisitors(id);
-    await keepLinesBusy(id);
-    moved += Number(await moveReviewerLines(id, s.email, now, { anyone: true, holdAtFront: true })) || 0;
+    const paceTo = s.demoFrontAt ? { frontAt: s.demoFrontAt, stepMs: s.demoStepMinutes * 60000 } : null;
+    await keepLinesBusy(id, paceTo ? s.demoDepth : MIN_WAITING);
+    moved += Number(await moveReviewerLines(id, s.email, now, { anyone: true, holdAtFront: true, paceTo })) || 0;
   }
   for (const id of organisations(s)) {
     const showcase = id !== s.businessId || !s.enabled;

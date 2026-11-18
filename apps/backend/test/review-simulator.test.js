@@ -60,3 +60,17 @@ test('in a demo window the person at the front waits for the desk', () => {
   assert.match(src, /else if \(!holdAtFront\) \{\s*await moveReviewerTicket\(t\.id, 'called'/);
   assert.match(src, /holdAtFront: true/);
 });
+
+test('a paced demo is off unless DEMO_FRONT_AT is set, with safe defaults', () => {
+  const base = { DEMO_SHOWCASE_IDS: 'biz-lgb-001', DEMO_FROM: '2026-11-18T10:15:00-05:00', DEMO_UNTIL: '2026-11-18T11:45:00-05:00' };
+  assert.equal(settings(base).demoFrontAt, null);
+  const s = settings({ ...base, DEMO_FRONT_AT: '2026-11-18T10:55:00-05:00' });
+  assert.equal(new Date(s.demoFrontAt).toISOString(), '2026-11-18T15:55:00.000Z');
+  assert.equal(s.demoStepMinutes, 4);
+  assert.equal(s.demoDepth, 6);
+  assert.equal(settings({ ...base, DEMO_LINE_DEPTH: '500' }).demoDepth, 20);
+  assert.equal(settings({ ...base, DEMO_STEP_MINUTES: 'x' }).demoStepMinutes, 4);
+  // Only the first real person moves the line, and only made-up walk-ins are served.
+  assert.match(src, /if \(Number\(c\.people\) > 0\) continue;/);
+  assert.match(src, /paceTo\.frontAt - now\.getTime\(\) >= \(Number\(c\.visitors\) - 1\) \* paceTo\.stepMs/);
+});
