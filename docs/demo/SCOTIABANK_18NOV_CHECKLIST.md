@@ -33,7 +33,9 @@ the front at **11:00** and waits there for you to call them as Alicia at Teller 
    The ACTIVE line should not list `biz-lgb-001`.
 3. **Admin sign-in.** Open **Lyne Admin** (the installed one, not "Demo"; only one copy open). Sign in as
    `lignum.officer`, then sign out and sign in as `lignum.executive`. The executive should see
-   three branches. The Overview forecast and Branch Comparison should have data up to 16 Nov.
+   three branches. The Overview forecast and Branch Comparison should have data up to 17 Nov.
+   As `lignum.manager`, **Client Cases** on 30 days lists Oneil Bryan, Beverley Walters (flagged),
+   Tamara Lewis, Winston Clarke and Kerry-Ann Thompson (invented clients, loaded 18 Nov).
 4. **Phone.** On your own phone, open the store Lyne app, find **Lignum Bank → Half Way Tree**,
    and check that it shows as open. Don't join until 10:15.
 5. **Screens.** Second display or screen share is ready. Do Not Disturb is on. Mac is charging.
