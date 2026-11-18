@@ -64,7 +64,11 @@ export default function LineStaffDashboard() {
      yet, and a blank History reads as broken rather than as "the day has not
      started". Yesterday's record is the useful thing to see first; today's
      entries appear at the top as they happen. */
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
+  /* The API knows today | this_week | last_week | month. 'week' was not one of
+     them and fell back to today, so History was empty on every morning. My
+     Stats is about today; History reaches back through the month. */
+  const period = 'today';
+  const historyPeriod = 'month';
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
   // Status messages are transient — auto-clear so an error can never sit on
@@ -99,7 +103,7 @@ export default function LineStaffDashboard() {
     .map((q) => ({ id: q.id, name: q.service_name || 'Another line', waiting: Number(q.waiting_count || 0) }));
   const ticketsQuery = useQuery({ queryKey: ['ls-tickets', activeQueue?.id], queryFn: () => api.get<TicketRow[]>(`/tickets/queue/${activeQueue!.id}`), enabled: !!activeQueue?.id, refetchInterval: 4_000 });
   const analytics = useQuery({ queryKey: ['ls-analytics', period], queryFn: () => api.get<Analytics>(`/analytics/line-staff?period=${period}`), enabled: !!admin, refetchInterval: 30_000 });
-  const history = useQuery({ queryKey: ['ls-history', period, myQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${period}${myQueue?.service_id ? `&service_id=${myQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
+  const history = useQuery({ queryKey: ['ls-history', historyPeriod, myQueue?.service_id], queryFn: () => api.get<TicketRow[]>(`/tickets/history?period=${historyPeriod}${myQueue?.service_id ? `&service_id=${myQueue.service_id}` : ''}`), enabled: !!admin, refetchInterval: 30_000 });
 
   /* Freshness for the header pill. This screen has its own queries rather than
      useDashboardData, so the same derivation is repeated here: the OLDEST panel

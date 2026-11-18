@@ -126,7 +126,7 @@ function createWindow() {
       ? {}
       : { icon: path.join(__dirname, '../src/assets/icon.ico') }),
 
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#EFF2F7', // the dashboard canvas: a slow paint shows grey, never black
     show: false,
   });
 

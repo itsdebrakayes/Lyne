@@ -31,8 +31,8 @@ export function greetingFor(name?: string) {
 
 /* ---------- initials + hue for avatars ---------- */
 export function initials(name?: string) {
-  if (!name) return 'Q';
-  const parts = name.trim().split(/\s+/);
+  /* Letters only: "Teller (Presenter)" is TP, never "T(". */
+  const parts = (name || '').split(/\s+/).map((w) => w.replace(/[^\p{L}]/gu, '')).filter(Boolean);
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || 'Q';
 }
 export function hueFor(name?: string) {

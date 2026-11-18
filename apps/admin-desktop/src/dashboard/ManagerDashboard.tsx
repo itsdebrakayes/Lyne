@@ -442,7 +442,7 @@ function periodTotals(rows: any[]) {
 /* ---------- shared sub-cards (used by both dashboards) ---------- */
 // Empty now lives in the shared kit; re-exported so existing importers keep working.
 export { Empty };
-export function initials(name?: string) { const p = (name || 'Q').trim().split(/\s+/); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || 'Q'; }
+export function initials(name?: string) { const p = (name || '').split(/\s+/).map((w) => w.replace(/[^\p{L}]/gu, '')).filter(Boolean); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || 'Q'; }
 export function Bar({ label, n, accent2 }: { label: string; n: number; accent2?: boolean }) {
   const v = Math.max(0, Math.min(100, n));
   return (<div className="r"><span className="lbl">{label}</span><span className="n">{v}</span><span className="bar"><i style={{ width: `${v}%`, background: accent2 ? 'var(--qa-accent-2)' : 'var(--qa-accent)' }} /></span></div>);
