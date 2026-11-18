@@ -110,7 +110,8 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/@oxc-parser/**"
     },
     "dmg": {
       "title": "${productName}"
