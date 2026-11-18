@@ -471,7 +471,7 @@ Everything is in `docs/launch/`. In short:
 
 ## 18. Desktop admin releases
 
-- Build installers from `apps/admin-desktop`: `npm run package:mac`, `npm run package:win`, or `npm run package:all`. Make sure `apps/admin-desktop/.env` is absent so the build points at `https://api.uselyne.com/api`.
+- Build installers from `apps/admin-desktop`: `npm run package:mac`, `npm run package:win`, or `npm run package:all`. Make sure `apps/admin-desktop/.env` is absent so the build points at `https://api.uselyne.com/api`. The Mac installer is universal (one file that runs natively on Apple-chip and Intel Macs); an Intel-only copy on an Apple-chip Mac runs through Rosetta and is visibly slow.
 - The packaged app loads from its own `app://lyne-admin` origin. That origin must be in the server's `ALLOWED_ORIGINS`, otherwise every request is refused.
 - **Signing:** macOS needs the Apple Developer ID certificate and notarisation, or Gatekeeper refuses the app on first open. Windows needs an OV/EV code-signing certificate through a cloud HSM (SSL.com eSigner or DigiCert KeyLocker); this is not bought yet. Until then, `npm run build:win:unsigned` produces a working but unsigned installer. Details: `docs/launch/desktop-signing.md`.
 - Release links shown on the website come from `apps/website/src/lib/desktopRelease.ts`.
