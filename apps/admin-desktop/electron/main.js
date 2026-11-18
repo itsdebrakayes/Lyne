@@ -202,7 +202,26 @@ function registerAppProtocol() {
   });
 }
 
+/* One copy at a time. Two copies share one profile folder, and the second
+   cannot open its saved-data store while the first holds it: every read of
+   the sign-in session then stalls for about a second while it retries, which
+   looked like a black window and a sluggish app (measured 18 Nov 2026).
+   Opening the app again now brings the open window forward instead. */
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const [w] = BrowserWindow.getAllWindows();
+    if (!w) return;
+    if (w.isMinimized()) w.restore();
+    w.show();
+    w.focus();
+  });
+}
+
 app.whenReady().then(() => {
+  if (!gotSingleInstanceLock) return;
   if (!isDev) registerAppProtocol();
   createWindow();
 
