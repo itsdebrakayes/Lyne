@@ -328,6 +328,7 @@ export default function ManagerDashboard() {
 
   return (
     <QxShell
+      loading={d.firstLoad.loading} failed={d.firstLoad.failed} onRetry={() => d.refreshAll()}
       brand="Lyne"
       brandSub={org}
       nav={NAV.map((n) => ({ key: n.key, label: n.key === 'cases' ? `${terms.visitor.one} Cases` : n.label, icon: n.icon, group: n.group === 'utility' ? 'Account' : 'Main' }))}

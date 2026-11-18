@@ -1672,3 +1672,10 @@ html[data-present] .qx-stat .top { flex-wrap: wrap; row-gap: 6px; }
 /* Behind the dashboard the page is the canvas, not the app's dark default:
    any frame the dashboard has not painted yet shows grey, never black. */
 html:has(.qx-shell), body:has(.qx-shell), #root:has(.qx-shell) { background-color: #EFF2F7; }
+
+/* First load: grey cards in the page's shape, then the real page fades in. */
+.qx-skelcard { min-height: 120px; }
+.qx-skelnote { grid-column: span 12; text-align: center; font-size: 12px; font-weight: 700; color: var(--c-faint); padding: 4px 0 10px; }
+.qx-fadein { animation: qx-fadein .25s ease-out both; }
+@keyframes qx-fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .qx-fadein { animation: none; } }

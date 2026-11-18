@@ -76,7 +76,7 @@ export type QxNav = { key: string; label: string; icon: ElementType; badge?: num
 export function Shell({
   brand, brandSub, nav, active, onNav, railCard, account,
   search, context, notifications, notify, theme, onTheme,
-  head, children,
+  head, loading, failed, onRetry, children,
 }: {
   brand: string; brandSub?: string;
   nav: QxNav[]; active: string; onNav: (k: string) => void;
@@ -90,6 +90,11 @@ export function Shell({
   notify?: QxNotify;
   theme?: 'light' | 'dark'; onTheme?: () => void;
   head?: ReactNode;
+  /** First load: nothing to show yet. The body is a skeleton of the page instead of blank cards. */
+  loading?: boolean;
+  /** Nothing could be loaded at all: say so, with a way to try again. */
+  failed?: boolean;
+  onRetry?: () => void;
   children: ReactNode;
 }) {
   const [presenting, togglePresenting] = usePresentationMode();
@@ -193,7 +198,11 @@ export function Shell({
           </div>
         </header>
         {head}
-        <div className="qx-body">{children}</div>
+        <div className="qx-body">
+          {failed ? <LoadFailed onRetry={onRetry} />
+            : loading ? <BodySkeleton />
+            : <div className="qx-fadein">{children}</div>}
+        </div>
       </div>
     </div>
   );
@@ -1052,3 +1061,62 @@ function SignOutIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="cur
 function MoonIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" /></svg>; }
 function SunIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></svg>; }
 function BellIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>; }
+
+/* ══════════════════════ first load and failure ══════════════════════ */
+
+/** The page's shape in grey while its figures arrive, so the screen is never
+    blank (a blank window read as a crash on a shared screen). Capped by the
+    caller: it never stands in for more than a few seconds. */
+export function BodySkeleton() {
+  const bar = (w: string, h = 12, mt = 0) => <div className="qx-skel" style={{ width: w, height: h, marginTop: mt }} />;
+  return (
+    <div className="qx-grid" role="status" aria-live="polite" aria-label="Loading your figures">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="qx-card qx-skelcard" style={{ gridColumn: 'span 3' }}>
+          {bar('45%', 11)}{bar('60%', 30, 14)}{bar('80%', 10, 14)}
+        </div>
+      ))}
+      <div className="qx-card qx-skelcard" style={{ gridColumn: 'span 8' }}>
+        {bar('30%', 13)}{bar('50%', 10, 8)}<div className="qx-skel" style={{ height: 220, marginTop: 18, borderRadius: 12 }} />
+      </div>
+      <div className="qx-card qx-skelcard" style={{ gridColumn: 'span 4' }}>
+        {bar('40%', 13)}{[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
+          <div className="qx-skel" style={{ width: 30, height: 30, borderRadius: 10 }} />{bar('70%', 11)}
+        </div>)}
+      </div>
+      <div className="qx-skelnote">Loading your figures…</div>
+    </div>
+  );
+}
+
+export function LoadFailed({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="qx-grid">
+      <div className="qx-card" style={{ gridColumn: 'span 12', padding: 28, textAlign: 'center' }}>
+        <b style={{ fontSize: 16 }}>Your Figures Did Not Load</b>
+        <p style={{ color: 'var(--c-dim)', fontWeight: 600, fontSize: 13, margin: '8px 0 16px' }}>
+          Lyne could not reach the server. Check the internet connection, then try again.
+        </p>
+        {onRetry ? <button type="button" className="qx-btn" onClick={onRetry}>Try Again</button> : null}
+      </div>
+    </div>
+  );
+}
+
+/** First-load state for a dashboard: skeleton while nothing has arrived and
+    some query is still out, for at most `capMs`; failed when nothing arrived
+    and the attempts failed. */
+export function useFirstLoad(queries: Array<{ dataUpdatedAt: number; failureCount: number; fetchStatus: string }>, capMs = 4000) {
+  const [capped, setCapped] = useState(false);
+  useEffect(() => { const id = window.setTimeout(() => setCapped(true), capMs); return () => window.clearTimeout(id); }, [capMs]);
+  const enabled = queries.filter((q) => q.fetchStatus !== 'idle' || q.dataUpdatedAt > 0 || q.failureCount > 0);
+  const loadedAny = queries.some((q) => q.dataUpdatedAt > 0);
+  const pending = enabled.filter((q) => q.dataUpdatedAt === 0 && q.failureCount === 0).length;
+  const share = enabled.length ? 1 - pending / enabled.length : 0;
+  return {
+    /* Hold the skeleton until most of the page can be drawn at once, so cards
+       do not pop in one by one, but never past the cap. */
+    loading: !capped && (enabled.length === 0 || share < 0.75),
+    failed: !loadedAny && queries.some((q) => q.failureCount > 0),
+  };
+}

@@ -6,12 +6,19 @@ Lignum Bank (`biz-lgb-001`) live on production. Demo window: **10:15 to 11:45**.
 Nothing is deployed, restarted or edited on the morning of the demo.** The morning checklist only
 looks. The window starts by itself at 10:15.
 
-Admin app for the demo: **Lyne Admin** built on 17 Nov from the exact commit production runs,
+Admin app for the demo: **Lyne Admin** (`Claude outputs/Lyne Admin - production/`) built on 17 Nov
+from the exact commit production runs (54fb1b3),
 pointed at `https://api.uselyne.com`. Everyone signs in with their own login; no passwords are
 built into the app.
 
 Presenter logins: `lignum.*@uselyne.com` (passwords in `secrets/staff-logins.txt`).
-The demo.* logins stay on Blue Harbour.
+The demo.* logins stay on Blue Harbour. Names on screen: Alicia Morgan (teller, `lignum.officer`),
+Ryan Campbell (account opening, `lignum.officer2`), Nadine Clarke (supervisor), Marcus Reid (manager),
+Patricia Henry (executive). The Microsoft button is on the sign-in screen for looks; sign in with email
+and password.
+
+**Tell the room:** join Half Way Tree → **Deposits & Withdrawals**. The first person to join reaches
+the front at about **10:55** and waits there for you to call them as Alicia at Teller 1.
 
 ## 9:45 checklist (5 minutes, look only)
 
