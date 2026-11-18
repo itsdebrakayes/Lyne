@@ -42,12 +42,12 @@
 
 @layer base {
   * { @apply border-border; }
-  html { min-height: 100%; background-color: #080706; color: #F5F0E8; color-scheme: dark; }
+  html { min-height: 100%; background-color: #EFF2F7; color: #F5F0E8; color-scheme: dark; }
   body {
     min-height: 100%;
     margin: 0;
     font-family: 'Jost', system-ui, sans-serif;
-    background-color: #080706;
+    background-color: #EFF2F7; /* the light canvas: an unpainted frame shows grey, never black */
     @apply text-foreground;
     -webkit-font-smoothing: antialiased;
   }
