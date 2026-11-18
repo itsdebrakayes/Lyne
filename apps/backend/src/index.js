@@ -454,7 +454,7 @@ app.listen(PORT, () => {
     const sim = reviewSimSettings();
     console.log(`[ReviewSimulator] ACTIVE for ${simOrganisations(sim).join(', ')}${sim.enabled ? ` (review account ${sim.email})` : ' (showcase only)'}.`);
     if (sim.demoIds.length) {
-      console.log(`[ReviewSimulator] Demo window for ${sim.demoIds.join(', ')}: ${sim.demoFrom && sim.demoUntil ? `${new Date(sim.demoFrom).toISOString()} to ${new Date(sim.demoUntil).toISOString()}` : 'NOT SET (DEMO_FROM and DEMO_UNTIL are both needed), so it stays off'}.`);
+      console.log(`[ReviewSimulator] Demo window for ${sim.demoIds.join(', ')}: ${sim.demoFrom && sim.demoUntil ? `${new Date(sim.demoFrom).toISOString()} to ${new Date(sim.demoUntil).toISOString()}` : 'NOT SET (DEMO_FROM and DEMO_UNTIL are both needed), so it stays off'}${sim.demoFrontAt ? `; first in line at the front ${new Date(sim.demoFrontAt).toISOString()}, ${sim.demoDepth} ahead, one every ${sim.demoStepMinutes} min` : ''}.`);
     }
   }
   console.log(

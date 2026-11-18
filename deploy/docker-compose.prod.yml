@@ -141,6 +141,10 @@ services:
       DEMO_SHOWCASE_IDS:        ${DEMO_SHOWCASE_IDS:-}
       DEMO_FROM:                ${DEMO_FROM:-}
       DEMO_UNTIL:               ${DEMO_UNTIL:-}
+      # Optional pacing: the first person in a line reaches the front at DEMO_FRONT_AT.
+      DEMO_FRONT_AT:            ${DEMO_FRONT_AT:-}
+      DEMO_STEP_MINUTES:        ${DEMO_STEP_MINUTES:-}
+      DEMO_LINE_DEPTH:          ${DEMO_LINE_DEPTH:-}
       # Sectors the public app lists. Empty (the default) lists every sector;
       # the demo overlay narrows it to healthcare. Leave unset in production.
       LISTED_SECTORS:           ${LISTED_SECTORS:-}
