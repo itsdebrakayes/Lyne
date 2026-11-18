@@ -7,7 +7,7 @@ Nothing is deployed, restarted or edited on the morning of the demo.** The morni
 looks. The window starts by itself at 10:15.
 
 Admin app for the demo: **Lyne Admin** (`Claude outputs/Lyne Admin - production/`) built on 17 Nov
-from the exact commit production runs (54fb1b3),
+from the production commit 344a2f6 (loading fix: light skeleton while figures load, no black screen),
 pointed at `https://api.uselyne.com`. Everyone signs in with their own login; no passwords are
 built into the app.
 
