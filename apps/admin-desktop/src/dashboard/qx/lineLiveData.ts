@@ -82,7 +82,9 @@ export function buildLineData(i: LineLiveInput): LineTabData {
     no: String(t.ticket_number || '—'),
     name: String(t.user_name || 'Guest'),
     at: t.completed_at
-      ? new Date(t.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      ? (new Date(t.completed_at).toDateString() === new Date().toDateString()
+        ? new Date(t.completed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        : new Date(t.completed_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))
       : '—',
     minutes: Math.round(num(t.service_minutes)),
     /* A served ticket carrying a closed_reason is a visit that happened and did
@@ -102,8 +104,9 @@ export function buildLineData(i: LineLiveInput): LineTabData {
 
   /* Their own day by hour, counted from what they finished. */
   const byHour = new Map<number, number>();
+  const todayStr = new Date().toDateString();
   for (const t of i.history) {
-    if (!t.completed_at) continue;
+    if (!t.completed_at || new Date(t.completed_at).toDateString() !== todayStr) continue;
     const h = new Date(t.completed_at).getHours();
     byHour.set(h, (byHour.get(h) || 0) + 1);
   }

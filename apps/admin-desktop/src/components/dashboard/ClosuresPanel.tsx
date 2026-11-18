@@ -64,9 +64,11 @@ export function ClosuresPanel({ span = 12, branches }: {
   return (
     <Card span={span} title="Closures And Outages" cap="Close for a day or a run of days. Staff and booked clients are told.">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Seg value={kind} onChange={setKind} options={[['closure', 'Closure'], ['outage', 'Outage']]} />
+        <div style={{ alignSelf: 'flex-start' }}>
+          <Seg value={kind} onChange={setKind} options={[['closure', 'Closure'], ['outage', 'Outage']]} />
+        </div>
         {branches ? (
-          <label className="qx-field"><span>Where</span>
+          <label className="qx-field" style={{ flex: 'none' }}><span>Where</span>
             <select value={where} onChange={(e) => setWhere(e.target.value)}>
               <option value="">Every branch</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -81,7 +83,7 @@ export function ClosuresPanel({ span = 12, branches }: {
             <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
-        <label className="qx-field"><span>Reason</span>
+        <label className="qx-field" style={{ flex: 'none' }}><span>Reason</span>
           <input value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)} placeholder="Hurricane warning, power outage, public holiday…" />
         </label>
 

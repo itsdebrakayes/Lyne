@@ -9,7 +9,7 @@
  * hover-any-point reading are unchanged) onto the new tokens, plus an optional
  * prior-period series.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, Presentation, RefreshCw, Search } from 'lucide-react';
 import { usePresentationMode } from '@/lib/presentation';
@@ -20,8 +20,8 @@ let _id = 0;
 const nextId = (p: string) => `${p}${++_id}`;
 
 export const initials = (name?: string) => {
-  if (!name) return 'Q';
-  const p = name.trim().split(/\s+/);
+  /* Letters only: "Teller (Presenter)" is TP, never "T(". */
+  const p = (name || '').split(/\s+/).map((w) => w.replace(/[^\p{L}]/gu, '')).filter(Boolean);
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || 'Q';
 };
 export const hueFor = (name?: string) => {
@@ -93,6 +93,14 @@ export function Shell({
   children: ReactNode;
 }) {
   const [presenting, togglePresenting] = usePresentationMode();
+  /* A tab change renders the next screen in the background: the highlight
+     moves at once and the current screen stays up until the next is ready,
+     instead of the window going blank (it read as a crash on a shared screen). */
+  const [, startNav] = useTransition();
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  useEffect(() => { setPendingKey(null); }, [active]);
+  const go = (k: string) => { setPendingKey(k); startNav(() => onNav(k)); };
+  const shown = pendingKey ?? active;
   const groups = useMemo(() => {
     const out: Array<{ label?: string; items: QxNav[] }> = [];
     for (const item of nav) {
@@ -120,8 +128,8 @@ export function Shell({
               {g.items.map((it) => {
                 const Icon = it.icon;
                 return (
-                  <button key={it.key} type="button" className={active === it.key ? 'on' : ''}
-                    aria-current={active === it.key ? 'page' : undefined} onClick={() => onNav(it.key)}>
+                  <button key={it.key} type="button" className={shown === it.key ? 'on' : ''}
+                    aria-current={shown === it.key ? 'page' : undefined} onClick={() => go(it.key)}>
                     <Icon /><span>{it.label}</span>
                     {it.badge ? <span className="badge">{it.badge}</span> : null}
                   </button>

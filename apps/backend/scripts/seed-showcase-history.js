@@ -61,9 +61,15 @@ const STAFF = [
 ];
 
 /* Daily arrivals on an ordinary weekday, per desk, and who serves there. */
+/* The presenter desk logins (lignum.officer and lignum.officer2, staff rows
+   stf-lgbx-off1 / -off2, created with their Supabase logins on production) sit
+   at Teller 1 and the account-opening desk, so their History has real days.
+   Their staff rows are NOT written here: this script never creates a login. */
+const PRESENTER_TELLER = 'stf-lgbx-off1';
+const PRESENTER_ACCT = 'stf-lgbx-off2';
 const DESKS = [
-  { branch: 'br-lgb-hwt', service: 'svc-lgb-teller', prefix: 'TEL', daily: 140, mins: 5, staff: [['stf-lgb-hwt-tel3', 'ctr-lgb-hwt-tel-1'], ['stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-2'], ['stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-3']] },
-  { branch: 'br-lgb-hwt', service: 'svc-lgb-acct', prefix: 'ACC', daily: 18, mins: 32, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct'], ['stf-lgb-hwt-pbo2', 'ctr-lgb-hwt-acct']] },
+  { branch: 'br-lgb-hwt', service: 'svc-lgb-teller', prefix: 'TEL', daily: 140, mins: 5, staff: [[PRESENTER_TELLER, 'ctr-lgb-hwt-tel-1'], ['stf-lgb-hwt-tel1', 'ctr-lgb-hwt-tel-2'], ['stf-lgb-hwt-tel2', 'ctr-lgb-hwt-tel-3']] },
+  { branch: 'br-lgb-hwt', service: 'svc-lgb-acct', prefix: 'ACC', daily: 18, mins: 32, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-acct'], [PRESENTER_ACCT, 'ctr-lgb-hwt-acct']] },
   { branch: 'br-lgb-hwt', service: 'svc-lgb-card', prefix: 'CRD', daily: 22, mins: 12, staff: [['stf-lgb-hwt-card', 'ctr-lgb-hwt-card']] },
   { branch: 'br-lgb-hwt', service: 'svc-lgb-loan', prefix: 'LON', daily: 8, mins: 38, staff: [['stf-lgb-hwt-lend', 'ctr-lgb-hwt-loan']] },
   { branch: 'br-lgb-hwt', service: 'svc-lgb-enq', prefix: 'ENQ', daily: 25, mins: 14, staff: [['stf-lgb-hwt-pbo', 'ctr-lgb-hwt-enq']] },

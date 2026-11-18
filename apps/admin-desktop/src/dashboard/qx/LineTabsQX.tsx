@@ -665,7 +665,7 @@ export function LineOverviewQX() {
           <div className="ql-meta" style={{ marginTop: 10 }}>
             You are assigned here today. Clock in to open the window and start calling.
           </div>
-          <div className="ql-acts" style={{ marginTop: 22 }}>
+          <div className="ql-acts plain" style={{ marginTop: 22 }}>
             <button type="button" className="ql-btn primary" disabled={busy}
               onClick={() => run(() => d.onClockIn?.())}>
               <CheckCircle2 size={18} />{busy ? 'Clocking In…' : 'Clock In'}

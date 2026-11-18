@@ -5,7 +5,7 @@
  * The buttons used to be bare <button>s with no handler, so pressing them did
  * nothing at all. They now save the document built in ../reportDoc.ts.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { saveReport } from '../reportDoc';
 
@@ -66,6 +66,12 @@ export function ReportPreview({ html, title, loaded = 1, total = 1 }: {
      each piece of data, and a last one for laying the document out. */
   const [painted, setPainted] = useState(false);
   useEffect(() => { setPainted(false); }, [html]);
+  /* In the small preview box the printed cover (a full page, its title centred)
+     left the top of the box white, which read as a report that failed. The
+     preview gets a compact cover; the download is unchanged. */
+  const shown = useMemo(() => (html
+    ? html.replace('</style>', '.cover{min-height:0!important;padding:28px 0 34px;justify-content:flex-start!important}</style>')
+    : html), [html]);
   const done = loaded >= total && painted;
   const steps = total + 1;
   const step = Math.min(steps, loaded + (done ? 1 : 0));
@@ -74,9 +80,11 @@ export function ReportPreview({ html, title, loaded = 1, total = 1 }: {
     <div style={{ position: 'relative' }}>
       <iframe
         title={title}
-        srcDoc={html}
+        srcDoc={shown}
         sandbox=""
-        onLoad={() => setPainted(true)}
+        /* Load is not paint: give the document a moment to lay out before the
+           progress card lifts, so it never uncovers a blank box. */
+        onLoad={() => { if (shown) window.setTimeout(() => setPainted(true), 350); }}
         style={{ width: '100%', height: 640, border: '1px solid var(--c-line-2)', borderRadius: 12, background: '#fff', display: 'block' }}
       />
       {done ? null : (
