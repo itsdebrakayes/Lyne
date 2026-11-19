@@ -7,7 +7,7 @@
 -- Existing DATE values convert to 'YYYY-MM-DD' text and keep their meaning.
 --
 -- Rows written before this stay readable as they are (the API passes plain
--- values through). apps/backend/scripts/seal-guest-fields.js seals them.
+-- values through). apps/backend/scripts/seal-personal-fields.js seals them.
 --
 -- PRODUCTION: never automatic. Set FIELD_ENCRYPTION_KEY on the server first,
 -- take a backup with deploy/backup-managed-db.sh, get the owner's approval,

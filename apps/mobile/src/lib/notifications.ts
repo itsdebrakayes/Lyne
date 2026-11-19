@@ -102,6 +102,7 @@ export async function dismissLiveTicketNotification() {
 
 type DepartureReminderInput = {
   ticketId?: string;
+  branchId?: string;
   branchName: string;
   branchLatitude?: number;
   branchLongitude?: number;
@@ -210,6 +211,22 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   return r * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
 }
 
+/**
+ * The drive to the branch: live traffic from the server (Mapbox, POST
+ * /travel/drive-time), or the straight-line guess at 30 km/h when the server
+ * cannot be reached. The server falls back to the same guess on its side.
+ */
+async function driveMinutes(input: DepartureReminderInput, lat: number, lng: number): Promise<number> {
+  if (input.branchId) {
+    try {
+      const r = await api.post<{ minutes: number }>('/travel/drive-time', { branch_id: input.branchId, lat, lng });
+      if (Number.isFinite(r.minutes)) return r.minutes;
+    } catch { /* offline: the guess below */ }
+  }
+  const km = distanceKm(lat, lng, input.branchLatitude as number, input.branchLongitude as number);
+  return Math.max(5, Math.ceil((km / 30) * 60));
+}
+
 export async function scheduleDepartureReminder(input: DepartureReminderInput) {
   if (input.branchLatitude === undefined || input.branchLongitude === undefined) return null;
 
@@ -217,14 +234,7 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
   if (permission.status !== 'granted') return null;
 
   const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  const km = distanceKm(
-    current.coords.latitude,
-    current.coords.longitude,
-    input.branchLatitude,
-    input.branchLongitude
-  );
-
-  const travelMinutes = Math.max(5, Math.ceil((km / 30) * 60));
+  const travelMinutes = await driveMinutes(input, current.coords.latitude, current.coords.longitude);
   const leadTime = input.leadTimeMinutes ?? 10;
   const secondsUntilReminder = Math.max(60, (input.estimatedWaitMinutes - travelMinutes - leadTime) * 60);
 

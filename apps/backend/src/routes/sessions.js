@@ -50,7 +50,7 @@ const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
-const { seal } = require('../lib/fieldCrypto');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const {
   requireStaffRole, requireBranchAccess, assertBusinessAccess,
@@ -577,7 +577,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         registrationId, session.id, req.dbUser?.id || null,
-        name || null, seal(phone || null), seal(email || null),
+        seal(name || null), seal(phone || null), seal(email || null),
         reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code, movedFrom,
         parsed.data.sms_consent && phone ? new Date() : null,
       ]
@@ -814,13 +814,13 @@ async function checkIn(req, res, channel) {
     const ticketId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, guest_name, guest_phone, guest_access_token,
+         (id, queue_id, user_id, guest_name, guest_name_hash, guest_phone, guest_access_token,
           ticket_number, verification_code, position, status, estimated_wait_minutes, channel,
           appointment_at, notify_consent_at, sms_stop_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
       [
         ticketId, queue.id, ownerId,
-        registration.guest_name || null, seal(registration.guest_phone || null), guestToken,
+        seal(registration.guest_name || null), fingerprint(registration.guest_name), seal(registration.guest_phone || null), guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
         honoured ? appointment.slot_at : null,
         /* A guest's yes from registering comes with them; an account's is on the account. */
@@ -1286,11 +1286,8 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
     const where = ['r.session_id = ?'];
     const params = [session.id];
     if (req.query.status) { where.push('r.status = ?'); params.push(req.query.status); }
-    if (req.query.q) {
-      where.push('(r.reference LIKE ? OR r.guest_name LIKE ? OR r.registration_code LIKE ?)');
-      const like = `%${req.query.q}%`;
-      params.push(like, like, like);
-    }
+    /* Names are sealed (src/lib/fieldCrypto.js): the search matches here, after the pool opens them. */
+    const needle = String(req.query.q || '').trim().toLowerCase();
 
     const [rows] = await pool.query(
       `SELECT r.id, r.registration_code, r.reference, r.appointment_time, r.verified, r.status,
@@ -1305,9 +1302,13 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
         -- Appointments in slot order first, then everybody else as before.
         ORDER BY r.appointment_time IS NULL, r.appointment_time,
                  r.checked_in_at IS NULL, r.checked_in_at, r.registered_at
-        LIMIT 1000`,
+        LIMIT ${needle ? 20000 : 1000}`,
       params
     );
+    const shown = needle
+      ? rows.filter((r) => [r.reference, r.guest_name, r.user_name, r.registration_code]
+        .some((v) => String(v || '').toLowerCase().includes(needle))).slice(0, 1000)
+      : rows;
 
     /* The court's own summary of its day: who is expected, who came, who did
        not, and how much of it we could actually vouch for.
@@ -1341,8 +1342,8 @@ router.get('/:id/registrations', requireAuth, requireStaffRole(...STAFF_VIEW, 'l
       },
       // True when the list below is not the whole session — so the screen can
       // say so rather than letting a 1000-row cap read as "that is everybody".
-      truncated: rows.length >= 1000,
-      registrations: rows.map((r) => ({
+      truncated: shown.length >= 1000,
+      registrations: shown.map((r) => ({
         ...r,
         verified: Boolean(r.verified),
         appointment_time: slotLabel(r.appointment_time),
@@ -1405,7 +1406,7 @@ router.post('/:id/registrations', requireAuth,
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           registrationId, session.id,
-          parsed.data.name || null, seal(parsed.data.phone || null), seal(parsed.data.email || null),
+          seal(parsed.data.name || null), seal(parsed.data.phone || null), seal(parsed.data.email || null),
           parsed.data.reference, appointmentTime, eligibility.verified && !overridden ? 1 : 0, code,
         ]
       );

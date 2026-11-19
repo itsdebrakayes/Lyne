@@ -164,6 +164,7 @@ async function main() {
   }
 
   const pool = require('../src/db/pool');
+  const { seal, fingerprint } = require('../src/lib/fieldCrypto');
   const conn = await pool.getConnection();
   try {
     const [[biz]] = await conn.query('SELECT id, name FROM businesses WHERE id = ?', [profile.business]);
@@ -187,9 +188,9 @@ async function main() {
       const seat = profile[persona.key];
       await conn.query(
         `INSERT INTO staff
-           (id, business_id, branch_id, section_id, role_id, supabase_uid, staff_code, full_name, email,
+           (id, business_id, branch_id, section_id, role_id, supabase_uid, staff_code, full_name, email, email_hash,
             phone, assigned_service_id, availability_status, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '+1-876-000-0000', ?, 'active', TRUE)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', TRUE)
          ON DUPLICATE KEY UPDATE
            business_id = VALUES(business_id), branch_id = VALUES(branch_id), section_id = VALUES(section_id),
            role_id = VALUES(role_id), supabase_uid = VALUES(supabase_uid),
@@ -197,7 +198,7 @@ async function main() {
            availability_status = 'active', is_active = TRUE`,
         // A section only for a supervisor whose profile names one (migration 043).
         [persona.id, profile.business, seat.branch, seat.section || null, persona.role, uidFor.get(persona.email),
-         persona.code, seat.name, persona.email, seat.service]
+         persona.code, seal(seat.name), seal(persona.email), fingerprint(persona.email), seal('+1-876-000-0000'), seat.service]
       );
     }
 
@@ -272,7 +273,7 @@ async function main() {
        so Saturday Banking can be registered for live. */
     let customerReport = null;
     if (customerEmail) {
-      const [[cust]] = await conn.query('SELECT id, full_name FROM users WHERE LOWER(email) = ? LIMIT 1', [customerEmail]);
+      const [[cust]] = await conn.query('SELECT id, full_name FROM users WHERE email_hash = ? LIMIT 1', [fingerprint(customerEmail)]);
       if (!cust) {
         customerReport = 'No customer account with that email in this database; bookings left as they were.';
       } else {
@@ -300,7 +301,7 @@ async function main() {
         );
         if (slot) {
           await conn.query('UPDATE session_registrations SET user_id = ?, guest_name = ? WHERE id = ?',
-            [cust.id, cust.full_name, slot.id]);
+            [cust.id, seal(cust.full_name), slot.id]);
           customerReport = `${cust.full_name}: ${slot.name}, ${String(slot.appointment_time).slice(0, 5)} (${slot.registration_code}); no other bookings, so they can register live.`;
         } else {
           customerReport = `${cust.full_name}: no appointment slot left today; no other bookings.`;

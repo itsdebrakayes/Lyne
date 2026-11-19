@@ -20,7 +20,7 @@ When you add a feature, add its row. When a fix touches a row, re-walk it.
 | What to bring | Service screen, before joining | The service's checklist set by the manager (Readiness) appears before the Join button |
 | Join a line remotely | Service → Join | A ticket with number, place in line and estimated wait; the same ticket appears in the admin Live line within 30 s |
 | Live ticket | Ticket screen, and the Live Activity on iPhone | Place and wait change when staff call the person ahead, without touching the phone |
-| Time to leave | Ticket screen with location allowed | "Leave now" when wait minus drive time is under the buffer; directions open in Apple/Google Maps |
+| Time to leave | Join a line with location allowed | "Time to head out" arrives at wait minus drive time minus 10 min; `POST /api/travel/drive-time` answers `source: "traffic"` when `MAPBOX_TOKEN` is set (`estimate` otherwise); directions open in Apple/Google Maps/Waze |
 | Leave the line | Ticket → Leave | Ticket disappears here and from the admin Live line; reason recorded |
 | Plan your visit / busy times | Branch → Busy times, Plan your visit (premium) | Hour-by-hour bars for the chosen day; free and premium are visibly different |
 | Sessions and bookings | Organisation with a session → Register / Check in | Access code issued; check-in turns it into a ticket in the right line |
@@ -95,7 +95,7 @@ Common to every role:
 | Health | `curl https://api.uselyne.com/health` → 200 |
 | App version gate | `GET /api/app/version` → the `APP_*` values from `.env` |
 | Deploy | `bash deploy/verify.sh` ends with all checks passed |
-| Field encryption | A walk-in's phone and date of birth read `enc:v1:…` in the database and plain in the admin line; `npm run test:db` (field-encryption) passes |
+| Field encryption | Names, emails, phones and dates of birth read `enc:v1:…` in the database and plain in every screen; Client Cases search by part of a name, email or phone still finds the person; staff lists stay in name order; `npm run test:db` (field-encryption) passes |
 
 ## How to check
 

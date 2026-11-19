@@ -17,6 +17,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { NEVER_EXPOSE } = require('../utils/publicShapes');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
@@ -126,8 +127,8 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
       return res.json({ user: null, created: false, staff: true });
     }
     const [staffByEmail] = await pool.query(
-      'SELECT id FROM staff WHERE email = ? AND is_active = TRUE LIMIT 1',
-      [supabaseUser.email]
+      'SELECT id FROM staff WHERE email_hash = ? AND is_active = TRUE LIMIT 1',
+      [fingerprint(supabaseUser.email)]
     );
     if (staffByEmail.length) {
       /* A staff row exists for this address but is not linked to this identity.
@@ -145,7 +146,8 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
       /* Supabase owns the sign-in email. A change confirmed there (Account >
          Email) reaches this row on the next sync, so the two never disagree. */
       if (supabaseUser.email && supabaseUser.email.toLowerCase() !== String(req.dbUser.email || '').toLowerCase()) {
-        await pool.query('UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?', [supabaseUser.email.toLowerCase(), req.dbUser.id]);
+        const changed = supabaseUser.email.toLowerCase();
+        await pool.query('UPDATE users SET email = ?, email_hash = ?, updated_at = NOW() WHERE id = ?', [seal(changed), fingerprint(changed), req.dbUser.id]);
       }
       // Update profile fields if provided
       if (full_name || phone) {
@@ -156,7 +158,7 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
              date_of_birth = COALESCE(?, date_of_birth),
              updated_at   = NOW()
            WHERE id = ?`,
-          [full_name, phone, date_of_birth, req.dbUser.id]
+          [seal(full_name || null), seal(phone || null), seal(date_of_birth || null), req.dbUser.id]
         );
       }
       const [updated] = await pool.query('SELECT * FROM users WHERE id = ?', [req.dbUser.id]);
@@ -174,9 +176,9 @@ router.post('/sync-user', requireAuth, profileSyncLimiter, validate(schemas.sync
     const name  = full_name || supabaseUser.user_metadata?.full_name || email.split('@')[0];
 
     await pool.query(
-      `INSERT INTO users (id, supabase_uid, email, full_name, phone, date_of_birth)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, supabaseUser.id, email, name, phone || null, date_of_birth || null]
+      `INSERT INTO users (id, supabase_uid, email, email_hash, full_name, phone, date_of_birth)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, supabaseUser.id, seal(email), fingerprint(email), seal(name), seal(phone || null), seal(date_of_birth || null)]
     );
 
     const [newUser] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
@@ -248,7 +250,7 @@ router.patch('/profile', requireAuth, validate(schemas.updateProfile), async (re
          updated_at    = NOW()
        WHERE id = ?`,
       [
-        full_name || null, phone || null, date_of_birth || null,
+        seal(full_name || null), seal(phone || null), seal(date_of_birth || null),
         req.dbUser.id,
       ]
     );

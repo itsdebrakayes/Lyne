@@ -27,11 +27,11 @@ test('every query that changes tickets is scoped to the review business or a dem
   const writes = src.match(/`(UPDATE|DELETE|INSERT)[\s\S]*?`/g) || [];
   assert.ok(writes.length >= 4);
   for (const w of writes) {
-    const scoped = /business_id = \?|guest_name = \?|DEMO_VISITOR|queue_tickets\s*\n?\s*\(id, queue_id, guest_name/.test(w) || /INSERT INTO queue_tickets/.test(w);
+    const scoped = /business_id = \?|guest_name_hash = \?|DEMO_VISITOR|queue_tickets\s*\n?\s*\(id, queue_id, guest_name/.test(w) || /INSERT INTO queue_tickets/.test(w);
     assert.ok(scoped, `unscoped write: ${w.slice(0, 80)}`);
   }
   // Only made-up visitors are served on the reviewer's behalf.
-  assert.match(src, /WHERE id = \? AND guest_name = \? AND status = 'waiting'/);
+  assert.match(src, /WHERE id = \? AND guest_name_hash = \? AND status = 'waiting'/);
 });
 
 test('showcase organisations have their own switch', () => {

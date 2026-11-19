@@ -112,7 +112,7 @@ the top warns about. Every row here has now been checked against this branch.
 
 | # | Item | Status | Evidence / gap |
 |---|---|---|---|
-| 6.1 | Sensitive fields encrypted at rest | 🟡 | Identification no longer stored server-side at all (PR #3). Walk-in phone, email and date of birth sealed AES-256-GCM (migration 054, `lib/fieldCrypto.js`, enforced in `db/pool.js`). Still plain: `users.phone`/`date_of_birth` (Client Cases searches by phone), `staff.phone`/`date_of_birth`/`address`, names and emails |
+| 6.1 | Sensitive fields encrypted at rest | 🟡 | Identification no longer stored server-side at all (PR #3). Names, emails, phones, dates of birth and addresses of users, staff, invites, walk-ins and registrants sealed AES-256-GCM (migrations 054–055, `lib/fieldCrypto.js`, enforced in `db/pool.js` and `tools/checks`); SMS numbers fingerprinted. Not yet applied on production (needs key, backup, approval, sealing script). Supabase Auth's own copy of sign-in emails is outside our database |
 | 6.2 | Identification stays on the device | ❌ | No `documentVault.ts`. `sync-user` and `PATCH /profile` both write `national_id`/`trn`; **30 rows** hold one today |
 | 6.3 | Account deletion really deletes | ✅ | `DELETE /api/auth/account`; PR #3 `account-and-approval` suite, 18 tests |
 | 6.4 | Retention periods enforced, not just published | ✅ | `jobs/retention.js`, 03:00 sweep — **defaults to dry run**; set `RETENTION_ENABLED=true` deliberately at launch |

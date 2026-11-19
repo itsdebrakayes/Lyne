@@ -39,6 +39,7 @@ if (!serviceRoleKey) {
 }
 
 const pool = require('../src/db/pool');
+const { seal, fingerprint } = require('../src/lib/fieldCrypto');
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
@@ -471,13 +472,13 @@ async function syncTodayQueues(connection) {
 
 async function syncMobileUser(connection, account, supabaseUser) {
   await connection.query(
-    `INSERT INTO users (id, supabase_uid, email, full_name)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO users (id, supabase_uid, email, email_hash, full_name)
+     VALUES (?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        supabase_uid = VALUES(supabase_uid),
        full_name = VALUES(full_name),
        updated_at = NOW()`,
-    [account.id, supabaseUser.id, account.email, account.fullName]
+    [account.id, supabaseUser.id, seal(account.email), fingerprint(account.email), seal(account.fullName)]
   );
 
   /* The upsert above can land on the `email` or `supabase_uid` unique key
@@ -489,8 +490,8 @@ async function syncMobileUser(connection, account, supabaseUser) {
      Referencing it below then fails the saved_businesses foreign key and
      aborts the whole sync. Read the id the database actually kept. */
   const [userRows] = await connection.query(
-    'SELECT id FROM users WHERE email = ? LIMIT 1',
-    [account.email]
+    'SELECT id FROM users WHERE email_hash = ? LIMIT 1',
+    [fingerprint(account.email)]
   );
   const userId = userRows[0]?.id || account.id;
 
@@ -519,8 +520,8 @@ async function syncMobileUser(connection, account, supabaseUser) {
 async function syncStaff(connection, account, supabaseUser) {
   await connection.query(
     `INSERT INTO staff
-       (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, assigned_service_id, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+       (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash, assigned_service_id, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
      ON DUPLICATE KEY UPDATE
        business_id = VALUES(business_id),
        branch_id = VALUES(branch_id),
@@ -538,8 +539,9 @@ async function syncStaff(connection, account, supabaseUser) {
       account.roleId,
       supabaseUser.id,
       account.staffCode,
-      account.fullName,
-      account.email,
+      seal(account.fullName),
+      seal(account.email),
+      fingerprint(account.email),
       account.assignedServiceId,
     ]
   );
@@ -548,8 +550,8 @@ async function syncStaff(connection, account, supabaseUser) {
      supabase_uid, so the upsert may have updated an existing row under a
      different id. Seat whoever the database actually holds. */
   const [staffRows] = await connection.query(
-    'SELECT id FROM staff WHERE email = ? LIMIT 1',
-    [account.email]
+    'SELECT id FROM staff WHERE email_hash = ? LIMIT 1',
+    [fingerprint(account.email)]
   );
   const staffId = staffRows[0]?.id || account.id;
 

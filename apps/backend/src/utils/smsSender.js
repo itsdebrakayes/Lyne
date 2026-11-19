@@ -13,9 +13,9 @@
  *   - a number that has said stop is never texted. Consent is the caller's job;
  *     the stop list is checked here so no caller can forget it.
  */
-const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { fingerprint } = require('../lib/fieldCrypto');
 
 const num = (v, fallback) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : fallback; };
 const PER_NUMBER_PER_HOUR = () => num(process.env.SMS_PER_NUMBER_PER_HOUR, 4);
@@ -33,7 +33,9 @@ function normalizeJamaican(raw) {
   return ten.length === 10 && /^(876|658)/.test(ten) ? `+1${ten}` : null;
 }
 
-const hash = (phone) => crypto.createHash('sha256').update(phone).digest('hex');
+/* Keyed (src/lib/fieldCrypto.js): a plain SHA-256 of a Jamaican number is
+   reversed by trying the 20 million there are. */
+const hash = (phone) => fingerprint(phone);
 
 /** Configured and switched on: the one test for "can Lyne text right now?". */
 function smsAvailable(env = process.env) {
@@ -59,7 +61,7 @@ async function record(phone, { purpose, status, providerId = null, detail = null
 
 /** Why this number may not be texted now, or null if it may. */
 async function refusal(phone) {
-  const [[out]] = await pool.query('SELECT 1 AS yes FROM sms_opt_outs WHERE phone = ?', [phone]);
+  const [[out]] = await pool.query('SELECT 1 AS yes FROM sms_opt_outs WHERE phone_hash = ?', [fingerprint(phone)]);
   if (out) return 'opted_out';
   const [[{ recent }]] = await pool.query(
     `SELECT COUNT(*) AS recent FROM sms_log WHERE phone_hash = ? AND status = 'sent' AND created_at >= NOW() - INTERVAL 1 HOUR`, [hash(phone)]);

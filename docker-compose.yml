@@ -86,6 +86,7 @@ services:
       APP_ANDROID_NOTES: ${APP_ANDROID_NOTES:-}
       SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-}
+      MAPBOX_TOKEN:         ${MAPBOX_TOKEN:-}
       # Empty locally, which means Sentry is off. Present so a developer can
       # set it for one run to check the wiring without editing compose.
       SENTRY_DSN:           ${SENTRY_DSN:-}

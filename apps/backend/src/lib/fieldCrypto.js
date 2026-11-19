@@ -1,6 +1,7 @@
 /**
  * Field-level encryption for personal details the database should never hold
- * readable: a walk-in's phone number, email and date of birth.
+ * readable: names, emails, phone numbers, dates of birth and addresses of app
+ * users, staff, staff invitations, walk-ins and session registrants.
  *
  * The managed database is already encrypted on disk by the provider. This is
  * the layer above it: a database dump, a read replica, a backup restored
@@ -12,7 +13,14 @@
  *
  * Reads need nothing: src/db/pool.js opens every sealed value in every result.
  * Writes call seal() on the value, and pool.js refuses an INSERT or UPDATE
- * that puts a plaintext value into a column in SEALED_COLUMNS.
+ * that puts a plaintext value into a column listed in SEALED, or writes a
+ * fingerprinted column without its fingerprint.
+ *
+ * A sealed value cannot be searched, sorted or compared in SQL. Exact lookups
+ * (sign-in by email, the review simulator's visitor) use a fingerprint column
+ * beside it: fingerprint(value), an HMAC that is equal for equal values and
+ * reveals nothing else. Sorting and partial search happen in JavaScript after
+ * the rows are read.
  *
  * Losing the key loses these values. It is backed up with the server's other
  * secrets, never in git and never in the database backup.
@@ -21,8 +29,22 @@ const crypto = require('node:crypto');
 
 const PREFIX = 'enc:v1:';
 
-/** Columns whose values are only ever stored sealed. Same names in every table that has them. */
-const SEALED_COLUMNS = ['guest_phone', 'guest_email', 'guest_dob'];
+/** Per table: the columns only ever stored sealed. */
+const SEALED = {
+  users: ['full_name', 'email', 'phone', 'date_of_birth'],
+  staff: ['full_name', 'email', 'phone', 'date_of_birth', 'address'],
+  staff_invites: ['full_name', 'email'],
+  queue_tickets: ['guest_name', 'guest_phone', 'guest_dob'],
+  session_registrations: ['guest_name', 'guest_phone', 'guest_email'],
+};
+
+/** Per table: sealed column -> the fingerprint column that must be written with it. */
+const FINGERPRINTED = {
+  users: { email: 'email_hash' },
+  staff: { email: 'email_hash' },
+  staff_invites: { email: 'email_hash' },
+  queue_tickets: { guest_name: 'guest_name_hash' },
+};
 
 let cachedKey;
 function key() {
@@ -70,6 +92,26 @@ function open(value) {
   return Buffer.concat([decipher.update(Buffer.from(ct, 'base64')), decipher.final()]).toString('utf8');
 }
 
+/* Fingerprints use their own key, derived from the encryption key. Without one
+   (local dev) a fixed development key, so lookups still work; the sealing
+   script recomputes every fingerprint once the real key is set. */
+let cachedPepper;
+function pepper() {
+  if (cachedPepper === undefined) {
+    const k = key();
+    cachedPepper = k ? Buffer.from(crypto.hkdfSync('sha256', k, Buffer.alloc(0), 'lyne-fingerprint-v1', 32))
+      : Buffer.from('lyne-local-development-fingerprint');
+  }
+  return cachedPepper;
+}
+
+/** Same value, same fingerprint: case and surrounding/double spaces do not count. null stays null. */
+function fingerprint(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const normal = String(value).trim().replace(/\s+/g, ' ').toLowerCase();
+  return crypto.createHmac('sha256', pepper()).update(normal).digest('hex');
+}
+
 /** Production refuses to start without a key, so no deploy quietly stores plaintext. */
 function assertReady() {
   if (process.env.NODE_ENV === 'production' && !key()) {
@@ -78,6 +120,8 @@ function assertReady() {
 }
 
 /** For tests: forget the cached key after changing the environment. */
-function resetKeyForTests() { cachedKey = undefined; }
+function resetKeyForTests() { cachedKey = undefined; cachedPepper = undefined; }
 
-module.exports = { seal, open, isSealed, assertReady, SEALED_COLUMNS, PREFIX, resetKeyForTests };
+const SEALED_COLUMNS = [...new Set(Object.values(SEALED).flat())];
+
+module.exports = { seal, open, isSealed, fingerprint, assertReady, SEALED, FINGERPRINTED, SEALED_COLUMNS, PREFIX, resetKeyForTests };

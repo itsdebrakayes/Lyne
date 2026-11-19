@@ -27,7 +27,7 @@ const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
-const { seal } = require('../lib/fieldCrypto');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { requireAuth } = require('../middleware/auth');
 const { queueJoinLimiter } = require('../middleware/rateLimiter');
 const { validate, schemas } = require('../middleware/validate');
@@ -456,10 +456,10 @@ router.post('/walk-in', requireAuth, requireStaffRole('kiosk_clerk'), async (req
     const ticketId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, guest_name, guest_phone, guest_dob, ticket_number, verification_code, position, status,
+         (id, queue_id, user_id, guest_name, guest_name_hash, guest_phone, guest_dob, ticket_number, verification_code, position, status,
           estimated_wait_minutes, channel, visit_reason, triage_answers, triage_flag, notify_consent_at, sms_stop_code)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk', ?, ?, ?, ?, ?)`,
-      [ticketId, queue.id, guest_name, seal(guest_phone || null), seal(guest_dob || null), ticketNumber, verificationCode, position,
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, 'kiosk', ?, ?, ?, ?, ?)`,
+      [ticketId, queue.id, seal(guest_name), fingerprint(guest_name), seal(guest_phone || null), seal(guest_dob || null), ticketNumber, verificationCode, position,
         estimatedWait, visit_reason || null, triage.answers ? JSON.stringify(triage.answers) : null, triage.flag,
         sms_consent && guest_phone ? new Date() : null, sms_consent && guest_phone ? stopCode() : null]
     );
@@ -1599,12 +1599,12 @@ router.post('/:id/transfer', requireAuth, requireStaffRole('line_staff', 'manage
     const newId = uuidv4();
     await conn.query(
       `INSERT INTO queue_tickets
-         (id, queue_id, user_id, guest_name, guest_phone, guest_dob, guest_access_token, notify_consent_at,
+         (id, queue_id, user_id, guest_name, guest_name_hash, guest_phone, guest_dob, guest_access_token, notify_consent_at,
           triage_answers, triage_flag, visit_reason, channel, ticket_number, verification_code, position,
           status, estimated_wait_minutes, sms_stop_code,
           transferred_from_ticket_id, transfer_note, journey_started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
-      [newId, target.id, ticket.user_id, ticket.guest_name, seal(ticket.guest_phone), seal(ticket.guest_dob),
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
+      [newId, target.id, ticket.user_id, seal(ticket.guest_name), fingerprint(ticket.guest_name), seal(ticket.guest_phone), seal(ticket.guest_dob),
        ticket.guest_access_token, ticket.notify_consent_at,
        ticket.triage_answers == null ? null
          : (typeof ticket.triage_answers === 'string' ? ticket.triage_answers : JSON.stringify(ticket.triage_answers)),

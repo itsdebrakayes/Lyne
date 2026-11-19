@@ -28,12 +28,12 @@ function stubModule(request, exports, parent) {
   require.cache[resolved] = { id: resolved, filename: resolved, loaded: true, exports, children: [], paths: [] };
 }
 
-test('a walk-in phone and date of birth are stored sealed and read back plain', { skip: !ENABLED && 'set LYNE_TEST_DB=1 (npm run test:db)' }, async (t) => {
+test('walk-in and app-user personal details are stored sealed, read back plain, and found by fingerprint', { skip: !ENABLED && 'set LYNE_TEST_DB=1 (npm run test:db)' }, async (t) => {
   process.env.FIELD_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://field-encryption-test.invalid';
   process.env.SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'test-key';
   stubModule('@supabase/supabase-js', {
-    createClient: () => ({ auth: { getUser: async (token) => ({ data: { user: { id: token } }, error: null }) } }),
+    createClient: () => ({ auth: { getUser: async (token) => ({ data: { user: { id: token, email: `${token}@Example.test`, user_metadata: { full_name: 'Fet Person' } } }, error: null }) } }),
   }, module);
   stubModule('../../src/utils/pushSender', { sendPushToUser: async () => ({ sent: 0 }) }, module);
 
@@ -45,6 +45,7 @@ test('a walk-in phone and date of birth are stored sealed and read back plain', 
   const app = express();
   app.use(express.json());
   app.use('/api/tickets', require('../../src/routes/tickets'));
+  app.use('/api/auth', require('../../src/routes/auth'));
   const server = app.listen(0);
   await new Promise((r) => server.once('listening', r));
 
@@ -54,6 +55,7 @@ test('a walk-in phone and date of birth are stored sealed and read back plain', 
     await raw.query('DELETE FROM queues WHERE branch_id = ?', [BRANCH]);
     await raw.query('DELETE FROM counters WHERE branch_id = ?', [BRANCH]);
     await raw.query("DELETE FROM staff WHERE id LIKE 'fet-%'");
+    await raw.query("DELETE FROM users WHERE supabase_uid = 'fet-user-uid'");
     await raw.query('DELETE FROM services WHERE id = ?', [SERVICE]);
     await raw.query('DELETE FROM branches WHERE id = ?', [BRANCH]);
     await raw.query('DELETE FROM businesses WHERE id = ?', [BIZ]);
@@ -94,4 +96,16 @@ test('a walk-in phone and date of birth are stored sealed and read back plain', 
     pool.query('UPDATE queue_tickets SET guest_phone = ? WHERE id = ?', ['8765550123', body.id]),
     /guest_phone must be stored sealed/,
   );
+
+  /* An app user signing up: name and email sealed, found again by fingerprint. */
+  const signup = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/sync-user`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer fet-user-uid' },
+    body: JSON.stringify({ phone: '8765550199' }),
+  });
+  assert.equal(signup.status, 201, await signup.clone().text());
+  const [[user]] = await raw.query("SELECT full_name, email, email_hash, phone FROM users WHERE supabase_uid = 'fet-user-uid'");
+  for (const col of ['full_name', 'email', 'phone']) assert.match(user[col], /^enc:v1:/, `users.${col} is sealed`);
+  const { fingerprint } = require('../../src/lib/fieldCrypto');
+  const [[found]] = await pool.query('SELECT full_name, email, phone FROM users WHERE email_hash = ?', [fingerprint('FET-USER-UID@example.test')]);
+  assert.deepEqual({ ...found }, { full_name: 'Fet Person', email: 'fet-user-uid@Example.test', phone: '8765550199' });
 });

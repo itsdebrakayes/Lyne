@@ -231,5 +231,5 @@ test("the simulator's made-up visitors are never closed out as visits", async ()
   reset();
   await runTicketExpiry();
   const candidates = queries.find((q) => /FROM queue_tickets t/.test(q.sql));
-  assert.match(candidates.sql, /t\.guest_name <> 'Review demo visitor'/);
+  assert.match(candidates.sql, /t\.guest_name_hash IS NULL OR t\.guest_name_hash <> '[0-9a-f]{64}'/);
 });

@@ -120,6 +120,24 @@ for (const f of tracked.filter((p) => /\.(tsx?|jsx?|mjs|html|json|sql)$/.test(p)
   }
 }
 
+/* 8. Sealed columns (apps/backend/src/lib/fieldCrypto.js) are never searched, compared or sorted in SQL:
+      the stored value is ciphertext, different every time. */
+{
+  const COLS = 'full_name|guest_name|email|guest_email|guest_phone|date_of_birth|guest_dob';
+  const compare = new RegExp(`\\b(WHERE|AND|OR|ON)\\s+(?:LOWER\\()?(?:\\w+\\.)?(${COLS})\\)?\\s*(=|<>|!=|LIKE|IN\\b)`, 'gi');
+  const order = new RegExp(`ORDER BY(?:[^\`;()]|\\([^)]*\\))*?\\b(?:\\w+\\.)?(${COLS})\\b`, 'gi');
+  for (const f of tracked.filter((p) => /^apps\/backend\/(src|scripts)\/.*\.(js|mjs)$/.test(p))) {
+    const text = read(f);
+    for (const re of [compare, order]) {
+      for (const m of text.matchAll(re)) {
+        const line = text.slice(0, m.index).split('\n').length;
+        fail('sealed-columns-in-sql', `${f}:${line}: ${m[0].replace(/\s+/g, ' ').slice(0, 80)}`,
+          'That column is stored sealed, so SQL cannot compare, search or sort it. Look up by its fingerprint column (email_hash, guest_name_hash = fingerprint(value)); sort with sortRows() from src/utils/sortRows.js; search in JavaScript after the query.');
+      }
+    }
+  }
+}
+
 if (failures.length) {
   for (const x of failures) console.error(`\n✗ ${x.check}\n    ${x.where}\n    → ${x.fix}`);
   console.error(`\n${failures.length} repo check(s) failed.`);

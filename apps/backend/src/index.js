@@ -220,6 +220,7 @@ app.use('/api/sms',            require('./routes/sms'));
 app.use('/api/history',        require('./routes/history'));
 app.use('/api/iap',            requirePayments, require('./routes/iap'));
 app.use('/api/saved',          require('./routes/saved'));
+app.use('/api/travel',         require('./routes/travel'));
 /* Premium, and gated inside the router — a branch can also refuse it. */
 app.use('/api/line-helper',    require('./routes/line-helper'));
 /* Card testing goes straight at create-intent, so the limiter is mounted on

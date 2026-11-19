@@ -16,6 +16,7 @@ const { randomUUID: uuidv4 } = require('crypto');
 const crypto  = require('crypto');
 const { supabaseAdmin } = require('../lib/supabaseAdmin');
 const pool    = require('../db/pool');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
 const { assertBusinessAccess, assertBranchAccess, isPlatformAdmin } = require('../middleware/tenantAccess');
@@ -91,8 +92,8 @@ router.post('/create',
 
       // Check for existing pending invite for this email+business
       const [existing] = await pool.query(
-        "SELECT id FROM staff_invites WHERE email = ? AND business_id = ? AND status IN ('requested','pending') AND expires_at > NOW()",
-        [email, business_id]
+        "SELECT id FROM staff_invites WHERE email_hash = ? AND business_id = ? AND status IN ('requested','pending') AND expires_at > NOW()",
+        [fingerprint(email), business_id]
       );
       if (existing.length) {
         return res.status(409).json({ error: 'A pending invite already exists for this email.' });
@@ -105,10 +106,10 @@ router.post('/create',
 
       await pool.query(
         `INSERT INTO staff_invites
-           (id, business_id, branch_id, email, full_name, role, invite_code,
+           (id, business_id, branch_id, email, email_hash, full_name, role, invite_code,
             invited_by_staff_id, expires_at, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [inviteId, business_id, branch_id || null, email, full_name, role,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [inviteId, business_id, branch_id || null, seal(email), fingerprint(email), seal(full_name), role,
          inviteCode, req.dbStaff?.id, expiresAt,
          // A platform admin acting directly IS the approval; anyone else is asking.
          isPlatformAdmin(req) ? 'pending' : 'requested']
@@ -170,8 +171,8 @@ router.post('/redeem', async (req, res) => {
 
     // Check if a staff account already exists for this email
     const [existing] = await conn.query(
-      'SELECT id FROM staff WHERE email = ? AND business_id = ?',
-      [invite.email, invite.business_id]
+      'SELECT id FROM staff WHERE email_hash = ? AND business_id = ?',
+      [fingerprint(invite.email), invite.business_id]
     );
     if (existing.length) {
       await conn.rollback();
@@ -219,17 +220,18 @@ router.post('/redeem', async (req, res) => {
 
     await conn.query(
       `INSERT INTO staff
-         (id, business_id, branch_id, role_id, full_name, email, phone,
+         (id, business_id, branch_id, role_id, full_name, email, email_hash, phone,
           staff_code, supabase_uid, is_active, invited_by_staff_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
       [
         staffId,
         invite.business_id,
         invite.branch_id || null,
         roleId,
-        full_name || invite.full_name,
-        invite.email,
-        phone || null,
+        seal(full_name || invite.full_name),
+        seal(invite.email),
+        fingerprint(invite.email),
+        seal(phone || null),
         staffCode,
         supabaseUid,
         invite.invited_by_staff_id,

@@ -41,6 +41,7 @@ if (process.env.ALLOW_DEMO_HEALTHCARE_SEED !== 'true') {
 }
 
 const pool = require('../src/db/pool');
+const { seal, fingerprint } = require('../src/lib/fieldCrypto');
 
 /* ── deterministic randomness ─────────────────────────────────────────── */
 function mulberry32(seed) {
@@ -338,11 +339,11 @@ async function main() {
     }
     for (const st of staff) {
       await conn.query(
-        `INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, availability_status, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'active', TRUE)
+        `INSERT INTO staff (id, business_id, branch_id, role_id, staff_code, full_name, email, email_hash, availability_status, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', TRUE)
          ON DUPLICATE KEY UPDATE business_id = VALUES(business_id), branch_id = VALUES(branch_id), role_id = VALUES(role_id),
            full_name = VALUES(full_name), is_active = TRUE`,
-        [st.id, BIZ, st.branch, st.role, st.code, st.name, `${st.code.toLowerCase()}@wrenfield.example`]);
+        [st.id, BIZ, st.branch, st.role, st.code, seal(st.name), seal(`${st.code.toLowerCase()}@wrenfield.example`), fingerprint(`${st.code.toLowerCase()}@wrenfield.example`)]);
     }
     const desksAt = (branch) => staff.filter((x) => x.branch === branch && x.role === 'role-staff-001');
 

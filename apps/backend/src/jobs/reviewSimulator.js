@@ -55,13 +55,14 @@
  */
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { issueTicketSlot, beginSlotTransaction } = require('../utils/ticketSlot');
 const { ensureQueuesForToday } = require('../routes/queues');
 const { sendPushToUser } = require('../utils/pushSender');
 const { activeClosure } = require('../utils/branchClosures');
 
 /** Marks the made-up visitors, so they are never mistaken for people. */
-const DEMO_VISITOR = 'Review demo visitor';
+const { DEMO_VISITOR, DEMO_VISITOR_PRINT: VISITOR } = require('../utils/demoVisitor');
 /** Visitors kept waiting in each review line. */
 const MIN_WAITING = 4;
 /** Seconds between each step of a reviewer's visit. */
@@ -134,10 +135,10 @@ async function keepLinesBusy(businessId, minWaiting = MIN_WAITING) {
           });
           await conn.query(
             `INSERT INTO queue_tickets
-               (id, queue_id, guest_name, channel, ticket_number, verification_code, position, status,
+               (id, queue_id, guest_name, guest_name_hash, channel, ticket_number, verification_code, position, status,
                 estimated_wait_minutes, joined_at)
-             VALUES (?, ?, ?, 'walk_in', ?, ?, ?, 'waiting', ?, NOW())`,
-            [uuidv4(), q.id, DEMO_VISITOR, slot.ticketNumber, slot.verificationCode, slot.position, slot.estimatedWait]);
+             VALUES (?, ?, ?, ?, 'walk_in', ?, ?, ?, 'waiting', ?, NOW())`,
+            [uuidv4(), q.id, seal(DEMO_VISITOR), fingerprint(DEMO_VISITOR), slot.ticketNumber, slot.verificationCode, slot.position, slot.estimatedWait]);
           await conn.commit();
         } catch (err) {
           await conn.rollback().catch(() => {});
@@ -157,10 +158,10 @@ async function hurryReviewerHelper(businessId, email) {
         SET h.leave_home_at    = NOW() + INTERVAL 5 MINUTE,
             h.target_served_at = NOW() + INTERVAL 30 MINUTE,
             h.scheduled_join_at = NOW()
-      WHERE h.status = 'scheduled' AND h.business_id = ? AND LOWER(u.email) = ?
+      WHERE h.status = 'scheduled' AND h.business_id = ? AND u.email_hash = ?
         AND h.created_at <= NOW() - INTERVAL 30 SECOND
         AND h.scheduled_join_at > NOW()`,
-    [businessId, email]);
+    [businessId, fingerprint(email)]);
 }
 
 /** One status change on the reviewer's ticket, through the same code staff use. */
@@ -216,7 +217,7 @@ async function moveReviewerLines(businessId, email, now = new Date(), { anyone =
             TIMESTAMPDIFF(SECOND, t.called_at, NOW()) AS since_called,
             TIMESTAMPDIFF(SECOND, t.started_serving_at, NOW()) AS since_serving,
             TIMESTAMPDIFF(SECOND, (SELECT MAX(x.completed_at) FROM queue_tickets x
-              WHERE x.queue_id = t.queue_id AND x.guest_name = ? AND x.completed_at IS NOT NULL), NOW()) AS since_step
+              WHERE x.queue_id = t.queue_id AND x.guest_name_hash = ? AND x.completed_at IS NOT NULL), NOW()) AS since_step
        FROM queue_tickets t
        LEFT JOIN users u ON u.id = t.user_id
        JOIN queues q ON q.id = t.queue_id
@@ -226,8 +227,8 @@ async function moveReviewerLines(businessId, email, now = new Date(), { anyone =
         /* In a showcase organisation anyone who joins is served, so the
            example works for whoever tries it; elsewhere only the reviewer.
            Made-up visitors are never moved as if they were a person. */
-        AND ${anyone ? "(t.guest_name IS NULL OR t.guest_name <> ?)" : 'LOWER(u.email) = ?'}`,
-    [DEMO_VISITOR, businessId, anyone ? DEMO_VISITOR : email]);
+        AND ${anyone ? "(t.guest_name_hash IS NULL OR t.guest_name_hash <> ?)" : 'u.email_hash = ?'}`,
+    [VISITOR, businessId, anyone ? VISITOR : fingerprint(email)]);
 
   let moved = 0;
   for (const t of tickets) {
@@ -238,9 +239,9 @@ async function moveReviewerLines(businessId, email, now = new Date(), { anyone =
         /* Paced demo: only the first real person in the line moves it, one
            made-up walk-in per step, so they reach the front at frontAt. */
         const [[c]] = await pool.query(
-          `SELECT SUM(guest_name IS NULL OR guest_name <> ?) AS people, SUM(guest_name = ?) AS visitors
+          `SELECT SUM(guest_name_hash IS NULL OR guest_name_hash <> ?) AS people, SUM(guest_name_hash = ?) AS visitors
              FROM queue_tickets WHERE queue_id = ? AND status = 'waiting' AND position < ?`,
-          [DEMO_VISITOR, DEMO_VISITOR, t.queue_id, t.position]);
+          [VISITOR, VISITOR, t.queue_id, t.position]);
         if (Number(c.people) > 0) continue;
         if (paceTo.frontAt - now.getTime() >= (Number(c.visitors) - 1) * paceTo.stepMs) continue;
       }
@@ -254,8 +255,8 @@ async function moveReviewerLines(businessId, email, now = new Date(), { anyone =
         const [res] = await pool.query(
           `UPDATE queue_tickets
               SET status = 'served', started_serving_at = NOW() - INTERVAL 6 MINUTE, completed_at = NOW()
-            WHERE id = ? AND guest_name = ? AND status = 'waiting'`,
-          [ahead.id, DEMO_VISITOR]);
+            WHERE id = ? AND guest_name_hash = ? AND status = 'waiting'`,
+          [ahead.id, VISITOR]);
         if (res.affectedRows) {
           moved += 1;
           broadcast(t.queue_id, { id: ahead.id, status: 'served' });
@@ -282,8 +283,8 @@ async function clearOldVisitors(businessId) {
   await pool.query(
     `DELETE t FROM queue_tickets t
        JOIN queues q ON q.id = t.queue_id JOIN branches b ON b.id = q.branch_id
-      WHERE b.business_id = ? AND t.guest_name = ? AND t.joined_at < CURDATE()`,
-    [businessId, DEMO_VISITOR]);
+      WHERE b.business_id = ? AND t.guest_name_hash = ? AND t.joined_at < CURDATE()`,
+    [businessId, VISITOR]);
 }
 
 /** After the demo window: made-up walk-ins still waiting today are removed. */
@@ -291,8 +292,8 @@ async function clearWaitingVisitors(businessId) {
   await pool.query(
     `DELETE t FROM queue_tickets t
        JOIN queues q ON q.id = t.queue_id JOIN branches b ON b.id = q.branch_id
-      WHERE b.business_id = ? AND t.guest_name = ? AND t.status = 'waiting'`,
-    [businessId, DEMO_VISITOR]);
+      WHERE b.business_id = ? AND t.guest_name_hash = ? AND t.status = 'waiting'`,
+    [businessId, VISITOR]);
 }
 
 async function runReviewSimulatorTick(env = process.env, now = new Date()) {

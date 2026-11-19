@@ -120,6 +120,7 @@ export default function JoinQueueScreen() {
       registerPushNotifications().catch(() => {});
       scheduleDepartureReminder({
         ticketId: ticket.id,
+        branchId,
         branchName: branch.name,
         branchLatitude: branch.latitude,
         branchLongitude: branch.longitude,

@@ -3,10 +3,13 @@
  *
  *   openResult   every sealed value in a query result comes back readable, so
  *                routes, exports and SMS never handle ciphertext.
- *   checkWrite   an INSERT or UPDATE that puts plaintext into a sealed column
- *                throws, naming the column, so a new route cannot forget seal().
+ *   checkWrite   an INSERT or UPDATE that puts plaintext into a sealed column,
+ *                or a fingerprinted column without its fingerprint, throws,
+ *                naming the column, so a new route cannot forget either.
  */
-const { open, isSealed, SEALED_COLUMNS } = require('../lib/fieldCrypto');
+const { open, isSealed, SEALED, FINGERPRINTED, SEALED_COLUMNS } = require('../lib/fieldCrypto');
+
+const COLUMN_RE = new RegExp(`\\b(${SEALED_COLUMNS.join('|')})\\b`);
 
 function openRow(row) {
   if (!row || typeof row !== 'object' || Buffer.isBuffer(row) || row instanceof Date) return;
@@ -40,41 +43,87 @@ function splitTopLevel(text) {
   return out.map((s) => s.trim());
 }
 
-const countMarks = (s) => (s.match(/\?/g) || []).length;
-const COLUMN_RE = new RegExp(`\\b(${SEALED_COLUMNS.join('|')})\\b`);
+/* Index of the ')' that closes the '(' just before `from`. */
+function closingParen(text, from) {
+  let depth = 1; let quote = null;
+  for (let i = from; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote) { if (c === quote && text[i - 1] !== '\\') quote = null; continue; }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '(') depth += 1;
+    else if (c === ')' && --depth === 0) return i;
+  }
+  return text.length;
+}
 
-function refuse(column) {
-  const err = new Error(`${column} must be stored sealed. Wrap the value in seal() from src/lib/fieldCrypto.js (a value read back from the database is already opened, so a copy needs seal() too).`);
+const countMarks = (s) => (s.match(/\?/g) || []).length;
+const unquote = (c) => c.replace(/`/g, '').replace(/^\w+\./, '').trim();
+
+function refuse(table, column, why) {
+  const err = new Error(why === 'fingerprint'
+    ? `${table}.${column} is written without ${FINGERPRINTED[table][column]}. Write ${FINGERPRINTED[table][column]} = fingerprint(value) from src/lib/fieldCrypto.js in the same statement.`
+    : `${table}.${column} must be stored sealed. Wrap the value in seal() from src/lib/fieldCrypto.js (a value read back from the database is already opened, so a copy needs seal() too).`);
   err.code = 'LYNE_UNSEALED_WRITE';
   throw err;
 }
 
 const plaintext = (v) => typeof v === 'string' && v !== '' && !isSealed(v);
 
-/** Throws when a write would store a sealed column's value as plaintext. Reads and other columns pass. */
-function checkWrite(sql, values) {
-  if (typeof sql !== 'string' || !Array.isArray(values) || !COLUMN_RE.test(sql)) return;
-  if (!process.env.FIELD_ENCRYPTION_KEY) return;
-
-  const insert = sql.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+\S+\s*\(([^)]*)\)\s*VALUES\s*\(([\s\S]*)\)\s*;?\s*$/i);
+/* Columns written by the statement, each with its value: the param, or undefined for an SQL expression. */
+function writtenColumns(sql, values) {
+  const insert = sql.match(/^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+`?(\w+)`?\s*\(([^)]*)\)\s*VALUES\s*\(/i);
   if (insert) {
-    const cols = splitTopLevel(insert[1]).map((c) => c.replace(/`/g, ''));
-    const vals = splitTopLevel(insert[2]);
-    const before = countMarks(sql.slice(0, insert.index + insert[0].indexOf(insert[2])));
-    let mark = before;
-    cols.forEach((col, i) => {
-      const v = vals[i] || '';
-      if (SEALED_COLUMNS.includes(col) && v === '?' && plaintext(values[mark])) refuse(col);
-      mark += countMarks(v);
-    });
-    return;
+    const cols = splitTopLevel(insert[2]).map(unquote);
+    const rows = [];
+    let open = insert.index + insert[0].length;
+    for (;;) {
+      const close = closingParen(sql, open);
+      const vals = splitTopLevel(sql.slice(open, close));
+      let mark = countMarks(sql.slice(0, open));
+      const row = new Map();
+      cols.forEach((col, i) => {
+        const v = vals[i] || '';
+        row.set(col, v === '?' ? { value: values[mark] } : { expression: v });
+        mark += countMarks(v);
+      });
+      rows.push(row);
+      const next = sql.slice(close + 1).match(/^\s*,\s*\(/);
+      if (!next) break;
+      open = close + 1 + next[0].length;
+    }
+    return { table: insert[1], rows };
   }
+  const update = sql.match(/^\s*UPDATE\s+`?(\w+)`?[\s\S]*?\bSET\b([\s\S]*?)(?:\bWHERE\b|$)/i);
+  if (update) {
+    const setAt = update.index + update[0].indexOf(update[2]);
+    const out = new Map();
+    let offset = 0;
+    for (const part of splitTopLevel(update[2])) {
+      const at = update[2].indexOf(part, offset); offset = at + part.length;
+      const m = part.match(/^`?(?:\w+\.)?(\w+)`?\s*=\s*([\s\S]*)$/);
+      if (!m) continue;
+      const expr = m[2].trim();
+      const param = /^(?:COALESCE\(\s*)?\?/.test(expr);
+      out.set(m[1], param ? { value: values[countMarks(sql.slice(0, setAt + at + part.indexOf(expr)))] } : { expression: expr });
+    }
+    return { table: update[1], rows: [out] };
+  }
+  return null;
+}
 
-  if (/^\s*UPDATE\b/i.test(sql)) {
-    const re = new RegExp(`\\b(${SEALED_COLUMNS.join('|')})\\s*=\\s*(?:COALESCE\\(\\s*)?\\?`, 'gi');
-    for (const m of sql.matchAll(re)) {
-      const idx = countMarks(sql.slice(0, m.index + m[0].length)) - 1;
-      if (plaintext(values[idx])) refuse(m[1]);
+/** Throws when a write would store a sealed column in plain text, or a fingerprinted one without its fingerprint. */
+function checkWrite(sql, values) {
+  if (typeof sql !== 'string' || !COLUMN_RE.test(sql) || !/^\s*(INSERT|UPDATE)\b/i.test(sql)) return;
+  const w = writtenColumns(sql, Array.isArray(values) ? values : []);
+  if (!w || !SEALED[w.table]) return;
+  for (const columns of w.rows) {
+    for (const [col, v] of columns) {
+      if (!SEALED[w.table].includes(col)) continue;
+      const literal = v.expression && /^'/.test(v.expression);
+      if (process.env.FIELD_ENCRYPTION_KEY && (plaintext(v.value) || literal)) refuse(w.table, col);
+      const fp = FINGERPRINTED[w.table]?.[col];
+      const clearing = v.expression && /^NULL$/i.test(v.expression);
+      if (fp && !clearing && !columns.has(fp)) refuse(w.table, col, 'fingerprint');
     }
   }
 }

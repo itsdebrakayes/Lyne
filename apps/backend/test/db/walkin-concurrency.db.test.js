@@ -28,6 +28,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const { fingerprint } = require('../../src/lib/fieldCrypto');
 const Module = require('module');
 
 const ENABLED = process.env.LYNE_TEST_DB === '1';
@@ -88,15 +89,15 @@ async function seed() {
   );
   for (let i = 1; i <= CLERKS; i++) {
     await pool.query(
-      `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email)
-       VALUES (?, ?, ?, (SELECT id FROM roles WHERE name = 'kiosk_clerk'), ?, ?, ?, ?)`,
-      [`cct-staff-${i}`, BIZ, BRANCH, clerkUid(i), `CCT-K${i}`, `Clerk ${i}`, `cct-clerk-${i}@example.test`]
+      `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash)
+       VALUES (?, ?, ?, (SELECT id FROM roles WHERE name = 'kiosk_clerk'), ?, ?, ?, ?, ?)`,
+      [`cct-staff-${i}`, BIZ, BRANCH, clerkUid(i), `CCT-K${i}`, `Clerk ${i}`, `cct-clerk-${i}@example.test`, fingerprint(`cct-clerk-${i}@example.test`)]
     );
   }
   for (let i = 1; i <= APP_USERS; i++) {
     await pool.query(
-      'INSERT INTO users (id, supabase_uid, email, full_name) VALUES (?, ?, ?, ?)',
-      [`cct-user-${i}`, userUid(i), `cct-user-${i}@example.test`, `App User ${i}`]
+      'INSERT INTO users (id, supabase_uid, email, email_hash, full_name) VALUES (?, ?, ?, ?, ?)',
+      [`cct-user-${i}`, userUid(i), `cct-user-${i}@example.test`, fingerprint(`cct-user-${i}@example.test`), `App User ${i}`]
     );
   }
 }
