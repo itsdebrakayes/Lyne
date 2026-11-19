@@ -240,6 +240,7 @@ Production values go in `/srv/lyne/.env`, created from `deploy/env.production.ex
 | Hosts and TLS | `API_DOMAIN`, `ADMIN_DOMAIN`, `TLS_EMAIL`, `APP_TZ` | |
 | Database | `MYSQL_HOST` (private host), `MYSQL_PORT`, `MYSQL_USER=lyne`, `MYSQL_PASSWORD`, `MYSQL_DATABASE=lyne`, `MYSQL_SSL` | Never the `doadmin` login |
 | Supabase | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_KEY` | The service key must never appear in any client bundle |
+| Field encryption | `FIELD_ENCRYPTION_KEY` | 32 bytes, `openssl rand -base64 32`. The API refuses to start in production without it. Back it up with the other secrets: without it, sealed values cannot be read. Never change it on a server that holds sealed values |
 | Web | `FRONTEND_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`, `PORTAL_HANDOFF_SECRET` | Generate the handoff secret with `openssl rand -base64 48` |
 | Queue lifecycle | `TICKET_EXPIRY_ENABLED`, `TICKET_EXPIRY_GRACE_MINUTES`, `RETENTION_ENABLED`, `RETENTION_MEASUREMENTS_MONTHS` | |
 | Model worker | `PIPELINE_EMAIL`, `PIPELINE_PASSWORD`, `PIPELINE_BUSINESS_ID`, `PIPELINE_TIMEZONE` | |
@@ -344,6 +345,7 @@ Also:
 - The Supabase service key is used only by the API and edge functions, and a deploy check confirms it is absent from the admin bundle.
 - The firewall allows only 22, 80 and 443; fail2ban and unattended security upgrades are on.
 - PII: national ID and TRN are kept on the customer's phone, not by Lyne. A formal data-retention policy and encryption-at-rest confirmation are owed before a paid contract.
+- Field encryption: a walk-in's phone number, email and date of birth (`guest_phone`, `guest_email`, `guest_dob`) are stored AES-256-GCM sealed (`enc:v1:…`) with `FIELD_ENCRYPTION_KEY` (`apps/backend/src/lib/fieldCrypto.js`). `src/db/pool.js` opens them in every result, so routes never handle ciphertext, and refuses any INSERT or UPDATE that would store one in plain text: wrap new values in `seal()`. Migration 054 widens the columns; `apps/backend/scripts/seal-guest-fields.js --apply` seals rows written before it. App users' own phone and date of birth, and staff details, are not sealed yet.
 
 `deploy/verify.sh` checks most of this on the live box; run it after every deploy. `docs/pre-launch-security-checklist.md` is the full checklist.
 

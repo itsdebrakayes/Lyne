@@ -38,8 +38,6 @@ const SERVICES: Svc[] = [
   { id: 'enq', code: 'ENQ', name: 'General Enquiries', blurb: 'Questions about your account or a letter', waiting: 2, wait: 8, open: 1, counters: 2 },
 ];
 
-const BRANCH = { name: 'Half Way Tree', org: 'Tax Administration Jamaica', address: '2 Constant Spring Road, Kingston 10' };
-
 /* How long the finished ticket stays up before the terminal resets itself. */
 const RESET_SECONDS = 25;
 
@@ -107,10 +105,6 @@ function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
     <header className="qk-top">
       <div className="qk-topL">
         <span className="qk-mark">L</span>
-        <div>
-          <b>{BRANCH.org}</b>
-          <small>{BRANCH.name}</small>
-        </div>
       </div>
 
       {idx >= 0 ? (
@@ -140,9 +134,7 @@ function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
 function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <button type="button" className="qk-welcome" onClick={onStart}>
-      <div className="qk-eyebrow">Welcome To</div>
-      <h1>Tax Administration<br /><em>Jamaica</em></h1>
-      <p>{BRANCH.address}</p>
+      <h1>Welcome</h1>
       <span className="qk-cta">Touch Anywhere To Begin <ArrowRight size={22} /></span>
       <div className="qk-welcomefoot">
         <div><b>3</b>Quick Steps</div>

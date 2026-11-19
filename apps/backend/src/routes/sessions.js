@@ -50,6 +50,7 @@ const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const { z } = require('zod');
 const pool = require('../db/pool');
+const { seal } = require('../lib/fieldCrypto');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const {
   requireStaffRole, requireBranchAccess, assertBusinessAccess,
@@ -576,7 +577,7 @@ router.post('/public/:id/register', optionalAuth, async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         registrationId, session.id, req.dbUser?.id || null,
-        name || null, phone || null, email || null,
+        name || null, seal(phone || null), seal(email || null),
         reference || null, eligibility.appointment_time || null, eligibility.verified ? 1 : 0, code, movedFrom,
         parsed.data.sms_consent && phone ? new Date() : null,
       ]
@@ -819,7 +820,7 @@ async function checkIn(req, res, channel) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', ?, ?, ?, ?, ?)`,
       [
         ticketId, queue.id, ownerId,
-        registration.guest_name || null, registration.guest_phone || null, guestToken,
+        registration.guest_name || null, seal(registration.guest_phone || null), guestToken,
         ticketNumber, verificationCode, position, estimatedWait, channel,
         honoured ? appointment.slot_at : null,
         /* A guest's yes from registering comes with them; an account's is on the account. */
@@ -1404,7 +1405,7 @@ router.post('/:id/registrations', requireAuth,
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           registrationId, session.id,
-          parsed.data.name || null, parsed.data.phone || null, parsed.data.email || null,
+          parsed.data.name || null, seal(parsed.data.phone || null), seal(parsed.data.email || null),
           parsed.data.reference, appointmentTime, eligibility.verified && !overridden ? 1 : 0, code,
         ]
       );

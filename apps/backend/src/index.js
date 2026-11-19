@@ -299,6 +299,8 @@ app.use((err, req, res, _next) => {
   });
 });
 
+require('./lib/fieldCrypto').assertReady();
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`LYNE backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);

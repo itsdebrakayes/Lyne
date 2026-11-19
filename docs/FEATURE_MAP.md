@@ -35,7 +35,7 @@ When you add a feature, add its row. When a fix touches a row, re-walk it.
 | Feature | How a user reaches it | Proof it works |
 |---|---|---|
 | Walk-in ticket | Tap → choose service → type name → Join | A printed-style ticket with number and place; the same ticket appears in the admin Live line alongside app joiners (one line, not two) |
-| Kiosk header | Always visible | Shows THE branch's own organisation and name, live clock ticking each second |
+| Kiosk header | Always visible | Lyne mark and a live clock ticking each second; no organisation name until the kiosk reads its branch from the API |
 | Reset for next person | Ticket screen countdown | Returns to the start screen once at zero, exactly once |
 
 ## Admin desktop (`apps/admin-desktop`, Electron, Mac universal + Windows)
@@ -62,6 +62,7 @@ Common to every role:
 | Finish a visit | Served / No-show / Couldn't finish + reason | Ticket leaves the line; reason appears in History and in manager reports |
 | Transfer | Live line → Transfer | Ticket appears in the other service's line at its arrival-time place; confirmation clears after 8 s |
 | Bookings & check-in | Bookings & Check-In tab | Today's appointments; check-in puts the person into the line |
+| Load the day's list | Sessions → Load Today's List → paste, or Choose A File (.csv/.tsv/.txt) | "Read N entries" matches the file's rows (a heading row is not counted) before Load |
 
 ### Supervisor
 
@@ -94,6 +95,7 @@ Common to every role:
 | Health | `curl https://api.uselyne.com/health` → 200 |
 | App version gate | `GET /api/app/version` → the `APP_*` values from `.env` |
 | Deploy | `bash deploy/verify.sh` ends with all checks passed |
+| Field encryption | A walk-in's phone and date of birth read `enc:v1:…` in the database and plain in the admin line; `npm run test:db` (field-encryption) passes |
 
 ## How to check
 

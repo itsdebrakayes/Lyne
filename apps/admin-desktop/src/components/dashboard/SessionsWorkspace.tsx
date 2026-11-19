@@ -567,9 +567,8 @@ function DoorRegisterPanel({ session, onDone }: { session: AdminSession; onDone:
 
 /**
  * Tier 2 of the traffic-court design: the organisation exports the list it
- * already produces and we match against it. Paste rather than file upload,
- * deliberately — a court clerk can paste a column out of a spreadsheet or an
- * email in five seconds, where a file picker means finding a download folder.
+ * already produces and we match against it, pasted or chosen as a CSV/TSV/text
+ * file. Both land in the same box, so staff see what was read before loading.
  *
  * The parser is forgiving on separators because we are reading somebody else's
  * export, not a format we specified.
@@ -580,10 +579,23 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
   const [raw, setRaw] = useState('');
   const [replace, setReplace] = useState(true);
 
+  const [fileError, setFileError] = useState('');
+  const chooseFile = async (file: File | undefined) => {
+    setFileError('');
+    if (!file) return;
+    if (!/\.(csv|tsv|txt)$/i.test(file.name)) {
+      setFileError('Choose a .csv, .tsv or .txt file. From Excel, use File → Save As → CSV.');
+      return;
+    }
+    setRaw(await file.text());
+  };
+
   const entries = useMemo(() => raw
-    .split('\n')
+    .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
+    /* An export's column-heading row names the columns and carries no digits. */
+    .filter((line, i) => !(i === 0 && !/\d/.test(line) && /reference|ref\b|ticket|surname|name/i.test(line)))
     .map((line) => {
       const parts = line.split(/\t|,|;|\s{2,}/).map((p) => p.trim()).filter(Boolean);
       /* A column that reads as a time is the appointment (migration 042), from
@@ -625,13 +637,19 @@ function CauseListPanel({ session, onDone }: { session: AdminSession; onDone: ()
         placeholder={'TKT-040013, Wright, Court 3\nTKT-040026, Campbell, Court 3\nTKT-040039, Brown, Court 1'}
         aria-label="Paste the list"
       />
+      <label className="qx-btn ghost" style={{ marginTop: 8, display: 'inline-flex', cursor: 'pointer' }}>
+        <FileUp size={14} />Choose A File
+        <input type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden
+          onChange={(e) => { void chooseFile(e.target.files?.[0]); e.target.value = ''; }} />
+      </label>
+      {fileError ? <p className="qx-hint" role="alert">{fileError}</p> : null}
       {/* Says what it read back before anything is committed — a court that
           pastes 400 lines needs to see 400 before pressing the button, not
           discover afterwards that a stray header row cost them three. */}
       <p className="qx-hint">
         {entries.length
           ? `Read ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}${entries.some((e) => e.time) ? `, ${entries.filter((e) => e.time).length} with an appointment time. Check-in opens ${session.appointment_window?.early ?? 15} minutes before each time and the slot is held ${session.appointment_window?.late ?? 10} minutes after` : ''}. Separate columns with a comma, a tab, or two spaces.`
-          : 'Paste or type the list above. Commas, tabs and two-space columns all work.'}
+          : 'Paste the list above or choose a CSV file. Commas, tabs and two-space columns all work.'}
       </p>
 
       <label className="qx-checkline">

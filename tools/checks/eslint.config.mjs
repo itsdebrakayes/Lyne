@@ -84,15 +84,18 @@ export default tseslint.config(
     },
   },
 
-  /* Backend: one service-role client, one key name. */
+  /* Backend: one service-role client, one key name; one database pool. */
   {
     files: ['apps/backend/src/**/*.js'],
-    ignores: ['apps/backend/src/lib/supabaseAdmin.js'],
+    ignores: ['apps/backend/src/lib/supabaseAdmin.js', 'apps/backend/src/db/pool.js'],
     languageOptions: { sourceType: 'commonjs' },
     rules: {
       'no-restricted-syntax': ['error', {
         selector: "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^SUPABASE_SERVICE/]",
         message: 'Use supabaseAdmin() from src/lib/supabaseAdmin.js. It reads SUPABASE_SERVICE_KEY (the name production passes) and returns null when unset, so answer 503 rather than crash or fall back to a placeholder.',
+      }, {
+        selector: "CallExpression[callee.name='require'] > Literal[value=/^mysql2(\\/promise)?$/]",
+        message: 'Use the shared pool (src/db/pool.js). It seals and opens encrypted fields (src/lib/fieldCrypto.js); a connection of your own would store walk-in phone numbers in plain text.',
       }],
     },
   },

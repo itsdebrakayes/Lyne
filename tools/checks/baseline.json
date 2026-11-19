@@ -12,7 +12,6 @@
   "agencyNames": {
     "apps/admin-desktop/src/dashboard/qx/ExecTabsQX.tsx": 1,
     "apps/admin-desktop/src/dashboard/qx/MgrTabsQX.tsx": 1,
-    "apps/admin-desktop/src/kiosk/KioskApp.tsx": 1,
     "apps/admin-desktop/src/pages/DesignPreview.tsx": 2,
     "apps/mobile/src/components/HomeSections.tsx": 1,
     "apps/mobile/src/lib/fuzzy.ts": 2,
