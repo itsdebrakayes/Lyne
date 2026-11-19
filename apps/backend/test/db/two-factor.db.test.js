@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { fingerprint } = require('../../src/lib/fieldCrypto');
+const { seal, fingerprint } = require('../../src/lib/fieldCrypto');
 const Module = require('module');
 
 const ENABLED = process.env.LYNE_TEST_DB === '1';
@@ -59,7 +59,7 @@ async function seedOrg(biz, label) {
     ['clerk', 'line_staff', 'branch'], ['kiosk', 'kiosk_clerk', 'branch'], ['mgr2', 'manager', 'branch2'], ['sup2', 'supervisor', 'branch2']]) {
     await pool.query(
       'INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [`${biz}-${who}`, biz, `${biz}-${br}`, await role(r), `${biz}-${who}-uid`, `MFA-${label}-${who}`.slice(0, 20), `${label} ${who}`, `${biz}-${who}@example.test`, fingerprint(`${biz}-${who}@example.test`)]
+      [`${biz}-${who}`, biz, `${biz}-${br}`, await role(r), `${biz}-${who}-uid`, `MFA-${label}-${who}`.slice(0, 20), seal(`${label} ${who}`), seal(`${biz}-${who}@example.test`), fingerprint(`${biz}-${who}@example.test`)]
     );
   }
 }

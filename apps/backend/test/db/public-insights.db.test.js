@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { fingerprint } = require('../../src/lib/fieldCrypto');
+const { seal, fingerprint } = require('../../src/lib/fieldCrypto');
 const Module = require('module');
 
 const ENABLED = process.env.LYNE_TEST_DB === '1';
@@ -58,12 +58,13 @@ async function seed() {
   const role = async (name) => (await pool.query('SELECT id FROM roles WHERE name = ?', [name]))[0][0].id;
   await pool.query(
     `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash) VALUES
-       ('pit-exec', ?, NULL, ?, ?, 'PIT-E', 'Test Executive', 'pit-exec@example.test', ?),
-       ('pit-mgr',  ?, ?,    ?, ?, 'PIT-M', 'Test Manager',   'pit-mgr@example.test', ?)`,
-    [BIZ, await role('executive'), EXEC, fingerprint('pit-exec@example.test'), BIZ, BRANCH, await role('manager'), MANAGER, fingerprint('pit-mgr@example.test')]
+       ('pit-exec', ?, NULL, ?, ?, 'PIT-E', ?, ?, ?),
+       ('pit-mgr',  ?, ?,    ?, ?, 'PIT-M', ?, ?, ?)`,
+    [BIZ, await role('executive'), EXEC, seal('Test Executive'), seal('pit-exec@example.test'), fingerprint('pit-exec@example.test'),
+      BIZ, BRANCH, await role('manager'), MANAGER, seal('Test Manager'), seal('pit-mgr@example.test'), fingerprint('pit-mgr@example.test')]
   );
 
-  await pool.query("INSERT INTO users (id, supabase_uid, email, email_hash, full_name) VALUES ('pit-user', ?, 'pit-user@example.test', ?, 'Test Customer')", [CUSTOMER, fingerprint('pit-user@example.test')]);
+  await pool.query("INSERT INTO users (id, supabase_uid, email, email_hash, full_name) VALUES ('pit-user', ?, ?, ?, ?)", [CUSTOMER, seal('pit-user@example.test'), fingerprint('pit-user@example.test'), seal('Test Customer')]);
 
   // Enough history for a real grid: 5 weekdays x 9 hours x 9 visits, last 60 days.
   const tickets = [];

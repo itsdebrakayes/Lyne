@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { fingerprint } = require('../../src/lib/fieldCrypto');
+const { seal, fingerprint } = require('../../src/lib/fieldCrypto');
 const Module = require('module');
 const fs = require('fs');
 const os = require('os');
@@ -64,15 +64,15 @@ async function seedOrg(biz, label, visitorName) {
     `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash) VALUES
        (?, ?, NULL, ?, ?, ?, ?, ?, ?),
        (?, ?, ?,    ?, ?, ?, ?, ?, ?)`,
-    [`${biz}-exec`, biz, await role('executive'), `${biz === A ? SECRET_UID : 'oxt-exec-b-uid'}`, `OXT-${label}-E`, `${label} Executive`, `${biz}-exec@example.test`, fingerprint(`${biz}-exec@example.test`),
-      `${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `OXT-${label}-M`, `${label} Manager`, `${biz}-mgr@example.test`, fingerprint(`${biz}-mgr@example.test`)]
+    [`${biz}-exec`, biz, await role('executive'), `${biz === A ? SECRET_UID : 'oxt-exec-b-uid'}`, `OXT-${label}-E`, seal(`${label} Executive`), seal(`${biz}-exec@example.test`), fingerprint(`${biz}-exec@example.test`),
+      `${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `OXT-${label}-M`, seal(`${label} Manager`), seal(`${biz}-mgr@example.test`), fingerprint(`${biz}-mgr@example.test`)]
   );
   await pool.query(
     `INSERT INTO queue_tickets (id, queue_id, ticket_number, verification_code, guest_access_token, guest_name, guest_name_hash, position, status, channel)
      VALUES (?, ?, 'OX-001', ?, ?, ?, NULL, 1, 'served', 'kiosk'),
             (?, ?, 'OX-002', ?, NULL, ?, NULL, 2, 'served', 'kiosk')`,
-    [`${biz}-t1`, `${biz}-queue`, SECRET_CODE, `${SECRET_TOKEN}${biz === A ? 'a' : 'b'}`, visitorName,
-      `${biz}-t2`, `${biz}-queue`, `${SECRET_CODE}2`, '=HYPERLINK("http://evil.example","click")']
+    [`${biz}-t1`, `${biz}-queue`, SECRET_CODE, `${SECRET_TOKEN}${biz === A ? 'a' : 'b'}`, seal(visitorName),
+      `${biz}-t2`, `${biz}-queue`, `${SECRET_CODE}2`, seal('=HYPERLINK("http://evil.example","click")')]
   );
   await pool.query(
     `INSERT INTO queue_events (id, ticket_id, previous_status, new_status, triggered_by_staff_id, notes) VALUES (?, ?, 'waiting', 'served', ?, 'done')`,
