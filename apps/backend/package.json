@@ -10,8 +10,8 @@
     "test:db": "LYNE_TEST_DB=1 MYSQL_HOST=127.0.0.1 MYSQL_PORT=3307 node --env-file=../../.env --test test/db/"
   },
   "dependencies": {
-    "@sentry/node": "^11.4.0",
-    "@supabase/supabase-js": "^2.43.4",
+    "@sentry/node": "^11.13.0",
+    "@supabase/supabase-js": "^2.119.0",
     "bcryptjs": "^3.0.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
