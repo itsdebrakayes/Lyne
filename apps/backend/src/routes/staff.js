@@ -16,6 +16,8 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { sortRows } = require('../utils/sortRows');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { auditLog } = require('../middleware/auditLog');
@@ -130,10 +132,10 @@ router.get('/', requireAuth, requireStaffRole('manager', 'executive'), requireBu
        LEFT JOIN branches b ON s.branch_id = b.id
        LEFT JOIN services svc ON s.assigned_service_id = svc.id
        WHERE ${conditions.join(' AND ')}
-       ORDER BY r.name, s.full_name`,
+       ORDER BY r.name`,
       params
     );
-    res.json(rows.map(toPublicStaff));
+    res.json(sortRows(rows, 'role_name', 'full_name').map(toPublicStaff));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch staff.' });
@@ -182,11 +184,11 @@ router.get('/presence', requireAuth, requireStaffRole('manager', 'executive'), r
          GROUP BY staff_id
        ) sessions ON sessions.staff_id = s.id
        WHERE ${conditions.join(' AND ')}
-       ORDER BY r.name, s.full_name`,
+       ORDER BY r.name`,
       params
     );
 
-    res.json(rows.map(row => ({
+    res.json(sortRows(rows, 'role_name', 'full_name').map(row => ({
       ...row,
       presence_status: presenceStatus(row),
     })));
@@ -216,9 +218,10 @@ router.get('/on-shift-managers', requireAuth, requireStaffRole('line_staff', 'ma
        WHERE s.is_active = TRUE
          AND s.business_id = ?
          AND s.branch_id = ?
-       ORDER BY sessions.last_seen_at IS NULL, sessions.last_seen_at DESC, s.full_name`,
+       ORDER BY sessions.last_seen_at IS NULL, sessions.last_seen_at DESC`,
       [req.dbStaff.business_id, branchId]
     );
+    sortRows(rows, { by: 'last_seen_at', desc: true }, 'full_name');
     res.json(rows.map(row => ({ ...row, presence_status: presenceStatus(row) })));
   } catch (err) {
     console.error(err);
@@ -274,13 +277,13 @@ router.post('/', requireAuth, requireStaffRole('manager', 'executive'), requireB
 
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, phone, assigned_service_id, availability_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash, phone, assigned_service_id, availability_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       /* supabase_uid stays NULL. Binding a MySQL staff row to a Supabase
          identity happens exactly once, in POST /api/staff-invite/redeem, and
          the uid there comes from the REDEEMER'S OWN verified token — never
          from a field an administrator can type. */
-      [id, scopedBusinessId(req, business_id), scopedBranchId(req, branch_id) || null, role_id, null, staffCode, full_name, email, phone || null, assigned_service_id || null, availabilityStatus]
+      [id, scopedBusinessId(req, business_id), scopedBranchId(req, branch_id) || null, role_id, null, staffCode, seal(full_name), seal(email), fingerprint(email), seal(phone || null), assigned_service_id || null, availabilityStatus]
     );
     const [created] = await pool.query('SELECT * FROM staff WHERE id = ?', [id]);
     /* The list and detail routes above already project through toPublicStaff;
@@ -319,6 +322,7 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
          role_id             = COALESCE(?, role_id),
          full_name           = COALESCE(?, full_name),
          email               = COALESCE(?, email),
+         email_hash          = COALESCE(?, email_hash),
          phone               = COALESCE(?, phone),
          assigned_service_id = COALESCE(?, assigned_service_id),
          availability_status = COALESCE(?, availability_status),
@@ -329,7 +333,7 @@ router.put('/:id', requireAuth, requireStaffRole('manager', 'executive'), requir
          guard above. Rebinding an existing staff row to a different Supabase
          identity is the second half of the escalation, and it has no legitimate
          caller: the invite redemption flow owns that binding. */
-      [scopedBranchId(req, branch_id), role_id, full_name, email, phone, assigned_service_id, availability_status, is_active, req.params.id]
+      [scopedBranchId(req, branch_id), role_id, seal(full_name ?? null), seal(email ?? null), fingerprint(email), seal(phone ?? null), assigned_service_id, availability_status, is_active, req.params.id]
     );
     const [updated] = await pool.query('SELECT * FROM staff WHERE id = ?', [req.params.id]);
     res.json(toPublicStaff(updated[0]));

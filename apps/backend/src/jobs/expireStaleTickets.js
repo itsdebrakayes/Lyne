@@ -62,6 +62,7 @@
  * window, not at some global 3am.
  */
 const pool = require('../db/pool');
+const { notDemoVisitor } = require('../utils/demoVisitor');
 const { sendPushToUser } = require('../utils/pushSender');
 const caseAlerts = require('../utils/caseAlerts');
 
@@ -129,7 +130,7 @@ const CANDIDATE_SQL = `
      /* The review simulator's made-up visitors are not visits. Closing them here
         recorded each as a cancelled visit, and the simulator refilled the line, so
         every sweep after closing added more. It clears its own the next day. */
-     AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')
+     AND ${notDemoVisitor('t')}
      AND TIMESTAMP(q.queue_date, COALESCE(b.closing_time, bz.default_closing_time))
          + INTERVAL ? MINUTE < NOW()
    LIMIT 5000
@@ -253,7 +254,7 @@ async function closeBranchLines(branchIds) {
     const [rows] = await conn.query(
       `${select} WHERE q.branch_id IN (?) AND q.queue_date = CURDATE()
           AND t.status IN ('waiting', 'called')
-          AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')`,
+          AND ${notDemoVisitor('t')}`,
       [branchIds]);
     let closed = 0;
     for (const status of ['waiting', 'called']) {

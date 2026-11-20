@@ -159,34 +159,18 @@ export default function OnboardingSteps({ onDone }: { onDone: () => void }) {
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
 
-  /* Cross-fade rather than cut — but never at the cost of the screen being
-     readable.
-     Two things were wrong in the first version. It passed useNativeDriver:true,
-     which react-native-web does not commit for opacity, so the value stopped
-     wherever the animation abandoned it: the setup screens sat at 31% opacity
-     permanently, washed out and unreadable, and no later step recovered them.
-     And it chained the fade-in inside the fade-out's completion callback, so
-     any callback that never arrived stranded the screen invisible.
-     Now: the driver matches the platform, and the fade-IN is driven by an
-     effect on `step` rather than a callback. The step change is what makes the
-     screen appear, so there is no path where the content changes and the
-     opacity does not follow. */
-  const goTo = (next: number) => {
-    Animated.timing(fade, { toValue: 0, duration: 110, useNativeDriver: USE_NATIVE_DRIVER })
-      .start(() => setStep(next));
-    // Belt and braces: if that callback never lands, the step still advances.
-    setTimeout(() => setStep((cur) => (cur === next ? cur : next)), 160);
-  };
+  /* Each step fades in, driven by the step changing, so new content can never
+     appear without its opacity following. Animated calls the start callback
+     whether the fade finished or was stopped, and that callback pins the screen
+     fully visible. (The driver matches the platform: react-native-web does not
+     commit native-driver opacity.) */
+  const goTo = (next: number) => setStep(next);
 
   useEffect(() => {
     fade.setValue(0);
     const anim = Animated.timing(fade, { toValue: 1, duration: 160, useNativeDriver: USE_NATIVE_DRIVER });
-    anim.start();
-    /* The screen must end up visible even if the animation is interrupted by a
-       fast tap or dropped by the platform. A stuck-invisible screen is a far
-       worse outcome than a missing fade. */
-    const settle = setTimeout(() => fade.setValue(1), 400);
-    return () => { anim.stop(); clearTimeout(settle); };
+    anim.start(() => fade.setValue(1));
+    return () => anim.stop();
   }, [step, fade]);
 
   const finish = async (answers: { city?: string; sectors?: string[] }) => {

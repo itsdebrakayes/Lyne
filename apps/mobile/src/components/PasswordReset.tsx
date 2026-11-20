@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../lib/apiClient';
 import { useAuth } from '../hooks/useAuth';
 import { colors, font, inputReset } from '../lib/theme';
+import { useInterval } from '../lib/timing';
 
 const LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -37,11 +38,7 @@ export function PasswordReset({ initialEmail, onDone, signedIn = false }: {
   const [cooldown, setCooldown] = useState(0);
   const codeRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
+  useInterval(() => setCooldown(c => Math.max(0, c - 1)), cooldown > 0 ? 1000 : null);
 
   const send = async (to = email.trim().toLowerCase()) => {
     if (!/^\S+@\S+\.\S+$/.test(to)) { setError('Enter the email address you signed up with.'); return; }

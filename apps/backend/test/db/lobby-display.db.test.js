@@ -8,6 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const { seal, fingerprint } = require('../../src/lib/fieldCrypto');
 const Module = require('module');
 
 const ENABLED = process.env.LYNE_TEST_DB === '1';
@@ -57,18 +58,18 @@ async function seedOrg(biz, label) {
     [`${biz}-q1`, `${biz}-branch`, `${biz}-svc1`, `${biz}-q2`, `${biz}-branch`, `${biz}-svc2`]);
   const role = async (name) => (await pool.query('SELECT id FROM roles WHERE name = ?', [name]))[0][0].id;
   await pool.query(
-    `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email) VALUES
-       (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `LBT-${label}-M`, `${label} Manager`, `${biz}-mgr@example.test`,
-      `${biz}-clerk`, biz, `${biz}-branch`, await role('line_staff'), `${biz}-clerk-uid`, `LBT-${label}-C`, `${label} Clerk`, `${biz}-clerk@example.test`]
+    `INSERT INTO staff (id, business_id, branch_id, role_id, supabase_uid, staff_code, full_name, email, email_hash) VALUES
+       (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [`${biz}-mgr`, biz, `${biz}-branch`, await role('manager'), `${biz}-mgr-uid`, `LBT-${label}-M`, seal(`${label} Manager`), seal(`${biz}-mgr@example.test`), fingerprint(`${biz}-mgr@example.test`),
+      `${biz}-clerk`, biz, `${biz}-branch`, await role('line_staff'), `${biz}-clerk-uid`, `LBT-${label}-C`, seal(`${label} Clerk`), seal(`${biz}-clerk@example.test`), fingerprint(`${biz}-clerk@example.test`)]
   );
   await pool.query(
-    `INSERT INTO queue_tickets (id, queue_id, ticket_number, verification_code, guest_name, guest_phone, visit_reason, position, status, called_at, served_at_counter_id) VALUES
-       (?, ?, 'PH-007', 'LBT001', 'Secret Person', '+18765550111', 'private reason', 1, 'called', NOW(), ?),
-       (?, ?, 'PH-008', 'LBT002', 'Another Person', NULL, NULL, 2, 'waiting', NULL, NULL),
-       (?, ?, 'PH-009', 'LBT003', 'Third Person', NULL, NULL, 3, 'waiting', NULL, NULL),
-       (?, ?, 'RD-001', 'LBT004', 'Fourth Person', NULL, NULL, 1, 'waiting', NULL, NULL)`,
-    [`${biz}-t1`, `${biz}-q1`, `${biz}-ctr`, `${biz}-t2`, `${biz}-q1`, `${biz}-t3`, `${biz}-q1`, `${biz}-t4`, `${biz}-q2`]
+    `INSERT INTO queue_tickets (id, queue_id, ticket_number, verification_code, guest_name, guest_name_hash, guest_phone, visit_reason, position, status, called_at, served_at_counter_id) VALUES
+       (?, ?, 'PH-007', 'LBT001', ?, NULL, ?, 'private reason', 1, 'called', NOW(), ?),
+       (?, ?, 'PH-008', 'LBT002', ?, NULL, NULL, NULL, 2, 'waiting', NULL, NULL),
+       (?, ?, 'PH-009', 'LBT003', ?, NULL, NULL, NULL, 3, 'waiting', NULL, NULL),
+       (?, ?, 'RD-001', 'LBT004', ?, NULL, NULL, NULL, 1, 'waiting', NULL, NULL)`,
+    [`${biz}-t1`, `${biz}-q1`, seal('Secret Person'), seal('+18765550111'), `${biz}-ctr`, `${biz}-t2`, `${biz}-q1`, seal('Another Person'), `${biz}-t3`, `${biz}-q1`, seal('Third Person'), `${biz}-t4`, `${biz}-q2`, seal('Fourth Person')]
   );
 }
 

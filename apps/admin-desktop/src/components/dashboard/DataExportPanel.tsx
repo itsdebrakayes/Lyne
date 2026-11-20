@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import api, { downloadFile } from '@/lib/apiClient';
 import { Card, Note } from '@/design/ui';
+import { revokeSoon } from '../../lib/timing';
 
 type Summary = {
   files: Array<{ file: string; about: string; rows: number }>;
@@ -40,7 +41,7 @@ export function DataExportPanel({ span = 12 }: { span?: number }) {
       const link = document.createElement('a');
       link.href = url; link.download = name;
       document.body.appendChild(link); link.click(); link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      revokeSoon(url);
       setDone(name);
       qc.invalidateQueries({ queryKey: ['organisation-export'] });
     } catch (err) {

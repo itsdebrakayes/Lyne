@@ -31,7 +31,7 @@ export type SupDesk = {
   id: string; label: string; svc: string;
   staffId: string | null; staffName: string | null;
   waiting: number; servedToday: number;
-  /** the person seated here is on a break, so the window is closed for now */
+  /** the person seated here is on a break, so the window is closed */
   onBreak?: boolean;
 };
 export type SupStaff = {

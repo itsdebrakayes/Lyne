@@ -65,11 +65,30 @@ async function getPredictions(req, res, publicOnly = false) {
        ORDER BY p.insight_type`,
       [Math.min(Math.max(parseInt(max_age_minutes) || 60, 5), 1440), ...params]
     );
-    res.json(rows);
+    res.json(await withManagerNames(rows, business_id));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch predictions.' });
   }
+}
+
+/**
+ * The model saves managers by id only: names are sealed (src/lib/fieldCrypto.js)
+ * and a copy in an insight would sit outside that. The name is added here,
+ * from the staff table, as the insight is served.
+ */
+async function withManagerNames(rows, businessId) {
+  const scored = rows.filter((r) => r.insight_type === 'manager_performance');
+  if (!scored.length) return rows;
+  const [staff] = await pool.query('SELECT id, full_name FROM staff WHERE business_id = ?', [businessId]);
+  const names = new Map(staff.map((s) => [s.id, s.full_name]));
+  for (const r of scored) {
+    const data = typeof r.insight_data === 'string' ? JSON.parse(r.insight_data) : r.insight_data;
+    if (!Array.isArray(data?.managers)) continue;
+    for (const m of data.managers) m.manager_name = names.get(m.manager_id) ?? m.manager_name ?? null;
+    r.insight_data = typeof r.insight_data === 'string' ? JSON.stringify(data) : data;
+  }
+  return rows;
 }
 
 router.get('/public', (req, res) => getPredictions(req, res, true));

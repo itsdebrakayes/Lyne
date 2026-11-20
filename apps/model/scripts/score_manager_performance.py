@@ -58,7 +58,6 @@ def load_managers(conn):
     with conn.cursor() as cursor:
         cursor.execute("""
             SELECT s.id           AS manager_id,
-                   s.full_name    AS manager_name,
                    s.staff_code   AS staff_code,
                    s.business_id  AS business_id,
                    s.branch_id    AS branch_id,
@@ -263,7 +262,6 @@ def main():
 
         row = {
             "manager_id": m["manager_id"],
-            "manager_name": m["manager_name"],
             "staff_code": m["staff_code"],
             "branch_id": m["branch_id"],
             "branch_name": m["branch_name"],

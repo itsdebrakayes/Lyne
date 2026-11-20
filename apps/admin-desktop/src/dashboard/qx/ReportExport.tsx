@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { saveReport } from '../reportDoc';
+import { afterNextPaint } from '../../lib/timing';
 
 export function ReportDownloadButtons({ html, filename, trailing, disabled }: {
   html: string; filename: string; trailing?: React.ReactNode;
@@ -82,9 +83,9 @@ export function ReportPreview({ html, title, loaded = 1, total = 1 }: {
         title={title}
         srcDoc={shown}
         sandbox=""
-        /* Load is not paint: give the document a moment to lay out before the
-           progress card lifts, so it never uncovers a blank box. */
-        onLoad={() => { if (shown) window.setTimeout(() => setPainted(true), 350); }}
+        /* Load is not paint: the progress card lifts after the first frame that
+           shows the document, so it never uncovers a blank box. */
+        onLoad={() => { if (shown) afterNextPaint().then(() => setPainted(true)); }}
         style={{ width: '100%', height: 640, border: '1px solid var(--c-line-2)', borderRadius: 12, background: '#fff', display: 'block' }}
       />
       {done ? null : (

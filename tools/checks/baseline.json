@@ -1,0 +1,26 @@
+{
+  "_read_me": "Known violations that existed when a check was added. Counts may only go DOWN: the check fails if a file gains one, and also fails until you lower a count after removing one. Never raise a number to make a check pass.",
+  "envNotInProduction": {
+    "ALLOW_DEMO_DATA_REFRESH": "Double-gated demo reset; must never be set on the production box.",
+    "STAFF_TEST_VERIFICATION_CODE": "Test-only code bypass; ignored when NODE_ENV is production.",
+    "AUTH_RATE_LIMIT_MAX": "Optional override; production uses the default of 10.",
+    "PREMIUM_CURRENCY": "Payments are off in production (migration 037 unapplied).",
+    "PREMIUM_PRICE_CENTS": "Payments are off in production (migration 037 unapplied).",
+    "STRIPE_SECRET_KEY": "Payments are off in production (migration 037 unapplied).",
+    "STRIPE_WEBHOOK_SECRET": "Payments are off in production (migration 037 unapplied)."
+  },
+  "agencyNames": {
+    "apps/admin-desktop/src/dashboard/qx/ExecTabsQX.tsx": 1,
+    "apps/admin-desktop/src/dashboard/qx/MgrTabsQX.tsx": 1,
+    "apps/admin-desktop/src/pages/DesignPreview.tsx": 2,
+    "apps/mobile/src/components/HomeSections.tsx": 1,
+    "apps/mobile/src/lib/fuzzy.ts": 2,
+    "apps/mobile/src/lib/mobileData.ts": 1,
+    "database/review_tenant_seed.sql": 2
+  },
+  "excuseComments": {
+    "apps/admin-desktop/src/hooks/useDashboardData.ts": 1,
+    "apps/backend/src/routes/auth.js": 1,
+    "apps/mobile/src/lib/theme.ts": 1
+  }
+}

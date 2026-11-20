@@ -23,20 +23,13 @@
 const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const { z } = require('zod');
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAdmin: admin } = require('../lib/supabaseAdmin');
 const pool = require('../db/pool');
+const { sortRows } = require('../utils/sortRows');
 const { requireAuth } = require('../middleware/auth');
 const { requireStaffRole, isPlatformAdmin } = require('../middleware/tenantAccess');
 const { MFA_ROLES, BRANCH_ROLES, forgetOrg, hasVerifiedTotp } = require('../lib/mfa');
 
-const serviceKey = () => process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-let adminClient = null;
-function admin() {
-  if (!adminClient && process.env.SUPABASE_URL && serviceKey()) {
-    adminClient = createClient(process.env.SUPABASE_URL, serviceKey(), { auth: { autoRefreshToken: false, persistSession: false } });
-  }
-  return adminClient;
-}
 
 const audit = (req, businessId, action, resourceType, resourceId) => pool.query(
   `INSERT INTO audit_logs (id, actor_id, actor_type, business_id, action, resource_type, resource_id, ip_address, user_agent)
@@ -98,11 +91,12 @@ router.get('/organisation', requireAuth, requireStaffRole('executive'), async (r
       `SELECT s.id, s.full_name, s.supabase_uid, s.branch_id, r.name AS role_name, br.name AS branch_name
          FROM staff s JOIN roles r ON r.id = s.role_id LEFT JOIN branches br ON br.id = s.branch_id AND br.business_id = s.business_id
         WHERE s.business_id = ? AND s.is_active = TRUE AND r.name IN ('line_staff', 'supervisor', 'manager', 'executive')
-        ORDER BY FIELD(r.name, 'executive', 'manager', 'supervisor', 'line_staff'), s.full_name
+        ORDER BY FIELD(r.name, 'executive', 'manager', 'supervisor', 'line_staff')
         LIMIT ${LIST_CAP + 1}`,
       [businessId]
     );
-    const shown = staff.slice(0, LIST_CAP);
+    const RANK = ['executive', 'manager', 'supervisor', 'line_staff'];
+    const shown = sortRows(staff.slice(0, LIST_CAP), (s) => RANK.indexOf(s.role_name), 'full_name');
     const enrolled = await enrolledByUid(shown.map((s) => s.supabase_uid).filter(Boolean));
     return res.json({
       require_2fa: requires,
@@ -172,10 +166,11 @@ router.get('/branch', requireAuth, requireStaffRole('manager', 'executive'), asy
       `SELECT s.id, s.full_name, s.supabase_uid, r.name AS role_name
          FROM staff s JOIN roles r ON r.id = s.role_id
         WHERE s.business_id = ? AND s.branch_id = ? AND s.is_active = TRUE AND r.name IN ('supervisor', 'manager')
-        ORDER BY FIELD(r.name, 'manager', 'supervisor'), s.full_name
+        ORDER BY FIELD(r.name, 'manager', 'supervisor')
         LIMIT ${LIST_CAP}`,
       [b.business_id, b.id]
     );
+    sortRows(staff, (s) => ['manager', 'supervisor'].indexOf(s.role_name), 'full_name');
     const enrolled = await enrolledByUid(staff.map((s) => s.supabase_uid).filter(Boolean));
     return res.json({
       branch_id: b.id,

@@ -17,7 +17,7 @@
  *
  * Title Case for every title, label and control. Sentence case only for prose.
  */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { useSectorTerms } from '@/hooks/useSectorTerms';
 import { replayTour } from '../../hooks/useTour';
 import SupportAsk from '../../components/SupportAsk';
@@ -1135,7 +1135,6 @@ export function ExecReports() {
   const [period, setPeriod] = useState('q');
   const [branches, setBranches] = useState<string[]>(['all']);
   const [on, setOn] = useState<string[]>(() => SECTIONS.map((s) => s.key));
-  const [loading, setLoading] = useState(false);
 
   const toggle = (id: string) => setBranches((p) => {
     if (id === 'all') return ['all'];
@@ -1192,14 +1191,6 @@ export function ExecReports() {
     }
     return out;
   }, [on, included]);
-
-  /* Rebuilding the document takes a moment, and saying so is better than
-     swapping the page under the reader with no explanation. */
-  useEffect(() => {
-    setLoading(true);
-    const id = setTimeout(() => setLoading(false), 550);
-    return () => clearTimeout(id);
-  }, [type, period, branches, on]);
 
 
   const html = useMemo(() => buildCompanyReport(d, {
@@ -1280,7 +1271,7 @@ export function ExecReports() {
         </div>
       </Card>
 
-      <Card span={7} title="Preview" cap={loading ? 'Preparing the document…' : 'The whole document, exactly as it downloads'}>
+      <Card span={7} title="Preview" cap="The whole document, exactly as it downloads">
         <ReportPreview html={html} title="Company report preview" />
       </Card>
 

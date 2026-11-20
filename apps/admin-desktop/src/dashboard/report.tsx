@@ -10,6 +10,7 @@
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Download, FileText } from 'lucide-react';
+import { revokeSoon, useTimeout } from '../lib/timing';
 
 /* ---------- SVG → PNG (so charts survive the export) ---------- */
 
@@ -116,7 +117,7 @@ export async function exportReportToWord(node: HTMLElement, filename: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  revokeSoon(url);
 }
 
 /* ---------- preview shell ---------- */
@@ -127,6 +128,7 @@ export function ReportDoc({ title, subtitle, meta, filename, children }: {
   const ref = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  useTimeout(() => setDone(false), done ? 3000 : null);
 
   const download = async () => {
     if (!ref.current) return;
@@ -134,7 +136,6 @@ export function ReportDoc({ title, subtitle, meta, filename, children }: {
     try {
       await exportReportToWord(ref.current, filename);
       setDone(true);
-      window.setTimeout(() => setDone(false), 3000);
     } finally {
       setBusy(false);
     }

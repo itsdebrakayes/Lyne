@@ -78,7 +78,7 @@ function branchHeatmap(trends: any[]) {
 export default function ExecutiveDashboard() {
   const d = useDashboardData();
   const { logout } = useAdminAuth();
-  const tour = useTour('executive');
+  const tour = useTour('executive', !d.firstLoad.loading);
   const [tab, setTab] = useState('overview');
   const [period, setPeriod] = useState('7');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');

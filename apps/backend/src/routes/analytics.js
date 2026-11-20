@@ -21,6 +21,8 @@ const { buildBranchReport } = require('../utils/branchReport');
 const caseAlerts = require('../utils/caseAlerts');
 const router = require('express').Router();
 const pool = require('../db/pool');
+const { sortRows } = require('../utils/sortRows');
+const { notDemoVisitor } = require('../utils/demoVisitor');
 const { csvRow } = require('../utils/csv');
 const { requireAuth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
@@ -392,10 +394,10 @@ router.get('/managers', requireAuth, requireStaffRole('executive'), requireBusin
          GROUP BY branch_id
        ) counters ON counters.branch_id = br.id
        WHERE mgr.business_id = ? AND mgr.is_active = TRUE
-       GROUP BY mgr.id, mgr.full_name, mgr.staff_code, br.id, br.name, assignments.assigned_staff, counters.counter_count
-       ORDER BY mgr.full_name`,
+       GROUP BY mgr.id, mgr.full_name, mgr.staff_code, br.id, br.name, assignments.assigned_staff, counters.counter_count`,
       [...range.params, businessId]
     );
+    sortRows(rows, 'full_name');
 
     const maxVisits = Math.max(...rows.map(row => Number(row.total_visits || 0)), 0);
     const maxWait = Math.max(...rows.map(row => Number(row.avg_wait_minutes || 0)), 0);
@@ -606,7 +608,7 @@ router.get('/branch-report', requireAuth, requireStaffRole('manager', 'executive
               TIMESTAMPDIFF(SECOND, t.joined_at, t.completed_at) / 60 AS elapsed_min
          FROM queue_tickets t JOIN queues q ON q.id = t.queue_id
         WHERE q.branch_id = ? AND q.queue_date BETWEEN ? AND ?
-          AND (t.guest_name IS NULL OR t.guest_name <> 'Review demo visitor')`,
+          AND ${notDemoVisitor('t')}`,
       [branchId, previous.from, range.to]);
 
     const [services] = await pool.query('SELECT id, name FROM services WHERE business_id = ?', [businessId]);
@@ -1441,6 +1443,18 @@ function safeWindowDays(value, fallback = 30) {
 /** Ended visits in the last seven days that make someone a frequent visitor. */
 const FREQUENT_WEEK = 3;
 
+/* How many clients a search reads before matching (most recent first). */
+const SEARCH_SCAN = 5000;
+
+/** Case-insensitive match on name or email; phone by digits, so "876 555" finds 8765550123. */
+function matchClients(rows, needle) {
+  const text = needle.toLowerCase();
+  const digits = needle.replace(/\D/g, '');
+  return rows.filter((r) => String(r.full_name || '').toLowerCase().includes(text)
+    || String(r.email || '').toLowerCase().includes(text)
+    || (digits.length >= 3 && String(r.phone || '').replace(/\D/g, '').includes(digits)));
+}
+
 /** How many unresolved visits before somebody is a case. */
 function safeMinVisits(value, fallback = 3) {
   const n = Math.round(Number(value));
@@ -1647,15 +1661,10 @@ router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 
     if (scopedBranch) { conditions.push('q.branch_id = ?'); params.push(scopedBranch); }
     pushSectionScope(req, conditions, params, 'q.service_id');
 
-    /* Parameterised LIKE with the wildcards in the VALUE, never in the SQL, and
-       the operand escaped so a customer searching for "100%" does not match
-       every row. */
+    /* Names, emails and phones are sealed (src/lib/fieldCrypto.js), so SQL
+       cannot search them: a search reads every client in the window and
+       matches here, after the pool has opened the values. */
     const needle = String(search || '').trim();
-    if (needle) {
-      conditions.push("(u.full_name LIKE ? ESCAPE '!' OR u.email LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')");
-      const like = `%${needle.replace(/[!%_]/g, (c) => `!${c}`)}%`;
-      params.push(like, like, like);
-    }
 
     const [rows] = await pool.query(
       `SELECT u.id                         AS user_id,
@@ -1675,16 +1684,17 @@ router.get('/customers', requireAuth, requireStaffRole('supervisor', 'manager', 
         WHERE ${conditions.join(' AND ')}
         GROUP BY u.id, u.full_name, u.email, u.phone
         ORDER BY last_visit DESC, visits DESC
-        LIMIT 200`,
+        LIMIT ${needle ? SEARCH_SCAN : 200}`,
       params
     );
+    const matched = needle ? matchClients(rows, needle).slice(0, 200) : rows;
 
     res.json({
       window_days: days,
       query: needle,
       /* Masked in the list, unmasked in the record — the same rule the caseload
          follows. A directory is skim-read by whoever has the screen open. */
-      customers: rows.map((r) => ({
+      customers: matched.map((r) => ({
         user_id: r.user_id,
         full_name: r.full_name,
         email: maskEmail(r.email),

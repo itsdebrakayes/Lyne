@@ -7,6 +7,7 @@ import { API_URL, supabase } from '@/lib/apiClient';
 import type { SectorTerms } from './useSectorTerms';
 import { identifyForMonitoring } from '../lib/monitoring';
 import { finishRedirectIfAny } from '../lib/microsoftSignIn';
+import { deadline } from '../lib/timing';
 
 type AppRole = 'line_staff' | 'supervisor' | 'manager' | 'executive';
 
@@ -76,10 +77,7 @@ interface AdminAuthContextValue {
 export const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 function timeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error('Authentication timed out.')), ms)),
-  ]);
+  return deadline(promise, ms, 'Authentication timed out.');
 }
 
 /** A real login that is not allowed in this app. The session is signed out. */

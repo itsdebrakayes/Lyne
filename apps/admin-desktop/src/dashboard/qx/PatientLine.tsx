@@ -63,6 +63,8 @@ export function PatientLine({ items, canAct, busy, onCall, onMove, onSetTriageFl
   const [drag, setDrag] = useState<{ id: string; from: number; over: number; y: number; startY: number } | null>(null);
   const rowsRef = useRef<Array<HTMLDivElement | null>>([]);
   // A drag ends with a click on the row underneath; this stops it opening the card.
+  // The next press anywhere in the list clears it, so a drag that ends with no click
+  // never swallows the click after it.
   const justDragged = useRef(false);
 
   const indexAt = (clientY: number) => {
@@ -90,7 +92,6 @@ export function PatientLine({ items, canAct, busy, onCall, onMove, onSetTriageFl
     const { id, from, over } = drag;
     setDrag(null);
     justDragged.current = true;
-    window.setTimeout(() => { justDragged.current = false; }, 0);
     if (over !== from && onMove) await onMove(id, over + 1);
   };
 
@@ -100,7 +101,8 @@ export function PatientLine({ items, canAct, busy, onCall, onMove, onSetTriageFl
 
   return (
     <>
-      <div role="list" aria-label="Patients waiting, in the order they will be called">
+      <div role="list" aria-label="Patients waiting, in the order they will be called"
+        onPointerDownCapture={() => { justDragged.current = false; }}>
         {items.map((t, i) => {
           const dragging = drag?.id === t.id;
           const showGapAbove = drag && !dragging && drag.over === i && drag.from > i;
@@ -116,7 +118,7 @@ export function PatientLine({ items, canAct, busy, onCall, onMove, onSetTriageFl
                 transform: dragging ? `translateY(${drag!.y - drag!.startY}px)` : undefined,
                 position: 'relative', zIndex: dragging ? 2 : undefined, cursor: 'pointer', minHeight: 56,
               }}
-              onClick={() => { if (!drag && !justDragged.current) setOpen(t); }}>
+              onClick={() => { if (justDragged.current) { justDragged.current = false; return; } if (!drag) setOpen(t); }}>
               {onMove ? (
                 <button type="button" aria-label={`Drag to move ${t.no}`} title="Drag to move"
                   onPointerDown={(e) => startDrag(e, t.id, i)} onPointerMove={moveDrag}

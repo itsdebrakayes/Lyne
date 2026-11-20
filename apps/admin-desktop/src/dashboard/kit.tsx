@@ -7,6 +7,7 @@ import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { Bell, CalendarDays, ChevronDown, LogOut, MapPin, Moon, Search, Sun } from 'lucide-react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import type { AlertItem } from './insights';
+import { useTimeout } from '../lib/timing';
 import '@/styles/admin-kit.css';
 
 export type { AlertItem };
@@ -225,6 +226,7 @@ export function NotificationsBell({ alerts, onNav, userKey }: { alerts: AlertIte
   const [open, setOpen] = useState(false);
   const [read, setRead] = useState<Set<string>>(() => loadRead(userKey));
   const [shake, setShake] = useState(false);
+  useTimeout(() => setShake(false), shake ? 820 : null);
   const prevUnread = useRef(0);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -235,14 +237,9 @@ export function NotificationsBell({ alerts, onNav, userKey }: { alerts: AlertIte
 
   // Shake the bell the moment the unread count grows (a new condition appeared).
   useEffect(() => {
-    if (unread > prevUnread.current) {
-      setShake(true);
-      const t = window.setTimeout(() => setShake(false), 820);
-      return () => window.clearTimeout(t);
-    }
+    if (unread > prevUnread.current) setShake(true);
     prevUnread.current = unread;
   }, [unread]);
-  useEffect(() => { prevUnread.current = unread; }, [unread]);
 
   // Close on outside click / Escape.
   useEffect(() => {

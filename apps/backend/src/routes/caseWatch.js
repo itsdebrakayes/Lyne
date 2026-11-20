@@ -14,6 +14,7 @@
 const router = require('express').Router();
 const { randomUUID: uuidv4 } = require('crypto');
 const pool = require('../db/pool');
+const { sortRows } = require('../utils/sortRows');
 const { requireAuth } = require('../middleware/auth');
 const { auditLog } = require('../middleware/auditLog');
 const { requireStaffRole } = require('../middleware/tenantAccess');
@@ -93,7 +94,8 @@ router.get('/', requireAuth, requireStaffRole('supervisor', 'manager', 'executiv
          FROM staff s JOIN roles r ON r.id = s.role_id LEFT JOIN branches br ON br.id = s.branch_id
         WHERE s.business_id = ? AND s.is_active = TRUE AND r.name = 'supervisor'
           ${me.branch_id ? 'AND s.branch_id = ?' : ''}
-        ORDER BY s.full_name`, me.branch_id ? [me.business_id, me.branch_id] : [me.business_id]);
+        `, me.branch_id ? [me.business_id, me.branch_id] : [me.business_id]);
+    sortRows(supervisors, 'full_name');
     res.json({ current: await currentWatch(me.business_id, userId), history, supervisors, me: me.id, role: me.role_name });
   } catch (err) {
     console.error('case watch read:', err);

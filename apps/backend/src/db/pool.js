@@ -85,4 +85,24 @@ const pool = mysql.createPool({
   ...(ssl ? { ssl } : {}),
 });
 
+/* Field encryption (src/lib/fieldCrypto.js): every write is checked, every result opened. */
+const { openResult, checkWrite } = require('./sealing');
+
+function guard(target) {
+  if (target.lyneSealing) return target;
+  target.lyneSealing = true;
+  for (const method of ['query', 'execute']) {
+    const original = target[method].bind(target);
+    target[method] = async (sql, values, ...rest) => {
+      checkWrite(typeof sql === 'object' && sql ? sql.sql : sql, Array.isArray(values) ? values : sql?.values);
+      return openResult(await original(sql, values, ...rest));
+    };
+  }
+  return target;
+}
+
+guard(pool);
+const getConnection = pool.getConnection.bind(pool);
+pool.getConnection = async () => guard(await getConnection());
+
 module.exports = pool;

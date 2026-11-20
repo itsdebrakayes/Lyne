@@ -40,6 +40,32 @@ to `production` and `staging` on 13 October 2026. Old branches are kept only as
    update the README in the same commit.
 8. If `production` ever gets an emergency fix first, merge it back into `staging` the same day.
 
+## Corrections become checks
+
+When the owner corrects you, or you catch a mistake an agent could repeat, do not
+answer with a sentence here. Put the fix as high on this list as it will go:
+
+1. **The code.** Change the design so the mistake cannot be written: one shared
+   module instead of copies, one source of truth for a piece of state, a helper
+   whose only shape is the right one.
+2. **A check that fails.** A lint rule in `tools/checks/eslint.config.mjs` or a
+   repo check in `tools/checks/repo-checks.mjs`, with an error message written to
+   the next agent saying what to do instead. Then remove the existing copies, or
+   list them in `tools/checks/baseline.json` (counts only go down) and say so.
+3. **Verification.** A row in `docs/FEATURE_MAP.md`, walked in the running app,
+   with a screenshot or recording as the proof.
+4. **Only then** a line in this file.
+
+Before every commit run `npm --prefix tools/checks run check` and the tests of each
+app you touched. A failing check is fixed at its cause. Never silence it: no
+`eslint-disable`, no raising a baseline number, no new entry in `envNotInProduction`
+without the owner agreeing.
+
+Comments: write one only for a reason the code cannot show. Never write a comment
+that excuses a workaround ("for now", "the real fix would be", "a beat after
+mount"). The next agent reads it as permission. Fix it, or tell the owner and
+leave a task.
+
 ## Rules for production
 
 - The server (`/srv/lyne`) runs the `production` branch only. Deploy with `bash deploy/deploy.sh`,

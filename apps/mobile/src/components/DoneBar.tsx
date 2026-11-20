@@ -22,6 +22,7 @@ import { CommonActions, useIsFocused, useNavigation } from '@react-navigation/na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius } from '../lib/theme';
 import { Press } from './Press';
+import { useInterval } from '../lib/timing';
 
 /** Home, with everything behind it cleared, so Back cannot replay the flow. */
 export function useGoHome() {
@@ -65,11 +66,7 @@ export default function DoneBar({ seconds = 30, editLabel, onEdit, note }: {
   const [left, setLeft] = useState(seconds);
   const [stopped, setStopped] = useState(false);
 
-  useEffect(() => {
-    if (!focused || stopped) return undefined;
-    const t = setInterval(() => setLeft((s) => s - 1), 1000);
-    return () => clearInterval(t);
-  }, [focused, stopped]);
+  useInterval(() => setLeft((s) => s - 1), focused && !stopped ? 1000 : null);
 
   useEffect(() => {
     if (left <= 0 && !stopped) goHome();

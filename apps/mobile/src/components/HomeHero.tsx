@@ -22,6 +22,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Text, TouchableOpacity, View } from 'react-native';
 import { colors, font, shadow } from '../lib/theme';
+import { useInterval } from '../lib/timing';
 
 export interface HeroBeat {
   kicker: string;
@@ -128,17 +129,13 @@ export function HomeHero({
 
   /* Rotation stops entirely under Reduce Motion — a headline that swaps itself
      out mid-read is exactly what that setting exists to prevent. */
-  useEffect(() => {
-    if (reduceMotion) return undefined;
-    const id = setInterval(() => {
-      Animated.timing(fade, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true })
-        .start(() => {
-          setBeat(b => (b + 1) % HERO_BEATS.length);
-          Animated.timing(fade, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-        });
-    }, ROTATE_MS);
-    return () => clearInterval(id);
-  }, [fade, reduceMotion]);
+  useInterval(() => {
+    Animated.timing(fade, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true })
+      .start(() => {
+        setBeat(b => (b + 1) % HERO_BEATS.length);
+        Animated.timing(fade, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      });
+  }, reduceMotion ? null : ROTATE_MS);
 
   const b = HERO_BEATS[beat];
 

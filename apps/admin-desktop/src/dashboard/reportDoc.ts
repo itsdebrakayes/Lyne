@@ -26,6 +26,7 @@
  */
 import type { MgrTabData } from './qx/MgrTabsQX';
 import type { ExecTabData } from './qx/ExecTabsQX';
+import { afterNextPaint, revokeSoon } from '../lib/timing';
 
 const esc = (v: unknown) => String(v ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -464,7 +465,7 @@ export async function saveReport(html: string, filename: string, format: 'doc' |
     const a = document.createElement('a');
     a.href = url; a.download = `${name}.doc`;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    revokeSoon(url);
     return { ok: true };
   }
 
@@ -474,9 +475,10 @@ export async function saveReport(html: string, filename: string, format: 'doc' |
   const doc = frame.contentDocument;
   if (!doc) { frame.remove(); return { ok: false, error: 'Could not open the print view.' }; }
   doc.open(); doc.write(html); doc.close();
-  await new Promise((r) => setTimeout(r, 250));
+  await doc.fonts?.ready;
+  await afterNextPaint();
+  frame.contentWindow?.addEventListener('afterprint', () => frame.remove(), { once: true });
   frame.contentWindow?.focus();
   frame.contentWindow?.print();
-  setTimeout(() => frame.remove(), 60_000);
   return { ok: true };
 }

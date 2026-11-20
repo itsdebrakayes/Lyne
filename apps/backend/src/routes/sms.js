@@ -11,15 +11,14 @@
  * uses Twilio Verify, and that proof is what allows texts.
  */
 const router = require('express').Router();
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAdmin } = require('../lib/supabaseAdmin');
 const pool = require('../db/pool');
+const { seal, fingerprint } = require('../lib/fieldCrypto');
 const { requireAuth } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { smsAvailable, normalizeJamaican } = require('../utils/smsSender');
 const { canTextAtBranch } = require('../utils/smsAlerts');
 
-const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const admin = () => createClient(process.env.SUPABASE_URL, serviceKey(), { auth: { persistSession: false } });
 
 router.get('/status', async (req, res) => {
   try {
@@ -49,7 +48,9 @@ router.put('/preference', requireAuth, async (req, res) => {
     const on = req.body?.opt_in === true;
     /* Supabase is what proved the phone, so its record decides. Whatever a phone
        field says, a number nobody verified is never texted. */
-    const { data, error } = await admin().auth.admin.getUserById(req.dbUser.supabase_uid);
+    const admin = supabaseAdmin();
+    if (!admin) return res.status(503).json({ error: 'Text settings are unavailable right now. Try again later.' });
+    const { data, error } = await admin.auth.admin.getUserById(req.dbUser.supabase_uid);
     if (error || !data?.user) return res.status(502).json({ error: 'Could not check your number. Try again.' });
     const phone = data.user.phone_confirmed_at ? normalizeJamaican(data.user.phone) : null;
     if (on && !phone) return res.status(409).json({ error: 'Add and verify a Jamaican mobile number first.' });
@@ -57,10 +58,10 @@ router.put('/preference', requireAuth, async (req, res) => {
     await pool.query(
       `UPDATE users SET sms_opt_in = ?, sms_opt_in_at = IF(? = 1, NOW(), sms_opt_in_at),
               phone = COALESCE(?, phone), phone_verified_at = IF(? IS NULL, phone_verified_at, COALESCE(phone_verified_at, NOW()))
-        WHERE id = ?`, [on ? 1 : 0, on ? 1 : 0, phone, phone, req.dbUser.id]);
+        WHERE id = ?`, [on ? 1 : 0, on ? 1 : 0, seal(phone), phone, req.dbUser.id]);
     if (phone) {
-      if (on) await pool.query('DELETE FROM sms_opt_outs WHERE phone = ?', [phone]);
-      else await pool.query(`INSERT IGNORE INTO sms_opt_outs (phone, source) VALUES (?, 'app')`, [phone]);
+      if (on) await pool.query('DELETE FROM sms_opt_outs WHERE phone_hash = ?', [fingerprint(phone)]);
+      else await pool.query(`INSERT IGNORE INTO sms_opt_outs (phone_hash, source) VALUES (?, 'app')`, [fingerprint(phone)]);
     }
     res.json({ opt_in: on });
   } catch (err) {
@@ -76,7 +77,7 @@ router.post('/stop', authLimiter, async (req, res) => {
     const [[t]] = await pool.query('SELECT user_id, guest_phone FROM queue_tickets WHERE sms_stop_code = ?', [code]);
     if (!t) return res.status(404).json({ error: 'That link has expired or is not right.' });
     const phone = normalizeJamaican(t.guest_phone);
-    if (phone) await pool.query(`INSERT IGNORE INTO sms_opt_outs (phone, source) VALUES (?, 'link')`, [phone]);
+    if (phone) await pool.query(`INSERT IGNORE INTO sms_opt_outs (phone_hash, source) VALUES (?, 'link')`, [fingerprint(phone)]);
     if (t.user_id) await pool.query('UPDATE users SET sms_opt_in = 0 WHERE id = ?', [t.user_id]);
     res.json({ stopped: true });
   } catch (err) {

@@ -9,6 +9,7 @@ import secureSessionStorage from './secureSessionStorage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { noteNetworkFailure, noteNetworkSuccess } from './network';
+import { abortAfter } from './timing';
 
 type ExpoExtra = {
   supabaseUrl?: string;
@@ -127,7 +128,7 @@ async function request<T>(
      it as connectivity and nobody is signed out over it. */
   let res: Response;
   const controller = new AbortController();
-  const deadline = setTimeout(() => controller.abort(), timeoutMs);
+  const cancelDeadline = abortAfter(controller, timeoutMs);
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
@@ -145,7 +146,7 @@ async function request<T>(
     noteNetworkFailure();
     throw transportError;
   } finally {
-    clearTimeout(deadline);
+    cancelDeadline();
   }
 
   /* We got a response. Even a 4xx proves the connection works, so this counts

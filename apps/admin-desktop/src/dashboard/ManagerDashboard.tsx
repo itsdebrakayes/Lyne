@@ -32,6 +32,7 @@ import { SessionsWorkspace } from '../components/dashboard/SessionsWorkspace';
 import { CustomerCasesWorkspace } from '../components/dashboard/CustomerCasesWorkspace';
 import { CustomerDirectory } from '../components/dashboard/CustomerDirectory';
 import { parseDateOnly } from '../lib/dates';
+import { useTimeout } from '../lib/timing';
 
 /* Kept from the Help & Support tab this replaces — written against how the
    system actually behaves, so not re-guessed. */
@@ -83,7 +84,7 @@ export default function ManagerDashboard() {
   const terms = useSectorTerms();
   const d = useDashboardData();
   const { logout } = useAdminAuth();
-  const tour = useTour('manager');
+  const tour = useTour('manager', !d.firstLoad.loading);
   const [tab, setTab] = useState('overview');
   const branchName = d.admin?.staffRecord.branch_name || 'Your Branch';
   const preds = d.predictions as any[];
@@ -714,6 +715,7 @@ export function SetTargetsCard({ target, businessId, span }: { target: any; busi
   const [done, setDone] = useState('');
   const [noShow, setNoShow] = useState('');
   const [saved, setSaved] = useState(false);
+  useTimeout(() => setSaved(false), saved ? 2600 : null);
 
   // Seed the inputs from the saved targets once they load.
   useEffect(() => {
@@ -732,7 +734,6 @@ export function SetTargetsCard({ target, businessId, span }: { target: any; busi
     onSuccess: () => {
       setSaved(true);
       qc.invalidateQueries({ queryKey: ['ops-targets', businessId] });
-      window.setTimeout(() => setSaved(false), 2600);
     },
   });
 
@@ -777,6 +778,7 @@ export function SetBranchTargetsCard({ target, branchId, span }: { target: any; 
   const [done, setDone] = useState('');
   const [noShow, setNoShow] = useState('');
   const [saved, setSaved] = useState(false);
+  useTimeout(() => setSaved(false), saved ? 2600 : null);
   const company = target?.company || {};
   const inheriting = target?.is_default !== false; // no branch row yet → inheriting company
 
@@ -796,7 +798,6 @@ export function SetBranchTargetsCard({ target, branchId, span }: { target: any; 
     onSuccess: () => {
       setSaved(true);
       qc.invalidateQueries({ queryKey: ['ops-branch-targets', branchId] });
-      window.setTimeout(() => setSaved(false), 2600);
     },
   });
 

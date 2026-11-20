@@ -108,6 +108,7 @@ database/
 deploy/            Everything for the droplet: compose file, Caddyfile, deploy/verify/backup scripts, env example
 supabase/          Supabase config, edge functions, email templates, Supabase-side migrations
 docs/              Design, operations and launch documents (index in §23)
+tools/checks/      Lint rules and repo checks that turn corrections into failures (§14)
 legal/             Privacy policy, terms, account deletion, cookie and refund policy (source text)
 e2e/               Playwright end-to-end tests
 store-assets/      App Store / Play screenshots and graphics
@@ -239,6 +240,8 @@ Production values go in `/srv/lyne/.env`, created from `deploy/env.production.ex
 | Hosts and TLS | `API_DOMAIN`, `ADMIN_DOMAIN`, `TLS_EMAIL`, `APP_TZ` | |
 | Database | `MYSQL_HOST` (private host), `MYSQL_PORT`, `MYSQL_USER=lyne`, `MYSQL_PASSWORD`, `MYSQL_DATABASE=lyne`, `MYSQL_SSL` | Never the `doadmin` login |
 | Supabase | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_KEY` | The service key must never appear in any client bundle |
+| Field encryption | `FIELD_ENCRYPTION_KEY` | 32 bytes, `openssl rand -base64 32`. The API refuses to start in production without it. Back it up with the other secrets: without it, sealed values cannot be read. Never change it on a server that holds sealed values |
+| Drive times | `MAPBOX_TOKEN` | Live-traffic drive time for the "Time to head out" reminder (`POST /api/travel/drive-time`). Empty = straight-line estimate at 30 km/h. Server-side only |
 | Web | `FRONTEND_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`, `PORTAL_HANDOFF_SECRET` | Generate the handoff secret with `openssl rand -base64 48` |
 | Queue lifecycle | `TICKET_EXPIRY_ENABLED`, `TICKET_EXPIRY_GRACE_MINUTES`, `RETENTION_ENABLED`, `RETENTION_MEASUREMENTS_MONTHS` | |
 | Model worker | `PIPELINE_EMAIL`, `PIPELINE_PASSWORD`, `PIPELINE_BUSINESS_ID`, `PIPELINE_TIMEZONE` | |
@@ -343,6 +346,7 @@ Also:
 - The Supabase service key is used only by the API and edge functions, and a deploy check confirms it is absent from the admin bundle.
 - The firewall allows only 22, 80 and 443; fail2ban and unattended security upgrades are on.
 - PII: national ID and TRN are kept on the customer's phone, not by Lyne. A formal data-retention policy and encryption-at-rest confirmation are owed before a paid contract.
+- Field encryption: names, emails, phone numbers, dates of birth and addresses of app users, staff, staff invitations, walk-ins and session registrants are stored AES-256-GCM sealed (`enc:v1:…`) with `FIELD_ENCRYPTION_KEY`; the list is `SEALED` in `apps/backend/src/lib/fieldCrypto.js`. `src/db/pool.js` opens them in every result, so routes never handle ciphertext, and refuses any INSERT or UPDATE that would store one in plain text (wrap values in `seal()`) or write an email or walk-in name without its fingerprint (`email_hash`, `guest_name_hash` = `fingerprint(value)`, a keyed HMAC used for exact lookups and email uniqueness). SQL cannot sort, search or compare a sealed column (a repo check fails if it tries): sort with `sortRows()` (`src/utils/sortRows.js`) and search in JavaScript after the query, as Client Cases does. SMS opt-outs and the SMS log hold keyed fingerprints of numbers, never the numbers. Migrations 054 and 055 make room; after applying them and deploying, run `node scripts/seal-personal-fields.js --apply` to seal older rows and fill every fingerprint, and run it again after loading any SQL seed (showcase files insert plain values). Supabase Auth keeps its own copy of each sign-in email and name; that is Supabase's storage, not ours.
 
 `deploy/verify.sh` checks most of this on the live box; run it after every deploy. `docs/pre-launch-security-checklist.md` is the full checklist.
 
@@ -407,10 +411,12 @@ docker compose --profile tools up -d adminer               # optional database b
 | Properties | Position allocator and end-of-day lifecycle | `check-position-allocator.mjs`, `check-end-of-day.mjs` |
 | End to end | Playwright against the real admin and mobile web builds, including the verification-code leak check | `npm run test:e2e` (from the repo root, against the demo stack) |
 | Model | ML helper tests | `cd apps/model && python -m unittest discover -s tests -v` |
+| Corrections | Lint rules and repo checks made from the owner's corrections: no raw timers in UI code, window/main-process import walls, one Supabase service client, every API variable reaches production, demo files off production, no tracked secrets, scoped `umask`, wording, real agencies, excuse comments | `npm --prefix tools/checks ci` once, then `npm --prefix tools/checks run check` |
+| Verification | What each feature looks like when it works, walked in the running app | `docs/FEATURE_MAP.md` |
 
 The invariant and property scripts take `MYSQL_*` from the environment and connect as the application user on purpose, which also proves the hardened grants are enough.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs backend tests, the admin typecheck and model tests on every push. Dependabot opens weekly update pull requests against `staging`.
+GitHub Actions (`.github/workflows/ci.yml`) runs the correction checks, backend tests, the admin typecheck, the mobile typecheck and tests, and model tests on every push. `tools/checks/baseline.json` lists violations that predate a check; its counts may only go down. Dependabot opens weekly update pull requests against `staging`.
 
 Not yet covered: an automated end-to-end test of join → call → serve → notify through the real routes.
 
@@ -543,6 +549,7 @@ Nothing about an organisation is built into the mobile app, so onboarding never 
 
 | Document | For |
 |---|---|
+| `docs/FEATURE_MAP.md` | Every feature from the user's side, how to reach it, and what proves it works |
 | `deploy/README.md` | Setting up the droplet and database from scratch, and the routine deploy |
 | `docs/HOSTING.md` | Why production is shaped the way it is; hardening; growth triggers |
 | `docs/SCALING.md` | What to change as load grows |

@@ -14,6 +14,7 @@ import { ErrorCard, SkeletonCard } from '../../components/Feedback';
 import Icon from '../../components/Icon';
 import { Press } from '../../components/Press';
 import { usePlaceWords } from '../../lib/placeWords';
+import { useNow } from '../../lib/timing';
 
 type Params = RouteProp<RootStackParamList, 'Branch'>;
 const TRAVEL_DEFAULT_MIN = 10;
@@ -194,11 +195,7 @@ export default function BranchScreen() {
   const leaveIn = (s: ServiceSummary) => Math.max(0, svcWait(s) - TRAVEL_DEFAULT_MIN);
 
   // Tick so the screen opens itself when the branch does, without a reload.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(30_000);
 
   // The header already says Open / About to open / Closed — the join CTA must
   // agree with it. Offering "Join this queue" under a "Closed" header sends the

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Clock, Delete, MessageSquare, Printer, RotateCcw, Users, X,
 } from 'lucide-react';
+import { useInterval, useNow } from '../lib/timing';
 import '@/design/qx.css';
 import './kiosk.css';
 
@@ -36,8 +37,6 @@ const SERVICES: Svc[] = [
   { id: 'prp', code: 'PRP', name: 'Property Tax', blurb: 'Property tax assessments and payments', waiting: 4, wait: 15, open: 1, counters: 2 },
   { id: 'enq', code: 'ENQ', name: 'General Enquiries', blurb: 'Questions about your account or a letter', waiting: 2, wait: 8, open: 1, counters: 2 },
 ];
-
-const BRANCH = { name: 'Half Way Tree', org: 'Tax Administration Jamaica', address: '2 Constant Spring Road, Kingston 10' };
 
 /* How long the finished ticket stays up before the terminal resets itself. */
 const RESET_SECONDS = 25;
@@ -99,21 +98,13 @@ const STEPS: Array<{ key: Step; label: string }> = [
 ];
 
 function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useNow(1000);
   const idx = STEPS.findIndex((s) => s.key === step);
 
   return (
     <header className="qk-top">
       <div className="qk-topL">
         <span className="qk-mark">L</span>
-        <div>
-          <b>{BRANCH.org}</b>
-          <small>{BRANCH.name}</small>
-        </div>
       </div>
 
       {idx >= 0 ? (
@@ -143,9 +134,7 @@ function KioskChrome({ step, onHome }: { step: Step; onHome: () => void }) {
 function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <button type="button" className="qk-welcome" onClick={onStart}>
-      <div className="qk-eyebrow">Welcome To</div>
-      <h1>Tax Administration<br /><em>Jamaica</em></h1>
-      <p>{BRANCH.address}</p>
+      <h1>Welcome</h1>
       <span className="qk-cta">Touch Anywhere To Begin <ArrowRight size={22} /></span>
       <div className="qk-welcomefoot">
         <div><b>3</b>Quick Steps</div>
@@ -307,10 +296,8 @@ function Ticket({ svc, ticket, name, notify, onDone }: {
   notify: 'sms' | 'screen' | null; onDone: () => void;
 }) {
   const [left, setLeft] = useState(RESET_SECONDS);
-  useEffect(() => {
-    const id = setInterval(() => setLeft((s) => (s <= 1 ? (onDone(), 0) : s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [onDone]);
+  useInterval(() => setLeft((s) => Math.max(0, s - 1)), left > 0 ? 1000 : null);
+  useEffect(() => { if (left === 0) onDone(); }, [left, onDone]);
 
   return (
     <div className="qk-frame">
