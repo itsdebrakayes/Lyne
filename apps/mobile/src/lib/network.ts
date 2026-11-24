@@ -44,9 +44,13 @@ let lastSuccessAt = 0;
  */
 const SUCCESS_TTL_MS = 60_000;
 
-/** Called by apiClient on every successful response. */
+/** Called by apiClient on every successful response. A response is proof of a
+ *  connection, so React Query is told at once: anything waiting to retry goes
+ *  now, rather than at the operating system's next network event, which on a
+ *  wrongly "offline" device may never come. */
 export function noteNetworkSuccess() {
   lastSuccessAt = Date.now();
+  if (!onlineManager.isOnline()) onlineManager.setOnline(true);
 }
 
 /** Called by apiClient when a request fails at the transport layer. */

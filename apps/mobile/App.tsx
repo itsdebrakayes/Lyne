@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 // Must load before anything else so the background task exists when Android wakes the app for it.
 import { registerLiveTicketTask } from './src/lib/liveTicketTask';
 import { StyleSheet, View } from 'react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createQueryClient } from './src/lib/queryClient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { UpdateNotice } from './src/components/UpdateNotice';
@@ -34,16 +35,15 @@ import { initMonitoring, monitoringEnabled, Sentry } from './src/lib/monitoring'
 // No-ops entirely until a DSN is configured.
 initMonitoring();
 
-/* Point React Query at the device's real connectivity, so queries pause while
-   offline and refetch themselves on reconnect instead of burning retries into a
-   dead radio. This was written and then never called — the whole network module
-   was orphaned, which is also why nobody noticed the banner was unmounted. */
+/* Point React Query at the device's real connectivity, so retries wait while
+   offline and queries refetch themselves on reconnect instead of burning retries
+   into a dead radio (src/lib/queryClient.ts: the first attempt always goes).
+   This was written and then never called — the whole network module was
+   orphaned, which is also why nobody noticed the banner was unmounted. */
 startNetworkWatch();
 void registerLiveTicketTask();
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-});
+const queryClient = createQueryClient();
 
 // Hold the native (dark) splash until the JS launch screen is ready to take
 // over, so the handoff is dark→dark with no white flash. Best-effort — a
