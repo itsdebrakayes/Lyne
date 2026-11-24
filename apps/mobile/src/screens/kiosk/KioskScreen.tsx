@@ -989,6 +989,14 @@ export default function KioskScreen() {
     },
   });
 
+  /* Asked again every few minutes, so turning texts on or off reaches the kiosk. */
+  const smsStatus = useQuery({
+    queryKey: ['sms-status', actor?.branchId],
+    queryFn: () => api.get<{ branch?: boolean }>(`/sms/status?branch_id=${actor?.branchId}`),
+    enabled: Boolean(actor?.branchId),
+    refetchInterval: 5 * 60_000,
+  });
+
   if (!actor) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -999,14 +1007,6 @@ export default function KioskScreen() {
 
   const org = actor.businessName || 'Welcome';
   const branch = actor.branchName || '';
-
-  /* Asked again every few minutes, so turning texts on or off reaches the kiosk. */
-  const smsStatus = useQuery({
-    queryKey: ['sms-status', actor?.branchId],
-    queryFn: () => api.get<{ branch?: boolean }>(`/sms/status?branch_id=${actor?.branchId}`),
-    enabled: Boolean(actor?.branchId),
-    refetchInterval: 5 * 60_000,
-  });
 
   return (
     <SmsReady.Provider value={Boolean(smsStatus.data?.branch)}>

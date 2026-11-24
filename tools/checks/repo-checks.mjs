@@ -138,6 +138,17 @@ for (const f of tracked.filter((p) => /\.(tsx?|jsx?|mjs|html|json|sql)$/.test(p)
   }
 }
 
+/* 9. The mobile app has one React Query client (20 Nov 2026: a default client
+      would pause requests while "offline" and leave the kiosk spinning on Get My Ticket). */
+for (const f of tracked.filter((p) => /^apps\/mobile\/(App\.tsx|src\/.*\.tsx?)$/.test(p) && p !== 'apps/mobile/src/lib/queryClient.ts')) {
+  read(f).split('\n').forEach((line, i) => {
+    if (/\bnew QueryClient\s*\(/.test(line)) {
+      fail('one-query-client', `${f}:${i + 1}`,
+        'Use createQueryClient() from apps/mobile/src/lib/queryClient.ts. Its networkMode always sends the first attempt; a default client pauses requests whenever the OS guesses "offline", and a paused mutation spins forever with no error.');
+    }
+  });
+}
+
 if (failures.length) {
   for (const x of failures) console.error(`\n✗ ${x.check}\n    ${x.where}\n    → ${x.fix}`);
   console.error(`\n${failures.length} repo check(s) failed.`);

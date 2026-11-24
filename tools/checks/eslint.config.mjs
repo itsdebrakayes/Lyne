@@ -48,6 +48,8 @@ export default tseslint.config(
       '@typescript-eslint/ban-ts-comment': ['error', {
         'ts-ignore': true, 'ts-nocheck': true, 'ts-expect-error': 'allow-with-description',
       }],
+      /* A hook after an early return crashed the kiosk on the frame it signed out. */
+      'react-hooks/rules-of-hooks': 'error',
     },
   },
 

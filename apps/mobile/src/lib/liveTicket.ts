@@ -55,7 +55,7 @@ function stateOf(t: LiveTicket): TicketState {
   };
 }
 
-function useActivity(): boolean {
+function liveActivityAvailable(): boolean {
   return Platform.OS === 'ios' && LiveActivity.isSupported();
 }
 
@@ -83,7 +83,7 @@ export async function syncLiveTicket(ticket: LiveTicket | null | undefined): Pro
   if (key === lastSent) return;
   lastSent = key;
 
-  if (useActivity()) {
+  if (liveActivityAvailable()) {
     const started = await LiveActivity.start({
       ticketNumber: ticket.ticket_number,
       businessName: ticket.business_name || 'Lyne',
