@@ -48,7 +48,7 @@ As of October 2026:
 | Database | DigitalOcean managed MySQL (private VPC host) | Live; nightly verified backups with an off-site copy |
 | Auth | Supabase project **Lyne** | Live; email + password; auth email sent through Resend SMTP |
 | Android app | Google Play, `com.lyne.mobile` | Live in production |
-| iOS app | App Store, `com.lyne.mobile` | Version 1.0 submitted, in review |
+| iOS app | App Store, `com.lyne.mobile` | Live since 16 November 2026 (1.0.0); 1.0.1 carries the kiosk "Get My Ticket" fix |
 | Website | `https://uselyne.com` (GoDaddy) | Live |
 | Desktop admin | macOS / Windows / Linux installers | Builds; Windows signing certificate not yet bought |
 
@@ -462,7 +462,7 @@ The full first-time setup is `deploy/README.md`. For a routine release:
 Everything is in `docs/launch/`. In short:
 
 - **Build profiles** (`apps/mobile/eas.json`): `development` (simulator, localhost API), `preview` (internal, production API), `demo` (internal, demo API), `production` (store builds, production API, build number auto-increments).
-- **Build:** `cd apps/mobile && eas build --platform all --profile production`.
+- **Build:** `cd apps/mobile && eas build --platform all --profile production`. EAS numbers each build itself; bump `version` in `apps/mobile/app.json` (and `package.json`) for every store update, because App Store Connect will not take a new release under a version that is already live.
 - **Submit:** `eas submit --platform ios --profile production` and `--platform android`. The Android submit profile currently targets Play's **internal** track. Promote the release to Production in Play Console, or change `submit.production.android.track` to `production`.
 - **Store accounts:** Apple Developer Program and Google Play Console, both enrolled as the organisation (D-U-N-S). App Store payouts are set up; no paid features are sold.
 - **Listings:** `docs/launch/app-store-listing.md`, `play-store-listing.md`, `screenshots.md`. Store screenshots are in `store-assets/`.
