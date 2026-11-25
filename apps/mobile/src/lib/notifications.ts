@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './apiClient';
+import { leaveAtFor, movedLeaveAt, type DepartureTrip } from './departure';
 
 /* The push token this phone registered, kept so sign-out can unregister it, and
    a flag for an unregister that could not reach the server (offline), retried on
@@ -51,6 +52,9 @@ const LIVE_TICKET_ID = 'live-ticket';
    had already left. A person can hold only one live ticket, so one id is
    enough. */
 const DEPARTURE_ID = 'departure-reminder';
+/* The trip behind that reminder (lib/departure.ts), so the reminder can be
+   moved as the wait changes, including after the app is reopened. */
+const DEPARTURE_TRIP_KEY = 'lyne.departureTrip';
 
 type LiveTicketInput = {
   ticketId: string;
@@ -101,7 +105,7 @@ export async function dismissLiveTicketNotification() {
 }
 
 type DepartureReminderInput = {
-  ticketId?: string;
+  ticketId: string;
   branchId?: string;
   branchName: string;
   branchLatitude?: number;
@@ -163,6 +167,7 @@ export async function unregisterPushDevice() {
  */
 export async function clearLocalNotifications() {
   try { await Notifications.cancelAllScheduledNotificationsAsync(); } catch { /* nothing scheduled */ }
+  try { await AsyncStorage.removeItem(DEPARTURE_TRIP_KEY); } catch { /* no trip */ }
   try { await Notifications.dismissAllNotificationsAsync(); } catch { /* nothing shown */ }
   try { await Notifications.setBadgeCountAsync(0); } catch { /* no badge */ }
 }
@@ -227,6 +232,19 @@ async function driveMinutes(input: DepartureReminderInput, lat: number, lng: num
   return Math.max(5, Math.ceil((km / 30) * 60));
 }
 
+async function armDepartureReminder(trip: DepartureTrip) {
+  await Notifications.scheduleNotificationAsync({
+    identifier: DEPARTURE_ID,
+    content: {
+      title: 'Time to head out',
+      body: `Leave soon to reach ${trip.branchName} before your queue is called.`,
+      data: { ticketId: trip.ticketId, branchName: trip.branchName },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(trip.leaveAt) },
+  });
+  await AsyncStorage.setItem(DEPARTURE_TRIP_KEY, JSON.stringify(trip)).catch(() => {});
+}
+
 export async function scheduleDepartureReminder(input: DepartureReminderInput) {
   if (input.branchLatitude === undefined || input.branchLongitude === undefined) return null;
 
@@ -235,35 +253,46 @@ export async function scheduleDepartureReminder(input: DepartureReminderInput) {
 
   const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   const travelMinutes = await driveMinutes(input, current.coords.latitude, current.coords.longitude);
-  const leadTime = input.leadTimeMinutes ?? 10;
-  const secondsUntilReminder = Math.max(60, (input.estimatedWaitMinutes - travelMinutes - leadTime) * 60);
+  const trip = {
+    ticketId: input.ticketId,
+    branchName: input.branchName,
+    travelMinutes,
+    leadMinutes: input.leadTimeMinutes ?? 10,
+  };
+  const armed = { ...trip, leaveAt: leaveAtFor(trip, input.estimatedWaitMinutes, Date.now()) };
+  await armDepartureReminder(armed);
+  return armed;
+}
 
-  return Notifications.scheduleNotificationAsync({
-    identifier: DEPARTURE_ID,
-    content: {
-      title: 'Time to head out',
-      body: `Leave soon to reach ${input.branchName} before your queue is called.`,
-      data: { ticketId: input.ticketId, branchName: input.branchName },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: secondsUntilReminder,
-      repeats: false,
-    },
-  });
+/**
+ * Move the reminder to the ticket's latest wait. Called on every ticket poll;
+ * it does nothing unless the wait has moved enough to matter (lib/departure.ts),
+ * and nothing for a ticket it did not arm.
+ */
+export async function moveDepartureReminder(ticketId: string, estimatedWaitMinutes: number | null | undefined) {
+  let trip: DepartureTrip | null = null;
+  try {
+    const raw = await AsyncStorage.getItem(DEPARTURE_TRIP_KEY);
+    trip = raw ? JSON.parse(raw) as DepartureTrip : null;
+  } catch { return; }
+  if (!trip || trip.ticketId !== ticketId) return;
+  const leaveAt = movedLeaveAt(trip, estimatedWaitMinutes, Date.now());
+  if (leaveAt === null) return;
+  await armDepartureReminder({ ...trip, leaveAt });
 }
 
 /**
  * Cancel the pending departure reminder.
  *
- * Called whenever the ticket stops being live — left, cancelled, served or
- * no-showed. `cancelScheduledNotificationAsync` removes it before it fires;
+ * Called when the ticket is called forward, or stops being live — left,
+ * cancelled, served or no-showed. `cancelScheduledNotificationAsync` removes it before it fires;
  * `dismissNotificationAsync` clears it from the tray if it already has. Both
  * are needed, and both are safe to call when nothing is scheduled.
  */
 export async function cancelDepartureReminder() {
   await Notifications.cancelScheduledNotificationAsync(DEPARTURE_ID).catch(() => {});
   await Notifications.dismissNotificationAsync(DEPARTURE_ID).catch(() => {});
+  await AsyncStorage.removeItem(DEPARTURE_TRIP_KEY).catch(() => {});
 }
 
 /**

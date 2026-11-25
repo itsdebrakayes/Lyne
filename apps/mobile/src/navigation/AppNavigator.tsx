@@ -141,7 +141,7 @@ export default function AppNavigator({ onReady }: { onReady?: () => void } = {})
   if (!loading && unreachable && !user && !kiosk) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <OfflineState onRetry={() => { void retrySession(); }} />
+        <OfflineState cause="lyne" onRetry={() => { void retrySession(); }} />
       </View>
     );
   }

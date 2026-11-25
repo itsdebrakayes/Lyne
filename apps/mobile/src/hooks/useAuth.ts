@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import api, { supabase, isTransient } from '../lib/apiClient';
 import { signInWithProvider, type SocialProvider, type SocialAuthResult } from '../lib/socialAuth';
 import { clearAllDocuments } from '../lib/documentVault';
@@ -9,6 +8,7 @@ import {
   retryPendingUnregister, unregisterPushDevice,
 } from '../lib/notifications';
 import { GOVERNMENT_TERMS, type SectorTerms } from '../lib/sectorTerms';
+import { readStoredSession, type StoredSession } from '../lib/storedSession';
 
 /** Where the confirmation link lands; see apps/website AuthConfirmed. */
 const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://uselyne.com').replace(/\/+$/, '');
@@ -121,10 +121,17 @@ export const useAuth = () => {
     );
   }, []);
 
-  const applySession = useCallback(async (session: Session | null, force = false) => {
-    const sbUser = session?.user ?? null;
+  const applySession = useCallback(async (stored: StoredSession, force = false) => {
+    if (stored.kind === 'unreachable') {
+      /* The session is still on the phone; only its refresh failed. Say so and
+         keep it. The library retries the refresh by itself, and the
+         TOKEN_REFRESHED that follows brings the profile in. */
+      setUnreachable(true);
+      setLoading(false);
+      return;
+    }
 
-    if (!sbUser) {
+    if (stored.kind === 'signed-out') {
       syncedUid.current = null;
       retryPendingUnregister();
       setUser(null);
@@ -133,6 +140,8 @@ export const useAuth = () => {
       setLoading(false);
       return;
     }
+
+    const sbUser = stored.session.user;
 
     // Already synced this user and not explicitly forced (e.g. token refresh) —
     // nothing to do, so we never loop on repeated auth events.
@@ -177,21 +186,30 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) applySession(session);
+    supabase.auth.getSession().then((result) => {
+      if (!mounted) return;
+      const stored = readStoredSession(result);
+      /* A signed-in session means any sign-up waiting for its email code on
+         this phone is finished, however it finished (the code, the link, or a
+         plain sign-in). Left behind, the record reopened "Enter the code we
+         emailed you" after the next sign-out instead of a fresh form. */
+      if (stored.kind === 'signed-in') clearPendingSignup();
+      applySession(stored);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Only (re)sync the MySQL profile on real identity changes. Token refreshes
-      // keep the same user, so they must not trigger another sync.
-      if (event === 'SIGNED_OUT') { applySession(null); return; }
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
-        /* A signed-in session means any sign-up waiting for its email code on
-           this phone is finished, however it finished (the code, the link, or a
-           plain sign-in). Left behind, the record reopened "Enter the code we
-           emailed you" after the next sign-out instead of a fresh form. */
-        if (session) clearPendingSignup();
-        applySession(session);
+      /* INITIAL_SESSION is not handled here: it carries the same null as
+         getSession for a refresh that could not reach the server, without the
+         error that says so. The getSession call above reads it with the error. */
+      if (event === 'SIGNED_OUT') { applySession({ kind: 'signed-out' }); return; }
+      if (!session) return;
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        clearPendingSignup();
+        applySession({ kind: 'signed-in', session });
       }
+      /* A token refresh keeps the same user, so the synced-uid guard in
+         applySession makes this a no-op once the profile is loaded. It does
+         work when the launch refresh failed: this is the retry succeeding. */
+      if (event === 'TOKEN_REFRESHED') applySession({ kind: 'signed-in', session });
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, [applySession]);
@@ -337,8 +355,7 @@ export const useAuth = () => {
      is already synced, and after a failed load that is exactly the uid we need
      to retry. */
   const retrySession = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    await applySession(session, true);
+    await applySession(readStoredSession(await supabase.auth.getSession()), true);
   }, [applySession]);
 
   // Re-reads the profile after an edit (e.g. adding a document) so the

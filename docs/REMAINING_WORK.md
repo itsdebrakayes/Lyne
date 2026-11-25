@@ -39,8 +39,6 @@ See `docs/security/DATA_SECURITY_OVERVIEW.md` §8 for detail.
 
 | Item | Notes |
 |---|---|
-| A server error during session refresh signs the user out silently | Should keep the session and show "Can't reach Lyne right now" |
-| "Leave now" reminder is never recalculated | Scheduled once at join; should move with the line |
 | Google and Apple sign-in | Ship together (Guideline 4.8). Providers in Supabase first; see `docs/PROVIDER_SETUP.md` |
 
 ## Quality

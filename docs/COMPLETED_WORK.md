@@ -6,6 +6,11 @@ to the session tracker._
 
 ---
 
+## Mobile reliability (25 November 2026)
+
+- **A server error during session refresh no longer signs people out.** Reopening the app after the hourly access token expired, while Supabase auth or the network was failing, showed the Sign in form: `getSession()` answers `session: null` for that as well as for nobody signed in. `src/lib/storedSession.ts` tells them apart by the error; the app now shows "Can't reach Lyne right now" with Try again, keeps the session, and loads Home by itself when the library's 30-second refresh retry succeeds (`TOKEN_REFRESHED`). Tests: `test/storedSession.test.ts`.
+- **The "Time to head out" reminder follows the line.** It was scheduled once at join from that moment's wait. The drive time is still measured once at join; the ticket screen now moves the reminder whenever the wait changes by two minutes or more (`src/lib/departure.ts`), never re-arms one that has fired, and cancels it when the ticket is called. Moves happen while the app is open or reopened; a line that moves while the app stays closed is not seen until then. Tests: `test/departure.test.ts`.
+
 ## After the Robert Lawrence demo (11 November 2026)
 
 - **Website prices match the Meeting Deck (10 Nov 2026).** Branch US$4,500/mo, Operations US$12,500/mo (up to 5), Executive US$25,000/mo (up to 10); Government / Enterprise from 11 locations, custom. Yearly is twelve monthly payments with no discount; implementation shown "from"; first-year total, per-location price and the deck's exclusions shown, as on slide 13. The Enterprise formula stays out of the browser bundle.

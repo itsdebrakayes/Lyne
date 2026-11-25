@@ -579,8 +579,6 @@ Nothing about an organisation is built into the mobile app, so onboarding never 
 
 The live list is `docs/REMAINING_WORK.md`. The main items:
 
-- **API outage signs users out without explanation.** A server error during session refresh drops people to Sign in.
-- The "leave now" reminder is scheduled once and not recalculated as the line moves.
 - Google and Apple sign-in (they ship together).
 - An automated end-to-end test of join → call → serve → notify; alerting when the model worker stops refreshing.
 - **Before onboarding an organisation:** a platform-admin console, a first-run setup wizard, a Windows signing certificate, SMS sender registration, and one kiosk device to prove printing.
