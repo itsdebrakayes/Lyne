@@ -40,8 +40,15 @@ export function OfflineState({
   reassure = true,
   /** Sized to sit inside a section of a page rather than to be the page. */
   compact,
+  /**
+   * 'lyne' when the phone may well have signal and it is our side that is not
+   * answering (a server error, an auth outage). "No connection" would send
+   * the person to check a wifi that is working.
+   */
+  cause = 'connection',
 }: {
   onRetry?: () => void;
+  cause?: 'connection' | 'lyne';
   onDarkSurface?: boolean;
   reassure?: boolean;
   compact?: boolean;
@@ -50,16 +57,18 @@ export function OfflineState({
   return (
     <View
       accessibilityRole="summary"
-      accessibilityLabel="You are offline"
+      accessibilityLabel={cause === 'lyne' ? "Can't reach Lyne right now" : 'You are offline'}
       style={{ alignItems: 'center', paddingVertical: compact ? 22 : 40, paddingHorizontal: 20 }}
     >
       <OrbitField onDarkSurface={onDarkSurface} size={compact ? 92 : 132} />
 
       <Text style={{ fontFamily: font.extra, fontSize: compact ? 18 : 24, letterSpacing: -0.8, color: onDarkSurface ? '#fff' : colors.ink, textAlign: 'center', marginTop: compact ? 18 : 26 }}>
-        No connection
+        {cause === 'lyne' ? "Can't reach Lyne right now" : 'No connection'}
       </Text>
       <Text style={{ fontFamily: font.medium, fontSize: compact ? 13 : 14.5, lineHeight: compact ? 18.5 : 21, color: onDarkSurface ? 'rgba(255,255,255,.62)' : colors.muted, textAlign: 'center', marginTop: 10, maxWidth: 300 }}>
-        {reassure
+        {cause === 'lyne'
+          ? "You are still signed in, and anything you have joined is held for you. Try again in a moment."
+          : reassure
           ? 'Live waits need a connection, so they are paused. Anything you have already joined is held for you and will catch up on its own.'
           : 'This needs a connection. It will load as soon as you have one.'}
       </Text>

@@ -10,7 +10,7 @@ import { haptics } from '../../lib/haptics';
 import api from '../../lib/apiClient';
 import { TicketRecord } from '../../lib/mobileData';
 import { useAuth } from '../../hooks/useAuth';
-import { cancelDepartureReminder, registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
+import { cancelDepartureReminder, moveDepartureReminder, registerPushNotifications, scheduleQueueUpdateNotification } from '../../lib/notifications';
 import { endLiveTicket, syncLiveTicket } from '../../lib/liveTicket';
 import { useContentColumn } from '../../lib/stage';
 import { WALLET_PASS_ENABLED } from '../../lib/features';
@@ -174,6 +174,13 @@ export default function TicketScreen() {
     // notification on Android (lib/liveTicket.ts).
     if (liveStatuses.includes(ticket.status)) {
       syncLiveTicket(ticket).catch(() => {});
+      /* "Head out" follows the line while they wait, and stops once they are
+         called: from then on the called alert is the one that counts. */
+      if (ticket.status === 'waiting') {
+        moveDepartureReminder(ticket.id, ticket.estimated_wait_minutes).catch(() => {});
+      } else if (previous.current.status !== ticket.status) {
+        cancelDepartureReminder();
+      }
     } else if (previous.current.status && liveStatuses.includes(previous.current.status)) {
       endLiveTicket(ticket).catch(() => {});
       // The ticket has gone terminal by any route — served, no-showed, swept at

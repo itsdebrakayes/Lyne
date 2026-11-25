@@ -20,13 +20,14 @@ When you add a feature, add its row. When a fix touches a row, re-walk it.
 | What to bring | Service screen, before joining | The service's checklist set by the manager (Readiness) appears before the Join button |
 | Join a line remotely | Service → Join | A ticket with number, place in line and estimated wait; the same ticket appears in the admin Live line within 30 s |
 | Live ticket | Ticket screen, and the Live Activity on iPhone | Place and wait change when staff call the person ahead, without touching the phone |
-| Time to leave | Join a line with location allowed | "Time to head out" arrives at wait minus drive time minus 10 min; `POST /api/travel/drive-time` answers `source: "traffic"` when `MAPBOX_TOKEN` is set (`estimate` otherwise); directions open in Apple/Google Maps/Waze |
+| Time to leave | Join a line with location allowed | "Time to head out" arrives at wait minus drive time minus 10 min, and moves when the wait changes by 2 min or more (serve people ahead in the admin and watch it come forward); it is cancelled once the ticket is called; `POST /api/travel/drive-time` answers `source: "traffic"` when `MAPBOX_TOKEN` is set (`estimate` otherwise); directions open in Apple/Google Maps/Waze |
 | Leave the line | Ticket → Leave | Ticket disappears here and from the admin Live line; reason recorded |
 | Plan your visit / busy times | Branch → Busy times, Plan your visit (premium) | Hour-by-hour bars for the chosen day; free and premium are visibly different |
 | Sessions and bookings | Organisation with a session → Register / Check in | Access code issued; check-in turns it into a ticket in the right line |
 | Line helper | Account → Line helper | A helper can hold a place for someone; the hold shows on both phones |
 | Notifications | Account → Notifications | Called / almost-your-turn alerts arrive; the opt-in switches persist after relaunch |
 | Offline banner | Turn off Wi-Fi and data | Banner appears; it clears within ~5 s of the connection returning |
+| Lyne unreachable at launch | Signed in, wait over an hour, then reopen with the API or Supabase auth down (or blocked) | "Can't reach Lyne right now" with Try again, never the Sign in form; Home loads by itself once the server answers |
 | Account deletion | Account → Privacy & Security → Delete | Account and sign-in removed; signing in again is refused (App Store 5.1.1(v)) |
 | Update notice | Older app version than API's `APP_*_MINIMUM` | Required update blocks the app; optional one hides itself |
 
